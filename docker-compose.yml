@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  web:
+    build: ./app
+    ports:
+      - '8000:8000'
+    env_file:
+      - ./.env.db_auth.dev
+      - ./.env.app.dev
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+        - ./app:/app
+    depends_on:
+      - db
+  db:
+    image: postgis/postgis:14-master
+    platform: linux/amd64
+    volumes:
+      - ./import_data:/usr/src/import_data
+    env_file:
+      - ./.env.db_auth.dev
+      - ./.env.db.dev
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
