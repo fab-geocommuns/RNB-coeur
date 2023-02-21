@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
     'batid'
 ]
 
@@ -82,6 +83,17 @@ DATABASES = {
         'PASSWORD': os.environ.get('SQL_PASSWORD'),
         'HOST': os.environ.get('SQL_HOST'),
         'PORT': os.environ.get('SQL_PORT')
+    },
+    'bdnb': {
+        'ENGINE': os.environ.get('SQL_ENGINE'),
+        'NAME': os.environ.get('SQL_NAME'),
+        'USER': os.environ.get('SQL_USER'),
+        'PASSWORD': os.environ.get('SQL_PASSWORD'),
+        'HOST': os.environ.get('SQL_HOST'),
+        'PORT': os.environ.get('SQL_PORT'),
+        'OPTIONS': {
+            'options': '-c search_path=bdnb_v072_open_data,public'
+        },
     }
 }
 

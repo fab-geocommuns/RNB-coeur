@@ -17,6 +17,7 @@ services:
     image: postgis/postgis:14-master
     platform: linux/amd64
     volumes:
+      - postgres_data:/var/lib/postgresql/data
       - ./import_data:/usr/src/import_data
     env_file:
       - ./.env.db_auth.dev
