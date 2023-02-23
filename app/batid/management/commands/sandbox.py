@@ -1,13 +1,32 @@
+from pprint import pprint
+
 from django.core.management.base import BaseCommand
-from django.db import connections
+from batid.logic.building import generate_id
 
 class Command(BaseCommand):
 
 
     def handle(self, *args, **options):
 
-        with connections['bdnb'].cursor() as cursor:
+        ids = []
+        for i in range(23_000_000):
 
-            cursor.execute("SELECT * FROM batiment_construction LIMIT 10")
-            rows = cursor.fetchall()
-            print(rows)
+            id = generate_id()
+            ids.append(id)
+
+
+        unique_ids = set(ids)
+
+        self.stdout.write(self.style.SUCCESS(f'Generated {len(ids)} ids'))
+        self.stdout.write(self.style.SUCCESS(f'Unique ids: {len(unique_ids)}'))
+
+
+
+
+
+
+
+
+
+
+

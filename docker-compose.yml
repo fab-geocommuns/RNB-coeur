@@ -11,6 +11,7 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
         - ./app:/app
+        - ./import_data:/usr/src/import_data
     depends_on:
       - db
   db:
