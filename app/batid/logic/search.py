@@ -1,4 +1,7 @@
+from pprint import pprint
+
 from batid.utils.misc import is_float
+from batid.models import Building
 from django.contrib.gis.geos import Polygon
 
 class BuildingSearch:
@@ -6,6 +9,26 @@ class BuildingSearch:
     def __init__(self, **kwargs):
 
         self.params = self.BuildingSearchParams(**kwargs)
+        self.qs = None
+
+    def get_queryset(self):
+
+        # Init
+        queryset = Building.objects.all()
+
+        # Add filters
+        if self.params.bb:
+            queryset = queryset.filter(point__intersects=self.params.bb)
+
+        return queryset
+
+
+    def is_valid(self):
+        return self.params.is_valid()
+
+    @property
+    def errors(self):
+        return self.params.errors
 
 
     class BuildingSearchParams:
@@ -40,6 +63,12 @@ class BuildingSearch:
             # todo : self.set_ban_id_str(kwargs.get('ban_id', None))
             self.set_sort_str(kwargs.get('sort', self.SORT_DEFAULT))
 
+        @property
+        def errors(self):
+            return self.__errors
+
+        def is_valid(self) -> bool:
+            return len(self.__errors) == 0
 
         def set_sort_str(self, sort_str: str) -> None:
 
@@ -56,6 +85,10 @@ class BuildingSearch:
 
         def set_bb_str(self, bb_str: str) -> None:
 
+            print('---------')
+            print(bb_str)
+            print('---------')
+
             if self.__validate_bb_str(bb_str):
                 self.bb = self.__convert_bb_str(bb_str)
 
@@ -70,6 +103,8 @@ class BuildingSearch:
 
 
         def __validate_bb_str(self, bb_str: str) -> bool:
+
+
 
             format_msg = "bb : bounding box parameter must be a string of 4 floats separated by a dash"
 
