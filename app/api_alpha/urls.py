@@ -1,5 +1,5 @@
 from django.urls import path, include
-from batid.views import BuildingViewSet
+from api_alpha.views import BuildingViewSet
 from rest_framework import routers
 
 
