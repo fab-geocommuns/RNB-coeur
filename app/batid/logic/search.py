@@ -14,7 +14,7 @@ class BuildingSearch:
     def get_queryset(self):
 
         # Init
-        queryset = Building.objects.all()
+        queryset = Building.objects.prefetch_related('addresses').all()
 
         # Add filters
         if self.params.bb:
