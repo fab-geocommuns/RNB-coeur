@@ -3,7 +3,7 @@ from rest_framework import viewsets
 from rest_framework.viewsets import ReadOnlyModelViewSet
 from rest_framework.exceptions import ParseError
 from batid.models import Building
-from batid.serializers import BuildingSerializer
+from api_alpha.serializers import BuildingSerializer
 from batid.logic.search import BuildingSearch
 from rest_framework.pagination import PageNumberPagination
 

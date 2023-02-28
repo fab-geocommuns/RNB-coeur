@@ -9,10 +9,10 @@ class AddressSerializer(serializers.ModelSerializer):
 
 class BuildingSerializer(serializers.ModelSerializer):
 
-    point = serializers.CharField(source='point_geojson')
+
+    point = serializers.DictField(source='point_geojson')
     addresses = AddressSerializer(many=True, read_only=True)
 
     class Meta:
         model = Building
         fields = ['rnb_id', 'source', 'point', 'addresses']
-
