@@ -17,6 +17,9 @@ class Building(models.Model):
         # We are doing points > dict > json str > dict. It is inefficient.
         return json.loads(self.point.geojson)
 
+    class Meta:
+        ordering = ['rnb_id']
+
 class Address(models.Model):
 
     id = models.CharField(max_length=40, primary_key=True)
