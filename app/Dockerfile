@@ -14,15 +14,19 @@ ENV PYTHONUNBUFFERED=1
 RUN apt-get update
 RUN apt-get install --yes libgdal-dev
 
-RUN mkdir /app/data/buffers
+RUN mkdir -p /app/data/buffers
 
-RUN chown -R app:app $HOME
+
 
 RUN pip install --upgrade pip
 COPY ./requirements.txt .
 RUN pip install -r requirements.txt
 
+COPY . .
+
+RUN chown -R app:app $HOME
+
 USER app
 
-COPY . .
+
 
