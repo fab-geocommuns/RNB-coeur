@@ -18,8 +18,7 @@ services:
       - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=rnb-api.donatello.dev
   db:
-    image: postgis/postgis:14-master
-    platform: linux/amd64
+    build: ./postegresql
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./import_data:/usr/src/import_data

@@ -3,6 +3,8 @@ FROM python:3.10
 ENV HOME=/app
 
 RUN mkdir -p $HOME
+RUN mkdir -p /tmp/buffers
+
 
 WORKDIR $HOME
 
