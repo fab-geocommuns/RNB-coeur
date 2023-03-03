@@ -10,7 +10,7 @@ services:
     volumes:
       - ./app:/app
       - ./import_data:/usr/src/import_data
-      - buffers:/tmp/buffers
+      - buffers:/tmp/buffers:z
     depends_on:
       - db
     environment:
@@ -22,7 +22,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./import_data:/usr/src/import_data
-      - buffers:/tmp/buffers
+      - buffers:/tmp/buffers:z
     env_file:
       - ./.env.db_auth.prod
       - ./.env.db.prod
