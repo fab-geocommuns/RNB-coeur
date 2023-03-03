@@ -1,16 +1,32 @@
 services:
   web:
+    build: ./app
+    ports:
+      - '8000:8000'
     env_file:
       - ./.env.db_auth.prod
       - ./.env.app.prod
+    command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - ./app:/app
+      - ./import_data:/usr/src/import_data
+    depends_on:
+      - db
     environment:
       - VIRTUAL_HOST=rnb-api.donatello.dev
       - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=rnb-api.donatello.dev
   db:
+    image: postgis/postgis:14-master
+    platform: linux/amd64
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./import_data:/usr/src/import_data
     env_file:
       - ./.env.db_auth.prod
       - ./.env.db.prod
+    ports:
+      - "5432:5432"
   nginx-proxy:
     container_name: nginx-proxy
     build: ./nginx
