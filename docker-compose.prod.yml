@@ -1,0 +1,48 @@
+services:
+  web:
+    env_file:
+      - ./.env.db_auth.prod
+      - ./.env.app.prod
+    environment:
+      - VIRTUAL_HOST=rnb-api.donatello.dev
+      - VIRTUAL_PORT=8000
+      - LETSENCRYPT_HOST=rnb-api.donatello.dev
+  db:
+    env_file:
+      - ./.env.db_auth.prod
+      - ./.env.db.prod
+  nginx-proxy:
+    container_name: nginx-proxy
+    build: ./nginx
+    restart: unless-stopped
+    ports:
+      - 443:443
+      - 80:80
+    depends_on:
+      - web
+    volumes:
+      - certs:/etc/nginx/certs
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+  nginx-letsencrypt:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    restart: unless-stopped
+    env_file:
+      - ./.env.nginx-encrypt.prod
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - certs:/etc/nginx/certs
+      - html:/usr/share/nginx/html
+      - vhost:/etc/nginx/vhost.d
+      - acme:/etc/acme.sh
+    depends_on:
+      - nginx-proxy
+
+volumes:
+  postgres_data:
+  certs:
+  vhost:
+  acme:
+  html:
+  import_data:
