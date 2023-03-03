@@ -30,6 +30,8 @@ CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS").split(" ")
 
 CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(" ")
 
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -76,6 +78,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'app.wsgi.application'
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
