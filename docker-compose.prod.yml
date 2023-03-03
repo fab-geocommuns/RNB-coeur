@@ -9,8 +9,7 @@ services:
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - ./app:/app
-      - ./import_data:/usr/src/import_data
-      - buffers:/tmp/buffers
+      - ./import_data:/app/import_data
     depends_on:
       - db
     environment:
@@ -21,8 +20,7 @@ services:
     build: ./postegresql
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./import_data:/usr/src/import_data
-      - buffers:/tmp/buffers
+      - ./import_data:/app/import_data
     env_file:
       - ./.env.db_auth.prod
       - ./.env.db.prod
