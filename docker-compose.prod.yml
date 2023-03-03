@@ -14,8 +14,8 @@ services:
     depends_on:
       - db
     environment:
-      # - VIRTUAL_HOST=rnb-api.donatello.dev
-      # - VIRTUAL_PORT=8000
+      - VIRTUAL_HOST=rnb-api.donatello.dev
+      - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=rnb-api.donatello.dev
   db:
     image: postgis/postgis:14-master
