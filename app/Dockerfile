@@ -9,6 +9,8 @@ ENV PYTHONUNBUFFERED=1
 RUN apt-get update
 RUN apt-get install --yes libgdal-dev
 
+RUN mkdir /usr/src/buffers
+
 RUN pip install --upgrade pip
 COPY ./requirements.txt .
 RUN pip install -r requirements.txt
