@@ -61,5 +61,3 @@ volumes:
   vhost:
   acme:
   html:
-  import_data:
-  buffers:
