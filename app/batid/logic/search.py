@@ -85,10 +85,6 @@ class BuildingSearch:
 
         def set_bb_str(self, bb_str: str) -> None:
 
-            print('---------')
-            print(bb_str)
-            print('---------')
-
             if self.__validate_bb_str(bb_str):
                 self.bb = self.__convert_bb_str(bb_str)
 
