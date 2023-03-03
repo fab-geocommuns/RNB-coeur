@@ -4,7 +4,8 @@ services:
     restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./import_data:/home/app/data
+      - ./import_data:/home/app/import_data
+      - batid_buffers:/home/app/buffers
     env_file:
       - ./.env.db_auth.prod
       - ./.env.db.prod
@@ -21,7 +22,8 @@ services:
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - ./app:/app
-      - ./import_data:/home/app/data
+      - ./import_data:/home/app/import_data
+      - batid_buffers:/home/app/buffers
     depends_on:
       - db
     environment:

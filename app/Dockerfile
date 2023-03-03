@@ -3,6 +3,7 @@ FROM python:3.10
 ENV HOME=/home/app
 
 RUN mkdir -p $HOME
+RUN mkdir -p $HOME/buffers
 # RUN mkdir -p $HOME/import_data
 RUN adduser --system --group app
 
