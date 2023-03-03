@@ -28,6 +28,7 @@ services:
       - ./.env.db.prod
     ports:
       - "5432:5432"
+    user: root
   nginx-proxy:
     container_name: nginx-proxy
     build: ./nginx
