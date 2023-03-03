@@ -1,3 +1,4 @@
+import os
 from pprint import pprint
 
 from django.core.management.base import BaseCommand
@@ -10,24 +11,12 @@ class Command(BaseCommand):
 
         # Building.objects.all().delete()
 
-        with connections['bdnb'].cursor() as cursor:
+        buffer_folder = os.environ.get('BUFFER_PATH')
 
-            params = {
-                'csv_path': self.csv_address_path,
-                'csv_separator': self.csv_separator
-            }
+        path = f"{buffer_folder}/test.csv"
 
-            cursor.execute( "COPY ("
-                            "SELECT numero as street_number, "
-                            "rep as street_rep, "
-                            "nom_voie as street_name, "
-                            "type_voie as street_type, "
-                            "libelle_commune as city_name, "
-                            "code_postal as city_zipcode, "
-                            "source "
-                            "FROM adresse "
-                            ") TO %(csv_path)s WITH DELIMITER %(csv_separator)s CSV HEADER",
-                            params)
+        with open(path, 'w') as creating_new_csv_file:
+            pass
 
 
 
