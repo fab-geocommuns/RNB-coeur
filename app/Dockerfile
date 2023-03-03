@@ -28,5 +28,7 @@ RUN chown -R app:app $HOME
 
 USER app
 
+RUN chmod 775 $HOME
+
 
 
