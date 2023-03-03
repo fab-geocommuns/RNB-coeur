@@ -1,8 +1,10 @@
 FROM python:3.10
 
-ENV HOME=/app
+ENV HOME=/home/app
 
 RUN mkdir -p $HOME
+# RUN mkdir -p $HOME/import_data
+RUN adduser --system --group app
 
 WORKDIR $HOME
 
@@ -17,4 +19,9 @@ RUN pip install --upgrade pip
 COPY ./requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY . .
+COPY . $HOME
+
+RUN chown -R app:app $HOME
+
+# change to the app user
+USER app

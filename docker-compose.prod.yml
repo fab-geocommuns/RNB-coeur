@@ -1,4 +1,15 @@
 services:
+  db:
+    image: postgis/postgis:14-master
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./import_data:/home/app/data
+    env_file:
+      - ./.env.db_auth.prod
+      - ./.env.db.prod
+    ports:
+      - "5432:5432"
   web:
     build: ./app
     restart: unless-stopped
@@ -10,25 +21,13 @@ services:
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - ./app:/app
-      - ./import_data:/app/import_data
+      - ./import_data:/home/app/data
     depends_on:
       - db
     environment:
       - VIRTUAL_HOST=rnb-api.donatello.dev
       - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=rnb-api.donatello.dev
-  db:
-    build: ./postegresql
-    restart: unless-stopped
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./import_data:/app/import_data
-    env_file:
-      - ./.env.db_auth.prod
-      - ./.env.db.prod
-    ports:
-      - "5432:5432"
-    user: root
   nginx-proxy:
     container_name: nginx-proxy
     build: ./nginx
@@ -58,7 +57,7 @@ services:
       - nginx-proxy
 
 volumes:
-  postgres_data:
+  batid_buffers:
   certs:
   vhost:
   acme:
