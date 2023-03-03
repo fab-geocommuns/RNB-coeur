@@ -58,6 +58,7 @@ services:
 
 volumes:
   batid_buffers:
+  postgres_data:
   certs:
   vhost:
   acme:
