@@ -10,6 +10,7 @@ services:
     volumes:
       - ./app:/app
       - ./import_data:/usr/src/import_data
+      - buffers:/usr/src/buffers
     depends_on:
       - db
     environment:
@@ -22,6 +23,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./import_data:/usr/src/import_data
+      - buffers:/usr/src/buffers
     env_file:
       - ./.env.db_auth.prod
       - ./.env.db.prod
@@ -62,3 +64,4 @@ volumes:
   acme:
   html:
   import_data:
+  buffers:

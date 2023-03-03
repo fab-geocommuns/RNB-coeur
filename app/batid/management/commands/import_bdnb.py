@@ -8,10 +8,10 @@ from batid.logic.building import generate_id
 
 class Command(BaseCommand):
 
-    import_folder = os.environ.get('IMPORT_PATH')
-    csv_building_path = f"{import_folder}/bdnb-building.csv"
-    csv_address_path = f"{import_folder}/bdnb-address.csv"
-    csv_bdg_addr_rel_path = f"{import_folder}/bdnb-bdg-addr-rel.csv"
+    buffer_folder = os.environ.get('BUFFER_PATH')
+    csv_building_path = f"{buffer_folder}/bdnb-building.csv"
+    csv_address_path = f"{buffer_folder}/bdnb-address.csv"
+    csv_bdg_addr_rel_path = f"{buffer_folder}/bdnb-bdg-addr-rel.csv"
 
     bdg_addr_tmp_table = "bdg_addr_tmp"
 
