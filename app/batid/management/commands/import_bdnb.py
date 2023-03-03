@@ -21,17 +21,17 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
 
 
-        # self.__import_addresses()
-        # self.__import_buildings()
+        self.__import_addresses()
+        self.__import_buildings()
         self.__import_bdg_addr_rels()
 
     def __import_bdg_addr_rels(self):
 
-        # self.__remove_bdg_addr_rels_csv() # todo : remettre
-        # self.__bdg_addr_rels_to_csv()
+        self.__remove_bdg_addr_rels_csv() # todo : remettre
+        self.__bdg_addr_rels_to_csv()
         self.__bdg_addr_rels_csv_to_tmp() # todo
-        # self.__bdg_addr_rels_tmp_to_batid() # todo
-        # self.__remove_bdg_addr_rels_csv()  # todo : remettre
+        self.__bdg_addr_rels_tmp_to_batid() # todo
+        self.__remove_bdg_addr_rels_csv()  # todo : remettre
 
 
     def __bdg_addr_rels_csv_to_tmp(self):
