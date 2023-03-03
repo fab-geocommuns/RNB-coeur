@@ -9,7 +9,6 @@ services:
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - ./app:/app
-      - static:/app/static
       - ./import_data:/usr/src/import_data
     depends_on:
       - db
@@ -42,7 +41,6 @@ services:
       - vhost:/etc/nginx/vhost.d
       - html:/usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
-      - static:/static
   nginx-letsencrypt:
     image: jrcs/letsencrypt-nginx-proxy-companion
     restart: unless-stopped
@@ -64,4 +62,3 @@ volumes:
   acme:
   html:
   import_data:
-  static:
