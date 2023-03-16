@@ -30,8 +30,6 @@ CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS").split(" ")
 
 CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(" ")
 
-
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -44,7 +42,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'batid',
-    'api_alpha'
+    'api_alpha',
+    'xp'
 ]
 
 MIDDLEWARE = [
@@ -94,7 +93,7 @@ DATABASES = {
         'HOST': os.environ.get('SQL_HOST'),
         'PORT': os.environ.get('SQL_PORT')
     },
-    'bdnb': {
+    'all': {
         'ENGINE': os.environ.get('SQL_ENGINE'),
         'NAME': os.environ.get('SQL_NAME'),
         'USER': os.environ.get('SQL_USER'),
@@ -102,7 +101,7 @@ DATABASES = {
         'HOST': os.environ.get('SQL_HOST'),
         'PORT': os.environ.get('SQL_PORT'),
         'OPTIONS': {
-            'options': '-c search_path=bdnb_v072_open_data,public'
+            'options': '-c search_path=staging,public'
         },
     }
 }
@@ -150,3 +149,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
 STATIC_URL = '/static/'
+
+
+# Bat ID custom settings
+
+SOURCE_DIR = os.environ.get("SOURCE_DIR")
+DEFAULT_SRID = 2154 # 2154 = Lambert 93
+MIN_BDG_AREA = 5 # Minimum area of a building in m2
+

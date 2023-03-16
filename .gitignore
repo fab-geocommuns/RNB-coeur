@@ -8,7 +8,7 @@
 .env.nginx-encrypt.prod
 
 # Remove files in data folder since they are used for importing default data
-import_data/
+source_data/
 
 # Virtual environment
 venv/

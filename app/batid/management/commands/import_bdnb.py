@@ -20,7 +20,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
 
-
         self.__import_addresses()
         self.__import_buildings()
         self.__import_bdg_addr_rels()
