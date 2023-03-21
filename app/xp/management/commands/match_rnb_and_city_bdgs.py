@@ -44,13 +44,85 @@ class Command(SuperCommand):
 
         self.__compare_city_rnb()
 
+        self.__export_back()
+
+
+    def __export_back(self):
+
+        rnb_covers = {}
+
+        covers_count = {}
+
+        for idx, feature in enumerate(self.city_bdgs):
+
+            rnb_ids = feature['properties'].get('rnb_ids', [])
+
+            # Create the inverse cover count
+            for rnb_id in rnb_ids:
+                if rnb_id not in rnb_covers:
+                    rnb_covers[rnb_id] = []
+                rnb_covers[rnb_id].append(feature['properties']['BATIM_ID'])
+
+            # Clean up the feature
+            del self.city_bdgs[idx]['properties']['geom']
+            del self.city_bdgs[idx]['properties']['area']
+
+
+        for idx, feature in enumerate(self.city_bdgs):
+
+            rnb_ids = feature['properties'].get('rnb_ids', [])
+
+            if len(rnb_ids) == 0:
+                cover_type = "no_match"
+
+            elif len(rnb_ids) == 1:
+
+                rnb_id = rnb_ids[0]
+
+                if len(rnb_covers[rnb_id]) == 1:
+                    cover_type = "one_rnb_one_grenoble"
+                elif len(rnb_covers[rnb_id]) > 1:
+                    cover_type = "one_rnb_many_grenoble"
+
+            elif len(rnb_ids) > 1:
+
+                for rnb_id in rnb_ids:
+                    if len(rnb_covers[rnb_id]) == 1:
+                        cover_type = "many_rnb_one_grenoble"
+                    elif len(rnb_covers[rnb_id]) > 1:
+                        cover_type = "many_rnb_many_grenoble"
+                        break
+
+            self.city_bdgs[idx]['properties']['match_type'] = cover_type
+
+
+            covers_count[cover_type] = covers_count.get(cover_type, 0) + 1
+
+            source = Source('xp-grenoble-export')
+
+        f_collection = {
+            "type": "FeatureCollection",
+            "features": self.city_bdgs
+        }
+
+        with open(source.path, "w") as f:
+            json.dump(f_collection, f)
+
+        pprint(covers_count)
+
+
+
+
+
+
+
+
+
 
 
     def __compare_city_rnb(self):
 
         with connections['default'].cursor() as cursor:
-
-
 
             # Requêtes de match
             q = "SELECT b.rnb_id as rnb_id " \
@@ -62,21 +134,13 @@ class Command(SuperCommand):
                 "OR ST_HausdorffDistance(b.shape, %(geom)s) <= %(max_hausdorff)s" \
                 ")" \
 
-            # Experimentation
-            # q = "SELECT b.rnb_id as rnb_id " \
-            #     "FROM batid_building b " \
-            #     "WHERE ST_Intersects(b.shape, %(geom)s) " \
-            #     "AND (" \
-            #     "ST_Area(ST_Intersection(b.shape, %(geom)s)) / %(f_area)s >= %(min_cover_ratio)s " \
-            #     "OR ST_Area(ST_Intersection(b.shape, %(geom)s)) / ST_Area(b.shape) >= %(min_cover_ratio)s " \
-            #     "OR ST_HausdorffDistance(b.shape, %(geom)s) <= %(max_hausdorff)s" \
-            #     ")" \
-
-
+            # liste des batiments RNB qui recouvrent le bâtiment de la ville
 
             stats = []
 
             print('-- matching')
+
+            rnb_covers = {}
 
             for idx, feature in enumerate(self.city_bdgs):
 
@@ -94,6 +158,9 @@ class Command(SuperCommand):
 
 
                 res = dictfetchall(cursor, q, params)
+
+                rnb_ids = [r['rnb_id'] for r in res]
+                self.city_bdgs[idx]['properties']['rnb_ids'] = rnb_ids
 
 
                 # Analyze

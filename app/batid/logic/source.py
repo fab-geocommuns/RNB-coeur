@@ -29,6 +29,14 @@ class Source:
         },
         'xp-grenoble': {
             'filename': 'bati-grenoble.geojson'
+        },
+        'xp-grenoble-export': {
+            'folder': 'xp-grenoble',
+            'filename': 'match-rnb-grenoble.geojson'
+        },
+        'xp-grenoble-export_rnb': {
+            'folder': 'xp-grenoble',
+            'filename': 'rnb.geojson'
         }
 
     }
