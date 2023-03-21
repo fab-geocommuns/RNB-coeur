@@ -1,4 +1,5 @@
 import os
+import tarfile
 from urllib.parse import urlparse
 import py7zr
 
@@ -26,6 +27,9 @@ class Source:
             'url': 'https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_224$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15.7z',
             'filename': 'BATIMENT.shp',
         },
+        'bdnb_7': {
+            'url': 'https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_gpkg.tar.gz'
+        },
         'bdtopo_buffer': {
             'folder': 'bdtopo',
             'filename': 'bdgs.csv',
@@ -44,15 +48,20 @@ class Source:
 
     }
 
+    # Must be prefixed with a dot
     archive_exts = [
         '.7z',
-        '.gz'
+        '.tar.gz'
     ]
 
-    def __init__(self, name):
+    def __init__(self, name, custom_ref=None):
 
         self.name = name
-        self.ref = self.refs[name]
+
+        if isinstance(custom_ref, dict):
+            self.ref = custom_ref
+        else:
+            self.ref = self.refs[name]
 
     def set_param(self, p_key, p_val):
 
@@ -63,7 +72,6 @@ class Source:
     @property
     def abs_dir(self):
         return f"{self._source_dir}/{self.folder}/"
-
 
     @property
     def dl_path(self):
@@ -80,8 +88,6 @@ class Source:
     @property
     def path(self) -> str:
         return f"{self.abs_dir}{self.filename}"
-
-
 
     @property
     def folder(self) -> str:
@@ -102,7 +108,12 @@ class Source:
     def url(self):
         return self.ref['url']
 
+    def create_abs_dir(self):
+        os.makedirs(self.abs_dir, exist_ok=True)
+
     def download(self):
+
+        self.create_abs_dir()
 
         # open in binary mode
         with open(self.dl_path, "wb") as file:
@@ -112,9 +123,6 @@ class Source:
 
             # write to file
             file.write(response.content)
-
-
-
 
 
     @property
@@ -141,30 +149,34 @@ class Source:
     def uncompress_abs_dir(self):
         return f"{self.abs_dir}{self.uncompress_folder}/"
 
-
-
     def uncompress(self):
 
         if not self.is_archive:
             return
 
-        # if not os.path.exists(self.uncompress_abs_dir):
-        #     os.makedirs(self.uncompress_abs_dir)
-
         if self.dl_filename.endswith('.7z'):
             self.uncompress_7z()
 
+        if self.dl_filename.endswith('.tar.gz'):
+            self.uncompress_tar_gz()
 
-        self.delete_archive()
-
-    def delete_archive(self):
-
-        os.remove(self.dl_path)
+        self.remove_archive()
 
     def uncompress_7z(self):
 
         with py7zr.SevenZipFile(self.dl_path, 'r') as archive:
             archive.extractall(self.abs_dir)
+
+    def uncompress_tar_gz(self):
+
+        with tarfile.open(self.dl_path, "r:gz") as tar:
+            tar.extractall(self.uncompress_abs_dir)
+
+    def remove_archive(self):
+
+        os.remove(self.dl_path)
+
+
 
 
 
