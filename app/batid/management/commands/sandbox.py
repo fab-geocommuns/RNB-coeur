@@ -18,33 +18,7 @@ class Command(BaseCommand):
 
         # Candidate.objects.all().delete()
 
-        vals = [
-            {
-                'hd': 2,
-                'cover': .75
-            },
-            {
-                'hd': 1.45,
-                'cover': .98
-            },
-            {
-                'hd': 3.45,
-                'cover': .98
-            },
-            {
-                'hd': 3.45,
-                'cover': .99
-            },
-            {
-                'hd': 2,
-                'cover': .99
-            }
 
-        ]
-
-        df = pd.DataFrame(vals)
-
-        print(df['hd'].value_counts(normalize=True).sort_values())
 
 
 
