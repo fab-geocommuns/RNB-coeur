@@ -15,25 +15,18 @@ class Source:
             'folder': 'bdnb_7',
             'filename': 'buffer.csv',
         },
-        'bdnb_7_bdg': {
-            'folder': 'bdnb_7',
-            'filename': 'batiment_construction.csv',
-        },
-        'bdnb_7_rel_address': {
-            'folder': 'bdnb_7',
-            'filename': 'rel_batiment_groupe_adresse.csv',
-        },
+
         'bdtopo': {
             'url': 'https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_224$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15.7z',
             'filename': 'BATIMENT.shp',
         },
         'bdnb_7': {
-            'url': 'https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_gpkg.tar.gz'
+            'url': 'https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz',
         },
-        'bdtopo_buffer': {
-            'folder': 'bdtopo',
-            'filename': 'bdgs.csv',
-        },
+        # 'bdtopo_buffer': {
+        #     'folder': 'bdtopo',
+        #     'filename': 'bdgs.csv',
+        # },
         'xp-grenoble': {
             'filename': 'bati-grenoble.geojson'
         },
@@ -175,6 +168,14 @@ class Source:
     def remove_archive(self):
 
         os.remove(self.dl_path)
+
+    def find(self, filename):
+
+        for root, dirs, files in os.walk(self.abs_dir):
+            if filename in files:
+                return f"{root}/{filename}"
+
+        return None
 
 
 

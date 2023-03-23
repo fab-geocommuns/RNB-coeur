@@ -17,12 +17,15 @@ from django.conf import settings
 
 class Command(BaseCommand):
 
+    def add_arguments(self, parser):
+        parser.add_argument('dpt', type=str)
+
     def handle(self, *args, **options):
 
-        source = Source('bdtopo')
+        src = Source('bdtopo')
+        src.set_param('dpt', options['dpt'])
 
-
-        with fiona.open(source.path) as f:
+        with fiona.open(src.find(src.filename)) as f:
 
             bdgs = []
             c = 0
@@ -50,15 +53,20 @@ class Command(BaseCommand):
                 }
                 bdgs.append(bdg)
 
-            buffer_source = Source('bdtopo_buffer')
+            buffer_src = Source('buffer', {
+                'folder': 'bdtopo',
+                'filename': 'bdgs-{{dpt}}.csv',
+            })
+            buffer_src.set_param('dpt', options['dpt'])
+
             cols = bdgs[0].keys()
 
-            with open(buffer_source.path, 'w') as f:
+            with open(buffer_src.path, 'w') as f:
                 print("-- writing buffer file --")
                 writer = csv.DictWriter(f, delimiter=';', fieldnames=cols)
                 writer.writerows(bdgs)
 
-            with open(buffer_source.path, 'r') as f, connections['default'].cursor() as cursor:
+            with open(buffer_src.path, 'r') as f, connections['default'].cursor() as cursor:
                 print("-- transfer buffer to db --")
                 cursor.copy_from(f, 'batid_candidate', sep=';', columns=cols)
 
