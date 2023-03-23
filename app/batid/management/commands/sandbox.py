@@ -10,6 +10,7 @@ from batid.models import Candidate
 import pandas as pd
 from batid.logic.source import Source
 from app.celery import app as celery_app
+from celery import chain, Signature
 
 
 class Command(BaseCommand):
@@ -21,8 +22,14 @@ class Command(BaseCommand):
         # print(celery_app)
 
         print('send task')
-        task = celery_app.send_task('tasks.add', args=[2, 2], kwargs={})
-        print(task.get())
+
+        res = chain(
+            Signature('tasks.add', args=[1, 2]), Signature('tasks.add', args=[8,4], immutable=True))()
+        print(res.get())
+
+
+        # task = celery_app.send_task('tasks.chain_task', args=[3, 6])
+        # print(task.get())
 
         # celery_app.control.purge()
 
