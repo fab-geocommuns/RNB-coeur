@@ -1,15 +1,4 @@
 services:
-  db:
-    image: postgis/postgis:14-master
-    restart: unless-stopped
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./source_data:/home/app/source_data
-    env_file:
-      - ./.env.db_auth.prod
-      - ./.env.db.prod
-    ports:
-      - "5432:5432"
   web:
     build: ./app
     restart: unless-stopped
