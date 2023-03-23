@@ -150,6 +150,9 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
+CELERY_BACKEND_URL = os.environ.get("CELERY_RESULT_BACKEND")
+
 
 # Bat ID custom settings
 

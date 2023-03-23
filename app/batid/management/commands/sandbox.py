@@ -9,6 +9,8 @@ from django.conf import settings
 from batid.models import Candidate
 import pandas as pd
 from batid.logic.source import Source
+from app.celery import app as celery_app
+
 
 class Command(BaseCommand):
 
@@ -16,12 +18,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
 
-        src = Source('bdnb_7')
+        # print(celery_app)
 
-        # p = src.find('BATIMENT.shp')
+        print('send task')
+        task = celery_app.send_task('tasks.add', args=[2, 2], kwargs={})
+        print(task.get())
 
-
-        print(p)
+        # celery_app.control.purge()
 
 
 
