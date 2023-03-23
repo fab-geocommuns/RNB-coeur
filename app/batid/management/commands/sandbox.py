@@ -8,7 +8,7 @@ from django.db import connections
 from django.conf import settings
 from batid.models import Candidate
 import pandas as pd
-
+from batid.logic.source import Source
 
 class Command(BaseCommand):
 
@@ -16,7 +16,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
 
-        # Candidate.objects.all().delete()
+        src = Source('bdnb_7')
+
+        # p = src.find('BATIMENT.shp')
+
+
+        print(p)
 
 
 

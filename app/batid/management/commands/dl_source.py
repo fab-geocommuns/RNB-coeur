@@ -27,8 +27,7 @@ class Command(BaseCommand):
 
     def download(self):
 
-
-        # self.src.download()
+        self.src.download()
         self.src.uncompress()
 
     def unzip(self):
