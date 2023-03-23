@@ -11,8 +11,6 @@ services:
     volumes:
       - ./app:/app
       - ./source_data:/home/app/source_data
-    depends_on:
-      - db
     environment:
       - VIRTUAL_HOST=rnb-api.donatello.dev
       - VIRTUAL_PORT=8000
@@ -47,7 +45,6 @@ services:
 
 volumes:
   batid_buffers:
-  postgres_data:
   certs:
   vhost:
   acme:
