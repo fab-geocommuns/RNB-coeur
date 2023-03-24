@@ -155,6 +155,6 @@ CELERY_BACKEND_URL = os.environ.get("CELERY_RESULT_BACKEND")
 
 
 # Bat ID custom settings
-DEFAULT_SRID = 2154 # 2154 = Lambert 93
-MIN_BDG_AREA = 5 # Minimum area of a building in m2
+DEFAULT_SRID = os.environ.get("DEFAULT_SRID") # 2154 = Lambert 93
+
 

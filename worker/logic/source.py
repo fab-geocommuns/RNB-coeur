@@ -168,7 +168,11 @@ class Source:
 
     def find(self, filename):
 
-        for root, dirs, files in os.walk(self.abs_dir):
+        root_dir = self.abs_dir
+        if self.is_archive:
+            root_dir = self.uncompress_abs_dir
+
+        for root, dirs, files in os.walk(root_dir):
             if filename in files:
                 return f"{root}/{filename}"
 

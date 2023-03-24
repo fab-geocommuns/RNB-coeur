@@ -28,7 +28,7 @@ class Command(BaseCommand):
         # print(res.get())
 
 
-        task = celery_app.send_task('tasks.dl_source', args=["bdnb_7", "38"])
+        task = celery_app.send_task('tasks.inspect_candidates')
         # print(task.get())
 
         # celery_app.control.purge()

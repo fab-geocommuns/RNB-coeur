@@ -13,6 +13,8 @@ def import_bdnb7(dpt):
 
     groups_addresses = {}
 
+    print(f'## Import BDNB 7 in dpt {dpt}')
+
     with open(src.find('rel_batiment_groupe_adresse.csv'), 'r') as f:
         print('- list addresses')
         reader = csv.DictReader(f, delimiter=',')
