@@ -12,7 +12,6 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
         - ./app:/app
-        - ./source_data:/usr/src/source_data
     depends_on:
       - db
       - rabbitmq
@@ -21,7 +20,6 @@ services:
     platform: linux/amd64
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./source_data:/usr/src/source_data
     env_file:
       - ./.env.db_auth.dev
       - ./.env.db.dev
@@ -32,6 +30,7 @@ services:
     command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A tasks worker --loglevel=INFO
     volumes:
       - ./worker:/worker
+      - ./source_data:/data/downloads
     env_file:
       - ./.env.db_auth.dev
       - ./.env.worker.dev

@@ -1,14 +1,11 @@
 import os
 import tarfile
-from urllib.parse import urlparse
 import py7zr
-
-from django.conf import settings
 import requests
 
 class Source:
 
-    _source_dir = "settings.SOURCE_DIR"
+    _dl_dir = os.environ.get("DOWNLOAD_DIR")
 
     refs = {
         'bdnb_7_buffer': {
@@ -64,7 +61,7 @@ class Source:
 
     @property
     def abs_dir(self):
-        return f"{self._source_dir}/{self.folder}/"
+        return f"{self._dl_dir}/{self.folder}/"
 
     @property
     def dl_path(self):

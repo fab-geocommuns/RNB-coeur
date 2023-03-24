@@ -21,14 +21,14 @@ class Command(BaseCommand):
 
         # print(celery_app)
 
-        print('send task')
+        # print('send task')
 
-        res = chain(
-            Signature('tasks.add', args=[1, 2]), Signature('tasks.add', args=[8,4], immutable=True))()
-        print(res.get())
+        # res = chain(
+        #     Signature('tasks.dl_soure', args=["bdnb_7", "31"]), Signature('tasks.add', args=[8,4], immutable=True))()
+        # print(res.get())
 
 
-        # task = celery_app.send_task('tasks.chain_task', args=[3, 6])
+        task = celery_app.send_task('tasks.dl_source', args=["bdnb_7", "38"])
         # print(task.get())
 
         # celery_app.control.purge()
