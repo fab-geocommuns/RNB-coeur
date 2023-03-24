@@ -9,7 +9,6 @@ class AddressSerializer(serializers.ModelSerializer):
 
 class BuildingSerializer(serializers.ModelSerializer):
 
-
     point = serializers.DictField(source='point_geojson')
     addresses = AddressSerializer(many=True, read_only=True)
 
