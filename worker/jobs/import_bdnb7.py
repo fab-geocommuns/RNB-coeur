@@ -67,5 +67,6 @@ def import_bdnb7(dpt):
             conn.rollback()
             cursor.close()
 
-    #print('- remove buffer')
-    #os.remove(buffer_src.path)
+
+    print('- remove buffer')
+    os.remove(buffer_src.path)

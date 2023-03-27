@@ -1,6 +1,7 @@
 from celery import Celery
 from jobs.dl_source import Downloader
 from jobs.import_bdnb7 import import_bdnb7 as import_bdnb7_job
+from jobs.import_bdtopo import import_bdtopo as import_bdtopo_job
 from jobs.inspect_candidates import Inspector
 import os
 
@@ -18,6 +19,11 @@ def dl_source(src, dpt):
 @app.task
 def import_bdnb7(dpt):
     import_bdnb7_job(dpt)
+    return 'done'\
+
+@app.task
+def import_bdtopo(dpt):
+    import_bdtopo_job(dpt)
     return 'done'
 
 @app.task
