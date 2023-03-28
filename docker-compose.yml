@@ -8,24 +8,49 @@ services:
     env_file:
       - ./.env.db_auth.dev
       - ./.env.app.dev
+      - ./.env.worker.dev
+      - ./.env.rnb.dev
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
         - ./app:/app
-        - ./source_data:/usr/src/source_data
     depends_on:
       - db
+      - rabbitmq
   db:
     image: postgis/postgis:14-master
     platform: linux/amd64
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./source_data:/usr/src/source_data
     env_file:
       - ./.env.db_auth.dev
       - ./.env.db.dev
-
     ports:
       - "5432:5432"
+  worker:
+    build: ./worker
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A tasks worker --loglevel=INFO
+    volumes:
+      - ./worker:/worker
+      - ./source_data:/data/downloads
+    env_file:
+      - ./.env.db_auth.dev
+      - ./.env.worker.dev
+      - ./.env.rnb.dev
+    depends_on:
+      - db
+      - rabbitmq
+    restart: unless-stopped
+  rabbitmq:
+    restart: unless-stopped
+    image: rabbitmq:3.9-alpine
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
 
 volumes:
   postgres_data:
+  rabbitmq_data:

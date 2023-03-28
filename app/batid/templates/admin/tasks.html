@@ -1,0 +1,19 @@
+<!-- extend django admin template -->
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% load static %}
+{% block title %}Worker{% endblock %}
+
+{% block content %}
+    <h1>Tâches</h1>
+    <h2>Actives</h2>
+    <p></p>
+    <ul>
+        {% for task in active_tasks %}
+
+            <li>{{ task.name }} - {{ task.state }}</li>
+        {% endfor %}
+    </ul>
+
+
+{% endblock %}
