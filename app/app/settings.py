@@ -163,6 +163,6 @@ CELERY_BACKEND_URL = os.environ.get("CELERY_RESULT_BACKEND")
 
 
 # Bat ID custom settings
-DEFAULT_SRID = os.environ.get("DEFAULT_SRID") # 2154 = Lambert 93
+DEFAULT_SRID = int(os.environ.get("DEFAULT_SRID")) # 2154 = Lambert 93
 
 
