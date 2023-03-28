@@ -1,10 +1,8 @@
 name: Lint
 
 on:
-  push:
-    branches: [sp3-ci]
   pull_request:
-    branches: [main, develop]
+    branches: [develop]
 
 jobs:
   flake8:
@@ -24,4 +22,4 @@ jobs:
         run: |
           pip install flake8
           flake8 --version
-          flake8 ./app/example_python.py
+          flake8
