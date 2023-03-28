@@ -23,7 +23,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
     env_file:
       - ./.env.db_auth.dev
-      - ./.env.db.dev
     ports:
       - "5432:5432"
   worker:
