@@ -7,6 +7,8 @@ services:
     env_file:
       - ./.env.db_auth.prod
       - ./.env.app.prod
+      - ./.env.rnb.prod
+      - ./.env.worker.prod
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - ./app:/app
