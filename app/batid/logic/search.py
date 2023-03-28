@@ -36,7 +36,7 @@ class BuildingSearch:
         SORT_DEFAULT = 'rnb_id'
         SORT_CHOICES = ['rnb_id', 'distance']
 
-        PARAM_SPLITTER = '-'
+        PARAM_SPLITTER = ','
 
         def __init__(self, **kwargs):
 
@@ -102,7 +102,7 @@ class BuildingSearch:
 
 
 
-            format_msg = "bb : bounding box parameter must be a string of 4 floats separated by a dash"
+            format_msg = "bb : bounding box parameter must be a string of 4 floats separated by a comma"
 
             if not bb_str:
                 return

@@ -8,8 +8,7 @@ from jobs.inspect_candidates import Inspector
 
 def sandbox():
 
-    i = Inspector()
-    i.inspect()
+    pass
 
 
 
