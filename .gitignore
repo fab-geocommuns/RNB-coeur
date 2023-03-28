@@ -1,10 +1,16 @@
 # Secret
+.env.worker.dev
+.env.worker.prod
+
+.env.rnb.dev
+.env.rnb.prod
+
 .env.app.dev
-.env.db.dev
-.env.db_auth.dev
 .env.app.prod
-.env.db.prod
+
+.env.db_auth.dev
 .env.db_auth.prod
+
 .env.nginx-encrypt.prod
 
 # Remove files in data folder since they are used for importing default data
