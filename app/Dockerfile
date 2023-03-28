@@ -14,4 +14,6 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
+RUN sed -i 's/\r$//g'  /app/entrypoint.prod.sh
+RUN chmod +x  /app/entrypoint.prod.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
