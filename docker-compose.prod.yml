@@ -42,9 +42,30 @@ services:
       - acme:/etc/acme.sh
     depends_on:
       - nginx-proxy
-
+  worker:
+    build: ./worker
+    command: celery -A tasks worker --loglevel=INFO
+    volumes:
+      - ./worker:/worker
+      - ./source_data:/data/downloads
+    env_file:
+      - ./.env.db_auth.prod
+      - ./.env.worker.prod
+      - ./.env.rnb.prod
+    depends_on:
+      - db
+      - rabbitmq
+    restart: unless-stopped
+  rabbitmq:
+    restart: unless-stopped
+    image: rabbitmq:3.9-alpine
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
 volumes:
-  batid_buffers:
   certs:
   vhost:
   acme:

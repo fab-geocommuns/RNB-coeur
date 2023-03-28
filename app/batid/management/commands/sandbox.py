@@ -29,10 +29,11 @@ class Command(BaseCommand):
 
 
         # task = celery_app.send_task('tasks.import_bdtopo', args=["38"])
-        task = celery_app.send_task('tasks.inspect_candidates')
+        # task = celery_app.send_task('tasks.inspect_candidates')
         # print(task.get())
 
         # celery_app.control.purge()
+        pass
 
 
 

@@ -19,9 +19,9 @@ class Command(BaseCommand):
         bdtopo_dpt = dpt.zfill(3)
 
         chain(
-#            Signature('tasks.dl_source', args=["bdtopo", bdtopo_dpt]),
-#            Signature('tasks.dl_source', args=["bdnb_7", dpt], immutable=True),
-#            Signature('tasks.import_bdnb7', args=[dpt], immutable=True),
+            Signature('tasks.dl_source', args=["bdtopo", bdtopo_dpt]),
+            Signature('tasks.dl_source', args=["bdnb_7", dpt], immutable=True),
+            Signature('tasks.import_bdnb7', args=[dpt], immutable=True),
             Signature('tasks.import_bdtopo', args=[bdtopo_dpt], immutable=True),
             Signature('tasks.inspect_candidates', immutable=True)
         )()
