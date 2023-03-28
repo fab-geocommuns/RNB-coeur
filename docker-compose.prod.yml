@@ -69,3 +69,4 @@ volumes:
   vhost:
   acme:
   html:
+  rabbitmq_data:
