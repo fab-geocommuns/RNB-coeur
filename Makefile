@@ -1,3 +1,4 @@
 # Target to run quality check (only check, not updates)
-quality:
+style:
 	flake8
+	isort . -c
