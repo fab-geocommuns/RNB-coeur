@@ -56,12 +56,10 @@ services:
       - ./.env.rnb.prod
     depends_on:
       - rabbitmq
-    restart: unless-stopped
+      - redis
   rabbitmq:
     restart: unless-stopped
     image: rabbitmq:3.9-alpine
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
   redis:
     restart: unless-stopped
     image: redis:latest
@@ -72,4 +70,3 @@ volumes:
   vhost:
   acme:
   html:
-  rabbitmq_data:
