@@ -24,6 +24,7 @@ def import_bdtopo(dpt):
 
         for feature in f:
 
+            print(f"feature {feature['properties']['ID']}")
 
             # Into shapely object
             shape_3d = shape(feature['geometry'])  # BD Topo provides 3D shapes
