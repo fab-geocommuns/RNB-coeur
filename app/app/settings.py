@@ -29,6 +29,7 @@ ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOST").split(" ")
 CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS").split(" ")
 
 CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(" ")
+CORS_ALLOW_ALL_ORIGINS = True
 
 
 if DEBUG:
@@ -135,7 +136,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 500
+    'PAGE_SIZE': 100
 }
 
 
