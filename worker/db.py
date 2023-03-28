@@ -7,8 +7,9 @@ db_name = os.environ.get("SQL_NAME")
 db_user = os.environ.get("SQL_USER")
 db_password = os.environ.get("SQL_PASSWORD")
 db_host = os.environ.get("SQL_HOST")
+db_port = os.environ.get("SQL_PORT")
 
-conn = psycopg2.connect(f"dbname='{db_name}' user='{db_user}' host='{db_host}' password='{db_password}'")
+conn = psycopg2.connect(f"dbname='{db_name}' user='{db_user}' host='{db_host}' password='{db_password}' port='{db_port}'")
 
 def dbgeom_to_shapely(rowgeom):
     return wkb.loads(rowgeom, hex=True)
