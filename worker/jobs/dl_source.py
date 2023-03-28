@@ -7,6 +7,7 @@ class Downloader:
         self.src.set_param('dpt', dpt)
 
     def download(self):
+        print(f"-- downloading {self.src.url}")
         self.src.download()
 
     def uncompress(self):

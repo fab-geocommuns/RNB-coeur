@@ -42,8 +42,6 @@ services:
   rabbitmq:
     restart: unless-stopped
     image: rabbitmq:3.9-alpine
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
   redis:
     image: redis:latest
     ports:
@@ -52,4 +50,3 @@ services:
 
 volumes:
   postgres_data:
-  rabbitmq_data:

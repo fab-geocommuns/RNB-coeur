@@ -63,6 +63,7 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
   redis:
+    restart: unless-stopped
     image: redis:latest
     ports:
       - "6379:6379"
