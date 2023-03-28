@@ -53,7 +53,6 @@ services:
       - ./.env.worker.prod
       - ./.env.rnb.prod
     depends_on:
-      - db
       - rabbitmq
     restart: unless-stopped
   rabbitmq:
