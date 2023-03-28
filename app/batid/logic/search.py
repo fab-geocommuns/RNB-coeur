@@ -2,6 +2,7 @@ from pprint import pprint
 
 from batid.utils.misc import is_float
 from batid.models import Building
+from django.conf import settings
 from django.contrib.gis.geos import Polygon
 
 class BuildingSearch:
@@ -36,7 +37,7 @@ class BuildingSearch:
         SORT_DEFAULT = 'rnb_id'
         SORT_CHOICES = ['rnb_id', 'distance']
 
-        PARAM_SPLITTER = '-'
+        PARAM_SPLITTER = ','
 
         def __init__(self, **kwargs):
 
@@ -95,14 +96,12 @@ class BuildingSearch:
 
             poly_coords = ((nw_lng, nw_lat), (nw_lng, se_lat), (se_lng, se_lat), (se_lng, nw_lat), (nw_lng, nw_lat))
 
-            return Polygon(poly_coords, srid=4326)
+            return Polygon(poly_coords, srid=4326).transform(settings.DEFAULT_SRID, clone=True)
 
 
         def __validate_bb_str(self, bb_str: str) -> bool:
 
-
-
-            format_msg = "bb : bounding box parameter must be a string of 4 floats separated by a dash"
+            format_msg = "bb : bounding box parameter must be a string of 4 floats separated by a comma"
 
             if not bb_str:
                 return

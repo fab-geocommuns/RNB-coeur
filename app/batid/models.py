@@ -21,7 +21,7 @@ class Building(models.Model):
     def point_geojson(self):
         # todo : is there a better way to go from a PointField to geojson dict ?
         # We are doing points > dict > json str > dict. It is inefficient.
-        return json.loads(self.point.geojson)
+        return json.loads(self.point.transform(4326, clone=True).geojson)
 
     class Meta:
         ordering = ['rnb_id']
