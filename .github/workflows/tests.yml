@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           architecture: x64
-      - name: Cache python modules     TO SPEED UP and imprvove test perf
+      - name: Cache python modules
         uses: actions/cache@v2
         with:
           path: ~/.cache/pip
@@ -30,7 +30,5 @@ jobs:
           pip install coverage --upgrade
 
       - name: Run unittests
-        env:
-          creds: par_exemple_on_pourra_ajouter_des_github_secrets
         run: |
           pytest app/tests/
