@@ -33,16 +33,4 @@ jobs:
         env:
           creds: par_exemple_on_pourra_ajouter_des_github_secrets
         run: |
-          coverage run -m pytest app/tests/
-          coverage xml
-      - uses: actions/upload-artifact@v2
-        with:
-          name: coverage-main
-          path: ./coverage.xml
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
-        with:
-          file: ./coverage-src.xml
-          flags: unittests
-          fail_ci_if_error: true
-
+          pytest app/tests/
