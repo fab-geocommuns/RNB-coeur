@@ -1,0 +1,46 @@
+name: tests
+
+on:
+  push:
+    branches: [sp3-ci]
+
+jobs:
+  pytest:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python: [3.8]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: x64
+      - name: Cache python modules     TO SPEED UP and imprvove test perf
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-python-${{ matrix.python }}-batID-core-test
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest --upgrade
+      - name: Run unittests
+        env:
+          creds: par_exemple_on_pourra_ajouter_des_github_secrets
+        run: |
+          coverage run -m pytest app/tests/
+          coverage xml
+      - uses: actions/upload-artifact@v2
+        with:
+          name: coverage-main
+          path: ./coverage.xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage-src.xml
+          flags: unittests
+          fail_ci_if_error: true
+
