@@ -1,8 +1,8 @@
 name: tests
 
 on:
-  push:
-    branches: [sp3-ci]
+  pull_request:
+    branches: [develop]
 
 jobs:
   pytest:
