@@ -21,7 +21,7 @@ class Inspector:
             for m_row in cur:
                 c += 1
                 print(f"Inspecting candidate {c} / {self.BATCH_SIZE}")
-                self.inspect_match(m_row)
+                # self.inspect_match(m_row)
 
             return c
 
