@@ -37,10 +37,11 @@ jobs:
           MIN_BDG_AREA:  5
           DEFAULT_SRID:  2154
         run: docker-compose -f docker-compose.test.yml up -d --build
-      - name: Install tests dependencies
-        run: |
-          docker-compose -f docker-compose.test.yml exec python -m pip install --upgrade pip
-          docker-compose -f docker-compose.test.yml exec pip install pytest --upgrade
-          docker-compose -f docker-compose.test.yml exec pip install coverage --upgrade         
+      - name: Install tests dependencies pip
+        run: docker-compose -f docker-compose.test.yml exec python -m pip install --upgrade pip    
+      - name: Install tests dependencies pytest
+        run: docker-compose -f docker-compose.test.yml exec pip install pytest --upgrade
+      - name: Install tests dependencies coverage
+        run: docker-compose -f docker-compose.test.yml exec pip install coverage --upgrade       
       - name: Run docker test
         run:  docker-compose -f docker-compose.test.yml exec pytest app/tests/
