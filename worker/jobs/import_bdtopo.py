@@ -32,13 +32,19 @@ def import_bdtopo(dpt):
 
         start = time.perf_counter()
 
-        for feature in f:
+        executor = ProcessPoolExecutor()
+        for result in executor.map(transform_bdtopo_feature, f[:sample_size], chunksize=10000):
+            bdgs.append(result)
 
-            bdg = transform_bdtopo_feature(feature)
-            bdgs.append(bdg)
 
-            if len(bdgs) >= sample_size:
-                break
+
+        # for feature in f:
+        #
+        #     bdg = transform_bdtopo_feature(feature)
+        #     bdgs.append(bdg)
+        #
+        #     if len(bdgs) >= sample_size:
+        #         break
 
         end = time.perf_counter()
         print(f"Elapsed time: {end - start:0.4f} seconds")
