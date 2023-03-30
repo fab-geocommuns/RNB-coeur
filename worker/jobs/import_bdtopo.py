@@ -20,7 +20,6 @@ def import_bdtopo(dpt):
     src.set_param('dpt', dpt)
 
     with fiona.open(src.find(src.filename)) as f:
-        total = len(f)
 
         print('-- read bdtopo ')
 
