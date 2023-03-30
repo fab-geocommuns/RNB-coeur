@@ -9,19 +9,21 @@ class Inspector:
 
     BATCH_SIZE = 10000
 
+    def __init__(self):
+        self.conn = get_conn()
+
     def inspect(self) -> int:
 
         q, params = self.get_matches_query()
 
-        conn = get_conn()
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(q, params)
 
             c = 0
             for m_row in cur:
                 c += 1
                 print(f"Inspecting candidate {c} / {self.BATCH_SIZE}")
-                # self.inspect_match(m_row)
+                self.inspect_match(m_row)
 
             return c
 
@@ -74,13 +76,12 @@ class Inspector:
                 "source": c.source
             }
 
-            conn = get_conn()
-            with conn.cursor() as cur:
+            with self.conn.cursor() as cur:
                 try:
                     cur.execute(q, params)
-                    conn.commit()
+                    self.conn.commit()
                 except (Exception, psycopg2.DatabaseError) as error:
-                    conn.rollback()
+                    self.conn.rollback()
                     cur.close()
                     raise error
 
@@ -92,14 +93,14 @@ class Inspector:
 
         try:
             q = "UPDATE batid_candidate SET inspected_at = now(), inspect_result = %(inspect_result)s WHERE id = %(id)s"
-            conn = get_conn()
-            with conn.cursor() as cur:
+
+            with self.conn.cursor() as cur:
                 cur.execute(q, {'id': c.id, 'inspect_result': inspect_result})
-                conn.commit()
+                self.conn.commit()
         # catch db error and rollback
         except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            conn.close()
+            self.conn.rollback()
+            self.conn.close()
             raise error
 
     def __refuse(self, c):
