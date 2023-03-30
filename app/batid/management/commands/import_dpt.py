@@ -10,18 +10,42 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('dpt', type=str)
+        parser.add_argument('--steps', type=str, default='all')
 
     def handle(self, *args, **options):
 
+        # ###########
+        # Departement
         dpt = options['dpt']
+        bdtopo_dpt = dpt.zfill(3)  # BD Topo departements are zero-prefixed 3 digits codes.
 
-        # BD Topo departements are zero-prefixed 3 digits codes.
-        bdtopo_dpt = dpt.zfill(3)
+        # ###########
+        # Steps
+        all_steps = [
+            'dl_bdtopo',
+            'dl_bdnb7',
+            'import_bdtopo',
+            'import_bdnb7',
+            'inspect'
+        ]
+        steps = all_steps if options['steps'] == "all" else options['steps'].split(',')
 
-        chain(
-            # Signature('tasks.dl_source', args=["bdtopo", bdtopo_dpt]),
-            # Signature('tasks.dl_source', args=["bdnb_7", dpt], immutable=True),
-            # Signature('tasks.import_bdnb7', args=[dpt], immutable=True),
-            Signature('tasks.import_bdtopo', args=[bdtopo_dpt], immutable=True),
-            Signature('tasks.inspect_candidates', immutable=True)
-        )()
+        # ###########
+        # Define tasks to send to celery
+        tasks = []
+
+        if 'dl_bdtopo' in steps:
+            tasks.append(Signature('tasks.dl_source', args=["bdtopo", bdtopo_dpt], immutable=True))
+        if 'dl_bdnb7' in steps:
+            tasks.append(Signature('tasks.dl_source', args=["bdnb_7", dpt], immutable=True))
+        if 'import_bdtopo' in steps:
+            tasks.append(Signature('tasks.import_bdtopo', args=[bdtopo_dpt], immutable=True))
+        if 'import_bdnb7' in steps:
+            tasks.append(Signature('tasks.import_bdnb7', args=[dpt], immutable=True))
+        if 'inspect' in steps:
+            tasks.append(Signature('tasks.inspect_candidates', immutable=True))
+
+
+        # Send the tasks
+        if len(tasks) > 0:
+            chain(*tasks)()

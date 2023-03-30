@@ -30,27 +30,18 @@ def import_bdtopo(dpt):
 
         sample_size = 50000
 
-        chunk_max_size = 5000
-        chunk = []
-
         start = time.perf_counter()
 
         for feature in f:
 
-            chunk.append(feature)
-            if len(chunk) >= chunk_max_size:
-                bdgs += process_bdtopo_chunk(chunk)
-                chunk = []
+            bdg = transform_bdtopo_feature(feature)
+            bdgs.append(bdg)
 
             if len(bdgs) >= sample_size:
                 break
 
         end = time.perf_counter()
         print(f"Elapsed time: {end - start:0.4f} seconds")
-
-
-
-
 
 
         # buffer_src = Source('buffer', {
@@ -80,25 +71,16 @@ def import_bdtopo(dpt):
         # print('- remove buffer')
         # os.remove(buffer_src.path)
 
-def process_bdtopo_chunk(chunk):
 
-    bdgs = []
-
-    executor = ProcessPoolExecutor()
-    futures = [executor.submit(transform_bdtopo_feature, feature) for feature in chunk]
-
-    for bdg in as_completed(futures):
-        bdgs.append(bdg.result())
-
-    return bdgs
 
 def transform_bdtopo_feature(feature) -> dict:
 
-    shape_3d = shape(feature['geometry'])  # BD Topo provides 3D shapes
+    shape_3d = shape(feature["geometry"])  # BD Topo provides 3D shapes
     shape_2d = transform(lambda x, y, z=None: (x, y), shape_3d)  # we convert them into 2d shapes
 
     multipoly = MultiPolygon([shape_2d])
 
+    # todo : handle addresses
     address_keys = []
 
     bdg = {
