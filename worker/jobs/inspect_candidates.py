@@ -1,16 +1,20 @@
 import psycopg2
 from db import get_conn
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_values
 from logic.candidate import row_to_candidate, Candidate
 from logic.building import generate_id
 from settings import settings
 
 class Inspector:
 
-    BATCH_SIZE = 10000
+    BATCH_SIZE = 50000
 
     def __init__(self):
         self.conn = get_conn()
+
+        self.refusals = []
+        self.creations = []
+        self.updates = []
 
     def inspect(self) -> int:
 
@@ -22,11 +26,116 @@ class Inspector:
             c = 0
             for m_row in cur:
                 c += 1
-                print(f"Candidate {c} / {self.BATCH_SIZE}")
                 self.inspect_match(m_row)
 
-            return c
+        self.handle_inspected_candidates()
 
+        return c
+
+    def handle_inspected_candidates(self):
+
+        self.__handle_refusals()
+        self.__handle_creations()
+        self.__handle_updates()
+
+    # update all refused candidates with status 'refused'
+    def __handle_refusals(self):
+
+        print(f"refusals: {len(self.refusals)}")
+
+        if len(self.refusals) == 0:
+            return
+
+        q = "UPDATE batid_candidate SET inspected_at = now(), inspect_result = 'refused' WHERE id in %(ids)s"
+
+        params = {
+            "ids": tuple([c.id for c in self.refusals])
+        }
+
+        with self.conn.cursor() as cur:
+            try:
+                cur.execute(q, params)
+                self.conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.conn.rollback()
+                cur.close()
+                raise error
+
+    # updated all updated candidates with status 'updated_bdg'
+    def __handle_updates(self):
+
+            print(f"updates: {len(self.updates)}")
+
+            if len(self.updates) == 0:
+                return
+
+            q = "UPDATE batid_candidate SET inspected_at = now(), inspect_result = 'updated_bdg' WHERE id in %(ids)s"
+
+            params = {
+                "ids": tuple([c.id for c in self.updates])
+            }
+
+            with self.conn.cursor() as cur:
+                try:
+                    cur.execute(q, params)
+                    self.conn.commit()
+                except (Exception, psycopg2.DatabaseError) as error:
+                    self.conn.rollback()
+                    cur.close()
+                    raise error
+
+    # create new buildings for all created candidates
+    def __handle_creations(self):
+
+            print(f"creations: {len(self.creations)}")
+
+            if len(self.creations) == 0:
+                return
+
+            # Create the buildings
+            self.__create_buildings()
+
+            # Then update the candidates
+            q = "UPDATE batid_candidate SET inspected_at = now(), inspect_result = 'created_bdg' WHERE id in %(ids)s"
+
+            params = {
+                "ids": tuple([c.id for c in self.creations])
+            }
+
+            with self.conn.cursor() as cur:
+                try:
+                    cur.execute(q, params)
+                    self.conn.commit()
+                except (Exception, psycopg2.DatabaseError) as error:
+                    self.conn.rollback()
+                    cur.close()
+                    raise error
+
+
+    def __create_buildings(self):
+
+        q = "INSERT INTO batid_building (rnb_id, source, point, shape) VALUES %s "
+
+        values = []
+        for c in self.creations:
+            bdg_dict = c.to_bdg_dict()
+            values.append((
+                generate_id(),
+                bdg_dict['source'],
+                f"{bdg_dict['point'].wkt}",
+                f"{bdg_dict['shape'].wkt}",
+            ))
+
+
+
+        with self.conn.cursor() as cur:
+            try:
+                execute_values(cur, q, values, page_size=1000)
+                self.conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.conn.rollback()
+                cur.close()
+                raise error
 
     def inspect_match(self, row):
 
@@ -63,31 +172,13 @@ class Inspector:
 
     def __update_building(self, c: Candidate):
 
-        self.__close_inspection(c, 'updated_bdg')
+        self.updates.append(c)
+
+        # self.__close_inspection(c, 'updated_bdg')
 
     def __create_new_building(self, c: Candidate):
 
-            q = "INSERT INTO batid_building (rnb_id, source, point, shape) " \
-                "VALUES (%(rnb_id)s, %(source)s, ST_PointOnSurface(%(shape)s), %(shape)s)"
-
-            params = {
-                "rnb_id": generate_id(),
-                "shape": f"{c.shape}",
-                "source": c.source
-            }
-
-            with self.conn.cursor() as cur:
-                try:
-                    cur.execute(q, params)
-                    self.conn.commit()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.conn.rollback()
-                    cur.close()
-                    raise error
-
-
-            self.__close_inspection(c, 'created_bdg')
-
+            self.creations.append(c)
 
     def __close_inspection(self, c, inspect_result):
 
@@ -105,4 +196,6 @@ class Inspector:
 
     def __refuse(self, c):
 
-        self.__close_inspection(c, 'refused')
+        self.refusals.append(c)
+
+        # self.__close_inspection(c, 'refused')

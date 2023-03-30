@@ -16,6 +16,15 @@ class Candidate:
     inspected_at: datetime
     inspect_result: str
 
+    def to_bdg_dict(self):
+
+        return {
+            'shape': self.shape,
+            'rnb_id': None,
+            'source': self.source,
+            'point': self.shape.point_on_surface(),
+        }
+
 
 def row_to_candidate(row):
 
