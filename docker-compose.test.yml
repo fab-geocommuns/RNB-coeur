@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  web:
+    build: ./app
+    ports:
+      - '8000:8000'
+    environment:
+      - SOURCE_DIR=/usr/src/source_data
+      - DEBUG=1
+      - DJANGO_SECRET_KEY= ${DJANGO_SECRET_KEY}
+      - DJANGO_ALLOWED_HOST=localhost 127.0.0.1 [::1]
+      - DJANGO_CSRF_TRUSTED_ORIGINS=http://127.0.0.1
+      - DJANGO_CORS_ALLOWED_ORIGINS = http://127.0.0.1:5500
+      - SQL_ENGINE=django.contrib.gis.db.backends.postgis
+      - SQL_HOST=db
+      - SQL_PORT=5432
+      - DJANGO_SUPERUSER_PASSWORD=1234
+      - SQL_NAME=postgres
+      - SQL_USER=postgres
+      - SQL_PASSWORD=postgres
+      - POSTGRES_NAME=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - CELERY_BROKER_URL = 'amqp://guest:guest@rabbitmq//'
+      - CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
+      - DOWNLOAD_DIR = '/data/downloads'
+      - MIN_BDG_AREA = 5
+      - DEFAULT_SRID = 2154
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+        - ./app:/app
+    depends_on:
+      - db
+      - rabbitmq
+  db:
+    image: postgis/postgis:14-master
+    platform: linux/amd64
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  worker:
+    build: ./worker
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A tasks worker --loglevel=INFO
+    volumes:
+      - ./worker:/worker
+      - ./source_data:/data/downloads
+    depends_on:
+      - db
+      - rabbitmq
+    restart: unless-stopped
+  rabbitmq:
+    restart: unless-stopped
+    image: rabbitmq:3.9-alpine
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
