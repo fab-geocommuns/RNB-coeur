@@ -25,7 +25,3 @@ class Command(BaseCommand):
             Signature('tasks.import_bdtopo', args=[bdtopo_dpt], immutable=True),
             Signature('tasks.inspect_candidates', immutable=True)
         )()
-
-
-
-
