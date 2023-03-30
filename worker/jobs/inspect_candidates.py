@@ -7,7 +7,7 @@ from settings import settings
 
 class Inspector:
 
-    BATCH_SIZE = 50000
+    BATCH_SIZE = 10000
 
     def inspect(self) -> int:
 
@@ -20,6 +20,7 @@ class Inspector:
             c = 0
             for m_row in cur:
                 c += 1
+                print('-- inspect', c, '/', self.BATCH_SIZE)
                 self.inspect_match(m_row)
 
             return c
