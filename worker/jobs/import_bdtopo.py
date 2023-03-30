@@ -25,9 +25,9 @@ def import_bdtopo(dpt):
 
         bdgs = []
 
-        executor = ProcessPoolExecutor()
-        for result in executor.map(transform_bdtopo_feature, f, chunksize=10000):
-            bdgs.append(result)
+        for feature in f:
+            bdg = transform_bdtopo_feature(feature)
+            bdgs.append(bdg)
 
 
         buffer_src = Source('buffer', {
