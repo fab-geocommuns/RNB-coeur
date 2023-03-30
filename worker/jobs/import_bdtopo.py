@@ -8,7 +8,7 @@ from shapely.ops import transform
 import fiona
 from datetime import datetime, timezone
 import psycopg2
-from db import conn
+from db import get_conn
 from concurrent.futures import ProcessPoolExecutor
 
 
@@ -43,15 +43,16 @@ def import_bdtopo(dpt):
             writer = csv.DictWriter(f, delimiter=';', fieldnames=cols)
             writer.writerows(bdgs)
 
+        conn = get_conn()
         with open(buffer_src.path, 'r') as f, conn.cursor() as cursor:
             print("-- transfer buffer to db --")
             try:
                 cursor.copy_from(f, 'batid_candidate', sep=';', columns=cols)
                 conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
-                print(error)
                 conn.rollback()
                 cursor.close()
+                raise error
 
         print('- remove buffer')
         os.remove(buffer_src.path)

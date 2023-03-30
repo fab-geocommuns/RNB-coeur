@@ -1,5 +1,5 @@
 import psycopg2
-from db import conn
+from db import get_conn
 from psycopg2.extras import RealDictCursor
 from logic.candidate import row_to_candidate, Candidate
 from logic.building import generate_id
@@ -13,6 +13,7 @@ class Inspector:
 
         q, params = self.get_matches_query()
 
+        conn = get_conn()
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(q, params)
 
@@ -72,7 +73,7 @@ class Inspector:
                 "source": c.source
             }
 
-
+            conn = get_conn()
             with conn.cursor() as cur:
                 try:
                     cur.execute(q, params)
@@ -90,6 +91,7 @@ class Inspector:
 
         try:
             q = "UPDATE batid_candidate SET inspected_at = now(), inspect_result = %(inspect_result)s WHERE id = %(id)s"
+            conn = get_conn()
             with conn.cursor() as cur:
                 cur.execute(q, {'id': c.id, 'inspect_result': inspect_result})
                 conn.commit()
@@ -97,7 +99,7 @@ class Inspector:
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             conn.close()
-            raise e
+            raise error
 
     def __refuse(self, c):
 

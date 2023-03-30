@@ -2,7 +2,7 @@ import csv
 import os
 
 import psycopg2
-from db import conn
+from db import get_conn
 from logic.source import Source
 from datetime import datetime, timezone
 
@@ -57,15 +57,18 @@ def import_bdnb7(dpt):
         writer = csv.DictWriter(f, delimiter=';', fieldnames=cols)
         writer.writerows(bdgs)
 
-    with open(buffer_src.path, 'r') as f, conn.cursor() as cursor:
-        print('- import buffer')
-        try:
-            cursor.copy_from(f, 'batid_candidate', sep=';', columns=cols)
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            print(error)
-            conn.rollback()
-            cursor.close()
+    with open(buffer_src.path, 'r') as f:
+
+        conn = get_conn()
+        with conn.cursor() as cursor:
+            print('- import buffer')
+            try:
+                cursor.copy_from(f, 'batid_candidate', sep=';', columns=cols)
+                conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                conn.rollback()
+                cursor.close()
+                raise error
 
 
     print('- remove buffer')
