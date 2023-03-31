@@ -58,10 +58,8 @@ services:
       - rabbitmq
       - redis
   rabbitmq:
-    restart: unless-stopped
     image: rabbitmq:3.9-alpine
   redis:
-    restart: unless-stopped
     image: redis:latest
     ports:
       - "6379:6379"
