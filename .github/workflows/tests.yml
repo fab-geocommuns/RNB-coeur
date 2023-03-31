@@ -44,4 +44,4 @@ jobs:
       - name: Install tests dependencies coverage
         run: docker-compose -f docker-compose.test.yml exec -T web pip install coverage --upgrade       
       - name: Run docker test
-        run:  docker-compose -f docker-compose.test.yml exec -T web pytest app/tests/
+        run:  docker-compose -f docker-compose.test.yml exec -T web pytest /app/tests/
