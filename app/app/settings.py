@@ -139,6 +139,7 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 100
 }
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
