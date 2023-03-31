@@ -32,6 +32,10 @@ class Command(BaseCommand):
 
         # ###########
         # Define tasks to send to celery
+
+        print("Sending tasks to celery")
+        print(steps)
+
         tasks = []
 
         if 'dl_bdtopo' in steps:
