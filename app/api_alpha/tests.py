@@ -13,7 +13,6 @@ class ApiAlphaTestCase(TestCase):
     def setUp(self):
 
         ## In search
-
         coords = {
             "coordinates": [
                 [[
