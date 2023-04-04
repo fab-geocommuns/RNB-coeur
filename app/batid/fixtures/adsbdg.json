@@ -1,0 +1,20 @@
+[
+  {
+    "model": "batid.buildingads",
+    "pk": 1,
+    "fields": {
+      "building": 438122,
+      "ads": 1,
+      "operation": "build"
+    }
+  },
+  {
+    "model": "batid.buildingads",
+    "pk": 2,
+    "fields": {
+      "building": 438122,
+      "ads": 2,
+      "operation": "demolish"
+    }
+  }
+]
