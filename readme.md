@@ -7,3 +7,9 @@
 ```bash 
 psql -U postgres -d postgres < bdnb.sql
 ```
+
+## Contributing 
+
+All types of contributions are welcome ! 
+
+A small guide is available in [`CONTRIBUTING`](CONTRIBUTING.md) to contribute to the project !
