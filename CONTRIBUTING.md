@@ -7,6 +7,19 @@ This project uses the following integrations to ensure proper codebase maintenan
 
 ## Developing guidelines
 
+#### Django 
+For each model modification, [django migration](https://docs.djangoproject.com/fr/4.1/topics/migrations/) need to be performed
+
+- To create new migrations
+```bash
+python manage.py makemigrations
+```
+New migrations file has to be commited to the repository
+
+- To execute migrations
+```bash
+python manage.py migrate
+```
 #### Code quality 
 
 - To run all quality checks together
