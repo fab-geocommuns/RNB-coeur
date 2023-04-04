@@ -48,9 +48,6 @@ class BuildingADS(models.Model):
     ads = models.ForeignKey(ADS, on_delete=models.CASCADE)
     operation = models.CharField(max_length=10, null=False)
 
-    def building_rnb_id(self):
-        return self.building.rnb_id
-
     class Meta:
         unique_together = ("building", "ads")
 
