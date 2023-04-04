@@ -4,6 +4,8 @@ from django.contrib.gis.db import models
 from django.utils.timezone import now
 from django.conf import settings
 
+
+
 class Building(models.Model):
 
     rnb_id = models.CharField(max_length=17, null=False, unique=True, db_index=True)
@@ -26,6 +28,20 @@ class Building(models.Model):
     class Meta:
         ordering = ['rnb_id']
 
+class ADS(models.Model):
+
+    issue_number = models.CharField(max_length=40, null=False, unique=True, db_index=True)
+    issue_date = models.DateField(null=True)
+
+class BuildingADS(models.Model):
+
+    building = models.ForeignKey(Building, on_delete=models.CASCADE)
+    ads = models.ForeignKey(ADS, on_delete=models.CASCADE)
+    operation = models.CharField(max_length=10, null=False)
+
+    class Meta:
+        unique_together = ('building', 'ads')
+
 class Address(models.Model):
 
     id = models.CharField(max_length=40, primary_key=True)
@@ -37,6 +53,7 @@ class Address(models.Model):
     street_type = models.CharField(max_length=100, null=True)
     city_name = models.CharField(max_length=100, null=True)
     city_zipcode = models.CharField(max_length=5, null=True)
+
 class Candidate(models.Model):
 
     shape = models.MultiPolygonField(null=True, srid=settings.DEFAULT_SRID)

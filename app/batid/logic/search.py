@@ -104,7 +104,7 @@ class BuildingSearch:
             format_msg = "bb : bounding box parameter must be a string of 4 floats separated by a comma"
 
             if not bb_str:
-                return
+                return True
 
             coords = bb_str.split(self.PARAM_SPLITTER)
 

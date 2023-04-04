@@ -48,6 +48,12 @@ services:
     image: redis:latest
     ports:
       - "6379:6379"
+  blackd:
+    restart: always
+    image: docker.io/pyfound/black
+    command: blackd --bind-host 0.0.0.0 --bind-port 45484
+    ports:
+      - "45484:45484"
 
 
 volumes:

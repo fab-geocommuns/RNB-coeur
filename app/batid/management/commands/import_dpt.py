@@ -1,8 +1,5 @@
 # empty django command
-from app.celery import app as celery_app
 from celery import chain, Signature
-
-
 from django.core.management.base import BaseCommand
 
 class Command(BaseCommand):
