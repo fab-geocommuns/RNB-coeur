@@ -34,6 +34,11 @@ class Source:
         'xp-grenoble-export_rnb': {
             'folder': 'xp-grenoble',
             'filename': 'rnb.geojson'
+        },
+        'insee-cog-commune': {
+            'url': "https://api.insee.fr/metadonnees/V1/geo/communes",
+            'folder': 'insee_cog',
+            'filename': 'commune_insee.csv'
         }
 
     }
