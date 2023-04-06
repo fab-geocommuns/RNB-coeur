@@ -3,6 +3,7 @@ import random
 from rest_framework import serializers
 from batid.models import Building, Address, ADS, BuildingADS
 from api_alpha.validators import ads_validate_rnbid
+from rest_framework.validators import UniqueValidator
 
 
 class AddressSerializer(serializers.ModelSerializer):
@@ -68,7 +69,14 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
 
 
 class ADSSerializer(serializers.ModelSerializer):
-    issue_number = serializers.CharField(required=True, unique=True)
+    issue_number = serializers.CharField(
+        required=True,
+        validators=[
+            UniqueValidator(
+                queryset=ADS.objects.all(), message="This issue number already exists"
+            )
+        ],
+    )
     issue_date = serializers.DateField(required=True, format="%Y-%m-%d")
     buildings_operations = BuildingsADSSerializer(many=True, required=False)
 
