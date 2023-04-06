@@ -87,6 +87,49 @@ class EndpointsTest(APITestCase):
         r_data = r.json()
         self.assertDictEqual(r_data, expected)
 
+    def test_create_ads_new_bdg(self):
+        data = {
+            "issue_number": "ADS-TEST-NEW-BDG",
+            "issue_date": "2019-03-18",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "new",
+                        "lat": 44.7802149854455,
+                        "lng": -0.4617233264741004,
+                    },
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        r_data = r.json()
+        new_rnb_id = r_data["buildings_operations"][0]["building"]["rnb_id"]
+
+        expected = {
+            "issue_number": "ADS-TEST-NEW-BDG",
+            "issue_date": "2019-03-18",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": new_rnb_id,
+                    },
+                }
+            ],
+        }
+        # Assert that the response is correct
+        self.assertDictEqual(r_data, expected)
+        self.assertEqual(r.status_code, 200)
+
+        # Assert that the data is correctly saved
+        r = self.client.get("/api/alpha/ads/ADS-TEST-NEW-BDG/")
+        r_data = r.json()
+        self.assertDictEqual(r_data, expected)
+
     def test_ads_wrong_issue_number(self):
         data = {"issue_number": "ADS-TEST", "issue_date": "2019-01-02"}
         r = self.client.post(
