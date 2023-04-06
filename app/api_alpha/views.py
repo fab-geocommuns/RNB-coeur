@@ -36,15 +36,11 @@ class ADSViewSet(viewsets.ModelViewSet):
     pagination_class = PageNumberPagination
 
     def create(self, request):
-        print("---- request ----")
-        print(request.data)
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             self.perform_create(serializer)
             return Response(serializer.data)
         else:
-            print("-- errors --")
-            print(serializer.errors)
             return Response(serializer.errors, status=400)
 
     def retrieve(self, request, issue_number=None):

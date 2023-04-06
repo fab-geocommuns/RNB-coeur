@@ -1,7 +1,8 @@
 import random
 
-from rest_framework import routers, serializers
+from rest_framework import serializers
 from batid.models import Building, Address, ADS, BuildingADS
+from api_alpha.validators import ads_validate_rnbid
 
 
 class AddressSerializer(serializers.ModelSerializer):
@@ -32,6 +33,7 @@ class BuildingSerializer(serializers.ModelSerializer):
 class BdgInAdsSerializer(serializers.ModelSerializer):
     lat = serializers.FloatField(write_only=True, required=False)
     lng = serializers.FloatField(write_only=True, required=False)
+    rnb_id = serializers.CharField(validators=[ads_validate_rnbid])
 
     class Meta:
         model = Building
@@ -46,7 +48,6 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
             validated_data[
                 "rnb_id"
             ] = f"{random.choice(range(10000))}-{random.choice(range(10000))}"  # todo : generate random rnb id
-
             return super().create(validated_data)
         else:
             return Building.objects.get(rnb_id=validated_data["rnb_id"])
@@ -54,6 +55,7 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
 
 class BuildingsADSSerializer(serializers.ModelSerializer):
     building = BdgInAdsSerializer()
+    operation = serializers.CharField(required=True)
 
     class Meta:
         model = BuildingADS
@@ -61,24 +63,29 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         bdg_data = validated_data.pop("building")
-        bdg = BuildingSerializer().create(bdg_data)
-        return BuildingADS.objects.create(building=bdg, **validated_data)
+        bdg = BdgInAdsSerializer().create(bdg_data)
+        return BuildingADS(building=bdg, **validated_data)
 
 
 class ADSSerializer(serializers.ModelSerializer):
-    buildings_operations = BuildingsADSSerializer(many=True, source="buildingads_set")
+    issue_number = serializers.CharField(required=True, unique=True)
+    issue_date = serializers.DateField(required=True, format="%Y-%m-%d")
+    buildings_operations = BuildingsADSSerializer(many=True, required=False)
 
     class Meta:
         model = ADS
         fields = ["issue_number", "issue_date", "buildings_operations"]
 
     def create(self, validated_data):
-        bdgadss = validated_data.pop("buildingads_set")
+        bdg_ops = []
+        if "buildings_operations" in validated_data:
+            bdg_ops = validated_data.pop("buildings_operations")
 
         ads = ADS.objects.create(**validated_data)
 
-        for idx, bdgads in enumerate(bdgadss):
-            bdgadss[idx]["ads"] = ads
+        for bdg_op_data in bdg_ops:
+            bdg_op = BuildingsADSSerializer().create(bdg_op_data)
+            bdg_op.ads = ads
+            bdg_op.save()
 
-        BuildingsADSSerializer(many=True).create(bdgads)
         return ads

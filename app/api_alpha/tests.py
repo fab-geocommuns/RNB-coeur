@@ -26,7 +26,9 @@ class EndpointsTest(APITestCase):
         expected = {
             "issue_number": "ADS-TEST",
             "issue_date": "2019-01-01",
-            "buildings_operations": [{"operation": "build", "building": "BDG-RNB-ID"}],
+            "buildings_operations": [
+                {"operation": "build", "building": {"rnb_id": "BDG-RNB-ID"}}
+            ],
         }
         self.assertDictEqual(r_data, expected)
 
@@ -58,11 +60,12 @@ class EndpointsTest(APITestCase):
                 }
             ],
         }
-        r = self.client.post("/api/alpha/ads/", data=data)
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
 
         r_data = r.json()
-        print("---- response ---")
-        print(r_data)
+
         expected = {
             "issue_number": "ADS-TEST-2",
             "issue_date": "2019-01-02",
@@ -75,8 +78,20 @@ class EndpointsTest(APITestCase):
                 }
             ],
         }
+        # Assert that the response is correct
         self.assertDictEqual(r_data, expected)
         self.assertEqual(r.status_code, 200)
+
+        # Assert that the data is correctly saved
+        r = self.client.get("/api/alpha/ads/ADS-TEST-2/")
+        r_data = r.json()
+        self.assertDictEqual(r_data, expected)
+
+    def test_ads_validation(self):
+        self.test_ads_wrong_issue_number()
+        self.test_ads_wrong_issue_date()
+        self.test_ads_absent_bdg()
+        self.test_ads_wrong_bdg_latlng()
 
     # ###############
     # Data setup

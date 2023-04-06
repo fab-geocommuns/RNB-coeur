@@ -45,7 +45,9 @@ class ADS(models.Model):
 
 class BuildingADS(models.Model):
     building = models.ForeignKey(Building, on_delete=models.CASCADE)
-    ads = models.ForeignKey(ADS, on_delete=models.CASCADE)
+    ads = models.ForeignKey(
+        ADS, related_name="buildings_operations", on_delete=models.CASCADE
+    )
     operation = models.CharField(max_length=10, null=False)
 
     class Meta:
