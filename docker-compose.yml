@@ -2,7 +2,9 @@ version: "3.9"
 
 services:
   web:
-    build: ./app
+    build:
+        context: .
+        dockerfile: ./app/Dockerfile
     ports:
       - '8000:8000'
     env_file:
@@ -26,7 +28,9 @@ services:
     ports:
       - "5432:5432"
   worker:
-    build: ./worker
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
     command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A tasks worker --loglevel=INFO
     volumes:
       - ./worker:/worker

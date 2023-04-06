@@ -31,6 +31,7 @@ Markdown==3.4.1
 matplotlib==3.7.1
 multivolumefile==0.2.3
 munch==2.5.0
+nanoid==2.0.0
 numpy==1.24.2
 packaging==23.0
 pandas==1.5.3

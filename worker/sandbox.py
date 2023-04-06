@@ -1,15 +1,9 @@
-from jobs.inspect_candidates import Inspector
+from shared_libs.rnbid.generator import generate_id
+
 
 def sandbox():
-
-    # import_bdtopo('044')
-    i = Inspector()
-    i.inspect()
+    print(generate_id())
 
 
-
-
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     sandbox()
