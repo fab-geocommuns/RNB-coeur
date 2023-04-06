@@ -2,7 +2,8 @@ import random
 
 from rest_framework import serializers
 from batid.models import Building, Address, ADS, BuildingADS
-from api_alpha.validators import ads_validate_rnbid
+from api_alpha.validators import ads_validate_rnbid, BdgInADSValidator
+from api_alpha.models import BuildingADS as BuildingADSModel, BdgInADS
 from rest_framework.validators import UniqueValidator
 
 
@@ -32,16 +33,21 @@ class BuildingSerializer(serializers.ModelSerializer):
 
 
 class BdgInAdsSerializer(serializers.ModelSerializer):
-    lat = serializers.FloatField(write_only=True, required=False)
-    lng = serializers.FloatField(write_only=True, required=False)
+    lat = serializers.FloatField(
+        write_only=True, required=False, max_value=90, min_value=-90
+    )
+    lng = serializers.FloatField(
+        write_only=True, required=False, max_value=180, min_value=-180
+    )
     rnb_id = serializers.CharField(validators=[ads_validate_rnbid])
 
     class Meta:
         model = Building
         fields = ["rnb_id", "lat", "lng"]
+        validators = [BdgInADSValidator()]
 
     def create(self, validated_data):
-        if validated_data.get("rnb_id") == "new":
+        if validated_data.get("rnb_id") == BdgInADS.NEW_STR:
             lat = validated_data.pop("lat")
             lng = validated_data.pop("lng")
             point = "POINT({} {})".format(lng, lat)
@@ -56,7 +62,14 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
 
 class BuildingsADSSerializer(serializers.ModelSerializer):
     building = BdgInAdsSerializer()
-    operation = serializers.CharField(required=True)
+    operation = serializers.ChoiceField(
+        required=True,
+        choices=BuildingADSModel.OPERATIONS,
+        error_messages={
+            "invalid_choice": "'{input}' is not a valid operation. Valid operations are: "
+            + f"{BuildingADSModel.OPERATIONS}."
+        },
+    )
 
     class Meta:
         model = BuildingADS

@@ -87,12 +87,6 @@ class EndpointsTest(APITestCase):
         r_data = r.json()
         self.assertDictEqual(r_data, expected)
 
-    # def test_ads_validation(self):
-    #     self.test_ads_wrong_issue_number()
-    #     self.test_ads_wrong_issue_date()
-    #     self.test_ads_absent_bdg()
-    #     self.test_ads_wrong_bdg_latlng()
-
     def test_ads_wrong_issue_number(self):
         data = {"issue_number": "ADS-TEST", "issue_date": "2019-01-02"}
         r = self.client.post(
@@ -115,7 +109,6 @@ class EndpointsTest(APITestCase):
         self.assertEqual(r.status_code, 400)
 
         r_data = r.json()
-        print(r_data)
 
         msg_to_check = {
             "issue_date": "Date has wrong format. Use one of these formats instead: YYYY-MM-DD."
@@ -162,6 +155,105 @@ class EndpointsTest(APITestCase):
             if "building" in op:
                 if "rnb_id" in op["building"]:
                     self.assertIn(msg_to_check, op["building"]["rnb_id"])
+
+    def test_ads_wrong_operation(self):
+        data = {
+            "issue_number": "ADS-TEST-2",
+            "issue_date": "2019-01-02",
+            "buildings_operations": [
+                {
+                    "operation": "destroy",
+                    "building": {"rnb_id": "BDG-RNB-ID"},
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 400)
+
+        r_data = r.json()
+
+        msg_to_check = "'destroy' is not a valid operation. Valid operations are: ['build', 'modify', 'demolish']."
+
+        for op in r_data["buildings_operations"]:
+            if "operation" in op:
+                self.assertIn(msg_to_check, op["operation"])
+
+    def test_ads_absent_lat(self):
+        data = {
+            "issue_number": "ADS-TEST-2",
+            "issue_date": "2019-01-02",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {"rnb_id": "new"},
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 400)
+
+        r_data = r.json()
+
+        msg_to_check = "lat field is required for new buildings."
+
+        for op in r_data["buildings_operations"]:
+            if "building" in op:
+                if "lat" in op["building"]:
+                    self.assertIn(msg_to_check, op["building"]["lat"])
+
+    def test_ads_wrong_latlng(self):
+        data = {
+            "issue_number": "ADS-TEST-2",
+            "issue_date": "2019-01-02",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {"rnb_id": "new", "lat": "hello", "lng": "bonjour"},
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 400)
+
+        r_data = r.json()
+
+        msg_to_check = "A valid number is required."
+
+        for op in r_data["buildings_operations"]:
+            if "building" in op:
+                self.assertIn(msg_to_check, op["building"]["lat"])
+                self.assertIn(msg_to_check, op["building"]["lng"])
+
+    def test_ads_absent_lng(self):
+        data = {
+            "issue_number": "ADS-TEST-2",
+            "issue_date": "2019-01-02",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {"rnb_id": "new"},
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 400)
+
+        r_data = r.json()
+
+        msg_to_check = "lng field is required for new buildings."
+
+        for op in r_data["buildings_operations"]:
+            if "building" in op:
+                if "lng" in op["building"]:
+                    self.assertIn(msg_to_check, op["building"]["lng"])
 
     # ###############
     # Data setup

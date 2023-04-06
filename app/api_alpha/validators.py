@@ -1,11 +1,24 @@
 from batid.models import Building
+from api_alpha.models import BdgInADS
 from rest_framework import serializers
 
 
 def ads_validate_rnbid(rnb_id):
-    if rnb_id == "new":
+    if rnb_id == BdgInADS.NEW_STR:
         return
     if not Building.objects.filter(rnb_id=rnb_id).exists():
         raise serializers.ValidationError(f'Building "{rnb_id}" does not exist.')
 
-    raise serializers.ValidationError('rnb_id must be "new" or an existing RNB ID.')
+
+class BdgInADSValidator:
+    def __call__(self, value):
+        if value["rnb_id"] == BdgInADS.NEW_STR:
+            if not value.get("lat"):
+                raise serializers.ValidationError(
+                    {"lat": "lat field is required for new buildings."}
+                )
+            if not value.get("lng"):
+                raise serializers.ValidationError(
+                    {"lng": "lng field is required for new buildings."}
+                )
+            return
