@@ -4,4 +4,4 @@ from rnbid.generator import generate_id
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        print(generate_id())
+        division_by_zero = 1 / 0

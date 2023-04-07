@@ -12,6 +12,7 @@ services:
       - ./.env.app.dev
       - ./.env.worker.dev
       - ./.env.rnb.dev
+      - ./.env.sentry.dev
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
         - ./app:/app
@@ -39,6 +40,7 @@ services:
       - ./.env.db_auth.dev
       - ./.env.worker.dev
       - ./.env.rnb.dev
+      - ./.env.sentry.dev
     depends_on:
       - db
       - rabbitmq
