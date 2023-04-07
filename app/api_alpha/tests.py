@@ -125,7 +125,7 @@ class EndpointsTest(APITestCase):
         r_data = r.json()
         self.assertDictEqual(r_data, expected)
 
-    def test_create_ads_new_bdg(self):
+    def test_ads_create_with_new_bdg(self):
         data = {
             "issue_number": "ADS-TEST-NEW-BDG",
             "issue_date": "2019-03-18",
@@ -167,6 +167,45 @@ class EndpointsTest(APITestCase):
         r = self.client.get("/api/alpha/ads/ADS-TEST-NEW-BDG/")
         r_data = r.json()
         self.assertDictEqual(r_data, expected)
+
+    def test_ads_update_simple(self):
+        data = {"issue_number": "ADS-TEST-UPDATE", "issue_date": "2025-01-02"}
+
+        r = self.client.put("/api/alpha/ads/ADS-TEST-UPDATE/", data=data)
+        self.assertEqual(r.status_code, 200)
+
+        expected = {
+            "issue_number": "ADS-TEST-UPDATE",
+            "issue_date": "2025-01-02",
+            "buildings_operations": [],
+        }
+        r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE/")
+        r_data = r.json()
+        print(r_data)
+        self.assertDictEqual(r_data, expected)
+
+    def test_ads_update_with_new_bdg(self):
+        data = {
+            "issue_number": "ADS-TEST-UPDATE-BDG",
+            "issue_date": "2025-01-01",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "new",
+                        "lat": 44.7802149854455,
+                        "lng": -0.4617233264741004,
+                    },
+                }
+            ],
+        }
+
+        r = self.client.put("/api/alpha/ads/ADS-TEST-UPDATE-BDG/", data=data)
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE-BDG/")
+        r_data = r.json()
+        print(r_data)
 
     def test_ads_same_bdg_twice(self):
         data = {
@@ -397,6 +436,9 @@ class EndpointsTest(APITestCase):
         ads = ADS.objects.create(issue_number="ADS-TEST", issue_date="2019-01-01")
 
         ADS.objects.create(issue_number="ADS-TEST-FUTURE", issue_date="2025-01-02")
+
+        ADS.objects.create(issue_number="ADS-TEST-UPDATE", issue_date="2025-01-01")
+        ADS.objects.create(issue_number="ADS-TEST-UPDATE-BDG", issue_date="2025-01-01")
 
         # ############
         # BuildingADS
