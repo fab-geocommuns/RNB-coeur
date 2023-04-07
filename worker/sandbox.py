@@ -1,4 +1,4 @@
-from shared_libs.rnbid.generator import generate_id
+from rnbid.generator import generate_id
 
 
 def sandbox():
