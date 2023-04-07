@@ -18,6 +18,44 @@ class EndpointsTest(APITestCase):
         r = self.client.get("/api/alpha/ads/")
         self.assertEqual(r.status_code, 200)
 
+    def test_ads_search_since(self):
+        r = self.client.get("/api/alpha/ads/?since=2024-12-01")
+        self.assertEqual(r.status_code, 200)
+
+        r_data = r.json()
+        expected = {
+            "count": 1,
+            "next": None,
+            "previous": None,
+            "results": [
+                {
+                    "issue_number": "ADS-TEST-FUTURE",
+                    "issue_date": "2025-01-02",
+                    "buildings_operations": [],
+                }
+            ],
+        }
+        self.assertDictEqual(r_data, expected)
+
+    def test_ads_search_q(self):
+        r = self.client.get("/api/alpha/ads/?q=future")
+        self.assertEqual(r.status_code, 200)
+
+        r_data = r.json()
+        expected = {
+            "count": 1,
+            "next": None,
+            "previous": None,
+            "results": [
+                {
+                    "issue_number": "ADS-TEST-FUTURE",
+                    "issue_date": "2025-01-02",
+                    "buildings_operations": [],
+                }
+            ],
+        }
+        self.assertDictEqual(r_data, expected)
+
     def test_read_one_ads(self):
         r = self.client.get("/api/alpha/ads/ADS-TEST/")
         self.assertEqual(r.status_code, 200)
@@ -129,6 +167,35 @@ class EndpointsTest(APITestCase):
         r = self.client.get("/api/alpha/ads/ADS-TEST-NEW-BDG/")
         r_data = r.json()
         self.assertDictEqual(r_data, expected)
+
+    def test_ads_same_bdg_twice(self):
+        data = {
+            "issue_number": "ADS-TEST-BDG-TWICE",
+            "issue_date": "2019-01-02",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {"rnb_id": "BDG-RNB-ID"},
+                },
+                {
+                    "operation": "build",
+                    "building": {"rnb_id": "BDG-RNB-ID"},
+                },
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 400)
+
+        r_data = r.json()
+
+        msg_to_check = {
+            "buildings_operations": "A building can only be present once in an ADS."
+        }
+
+        for key, msg in r_data.items():
+            self.assertIn(msg_to_check[key], r_data[key])
 
     def test_ads_wrong_issue_number(self):
         data = {"issue_number": "ADS-TEST", "issue_date": "2019-01-02"}
@@ -328,6 +395,8 @@ class EndpointsTest(APITestCase):
         # ############
         # ADS
         ads = ADS.objects.create(issue_number="ADS-TEST", issue_date="2019-01-01")
+
+        ADS.objects.create(issue_number="ADS-TEST-FUTURE", issue_date="2025-01-02")
 
         # ############
         # BuildingADS

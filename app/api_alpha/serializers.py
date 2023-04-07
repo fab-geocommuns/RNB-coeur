@@ -2,9 +2,14 @@ import random
 
 from rest_framework import serializers
 from batid.models import Building, Address, ADS, BuildingADS
-from api_alpha.validators import ads_validate_rnbid, BdgInADSValidator
+from api_alpha.validators import (
+    ads_validate_rnbid,
+    BdgInADSValidator,
+    ADSValidator,
+)
 from api_alpha.models import BuildingADS as BuildingADSModel, BdgInADS
 from rest_framework.validators import UniqueValidator
+from rnbid.generator import generate_id
 
 
 class AddressSerializer(serializers.ModelSerializer):
@@ -52,9 +57,7 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
             lng = validated_data.pop("lng")
             point = "POINT({} {})".format(lng, lat)
             validated_data["point"] = point
-            validated_data[
-                "rnb_id"
-            ] = f"{random.choice(range(10000))}-{random.choice(range(10000))}"  # todo : generate random rnb id
+            validated_data["rnb_id"] = generate_id()
             return super().create(validated_data)
         else:
             return Building.objects.get(rnb_id=validated_data["rnb_id"])
@@ -96,6 +99,7 @@ class ADSSerializer(serializers.ModelSerializer):
     class Meta:
         model = ADS
         fields = ["issue_number", "issue_date", "buildings_operations"]
+        validators = [ADSValidator()]
 
     def create(self, validated_data):
         bdg_ops = []

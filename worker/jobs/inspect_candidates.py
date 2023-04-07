@@ -2,7 +2,7 @@ import psycopg2
 from db import get_conn
 from psycopg2.extras import RealDictCursor, execute_values
 from logic.candidate import row_to_candidate, Candidate
-from shared_libs.rnbid.generator import generate_id
+from rnbid.generator import generate_id
 from settings import settings
 
 

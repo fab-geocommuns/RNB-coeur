@@ -4,6 +4,7 @@ from batid.utils.misc import is_float
 from batid.models import Building
 from django.conf import settings
 from django.contrib.gis.geos import Polygon
+from django.db.models import QuerySet
 
 
 class BuildingSearch:
@@ -11,13 +12,16 @@ class BuildingSearch:
         self.params = self.BuildingSearchParams(**kwargs)
         self.qs = None
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet:
         # Init
         queryset = Building.objects.prefetch_related("addresses").all()
 
         # Add filters
         if self.params.bb:
             queryset = queryset.filter(point__intersects=self.params.bb)
+
+        if self.params.sort:
+            queryset = queryset.order_by(self.params.sort)
 
         return queryset
 

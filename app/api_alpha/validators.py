@@ -22,3 +22,24 @@ class BdgInADSValidator:
                     {"lng": "lng field is required for new buildings."}
                 )
             return
+
+
+class ADSValidator:
+    def __call__(self, ads):
+        self.validate_bdg_once(ads)
+
+    def validate_bdg_once(self, ads):
+        if ads.get("buildings_operations") is None:
+            return
+
+        rnb_ids = [
+            op["building"]["rnb_id"]
+            for op in ads["buildings_operations"]
+            if op["building"]["rnb_id"] != BdgInADS.NEW_STR
+        ]
+        if len(rnb_ids) != len(set(rnb_ids)):
+            raise serializers.ValidationError(
+                {
+                    "buildings_operations": "A building can only be present once in an ADS."
+                }
+            )
