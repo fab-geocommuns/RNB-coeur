@@ -14,7 +14,7 @@ class ADSEnpointsTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
     def test_ads_search_since(self):
-        r = self.client.get("/api/alpha/ads/?since=2024-12-01")
+        r = self.client.get("/api/alpha/ads/?since=2034-12-01")
         self.assertEqual(r.status_code, 200)
 
         r_data = r.json()
@@ -25,7 +25,7 @@ class ADSEnpointsTest(APITestCase):
             "results": [
                 {
                     "issue_number": "ADS-TEST-FUTURE",
-                    "issue_date": "2025-01-02",
+                    "issue_date": "2035-01-02",
                     "buildings_operations": [],
                 }
             ],
@@ -44,7 +44,7 @@ class ADSEnpointsTest(APITestCase):
             "results": [
                 {
                     "issue_number": "ADS-TEST-FUTURE",
-                    "issue_date": "2025-01-02",
+                    "issue_date": "2035-01-02",
                     "buildings_operations": [],
                 }
             ],
@@ -81,6 +81,10 @@ class ADSEnpointsTest(APITestCase):
             "buildings_operations": [],
         }
         self.assertDictEqual(r_data, expected)
+
+    def test_read_unknown_ads(self):
+        r = self.client.get("/api/alpha/ads/ABSENT-ADS/")
+        self.assertEqual(r.status_code, 404)
 
     def test_create_ads(self):
         data = {
@@ -217,6 +221,46 @@ class ADSEnpointsTest(APITestCase):
                         ],
                     },
                 }
+            ],
+        }
+
+        self.assertDictEqual(r_data, expected)
+
+    def test_ads_update_many_buildings(self):
+        data = {
+            "issue_number": "ADS-TEST-UPDATE-MANY-BDG",
+            "issue_date": "2025-01-01",
+            "buildings_operations": [
+                {"operation": "modify", "building": {"rnb_id": "BDG-IN-ADS-ONE"}},
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "BDG-IN-ADS-TWO",
+                    },
+                },
+            ],
+        }
+        r = self.client.put(
+            "/api/alpha/ads/ADS-TEST-UPDATE-MANY-BDG/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE-MANY-BDG/")
+        r_data = r.json()
+
+        expected = {
+            "issue_number": "ADS-TEST-UPDATE-MANY-BDG",
+            "issue_date": "2025-01-01",
+            "buildings_operations": [
+                {"operation": "modify", "building": {"rnb_id": "BDG-IN-ADS-ONE"}},
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "BDG-IN-ADS-TWO",
+                    },
+                },
             ],
         }
 
@@ -446,15 +490,36 @@ class ADSEnpointsTest(APITestCase):
             rnb_id="BDG-RNB-ID", source="dummy", shape=geom, point=geom.point_on_surface
         )
 
+        bdg_ads_one = Building.objects.create(
+            rnb_id="BDG-IN-ADS-ONE",
+            source="dummy",
+            shape=geom,
+            point=geom.point_on_surface,
+        )
+        bdg_ads_two = Building.objects.create(
+            rnb_id="BDG-IN-ADS-TWO",
+            source="dummy",
+            shape=geom,
+            point=geom.point_on_surface,
+        )
+
         # ############
         # ADS
         ads = ADS.objects.create(issue_number="ADS-TEST", issue_date="2019-01-01")
+        BuildingADS.objects.create(building=b, ads=ads, operation="build")
 
-        ADS.objects.create(issue_number="ADS-TEST-FUTURE", issue_date="2025-01-02")
+        ADS.objects.create(issue_number="ADS-TEST-FUTURE", issue_date="2035-01-02")
 
         ADS.objects.create(issue_number="ADS-TEST-UPDATE", issue_date="2025-01-01")
         ADS.objects.create(issue_number="ADS-TEST-UPDATE-BDG", issue_date="2025-01-01")
 
-        # ############
-        # BuildingADS
-        BuildingADS.objects.create(building=b, ads=ads, operation="build")
+        # For many buildings in one ADS (for update and delete test)
+        many_bdg_ads = ADS.objects.create(
+            issue_number="ADS-TEST-UPDATE-MANY-BDG", issue_date="2025-01-01"
+        )
+        BuildingADS.objects.create(
+            building=bdg_ads_one, ads=many_bdg_ads, operation="build"
+        )
+        BuildingADS.objects.create(
+            building=bdg_ads_two, ads=many_bdg_ads, operation="demolish"
+        )
