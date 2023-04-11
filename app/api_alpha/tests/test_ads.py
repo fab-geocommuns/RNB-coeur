@@ -1,18 +1,13 @@
 import json
-
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.test import APITestCase
 from batid.models import Building, ADS, BuildingADS
 
 
-class EndpointsTest(APITestCase):
+class ADSEnpointsTest(APITestCase):
     def setUp(self):
         self.__insert_data()
-
-    def test_buildings_root(self):
-        r = self.client.get("/api/alpha/buildings/")
-        self.assertEqual(r.status_code, 200)
 
     def test_ads_root(self):
         r = self.client.get("/api/alpha/ads/")
@@ -200,12 +195,32 @@ class EndpointsTest(APITestCase):
             ],
         }
 
-        r = self.client.put("/api/alpha/ads/ADS-TEST-UPDATE-BDG/", data=data)
+        r = self.client.put(
+            "/api/alpha/ads/ADS-TEST-UPDATE-BDG/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
         self.assertEqual(r.status_code, 200)
 
         r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE-BDG/")
         r_data = r.json()
-        print(r_data)
+
+        expected = {
+            "issue_number": "ADS-TEST-UPDATE-BDG",
+            "issue_date": "2025-01-01",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": r_data["buildings_operations"][0]["building"][
+                            "rnb_id"
+                        ],
+                    },
+                }
+            ],
+        }
+
+        self.assertDictEqual(r_data, expected)
 
     def test_ads_same_bdg_twice(self):
         data = {
@@ -404,8 +419,8 @@ class EndpointsTest(APITestCase):
                 if "lng" in op["building"]:
                     self.assertIn(msg_to_check, op["building"]["lng"])
 
-    # ###############
-    # Data setup
+        # ###############
+        # Data setup
 
     def __insert_data(self):
         # ############

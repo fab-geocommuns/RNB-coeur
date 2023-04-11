@@ -2,6 +2,7 @@ import random
 
 from rest_framework import serializers
 from batid.models import Building, Address, ADS, BuildingADS
+from batid.logic.ads import ADS as ADSLogic
 from api_alpha.validators import (
     ads_validate_rnbid,
     BdgInADSValidator,
@@ -83,6 +84,12 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
         bdg = BdgInAdsSerializer().create(bdg_data)
         return BuildingADS(building=bdg, **validated_data)
 
+    def update(self, bdg_ads, validated_data):
+        validated_data.pop("building")
+        for attr, value in validated_data.items():
+            setattr(bdg_ads, attr, value)
+        return bdg_ads
+
 
 class ADSSerializer(serializers.ModelSerializer):
     issue_number = serializers.CharField(
@@ -112,5 +119,34 @@ class ADSSerializer(serializers.ModelSerializer):
             bdg_op = BuildingsADSSerializer().create(bdg_op_data)
             bdg_op.ads = ads
             bdg_op.save()
+
+        return ads
+
+    def update(self, ads, validated_data):
+        data_bdg_ops = []
+        if "buildings_operations" in validated_data:
+            data_bdg_ops = validated_data.pop("buildings_operations")
+
+        for attr, value in validated_data.items():
+            setattr(ads, attr, value)
+        ads.save()
+
+        if data_bdg_ops:
+            for data_bdg_op in data_bdg_ops:
+                # First we check if the building is already in the ADS
+                adslogic = ADSLogic(ads)
+                if adslogic.concerns_rnb_id(data_bdg_op["building"]["rnb_id"]):
+                    bdg_op = adslogic.get_op_by_rnbid(data_bdg_op["building"]["rnb_id"])
+                    bdg_op = BuildingsADSSerializer().update(bdg_op, data_bdg_op.copy())
+                else:
+                    bdg_op = BuildingsADSSerializer().create(data_bdg_op.copy())
+                    bdg_op.ads = ads
+                bdg_op.save()
+
+            # We remove operations which are in the ADS but not in sent data (matching on RNB ID)
+            data_rnb_ids = [b["building"]["rnb_id"] for b in data_bdg_ops]
+            for model_bdg_op in ads.buildings_operations.all():
+                if model_bdg_op.building.rnb_id not in data_rnb_ids:
+                    model_bdg_op.delete()
 
         return ads
