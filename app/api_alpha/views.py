@@ -11,6 +11,8 @@ from batid.logic.ads_search import ADSSearch
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
+from api_alpha.permissions import ADSPermission
+
 
 class BuildingViewSet(viewsets.ModelViewSet):
     queryset = Building.objects.all()
@@ -34,6 +36,8 @@ class ADSViewSet(viewsets.ModelViewSet):
     serializer_class = ADSSerializer
     lookup_field = "issue_number"
     pagination_class = PageNumberPagination
+    permission_classes = [ADSPermission]
+    http_method_names = ["get", "post", "put", "delete"]
 
     def get_queryset(self):
         search = ADSSearch(**self.request.query_params.dict())
