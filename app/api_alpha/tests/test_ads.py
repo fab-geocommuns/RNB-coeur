@@ -1,8 +1,10 @@
 import json
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
-from batid.models import Building, ADS, BuildingADS
+from batid.models import Building, ADS, BuildingADS, Organization
 
 
 class ADSEnpointsTest(APITestCase):
@@ -69,6 +71,7 @@ class ADSEnpointsTest(APITestCase):
         data = {
             "issue_number": "ADS-TEST-2",
             "issue_date": "2019-01-01",
+            "insee_code": "4242",
         }
 
         r = self.client.post("/api/alpha/ads/", data=data)
@@ -79,6 +82,7 @@ class ADSEnpointsTest(APITestCase):
             "issue_number": "ADS-TEST-2",
             "issue_date": "2019-01-01",
             "buildings_operations": [],
+            "insee_code": "4242",
         }
         self.assertDictEqual(r_data, expected)
 
@@ -523,3 +527,13 @@ class ADSEnpointsTest(APITestCase):
         BuildingADS.objects.create(
             building=bdg_ads_two, ads=many_bdg_ads, operation="demolish"
         )
+
+        # User, Org & Token
+        u = User.objects.create_user(
+            first_name="John", last_name="Doe", username="johndoe"
+        )
+        org = Organization.objects.create(name="Test Org", managed_cities=["4242"])
+        org.users.add(u)
+
+        token = Token.objects.create(user=u)
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)

@@ -4,7 +4,9 @@ from django.contrib.auth.models import User
 class RNBUser:
     def __init__(self, m: User):
         if not isinstance(m, User):
-            raise TypeError("RNBUser must be initialised with a User instance")
+            raise TypeError(
+                f"RNBUser must be initialised with a User instance. {type(m)} given."
+            )
 
         self.m = m
 
