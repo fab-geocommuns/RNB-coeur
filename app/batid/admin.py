@@ -1,8 +1,6 @@
 from django.urls import path
 from django.contrib import admin
-from django.shortcuts import render
 from batid.views import worker
-
 
 def get_admin_urls(urls):
     def get_urls():

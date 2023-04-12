@@ -1,6 +1,8 @@
 services:
   web:
-    build: ./app
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
     restart: unless-stopped
     ports:
       - '8000:8000'
@@ -45,7 +47,9 @@ services:
     depends_on:
       - nginx-proxy
   worker:
-    build: ./worker
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
     command: celery -A tasks worker --loglevel=INFO
     volumes:
       - ./worker:/worker
