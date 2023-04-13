@@ -14,13 +14,13 @@ services:
       - DJANGO_ALLOWED_HOST=localhost 127.0.0.1 [::1]
       - DJANGO_CSRF_TRUSTED_ORIGINS=http://127.0.0.1
       - DJANGO_CORS_ALLOWED_ORIGINS=http://127.0.0.1:5500
-      - SQL_ENGINE=django.contrib.gis.db.backends.postgis
-      - SQL_HOST=db
-      - SQL_PORT=5432
+      - DJANGO_SQL_ENGINE=django.contrib.gis.db.backends.postgis
+      - POSTGRES_PORT=db
+      - POSTGRES_HOST=5432
       - DJANGO_SUPERUSER_PASSWORD=1234
-      - SQL_NAME=postgres
-      - SQL_USER=postgres
-      - SQL_PASSWORD=postgres
+      - POSTGRES_NAME=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
       - POSTGRES_NAME=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -29,6 +29,8 @@ services:
       - DOWNLOAD_DIR='/data/downloads'
       - MIN_BDG_AREA=5
       - DEFAULT_SRID=2154
+      - SENTRY_DSN = 'https://bd81a67ba3f4491c84faa6244810da9d@o4504973329825792.ingest.sentry.io/4504973331595264'
+      - SENTRY_ENV = 'test'
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
         - ./app:/app
