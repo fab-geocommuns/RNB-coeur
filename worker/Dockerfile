@@ -4,6 +4,7 @@ WORKDIR /worker
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH "${PYTHONPATH}:/worker"
 
 RUN apt-get update
 RUN apt-get install --yes libgdal-dev
