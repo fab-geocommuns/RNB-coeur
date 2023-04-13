@@ -87,7 +87,19 @@ def import_commune_insee(state_date):
     with open(src.path, "r") as f, conn.cursor() as cursor:
         print("-- transfer buffer to db --")
         try:
-            cursor.copy_from(f, "batid_city", sep=";", columns=cols)
+            sql_query = """
+            INSERT INTO batid_city (code_insee, creation_date, uri_insee, name, name_without_article)
+            VALUES %s
+            ON CONFLICT (code_insee) DO UPDATE
+            SET creation_date = EXCLUDED.creation_date,
+                uri_insee = EXCLUDED.uri_insee,
+                name = EXCLUDED.name,
+                name_without_article = EXCLUDED.name_without_article ;
+            """
+
+            # Execute the query with the list of tuples
+            execute_values(cursor, sql_query, communes_tuples)
+
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
