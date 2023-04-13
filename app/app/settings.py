@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "corsheaders",
     "batid",
+    "website",
     "api_alpha",
     "xp",
 ]

@@ -17,9 +17,9 @@ services:
       - ./app:/app
       - ./source_data:/home/app/source_data
     environment:
-      - VIRTUAL_HOST=rnb-api.beta.gouv.fr
+      - VIRTUAL_HOST=rnb.beta.gouv.fr
       - VIRTUAL_PORT=8000
-      - LETSENCRYPT_HOST=rnb-api.beta.gouv.fr
+      - LETSENCRYPT_HOST=rnb.beta.gouv.fr
   nginx-proxy:
     container_name: nginx-proxy
     build: ./nginx
