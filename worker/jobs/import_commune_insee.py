@@ -7,6 +7,7 @@ import psycopg2
 import requests
 from db import get_conn
 from logic.source import Source
+from psycopg2.extras import execute_values
 
 
 def import_commune_insee(state_date):
@@ -21,9 +22,7 @@ def import_commune_insee(state_date):
     src = Source("insee-cog-commune")
     src.set_param("state_date", state_date)
 
-    # FORMER la requête
-
-    # retrieve token
+    # Retrieve token
     token = retrieve_token(
         consumer_key=os.environ.get("INSEE_CONSUMER_KEY"),
         consumer_secret=os.environ.get("INSEE_CONSUMER_SECRET"),
@@ -37,17 +36,10 @@ def import_commune_insee(state_date):
     params = {
         "date": state_date,
         "com": "true",  # to inclue Outre-Mer cities
-        "filtreNom": "Attignat",
     }
 
     print("-- request api insee communes data --")
     response = requests.get(src.url, params=params, headers=headers)
-
-    # In order to perfom efficient insert in postgres db, the idea is to use copyfrom command.
-    # hence, an initial write in csv is need.
-
-    # write response to csv
-    print("-- Write response to csv --")
 
     communes = json.loads(response.content)
 
@@ -71,13 +63,16 @@ def import_commune_insee(state_date):
 
         communes[i] = commune
 
-    src.create_abs_dir()
-
-    with open(src.path, "w") as f:
-        print("-- writing buffer file --")
-        cols = list(communes[0].keys())
-        writer = csv.DictWriter(f, delimiter=";", fieldnames=cols)
-        writer.writerows(communes)
+    communes_tuples = [
+        (
+            c["code_insee"],
+            c["creation_date"],
+            c["uri_insee"],
+            c["name"],
+            c["name_without_article"],
+        )
+        for c in communes
+    ]
 
     # Connect and populate db
     print("-- Connect and populate db --")
@@ -132,4 +127,5 @@ def retrieve_token(consumer_key: str, consumer_secret: str) -> str:
 
 
 if __name__ == "__main__":
+    STATE_DATE = os.environ.get("INSEE_STATE_DATE")
     import_commune_insee(STATE_DATE)
