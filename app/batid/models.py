@@ -1,4 +1,6 @@
 import json
+
+from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.gis.db import models
 from django.utils.timezone import now
@@ -38,6 +40,7 @@ class ADS(models.Model):
         max_length=40, null=False, unique=True, db_index=True
     )
     issue_date = models.DateField(null=True)
+    insee_code = models.CharField(max_length=5, null=True)
 
     class Meta:
         ordering = ["issue_date"]
@@ -74,3 +77,9 @@ class Candidate(models.Model):
     created_at = models.DateTimeField(default=now, null=True)
     inspected_at = models.DateTimeField(null=True)
     inspect_result = models.CharField(max_length=20, null=True)
+
+
+class Organization(models.Model):
+    name = models.CharField(max_length=100, null=False)
+    users = models.ManyToManyField(User, related_name="organizations")
+    managed_cities = ArrayField(models.CharField(max_length=6), null=True)

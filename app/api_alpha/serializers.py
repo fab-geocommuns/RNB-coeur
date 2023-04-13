@@ -102,10 +102,11 @@ class ADSSerializer(serializers.ModelSerializer):
     )
     issue_date = serializers.DateField(required=True, format="%Y-%m-%d")
     buildings_operations = BuildingsADSSerializer(many=True, required=False)
+    insee_code = serializers.CharField(required=True)
 
     class Meta:
         model = ADS
-        fields = ["issue_number", "issue_date", "buildings_operations"]
+        fields = ["issue_number", "issue_date", "buildings_operations", "insee_code"]
         validators = [ADSValidator()]
 
     def create(self, validated_data):
