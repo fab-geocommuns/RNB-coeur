@@ -9,13 +9,16 @@ class ADSPermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
         if view.action in ["create", "update"]:
-            if not request.user.is_authenticated:
-                return False
-
             if request.user.is_superuser:
                 return True
 
-            return user_can_manage_insee_code(request.user, request.data["insee_code"])
+            if request.data.get("insee_code"):
+                return user_can_manage_insee_code(
+                    request.user, request.data["insee_code"]
+                )
+
+            # we don't have enough information (the insee_code) to decide
+            return True
 
         else:
             return True
@@ -29,6 +32,10 @@ class ADSPermission(permissions.BasePermission):
 
         if view.action in ["create", "update", "destroy"]:
             return user_can_manage_ads(request.user, obj)
+
+        # Anybody can read ADS
+        if view.action in ["retrieve", "list"]:
+            return True
 
         raise NotImplementedError(f"Unknown action {view.action}")
 

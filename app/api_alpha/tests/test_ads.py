@@ -28,6 +28,7 @@ class ADSEnpointsTest(APITestCase):
                 {
                     "issue_number": "ADS-TEST-FUTURE",
                     "issue_date": "2035-01-02",
+                    "insee_code": "12345",
                     "buildings_operations": [],
                 }
             ],
@@ -47,6 +48,7 @@ class ADSEnpointsTest(APITestCase):
                 {
                     "issue_number": "ADS-TEST-FUTURE",
                     "issue_date": "2035-01-02",
+                    "insee_code": "12345",
                     "buildings_operations": [],
                 }
             ],
@@ -61,6 +63,7 @@ class ADSEnpointsTest(APITestCase):
         expected = {
             "issue_number": "ADS-TEST",
             "issue_date": "2019-01-01",
+            "insee_code": "5555",
             "buildings_operations": [
                 {"operation": "build", "building": {"rnb_id": "BDG-RNB-ID"}}
             ],
@@ -94,6 +97,7 @@ class ADSEnpointsTest(APITestCase):
         data = {
             "issue_number": "ADS-TEST-2",
             "issue_date": "2019-01-02",
+            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -110,6 +114,7 @@ class ADSEnpointsTest(APITestCase):
         expected = {
             "issue_number": "ADS-TEST-2",
             "issue_date": "2019-01-02",
+            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -132,6 +137,7 @@ class ADSEnpointsTest(APITestCase):
         data = {
             "issue_number": "ADS-TEST-NEW-BDG",
             "issue_date": "2019-03-18",
+            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -153,6 +159,7 @@ class ADSEnpointsTest(APITestCase):
         expected = {
             "issue_number": "ADS-TEST-NEW-BDG",
             "issue_date": "2019-03-18",
+            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -172,7 +179,11 @@ class ADSEnpointsTest(APITestCase):
         self.assertDictEqual(r_data, expected)
 
     def test_ads_update_simple(self):
-        data = {"issue_number": "ADS-TEST-UPDATE", "issue_date": "2025-01-02"}
+        data = {
+            "issue_number": "ADS-TEST-UPDATE",
+            "issue_date": "2025-01-02",
+            "insee_code": "4242",
+        }
 
         r = self.client.put("/api/alpha/ads/ADS-TEST-UPDATE/", data=data)
         self.assertEqual(r.status_code, 200)
@@ -180,17 +191,18 @@ class ADSEnpointsTest(APITestCase):
         expected = {
             "issue_number": "ADS-TEST-UPDATE",
             "issue_date": "2025-01-02",
+            "insee_code": "4242",
             "buildings_operations": [],
         }
         r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE/")
         r_data = r.json()
-        print(r_data)
         self.assertDictEqual(r_data, expected)
 
     def test_ads_update_with_new_bdg(self):
         data = {
             "issue_number": "ADS-TEST-UPDATE-BDG",
             "issue_date": "2025-01-01",
+            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -216,6 +228,7 @@ class ADSEnpointsTest(APITestCase):
         expected = {
             "issue_number": "ADS-TEST-UPDATE-BDG",
             "issue_date": "2025-01-01",
+            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -234,6 +247,7 @@ class ADSEnpointsTest(APITestCase):
         data = {
             "issue_number": "ADS-TEST-UPDATE-MANY-BDG",
             "issue_date": "2025-01-01",
+            "insee_code": "4242",
             "buildings_operations": [
                 {"operation": "modify", "building": {"rnb_id": "BDG-IN-ADS-ONE"}},
                 {
@@ -257,6 +271,7 @@ class ADSEnpointsTest(APITestCase):
         expected = {
             "issue_number": "ADS-TEST-UPDATE-MANY-BDG",
             "issue_date": "2025-01-01",
+            "insee_code": "4242",
             "buildings_operations": [
                 {"operation": "modify", "building": {"rnb_id": "BDG-IN-ADS-ONE"}},
                 {
@@ -274,6 +289,7 @@ class ADSEnpointsTest(APITestCase):
         data = {
             "issue_number": "ADS-TEST-BDG-TWICE",
             "issue_date": "2019-01-02",
+            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -300,7 +316,11 @@ class ADSEnpointsTest(APITestCase):
             self.assertIn(msg_to_check[key], r_data[key])
 
     def test_ads_wrong_issue_number(self):
-        data = {"issue_number": "ADS-TEST", "issue_date": "2019-01-02"}
+        data = {
+            "issue_number": "ADS-TEST",
+            "issue_date": "2019-01-02",
+            "insee_code": "4242",
+        }
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
@@ -314,7 +334,11 @@ class ADSEnpointsTest(APITestCase):
             self.assertIn(msg_to_check[key], r_data[key])
 
     def test_ads_wrong_issue_date(self):
-        data = {"issue_number": "ADS-TEST-DATE", "issue_date": "2019-13-01"}
+        data = {
+            "issue_number": "ADS-TEST-DATE",
+            "issue_date": "2019-13-01",
+            "insee_code": "4242",
+        }
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
@@ -330,7 +354,7 @@ class ADSEnpointsTest(APITestCase):
             self.assertIn(msg_to_check[key], r_data[key])
 
     def test_ads_absent_issue_date(self):
-        data = {"issue_number": "ADS-TEST-DATE"}
+        data = {"issue_number": "ADS-TEST-DATE", "insee_code": "4242"}
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
@@ -509,17 +533,29 @@ class ADSEnpointsTest(APITestCase):
 
         # ############
         # ADS
-        ads = ADS.objects.create(issue_number="ADS-TEST", issue_date="2019-01-01")
+        ads = ADS.objects.create(
+            issue_number="ADS-TEST", issue_date="2019-01-01", insee_code="5555"
+        )
         BuildingADS.objects.create(building=b, ads=ads, operation="build")
 
-        ADS.objects.create(issue_number="ADS-TEST-FUTURE", issue_date="2035-01-02")
+        ADS.objects.create(
+            issue_number="ADS-TEST-FUTURE", issue_date="2035-01-02", insee_code="12345"
+        )
 
-        ADS.objects.create(issue_number="ADS-TEST-UPDATE", issue_date="2025-01-01")
-        ADS.objects.create(issue_number="ADS-TEST-UPDATE-BDG", issue_date="2025-01-01")
+        ADS.objects.create(
+            issue_number="ADS-TEST-UPDATE", issue_date="2025-01-01", insee_code="4242"
+        )
+        ADS.objects.create(
+            issue_number="ADS-TEST-UPDATE-BDG",
+            issue_date="2025-01-01",
+            insee_code="4242",
+        )
 
         # For many buildings in one ADS (for update and delete test)
         many_bdg_ads = ADS.objects.create(
-            issue_number="ADS-TEST-UPDATE-MANY-BDG", issue_date="2025-01-01"
+            issue_number="ADS-TEST-UPDATE-MANY-BDG",
+            issue_date="2025-01-01",
+            insee_code="4242",
         )
         BuildingADS.objects.create(
             building=bdg_ads_one, ads=many_bdg_ads, operation="build"
