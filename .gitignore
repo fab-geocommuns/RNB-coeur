@@ -23,3 +23,6 @@ venv/
 # IDE settings
 .idea/
 .vscode/
+
+# mac os file
+*.DS_Store
