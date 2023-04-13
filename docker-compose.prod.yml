@@ -11,6 +11,7 @@ services:
       - ./.env.app.prod
       - ./.env.rnb.prod
       - ./.env.worker.prod
+      - ./.env.sentry.prod
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - ./app:/app
@@ -58,6 +59,7 @@ services:
       - ./.env.db_auth.prod
       - ./.env.worker.prod
       - ./.env.rnb.prod
+      - ./.env.sentry.prod
     depends_on:
       - rabbitmq
       - redis
