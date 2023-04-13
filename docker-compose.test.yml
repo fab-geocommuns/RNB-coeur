@@ -26,8 +26,8 @@ services:
       - DOWNLOAD_DIR='/data/downloads'
       - MIN_BDG_AREA=5
       - DEFAULT_SRID=2154
-      - SENTRY_DSN = 'https://bd81a67ba3f4491c84faa6244810da9d@o4504973329825792.ingest.sentry.io/4504973331595264'
-      - SENTRY_ENV = 'test'
+      - SENTRY_DSN='https://bd81a67ba3f4491c84faa6244810da9d@o4504973329825792.ingest.sentry.io/4504973331595264'
+      - SENTRY_ENV='test'
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
         - ./app:/app
