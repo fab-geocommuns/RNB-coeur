@@ -167,18 +167,19 @@ CELERY_BACKEND_URL = os.environ.get("CELERY_RESULT_BACKEND")
 # Bat ID custom settings
 DEFAULT_SRID = int(os.environ.get("DEFAULT_SRID"))  # 2154 = Lambert 93
 
-
-sentry_sdk.init(
-    dsn=os.environ.get("SENTRY_DSN"),
-    integrations=[
-        DjangoIntegration(),
-    ],
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for performance monitoring.
-    # We recommend adjusting this value in production.
-    traces_sample_rate=1.0,
-    # If you wish to associate users to errors (assuming you are using
-    # django.contrib.auth) you may enable sending PII data.
-    send_default_pii=True,
-    environment=os.environ.get("SENTRY_ENV"),
-)
+sentry_dsn = os.environ.get("SENTRY_DSN", None)
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[
+            DjangoIntegration(),
+        ],
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for performance monitoring.
+        # We recommend adjusting this value in production.
+        traces_sample_rate=1.0,
+        # If you wish to associate users to errors (assuming you are using
+        # django.contrib.auth) you may enable sending PII data.
+        send_default_pii=True,
+        environment=os.environ.get("SENTRY_ENV"),
+    )
