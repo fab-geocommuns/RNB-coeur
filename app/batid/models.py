@@ -56,9 +56,12 @@ class Candidate(models.Model):
 
 
 class City(models.Model):
-    id = models.CharField(max_length=40, primary_key=True, auto_created=True)
+    id = models.AutoField(primary_key=True)
     code_insee = models.CharField(max_length=10, null=False, db_index=True)
     uri_insee = models.CharField(max_length=200, null=True)
     creation_date = models.DateTimeField(null=False)
     name = models.CharField(max_length=200, null=False)
     name_without_article = models.CharField(max_length=200, null=False)
+    
+    class Meta:
+        unique_together = ('code_insee',)
