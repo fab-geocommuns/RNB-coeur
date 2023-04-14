@@ -1,0 +1,19 @@
+[
+  {
+    "model": "batid.ads",
+    "pk": 1,
+    "fields": {
+      "issue_number": "AAAAAA",
+      "issue_date": "2023-03-16"
+    }
+  },
+  {
+    "model": "batid.ads",
+    "pk": 2,
+    "fields": {
+      "issue_number": "BBBB",
+      "issue_date": "2023-03-14"
+    }
+  }
+
+]

@@ -10,7 +10,10 @@ RUN apt-get update
 RUN apt-get install --yes libgdal-dev
 
 RUN pip install --upgrade pip
-COPY ./requirements.txt .
+COPY ./worker/requirements.txt .
 RUN pip install -r requirements.txt
+
+COPY ./shared_libs /shared_libs
+ENV PYTHONPATH "${PYTHONPATH}:/shared_libs"
 
 # COPY . .

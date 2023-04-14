@@ -2,7 +2,9 @@ version: "3.9"
 
 services:
   web:
-    build: ./app
+    build:
+        context: .
+        dockerfile: ./app/Dockerfile
     ports:
       - '8000:8000'
     env_file:
@@ -10,6 +12,7 @@ services:
       - ./.env.app.dev
       - ./.env.worker.dev
       - ./.env.rnb.dev
+      - ./.env.sentry.dev
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
         - ./app:/app
@@ -28,7 +31,9 @@ services:
     ports:
       - "5432:5432"
   worker:
-    build: ./worker
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
     command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A tasks worker --loglevel=INFO
     volumes:
       - ./worker:/worker
@@ -37,6 +42,7 @@ services:
       - ./.env.db_auth.dev
       - ./.env.worker.dev
       - ./.env.rnb.dev
+      - ./.env.sentry.dev
     depends_on:
       - db
       - rabbitmq
@@ -50,6 +56,12 @@ services:
     image: redis:latest
     ports:
       - "6379:6379"
+  blackd:
+    restart: always
+    image: docker.io/pyfound/black
+    command: blackd --bind-host 0.0.0.0 --bind-port 45484
+    ports:
+      - "45484:45484"
 
 
 volumes:

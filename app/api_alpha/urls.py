@@ -1,4 +1,4 @@
-from api_alpha.views import BuildingViewSet, CityViewSet
+from api_alpha.views import ADSViewSet, BuildingViewSet, CityViewSet
 from django.urls import include, path
 from rest_framework import routers
 
@@ -6,6 +6,7 @@ from rest_framework import routers
 router = routers.DefaultRouter()
 router.register(r"buildings", BuildingViewSet)
 router.register(r"city", CityViewSet)
+router.register(r"ads", ADSViewSet)
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.

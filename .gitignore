@@ -11,6 +11,9 @@
 .env.db_auth.dev
 .env.db_auth.prod
 
+.env.sentry.dev
+.env.sentry.prod
+
 .env.nginx-encrypt.prod
 
 # Remove files in data folder since they are used for importing default data

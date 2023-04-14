@@ -1,6 +1,8 @@
 services:
   web:
-    build: ./app
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
     restart: unless-stopped
     ports:
       - '8000:8000'
@@ -9,14 +11,15 @@ services:
       - ./.env.app.prod
       - ./.env.rnb.prod
       - ./.env.worker.prod
+      - ./.env.sentry.prod
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - ./app:/app
       - ./source_data:/home/app/source_data
     environment:
-      - VIRTUAL_HOST=rnb-api.donatello.dev
+      - VIRTUAL_HOST=rnb.beta.gouv.fr
       - VIRTUAL_PORT=8000
-      - LETSENCRYPT_HOST=rnb-api.donatello.dev
+      - LETSENCRYPT_HOST=rnb.beta.gouv.fr
   nginx-proxy:
     container_name: nginx-proxy
     build: ./nginx
@@ -45,7 +48,9 @@ services:
     depends_on:
       - nginx-proxy
   worker:
-    build: ./worker
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
     command: celery -A tasks worker --loglevel=INFO
     volumes:
       - ./worker:/worker
@@ -54,6 +59,7 @@ services:
       - ./.env.db_auth.prod
       - ./.env.worker.prod
       - ./.env.rnb.prod
+      - ./.env.sentry.prod
     depends_on:
       - rabbitmq
       - redis
