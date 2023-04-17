@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 from batid.models import Building, ADS, BuildingADS, Organization
 
 
-class ADSEnpointsTest(APITestCase):
+class ADSEnpointsWithAuthTest(APITestCase):
     def setUp(self):
         self.__insert_data()
 
@@ -573,3 +573,20 @@ class ADSEnpointsTest(APITestCase):
 
         token = Token.objects.create(user=u)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+
+
+class ADSEnpointsNoAuthTest(APITestCase):
+    def setUp(self) -> None:
+        ADS.objects.create(
+            issue_number="ADS-TEST-UPDATE-BDG",
+            issue_date="2025-01-01",
+            insee_code="4242",
+        )
+
+    def test_ads_root(self):
+        r = self.client.get("/api/alpha/ads/")
+        self.assertEqual(r.status_code, 200)
+
+    def test_ads_detail(self):
+        r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE-BDG/")
+        self.assertEqual(r.status_code, 200)

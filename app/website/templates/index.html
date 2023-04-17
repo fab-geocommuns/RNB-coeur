@@ -1,29 +1,9 @@
-<!DOCTYPE html>
-<html>
-<head>
-	<title>RNB</title>
+{% extends "layout.html" %}
 
-    <style>
-    * {
-        font-family: sans-serif;
-    }
-    li {
-        margin-bottom: .7em;
-    }
-</style>
+{% block content %}
 
-</head>
-<body>
-<h1>Référentiel National des Bâtiments</h1>
-<ul>
-    <li><a href="https://beta.gouv.fr/startups/bat-id.html">La description du projet</a></li>
-    <li><a href="https://github.com/fab-geocommuns/BatID/tree/reorg-repo/CNIG">La définition d'un bâtiment</a></li>
-    <li style="color:#ccc;">La carte de visualisation des bâtiments</li>
-</ul>
+<h2>Présentation</h2>
+
 <p>BatID est un projet beta.gouv, porté par la <a href="https://beta.gouv.fr/incubateurs/#/incubators/fab-geocommuns">Fabrique des géocommuns</a> de l'IGN.</p>
 <p>Il est financé par l'agence de la transition écologique (ADEME), le centre scientifique et technique du bâtiment (CSTB) et l'institut national de l'information géographique et forestière (IGN).</p>
-</body>
-</html>
-
-
-
+{% endblock %}

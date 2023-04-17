@@ -24,17 +24,17 @@ class ADSPermission(permissions.BasePermission):
             return True
 
     def has_object_permission(self, request, view, obj):
-        if not request.user.is_authenticated:
-            return False
-
-        if request.user.is_authenticated and request.user.is_superuser:
-            return True
-
         if view.action in ["create", "update", "destroy"]:
+            if not request.user.is_authenticated:
+                return False
+
+            if request.user.is_authenticated and request.user.is_superuser:
+                return True
+
             return user_can_manage_ads(request.user, obj)
 
         # Anybody can read ADS
-        if view.action in ["retrieve", "list"]:
+        if view.action in ["retrieve"]:
             return True
 
         raise NotImplementedError(f"Unknown action {view.action}")
