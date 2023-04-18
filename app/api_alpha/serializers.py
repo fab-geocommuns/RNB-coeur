@@ -40,10 +40,13 @@ class BuildingSerializer(serializers.ModelSerializer):
 
 class BdgInAdsSerializer(serializers.ModelSerializer):
     lat = serializers.FloatField(
-        write_only=True, required=False, max_value=90, min_value=-90
+        required=False, max_value=90, min_value=-90, source="point_lat"
     )
     lng = serializers.FloatField(
-        write_only=True, required=False, max_value=180, min_value=-180
+        required=False,
+        max_value=180,
+        min_value=-180,
+        source="point_lng",
     )
     rnb_id = serializers.CharField(validators=[ads_validate_rnbid])
 
@@ -54,8 +57,8 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         if validated_data.get("rnb_id") == BdgInADS.NEW_STR:
-            lat = validated_data.pop("lat")
-            lng = validated_data.pop("lng")
+            lat = validated_data.pop("point_lat")
+            lng = validated_data.pop("point_lng")
             point = "POINT({} {})".format(lng, lat)
             validated_data["point"] = point
             validated_data["rnb_id"] = generate_id()
@@ -106,7 +109,7 @@ class ADSSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ADS
-        fields = ["issue_number", "issue_date", "buildings_operations", "insee_code"]
+        fields = ["issue_number", "issue_date", "insee_code", "buildings_operations"]
         validators = [ADSValidator()]
 
     def create(self, validated_data):
