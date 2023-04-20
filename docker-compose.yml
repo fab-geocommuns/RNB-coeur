@@ -12,7 +12,6 @@ services:
       - ./.env.app.dev
       - ./.env.worker.dev
       - ./.env.rnb.dev
-      - ./.env.sentry.dev
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
         - ./app:/app
@@ -24,6 +23,8 @@ services:
     platform: linux/amd64
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # by default, docker when creating the db will run scripts in docker-entrypoint-initdb.d
+      - ./sql/00_postgres_setup.sql:/docker-entrypoint-initdb.d/00_postgres_setup.sql
     env_file:
       - ./.env.db_auth.dev
     ports:
@@ -40,7 +41,6 @@ services:
       - ./.env.db_auth.dev
       - ./.env.worker.dev
       - ./.env.rnb.dev
-      - ./.env.sentry.dev
     depends_on:
       - db
       - rabbitmq

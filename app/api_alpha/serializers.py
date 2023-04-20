@@ -1,7 +1,7 @@
 import random
 
 from rest_framework import serializers
-from batid.models import Building, Address, ADS, BuildingADS
+from batid.models import Building, Address, ADS, BuildingADS, City
 from batid.logic.ads import ADS as ADSLogic
 from api_alpha.validators import (
     ads_validate_rnbid,
@@ -11,7 +11,6 @@ from api_alpha.validators import (
 from api_alpha.models import BuildingADS as BuildingADSModel, BdgInADS
 from rest_framework.validators import UniqueValidator
 from rnbid.generator import generate_id
-
 
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,6 +28,7 @@ class AddressSerializer(serializers.ModelSerializer):
 
 
 class BuildingSerializer(serializers.ModelSerializer):
+
     point = serializers.DictField(source="point_geojson", read_only=True)
     addresses = AddressSerializer(many=True, read_only=True)
     source = serializers.CharField(read_only=True)
@@ -36,6 +36,12 @@ class BuildingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Building
         fields = ["rnb_id", "source", "point", "addresses"]
+
+
+class CitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = City
+        fields = ["code_insee", "name"]
 
 
 class BdgInAdsSerializer(serializers.ModelSerializer):

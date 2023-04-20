@@ -3,49 +3,43 @@ import tarfile
 import py7zr
 import requests
 
-class Source:
 
+class Source:
     _dl_dir = os.environ.get("DOWNLOAD_DIR")
 
     refs = {
-        'bdnb_7_buffer': {
-            'folder': 'bdnb_7',
-            'filename': 'buffer.csv',
+        "bdnb_7_buffer": {
+            "folder": "bdnb_7",
+            "filename": "buffer.csv",
         },
-
-        'bdtopo': {
-            'url': 'https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_224$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15.7z',
-            'filename': 'BATIMENT.shp',
+        "bdtopo": {
+            "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_224$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15.7z",
+            "filename": "BATIMENT.shp",
         },
-        'bdnb_7': {
-            'url': 'https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz',
+        "bdnb_7": {
+            "url": "https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz",
         },
         # 'bdtopo_buffer': {
         #     'folder': 'bdtopo',
         #     'filename': 'bdgs.csv',
         # },
-        'xp-grenoble': {
-            'filename': 'bati-grenoble.geojson'
+        "xp-grenoble": {"filename": "bati-grenoble.geojson"},
+        "xp-grenoble-export": {
+            "folder": "xp-grenoble",
+            "filename": "match-rnb-grenoble.geojson",
         },
-        'xp-grenoble-export': {
-            'folder': 'xp-grenoble',
-            'filename': 'match-rnb-grenoble.geojson'
+        "xp-grenoble-export_rnb": {"folder": "xp-grenoble", "filename": "rnb.geojson"},
+        "insee-cog-commune": {
+            "url": "https://api.insee.fr/metadonnees/V1/geo/communes",
+            "folder": "insee_cog",
+            "filename": "commune_insee.csv",
         },
-        'xp-grenoble-export_rnb': {
-            'folder': 'xp-grenoble',
-            'filename': 'rnb.geojson'
-        }
-
     }
 
     # Must be prefixed with a dot
-    archive_exts = [
-        '.7z',
-        '.tar.gz'
-    ]
+    archive_exts = [".7z", ".tar.gz"]
 
     def __init__(self, name, custom_ref=None):
-
         self.name = name
 
         if isinstance(custom_ref, dict):
@@ -54,10 +48,9 @@ class Source:
             self.ref = self.refs[name]
 
     def set_param(self, p_key, p_val):
-
         for k in self.ref:
             if isinstance(self.ref[k], str):
-                self.ref[k] = self.ref[k].replace('{{' + p_key + '}}', p_val)
+                self.ref[k] = self.ref[k].replace("{{" + p_key + "}}", p_val)
 
     @property
     def abs_dir(self):
@@ -69,9 +62,8 @@ class Source:
 
     @property
     def dl_filename(self):
-
         if "dl_filename" in self.ref:
-            return self.ref['dl_filename']
+            return self.ref["dl_filename"]
 
         return os.path.basename(self.url)
 
@@ -81,28 +73,25 @@ class Source:
 
     @property
     def folder(self) -> str:
-
         folder = self.name
 
-        if 'folder' in self.ref:
-            folder = self.ref['folder']
+        if "folder" in self.ref:
+            folder = self.ref["folder"]
 
         return folder
 
     @property
     def filename(self) -> str:
-
-        return self.ref['filename']
+        return self.ref["filename"]
 
     @property
     def url(self):
-        return self.ref['url']
+        return self.ref["url"]
 
     def create_abs_dir(self):
         os.makedirs(self.abs_dir, exist_ok=True)
 
     def download(self):
-
         self.create_abs_dir()
 
         # open in binary mode
@@ -114,10 +103,8 @@ class Source:
             # write to file
             file.write(response.content)
 
-
     @property
     def is_archive(self):
-
         for ext in self.archive_exts:
             if self.dl_filename.endswith(ext):
                 return True
@@ -126,10 +113,8 @@ class Source:
 
     @property
     def uncompress_folder(self):
-
         for ext in self.archive_exts:
             if self.dl_filename.endswith(ext):
-
                 ext_len = len(ext)
                 return self.dl_filename[:-ext_len]
 
@@ -140,34 +125,29 @@ class Source:
         return f"{self.abs_dir}{self.uncompress_folder}/"
 
     def uncompress(self):
-
         if not self.is_archive:
             return
 
-        if self.dl_filename.endswith('.7z'):
+        if self.dl_filename.endswith(".7z"):
             self.uncompress_7z()
 
-        if self.dl_filename.endswith('.tar.gz'):
+        if self.dl_filename.endswith(".tar.gz"):
             self.uncompress_tar_gz()
 
         self.remove_archive()
 
     def uncompress_7z(self):
-
-        with py7zr.SevenZipFile(self.dl_path, 'r') as archive:
+        with py7zr.SevenZipFile(self.dl_path, "r") as archive:
             archive.extractall(self.abs_dir)
 
     def uncompress_tar_gz(self):
-
         with tarfile.open(self.dl_path, "r:gz") as tar:
             tar.extractall(self.uncompress_abs_dir)
 
     def remove_archive(self):
-
         os.remove(self.dl_path)
 
     def find(self, filename):
-
         root_dir = self.abs_dir
         if self.is_archive:
             root_dir = self.uncompress_abs_dir
@@ -177,20 +157,3 @@ class Source:
                 return f"{root}/{filename}"
 
         return None
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
