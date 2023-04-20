@@ -3,7 +3,6 @@ from api_alpha.serializers import (ADSSerializer, BuildingSerializer,
                                    CitySerializer)
 from batid.logic.ads_search import ADSSearch
 from batid.logic.bdg_search import BuildingSearch
-from batid.logic.search import BuildingSearch
 from batid.models import ADS, Building, BuildingADS, City
 from django.db.models import Q
 from django.shortcuts import render
