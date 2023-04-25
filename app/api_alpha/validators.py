@@ -13,11 +13,11 @@ def ads_validate_rnbid(rnb_id):
 class BdgInADSValidator:
     def __call__(self, value):
         if value["rnb_id"] == BdgInADS.NEW_STR:
-            if not value.get("lat"):
+            if not value.get("point_lat"):
                 raise serializers.ValidationError(
                     {"lat": "lat field is required for new buildings."}
                 )
-            if not value.get("lng"):
+            if not value.get("point_lng"):
                 raise serializers.ValidationError(
                     {"lng": "lng field is required for new buildings."}
                 )

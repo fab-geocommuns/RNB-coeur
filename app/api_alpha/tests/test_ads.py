@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 from batid.models import Building, ADS, BuildingADS, Organization
 
 
-class ADSEnpointsTest(APITestCase):
+class ADSEnpointsWithAuthTest(APITestCase):
     def setUp(self):
         self.__insert_data()
 
@@ -65,7 +65,14 @@ class ADSEnpointsTest(APITestCase):
             "issue_date": "2019-01-01",
             "insee_code": "5555",
             "buildings_operations": [
-                {"operation": "build", "building": {"rnb_id": "BDG-RNB-ID"}}
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "BDG-RNB-ID",
+                        "lat": 46.63416324688205,
+                        "lng": 1.065566769109707,
+                    },
+                }
             ],
         }
         self.assertDictEqual(r_data, expected)
@@ -120,6 +127,8 @@ class ADSEnpointsTest(APITestCase):
                     "operation": "build",
                     "building": {
                         "rnb_id": "BDG-RNB-ID",
+                        "lat": 46.63416324688205,
+                        "lng": 1.065566769109707,
                     },
                 }
             ],
@@ -165,6 +174,8 @@ class ADSEnpointsTest(APITestCase):
                     "operation": "build",
                     "building": {
                         "rnb_id": new_rnb_id,
+                        "lat": -5.983577592551999,
+                        "lng": -1.363099489020985,
                     },
                 }
             ],
@@ -220,6 +231,7 @@ class ADSEnpointsTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
+
         self.assertEqual(r.status_code, 200)
 
         r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE-BDG/")
@@ -236,6 +248,8 @@ class ADSEnpointsTest(APITestCase):
                         "rnb_id": r_data["buildings_operations"][0]["building"][
                             "rnb_id"
                         ],
+                        "lat": -5.983577592551999,
+                        "lng": -1.363099489020985,
                     },
                 }
             ],
@@ -273,11 +287,20 @@ class ADSEnpointsTest(APITestCase):
             "issue_date": "2025-01-01",
             "insee_code": "4242",
             "buildings_operations": [
-                {"operation": "modify", "building": {"rnb_id": "BDG-IN-ADS-ONE"}},
+                {
+                    "operation": "modify",
+                    "building": {
+                        "rnb_id": "BDG-IN-ADS-ONE",
+                        "lat": 46.63416324688205,
+                        "lng": 1.065566769109707,
+                    },
+                },
                 {
                     "operation": "build",
                     "building": {
                         "rnb_id": "BDG-IN-ADS-TWO",
+                        "lat": 46.63416324688205,
+                        "lng": 1.065566769109707,
                     },
                 },
             ],
@@ -573,3 +596,20 @@ class ADSEnpointsTest(APITestCase):
 
         token = Token.objects.create(user=u)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+
+
+class ADSEnpointsNoAuthTest(APITestCase):
+    def setUp(self) -> None:
+        ADS.objects.create(
+            issue_number="ADS-TEST-UPDATE-BDG",
+            issue_date="2025-01-01",
+            insee_code="4242",
+        )
+
+    def test_ads_root(self):
+        r = self.client.get("/api/alpha/ads/")
+        self.assertEqual(r.status_code, 200)
+
+    def test_ads_detail(self):
+        r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE-BDG/")
+        self.assertEqual(r.status_code, 200)
