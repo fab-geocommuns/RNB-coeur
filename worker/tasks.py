@@ -2,6 +2,7 @@ from celery import Celery, signals
 from jobs.dl_source import Downloader
 from jobs.import_bdnb7 import import_bdnb7 as import_bdnb7_job
 from jobs.import_bdtopo import import_bdtopo as import_bdtopo_job
+from jobs.import_commune_insee import import_commune_insee as import_commune_insee_job
 from jobs.inspect_candidates import Inspector
 import os
 import sentry_sdk
@@ -51,5 +52,10 @@ def inspect_candidates():
     i = Inspector()
     inspections_len = i.inspect()
     if inspections_len > 0:
-        app.send_task("tasks.inspect_candidates")
-    return "done"
+        app.send_task('tasks.inspect_candidates')
+    return 'done'
+
+@app.task
+def import_commune_insee(state_date):
+    import_commune_insee_job(state_date)
+    return 'done'

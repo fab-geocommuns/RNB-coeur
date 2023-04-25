@@ -31,6 +31,12 @@ class Building(models.Model):
         # We are doing points > dict > json str > dict. It is inefficient.
         return json.loads(self.point.transform(4326, clone=True).geojson)
 
+    def point_lat(self):
+        return self.point_geojson()["coordinates"][1]
+
+    def point_lng(self):
+        return self.point_geojson()["coordinates"][0]
+
     class Meta:
         ordering = ["rnb_id"]
 
@@ -79,6 +85,17 @@ class Candidate(models.Model):
     inspect_result = models.CharField(max_length=20, null=True)
 
 
+class City(models.Model):
+    id = models.AutoField(primary_key=True)
+    code_insee = models.CharField(max_length=10, null=False, db_index=True)
+    uri_insee = models.CharField(max_length=200, null=True)
+    creation_date = models.DateTimeField(null=False)
+    name = models.CharField(max_length=200, null=False)
+    name_without_article = models.CharField(max_length=200, null=False)
+    
+    class Meta:
+        unique_together = ('code_insee',)
+        
 class Organization(models.Model):
     name = models.CharField(max_length=100, null=False)
     users = models.ManyToManyField(User, related_name="organizations")
