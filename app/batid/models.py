@@ -80,6 +80,7 @@ class Candidate(models.Model):
     source = models.CharField(max_length=20, null=False)
     source_id = models.CharField(max_length=40, null=False)
     address_keys = ArrayField(models.CharField(max_length=40), null=True)
+    is_light = models.BooleanField(null=True)
     created_at = models.DateTimeField(default=now, null=True)
     inspected_at = models.DateTimeField(null=True)
     inspect_result = models.CharField(max_length=20, null=True, db_index=True)
