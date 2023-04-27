@@ -25,7 +25,7 @@ class Command(BaseCommand):
         if not options["skip_dl"]:
             tasks.append(
                 Signature(
-                    "tasks.dl_source", args=["bdnb_7", bdtopo_dpt], immutable=True
+                    "tasks.dl_source", args=["bdtopo", bdtopo_dpt], immutable=True
                 )
             )
 
