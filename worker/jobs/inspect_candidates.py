@@ -127,6 +127,9 @@ class Inspector:
     def inspect_match(self, row):
         c = row_to_candidate(row)
 
+        if c.is_light == True:
+            self.__refuse(c)
+
         if c.shape.area < settings["MIN_BDG_AREA"]:
             self.__refuse(c)
 

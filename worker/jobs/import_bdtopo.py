@@ -66,6 +66,7 @@ def transform_bdtopo_feature(feature) -> dict:
 
     bdg = {
         "shape": multipoly.wkt,
+        "is_light": True if feature["properties"]["LEGER"] == "Oui" else False,
         "source": "bdtopo",
         "source_id": feature["properties"]["ID"],
         "address_keys": f"{{{','.join(address_keys)}}}",
