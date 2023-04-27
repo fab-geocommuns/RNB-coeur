@@ -4,6 +4,7 @@ from jobs.import_bdnb7 import import_bdnb7 as import_bdnb7_job
 from jobs.import_bdtopo import import_bdtopo as import_bdtopo_job
 from jobs.import_commune_insee import import_commune_insee as import_commune_insee_job
 from jobs.inspect_candidates import Inspector
+from jobs.remove_light_bdgs import remove_light_bdgs as remove_light_bdgs_job
 import os
 import sentry_sdk
 from sentry_sdk.integrations.celery import CeleryIntegration
@@ -52,10 +53,17 @@ def inspect_candidates():
     i = Inspector()
     inspections_len = i.inspect()
     if inspections_len > 0:
-        app.send_task('tasks.inspect_candidates')
-    return 'done'
+        app.send_task("tasks.inspect_candidates")
+    return "done"
+
 
 @app.task
 def import_commune_insee(state_date):
     import_commune_insee_job(state_date)
-    return 'done'
+    return "done"
+
+
+@app.task
+def remove_light_bdgs(dpt):
+    remove_light_bdgs_job(dpt)
+    return "done"

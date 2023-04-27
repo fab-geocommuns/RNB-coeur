@@ -9,7 +9,7 @@ from django.conf import settings
 
 class Building(models.Model):
     rnb_id = models.CharField(max_length=17, null=False, unique=True, db_index=True)
-    source = models.CharField(max_length=10, null=False)
+    source = models.CharField(max_length=10, null=False, db_index=True)
 
     point = models.PointField(null=True, spatial_index=True, srid=settings.DEFAULT_SRID)
     shape = models.MultiPolygonField(
@@ -82,7 +82,7 @@ class Candidate(models.Model):
     address_keys = ArrayField(models.CharField(max_length=40), null=True)
     created_at = models.DateTimeField(default=now, null=True)
     inspected_at = models.DateTimeField(null=True)
-    inspect_result = models.CharField(max_length=20, null=True)
+    inspect_result = models.CharField(max_length=20, null=True, db_index=True)
 
 
 class City(models.Model):
@@ -92,10 +92,11 @@ class City(models.Model):
     creation_date = models.DateTimeField(null=False)
     name = models.CharField(max_length=200, null=False)
     name_without_article = models.CharField(max_length=200, null=False)
-    
+
     class Meta:
-        unique_together = ('code_insee',)
-        
+        unique_together = ("code_insee",)
+
+
 class Organization(models.Model):
     name = models.CharField(max_length=100, null=False)
     users = models.ManyToManyField(User, related_name="organizations")
