@@ -149,6 +149,7 @@ class Source:
 
     def find(self, filename):
         root_dir = self.abs_dir
+
         if self.is_archive:
             root_dir = self.uncompress_abs_dir
 
