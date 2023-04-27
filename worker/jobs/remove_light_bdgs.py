@@ -28,7 +28,7 @@ def remove_light_bdgs(dpt):
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             for feature in f:
                 c += 1
-                print(c)
+                # print(c)
 
                 if feature["properties"]["LEGER"] == "Oui":
                     mp = feature_to_multipoly(feature)
