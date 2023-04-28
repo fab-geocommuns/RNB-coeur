@@ -40,7 +40,7 @@ def export_city(insee_code: str):
                 "properties": {
                     "rnb_id": rnb_id,
                 },
-                "geometry": shape,
+                "geometry": json.loads(shape),
             }
             feature_collection["features"].append(feature)
 
