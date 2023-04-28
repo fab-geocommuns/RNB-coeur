@@ -47,7 +47,7 @@ def import_commune_insee(state_date):
     keys_to_remove = ["type", "typeArticle"]
     keys_to_rename = {
         "code": "code_insee",
-        "dateCreation": "creation_date",
+        "dateCreation": "created_at",
         "uri": "uri_insee",
         "intitule": "name",
         "intituleSansArticle": "name_without_article",
@@ -66,7 +66,7 @@ def import_commune_insee(state_date):
     communes_tuples = [
         (
             c["code_insee"],
-            c["creation_date"],
+            c["created_at"],
             c["uri_insee"],
             c["name"],
             c["name_without_article"],
@@ -83,10 +83,10 @@ def import_commune_insee(state_date):
         print("-- transfer buffer to db --")
         try:
             sql_query = """
-            INSERT INTO batid_city (code_insee, creation_date, uri_insee, name, name_without_article)
+            INSERT INTO batid_city (code_insee, created_at, uri_insee, name, name_without_article)
             VALUES %s
             ON CONFLICT (code_insee) DO UPDATE
-            SET creation_date = EXCLUDED.creation_date,
+            SET created_at = EXCLUDED.created_at,
                 uri_insee = EXCLUDED.uri_insee,
                 name = EXCLUDED.name,
                 name_without_article = EXCLUDED.name_without_article ;
