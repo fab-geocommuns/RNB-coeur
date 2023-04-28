@@ -19,21 +19,12 @@ class Source:
         "bdnb_7": {
             "url": "https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz",
         },
-        # 'bdtopo_buffer': {
-        #     'folder': 'bdtopo',
-        #     'filename': 'bdgs.csv',
-        # },
-        "xp-grenoble": {"filename": "bati-grenoble.geojson"},
-        "xp-grenoble-export": {
-            "folder": "xp-grenoble",
-            "filename": "match-rnb-grenoble.geojson",
-        },
-        "xp-grenoble-export_rnb": {"folder": "xp-grenoble", "filename": "rnb.geojson"},
         "insee-cog-commune": {
             "url": "https://api.insee.fr/metadonnees/V1/geo/communes",
             "folder": "insee_cog",
             "filename": "commune_insee.csv",
         },
+        "export": {"filename": "export-{{city}}-{{date}}.geojson"},
     }
 
     # Must be prefixed with a dot
@@ -46,6 +37,8 @@ class Source:
             self.ref = custom_ref
         else:
             self.ref = self.refs[name]
+
+        self.create_abs_dir()
 
     def set_param(self, p_key, p_val):
         for k in self.ref:

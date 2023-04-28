@@ -4,6 +4,7 @@ from psycopg2.extras import RealDictCursor, execute_values
 from logic.source import Source
 import fiona
 from db import get_conn
+import settings from settings
 
 
 def remove_light_bdgs(dpt):
@@ -16,8 +17,8 @@ def remove_light_bdgs(dpt):
 
     q = (
         "SELECT id FROM batid_building WHERE "
-        "ST_DWithin(shape, ST_GeomFromText(%(light_shape)s, 2154), 0) AND "
-        "ST_Equals(shape, ST_GeomFromText(%(light_shape)s, 2154))"
+        "ST_DWithin(shape, ST_GeomFromText(%(light_shape)s, %(db_srid)s), 0) AND "
+        "ST_Equals(shape, ST_GeomFromText(%(light_shape)s, %(db_srid)s))"
     )
     conn = get_conn()
 
@@ -32,7 +33,7 @@ def remove_light_bdgs(dpt):
 
                 if feature["properties"]["LEGER"] == "Oui":
                     mp = feature_to_multipoly(feature)
-                    cur.execute(q, {"light_shape": mp.wkt})
+                    cur.execute(q, {"light_shape": mp.wkt, "db_srid": settings.SRID})
 
                     for bdg in cur:
                         r_count += 1
