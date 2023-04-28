@@ -5,6 +5,7 @@ from jobs.import_bdtopo import import_bdtopo as import_bdtopo_job
 from jobs.import_commune_insee import import_commune_insee as import_commune_insee_job
 from jobs.inspect_candidates import Inspector
 from jobs.remove_light_bdgs import remove_light_bdgs as remove_light_bdgs_job
+from jobs.export import export_city as export_city_job
 import os
 import sentry_sdk
 from sentry_sdk.integrations.celery import CeleryIntegration
@@ -66,4 +67,10 @@ def import_commune_insee(state_date):
 @app.task
 def remove_light_bdgs(dpt):
     remove_light_bdgs_job(dpt)
+    return "done"
+
+
+@app.task
+def export_city(insee_code):
+    export_city_job(insee_code)
     return "done"

@@ -4,7 +4,7 @@ from psycopg2.extras import RealDictCursor, execute_values
 from logic.source import Source
 import fiona
 from db import get_conn
-import settings from settings
+from settings import settings
 
 
 def remove_light_bdgs(dpt):
