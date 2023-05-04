@@ -1,6 +1,5 @@
 from api_alpha.permissions import ADSPermission
-from api_alpha.serializers import (ADSSerializer, BuildingSerializer,
-                                   CitySerializer)
+from api_alpha.serializers import ADSSerializer, BuildingSerializer, CitySerializer
 from batid.logic.ads_search import ADSSearch
 from batid.logic.bdg_search import BuildingSearch
 from batid.models import ADS, Building, BuildingADS, City
@@ -11,6 +10,7 @@ from rest_framework.exceptions import ParseError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework.fields import Field
 
 
 class BuildingViewSet(viewsets.ModelViewSet):
@@ -25,14 +25,9 @@ class BuildingViewSet(viewsets.ModelViewSet):
 
         if not search.is_valid():
             raise ParseError({"errors": search.errors})
-            pass
+            return
 
         return search.get_queryset()
-
-    queryset = Building.objects.all()
-    serializer_class = BuildingSerializer
-    http_method_names = ["get"]
-    pagination_class = PageNumberPagination
 
 
 class CityViewSet(ReadOnlyModelViewSet):
@@ -52,6 +47,7 @@ class CityViewSet(ReadOnlyModelViewSet):
     serializer_class = CitySerializer
     http_method_names = ["get"]
     # pagination_class = PageNumberPagination
+
 
 class ADSViewSet(viewsets.ModelViewSet):
     queryset = ADS.objects.all()
