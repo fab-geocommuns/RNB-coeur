@@ -88,7 +88,7 @@ class Candidate(models.Model):
 
 class City(models.Model):
     id = models.AutoField(primary_key=True)
-    code_insee = models.CharField(max_length=10, null=False, db_index=True)
+    code_insee = models.CharField(max_length=10, null=False, db_index=True, unique=True)
     uri_insee = models.CharField(max_length=200, null=True)
     created_at = models.DateTimeField(null=False)
     name = models.CharField(max_length=200, null=False, db_index=True)

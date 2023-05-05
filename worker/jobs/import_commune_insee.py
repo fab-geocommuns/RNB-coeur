@@ -79,8 +79,8 @@ def import_commune_insee(state_date):
 
     conn = get_conn()
 
-    with open(src.path, "r") as f, conn.cursor() as cursor:
-        print("-- transfer buffer to db --")
+    with conn.cursor() as cursor:
+        print("-- transfer cities to db --")
         try:
             sql_query = """
             INSERT INTO batid_city (code_insee, created_at, uri_insee, name, name_without_article)
