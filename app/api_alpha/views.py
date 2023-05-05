@@ -34,14 +34,23 @@ class CityViewSet(ReadOnlyModelViewSet):
     """View to look up city matching (name or postal code) with a given input"""
 
     queryset = City.objects.all()
+    lookup_field = "code_insee"
 
     def get_queryset(self):
         query = self.request.query_params.dict()
-        queryset = City.objects.filter(
-            Q(name__unaccent__icontains=query["q"])
-            | Q(code_insee__icontains=query["q"])
-        )
-        return queryset
+
+        qs = City.objects.all()
+
+        if query.get("q"):
+            qs = qs.filter(
+                Q(name__unaccent__icontains=query["q"])
+                | Q(code_insee__icontains=query["q"])
+            )
+
+        return qs
+
+    def retrieve(self, request, code_insee=None):
+        return super().retrieve(request, code_insee)
 
     serializer_class = CitySerializer
     http_method_names = ["get"]
