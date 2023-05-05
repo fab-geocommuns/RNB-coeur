@@ -37,10 +37,9 @@ class CityViewSet(ReadOnlyModelViewSet):
 
     def get_queryset(self):
         query = self.request.query_params.dict()
-        print(query)
         queryset = City.objects.filter(
-            Q(name__unaccent__icontains=query["txt"])
-            | Q(code_insee__icontains=query["txt"])
+            Q(name__unaccent__icontains=query["q"])
+            | Q(code_insee__icontains=query["q"])
         )
         return queryset
 
