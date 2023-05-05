@@ -174,8 +174,8 @@ class ADSEnpointsWithAuthTest(APITestCase):
                     "operation": "build",
                     "building": {
                         "rnb_id": new_rnb_id,
-                        "lat": -5.983577592551999,
-                        "lng": -1.363099489020985,
+                        "lat": 44.78021498544544,
+                        "lng": -0.461723326474101,
                     },
                 }
             ],
@@ -248,8 +248,8 @@ class ADSEnpointsWithAuthTest(APITestCase):
                         "rnb_id": r_data["buildings_operations"][0]["building"][
                             "rnb_id"
                         ],
-                        "lat": -5.983577592551999,
-                        "lng": -1.363099489020985,
+                        "lat": 44.78021498544544,
+                        "lng": -0.461723326474101,
                     },
                 }
             ],

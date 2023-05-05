@@ -1,0 +1,360 @@
+openapi: 3.0.2
+info:
+  title: ''
+  version: ''
+paths:
+  /api/alpha/buildings/:
+    get:
+      operationId: listBuildings
+      description: ''
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    example: 123
+                  next:
+                    type: string
+                    nullable: true
+                    format: uri
+                    example: http://api.example.org/accounts/?page=4
+                  previous:
+                    type: string
+                    nullable: true
+                    format: uri
+                    example: http://api.example.org/accounts/?page=2
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Building'
+          description: ''
+      tags:
+      - api
+  /api/alpha/buildings/{rnb_id}/:
+    get:
+      operationId: retrieveBuilding
+      description: ''
+      parameters:
+      - name: rnb_id
+        in: path
+        required: true
+        description: ''
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Building'
+          description: ''
+      tags:
+      - api
+  /api/alpha/city/:
+    get:
+      operationId: listCitys
+      description: View to look up city matching (name or postal code) with a given
+        input
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    example: 123
+                  next:
+                    type: string
+                    nullable: true
+                    format: uri
+                    example: http://api.example.org/accounts/?page=4
+                  previous:
+                    type: string
+                    nullable: true
+                    format: uri
+                    example: http://api.example.org/accounts/?page=2
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/City'
+          description: ''
+      tags:
+      - api
+  /api/alpha/city/{id}/:
+    get:
+      operationId: retrieveCity
+      description: View to look up city matching (name or postal code) with a given
+        input
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: A unique integer value identifying this city.
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/City'
+          description: ''
+      tags:
+      - api
+  /api/alpha/ads/:
+    get:
+      operationId: listADSs
+      description: ''
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    example: 123
+                  next:
+                    type: string
+                    nullable: true
+                    format: uri
+                    example: http://api.example.org/accounts/?page=4
+                  previous:
+                    type: string
+                    nullable: true
+                    format: uri
+                    example: http://api.example.org/accounts/?page=2
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ADS'
+          description: ''
+      tags:
+      - api
+    post:
+      operationId: createADS
+      description: ''
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ADS'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ADS'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ADS'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ADS'
+          description: ''
+      tags:
+      - api
+  /api/alpha/ads/{issue_number}/:
+    get:
+      operationId: retrieveADS
+      description: ''
+      parameters:
+      - name: issue_number
+        in: path
+        required: true
+        description: ''
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ADS'
+          description: ''
+      tags:
+      - api
+    put:
+      operationId: updateADS
+      description: ''
+      parameters:
+      - name: issue_number
+        in: path
+        required: true
+        description: ''
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ADS'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ADS'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ADS'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ADS'
+          description: ''
+      tags:
+      - api
+    delete:
+      operationId: destroyADS
+      description: ''
+      parameters:
+      - name: issue_number
+        in: path
+        required: true
+        description: ''
+        schema:
+          type: string
+      responses:
+        '204':
+          description: ''
+      tags:
+      - api
+components:
+  schemas:
+    Building:
+      type: object
+      properties:
+        rnb_id:
+          type: string
+          maxLength: 17
+        source:
+          type: string
+          readOnly: true
+        point:
+          type: object
+          readOnly: true
+        addresses:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                maxLength: 40
+              source:
+                type: string
+                maxLength: 10
+              street_number:
+                type: string
+                nullable: true
+                maxLength: 10
+              street_rep:
+                type: string
+                nullable: true
+                maxLength: 5
+              street_name:
+                type: string
+                nullable: true
+                maxLength: 100
+              street_type:
+                type: string
+                nullable: true
+                maxLength: 100
+              city_name:
+                type: string
+                nullable: true
+                maxLength: 100
+              city_zipcode:
+                type: string
+                nullable: true
+                maxLength: 5
+            required:
+            - id
+            - source
+          readOnly: true
+      required:
+      - rnb_id
+    City:
+      type: object
+      properties:
+        code_insee:
+          type: string
+          maxLength: 10
+        name:
+          type: string
+          maxLength: 200
+      required:
+      - code_insee
+      - name
+    ADS:
+      type: object
+      properties:
+        issue_number:
+          type: string
+        issue_date:
+          type: string
+          format: date
+        insee_code:
+          type: string
+        buildings_operations:
+          type: array
+          items:
+            type: object
+            properties:
+              building:
+                type: object
+                properties:
+                  rnb_id:
+                    type: string
+                  lat:
+                    type: number
+                    maximum: 90
+                    minimum: -90
+                  lng:
+                    type: number
+                    maximum: 180
+                    minimum: -180
+                required:
+                - rnb_id
+              operation:
+                enum:
+                - build
+                - modify
+                - demolish
+                type: string
+            required:
+            - building
+            - operation
+      required:
+      - issue_number
+      - issue_date
+      - insee_code

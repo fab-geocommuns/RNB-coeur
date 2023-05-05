@@ -12,6 +12,7 @@ from api_alpha.models import BuildingADS as BuildingADSModel, BdgInADS
 from rest_framework.validators import UniqueValidator
 from rnbid.generator import generate_id
 
+
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
@@ -28,7 +29,6 @@ class AddressSerializer(serializers.ModelSerializer):
 
 
 class BuildingSerializer(serializers.ModelSerializer):
-
     point = serializers.DictField(source="point_geojson", read_only=True)
     addresses = AddressSerializer(many=True, read_only=True)
     source = serializers.CharField(read_only=True)
@@ -65,7 +65,7 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
         if validated_data.get("rnb_id") == BdgInADS.NEW_STR:
             lat = validated_data.pop("point_lat")
             lng = validated_data.pop("point_lng")
-            point = "POINT({} {})".format(lng, lat)
+            point = "SRID=4326;POINT({} {})".format(lng, lat)
             validated_data["point"] = point
             validated_data["rnb_id"] = generate_id()
             return super().create(validated_data)
