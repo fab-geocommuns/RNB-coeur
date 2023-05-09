@@ -27,6 +27,17 @@ class BdgInADSValidator:
 class ADSValidator:
     def __call__(self, ads):
         self.validate_bdg_once(ads)
+        self.validate_has_bdg(ads)
+
+    def validate_has_bdg(self, ads):
+        if ads.get("buildings_operations") is None:
+            raise serializers.ValidationError(
+                {"buildings_operations": "This field is required."}
+            )
+        if len(ads["buildings_operations"]) == 0:
+            raise serializers.ValidationError(
+                {"buildings_operations": "At least one building is required."}
+            )
 
     def validate_bdg_once(self, ads):
         if ads.get("buildings_operations") is None:
