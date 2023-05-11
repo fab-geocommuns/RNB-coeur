@@ -68,6 +68,7 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
             point = "SRID=4326;POINT({} {})".format(lng, lat)
             validated_data["point"] = point
             validated_data["rnb_id"] = generate_id()
+            validated_data["source"] = "ADS"
             return super().create(validated_data)
         else:
             return Building.objects.get(rnb_id=validated_data["rnb_id"])
