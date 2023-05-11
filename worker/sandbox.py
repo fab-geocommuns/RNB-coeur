@@ -1,8 +1,8 @@
-from jobs.inspect_candidates import Inspector
+from jobs.remove_dpt import remove_dpt
 
 
 def sandbox():
-    Inspector().inspect()
+    remove_dpt("33")
 
 
 if __name__ == "__main__":
