@@ -16,6 +16,17 @@ class Inspector:
         self.creations = []
         self.updates = []
 
+    def remove_inspected(self):
+        q = "DELETE FROM batid_candidate WHERE inspected_at IS NOT NULL"
+        with self.conn.cursor() as cur:
+            try:
+                cur.execute(q)
+                self.conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.conn.rollback()
+                cur.close()
+                raise error
+
     def inspect(self) -> int:
         q, params = self.get_matches_query()
 
@@ -26,6 +37,11 @@ class Inspector:
             for m_row in cur:
                 c += 1
                 self.inspect_match(m_row)
+
+        # print(f"inspected: {c}")
+        # print(f"refusals: {len(self.refusals)}")
+        # print(f"creations: {len(self.creations)}")
+        # print(f"updates: {len(self.updates)}")
 
         self.handle_inspected_candidates()
 
@@ -129,9 +145,11 @@ class Inspector:
 
         if c.is_light == True:
             self.__refuse(c)
+            return
 
         if c.shape.area < settings["MIN_BDG_AREA"]:
             self.__refuse(c)
+            return
 
         if row["match_cnt"] == 0:
             self.__create_new_building(c)

@@ -59,6 +59,13 @@ def inspect_candidates():
 
 
 @app.task
+def remove_inspected_candidates():
+    i = Inspector()
+    i.remove_inspected()
+    return "done"
+
+
+@app.task
 def import_commune_insee(state_date):
     import_commune_insee_job(state_date)
     return "done"
