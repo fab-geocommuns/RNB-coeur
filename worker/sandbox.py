@@ -1,11 +1,8 @@
-import csv
-
-from jobs.export import export_city
-from logic.source import Source
+from jobs.inspect_candidates import Inspector
 
 
 def sandbox():
-    export_city("38185")
+    Inspector().inspect()
 
 
 if __name__ == "__main__":
