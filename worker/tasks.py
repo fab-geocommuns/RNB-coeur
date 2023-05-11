@@ -6,6 +6,7 @@ from jobs.import_commune_insee import import_commune_insee as import_commune_ins
 from jobs.inspect_candidates import Inspector
 from jobs.remove_light_bdgs import remove_light_bdgs as remove_light_bdgs_job
 from jobs.export import export_city as export_city_job
+from jobs.remove_dpt import remove_dpt as remove_dpt_job
 import os
 import sentry_sdk
 from sentry_sdk.integrations.celery import CeleryIntegration
@@ -55,6 +56,12 @@ def inspect_candidates():
     inspections_len = i.inspect()
     if inspections_len > 0:
         app.send_task("tasks.inspect_candidates")
+    return "done"
+
+
+@app.task
+def remove_dpt(dpt):
+    remove_dpt_job(dpt)
     return "done"
 
 
