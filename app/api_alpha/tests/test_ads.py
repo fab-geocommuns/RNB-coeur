@@ -7,6 +7,39 @@ from rest_framework.test import APITestCase
 from batid.models import Building, ADS, BuildingADS, Organization
 
 
+class ADSEnpointsWithBadAuthTest(APITestCase):
+    def setUp(self):
+        u = User.objects.create_user(
+            first_name="Marcel", last_name="Paris", username="paris"
+        )
+
+        token = Token.objects.create(user=u)
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+
+    def test_create_ads(self):
+        data = {
+            "issue_number": "ADS-TEST-NEW-BDG",
+            "issue_date": "2019-03-18",
+            "insee_code": "4242",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "new",
+                        "lat": 44.7802149854455,
+                        "lng": -0.4617233264741004,
+                    },
+                }
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(r.status_code, 403)
+
+
 class ADSEnpointsWithAuthTest(APITestCase):
     def setUp(self):
         self.__insert_data()
