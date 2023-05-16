@@ -115,16 +115,37 @@ class ADSEnpointsWithAuthTest(APITestCase):
             "issue_number": "ADS-TEST-2",
             "issue_date": "2019-01-01",
             "insee_code": "4242",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "BDG-RNB-ID",
+                    },
+                }
+            ],
         }
 
-        r = self.client.post("/api/alpha/ads/", data=data)
-        self.assertEqual(r.status_code, 200)
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
 
         r_data = r.json()
+
+        self.assertEqual(r.status_code, 200)
+
         expected = {
             "issue_number": "ADS-TEST-2",
             "issue_date": "2019-01-01",
-            "buildings_operations": [],
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "BDG-RNB-ID",
+                        "lat": 46.63416324688205,
+                        "lng": 1.065566769109707,
+                    },
+                }
+            ],
             "insee_code": "4242",
         }
         self.assertDictEqual(r_data, expected)
@@ -227,16 +248,42 @@ class ADSEnpointsWithAuthTest(APITestCase):
             "issue_number": "ADS-TEST-UPDATE",
             "issue_date": "2025-01-02",
             "insee_code": "4242",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "new",
+                        "lat": 44.7802149854455,
+                        "lng": -0.4617233264741004,
+                    },
+                }
+            ],
         }
 
-        r = self.client.put("/api/alpha/ads/ADS-TEST-UPDATE/", data=data)
+        r = self.client.put(
+            "/api/alpha/ads/ADS-TEST-UPDATE/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
         self.assertEqual(r.status_code, 200)
+
+        r_data = r.json()
+        new_rnb_id = r_data["buildings_operations"][0]["building"]["rnb_id"]
 
         expected = {
             "issue_number": "ADS-TEST-UPDATE",
             "issue_date": "2025-01-02",
             "insee_code": "4242",
-            "buildings_operations": [],
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": new_rnb_id,
+                        "lat": 44.78021498544544,
+                        "lng": -0.461723326474101,
+                    },
+                }
+            ],
         }
         r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE/")
         r_data = r.json()
