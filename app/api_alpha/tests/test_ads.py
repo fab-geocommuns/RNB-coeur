@@ -40,7 +40,7 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
         self.assertEqual(r.status_code, 403)
 
 
-class ADSEnpointsWithAuthTest(APITestCase):
+class ADSEndpointsWithAuthTest(APITestCase):
     def setUp(self):
         self.__insert_data()
 
@@ -102,8 +102,10 @@ class ADSEnpointsWithAuthTest(APITestCase):
                     "operation": "build",
                     "building": {
                         "rnb_id": "BDG-RNB-ID",
-                        "lat": 46.63416324688205,
-                        "lng": 1.065566769109707,
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [1.065566769109707, 46.63416324688205],
+                        },
                     },
                 }
             ],
@@ -141,8 +143,10 @@ class ADSEnpointsWithAuthTest(APITestCase):
                     "operation": "build",
                     "building": {
                         "rnb_id": "BDG-RNB-ID",
-                        "lat": 46.63416324688205,
-                        "lng": 1.065566769109707,
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [1.065566769109707, 46.63416324688205],
+                        },
                     },
                 }
             ],
@@ -181,8 +185,10 @@ class ADSEnpointsWithAuthTest(APITestCase):
                     "operation": "build",
                     "building": {
                         "rnb_id": "BDG-RNB-ID",
-                        "lat": 46.63416324688205,
-                        "lng": 1.065566769109707,
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [1.065566769109707, 46.63416324688205],
+                        },
                     },
                 }
             ],
@@ -196,7 +202,65 @@ class ADSEnpointsWithAuthTest(APITestCase):
         r_data = r.json()
         self.assertDictEqual(r_data, expected)
 
-    def test_ads_create_with_new_bdg(self):
+    def test_ads_create_with_new_bdg_mp(self):
+        data = {
+            "issue_number": "ADS-TEST-NEW-BDG-MP",
+            "issue_date": "2019-03-18",
+            "insee_code": "4242",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "new",
+                        "geometry": {
+                            "coordinates": [
+                                [
+                                    [
+                                        [5.736498177543439, 45.18740370893255],
+                                        [5.736455101954846, 45.18732521910442],
+                                        [5.736581176848205, 45.187335585691784],
+                                        [5.736620049940626, 45.187404449402266],
+                                        [5.736498177543439, 45.18740370893255],
+                                    ]
+                                ]
+                            ],
+                            "type": "MultiPolygon",
+                        },
+                    },
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.get("/api/alpha/ads/ADS-TEST-NEW-BDG-MP/")
+        r_data = r.json()
+
+        new_rnb_id = r_data["buildings_operations"][0]["building"]["rnb_id"]
+
+        expected = {
+            "issue_number": "ADS-TEST-NEW-BDG-MP",
+            "issue_date": "2019-03-18",
+            "insee_code": "4242",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": new_rnb_id,
+                        "geometry": {
+                            "coordinates": [5.736539944382292, 45.1873696473121],
+                            "type": "Point",
+                        },
+                    },
+                }
+            ],
+        }
+
+        self.assertDictEqual(r_data, expected)
+
+    def test_ads_create_with_new_bdg_point(self):
         data = {
             "issue_number": "ADS-TEST-NEW-BDG",
             "issue_date": "2019-03-18",
@@ -206,8 +270,10 @@ class ADSEnpointsWithAuthTest(APITestCase):
                     "operation": "build",
                     "building": {
                         "rnb_id": "new",
-                        "lat": 44.7802149854455,
-                        "lng": -0.4617233264741004,
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [-0.4617233264741004, 44.7802149854455],
+                        },
                     },
                 }
             ],
@@ -215,6 +281,7 @@ class ADSEnpointsWithAuthTest(APITestCase):
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
+        self.assertEqual(r.status_code, 200)
 
         r_data = r.json()
         new_rnb_id = r_data["buildings_operations"][0]["building"]["rnb_id"]
@@ -228,8 +295,10 @@ class ADSEnpointsWithAuthTest(APITestCase):
                     "operation": "build",
                     "building": {
                         "rnb_id": new_rnb_id,
-                        "lat": 44.78021498544544,
-                        "lng": -0.461723326474101,
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [-0.461723326474101, 44.78021498544544],
+                        },
                     },
                 }
             ],
@@ -243,7 +312,7 @@ class ADSEnpointsWithAuthTest(APITestCase):
         r_data = r.json()
         self.assertDictEqual(r_data, expected)
 
-    def test_ads_update_simple(self):
+    def test_ads_update_with_new_bdg(self):
         data = {
             "issue_number": "ADS-TEST-UPDATE",
             "issue_date": "2025-01-02",
@@ -253,8 +322,10 @@ class ADSEnpointsWithAuthTest(APITestCase):
                     "operation": "build",
                     "building": {
                         "rnb_id": "new",
-                        "lat": 44.7802149854455,
-                        "lng": -0.4617233264741004,
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [-0.4617233264741004, 44.7802149854455],
+                        },
                     },
                 }
             ],
@@ -279,62 +350,16 @@ class ADSEnpointsWithAuthTest(APITestCase):
                     "operation": "build",
                     "building": {
                         "rnb_id": new_rnb_id,
-                        "lat": 44.78021498544544,
-                        "lng": -0.461723326474101,
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [-0.461723326474101, 44.78021498544544],
+                        },
                     },
                 }
             ],
         }
         r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE/")
         r_data = r.json()
-        self.assertDictEqual(r_data, expected)
-
-    def test_ads_update_with_new_bdg(self):
-        data = {
-            "issue_number": "ADS-TEST-UPDATE-BDG",
-            "issue_date": "2025-01-01",
-            "insee_code": "4242",
-            "buildings_operations": [
-                {
-                    "operation": "build",
-                    "building": {
-                        "rnb_id": "new",
-                        "lat": 44.7802149854455,
-                        "lng": -0.4617233264741004,
-                    },
-                }
-            ],
-        }
-
-        r = self.client.put(
-            "/api/alpha/ads/ADS-TEST-UPDATE-BDG/",
-            data=json.dumps(data),
-            content_type="application/json",
-        )
-
-        self.assertEqual(r.status_code, 200)
-
-        r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE-BDG/")
-        r_data = r.json()
-
-        expected = {
-            "issue_number": "ADS-TEST-UPDATE-BDG",
-            "issue_date": "2025-01-01",
-            "insee_code": "4242",
-            "buildings_operations": [
-                {
-                    "operation": "build",
-                    "building": {
-                        "rnb_id": r_data["buildings_operations"][0]["building"][
-                            "rnb_id"
-                        ],
-                        "lat": 44.78021498544544,
-                        "lng": -0.461723326474101,
-                    },
-                }
-            ],
-        }
-
         self.assertDictEqual(r_data, expected)
 
     def test_ads_update_many_buildings(self):
@@ -371,16 +396,20 @@ class ADSEnpointsWithAuthTest(APITestCase):
                     "operation": "modify",
                     "building": {
                         "rnb_id": "BDG-IN-ADS-ONE",
-                        "lat": 46.63416324688205,
-                        "lng": 1.065566769109707,
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [1.065566769109707, 46.63416324688205],
+                        },
                     },
                 },
                 {
                     "operation": "build",
                     "building": {
                         "rnb_id": "BDG-IN-ADS-TWO",
-                        "lat": 46.63416324688205,
-                        "lng": 1.065566769109707,
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [1.065566769109707, 46.63416324688205],
+                        },
                     },
                 },
             ],
@@ -544,14 +573,14 @@ class ADSEnpointsWithAuthTest(APITestCase):
                 if "lat" in op["building"]:
                     self.assertIn(msg_to_check, op["building"]["lat"])
 
-    def test_ads_wrong_latlng(self):
+    def test_ads_wrong_geometry(self):
         data = {
             "issue_number": "ADS-TEST-2",
             "issue_date": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {"rnb_id": "new", "lat": "hello", "lng": "bonjour"},
+                    "building": {"rnb_id": "new", "geometry": "wrong"},
                 }
             ],
         }
@@ -562,14 +591,13 @@ class ADSEnpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = "A valid number is required."
+        msg_to_check = 'Expected a dictionary of items but got type "str".'
 
         for op in r_data["buildings_operations"]:
             if "building" in op:
-                self.assertIn(msg_to_check, op["building"]["lat"])
-                self.assertIn(msg_to_check, op["building"]["lng"])
+                self.assertIn(msg_to_check, op["building"]["geometry"])
 
-    def test_ads_absent_lng(self):
+    def test_ads_absent_geometry(self):
         data = {
             "issue_number": "ADS-TEST-2",
             "issue_date": "2019-01-02",
@@ -587,12 +615,46 @@ class ADSEnpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = "lng field is required for new buildings."
+        msg_to_check = "GeoJSON Point or MultiPolygon is required for new buildings."
 
         for op in r_data["buildings_operations"]:
             if "building" in op:
-                if "lng" in op["building"]:
-                    self.assertIn(msg_to_check, op["building"]["lng"])
+                if "geometry" in op["building"]:
+                    self.assertIn(msg_to_check, op["building"]["geometry"])
+
+    def test_ads_invalid_geometry(self):
+        data = {
+            "issue_number": "ADS-TEST-2",
+            "issue_date": "2019-01-02",
+            "insee_code": "4242",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "new",
+                        "geometry": {
+                            "type": "MultiPolygon",
+                            "coordinates": [
+                                [
+                                    [
+                                        [5.736498177543439, 45.18740370893255],
+                                        [5.736455101954846, 45.18732521910442],
+                                        [5.736581176848205, 45.187335585691784],
+                                        [5.736620049940626, 45.187404449402266],
+                                    ]
+                                ]
+                            ],
+                        },
+                    },
+                }
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(r.status_code, 400)
 
         # ###############
         # Data setup
