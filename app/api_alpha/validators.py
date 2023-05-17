@@ -1,5 +1,7 @@
 from batid.models import Building
 from api_alpha.models import BdgInADS
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos.error import GEOSException
 from rest_framework import serializers
 
 
@@ -13,14 +15,30 @@ def ads_validate_rnbid(rnb_id):
 class BdgInADSValidator:
     def __call__(self, value):
         if value["rnb_id"] == BdgInADS.NEW_STR:
-            if not value.get("point_lat"):
+            geojson = value.get("ads_geojson")
+
+            if not geojson:
                 raise serializers.ValidationError(
-                    {"lat": "lat field is required for new buildings."}
+                    {
+                        "geometry": "GeoJSON Point or MultiPolygon is required for new buildings."
+                    }
                 )
-            if not value.get("point_lng"):
+
+            if geojson["type"] not in ("Point", "MultiPolygon"):
                 raise serializers.ValidationError(
-                    {"lng": "lng field is required for new buildings."}
+                    {"geometry": "GeoJSON must be a Point or a MultiPolygon."}
                 )
+
+            try:
+                geometry = GEOSGeometry(str(geojson))
+            except GEOSException:
+                raise serializers.ValidationError({"geometry": "GeoJSON is invalid."})
+
+            if not geometry.valid:
+                raise serializers.ValidationError(
+                    {"geometry": f"GeoJSON is invalid: {geometry.valid_reason}"}
+                )
+
             return
 
 
