@@ -659,6 +659,26 @@ class ADSEndpointsWithAuthTest(APITestCase):
         # ###############
         # Data setup
 
+    def test_ads_delete_yes(self):
+        r = self.client.get("/api/alpha/ads/ADS-TEST-DELETE-YES/")
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.delete("/api/alpha/ads/ADS-TEST-DELETE-YES/")
+        self.assertEqual(r.status_code, 204)
+
+        r = self.client.get("/api/alpha/ads/ADS-TEST-DELETE-YES/")
+        self.assertEqual(r.status_code, 404)
+
+    def test_ads_delete_no(self):
+        r = self.client.get("/api/alpha/ads/ADS-TEST-DELETE-NO/")
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.delete("/api/alpha/ads/ADS-TEST-DELETE-NO/")
+        self.assertEqual(r.status_code, 403)
+
+        r = self.client.get("/api/alpha/ads/ADS-TEST-DELETE-NO/")
+        self.assertEqual(r.status_code, 200)
+
     def __insert_data(self):
         # ############
         # Building
@@ -716,6 +736,17 @@ class ADSEndpointsWithAuthTest(APITestCase):
             insee_code="4242",
         )
 
+        ADS.objects.create(
+            issue_number="ADS-TEST-DELETE-YES",
+            issue_date="2025-01-01",
+            insee_code="4242",
+        )
+        ADS.objects.create(
+            issue_number="ADS-TEST-DELETE-NO",
+            issue_date="2025-01-01",
+            insee_code="94170",
+        )
+
         # For many buildings in one ADS (for update and delete test)
         many_bdg_ads = ADS.objects.create(
             issue_number="ADS-TEST-UPDATE-MANY-BDG",
@@ -748,6 +779,12 @@ class ADSEnpointsNoAuthTest(APITestCase):
             insee_code="4242",
         )
 
+        ADS.objects.create(
+            issue_number="ADS-TEST-DELETE",
+            issue_date="2025-01-01",
+            insee_code="4242",
+        )
+
     def test_ads_root(self):
         r = self.client.get("/api/alpha/ads/")
         self.assertEqual(r.status_code, 200)
@@ -755,3 +792,8 @@ class ADSEnpointsNoAuthTest(APITestCase):
     def test_ads_detail(self):
         r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE-BDG/")
         self.assertEqual(r.status_code, 200)
+
+    def test_ads_cant_delete(self):
+        r = self.client.delete("/api/alpha/ads/ADS-TEST-DELETE/")
+
+        self.assertEqual(r.status_code, 401)
