@@ -11,6 +11,7 @@ from api_alpha.validators import (
 from api_alpha.models import BuildingADS as BuildingADSModel, BdgInADS
 from rest_framework.validators import UniqueValidator
 from rnbid.generator import generate_id
+from django.contrib.gis.geos import GEOSGeometry
 
 
 class AddressSerializer(serializers.ModelSerializer):
@@ -45,28 +46,27 @@ class CitySerializer(serializers.ModelSerializer):
 
 
 class BdgInAdsSerializer(serializers.ModelSerializer):
-    lat = serializers.FloatField(
-        required=False, max_value=90, min_value=-90, source="point_lat"
-    )
-    lng = serializers.FloatField(
-        required=False,
-        max_value=180,
-        min_value=-180,
-        source="point_lng",
-    )
+    geometry = serializers.DictField(source="ads_geojson", required=False)
     rnb_id = serializers.CharField(validators=[ads_validate_rnbid])
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "lat", "lng"]
+        fields = ["rnb_id", "geometry"]
         validators = [BdgInADSValidator()]
 
     def create(self, validated_data):
         if validated_data.get("rnb_id") == BdgInADS.NEW_STR:
-            lat = validated_data.pop("point_lat")
-            lng = validated_data.pop("point_lng")
-            point = "SRID=4326;POINT({} {})".format(lng, lat)
-            validated_data["point"] = point
+            geojson = validated_data.pop("ads_geojson")
+
+            geometry = GEOSGeometry(str(geojson))
+
+            if geometry.geom_type == "Point":
+                validated_data["point"] = f"{geometry}"
+
+            if geometry.geom_type == "MultiPolygon":
+                validated_data["shape"] = f"{geometry}"
+                validated_data["point"] = f"{geometry.point_on_surface}"
+
             validated_data["rnb_id"] = generate_id()
             validated_data["source"] = "ADS"
             return super().create(validated_data)
