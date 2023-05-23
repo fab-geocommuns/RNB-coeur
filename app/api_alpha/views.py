@@ -75,7 +75,7 @@ class CityViewSet(ReadOnlyModelViewSet):
 class ADSViewSet(viewsets.ModelViewSet):
     queryset = ADS.objects.all()
     serializer_class = ADSSerializer
-    lookup_field = "issue_number"
+    lookup_field = "file_number"
     pagination_class = PageNumberPagination
     permission_classes = [ADSPermission]
     http_method_names = ["get", "post", "put", "delete"]
@@ -97,5 +97,5 @@ class ADSViewSet(viewsets.ModelViewSet):
         else:
             return Response(serializer.errors, status=400)
 
-    def retrieve(self, request, issue_number=None):
-        return super().retrieve(request, issue_number)
+    def retrieve(self, request, file_number=None):
+        return super().retrieve(request, file_number)

@@ -18,8 +18,8 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
 
     def test_create_ads(self):
         data = {
-            "issue_number": "ADS-TEST-NEW-BDG",
-            "issue_date": "2019-03-18",
+            "file_number": "ADS-TEST-NEW-BDG",
+            "decision_date": "2019-03-18",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -59,8 +59,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "previous": None,
             "results": [
                 {
-                    "issue_number": "ADS-TEST-FUTURE",
-                    "issue_date": "2035-01-02",
+                    "file_number": "ADS-TEST-FUTURE",
+                    "decision_date": "2035-01-02",
                     "insee_code": "12345",
                     "buildings_operations": [],
                 }
@@ -79,8 +79,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "previous": None,
             "results": [
                 {
-                    "issue_number": "ADS-TEST-FUTURE",
-                    "issue_date": "2035-01-02",
+                    "file_number": "ADS-TEST-FUTURE",
+                    "decision_date": "2035-01-02",
                     "insee_code": "12345",
                     "buildings_operations": [],
                 }
@@ -94,8 +94,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
         expected = {
-            "issue_number": "ADS-TEST",
-            "issue_date": "2019-01-01",
+            "file_number": "ADS-TEST",
+            "decision_date": "2019-01-01",
             "insee_code": "5555",
             "buildings_operations": [
                 {
@@ -114,8 +114,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def test_create_simple_ads(self):
         data = {
-            "issue_number": "ADS-TEST-2",
-            "issue_date": "2019-01-01",
+            "file_number": "ADS-TEST-2",
+            "decision_date": "2019-01-01",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -136,8 +136,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         expected = {
-            "issue_number": "ADS-TEST-2",
-            "issue_date": "2019-01-01",
+            "file_number": "ADS-TEST-2",
+            "decision_date": "2019-01-01",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -160,8 +160,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def test_create_ads(self):
         data = {
-            "issue_number": "ADS-TEST-2",
-            "issue_date": "2019-01-02",
+            "file_number": "ADS-TEST-2",
+            "decision_date": "2019-01-02",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -177,8 +177,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
 
         expected = {
-            "issue_number": "ADS-TEST-2",
-            "issue_date": "2019-01-02",
+            "file_number": "ADS-TEST-2",
+            "decision_date": "2019-01-02",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -204,8 +204,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def test_ads_create_with_new_bdg_mp(self):
         data = {
-            "issue_number": "ADS-TEST-NEW-BDG-MP",
-            "issue_date": "2019-03-18",
+            "file_number": "ADS-TEST-NEW-BDG-MP",
+            "decision_date": "2019-03-18",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -241,8 +241,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
         new_rnb_id = r_data["buildings_operations"][0]["building"]["rnb_id"]
 
         expected = {
-            "issue_number": "ADS-TEST-NEW-BDG-MP",
-            "issue_date": "2019-03-18",
+            "file_number": "ADS-TEST-NEW-BDG-MP",
+            "decision_date": "2019-03-18",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -262,8 +262,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def test_ads_create_with_new_bdg_point(self):
         data = {
-            "issue_number": "ADS-TEST-NEW-BDG",
-            "issue_date": "2019-03-18",
+            "file_number": "ADS-TEST-NEW-BDG",
+            "decision_date": "2019-03-18",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -287,8 +287,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
         new_rnb_id = r_data["buildings_operations"][0]["building"]["rnb_id"]
 
         expected = {
-            "issue_number": "ADS-TEST-NEW-BDG",
-            "issue_date": "2019-03-18",
+            "file_number": "ADS-TEST-NEW-BDG",
+            "decision_date": "2019-03-18",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -314,8 +314,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def test_ads_update_with_new_bdg(self):
         data = {
-            "issue_number": "ADS-TEST-UPDATE",
-            "issue_date": "2025-01-02",
+            "file_number": "ADS-TEST-UPDATE",
+            "decision_date": "2025-01-02",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -342,8 +342,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
         new_rnb_id = r_data["buildings_operations"][0]["building"]["rnb_id"]
 
         expected = {
-            "issue_number": "ADS-TEST-UPDATE",
-            "issue_date": "2025-01-02",
+            "file_number": "ADS-TEST-UPDATE",
+            "decision_date": "2025-01-02",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -364,8 +364,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def test_ads_update_many_buildings(self):
         data = {
-            "issue_number": "ADS-TEST-UPDATE-MANY-BDG",
-            "issue_date": "2025-01-01",
+            "file_number": "ADS-TEST-UPDATE-MANY-BDG",
+            "decision_date": "2025-01-01",
             "insee_code": "4242",
             "buildings_operations": [
                 {"operation": "modify", "building": {"rnb_id": "BDG-IN-ADS-ONE"}},
@@ -388,8 +388,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
 
         expected = {
-            "issue_number": "ADS-TEST-UPDATE-MANY-BDG",
-            "issue_date": "2025-01-01",
+            "file_number": "ADS-TEST-UPDATE-MANY-BDG",
+            "decision_date": "2025-01-01",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -419,8 +419,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def test_ads_same_bdg_twice(self):
         data = {
-            "issue_number": "ADS-TEST-BDG-TWICE",
-            "issue_date": "2019-01-02",
+            "file_number": "ADS-TEST-BDG-TWICE",
+            "decision_date": "2019-01-02",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -447,10 +447,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
         for key, msg in r_data.items():
             self.assertIn(msg_to_check[key], r_data[key])
 
-    def test_ads_wrong_issue_number(self):
+    def test_ads_wrong_file_number(self):
         data = {
-            "issue_number": "ADS-TEST",
-            "issue_date": "2019-01-02",
+            "file_number": "ADS-TEST",
+            "decision_date": "2019-01-02",
             "insee_code": "4242",
         }
         r = self.client.post(
@@ -460,15 +460,15 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = {"issue_number": "This issue number already exists"}
+        msg_to_check = {"file_number": "This issue number already exists"}
 
         for key, msg in r_data.items():
             self.assertIn(msg_to_check[key], r_data[key])
 
-    def test_ads_wrong_issue_date(self):
+    def test_ads_wrong_decision_date(self):
         data = {
-            "issue_number": "ADS-TEST-DATE",
-            "issue_date": "2019-13-01",
+            "file_number": "ADS-TEST-DATE",
+            "decision_date": "2019-13-01",
             "insee_code": "4242",
         }
         r = self.client.post(
@@ -479,14 +479,14 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
 
         msg_to_check = {
-            "issue_date": "Date has wrong format. Use one of these formats instead: YYYY-MM-DD."
+            "decision_date": "Date has wrong format. Use one of these formats instead: YYYY-MM-DD."
         }
 
         for key, msg in r_data.items():
             self.assertIn(msg_to_check[key], r_data[key])
 
-    def test_ads_absent_issue_date(self):
-        data = {"issue_number": "ADS-TEST-DATE", "insee_code": "4242"}
+    def test_ads_absent_decision_date(self):
+        data = {"file_number": "ADS-TEST-DATE", "insee_code": "4242"}
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
@@ -494,15 +494,15 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = {"issue_date": "This field is required."}
+        msg_to_check = {"decision_date": "This field is required."}
 
         for key, msg in r_data.items():
             self.assertIn(msg_to_check[key], r_data[key])
 
     def test_ads_wrong_bdg_rnbid(self):
         data = {
-            "issue_number": "ADS-TEST-2",
-            "issue_date": "2019-01-02",
+            "file_number": "ADS-TEST-2",
+            "decision_date": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -526,8 +526,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def test_ads_wrong_operation(self):
         data = {
-            "issue_number": "ADS-TEST-2",
-            "issue_date": "2019-01-02",
+            "file_number": "ADS-TEST-2",
+            "decision_date": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "destroy",
@@ -550,8 +550,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def test_ads_absent_lat(self):
         data = {
-            "issue_number": "ADS-TEST-2",
-            "issue_date": "2019-01-02",
+            "file_number": "ADS-TEST-2",
+            "decision_date": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -575,8 +575,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def test_ads_wrong_geometry(self):
         data = {
-            "issue_number": "ADS-TEST-2",
-            "issue_date": "2019-01-02",
+            "file_number": "ADS-TEST-2",
+            "decision_date": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -599,8 +599,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def test_ads_absent_geometry(self):
         data = {
-            "issue_number": "ADS-TEST-2",
-            "issue_date": "2019-01-02",
+            "file_number": "ADS-TEST-2",
+            "decision_date": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -624,8 +624,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def test_ads_invalid_geometry(self):
         data = {
-            "issue_number": "ADS-TEST-2",
-            "issue_date": "2019-01-02",
+            "file_number": "ADS-TEST-2",
+            "decision_date": "2019-01-02",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -719,38 +719,42 @@ class ADSEndpointsWithAuthTest(APITestCase):
         # ############
         # ADS
         ads = ADS.objects.create(
-            issue_number="ADS-TEST", issue_date="2019-01-01", insee_code="5555"
+            file_number="ADS-TEST", decision_date="2019-01-01", insee_code="5555"
         )
         BuildingADS.objects.create(building=b, ads=ads, operation="build")
 
         ADS.objects.create(
-            issue_number="ADS-TEST-FUTURE", issue_date="2035-01-02", insee_code="12345"
+            file_number="ADS-TEST-FUTURE",
+            decision_date="2035-01-02",
+            insee_code="12345",
         )
 
         ADS.objects.create(
-            issue_number="ADS-TEST-UPDATE", issue_date="2025-01-01", insee_code="4242"
+            file_number="ADS-TEST-UPDATE",
+            decision_date="2025-01-01",
+            insee_code="4242",
         )
         ADS.objects.create(
-            issue_number="ADS-TEST-UPDATE-BDG",
-            issue_date="2025-01-01",
+            file_number="ADS-TEST-UPDATE-BDG",
+            decision_date="2025-01-01",
             insee_code="4242",
         )
 
         ADS.objects.create(
-            issue_number="ADS-TEST-DELETE-YES",
-            issue_date="2025-01-01",
+            file_number="ADS-TEST-DELETE-YES",
+            decision_date="2025-01-01",
             insee_code="4242",
         )
         ADS.objects.create(
-            issue_number="ADS-TEST-DELETE-NO",
-            issue_date="2025-01-01",
+            file_number="ADS-TEST-DELETE-NO",
+            decision_date="2025-01-01",
             insee_code="94170",
         )
 
         # For many buildings in one ADS (for update and delete test)
         many_bdg_ads = ADS.objects.create(
-            issue_number="ADS-TEST-UPDATE-MANY-BDG",
-            issue_date="2025-01-01",
+            file_number="ADS-TEST-UPDATE-MANY-BDG",
+            decision_date="2025-01-01",
             insee_code="4242",
         )
         BuildingADS.objects.create(
@@ -774,14 +778,14 @@ class ADSEndpointsWithAuthTest(APITestCase):
 class ADSEnpointsNoAuthTest(APITestCase):
     def setUp(self) -> None:
         ADS.objects.create(
-            issue_number="ADS-TEST-UPDATE-BDG",
-            issue_date="2025-01-01",
+            file_number="ADS-TEST-UPDATE-BDG",
+            decision_date="2025-01-01",
             insee_code="4242",
         )
 
         ADS.objects.create(
-            issue_number="ADS-TEST-DELETE",
-            issue_date="2025-01-01",
+            file_number="ADS-TEST-DELETE",
+            decision_date="2025-01-01",
             insee_code="4242",
         )
 

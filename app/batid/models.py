@@ -45,14 +45,14 @@ class Building(models.Model):
 
 
 class ADS(models.Model):
-    issue_number = models.CharField(
+    file_number = models.CharField(
         max_length=40, null=False, unique=True, db_index=True
     )
-    issue_date = models.DateField(null=True)
+    decision_date = models.DateField(null=True)
     insee_code = models.CharField(max_length=5, null=True)
 
     class Meta:
-        ordering = ["issue_date"]
+        ordering = ["decision_date"]
 
 
 class BuildingADS(models.Model):
