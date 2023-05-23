@@ -26,10 +26,15 @@ def import_etalab_cities(dpt: str):
         for c in cities_geojson["features"]:
             print(f'--- {c["properties"]["nom"]} ---')
 
+            shape = c["geometry"]
+            if shape["type"] == "Polygon":
+                shape["coordinates"] = [shape["coordinates"]]
+                shape["type"] = "MultiPolygon"
+
             params = {
                 "code_insee": c["properties"]["code"],
                 "name": c["properties"]["nom"],
-                "shape": json.dumps(c["geometry"]),
+                "shape": json.dumps(shape),
                 "db_srid": settings["DEFAULT_SRID"],
             }
 
