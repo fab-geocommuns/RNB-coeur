@@ -92,10 +92,11 @@ class Candidate(models.Model):
 class City(models.Model):
     id = models.AutoField(primary_key=True)
     code_insee = models.CharField(max_length=10, null=False, db_index=True, unique=True)
-    uri_insee = models.CharField(max_length=200, null=True)
-    created_at = models.DateTimeField(null=False)
+    established_at = models.DateTimeField(null=False)  # changed
     name = models.CharField(max_length=200, null=False, db_index=True)
-    name_without_article = models.CharField(max_length=200, null=False)
+    shape = models.MultiPolygonField(
+        null=True, spatial_index=True, srid=settings.DEFAULT_SRID
+    )
 
 
 class Organization(models.Model):
