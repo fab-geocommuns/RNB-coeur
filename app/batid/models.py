@@ -8,7 +8,7 @@ from django.conf import settings
 
 
 class Building(models.Model):
-    rnb_id = models.CharField(max_length=17, null=False, unique=True, db_index=True)
+    rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
     source = models.CharField(max_length=10, null=False, db_index=True)
 
     point = models.PointField(null=True, spatial_index=True, srid=settings.DEFAULT_SRID)

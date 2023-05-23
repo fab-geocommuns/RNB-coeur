@@ -101,7 +101,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-RNB-ID",
+                        "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
                             "coordinates": [1.065566769109707, 46.63416324688205],
@@ -121,7 +121,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-RNB-ID",
+                        "rnb_id": "BDGSRNBBIDID",
                     },
                 }
             ],
@@ -142,7 +142,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-RNB-ID",
+                        "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
                             "coordinates": [1.065566769109707, 46.63416324688205],
@@ -166,7 +166,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {"rnb_id": "BDG-RNB-ID"},
+                    "building": {"rnb_id": "BDGSRNBBIDID"},
                 }
             ],
         }
@@ -184,7 +184,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-RNB-ID",
+                        "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
                             "coordinates": [1.065566769109707, 46.63416324688205],
@@ -368,11 +368,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "issue_date": "2025-01-01",
             "insee_code": "4242",
             "buildings_operations": [
-                {"operation": "modify", "building": {"rnb_id": "BDG-IN-ADS-ONE"}},
+                {"operation": "modify", "building": {"rnb_id": "BDGSADSSONE1"}},
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-IN-ADS-TWO",
+                        "rnb_id": "BDGSADSSTWO2",
                     },
                 },
             ],
@@ -395,7 +395,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "modify",
                     "building": {
-                        "rnb_id": "BDG-IN-ADS-ONE",
+                        "rnb_id": "BDGSADSSONE1",
                         "geometry": {
                             "type": "Point",
                             "coordinates": [1.065566769109707, 46.63416324688205],
@@ -405,7 +405,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-IN-ADS-TWO",
+                        "rnb_id": "BDGSADSSTWO2",
                         "geometry": {
                             "type": "Point",
                             "coordinates": [1.065566769109707, 46.63416324688205],
@@ -425,11 +425,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {"rnb_id": "BDG-RNB-ID"},
+                    "building": {"rnb_id": "BDGSRNBBIDID"},
                 },
                 {
                     "operation": "build",
-                    "building": {"rnb_id": "BDG-RNB-ID"},
+                    "building": {"rnb_id": "BDGSRNBBIDID"},
                 },
             ],
         }
@@ -531,7 +531,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "destroy",
-                    "building": {"rnb_id": "BDG-RNB-ID"},
+                    "building": {"rnb_id": "BDGSRNBBIDID"},
                 }
             ],
         }
@@ -700,17 +700,20 @@ class ADSEndpointsWithAuthTest(APITestCase):
         geom.transform(settings.DEFAULT_SRID)
 
         b = Building.objects.create(
-            rnb_id="BDG-RNB-ID", source="dummy", shape=geom, point=geom.point_on_surface
+            rnb_id="BDGSRNBBIDID",
+            source="dummy",
+            shape=geom,
+            point=geom.point_on_surface,
         )
 
         bdg_ads_one = Building.objects.create(
-            rnb_id="BDG-IN-ADS-ONE",
+            rnb_id="BDGSADSSONE1",
             source="dummy",
             shape=geom,
             point=geom.point_on_surface,
         )
         bdg_ads_two = Building.objects.create(
-            rnb_id="BDG-IN-ADS-TWO",
+            rnb_id="BDGSADSSTWO2",
             source="dummy",
             shape=geom,
             point=geom.point_on_surface,
