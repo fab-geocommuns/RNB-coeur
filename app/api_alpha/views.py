@@ -1,8 +1,8 @@
 from api_alpha.permissions import ADSPermission
-from api_alpha.serializers import ADSSerializer, BuildingSerializer, CitySerializer
+from api_alpha.serializers import ADSSerializer, BuildingSerializer
 from batid.logic.ads_search import ADSSearch
 from batid.logic.bdg_search import BuildingSearch
-from batid.models import ADS, Building, BuildingADS, City
+from batid.models import ADS, Building, BuildingADS
 from django.db.models import Q, Case, When, Value, FloatField, F
 
 from rest_framework import viewsets
@@ -27,49 +27,6 @@ class BuildingViewSet(viewsets.ModelViewSet):
             return
 
         return search.get_queryset()
-
-
-class CityViewSet(ReadOnlyModelViewSet):
-    """View to look up city matching (name or postal code) with a given input"""
-
-    queryset = City.objects.all()
-    lookup_field = "code_insee"
-
-    def get_queryset(self):
-        query = self.request.query_params.dict()
-
-        qs = City.objects.all()
-
-        if query.get("q"):
-            qs = (
-                qs.filter(
-                    Q(name__unaccent__icontains=query["q"])
-                    | Q(code_insee__icontains=query["q"])
-                )
-                .annotate(
-                    start=Case(
-                        When(name__unaccent__istartswith=query["q"], then=Value(1)),
-                        default=Value(0),
-                        output_field=FloatField(),
-                    ),
-                    equal=Case(
-                        When(name__unaccent__iexact=query["q"], then=Value(1)),
-                        default=Value(0),
-                        output_field=FloatField(),
-                    ),
-                    rank=F("start"),
-                )
-                .order_by("-rank", "name")
-            )
-
-        return qs
-
-    def retrieve(self, request, code_insee=None):
-        return super().retrieve(request, code_insee)
-
-    serializer_class = CitySerializer
-    http_method_names = ["get"]
-    # pagination_class = PageNumberPagination
 
 
 class ADSViewSet(viewsets.ModelViewSet):

@@ -44,11 +44,21 @@ class Building(models.Model):
         ordering = ["rnb_id"]
 
 
+class City(models.Model):
+    id = models.AutoField(primary_key=True)
+    code_insee = models.CharField(max_length=10, null=False, db_index=True, unique=True)
+    name = models.CharField(max_length=200, null=False, db_index=True)
+    shape = models.MultiPolygonField(
+        null=True, spatial_index=True, srid=settings.DEFAULT_SRID
+    )
+
+
 class ADS(models.Model):
     file_number = models.CharField(
         max_length=40, null=False, unique=True, db_index=True
     )
     decision_date = models.DateField(null=True)
+    city = models.ForeignKey(City, on_delete=models.CASCADE, null=True)
     insee_code = models.CharField(max_length=5, null=True)
 
     class Meta:
@@ -87,15 +97,6 @@ class Candidate(models.Model):
     created_at = models.DateTimeField(default=now, null=True)
     inspected_at = models.DateTimeField(null=True)
     inspect_result = models.CharField(max_length=20, null=True, db_index=True)
-
-
-class City(models.Model):
-    id = models.AutoField(primary_key=True)
-    code_insee = models.CharField(max_length=10, null=False, db_index=True, unique=True)
-    name = models.CharField(max_length=200, null=False, db_index=True)
-    shape = models.MultiPolygonField(
-        null=True, spatial_index=True, srid=settings.DEFAULT_SRID
-    )
 
 
 class Organization(models.Model):

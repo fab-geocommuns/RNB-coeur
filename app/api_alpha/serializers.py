@@ -39,7 +39,7 @@ class BuildingSerializer(serializers.ModelSerializer):
         fields = ["rnb_id", "source", "point", "addresses"]
 
 
-class CitySerializer(serializers.ModelSerializer):
+class CityADSSerializer(serializers.ModelSerializer):
     class Meta:
         model = City
         fields = ["code_insee", "name"]
@@ -112,11 +112,11 @@ class ADSSerializer(serializers.ModelSerializer):
     )
     decision_date = serializers.DateField(required=True, format="%Y-%m-%d")
     buildings_operations = BuildingsADSSerializer(many=True, required=False)
-    insee_code = serializers.CharField(required=True)
+    city = CityADSSerializer(required=False, read_only=True)
 
     class Meta:
         model = ADS
-        fields = ["file_number", "decision_date", "insee_code", "buildings_operations"]
+        fields = ["file_number", "decision_date", "city", "buildings_operations"]
         validators = [ADSValidator()]
 
     def create(self, validated_data):
