@@ -8,10 +8,38 @@ import requests
 from db import get_conn
 from logic.source import Source
 from psycopg2.extras import execute_values
+from settings import settings
 
 
 def import_etalab_cities(dpt: str):
-    pass
+    url = f"https://geo.api.gouv.fr/departements/{dpt}/communes?format=geojson&geometry=contour"
+    cities_geojson = requests.get(url).json()
+
+    q = (
+        "INSERT INTO batid_city (code_insee, name, shape) VALUES (%(code_insee)s, %(name)s, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(shape)s), 4326), %(db_srid)s)) "
+        "ON CONFLICT (code_insee) DO UPDATE "
+        "SET code_insee = EXCLUDED.code_insee, name = EXCLUDED.name, shape = EXCLUDED.shape"
+    )
+
+    conn = get_conn()
+    with conn.cursor() as cursor:
+        for c in cities_geojson["features"]:
+            print(f'--- {c["properties"]["nom"]} ---')
+
+            params = {
+                "code_insee": c["properties"]["code"],
+                "name": c["properties"]["nom"],
+                "shape": json.dumps(c["geometry"]),
+                "db_srid": settings["DEFAULT_SRID"],
+            }
+
+            try:
+                cursor.execute(q, params)
+                conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                conn.rollback()
+                cursor.close()
+                raise error
 
 
 def import_insee_cities(state_date):

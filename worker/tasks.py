@@ -2,7 +2,7 @@ from celery import Celery, signals
 from jobs.dl_source import Downloader
 from jobs.import_bdnb7 import import_bdnb7 as import_bdnb7_job
 from jobs.import_bdtopo import import_bdtopo as import_bdtopo_job
-from jobs.import_commune_insee import import_etalab_cities
+from jobs.import_cities import import_etalab_cities
 from jobs.inspect_candidates import Inspector
 from jobs.remove_light_bdgs import remove_light_bdgs as remove_light_bdgs_job
 from jobs.export import export_city as export_city_job
