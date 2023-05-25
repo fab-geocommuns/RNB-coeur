@@ -1,14 +1,19 @@
 import json
+from pprint import pprint
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
-from batid.models import Building, ADS, BuildingADS, Organization
+from batid.models import Building, ADS, BuildingADS, Organization, City
+from api_alpha.tests.helpers import create_grenoble, create_cenac, create_paris
 
 
 class ADSEnpointsWithBadAuthTest(APITestCase):
     def setUp(self):
+        create_paris()
+
         u = User.objects.create_user(
             first_name="Marcel", last_name="Paris", username="paris"
         )
@@ -17,17 +22,19 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
     def test_create_ads(self):
+        # Building is in Paris
         data = {
             "file_number": "ADS-TEST-NEW-BDG",
             "decision_date": "2019-03-18",
-            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
                     "building": {
                         "rnb_id": "new",
-                        "lat": 44.7802149854455,
-                        "lng": -0.4617233264741004,
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [2.3552747458487002, 48.86958288638419],
+                        },
                     },
                 }
             ],
@@ -61,7 +68,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "file_number": "ADS-TEST-FUTURE",
                     "decision_date": "2035-01-02",
-                    "insee_code": "12345",
+                    "city": {
+                        "code_insee": "38185",
+                        "name": "Grenoble",
+                    },
                     "buildings_operations": [],
                 }
             ],
@@ -81,7 +91,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "file_number": "ADS-TEST-FUTURE",
                     "decision_date": "2035-01-02",
-                    "insee_code": "12345",
+                    "city": {
+                        "code_insee": "38185",
+                        "name": "Grenoble",
+                    },
                     "buildings_operations": [],
                 }
             ],
@@ -93,10 +106,14 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         r_data = r.json()
+
         expected = {
             "file_number": "ADS-TEST",
             "decision_date": "2019-01-01",
-            "insee_code": "5555",
+            "city": {
+                "name": "Grenoble",
+                "code_insee": "38185",
+            },
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -104,19 +121,21 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDG-RNB-ID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [1.065566769109707, 46.63416324688205],
+                            "coordinates": [5.718191258820704, 45.17874138804159],
                         },
                     },
                 }
             ],
         }
+
         self.assertDictEqual(r_data, expected)
 
     def test_create_simple_ads(self):
+        self.maxDiff = None
+
         data = {
             "file_number": "ADS-TEST-2",
             "decision_date": "2019-01-01",
-            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -145,14 +164,40 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDG-RNB-ID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [1.065566769109707, 46.63416324688205],
+                            "coordinates": [5.718191258820704, 45.17874138804159],
                         },
                     },
                 }
             ],
-            "insee_code": "4242",
+            "city": {
+                "name": "Grenoble",
+                "code_insee": "38185",
+            },
         }
         self.assertDictEqual(r_data, expected)
+
+    def test_new_point_in_grenoble(self):
+        data = {
+            "file_number": "zef",
+            "decision_date": "2023-05-12",
+            "buildings_operations": [
+                {
+                    "building": {
+                        "rnb_id": "new",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [5.724331358994107, 45.18157371019683],
+                        },
+                    },
+                    "operation": "build",
+                }
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 200)
 
     def test_read_unknown_ads(self):
         r = self.client.get("/api/alpha/ads/ABSENT-ADS/")
@@ -162,7 +207,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
         data = {
             "file_number": "ADS-TEST-2",
             "decision_date": "2019-01-02",
-            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -179,7 +223,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         expected = {
             "file_number": "ADS-TEST-2",
             "decision_date": "2019-01-02",
-            "insee_code": "4242",
+            "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -187,7 +231,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDG-RNB-ID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [1.065566769109707, 46.63416324688205],
+                            "coordinates": [5.718191258820704, 45.17874138804159],
                         },
                     },
                 }
@@ -206,7 +250,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
         data = {
             "file_number": "ADS-TEST-NEW-BDG-MP",
             "decision_date": "2019-03-18",
-            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -233,6 +276,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
+
         self.assertEqual(r.status_code, 200)
 
         r = self.client.get("/api/alpha/ads/ADS-TEST-NEW-BDG-MP/")
@@ -243,7 +287,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         expected = {
             "file_number": "ADS-TEST-NEW-BDG-MP",
             "decision_date": "2019-03-18",
-            "insee_code": "4242",
+            "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -264,7 +308,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
         data = {
             "file_number": "ADS-TEST-NEW-BDG",
             "decision_date": "2019-03-18",
-            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -272,7 +315,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "new",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [-0.4617233264741004, 44.7802149854455],
+                            "coordinates": [5.717771597834023, 45.17739684209898],
                         },
                     },
                 }
@@ -289,7 +332,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
         expected = {
             "file_number": "ADS-TEST-NEW-BDG",
             "decision_date": "2019-03-18",
-            "insee_code": "4242",
+            "city": {
+                "name": "Grenoble",
+                "code_insee": "38185",
+            },
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -297,7 +343,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": new_rnb_id,
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [-0.461723326474101, 44.78021498544544],
+                            "coordinates": [5.717771597834023, 45.17739684209891],
                         },
                     },
                 }
@@ -313,10 +359,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertDictEqual(r_data, expected)
 
     def test_ads_update_with_new_bdg(self):
+        self.maxDiff = None
+
         data = {
             "file_number": "ADS-TEST-UPDATE",
             "decision_date": "2025-01-02",
-            "insee_code": "4242",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -324,7 +371,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "new",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [-0.4617233264741004, 44.7802149854455],
+                            "coordinates": [5.720861502527286, 45.18380982645842],
                         },
                     },
                 }
@@ -344,7 +391,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         expected = {
             "file_number": "ADS-TEST-UPDATE",
             "decision_date": "2025-01-02",
-            "insee_code": "4242",
+            "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -352,7 +399,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": new_rnb_id,
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [-0.461723326474101, 44.78021498544544],
+                            "coordinates": [5.720861502527287, 45.18380982645836],
                         },
                     },
                 }
@@ -360,13 +407,13 @@ class ADSEndpointsWithAuthTest(APITestCase):
         }
         r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE/")
         r_data = r.json()
+
         self.assertDictEqual(r_data, expected)
 
     def test_ads_update_many_buildings(self):
         data = {
             "file_number": "ADS-TEST-UPDATE-MANY-BDG",
             "decision_date": "2025-01-01",
-            "insee_code": "4242",
             "buildings_operations": [
                 {"operation": "modify", "building": {"rnb_id": "BDG-IN-ADS-ONE"}},
                 {
@@ -390,7 +437,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         expected = {
             "file_number": "ADS-TEST-UPDATE-MANY-BDG",
             "decision_date": "2025-01-01",
-            "insee_code": "4242",
+            "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
                     "operation": "modify",
@@ -398,7 +445,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDG-IN-ADS-ONE",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [1.065566769109707, 46.63416324688205],
+                            "coordinates": [5.718191258820704, 45.17874138804159],
                         },
                     },
                 },
@@ -408,13 +455,13 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDG-IN-ADS-TWO",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [1.065566769109707, 46.63416324688205],
+                            "coordinates": [5.718191258820704, 45.17874138804159],
                         },
                     },
                 },
             ],
         }
-
+        self.maxDiff = None
         self.assertDictEqual(r_data, expected)
 
     def test_ads_same_bdg_twice(self):
@@ -659,6 +706,42 @@ class ADSEndpointsWithAuthTest(APITestCase):
         # ###############
         # Data setup
 
+    def test_inoffensive_city(self):
+        r = self.client.get("/api/alpha/ads/ADS-TEST/")
+
+        altered_data = r.json()
+        altered_data["city"] = {"name": "Paris", "code_insee": "75056"}
+
+        r = self.client.put(
+            "/api/alpha/ads/ADS-TEST/",
+            data=json.dumps(altered_data),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.get("/api/alpha/ads/ADS-TEST/")
+        self.assertEqual(r.status_code, 200)
+
+        expected = {
+            "file_number": "ADS-TEST",
+            "decision_date": "2019-01-01",
+            "city": {"name": "Grenoble", "code_insee": "38185"},
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "BDG-RNB-ID",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [5.718191258820704, 45.17874138804159],
+                        },
+                    },
+                }
+            ],
+        }
+
+        self.assertEqual(r.json(), expected)
+
     def test_ads_delete_yes(self):
         r = self.client.get("/api/alpha/ads/ADS-TEST-DELETE-YES/")
         self.assertEqual(r.status_code, 200)
@@ -681,16 +764,23 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
     def __insert_data(self):
         # ############
+        # Cities
+        grenoble = create_grenoble()
+        create_paris()
+        cenac = create_cenac()
+
+        # ############
         # Building
         coords = {
             "coordinates": [
                 [
                     [
-                        [1.0654705955877262, 46.63423852982024],
-                        [1.065454930919401, 46.634105152847496],
-                        [1.0656648374661017, 46.63409009413692],
-                        [1.0656773692001593, 46.63422131990677],
-                        [1.0654705955877262, 46.63423852982024],
+                        [5.717918517856731, 45.178820091145724],
+                        [5.718008279271032, 45.17865980057857],
+                        [5.7184092135875915, 45.17866401875747],
+                        [5.7184451181529425, 45.17884961830637],
+                        [5.717924501950705, 45.17893819969589],
+                        [5.717918517856731, 45.178820091145724],
                     ]
                 ]
             ],
@@ -699,8 +789,12 @@ class ADSEndpointsWithAuthTest(APITestCase):
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
         geom.transform(settings.DEFAULT_SRID)
 
+        # Grenoble
         b = Building.objects.create(
-            rnb_id="BDG-RNB-ID", source="dummy", shape=geom, point=geom.point_on_surface
+            rnb_id="BDG-RNB-ID",
+            source="dummy",
+            shape=geom,
+            point=geom.point_on_surface,
         )
 
         bdg_ads_one = Building.objects.create(
@@ -719,43 +813,41 @@ class ADSEndpointsWithAuthTest(APITestCase):
         # ############
         # ADS
         ads = ADS.objects.create(
-            file_number="ADS-TEST", decision_date="2019-01-01", insee_code="5555"
+            city=grenoble, file_number="ADS-TEST", decision_date="2019-01-01"
         )
         BuildingADS.objects.create(building=b, ads=ads, operation="build")
 
         ADS.objects.create(
-            file_number="ADS-TEST-FUTURE",
-            decision_date="2035-01-02",
-            insee_code="12345",
+            file_number="ADS-TEST-FUTURE", decision_date="2035-01-02", city=grenoble
         )
 
         ADS.objects.create(
             file_number="ADS-TEST-UPDATE",
             decision_date="2025-01-01",
-            insee_code="4242",
+            city=grenoble,
         )
         ADS.objects.create(
             file_number="ADS-TEST-UPDATE-BDG",
             decision_date="2025-01-01",
-            insee_code="4242",
+            city=grenoble,
         )
 
         ADS.objects.create(
             file_number="ADS-TEST-DELETE-YES",
             decision_date="2025-01-01",
-            insee_code="4242",
+            city=grenoble,
         )
         ADS.objects.create(
             file_number="ADS-TEST-DELETE-NO",
             decision_date="2025-01-01",
-            insee_code="94170",
+            city=cenac,
         )
 
         # For many buildings in one ADS (for update and delete test)
         many_bdg_ads = ADS.objects.create(
             file_number="ADS-TEST-UPDATE-MANY-BDG",
             decision_date="2025-01-01",
-            insee_code="4242",
+            city=grenoble,
         )
         BuildingADS.objects.create(
             building=bdg_ads_one, ads=many_bdg_ads, operation="build"
@@ -768,7 +860,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         u = User.objects.create_user(
             first_name="John", last_name="Doe", username="johndoe"
         )
-        org = Organization.objects.create(name="Test Org", managed_cities=["4242"])
+        org = Organization.objects.create(name="Test Org", managed_cities=["38185"])
         org.users.add(u)
 
         token = Token.objects.create(user=u)

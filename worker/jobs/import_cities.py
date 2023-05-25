@@ -8,9 +8,46 @@ import requests
 from db import get_conn
 from logic.source import Source
 from psycopg2.extras import execute_values
+from settings import settings
 
 
-def import_commune_insee(state_date):
+def import_etalab_cities(dpt: str):
+    url = f"https://geo.api.gouv.fr/departements/{dpt}/communes?format=geojson&geometry=contour"
+    cities_geojson = requests.get(url).json()
+
+    q = (
+        "INSERT INTO batid_city (code_insee, name, shape) VALUES (%(code_insee)s, %(name)s, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(shape)s), 4326), %(db_srid)s)) "
+        "ON CONFLICT (code_insee) DO UPDATE "
+        "SET code_insee = EXCLUDED.code_insee, name = EXCLUDED.name, shape = EXCLUDED.shape"
+    )
+
+    conn = get_conn()
+    with conn.cursor() as cursor:
+        for c in cities_geojson["features"]:
+            print(f'--- {c["properties"]["nom"]} ---')
+
+            shape = c["geometry"]
+            if shape["type"] == "Polygon":
+                shape["coordinates"] = [shape["coordinates"]]
+                shape["type"] = "MultiPolygon"
+
+            params = {
+                "code_insee": c["properties"]["code"],
+                "name": c["properties"]["nom"],
+                "shape": json.dumps(shape),
+                "db_srid": settings["DEFAULT_SRID"],
+            }
+
+            try:
+                cursor.execute(q, params)
+                conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                conn.rollback()
+                cursor.close()
+                raise error
+
+
+def import_insee_cities(state_date):
     """Imports the list of french municipalities at a given date.
 
     Data are retrieves using the INSEE api and are loaded to RNB database
@@ -44,16 +81,17 @@ def import_commune_insee(state_date):
     communes = json.loads(response.content)
 
     # remove unused keys and rename others
-    keys_to_remove = ["type", "typeArticle"]
+    keys_to_remove = ["type", "typeArticle", "uri", "intituleSansArticle"]
     keys_to_rename = {
         "code": "code_insee",
-        "dateCreation": "created_at",
-        "uri": "uri_insee",
+        "dateCreation": "established_at",
         "intitule": "name",
-        "intituleSansArticle": "name_without_article",
     }
 
     for i, commune in enumerate(communes):
+        print("------")
+        print(commune)
+
         for key in keys_to_remove:
             commune.pop(key, None)
 
@@ -66,10 +104,8 @@ def import_commune_insee(state_date):
     communes_tuples = [
         (
             c["code_insee"],
-            c["created_at"],
-            c["uri_insee"],
+            c["established_at"],
             c["name"],
-            c["name_without_article"],
         )
         for c in communes
     ]
@@ -83,7 +119,7 @@ def import_commune_insee(state_date):
         print("-- transfer cities to db --")
         try:
             sql_query = """
-            INSERT INTO batid_city (code_insee, created_at, uri_insee, name, name_without_article)
+            INSERT INTO batid_city (code_insee, established_at, name)
             VALUES %s
             ON CONFLICT (code_insee) DO UPDATE
             SET created_at = EXCLUDED.created_at,

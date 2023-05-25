@@ -1,15 +1,13 @@
-from api_alpha.permissions import ADSPermission
-from api_alpha.serializers import ADSSerializer, BuildingSerializer, CitySerializer
+from api_alpha.permissions import ADSPermission, ADSCityPermission
+from api_alpha.serializers import ADSSerializer, BuildingSerializer
+from api_alpha.logic import calc_ads_cities
 from batid.logic.ads_search import ADSSearch
 from batid.logic.bdg_search import BuildingSearch
-from batid.models import ADS, Building, BuildingADS, City
-from django.db.models import Q, Case, When, Value, FloatField, F
-
+from batid.models import ADS, Building, BuildingADS
 from rest_framework import viewsets
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rest_framework.viewsets import ReadOnlyModelViewSet
 
 
 class BuildingViewSet(viewsets.ModelViewSet):
@@ -29,49 +27,6 @@ class BuildingViewSet(viewsets.ModelViewSet):
         return search.get_queryset()
 
 
-class CityViewSet(ReadOnlyModelViewSet):
-    """View to look up city matching (name or postal code) with a given input"""
-
-    queryset = City.objects.all()
-    lookup_field = "code_insee"
-
-    def get_queryset(self):
-        query = self.request.query_params.dict()
-
-        qs = City.objects.all()
-
-        if query.get("q"):
-            qs = (
-                qs.filter(
-                    Q(name__unaccent__icontains=query["q"])
-                    | Q(code_insee__icontains=query["q"])
-                )
-                .annotate(
-                    start=Case(
-                        When(name__unaccent__istartswith=query["q"], then=Value(1)),
-                        default=Value(0),
-                        output_field=FloatField(),
-                    ),
-                    equal=Case(
-                        When(name__unaccent__iexact=query["q"], then=Value(1)),
-                        default=Value(0),
-                        output_field=FloatField(),
-                    ),
-                    rank=F("start"),
-                )
-                .order_by("-rank", "name")
-            )
-
-        return qs
-
-    def retrieve(self, request, code_insee=None):
-        return super().retrieve(request, code_insee)
-
-    serializer_class = CitySerializer
-    http_method_names = ["get"]
-    # pagination_class = PageNumberPagination
-
-
 class ADSViewSet(viewsets.ModelViewSet):
     queryset = ADS.objects.all()
     serializer_class = ADSSerializer
@@ -79,6 +34,10 @@ class ADSViewSet(viewsets.ModelViewSet):
     pagination_class = PageNumberPagination
     permission_classes = [ADSPermission]
     http_method_names = ["get", "post", "put", "delete"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.request_cities = []
 
     def get_queryset(self):
         search = ADSSearch(**self.request.query_params.dict())
@@ -89,13 +48,33 @@ class ADSViewSet(viewsets.ModelViewSet):
 
         return search.get_queryset()
 
+    def check_request_cities_permissions(self, request):
+        # The pattern is quite the same as the check_permissions() method of the APIView class
+
+        permission = ADSCityPermission()
+
+        has_permission = permission.has_permission(request, self)
+        # We capture the calculation of the cities so we dont have to do it again to attach the city in the serializer
+        self.request_cities = permission.request_cities
+
+        if not has_permission:
+            self.permission_denied(
+                request,
+                message=getattr(permission, "message", None),
+                code=getattr(permission, "code", None),
+            )
+
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            self.perform_create(serializer)
-            return Response(serializer.data)
-        else:
-            return Response(serializer.errors, status=400)
+            self.check_request_cities_permissions(request)
+            serializer.install_cities(self.request_cities)
+
+            if serializer.has_valid_cities():
+                self.perform_create(serializer)
+                return Response(serializer.data)
+
+        return Response(serializer.errors, status=400)
 
     def retrieve(self, request, file_number=None):
         return super().retrieve(request, file_number)

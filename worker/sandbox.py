@@ -1,8 +1,8 @@
-from jobs.remove_dpt import remove_dpt
+from jobs.import_commune_insee import import_commune_insee
 
 
 def sandbox():
-    remove_dpt("33")
+    import_commune_insee()
 
 
 if __name__ == "__main__":

@@ -7,8 +7,9 @@ from api_alpha.validators import (
     ads_validate_rnbid,
     BdgInADSValidator,
     ADSValidator,
+    ADSCitiesValidator,
 )
-from api_alpha.models import BuildingADS as BuildingADSModel, BdgInADS
+from api_alpha.logic import BuildingADS as BuildingADSLogic, BdgInADS
 from rest_framework.validators import UniqueValidator
 from rnbid.generator import generate_id
 from django.contrib.gis.geos import GEOSGeometry
@@ -39,7 +40,7 @@ class BuildingSerializer(serializers.ModelSerializer):
         fields = ["rnb_id", "source", "point", "addresses"]
 
 
-class CitySerializer(serializers.ModelSerializer):
+class CityADSSerializer(serializers.ModelSerializer):
     class Meta:
         model = City
         fields = ["code_insee", "name"]
@@ -78,10 +79,10 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
     building = BdgInAdsSerializer()
     operation = serializers.ChoiceField(
         required=True,
-        choices=BuildingADSModel.OPERATIONS,
+        choices=BuildingADSLogic.OPERATIONS,
         error_messages={
             "invalid_choice": "'{input}' is not a valid operation. Valid operations are: "
-            + f"{BuildingADSModel.OPERATIONS}."
+            + f"{BuildingADSLogic.OPERATIONS}."
         },
     )
 
@@ -112,18 +113,36 @@ class ADSSerializer(serializers.ModelSerializer):
     )
     decision_date = serializers.DateField(required=True, format="%Y-%m-%d")
     buildings_operations = BuildingsADSSerializer(many=True, required=False)
-    insee_code = serializers.CharField(required=True)
+    city = CityADSSerializer(required=False, read_only=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.request_cities = []
+        self._errors = []
 
     class Meta:
         model = ADS
-        fields = ["file_number", "decision_date", "insee_code", "buildings_operations"]
+        fields = ["file_number", "decision_date", "city", "buildings_operations"]
         validators = [ADSValidator()]
+
+    def install_cities(self, cities):
+        # Verify the number of cities and throw error if not 1
+
+        self.request_cities = cities
+
+    def has_valid_cities(self):
+        try:
+            ADSCitiesValidator()(self.request_cities)
+        except serializers.ValidationError as e:
+            self._errors = e.detail
+        return not bool(self._errors)
 
     def create(self, validated_data):
         bdg_ops = []
         if "buildings_operations" in validated_data:
             bdg_ops = validated_data.pop("buildings_operations")
 
+        validated_data["city"] = self.request_cities[0]
         ads = ADS.objects.create(**validated_data)
 
         for bdg_op_data in bdg_ops:
