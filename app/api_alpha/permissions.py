@@ -16,10 +16,11 @@ class ADSCityPermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
         if view.action in ["create", "update"]:
+            # We have to calculate anyway since we will need the cities later
+            self.request_cities = calc_ads_cities(request.data)
+
             if request.user.is_superuser:
                 return True
-
-            self.request_cities = calc_ads_cities(request.data)
 
             # should it be here we validate they can only request one city at a time ?
             # It might be in a validator of the serializer

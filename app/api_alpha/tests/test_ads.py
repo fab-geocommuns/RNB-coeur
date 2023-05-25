@@ -176,6 +176,29 @@ class ADSEndpointsWithAuthTest(APITestCase):
         }
         self.assertDictEqual(r_data, expected)
 
+    def test_new_point_in_grenoble(self):
+        data = {
+            "file_number": "zef",
+            "decision_date": "2023-05-12",
+            "buildings_operations": [
+                {
+                    "building": {
+                        "rnb_id": "new",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [5.724331358994107, 45.18157371019683],
+                        },
+                    },
+                    "operation": "build",
+                }
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 200)
+
     def test_read_unknown_ads(self):
         r = self.client.get("/api/alpha/ads/ABSENT-ADS/")
         self.assertEqual(r.status_code, 404)

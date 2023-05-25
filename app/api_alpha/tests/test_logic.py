@@ -4,6 +4,26 @@ from api_alpha.tests.helpers import create_bdg, create_paris, create_grenoble
 
 
 class LogicTest(APITestCase):
+    def test_calc_cities_point_grenoble(self):
+        data = {
+            "buildings_operations": [
+                {
+                    "building": {
+                        "rnb_id": "new",
+                        "geometry": {
+                            "coordinates": [5.724331358994107, 45.18157371019683],
+                            "type": "Point",
+                        },
+                    }
+                }
+            ]
+        }
+
+        cities = calc_ads_cities(data)
+
+        self.assertEqual(len(cities), 1)
+        self.assertEqual(cities[0].code_insee, "38185")
+
     def test_calc_existing_and_new(self):
         data = {
             "buildings_operations": [
