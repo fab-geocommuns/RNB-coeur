@@ -1,5 +1,5 @@
 from batid.models import Building
-from api_alpha.models import BdgInADS
+from api_alpha.logic import BdgInADS
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos.error import GEOSException
 from rest_framework import serializers
@@ -42,28 +42,41 @@ class BdgInADSValidator:
             return
 
 
-class ADSValidator:
-    def __call__(self, ads):
-        self.validate_bdg_once(ads)
-        self.validate_has_bdg(ads)
+class ADSCitiesValidator:
+    def __call__(self, cities):
+        if len(cities) == 0:
+            raise serializers.ValidationError(
+                {"buildings_operations": "Buildings are in an unknown city"}
+            )
 
-    def validate_has_bdg(self, ads):
-        if ads.get("buildings_operations") is None:
+        if len(cities) > 1:
+            raise serializers.ValidationError(
+                {"buildings_operations": "Buildings must be in only one city"}
+            )
+
+
+class ADSValidator:
+    def __call__(self, data):
+        self.validate_bdg_once(data)
+        self.validate_has_bdg(data)
+
+    def validate_has_bdg(self, data):
+        if data.get("buildings_operations") is None:
             raise serializers.ValidationError(
                 {"buildings_operations": "This field is required."}
             )
-        if len(ads["buildings_operations"]) == 0:
+        if len(data["buildings_operations"]) == 0:
             raise serializers.ValidationError(
                 {"buildings_operations": "At least one building is required."}
             )
 
-    def validate_bdg_once(self, ads):
-        if ads.get("buildings_operations") is None:
+    def validate_bdg_once(self, data):
+        if data.get("buildings_operations") is None:
             return
 
         rnb_ids = [
             op["building"]["rnb_id"]
-            for op in ads["buildings_operations"]
+            for op in data["buildings_operations"]
             if op["building"]["rnb_id"] != BdgInADS.NEW_STR
         ]
         if len(rnb_ids) != len(set(rnb_ids)):
