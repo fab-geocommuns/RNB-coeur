@@ -1,4 +1,4 @@
-from api_alpha.views import ADSViewSet, BuildingViewSet, CityViewSet
+from api_alpha.views import ADSViewSet, BuildingViewSet
 from django.urls import include, path
 from rest_framework import routers
 from rest_framework.authtoken import views
@@ -6,7 +6,6 @@ from rest_framework.authtoken import views
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
 router.register(r"buildings", BuildingViewSet)
-router.register(r"cities", CityViewSet)
 router.register(r"ads", ADSViewSet)
 
 # Wire up our API using automatic URL routing.

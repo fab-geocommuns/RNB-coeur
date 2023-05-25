@@ -21,6 +21,7 @@ class Command(BaseCommand):
         # ###########
         # Steps
         all_steps = [
+            "import_cities",
             "dl_bdtopo",
             "dl_bdnb7",
             "import_bdtopo",
@@ -37,6 +38,9 @@ class Command(BaseCommand):
         print(steps)
 
         tasks = []
+
+        if "import_cities" in steps:
+            tasks.append(Signature("tasks.import_cities", args=[dpt], immutable=True))
 
         if "dl_bdtopo" in steps:
             tasks.append(
