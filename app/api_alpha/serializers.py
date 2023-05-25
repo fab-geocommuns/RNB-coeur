@@ -118,6 +118,7 @@ class ADSSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.request_cities = []
+        self._errors = []
 
     class Meta:
         model = ADS
@@ -126,10 +127,15 @@ class ADSSerializer(serializers.ModelSerializer):
 
     def install_cities(self, cities):
         # Verify the number of cities and throw error if not 1
-        ADSCitiesValidator()(cities)
+
         self.request_cities = cities
 
-        pass
+    def has_valid_cities(self):
+        try:
+            ADSCitiesValidator()(self.request_cities)
+        except serializers.ValidationError as e:
+            self._errors = e.detail
+        return not bool(self._errors)
 
     def create(self, validated_data):
         bdg_ops = []

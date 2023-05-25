@@ -70,15 +70,11 @@ class ADSViewSet(viewsets.ModelViewSet):
             self.check_request_cities_permissions(request)
             serializer.install_cities(self.request_cities)
 
-            # verification ici
-            # get the permission class (the class must be created)
-            # calculate the city and do the verification on it
-            # add the city to the serializer
+            if serializer.has_valid_cities():
+                self.perform_create(serializer)
+                return Response(serializer.data)
 
-            self.perform_create(serializer)
-            return Response(serializer.data)
-        else:
-            return Response(serializer.errors, status=400)
+        return Response(serializer.errors, status=400)
 
     def retrieve(self, request, file_number=None):
         return super().retrieve(request, file_number)

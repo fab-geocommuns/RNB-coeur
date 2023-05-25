@@ -683,6 +683,42 @@ class ADSEndpointsWithAuthTest(APITestCase):
         # ###############
         # Data setup
 
+    def test_inoffensive_city(self):
+        r = self.client.get("/api/alpha/ads/ADS-TEST/")
+
+        altered_data = r.json()
+        altered_data["city"] = {"name": "Paris", "code_insee": "75056"}
+
+        r = self.client.put(
+            "/api/alpha/ads/ADS-TEST/",
+            data=json.dumps(altered_data),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.get("/api/alpha/ads/ADS-TEST/")
+        self.assertEqual(r.status_code, 200)
+
+        expected = {
+            "file_number": "ADS-TEST",
+            "decision_date": "2019-01-01",
+            "city": {"name": "Grenoble", "code_insee": "38185"},
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "BDG-RNB-ID",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [5.718191258820704, 45.17874138804159],
+                        },
+                    },
+                }
+            ],
+        }
+
+        self.assertEqual(r.json(), expected)
+
     def test_ads_delete_yes(self):
         r = self.client.get("/api/alpha/ads/ADS-TEST-DELETE-YES/")
         self.assertEqual(r.status_code, 200)
