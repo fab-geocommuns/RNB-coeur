@@ -176,6 +176,57 @@ class ADSEndpointsWithAuthTest(APITestCase):
         }
         self.assertDictEqual(r_data, expected)
 
+    def test_create_with_custom_id(self):
+        data = {
+            "file_number": "CUSTOM-ID",
+            "decision_date": "2023-05-12",
+            "buildings_operations": [
+                {
+                    "building": {
+                        "rnb_id": "new",
+                        "custom_id": "OUR-BDG",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [5.724331358994107, 45.18157371019683],
+                        },
+                    },
+                    "operation": "build",
+                }
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 200)
+
+        r_data = r.json()
+
+        expected = {
+            "file_number": "CUSTOM-ID",
+            "decision_date": "2023-05-12",
+            "city": {
+                "name": "Grenoble",
+                "code_insee": "38185",
+            },
+            "buildings_operations": [
+                {
+                    "building": {
+                        "rnb_id": r_data["buildings_operations"][0]["building"][
+                            "rnb_id"
+                        ],
+                        "custom_id": "OUR-BDG",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [5.724331358994108, 45.181573710196766],
+                        },
+                    },
+                    "operation": "build",
+                }
+            ],
+        }
+        self.assertDictEqual(r_data, expected)
+
     def test_new_point_in_grenoble(self):
         data = {
             "file_number": "zef",
