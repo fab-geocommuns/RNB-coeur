@@ -1,4 +1,5 @@
 import random
+from pprint import pprint
 
 from rest_framework import serializers
 from batid.models import Building, Address, ADS, BuildingADS, City
@@ -50,10 +51,29 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
     geometry = serializers.DictField(source="ads_geojson", required=False)
     rnb_id = serializers.CharField(validators=[ads_validate_rnbid])
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.custom_id = None
+
     class Meta:
         model = Building
         fields = ["rnb_id", "geometry"]
         validators = [BdgInADSValidator()]
+
+    def to_internal_value(self, data):
+        custom_id = data.get("custom_id", None)
+        if custom_id:
+            self.custom_id = custom_id
+
+        return super().to_internal_value(data)
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+
+        if self.custom_id:
+            ret["custom_id"] = self.custom_id
+
+        return ret
 
     def create(self, validated_data):
         if validated_data.get("rnb_id") == BdgInADS.NEW_STR:
@@ -89,6 +109,9 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
     class Meta:
         model = BuildingADS
         fields = ["building", "operation"]
+
+    def is_valid(self, *args, raise_exception=False):
+        return super().is_valid(*args, raise_exception=raise_exception)
 
     def create(self, validated_data):
         bdg_data = validated_data.pop("building")
