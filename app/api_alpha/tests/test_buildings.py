@@ -1,6 +1,4 @@
 import json
-
-
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.test import APITestCase
@@ -38,5 +36,17 @@ class BuildingsEnpointsTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
     def test_one_bdg_with_dash(self):
-        r = self.client.get("/api/alpha/buildings/BDG-RNB-ID/")
+        r = self.client.get("/api/alpha/buildings/BDGS-RNBB-IDID/")
         self.assertEqual(r.status_code, 200)
+
+        expected = {
+            "rnb_id": "BDGSRNBBIDID",
+            "source": "dummy",
+            "point": {
+                "type": "Point",
+                "coordinates": [1.065566769109707, 46.63416324688205],
+            },
+            "addresses": [],
+        }
+
+        self.assertEqual(r.json(), expected)
