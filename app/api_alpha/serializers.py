@@ -12,7 +12,7 @@ from api_alpha.validators import (
 )
 from api_alpha.logic import BuildingADS as BuildingADSLogic, BdgInADS
 from rest_framework.validators import UniqueValidator
-from rnbid.generator import generate_id
+from rnbid.generator import generate_rnb_id, clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry
 
 
@@ -61,6 +61,7 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
         validators = [BdgInADSValidator()]
 
     def to_internal_value(self, data):
+        # Keep the custom id
         custom_id = data.get("custom_id", None)
         if custom_id:
             self.custom_id = custom_id
@@ -88,11 +89,14 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
                 validated_data["shape"] = f"{geometry}"
                 validated_data["point"] = f"{geometry.point_on_surface}"
 
-            validated_data["rnb_id"] = generate_id()
+            validated_data["rnb_id"] = generate_rnb_id()
             validated_data["source"] = "ADS"
             return super().create(validated_data)
         else:
-            return Building.objects.get(rnb_id=validated_data["rnb_id"])
+            clean_id = clean_rnb_id(validated_data["rnb_id"])
+            bdg = Building.objects.get(rnb_id=clean_id)
+
+            return bdg
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):

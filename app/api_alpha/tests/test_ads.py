@@ -118,7 +118,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-RNB-ID",
+                        "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
                             "coordinates": [5.718191258820704, 45.17874138804159],
@@ -140,7 +140,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-RNB-ID",
+                        "rnb_id": "BDGSRNBBIDID",
                     },
                 }
             ],
@@ -161,7 +161,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-RNB-ID",
+                        "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
                             "coordinates": [5.718191258820704, 45.17874138804159],
@@ -198,9 +198,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
-        self.assertEqual(r.status_code, 200)
 
         r_data = r.json()
+
+        self.assertEqual(r.status_code, 200)
 
         expected = {
             "file_number": "CUSTOM-ID",
@@ -254,6 +255,51 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r = self.client.get("/api/alpha/ads/ABSENT-ADS/")
         self.assertEqual(r.status_code, 404)
 
+    def test_create_ads_with_dash(self):
+        data = {
+            "file_number": "ADS-TEST-DASH",
+            "decision_date": "2019-01-02",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {"rnb_id": "BDGS-RNBB-IDID"},
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        r_data = r.json()
+
+        expected = {
+            "file_number": "ADS-TEST-DASH",
+            "decision_date": "2019-01-02",
+            "city": {"name": "Grenoble", "code_insee": "38185"},
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "BDGSRNBBIDID",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [5.718191258820704, 45.17874138804159],
+                        },
+                    },
+                }
+            ],
+        }
+
+        self.maxDiff = None
+        # Assert that the response is correct
+        self.assertDictEqual(r_data, expected)
+        self.assertEqual(r.status_code, 200)
+
+        # Assert that the data is correctly saved
+        r = self.client.get("/api/alpha/ads/ADS-TEST-DASH/")
+        r_data = r.json()
+        self.assertDictEqual(r_data, expected)
+
     def test_create_ads(self):
         data = {
             "file_number": "ADS-TEST-2",
@@ -261,7 +307,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {"rnb_id": "BDG-RNB-ID"},
+                    "building": {"rnb_id": "BDGSRNBBIDID"},
                 }
             ],
         }
@@ -279,7 +325,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-RNB-ID",
+                        "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
                             "coordinates": [5.718191258820704, 45.17874138804159],
@@ -466,11 +512,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "file_number": "ADS-TEST-UPDATE-MANY-BDG",
             "decision_date": "2025-01-01",
             "buildings_operations": [
-                {"operation": "modify", "building": {"rnb_id": "BDG-IN-ADS-ONE"}},
+                {"operation": "modify", "building": {"rnb_id": "BDGSADSSONE1"}},
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-IN-ADS-TWO",
+                        "rnb_id": "BDGSADSSTWO2",
                     },
                 },
             ],
@@ -493,7 +539,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "modify",
                     "building": {
-                        "rnb_id": "BDG-IN-ADS-ONE",
+                        "rnb_id": "BDGSADSSONE1",
                         "geometry": {
                             "type": "Point",
                             "coordinates": [5.718191258820704, 45.17874138804159],
@@ -503,7 +549,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-IN-ADS-TWO",
+                        "rnb_id": "BDGSADSSTWO2",
                         "geometry": {
                             "type": "Point",
                             "coordinates": [5.718191258820704, 45.17874138804159],
@@ -523,11 +569,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {"rnb_id": "BDG-RNB-ID"},
+                    "building": {"rnb_id": "BDGSRNBBIDID"},
                 },
                 {
                     "operation": "build",
-                    "building": {"rnb_id": "BDG-RNB-ID"},
+                    "building": {"rnb_id": "BDGSRNBBIDID"},
                 },
             ],
         }
@@ -629,7 +675,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "destroy",
-                    "building": {"rnb_id": "BDG-RNB-ID"},
+                    "building": {"rnb_id": "BDGSRNBBIDID"},
                 }
             ],
         }
@@ -781,7 +827,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "building": {
-                        "rnb_id": "BDG-RNB-ID",
+                        "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
                             "coordinates": [5.718191258820704, 45.17874138804159],
@@ -790,6 +836,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 }
             ],
         }
+
+        self.maxDiff = None
 
         self.assertEqual(r.json(), expected)
 
@@ -842,20 +890,20 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         # Grenoble
         b = Building.objects.create(
-            rnb_id="BDG-RNB-ID",
+            rnb_id="BDGSRNBBIDID",
             source="dummy",
             shape=geom,
             point=geom.point_on_surface,
         )
 
         bdg_ads_one = Building.objects.create(
-            rnb_id="BDG-IN-ADS-ONE",
+            rnb_id="BDGSADSSONE1",
             source="dummy",
             shape=geom,
             point=geom.point_on_surface,
         )
         bdg_ads_two = Building.objects.create(
-            rnb_id="BDG-IN-ADS-TWO",
+            rnb_id="BDGSADSSTWO2",
             source="dummy",
             shape=geom,
             point=geom.point_on_surface,

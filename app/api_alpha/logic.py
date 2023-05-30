@@ -3,6 +3,7 @@ import json
 from batid.models import City
 from django.conf import settings
 from django.db import connection
+from rnbid.generator import clean_rnb_id
 
 
 class BuildingADS:
@@ -38,7 +39,7 @@ def calc_ads_cities(data):
                     multipolygons["coordinates"].append(poly)
 
         else:
-            rnb_ids.append(op["building"]["rnb_id"])
+            rnb_ids.append(clean_rnb_id(op["building"]["rnb_id"]))
 
     """
         Toutes les villes qui soient : 
