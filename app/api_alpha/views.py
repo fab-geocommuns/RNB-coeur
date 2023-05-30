@@ -17,6 +17,9 @@ class BuildingViewSet(viewsets.ModelViewSet):
     pagination_class = PageNumberPagination
     lookup_field = "rnb_id"
 
+    def get_object(self):
+        qs = self.filter_queryset(self.get_queryset())
+
     def get_queryset(self):
         search = BuildingSearch(**self.request.query_params.dict())
 
