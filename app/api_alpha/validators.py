@@ -3,12 +3,15 @@ from api_alpha.logic import BdgInADS
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos.error import GEOSException
 from rest_framework import serializers
+from rnbid.generator import clean_rnb_id
 
 
 def ads_validate_rnbid(rnb_id):
     if rnb_id == BdgInADS.NEW_STR:
         return
-    if not Building.objects.filter(rnb_id=rnb_id).exists():
+
+    clean_id = clean_rnb_id(rnb_id)
+    if not Building.objects.filter(rnb_id=clean_id).exists():
         raise serializers.ValidationError(f'Building "{rnb_id}" does not exist.')
 
 
