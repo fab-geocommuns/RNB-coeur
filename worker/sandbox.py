@@ -1,8 +1,8 @@
-from jobs.import_commune_insee import import_commune_insee
+from tmp_jobs.id_format import change_id_format
 
 
 def sandbox():
-    import_commune_insee()
+    change_id_format()
 
 
 if __name__ == "__main__":
