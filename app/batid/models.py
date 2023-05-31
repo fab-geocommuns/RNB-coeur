@@ -5,6 +5,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.gis.db import models
 from django.utils.timezone import now
 from django.conf import settings
+from django.db.models import F
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 
@@ -44,6 +45,10 @@ class Building(models.Model):
     def point_lng(self):
         return self.point_geojson()["coordinates"][0]
 
+    @property
+    def current_status(self):
+        return self.status.filter(is_current=True).first()
+
     class Meta:
         ordering = ["rnb_id"]
 
@@ -51,21 +56,26 @@ class Building(models.Model):
 class BuildingStatus(models.Model):
     id = models.AutoField(primary_key=True)
     status = models.CharField(
-        choices=BuildingStatusModel.STATUS, null=False, db_index=True, max_length=30
+        choices=BuildingStatusModel.STATUS_CHOICES,
+        null=False,
+        db_index=True,
+        max_length=30,
     )
-    _happened_at = models.DateField(null=False)
-    happened_at_year = models.IntegerField(null=True)
-    happened_at_month = models.IntegerField(
-        null=True, validators=[MinValueValidator(1), MaxValueValidator(12)]
-    )
-    happened_at_day = models.IntegerField(
-        null=True, validators=[MinValueValidator(1), MaxValueValidator(31)]
-    )
+    happened_at = models.DateField(null=True)
     created_at = models.DateTimeField(null=False, default=now)
     is_current = models.BooleanField(null=False, default=False)
     building = models.ForeignKey(
         Building, related_name="status", on_delete=models.CASCADE
     )
+
+    class Meta:
+        ordering = [F("happened_at").asc(nulls_first=True)]
+
+    def save(self, *args, **kwargs):
+        # If the status is current, we make sure that the previous current status is not current anymore
+        if self.is_current:
+            self.building.status.filter(is_current=True).update(is_current=False)
+        super().save(*args, **kwargs)
 
 
 class City(models.Model):
