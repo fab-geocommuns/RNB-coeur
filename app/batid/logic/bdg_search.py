@@ -1,25 +1,38 @@
-from pprint import pprint
-
 from batid.utils.misc import is_float
 from batid.models import Building
+from batid.logic.building import BuildingStatus as BuildingStatusModel
 from django.conf import settings
 from django.contrib.gis.geos import Polygon
 from django.db.models import QuerySet
 
 
 class BuildingSearch:
-    def __init__(self, **kwargs):
-        self.params = self.BuildingSearchParams(**kwargs)
+    def __init__(self):
+        self.params = self.params = self.BuildingSearchParams()
         self.qs = None
+
+    def set_params(self, **kwargs):
+        self.params.build_filters(**kwargs)
 
     def get_queryset(self) -> QuerySet:
         # Init
         queryset = Building.objects.prefetch_related("addresses").all()
 
-        # Add filters
+        # ###################
+        # Filters
+        # ###################
+
+        # Bounding box
         if self.params.bb:
             queryset = queryset.filter(point__intersects=self.params.bb)
 
+        # Status
+        if self.params.status:
+            queryset = queryset.filter(
+                status__status__in=self.params.status, status__is_current=True
+            )
+
+        # Sorting
         if self.params.sort:
             queryset = queryset.order_by(self.params.sort)
 
@@ -34,7 +47,7 @@ class BuildingSearch:
 
     class BuildingSearchParams:
         SORT_DEFAULT = "rnb_id"
-        SORT_CHOICES = ["rnb_id", "distance"]
+        SORT_CHOICES = ["rnb_id"]
 
         PARAM_SPLITTER = ","
 
@@ -45,13 +58,23 @@ class BuildingSearch:
 
             # Filters
             self.bb = None
+            self.status = [
+                "ongoingConstruction",
+                "constructed",
+                "ongoingChange",
+                "notUsable",
+            ]
             self.circle = None
             self.ban_id = None
             self.sort = None
 
+            # Allowed status
+            self.allowed_status = BuildingStatusModel.PUBLIC_STATUS_KEYS
+
             # Internals
             self.__errors = []
 
+        def build_filters(self, **kwargs):
             # ##########
             # Set up filters
             # ##########
@@ -59,6 +82,7 @@ class BuildingSearch:
             self.set_bb_str(kwargs.get("bb", None))
             # todo : self.set_circle_str(kwargs.get('circle', None))
             # todo : self.set_ban_id_str(kwargs.get('ban_id', None))
+            self.set_status_str(kwargs.get("status", None))
             self.set_sort_str(kwargs.get("sort", self.SORT_DEFAULT))
 
         @property
@@ -84,6 +108,29 @@ class BuildingSearch:
         def set_bb_str(self, bb_str: str) -> None:
             if self.__validate_bb_str(bb_str):
                 self.bb = self.__convert_bb_str(bb_str)
+
+        def set_status_str(self, status_str: str) -> None:
+            if status_str and self.__validate_status_str(status_str):
+                self.status = self.__convert_status_str(status_str)
+
+        def __convert_status_str(self, status_str: str) -> list:
+            if status_str == "all":
+                return self.allowed_status
+            return status_str.split(",")
+
+        def __validate_status_str(self, status_str: str) -> bool:
+            # "all" is a shortcut to search on all allowed status
+            if status_str == "all":
+                return True
+
+            status = status_str.split(",")
+            for s in status:
+                if s not in self.allowed_status:
+                    self.__errors.append(
+                        f'status : status "{s}" is invalid. Available status are: {BuildingStatusModel.STATUS}'
+                    )
+                    return False
+            return True
 
         # The bb property is a Polygon object
         def __convert_bb_str(self, bb_str: str) -> Polygon:

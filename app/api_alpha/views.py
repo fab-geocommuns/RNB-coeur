@@ -3,7 +3,9 @@ from api_alpha.serializers import ADSSerializer, BuildingSerializer
 from api_alpha.logic import calc_ads_cities
 from batid.logic.ads_search import ADSSearch
 from batid.logic.bdg_search import BuildingSearch
+from batid.logic.building import BuildingStatus as BuildingStatusModel
 from batid.models import ADS, Building, BuildingADS
+
 from rest_framework import viewsets
 from rest_framework.exceptions import ParseError
 from rest_framework.generics import get_object_or_404
@@ -41,7 +43,13 @@ class BuildingViewSet(viewsets.ModelViewSet):
         return obj
 
     def get_queryset(self):
-        search = BuildingSearch(**self.request.query_params.dict())
+        search = BuildingSearch()
+
+        # If the user is authenticated, it has access to the full list of status
+        if self.request.user.is_authenticated:
+            search.params.allowed_status = BuildingStatusModel.ALL_STATUS_KEYS
+
+        search.set_params(**self.request.query_params.dict())
 
         if not search.is_valid():
             raise ParseError({"errors": search.errors})
