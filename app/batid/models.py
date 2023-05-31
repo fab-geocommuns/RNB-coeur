@@ -6,6 +6,10 @@ from django.contrib.gis.db import models
 from django.utils.timezone import now
 from django.conf import settings
 
+from django.core.validators import MaxValueValidator, MinValueValidator
+
+from batid.logic.building import BuildingStatus as BuildingStatusModel
+
 
 class Building(models.Model):
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
@@ -42,6 +46,26 @@ class Building(models.Model):
 
     class Meta:
         ordering = ["rnb_id"]
+
+
+class BuildingStatus(models.Model):
+    id = models.AutoField(primary_key=True)
+    status = models.CharField(
+        choices=BuildingStatusModel.STATUS, null=False, db_index=True, max_length=30
+    )
+    _happened_at = models.DateField(null=False)
+    happened_at_year = models.IntegerField(null=True)
+    happened_at_month = models.IntegerField(
+        null=True, validators=[MinValueValidator(1), MaxValueValidator(12)]
+    )
+    happened_at_day = models.IntegerField(
+        null=True, validators=[MinValueValidator(1), MaxValueValidator(31)]
+    )
+    created_at = models.DateTimeField(null=False, default=now)
+    is_current = models.BooleanField(null=False, default=False)
+    building = models.ForeignKey(
+        Building, related_name="status", on_delete=models.CASCADE
+    )
 
 
 class City(models.Model):
