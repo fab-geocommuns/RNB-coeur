@@ -2,7 +2,7 @@ from db import get_conn
 from psycopg2.extras import execute_values
 
 
-def change_id_format():
+def change_id_format() -> int:
     # select all rows which have rnb_id of length 17
     select_q = (
         "SELECT id, rnb_id "
