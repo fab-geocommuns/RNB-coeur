@@ -47,8 +47,18 @@ class BuildingViewSet(viewsets.ModelViewSet):
 
         # If the user is authenticated, it has access to the full list of status
         if self.request.user.is_authenticated:
-            search.params.allowed_status = BuildingStatusModel.ALL_STATUS_KEYS
+            search.params.allowed_status = BuildingStatusModel.ALL_TYPES_KEYS
 
+        # If we are listing buildings, the default status we display are those ones
+        if self.action == "list":
+            search.params.status = [
+                "ongoingConstruction",
+                "constructed",
+                "ongoingChange",
+                "notUsable",
+            ]
+
+        # Then we apply the filters requested by the user
         search.set_params(**self.request.query_params.dict())
 
         if not search.is_valid():

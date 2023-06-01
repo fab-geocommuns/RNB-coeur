@@ -2,7 +2,7 @@ import random
 from pprint import pprint
 
 from rest_framework import serializers
-from batid.models import Building, Address, ADS, BuildingADS, City
+from batid.models import Building, BuildingStatus, Address, ADS, BuildingADS, City
 from batid.logic.ads import ADS as ADSLogic
 from api_alpha.validators import (
     ads_validate_rnbid,
@@ -31,14 +31,21 @@ class AddressSerializer(serializers.ModelSerializer):
         ]
 
 
+class BuildingStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BuildingStatus
+        fields = ["type", "happened_at", "label", "is_current"]
+
+
 class BuildingSerializer(serializers.ModelSerializer):
     point = serializers.DictField(source="point_geojson", read_only=True)
     addresses = AddressSerializer(many=True, read_only=True)
     source = serializers.CharField(read_only=True)
+    status = BuildingStatusSerializer(read_only=True, many=True)
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "source", "point", "addresses"]
+        fields = ["rnb_id", "status", "source", "point", "addresses"]
 
 
 class CityADSSerializer(serializers.ModelSerializer):

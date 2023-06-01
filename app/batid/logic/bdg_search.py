@@ -29,7 +29,7 @@ class BuildingSearch:
         # Status
         if self.params.status:
             queryset = queryset.filter(
-                status__status__in=self.params.status, status__is_current=True
+                status__type__in=self.params.status, status__is_current=True
             )
 
         # Sorting
@@ -58,18 +58,13 @@ class BuildingSearch:
 
             # Filters
             self.bb = None
-            self.status = [
-                "ongoingConstruction",
-                "constructed",
-                "ongoingChange",
-                "notUsable",
-            ]
+            self.status = []
             self.circle = None
             self.ban_id = None
             self.sort = None
 
             # Allowed status
-            self.allowed_status = BuildingStatusModel.PUBLIC_STATUS_KEYS
+            self.allowed_status = BuildingStatusModel.PUBLIC_TYPES_KEYS
 
             # Internals
             self.__errors = []
@@ -127,7 +122,7 @@ class BuildingSearch:
             for s in status:
                 if s not in self.allowed_status:
                     self.__errors.append(
-                        f'status : status "{s}" is invalid. Available status are: {BuildingStatusModel.STATUS}'
+                        f'status : status "{s}" is invalid. Available status are: {BuildingStatusModel.TYPES}'
                     )
                     return False
             return True

@@ -1,5 +1,5 @@
 class BuildingStatus:
-    STATUS = [
+    TYPES = [
         {"key": "constructionProject", "label": "En projet", "public": False},
         {
             "key": "canceledConstructionProject",
@@ -21,8 +21,12 @@ class BuildingStatus:
         {"key": "demolished", "label": "Démoli", "public": True},
     ]
 
-    PUBLIC_STATUS_KEYS = [s["key"] for s in STATUS if s["public"]]
-    PRIVATE_STATUS_KEYS = [s["key"] for s in STATUS if not s["public"]]
-    ALL_STATUS_KEYS = [s["key"] for s in STATUS]
+    PUBLIC_TYPES_KEYS = [s["key"] for s in TYPES if s["public"]]
+    PRIVATE_TYPES_KEYS = [s["key"] for s in TYPES if not s["public"]]
+    ALL_TYPES_KEYS = [s["key"] for s in TYPES]
 
-    STATUS_CHOICES = [(s["key"], s["label"]) for s in STATUS]
+    TYPES_CHOICES = [(s["key"], s["label"]) for s in TYPES]
+
+    @classmethod
+    def get_label(cls, key):
+        return next(s["label"] for s in cls.TYPES if s["key"] == key)

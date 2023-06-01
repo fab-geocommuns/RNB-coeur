@@ -55,8 +55,8 @@ class Building(models.Model):
 
 class BuildingStatus(models.Model):
     id = models.AutoField(primary_key=True)
-    status = models.CharField(
-        choices=BuildingStatusModel.STATUS_CHOICES,
+    type = models.CharField(
+        choices=BuildingStatusModel.TYPES_CHOICES,
         null=False,
         db_index=True,
         max_length=30,
@@ -70,6 +70,10 @@ class BuildingStatus(models.Model):
 
     class Meta:
         ordering = [F("happened_at").asc(nulls_first=True)]
+
+    @property
+    def label(self):
+        return BuildingStatusModel.get_label(self.type)
 
     def save(self, *args, **kwargs):
         # If the status is current, we make sure that the previous current status is not current anymore

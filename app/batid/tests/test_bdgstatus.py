@@ -16,14 +16,14 @@ class StatusTestCase(TestCase):
         happened_at = datetime(1975, 1, 1)
         BuildingStatus.objects.create(
             building=b,
-            status="constructionProject",
+            type="constructionProject",
             happened_at=happened_at,
             is_current=True,
         )
 
     def test_current_status(self):
         b = Building.objects.get(rnb_id="WITH-STATUS")
-        self.assertEqual(b.current_status.status, "constructionProject")
+        self.assertEqual(b.current_status.type, "constructionProject")
 
     def test_current_replacement(self):
         b = self._create_bdg("TWO-STATUS")
@@ -31,7 +31,7 @@ class StatusTestCase(TestCase):
         happened_at = datetime(1975, 1, 1)
         old_s = BuildingStatus.objects.create(
             building=b,
-            status="constructionProject",
+            type="constructionProject",
             happened_at=happened_at,
             is_current=True,
         )
@@ -39,13 +39,13 @@ class StatusTestCase(TestCase):
         happened_at = datetime(1980, 1, 1)
         BuildingStatus.objects.create(
             building=b,
-            status="constructed",
+            type="constructed",
             happened_at=happened_at,
             is_current=True,
         )
 
         # The current status should be the most recent one, tagged with current
-        self.assertEqual(b.current_status.status, "constructed")
+        self.assertEqual(b.current_status.type, "constructed")
 
         # Reload the old status
         old_s.refresh_from_db()
@@ -58,7 +58,7 @@ class StatusTestCase(TestCase):
         happened_at = datetime(1980, 1, 1)
         BuildingStatus.objects.create(
             building=b,
-            status="constructed",
+            type="constructed",
             happened_at=happened_at,
             is_current=False,
         )
@@ -67,7 +67,7 @@ class StatusTestCase(TestCase):
         happened_at = datetime(2020, 1, 1)
         BuildingStatus.objects.create(
             building=b,
-            status="demolished",
+            type="demolished",
             happened_at=happened_at,
             is_current=True,
         )
@@ -75,16 +75,16 @@ class StatusTestCase(TestCase):
         # Create the olest status (no happened_at)
         BuildingStatus.objects.create(
             building=b,
-            status="constructionProject",
+            type="constructionProject",
             is_current=False,
         )
 
         b.refresh_from_db()
 
         status = b.status.all()
-        self.assertEqual(status[0].status, "constructionProject")
-        self.assertEqual(status[1].status, "constructed")
-        self.assertEqual(status[2].status, "demolished")
+        self.assertEqual(status[0].type, "constructionProject")
+        self.assertEqual(status[1].type, "constructed")
+        self.assertEqual(status[2].type, "demolished")
 
     def _create_bdg(self, rnb_id: str) -> Building:
         coords = {

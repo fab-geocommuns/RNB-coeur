@@ -34,7 +34,7 @@ class SearchTestCase(TestCase):
             rnb_id="IN-BBOX", source="dummy", shape=geom, point=geom.point_on_surface
         )
 
-        BuildingStatus.objects.create(building=b, status="constructed", is_current=True)
+        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 
         return b
 
@@ -63,7 +63,7 @@ class SearchTestCase(TestCase):
         b = Building.objects.create(
             rnb_id="OUT-BBOX", source="dummy", shape=geom, point=geom.point_on_surface
         )
-        BuildingStatus.objects.create(building=b, status="constructed", is_current=True)
+        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 
         return b
 
@@ -91,7 +91,7 @@ class SearchTestCase(TestCase):
 
         BuildingStatus.objects.create(
             building=b,
-            status="constructed",
+            type="constructed",
             is_current=True,
             happened_at=datetime.datetime(2019, 1, 1),
         )
@@ -122,14 +122,14 @@ class SearchTestCase(TestCase):
 
         BuildingStatus.objects.create(
             building=b,
-            status="constructed",
+            type="constructed",
             is_current=False,
             happened_at=datetime.datetime(2001, 1, 1),
         )
 
         BuildingStatus.objects.create(
             building=b,
-            status="demolished",
+            type="demolished",
             is_current=True,
             happened_at=datetime.datetime(2021, 1, 1),
         )
@@ -160,7 +160,7 @@ class SearchTestCase(TestCase):
 
         BuildingStatus.objects.create(
             building=b,
-            status="constructionProject",
+            type="constructionProject",
             is_current=True,
             happened_at=datetime.datetime(2001, 1, 1),
         )
@@ -198,14 +198,14 @@ class SearchTestCase(TestCase):
         s = BuildingSearch()
         s.set_params(**{})
         qs = s.get_queryset()
-        self.assertEqual(qs.count(), 3)
+        self.assertEqual(qs.count(), 5)
 
     def test_bdg_all_status_count(self):
         s = BuildingSearch()
 
         s.set_params(
             **{
-                "status": ",".join(BuildingStatusModel.PUBLIC_STATUS_KEYS),
+                "status": ",".join(BuildingStatusModel.PUBLIC_TYPES_KEYS),
             }
         )
         qs = s.get_queryset()
