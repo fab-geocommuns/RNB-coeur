@@ -15,8 +15,13 @@ class Command(BaseCommand):
             self.stdout.write("Building not found")
             return
 
+        self.stdout.write(f"Building found: {b[0].rnb_id}")
+        # self.stdout.write(f"Current status: {b[0].current_status.status}")
+
         confirm = input(f"Type 'REMOVEBDG' to confirm: ")
 
         if confirm != f"REMOVEBDG":
             print("Aborting")
             return
+
+        b[0].delete()
