@@ -1,8 +1,8 @@
 from rest_framework import permissions
 from django.contrib.auth.models import User
 from batid.models import ADS
-from batid.logic.user import RNBUser
-from api_alpha.logic import calc_ads_cities
+from batid.services.user import RNBUser
+from api_alpha.services import calc_ads_cities
 
 
 # We have to create a specific permission class for city validation

@@ -1,7 +1,7 @@
 from jobs.import_bdtopo import feature_to_multipoly
 from shapely.geometry import mapping, shape, MultiPolygon
 from psycopg2.extras import RealDictCursor, execute_values
-from logic.source import Source
+from services.source import Source
 import fiona
 from db import get_conn
 from settings import settings

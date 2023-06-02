@@ -7,7 +7,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from batid.models import Building, ADS, BuildingADS, Organization, City
-from api_alpha.tests.helpers import create_grenoble, create_cenac, create_paris
+from batid.tests.helpers import create_grenoble, create_cenac, create_paris
 
 
 class ADSEnpointsWithBadAuthTest(APITestCase):

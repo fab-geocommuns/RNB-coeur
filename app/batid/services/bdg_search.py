@@ -1,6 +1,6 @@
 from batid.utils.misc import is_float
 from batid.models import Building
-from batid.logic.building import BuildingStatus as BuildingStatusModel
+from batid.services.building import BuildingStatus as BuildingStatusModel
 from django.conf import settings
 from django.contrib.gis.geos import Polygon
 from django.db.models import QuerySet

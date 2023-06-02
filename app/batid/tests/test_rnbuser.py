@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from batid.models import Organization
-from batid.logic.user import RNBUser
+from batid.services.user import RNBUser
 
 
 class TestRNBUser(TestCase):

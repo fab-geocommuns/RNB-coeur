@@ -6,10 +6,7 @@ from django.contrib.gis.db import models
 from django.utils.timezone import now
 from django.conf import settings
 from django.db.models import F
-
-from django.core.validators import MaxValueValidator, MinValueValidator
-
-from batid.logic.building import BuildingStatus as BuildingStatusModel
+from batid.services.building import BuildingStatus as BuildingStatusModel
 
 
 class Building(models.Model):
@@ -141,3 +138,18 @@ class Organization(models.Model):
     name = models.CharField(max_length=100, null=False)
     users = models.ManyToManyField(User, related_name="organizations")
     managed_cities = ArrayField(models.CharField(max_length=6), null=True)
+
+
+class Signal(models.Model):
+    id = models.AutoField(primary_key=True)
+    type = models.CharField(max_length=20, null=False, db_index=True)
+    building = models.ForeignKey(Building, on_delete=models.CASCADE, null=True)
+    origin = models.CharField(max_length=100, null=False, db_index=True)
+    handled_at = models.DateTimeField(null=True)
+    handle_result = models.JSONField(null=True)
+    created_at = models.DateTimeField(default=now, null=True)
+    creator_copy_id = models.IntegerField(null=True)
+    creator_copy_fname = models.CharField(max_length=100, null=True)
+    creator_copy_lname = models.CharField(max_length=100, null=True)
+    creator_org_copy_id = models.IntegerField(null=True)
+    creator_org_copy_name = models.CharField(max_length=100, null=True)

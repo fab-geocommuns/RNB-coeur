@@ -1109,3 +1109,16 @@ def create_bdg(rnb_id, coords_list):
         shape=geom,
         point=geom.point_on_surface,
     )
+
+
+def create_default_bdg():
+    # The building is located in Grenoble
+    coords = [
+        [5.717918517856731, 45.178820091145724],
+        [5.718008279271032, 45.17865980057857],
+        [5.7184092135875915, 45.17866401875747],
+        [5.7184451181529425, 45.17884961830637],
+        [5.717924501950705, 45.17893819969589],
+        [5.717918517856731, 45.178820091145724],
+    ]
+    return create_bdg("DEFAULT", coords)

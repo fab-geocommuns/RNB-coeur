@@ -6,7 +6,7 @@ import os
 import psycopg2
 import requests
 from db import get_conn
-from logic.source import Source
+from services.source import Source
 from psycopg2.extras import execute_values
 from settings import settings
 
