@@ -25,10 +25,12 @@ def dictfetchall(cursor, query, params=None):
 def dictfetchone(cursor, query, params=None):
     cursor.execute(query, params)
     cols = [col[0] for col in cursor.description]
+
     row = cursor.fetchone()
     if row is None:
         return None
-    return dict(zip(cols, cursor.fetchone()))
+
+    return dict(zip(cols, row))
 
 
 def dbgeom_to_shapely(rowgeom):
