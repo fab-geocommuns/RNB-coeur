@@ -1,6 +1,30 @@
 from typing import List
 
 from batid.models import ADS as ADSModel
+from batid.models import BuildingADS, Signal
+
+from batid.services.signal import create_signal
+
+
+def create_bdg_ads_signal(op: BuildingADS) -> Signal:
+    signal_type = None
+    if op.operation == "build":
+        signal_type = "willBeBuilt"
+    if op.operation == "demolish":
+        signal_type = "willBeDemolished"
+    if op.operation == "modify":
+        signal_type = "willBeModified"
+
+    if signal_type is None:
+        raise ValueError("Unknown BuildingADS operation type")
+
+    return create_signal(
+        type=signal_type,
+        building=op.building,
+        origin=op.ads,
+        creator=None,
+        send_task=True,
+    )
 
 
 class ADS:

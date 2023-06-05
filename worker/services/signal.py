@@ -59,22 +59,22 @@ class SignalDispatcher:
                     self.add_observer(obs)
 
 
-class ADSSignalObserver:
+class WillBeBuiltSignalObserver:
     def handle(self, signal: Signal) -> None:
         print(f"Handling signal {signal.id} with {self.__class__.__name__}")
         pass
 
     def should_handle(self, signal: Signal) -> bool:
-        return signal.type == "ads"
+        return signal.type == "willBeBuilt"
 
 
-class TestSignalObserver:
+class DACTSignalObserver:
     def handle(self, signal: Signal) -> None:
         print(f"Handling signal {signal.id} with {self.__class__.__name__}")
         pass
 
     def should_handle(self, signal: Signal) -> bool:
-        return signal.type == "test"
+        return signal.type == "dact"
 
 
 def fetch_signal(pk: int) -> Signal:
