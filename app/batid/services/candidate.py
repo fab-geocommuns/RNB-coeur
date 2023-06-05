@@ -1,9 +1,50 @@
+from dataclasses import dataclass, field
+from typing import List
+
 import psycopg2
+from psycopg2.extras import RealDictCursor
+from shapely.geometry import MultiPolygon
 from django.db import connection
-from psycopg2.extras import RealDictCursor, execute_values
-from services.candidate import row_to_candidate, Candidate
-from rnbid.generator import generate_rnb_id
-from settings import settings
+from datetime import datetime
+from batid.services.geo import dbgeom_to_shapely
+from batid.services.rnb_id import generate_rnb_id
+from django.conf import settings
+from batid.models import Building, Candidate
+
+
+@dataclass
+class Candidate:
+    id: int
+    shape: MultiPolygon
+    is_light: bool
+    source: str
+    source_id: str
+    address_keys: List[str]
+    created_at: datetime
+    inspected_at: datetime
+    inspect_result: str
+
+    def to_bdg_dict(self):
+        return {
+            "shape": self.shape,
+            "rnb_id": None,
+            "source": self.source,
+            "point": self.shape.point_on_surface(),
+        }
+
+
+def row_to_candidate(row):
+    return Candidate(
+        id=row["id"],
+        shape=dbgeom_to_shapely(row.get("shape", None)),
+        source=row["source"],
+        is_light=row["is_light"],
+        source_id=row["source_id"],
+        address_keys=row["address_keys"],
+        created_at=row.get("created_at", None),
+        inspected_at=row.get("inspected_at", None),
+        inspect_result=row.get("inspect_result", None),
+    )
 
 
 class Inspector:
@@ -15,7 +56,7 @@ class Inspector:
         self.updates = []
 
     def remove_inspected(self):
-        q = "DELETE FROM batid_candidate WHERE inspected_at IS NOT NULL"
+        q = f"DELETE FROM {Candidate._meta.db_table} WHERE inspected_at IS NOT NULL"
         with connection.cursor() as cur:
             try:
                 cur.execute(q)
@@ -145,7 +186,7 @@ class Inspector:
             self.__refuse(c)
             return
 
-        if c.shape.area < settings["MIN_BDG_AREA"]:
+        if c.shape.area < settings.MIN_BDG_AREA:
             self.__refuse(c)
             return
 
@@ -161,7 +202,7 @@ class Inspector:
     def get_matches_query(self):
         q = (
             "SELECT c.*, count(b.id) as match_cnt "
-            "from batid_candidate as c "
+            f"from {Candidate._meta.db_table} as c "
             "left join batid_building as b on ST_Intersects(b.shape, c.shape) "
             "and ST_Area(ST_Intersection(b.shape, c.shape)) / ST_Area(c.shape) >= %(min_intersect_ratio)s "
             "where c.inspected_at is null  "

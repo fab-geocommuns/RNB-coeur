@@ -31,11 +31,3 @@ def dictfetchone(cursor, query, params=None):
         return None
 
     return dict(zip(cols, row))
-
-
-def dbgeom_to_shapely(rowgeom):
-    return wkb.loads(rowgeom, hex=True)
-
-
-def shapely_to_dbgeom(shape):
-    return wkb.dumps(shape, hex=True, srid=settings["DEFAULT_SRID"])

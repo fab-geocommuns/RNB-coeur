@@ -6,7 +6,7 @@ from batid.models import Building, BuildingStatus
 from django.contrib.gis.geos import GEOSGeometry
 from django.conf import settings
 from batid.services.bdg_search import BuildingSearch
-from batid.services.building import BuildingStatus as BuildingStatusModel
+from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 
 # Create your tests here.
 

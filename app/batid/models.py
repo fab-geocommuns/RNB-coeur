@@ -6,7 +6,7 @@ from django.contrib.gis.db import models
 from django.utils.timezone import now
 from django.conf import settings
 from django.db.models import F
-from batid.services.building import BuildingStatus as BuildingStatusModel
+from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 
 
 class Building(models.Model):

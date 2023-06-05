@@ -5,6 +5,7 @@ from services.source import Source
 from datetime import datetime, timezone
 import requests
 from settings import settings
+from batid.services.city import get_city_geojson
 
 
 def export_city(insee_code: str):
@@ -46,8 +47,3 @@ def export_city(insee_code: str):
 
         with open(src.path, "w") as f:
             json.dump(feature_collection, f)
-
-
-def get_city_geojson(insee_code: int) -> dict:
-    url = f"https://geo.api.gouv.fr/communes?code={insee_code}&format=geojson&geometry=contour"
-    return requests.get(url).json()

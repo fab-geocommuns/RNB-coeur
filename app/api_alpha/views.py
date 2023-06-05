@@ -2,7 +2,7 @@ from api_alpha.permissions import ADSPermission, ADSCityPermission
 from api_alpha.serializers import ADSSerializer, BuildingSerializer
 from batid.services.ads_search import ADSSearch
 from batid.services.bdg_search import BuildingSearch
-from batid.services.building import BuildingStatus as BuildingStatusModel
+from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.models import ADS, Building, BuildingADS
 
 from rest_framework import viewsets

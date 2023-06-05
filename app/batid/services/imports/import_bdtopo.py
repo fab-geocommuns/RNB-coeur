@@ -1,15 +1,14 @@
 import csv
 import os
-import time
 
-from services.source import Source
+
+from batid.services.source import Source
 from shapely.geometry import mapping, shape, MultiPolygon
 from shapely.ops import transform
 import fiona
 from datetime import datetime, timezone
 import psycopg2
-from db import get_conn
-from concurrent.futures import ProcessPoolExecutor
+from django.db import connection
 
 
 def import_bdtopo(dpt):
@@ -24,7 +23,7 @@ def import_bdtopo(dpt):
         bdgs = []
 
         for feature in f:
-            bdg = transform_bdtopo_feature(feature)
+            bdg = _transform_bdtopo_feature(feature)
             bdgs.append(bdg)
 
         buffer_src = Source(
@@ -43,14 +42,13 @@ def import_bdtopo(dpt):
             writer = csv.DictWriter(f, delimiter=";", fieldnames=cols)
             writer.writerows(bdgs)
 
-        conn = get_conn()
-        with open(buffer_src.path, "r") as f, conn.cursor() as cursor:
+        with open(buffer_src.path, "r") as f, connection.cursor() as cursor:
             print("-- transfer buffer to db --")
             try:
                 cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
-                conn.commit()
+                connection.commit()
             except (Exception, psycopg2.DatabaseError) as error:
-                conn.rollback()
+                connection.rollback()
                 cursor.close()
                 raise error
 
@@ -58,7 +56,7 @@ def import_bdtopo(dpt):
         os.remove(buffer_src.path)
 
 
-def transform_bdtopo_feature(feature) -> dict:
+def _transform_bdtopo_feature(feature) -> dict:
     multipoly = feature_to_multipoly(feature)
 
     # todo : handle addresses

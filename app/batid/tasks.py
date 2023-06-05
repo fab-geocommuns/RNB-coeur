@@ -1,6 +1,14 @@
 from celery import shared_task
-
-from jobs.dl_source import Downloader
+from app.celery import app
+from batid.services.source import Source
+from batid.services.imports.import_bdnb7 import import_bdnb7 as import_bdnb7_job
+from batid.services.imports.import_bdtopo import import_bdtopo as import_bdtopo_job
+from batid.services.imports.import_cities import import_etalab_cities
+from batid.services.candidate import Inspector
+from batid.services.building import remove_dpt as remove_dpt_job
+from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
+from batid.services.building import export_city as export_city_job
+from batid.services.building import add_default_status as add_default_status_job
 
 
 @shared_task
@@ -11,7 +19,71 @@ def test_all() -> str:
 
 @shared_task
 def dl_source(src, dpt):
-    dl = Downloader(src, dpt)
-    dl.download()
-    dl.uncompress()
+    src = Source(src)
+    src.set_param("dpt", dpt)
+
+    print(f"-- downloading {src.url}")
+    src.download()
+    src.uncompress()
+
+    return "done"
+
+
+@shared_task
+def import_bdnb7(dpt):
+    import_bdnb7_job(dpt)
+    return "done"
+
+
+@shared_task
+def import_bdtopo(dpt):
+    import_bdtopo_job(dpt)
+    return "done"
+
+
+@shared_task
+def import_cities(dpt):
+    import_etalab_cities(dpt)
+    return "done"
+
+
+@shared_task
+def inspect_candidates():
+    i = Inspector()
+    inspections_len = i.inspect()
+    if inspections_len > 0:
+        app.send_task("tasks.inspect_candidates")
+    return "done"
+
+
+@shared_task
+def remove_inspected_candidates():
+    i = Inspector()
+    i.remove_inspected()
+    return "done"
+
+
+@shared_task
+def remove_dpt(dpt):
+    remove_dpt_job(dpt)
+    return "done"
+
+
+@shared_task
+def remove_light_bdgs(dpt):
+    remove_light_bdgs_job(dpt)
+    return "done"
+
+
+@shared_task
+def export_city(insee_code):
+    export_city_job(insee_code)
+    return "done"
+
+
+@shared_task
+def add_default_status():
+    c = add_default_status_job()
+    if c > 0:
+        app.send_task("tasks.add_default_status")
     return "done"

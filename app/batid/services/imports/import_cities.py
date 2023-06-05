@@ -5,10 +5,12 @@ import os
 
 import psycopg2
 import requests
-from db import get_conn
-from services.source import Source
+from django.db import connection
+from batid.services.source import Source
 from psycopg2.extras import execute_values
-from settings import settings
+
+# from settings import settings
+from django.conf import settings
 
 
 def import_etalab_cities(dpt: str):
@@ -21,8 +23,7 @@ def import_etalab_cities(dpt: str):
         "SET code_insee = EXCLUDED.code_insee, name = EXCLUDED.name, shape = EXCLUDED.shape"
     )
 
-    conn = get_conn()
-    with conn.cursor() as cursor:
+    with connection.cursor() as cursor:
         for c in cities_geojson["features"]:
             print(f'--- {c["properties"]["nom"]} ---')
 
@@ -35,14 +36,14 @@ def import_etalab_cities(dpt: str):
                 "code_insee": c["properties"]["code"],
                 "name": c["properties"]["nom"],
                 "shape": json.dumps(shape),
-                "db_srid": settings["DEFAULT_SRID"],
+                "db_srid": settings.DEFAULT_SRID,
             }
 
             try:
                 cursor.execute(q, params)
-                conn.commit()
+                connection.commit()
             except (Exception, psycopg2.DatabaseError) as error:
-                conn.rollback()
+                connection.rollback()
                 cursor.close()
                 raise error
 
@@ -113,9 +114,7 @@ def import_insee_cities(state_date):
     # Connect and populate db
     print("-- Connect and populate db --")
 
-    conn = get_conn()
-
-    with conn.cursor() as cursor:
+    with connection.cursor() as cursor:
         print("-- transfer cities to db --")
         try:
             sql_query = """
@@ -131,9 +130,9 @@ def import_insee_cities(state_date):
             # Execute the query with the list of tuples
             execute_values(cursor, sql_query, communes_tuples)
 
-            conn.commit()
+            connection.commit()
         except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
+            connection.rollback()
             cursor.close()
             raise error
 
@@ -160,8 +159,3 @@ def retrieve_token(consumer_key: str, consumer_secret: str) -> str:
         return response.json()["access_token"]
     else:
         raise ValueError(response.status_code, response.text)
-
-
-if __name__ == "__main__":
-    STATE_DATE = os.environ.get("INSEE_STATE_DATE")
-    import_commune_insee(STATE_DATE)
