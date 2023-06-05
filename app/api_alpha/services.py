@@ -3,7 +3,7 @@ import json
 from batid.models import City
 from django.conf import settings
 from django.db import connection
-from rnbid.generator import clean_rnb_id
+from batid.services.rnb_id import clean_rnb_id
 
 
 class BuildingADS:

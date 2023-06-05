@@ -10,7 +10,7 @@ from rest_framework.exceptions import ParseError
 from rest_framework.generics import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rnbid.generator import clean_rnb_id
+from batid.services.rnb_id import clean_rnb_id
 
 
 class BuildingViewSet(viewsets.ModelViewSet):

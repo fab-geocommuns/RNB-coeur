@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import requests
 from batid.services.city import get_dpt_cities_geojson, get_city_geojson
 from batid.services.source import Source
-from batid.models import Building
+from batid.models import Building, City, BuildingStatus
 from django.db import connection
 from psycopg2.extras import RealDictCursor, execute_values
 from django.conf import settings
@@ -145,7 +145,7 @@ def add_default_status() -> int:
     )
 
     insert_q = (
-        "INSERT INTO batid_buildingstatus (building_id, type, created_at, is_current) "
+        f"INSERT INTO {BuildingStatus._meta.db_table}  (building_id, type, created_at, is_current) "
         "VALUES %s"
     )
 

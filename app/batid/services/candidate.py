@@ -2,14 +2,16 @@ from dataclasses import dataclass, field
 from typing import List
 
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_values
 from shapely.geometry import MultiPolygon
 from django.db import connection
 from datetime import datetime
 from batid.services.geo import dbgeom_to_shapely
 from batid.services.rnb_id import generate_rnb_id
 from django.conf import settings
-from batid.models import Building, Candidate
+from batid.models import Building
+from batid.models import Candidate as CandidateModel
+from batid.utils.db import dictfetchall
 
 
 @dataclass
@@ -56,7 +58,7 @@ class Inspector:
         self.updates = []
 
     def remove_inspected(self):
-        q = f"DELETE FROM {Candidate._meta.db_table} WHERE inspected_at IS NOT NULL"
+        q = f"DELETE FROM {CandidateModel._meta.db_table} WHERE inspected_at IS NOT NULL"
         with connection.cursor() as cur:
             try:
                 cur.execute(q)
@@ -69,11 +71,11 @@ class Inspector:
     def inspect(self) -> int:
         q, params = self.get_matches_query()
 
-        with connection.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(q, params)
+        with connection.cursor() as cur:
+            matches = dictfetchall(cur, q, params)
 
             c = 0
-            for m_row in cur:
+            for m_row in matches:
                 c += 1
                 self.inspect_match(m_row)
 
@@ -98,7 +100,7 @@ class Inspector:
         if len(self.refusals) == 0:
             return
 
-        q = "UPDATE batid_candidate SET inspected_at = now(), inspect_result = 'refused' WHERE id in %(ids)s"
+        q = f"UPDATE {CandidateModel._meta.db_table} SET inspected_at = now(), inspect_result = 'refused' WHERE id in %(ids)s"
 
         params = {"ids": tuple([c.id for c in self.refusals])}
 
@@ -118,7 +120,7 @@ class Inspector:
         if len(self.updates) == 0:
             return
 
-        q = "UPDATE batid_candidate SET inspected_at = now(), inspect_result = 'updated_bdg' WHERE id in %(ids)s"
+        q = f"UPDATE {CandidateModel._meta.db_table} SET inspected_at = now(), inspect_result = 'updated_bdg' WHERE id in %(ids)s"
 
         params = {"ids": tuple([c.id for c in self.updates])}
 
@@ -142,7 +144,7 @@ class Inspector:
         self.__create_buildings()
 
         # Then update the candidates
-        q = "UPDATE batid_candidate SET inspected_at = now(), inspect_result = 'created_bdg' WHERE id in %(ids)s"
+        q = f"UPDATE {CandidateModel._meta.db_table} SET inspected_at = now(), inspect_result = 'created_bdg' WHERE id in %(ids)s"
 
         params = {"ids": tuple([c.id for c in self.creations])}
 
@@ -156,7 +158,7 @@ class Inspector:
                 raise error
 
     def __create_buildings(self):
-        q = "INSERT INTO batid_building (rnb_id, source, point, shape) VALUES %s "
+        q = f"INSERT INTO {Building._meta.db_table} (rnb_id, source, point, shape) VALUES %s "
 
         values = []
         for c in self.creations:
@@ -202,7 +204,7 @@ class Inspector:
     def get_matches_query(self):
         q = (
             "SELECT c.*, count(b.id) as match_cnt "
-            f"from {Candidate._meta.db_table} as c "
+            f"from {CandidateModel._meta.db_table} as c "
             "left join batid_building as b on ST_Intersects(b.shape, c.shape) "
             "and ST_Area(ST_Intersection(b.shape, c.shape)) / ST_Area(c.shape) >= %(min_intersect_ratio)s "
             "where c.inspected_at is null  "
@@ -224,7 +226,7 @@ class Inspector:
 
     def __close_inspection(self, c, inspect_result):
         try:
-            q = "UPDATE batid_candidate SET inspected_at = now(), inspect_result = %(inspect_result)s WHERE id = %(id)s"
+            q = f"UPDATE {CandidateModel._meta.db_table} SET inspected_at = now(), inspect_result = %(inspect_result)s WHERE id = %(id)s"
 
             with connection.cursor() as cur:
                 cur.execute(q, {"id": c.id, "inspect_result": inspect_result})

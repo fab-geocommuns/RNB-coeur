@@ -12,7 +12,7 @@ from api_alpha.validators import (
 )
 from api_alpha.services import BuildingADS as BuildingADSLogic, BdgInADS
 from rest_framework.validators import UniqueValidator
-from rnbid.generator import generate_rnb_id, clean_rnb_id
+from batid.services.rnb_id import generate_rnb_id, clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry
 
 

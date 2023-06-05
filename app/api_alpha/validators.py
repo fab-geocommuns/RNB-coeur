@@ -3,7 +3,7 @@ from api_alpha.services import BdgInADS
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos.error import GEOSException
 from rest_framework import serializers
-from rnbid.generator import clean_rnb_id
+from batid.services.rnb_id import clean_rnb_id
 
 
 def ads_validate_rnbid(rnb_id):

@@ -7,6 +7,8 @@ import psycopg2
 import requests
 from django.db import connection
 from batid.services.source import Source
+from batid.services.city import get_dpt_cities_geojson
+from batid.models import City
 from psycopg2.extras import execute_values
 
 # from settings import settings
@@ -14,11 +16,10 @@ from django.conf import settings
 
 
 def import_etalab_cities(dpt: str):
-    url = f"https://geo.api.gouv.fr/departements/{dpt}/communes?format=geojson&geometry=contour"
-    cities_geojson = requests.get(url).json()
+    cities_geojson = get_dpt_cities_geojson(dpt)
 
     q = (
-        "INSERT INTO batid_city (code_insee, name, shape) VALUES (%(code_insee)s, %(name)s, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(shape)s), 4326), %(db_srid)s)) "
+        f"INSERT INTO {City._meta.db_table} (code_insee, name, shape) VALUES (%(code_insee)s, %(name)s, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(shape)s), 4326), %(db_srid)s)) "
         "ON CONFLICT (code_insee) DO UPDATE "
         "SET code_insee = EXCLUDED.code_insee, name = EXCLUDED.name, shape = EXCLUDED.shape"
     )
@@ -41,7 +42,7 @@ def import_etalab_cities(dpt: str):
 
             try:
                 cursor.execute(q, params)
-                connection.commit()
+                # connection.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 connection.rollback()
                 cursor.close()

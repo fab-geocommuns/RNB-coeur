@@ -52,7 +52,7 @@ def inspect_candidates():
     i = Inspector()
     inspections_len = i.inspect()
     if inspections_len > 0:
-        app.send_task("tasks.inspect_candidates")
+        app.send_task("batid.tasks.inspect_candidates")
     return "done"
 
 
@@ -84,6 +84,7 @@ def export_city(insee_code):
 @shared_task
 def add_default_status():
     c = add_default_status_job()
+    print(f"Added {c} default status")
     if c > 0:
-        app.send_task("tasks.add_default_status")
+        app.send_task("batid.tasks.add_default_status")
     return "done"
