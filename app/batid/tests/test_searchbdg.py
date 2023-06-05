@@ -176,8 +176,6 @@ class SearchTestCase(TestCase):
         self._bdg_constructed()
         self._bdg_demolished()
 
-        ## todo : Test demolished status are not visible by default
-
         ## Test constructionProject & canceledConstructionProject are protected
         self._bdg_construction_project()
 
