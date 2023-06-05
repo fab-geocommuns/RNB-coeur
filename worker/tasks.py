@@ -7,9 +7,10 @@ from jobs.inspect_candidates import Inspector
 from jobs.remove_light_bdgs import remove_light_bdgs as remove_light_bdgs_job
 from jobs.export import export_city as export_city_job
 from jobs.remove_dpt import remove_dpt as remove_dpt_job
-
+from jobs.status import add_default_status as add_default_status_job
+from kombu import Queue
 from tmp_jobs.id_format import change_id_format
-
+import time
 import os
 import sentry_sdk
 from sentry_sdk.integrations.celery import CeleryIntegration
@@ -73,6 +74,19 @@ def remove_light_bdgs(dpt):
 def export_city(insee_code):
     export_city_job(insee_code)
     return "done"
+
+
+@app.task
+def add_default_status():
+    c = add_default_status_job()
+    if c > 0:
+        app.send_task("tasks.add_default_status")
+    return "done"
+
+
+@app.task(queue="bdg_signals")
+def handle_signal(signal_id):
+    return f"handled signal : {signal_id}"
 
 
 @app.task

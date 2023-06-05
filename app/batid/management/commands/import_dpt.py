@@ -28,6 +28,7 @@ class Command(BaseCommand):
             "import_bdnb7",
             "remove_inspected_candidates",
             "inspect",
+            "add_status",
         ]
         steps = all_steps if options["steps"] == "all" else options["steps"].split(",")
 
@@ -62,6 +63,8 @@ class Command(BaseCommand):
             tasks.append(Signature("tasks.remove_inspected_candidates", immutable=True))
         if "inspect" in steps:
             tasks.append(Signature("tasks.inspect_candidates", immutable=True))
+        if "add_status" in steps:
+            tasks.append(Signature("tasks.add_default_status", immutable=True))
 
         # Send the tasks
         if len(tasks) > 0:

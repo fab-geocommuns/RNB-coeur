@@ -1,8 +1,15 @@
-from tmp_jobs.id_format import change_id_format
+from pprint import pprint
+from services.signal import fetch_signal, SignalDispatcher
 
 
 def sandbox():
-    change_id_format()
+    s = fetch_signal(1)
+
+    if s:
+        d = SignalDispatcher(s)
+        d.dispatch()
+
+    pprint(s)
 
 
 if __name__ == "__main__":

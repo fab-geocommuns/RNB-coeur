@@ -1,18 +1,18 @@
+import datetime
 import json
 
 from django.test import TestCase
-from batid.models import Building
+from batid.models import Building, BuildingStatus
 from django.contrib.gis.geos import GEOSGeometry
 from django.conf import settings
-from batid.logic.bdg_search import BuildingSearch
+from batid.services.bdg_search import BuildingSearch
+from batid.services.building import BuildingStatus as BuildingStatusModel
 
 # Create your tests here.
 
 
 class SearchTestCase(TestCase):
-    def setUp(self):
-        ## In search
-
+    def _bdg_in_bbox(self):
         coords = {
             "coordinates": [
                 [
@@ -30,12 +30,15 @@ class SearchTestCase(TestCase):
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
         geom.transform(settings.DEFAULT_SRID)
 
-        Building.objects.create(
-            rnb_id="IN-SEARCH", source="dummy", shape=geom, point=geom.point_on_surface
+        b = Building.objects.create(
+            rnb_id="IN-BBOX", source="dummy", shape=geom, point=geom.point_on_surface
         )
 
-        ## Not in search
+        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 
+        return b
+
+    def _bdg_out_bbox(self):
         coords = {
             "coordinates": [
                 [
@@ -57,23 +60,168 @@ class SearchTestCase(TestCase):
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
         geom.transform(settings.DEFAULT_SRID)
 
-        Building.objects.create(
-            rnb_id="OUT-SEARCH", source="dummy", shape=geom, point=geom.point_on_surface
+        b = Building.objects.create(
+            rnb_id="OUT-BBOX", source="dummy", shape=geom, point=geom.point_on_surface
+        )
+        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+
+        return b
+
+    def _bdg_constructed(self):
+        coords = {
+            "coordinates": [
+                [
+                    [2.6000591402070654, 48.814763140563656],
+                    [2.599867663762808, 48.814565787565414],
+                    [2.600525343722012, 48.8144177723068],
+                    [2.600708495117374, 48.81477684560585],
+                    [2.600367167550303, 48.81493074787656],
+                    [2.6000591402070654, 48.814763140563656],
+                ]
+            ],
+            "type": "MultiPolygon",
+        }
+
+        geom = GEOSGeometry(json.dumps(coords), srid=4326)
+        geom.transform(settings.DEFAULT_SRID)
+
+        b = Building.objects.create(
+            rnb_id="BDG-CONSTR", source="dummy", shape=geom, point=geom.point_on_surface
         )
 
-    def test_bdg_count(self):
-        all_count = Building.objects.all().count()
-        self.assertEqual(all_count, 2)
+        BuildingStatus.objects.create(
+            building=b,
+            type="constructed",
+            is_current=True,
+            happened_at=datetime.datetime(2019, 1, 1),
+        )
+
+        return b
+
+    def _bdg_demolished(self):
+        coords = {
+            "coordinates": [
+                [
+                    [2.6000591402070654, 48.814763140563656],
+                    [2.599867663762808, 48.814565787565414],
+                    [2.600525343722012, 48.8144177723068],
+                    [2.600708495117374, 48.81477684560585],
+                    [2.600367167550303, 48.81493074787656],
+                    [2.6000591402070654, 48.814763140563656],
+                ]
+            ],
+            "type": "MultiPolygon",
+        }
+
+        geom = GEOSGeometry(json.dumps(coords), srid=4326)
+        geom.transform(settings.DEFAULT_SRID)
+
+        b = Building.objects.create(
+            rnb_id="OUT-DEMO", source="dummy", shape=geom, point=geom.point_on_surface
+        )
+
+        BuildingStatus.objects.create(
+            building=b,
+            type="constructed",
+            is_current=False,
+            happened_at=datetime.datetime(2001, 1, 1),
+        )
+
+        BuildingStatus.objects.create(
+            building=b,
+            type="demolished",
+            is_current=True,
+            happened_at=datetime.datetime(2021, 1, 1),
+        )
+
+        return b
+
+    def _bdg_construction_project(self):
+        coords = {
+            "coordinates": [
+                [
+                    [2.6000591402070654, 48.814763140563656],
+                    [2.599867663762808, 48.814565787565414],
+                    [2.600525343722012, 48.8144177723068],
+                    [2.600708495117374, 48.81477684560585],
+                    [2.600367167550303, 48.81493074787656],
+                    [2.6000591402070654, 48.814763140563656],
+                ]
+            ],
+            "type": "MultiPolygon",
+        }
+
+        geom = GEOSGeometry(json.dumps(coords), srid=4326)
+        geom.transform(settings.DEFAULT_SRID)
+
+        b = Building.objects.create(
+            rnb_id="BDG-PROJ", source="dummy", shape=geom, point=geom.point_on_surface
+        )
+
+        BuildingStatus.objects.create(
+            building=b,
+            type="constructionProject",
+            is_current=True,
+            happened_at=datetime.datetime(2001, 1, 1),
+        )
+
+        return b
+
+    def setUp(self):
+        ## Test bounding box params
+        self._bdg_in_bbox()
+        self._bdg_out_bbox()
+
+        ## Test current_status params
+        self._bdg_constructed()
+        self._bdg_demolished()
+
+        ## todo : Test demolished status are not visible by default
+
+        ## Test constructionProject & canceledConstructionProject are protected
+        self._bdg_construction_project()
+
+    def test_status_search(self):
+        params = {
+            "status": "constructed",
+        }
+        s = BuildingSearch()
+        s.set_params(**params)
+        qs = s.get_queryset()
+
+        self.assertEqual(qs.count(), 3)
+
+        rnb_id = qs.first().rnb_id
+        self.assertEqual(rnb_id, "BDG-CONSTR")
+
+    def test_bdg_default_count(self):
+        s = BuildingSearch()
+        s.set_params(**{})
+        qs = s.get_queryset()
+        self.assertEqual(qs.count(), 5)
+
+    def test_bdg_all_status_count(self):
+        s = BuildingSearch()
+
+        s.set_params(
+            **{
+                "status": ",".join(BuildingStatusModel.PUBLIC_TYPES_KEYS),
+            }
+        )
+        qs = s.get_queryset()
+
+        self.assertEqual(qs.count(), 4)
 
     def test_search(self):
         params = {
             "bb": "46.63505754305547,1.063091817650701,46.63316977636086,1.0677381191425752",
         }
 
-        s = BuildingSearch(**params)
+        s = BuildingSearch()
+        s.set_params(**params)
         qs = s.get_queryset()
 
         self.assertEqual(qs.count(), 1)
 
         rnb_id = qs.first().rnb_id
-        self.assertEqual(rnb_id, "IN-SEARCH")
+        self.assertEqual(rnb_id, "IN-BBOX")

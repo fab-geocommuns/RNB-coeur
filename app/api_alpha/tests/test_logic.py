@@ -1,6 +1,6 @@
 from rest_framework.test import APITestCase
-from api_alpha.logic import calc_ads_cities
-from api_alpha.tests.helpers import create_bdg, create_paris, create_grenoble
+from api_alpha.services import calc_ads_cities
+from batid.tests.helpers import create_bdg, create_paris, create_grenoble
 
 
 class LogicTest(APITestCase):

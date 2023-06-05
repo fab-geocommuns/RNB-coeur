@@ -2,15 +2,15 @@ import random
 from pprint import pprint
 
 from rest_framework import serializers
-from batid.models import Building, Address, ADS, BuildingADS, City
-from batid.logic.ads import ADS as ADSLogic
+from batid.models import Building, BuildingStatus, Address, ADS, BuildingADS, City
+from batid.services.ads import ADS as ADSLogic
 from api_alpha.validators import (
     ads_validate_rnbid,
     BdgInADSValidator,
     ADSValidator,
     ADSCitiesValidator,
 )
-from api_alpha.logic import BuildingADS as BuildingADSLogic, BdgInADS
+from api_alpha.services import BuildingADS as BuildingADSLogic, BdgInADS
 from rest_framework.validators import UniqueValidator
 from rnbid.generator import generate_rnb_id, clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry
@@ -31,14 +31,21 @@ class AddressSerializer(serializers.ModelSerializer):
         ]
 
 
+class BuildingStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BuildingStatus
+        fields = ["type", "happened_at", "label", "is_current"]
+
+
 class BuildingSerializer(serializers.ModelSerializer):
     point = serializers.DictField(source="point_geojson", read_only=True)
     addresses = AddressSerializer(many=True, read_only=True)
     source = serializers.CharField(read_only=True)
+    status = BuildingStatusSerializer(read_only=True, many=True)
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "source", "point", "addresses"]
+        fields = ["rnb_id", "status", "source", "point", "addresses"]
 
 
 class CityADSSerializer(serializers.ModelSerializer):
@@ -91,7 +98,8 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
 
             validated_data["rnb_id"] = generate_rnb_id()
             validated_data["source"] = "ADS"
-            return super().create(validated_data)
+            building = super().create(validated_data)
+            return building
         else:
             clean_id = clean_rnb_id(validated_data["rnb_id"])
             bdg = Building.objects.get(rnb_id=clean_id)

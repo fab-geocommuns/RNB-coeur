@@ -1,5 +1,5 @@
 from batid.models import Building
-from api_alpha.logic import BdgInADS
+from api_alpha.services import BdgInADS
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos.error import GEOSException
 from rest_framework import serializers

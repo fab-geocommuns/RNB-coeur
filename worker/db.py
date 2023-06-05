@@ -9,10 +9,28 @@ db_password = os.environ.get("POSTGRES_PASSWORD")
 db_host = os.environ.get("POSTGRES_HOST")
 db_port = os.environ.get("POSTGRES_PORT")
 
+
 def get_conn():
     return psycopg2.connect(
         f"dbname='{db_name}' user='{db_user}' host='{db_host}' password='{db_password}' port='{db_port}'"
     )
+
+
+def dictfetchall(cursor, query, params=None):
+    cursor.execute(query, params)
+    cols = [col[0] for col in cursor.description]
+    return [dict(zip(cols, row)) for row in cursor.fetchall()]
+
+
+def dictfetchone(cursor, query, params=None):
+    cursor.execute(query, params)
+    cols = [col[0] for col in cursor.description]
+
+    row = cursor.fetchone()
+    if row is None:
+        return None
+
+    return dict(zip(cols, row))
 
 
 def dbgeom_to_shapely(rowgeom):

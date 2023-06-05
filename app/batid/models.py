@@ -5,6 +5,8 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.gis.db import models
 from django.utils.timezone import now
 from django.conf import settings
+from django.db.models import F
+from batid.services.building import BuildingStatus as BuildingStatusModel
 
 
 class Building(models.Model):
@@ -40,8 +42,41 @@ class Building(models.Model):
     def point_lng(self):
         return self.point_geojson()["coordinates"][0]
 
+    @property
+    def current_status(self):
+        return self.status.filter(is_current=True).first()
+
     class Meta:
         ordering = ["rnb_id"]
+
+
+class BuildingStatus(models.Model):
+    id = models.AutoField(primary_key=True)
+    type = models.CharField(
+        choices=BuildingStatusModel.TYPES_CHOICES,
+        null=False,
+        db_index=True,
+        max_length=30,
+    )
+    happened_at = models.DateField(null=True)
+    created_at = models.DateTimeField(null=False, default=now)
+    is_current = models.BooleanField(null=False, default=False)
+    building = models.ForeignKey(
+        Building, related_name="status", on_delete=models.CASCADE
+    )
+
+    class Meta:
+        ordering = [F("happened_at").asc(nulls_first=True)]
+
+    @property
+    def label(self):
+        return BuildingStatusModel.get_label(self.type)
+
+    def save(self, *args, **kwargs):
+        # If the status is current, we make sure that the previous current status is not current anymore
+        if self.is_current:
+            self.building.status.filter(is_current=True).update(is_current=False)
+        super().save(*args, **kwargs)
 
 
 class City(models.Model):
@@ -103,3 +138,18 @@ class Organization(models.Model):
     name = models.CharField(max_length=100, null=False)
     users = models.ManyToManyField(User, related_name="organizations")
     managed_cities = ArrayField(models.CharField(max_length=6), null=True)
+
+
+class Signal(models.Model):
+    id = models.AutoField(primary_key=True)
+    type = models.CharField(max_length=20, null=False, db_index=True)
+    building = models.ForeignKey(Building, on_delete=models.CASCADE, null=True)
+    origin = models.CharField(max_length=100, null=False, db_index=True)
+    handled_at = models.DateTimeField(null=True)
+    handle_result = models.JSONField(null=True)
+    created_at = models.DateTimeField(default=now, null=True)
+    creator_copy_id = models.IntegerField(null=True)
+    creator_copy_fname = models.CharField(max_length=100, null=True)
+    creator_copy_lname = models.CharField(max_length=100, null=True)
+    creator_org_copy_id = models.IntegerField(null=True)
+    creator_org_copy_name = models.CharField(max_length=100, null=True)

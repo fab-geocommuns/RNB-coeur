@@ -1,7 +1,7 @@
 import json
 
 from db import get_conn
-from logic.source import Source
+from services.source import Source
 from datetime import datetime, timezone
 import requests
 from settings import settings
