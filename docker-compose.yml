@@ -5,6 +5,7 @@ services:
     build:
         context: .
         dockerfile: ./app/Dockerfile
+        target: app_web
     ports:
       - '8000:8000'
     env_file:
@@ -18,6 +19,7 @@ services:
     depends_on:
       - db
       - rabbitmq
+    container_name: web
   db:
     image: postgis/postgis:14-master
     platform: linux/amd64
@@ -32,19 +34,37 @@ services:
   worker:
     build:
       context: .
-      dockerfile: ./worker/Dockerfile
-    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A tasks worker --loglevel=INFO
-    volumes:
-      - ./worker:/worker
-      - ./source_data:/data/downloads
+      dockerfile: ./app/Dockerfile
+      target: app_worker
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=INFO
     env_file:
       - ./.env.db_auth.dev
+      - ./.env.app.dev
       - ./.env.worker.dev
       - ./.env.rnb.dev
+    volumes:
+      - ./app:/app
     depends_on:
       - db
       - rabbitmq
     restart: unless-stopped
+    container_name: worker
+#  worker:
+#    build:
+#      context: .
+#      dockerfile: ./worker/Dockerfile
+#    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A tasks worker --loglevel=INFO
+#    volumes:
+#      - ./worker:/worker
+#      - ./source_data:/data/downloads
+#    env_file:
+#      - ./.env.db_auth.dev
+#      - ./.env.worker.dev
+#      - ./.env.rnb.dev
+#    depends_on:
+#      - db
+#      - rabbitmq
+#    restart: unless-stopped
   rabbitmq:
     restart: unless-stopped
     image: rabbitmq:3.9-alpine
