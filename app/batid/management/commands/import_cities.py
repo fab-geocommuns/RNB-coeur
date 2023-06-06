@@ -8,4 +8,4 @@ class Command(BaseCommand):
         parser.add_argument("dpt", type=str)
 
     def handle(self, *args, **options):
-        app.send_task("tasks.import_cities", args=[options["dpt"]])
+        app.send_task("batid.tasks.import_cities", args=[options["dpt"]])
