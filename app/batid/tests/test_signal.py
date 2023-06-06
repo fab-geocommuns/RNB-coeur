@@ -86,6 +86,8 @@ class TestSignal(TestCase):
         self.assertDictEqual(ads_result, expected_result)
 
     def test_ads_multiple_signal_handle(self):
+        # We want to verify that if we create two similar signals, only one status is created
+
         ads = ADS.objects.create(
             city=self.city, file_number="MULTI", decision_date="2020-01-01"
         )

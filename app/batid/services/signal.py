@@ -61,6 +61,9 @@ class SignalGear:
     def __init__(self, signal: SignalModel):
         self.model = signal
 
+    def is_handled(self) -> bool:
+        return isinstance(self.model.handled_at, datetime)
+
     def origin_is_model(self) -> bool:
         return self.model.origin.startswith("model:")
 
@@ -117,12 +120,17 @@ class SignalDispatcher:
         # We gear up the signal model to a SignalGear object
         self.signal = SignalGear(signal)
 
-        # build observers which should handle this signal
+        # We check if the signal is already handled
+        if self.signal.is_handled():
+            return
+
+        # We will build handlers which should handle this signal
         self._build_handlers()
         for handler in self._handlers:
             result = handler.handle(self.signal)
             self.add_handle_results(result)
 
+        # Finally we set the signal as handled
         self.mark_signal_as_handled()
 
     def add_handle_results(self, results: list):
@@ -190,6 +198,10 @@ class SignalHandler:
 
 class ADSWillBeBuiltSignalHandler(SignalHandler):
     def handle(self, signal: SignalGear) -> list:
+        # We received a signal about a building which will be built
+        # This might not be the first time we receive a signal from this ADS
+        # In this case, we have to remove previous status set by this ADS
+
         s = BuildingStatus.objects.create(
             type="constructionProject",
             building=signal.model.building,
@@ -205,6 +217,35 @@ class ADSWillBeBuiltSignalHandler(SignalHandler):
             signal.origin_is_model()
             and signal.origin_cls_name() == "ADS"
             and signal.model.type == "willBeBuilt"
+        ):
+            return True
+
+        return False
+
+
+class ADSNewAlreadyExistingBuildingHandler(SignalHandler):
+    def handle(self, signal: SignalGear) -> list:
+        all_status = signal.model.building.status.all()
+
+        if len(all_status) == 0:
+            s = BuildingStatus.objects.create(
+                type="constructed",
+                building=signal.model.building,
+                happened_at=signal.get_origin().decision_date,
+                is_current=True,
+            )
+            self.add_result(action="create", target=s)
+
+        return self.results
+
+    def should_handle(self, signal: SignalGear) -> bool:
+        if (
+            signal.origin_is_model()
+            and signal.origin_cls_name() == "ADS"
+            and (
+                signal.model.type == "willBeDemolished"
+                or signal.model.type == "willBeModified"
+            )
         ):
             return True
 
