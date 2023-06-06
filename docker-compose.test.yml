@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: ./app/Dockerfile
+      target: app_web
     ports:
       - '8000:8000'
     environment:
@@ -32,6 +33,7 @@ services:
     depends_on:
       - db
       - rabbitmq
+    container_name: web
   db:
     image: postgis/postgis:14-master
     platform: linux/amd64
@@ -48,7 +50,8 @@ services:
   worker:
     build:
       context: .
-      dockerfile: ./worker/Dockerfile
+      dockerfile: ./app/Dockerfile
+      target: app_worker
     command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A tasks worker --loglevel=INFO
     volumes:
       - ./worker:/worker
@@ -57,6 +60,7 @@ services:
       - db
       - rabbitmq
     restart: unless-stopped
+    container_name: worker
   rabbitmq:
     restart: unless-stopped
     image: rabbitmq:3.9-alpine
