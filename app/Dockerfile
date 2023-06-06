@@ -12,9 +12,6 @@ RUN pip install --upgrade pip
 COPY ./app/requirements.txt .
 RUN pip install -r requirements.txt
 
-# COPY ./shared_libs /shared_libs
-# ENV PYTHONPATH "${PYTHONPATH}:/shared_libs"
-
 FROM app as app_web
 
 COPY ./app/entrypoint.sh .

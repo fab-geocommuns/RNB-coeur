@@ -9,6 +9,8 @@ from batid.services.building import remove_dpt as remove_dpt_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.building import export_city as export_city_job
 from batid.services.building import add_default_status as add_default_status_job
+from batid.models import Signal
+from batid.services.signal import SignalDispatcher
 
 
 @shared_task
@@ -87,4 +89,13 @@ def add_default_status():
     print(f"Added {c} default status")
     if c > 0:
         app.send_task("batid.tasks.add_default_status")
+    return "done"
+
+
+@shared_task
+def dispatch_signal(pk: int):
+    s = Signal.objects.get(pk=pk)
+    d = SignalDispatcher()
+    d.dispatch(s)
+
     return "done"
