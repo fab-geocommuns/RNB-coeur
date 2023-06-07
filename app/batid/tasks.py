@@ -11,6 +11,9 @@ from batid.services.building import export_city as export_city_job
 from batid.services.building import add_default_status as add_default_status_job
 from batid.models import Signal
 from batid.services.signal import SignalDispatcher
+from batid.services.imports.import_dgfip_ads import (
+    import_dgfip_ads_achievements as import_dgfip_ads_achievements_job,
+)
 
 
 @shared_task
@@ -89,6 +92,12 @@ def add_default_status():
     print(f"Added {c} default status")
     if c > 0:
         app.send_task("batid.tasks.add_default_status")
+    return "done"
+
+
+@shared_task
+def import_dgfip_ads_achievements(filename: str):
+    import_dgfip_ads_achievements_job(filename)
     return "done"
 
 

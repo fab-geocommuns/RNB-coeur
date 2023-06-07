@@ -51,7 +51,7 @@ class TestSignal(TestCase):
     def test_ads_signal_handle(self):
         # Create an ADS. It should create a signal linked to it.
         ads = ADS.objects.create(
-            city=self.city, file_number="GOGO", decision_date="2020-01-01"
+            city=self.city, file_number="GOGO", decided_at="2020-01-01"
         )
         BuildingADS.objects.create(building=self.building, ads=ads, operation="build")
 
@@ -89,7 +89,7 @@ class TestSignal(TestCase):
         # We want to verify that if we create two similar signals, only one status is created
 
         ads = ADS.objects.create(
-            city=self.city, file_number="MULTI", decision_date="2020-01-01"
+            city=self.city, file_number="MULTI", decided_at="2020-01-01"
         )
         op = BuildingADS.objects.create(
             building=self.building, ads=ads, operation="build"

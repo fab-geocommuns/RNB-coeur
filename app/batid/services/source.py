@@ -7,6 +7,7 @@ import requests
 class Source:
     _dl_dir = os.environ.get("DOWNLOAD_DIR")
 
+    # Must be prefixed with a dot
     refs = {
         "bdnb_7_buffer": {
             "folder": "bdnb_7",
@@ -25,9 +26,8 @@ class Source:
             "filename": "commune_insee.csv",
         },
         "export": {"filename": "export-{{city}}-{{date}}.geojson"},
+        "ads-dgfip": {"filename": "{{fname}}"},
     }
-
-    # Must be prefixed with a dot
     archive_exts = [".7z", ".tar.gz"]
 
     def __init__(self, name, custom_ref=None):

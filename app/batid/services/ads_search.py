@@ -25,7 +25,7 @@ class ADSSearch:
             queryset = queryset.filter(file_number__icontains=self.params.q)
 
         if self.params.since:
-            queryset = queryset.filter(decision_date__gte=self.params.since)
+            queryset = queryset.filter(decided_at__gte=self.params.since)
 
         if self.params.sort:
             queryset = queryset.order_by(self.params.sort)
@@ -35,8 +35,8 @@ class ADSSearch:
     class ADSSearchParams:
         SINCE_FORMAT = "%Y-%m-%d"
 
-        SORT_DEFAULT = "-decision_date"
-        SORT_CHOICES = ["decision_date", "-decision_date"]
+        SORT_DEFAULT = "-decided_at"
+        SORT_CHOICES = ["decided_at", "-decided_at"]
 
         def __init__(self, **kwargs):
             self.q = None

@@ -35,5 +35,5 @@ class ADSTestCase(TestCase):
 
     def _create_ads(self):
         return ADS.objects.create(
-            city=self.city, file_number="GOGO", decision_date="2020-01-01"
+            city=self.city, file_number="GOGO", decided_at="2020-01-01"
         )

@@ -146,7 +146,7 @@ class ADSSerializer(serializers.ModelSerializer):
             )
         ],
     )
-    decision_date = serializers.DateField(required=True, format="%Y-%m-%d")
+    decided_at = serializers.DateField(required=True, format="%Y-%m-%d")
     buildings_operations = BuildingsADSSerializer(many=True, required=False)
     city = CityADSSerializer(required=False, read_only=True)
 
@@ -157,7 +157,7 @@ class ADSSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ADS
-        fields = ["file_number", "decision_date", "city", "buildings_operations"]
+        fields = ["file_number", "decided_at", "city", "buildings_operations"]
         validators = [ADSValidator()]
 
     def install_cities(self, cities):

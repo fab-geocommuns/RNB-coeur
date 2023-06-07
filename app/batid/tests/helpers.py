@@ -3,7 +3,16 @@ import json
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 
-from batid.models import City, Building
+from batid.models import City, Building, Signal
+from batid.services.signal import SignalDispatcher
+
+
+def dispatch_signals():
+    signals = Signal.objects.filter(handled_at__isnull=True).order_by("created_at")
+
+    dispatcher = SignalDispatcher()
+    for s in signals:
+        dispatcher.dispatch(s)
 
 
 def create_paris():

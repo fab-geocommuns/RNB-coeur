@@ -111,7 +111,7 @@ class LogicTest(APITestCase):
     def test_calc_one_new_bdg_point_paris(self):
         data = {
             "file_number": "ADS-TEST-NEW-BDG",
-            "decision_date": "2019-03-18",
+            "decided_at": "2019-03-18",
             "buildings_operations": [
                 {
                     "operation": "build",

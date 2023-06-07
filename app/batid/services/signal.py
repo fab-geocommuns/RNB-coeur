@@ -1,8 +1,15 @@
 import inspect
 import sys
 from datetime import datetime
-from typing import Protocol, runtime_checkable
-from batid.models import Building, Organization, Signal as SignalModel, BuildingStatus
+from typing import Protocol, runtime_checkable, Optional
+from batid.models import (
+    Building,
+    Organization,
+    Signal as SignalModel,
+    ADS,
+    BuildingStatus,
+    ADSAchievement,
+)
 from dateutil.utils import today
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
@@ -13,8 +20,8 @@ from django.utils.timezone import now
 
 def create_signal(
     type: str,
-    building: Building,
     origin,
+    building: Building = None,
     creator: User = None,
     send_task: bool = True,
 ) -> SignalModel:
@@ -47,7 +54,7 @@ def _convert_signal_origin(origin) -> str:
     return ""
 
 
-def _convert_user_to_org(user: User) -> Organization:
+def _convert_user_to_org(user: User) -> Optional[Organization]:
     if user is None:
         return None
 
@@ -79,12 +86,12 @@ class SignalGear:
 
         return self.model.origin
 
-    def get_results(self, filters=None):
+    def get_results(self, filters=Optional[dict]):
         results = []
         if filters is None:
             filters = {}
 
-        for r in self.model.results:
+        for r in self.model.handle_result:
             if filters.get("handler") and r["handler"] != filters.get("handler"):
                 continue
 
@@ -101,7 +108,7 @@ class SignalGear:
 
 @runtime_checkable
 class SignalHandlerProtocol(Protocol):
-    def handle(self, signal: SignalGear) -> list:
+    def handle(self, signal: SignalGear) -> None:
         ...
 
     def should_handle(self, signal: SignalGear) -> bool:
@@ -127,8 +134,8 @@ class SignalDispatcher:
         # We will build handlers which should handle this signal
         self._build_handlers()
         for handler in self._handlers:
-            result = handler.handle(self.signal)
-            self.add_handle_results(result)
+            handler.handle(self.signal)
+            self.add_handle_results(handler.results)
 
         # Finally we set the signal as handled
         self.mark_signal_as_handled()
@@ -178,7 +185,7 @@ class SignalHandler:
     def should_handle(self, signal: SignalGear) -> bool:
         return False
 
-    def handle(self, signal: SignalGear) -> list:
+    def handle(self, signal: SignalGear) -> None:
         raise NotImplementedError
 
     def add_result(self, action: str = None, target=None) -> None:
@@ -197,7 +204,7 @@ class SignalHandler:
 
 
 class ADSWillBeBuiltSignalHandler(SignalHandler):
-    def handle(self, signal: SignalGear) -> list:
+    def handle(self, signal: SignalGear) -> None:
         # We received a signal about a building which will be built
         # This might not be the first time we receive a signal from this ADS
         # In this case, we have to remove previous status set by this ADS
@@ -205,12 +212,12 @@ class ADSWillBeBuiltSignalHandler(SignalHandler):
         s = BuildingStatus.objects.create(
             type="constructionProject",
             building=signal.model.building,
-            happened_at=signal.get_origin().decision_date,
+            happened_at=signal.get_origin().decided_at,
             is_current=True,
         )
         self.add_result(action="create", target=s)
 
-        return self.results
+        return
 
     def should_handle(self, signal: SignalGear) -> bool:
         if (
@@ -224,19 +231,19 @@ class ADSWillBeBuiltSignalHandler(SignalHandler):
 
 
 class ADSNewAlreadyExistingBuildingHandler(SignalHandler):
-    def handle(self, signal: SignalGear) -> list:
+    def handle(self, signal: SignalGear) -> None:
         all_status = signal.model.building.status.all()
 
         if len(all_status) == 0:
             s = BuildingStatus.objects.create(
                 type="constructed",
                 building=signal.model.building,
-                happened_at=signal.get_origin().decision_date,
+                happened_at=signal.get_origin().decided_at,
                 is_current=True,
             )
             self.add_result(action="create", target=s)
 
-        return self.results
+        return
 
     def should_handle(self, signal: SignalGear) -> bool:
         if (
@@ -252,10 +259,26 @@ class ADSNewAlreadyExistingBuildingHandler(SignalHandler):
         return False
 
 
-class DACTSignalHandler(SignalHandler):
-    def handle(self, signal: SignalGear) -> list:
-        print(f"Handling signal {signal.id} with {self.__class__.__name__}")
-        pass
+class ADSAchievementClueHandler(SignalHandler):
+    def handle(self, signal: SignalGear) -> None:
+        _, file_number = signal.model.origin.split(":")
+
+        # To build the achievement date, we need both the ADSAchievement and the ADS with the same file_number
+        ads_achievement = ADSAchievement.objects.filter(file_number=file_number).first()
+        if not isinstance(ads_achievement, ADSAchievement):
+            return
+
+        ads = (
+            ADS.objects.filter(file_number=file_number)
+            .exclude(achieved_at=ads_achievement.achieved_at)
+            .first()
+        )
+        if not isinstance(ads, ADS):
+            return
+
+        # We update the ads with the achievement date
+        ads.achieved_at = ads_achievement.achieved_at
+        ads.save()
 
     def should_handle(self, signal: SignalGear) -> bool:
-        return signal.model.type == "dact"
+        return signal.model.type == "adsAchievementClue"

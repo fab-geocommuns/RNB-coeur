@@ -88,16 +88,25 @@ class City(models.Model):
     )
 
 
+class ADSAchievement(models.Model):
+    file_number = models.CharField(
+        max_length=40, null=False, unique=True, db_index=True
+    )
+    achieved_at = models.DateField(null=True)
+    created_at = models.DateTimeField(null=False, default=now)
+
+
 class ADS(models.Model):
     file_number = models.CharField(
         max_length=40, null=False, unique=True, db_index=True
     )
-    decision_date = models.DateField(null=True)
+    decided_at = models.DateField(null=True)
     city = models.ForeignKey(City, on_delete=models.CASCADE, null=True)
     insee_code = models.CharField(max_length=5, null=True)
+    achieved_at = models.DateField(null=True)
 
     class Meta:
-        ordering = ["decision_date"]
+        ordering = ["decided_at"]
 
 
 class BuildingADS(models.Model):
@@ -153,3 +162,6 @@ class Signal(models.Model):
     creator_copy_lname = models.CharField(max_length=100, null=True)
     creator_org_copy_id = models.IntegerField(null=True)
     creator_org_copy_name = models.CharField(max_length=100, null=True)
+
+    class Meta:
+        ordering = ["created_at"]
