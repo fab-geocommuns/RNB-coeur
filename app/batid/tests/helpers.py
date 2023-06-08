@@ -3,14 +3,14 @@ import json
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 
-from batid.models import City, Building, Signal
-from batid.services.signal import SignalDispatcher
+from batid.models import City, Building, AsyncSignal, ADS
+from batid.services.signal import AsyncSignalDispatcher
 
 
 def dispatch_signals():
-    signals = Signal.objects.filter(handled_at__isnull=True).order_by("created_at")
+    signals = AsyncSignal.objects.filter(handled_at__isnull=True).order_by("created_at")
 
-    dispatcher = SignalDispatcher()
+    dispatcher = AsyncSignalDispatcher()
     for s in signals:
         dispatcher.dispatch(s)
 
@@ -1120,7 +1120,7 @@ def create_bdg(rnb_id, coords_list):
     )
 
 
-def create_default_bdg():
+def create_default_bdg(rnb_id="DEFAULT"):
     # The building is located in Grenoble
     coords = [
         [5.717918517856731, 45.178820091145724],
@@ -1130,4 +1130,10 @@ def create_default_bdg():
         [5.717924501950705, 45.17893819969589],
         [5.717918517856731, 45.178820091145724],
     ]
-    return create_bdg("DEFAULT", coords)
+    return create_bdg(rnb_id, coords)
+
+
+def create_default_ads(city: City, file_number="PC1234"):
+    return ADS.objects.create(
+        file_number=file_number, decided_at="2023-01-01", city=city
+    )

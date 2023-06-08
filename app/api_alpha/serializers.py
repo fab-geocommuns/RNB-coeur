@@ -3,7 +3,7 @@ from pprint import pprint
 
 from rest_framework import serializers
 from batid.models import Building, BuildingStatus, Address, ADS, BuildingADS, City
-from batid.services.ads import ADS as ADSLogic
+from batid.services.models_gears import ADSGear as ADSLogic
 from api_alpha.validators import (
     ads_validate_rnbid,
     BdgInADSValidator,

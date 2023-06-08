@@ -9,8 +9,8 @@ from batid.services.building import remove_dpt as remove_dpt_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.building import export_city as export_city_job
 from batid.services.building import add_default_status as add_default_status_job
-from batid.models import Signal
-from batid.services.signal import SignalDispatcher
+from batid.models import AsyncSignal
+from batid.services.signal import AsyncSignalDispatcher
 from batid.services.imports.import_dgfip_ads import (
     import_dgfip_ads_achievements as import_dgfip_ads_achievements_job,
 )
@@ -103,8 +103,8 @@ def import_dgfip_ads_achievements(filename: str):
 
 @shared_task
 def dispatch_signal(pk: int):
-    s = Signal.objects.get(pk=pk)
-    d = SignalDispatcher()
+    s = AsyncSignal.objects.get(pk=pk)
+    d = AsyncSignalDispatcher()
     d.dispatch(s)
 
     return "done"

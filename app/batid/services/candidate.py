@@ -14,6 +14,7 @@ from batid.models import Candidate as CandidateModel
 from batid.utils.db import dictfetchall
 
 
+# todo : convert old worker approach (dataclass to mimic django model) to new approach (django model)
 @dataclass
 class Candidate:
     id: int

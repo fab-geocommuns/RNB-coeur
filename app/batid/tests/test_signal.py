@@ -2,9 +2,9 @@ import time
 
 from django.test import TestCase
 from django.contrib.auth.models import User
-from batid.models import Organization, ADS, BuildingADS, Signal
+from batid.models import Organization, ADS, BuildingADS, AsyncSignal
 from batid.tests.helpers import create_default_bdg
-from batid.services.signal import create_signal, SignalDispatcher
+from batid.services.signal import create_async_signal, AsyncSignalDispatcher
 from batid.tests.helpers import create_grenoble
 from batid.services.model_code import model_to_code
 
@@ -30,7 +30,7 @@ class TestSignal(TestCase):
         self.city = create_grenoble()
 
     def test_create_signal(self):
-        s = create_signal(
+        s = create_async_signal(
             type="test",
             building=self.building,
             origin="testOrigin",
@@ -55,7 +55,7 @@ class TestSignal(TestCase):
         )
         BuildingADS.objects.create(building=self.building, ads=ads, operation="build")
 
-        signals = Signal.objects.filter(building=self.building, type="willBeBuilt")
+        signals = AsyncSignal.objects.filter(building=self.building, type="willBeBuilt")
 
         # We verify the signal is created
         self.assertEqual(len(signals), 1)
@@ -63,7 +63,7 @@ class TestSignal(TestCase):
         self.assertEqual(s.type, "willBeBuilt")
 
         # Then we verify it is correctly dispatched
-        sh = SignalDispatcher()
+        sh = AsyncSignalDispatcher()
         sh.dispatch(s)
 
         s.refresh_from_db()
@@ -102,12 +102,12 @@ class TestSignal(TestCase):
         op.operation = "build"
         op.save()
 
-        signals = Signal.objects.filter(building=self.building, type="willBeBuilt")
+        signals = AsyncSignal.objects.filter(building=self.building, type="willBeBuilt")
         self.assertEqual(len(signals), 2)
 
         # We have to signals (they must be quite identical)
         # We dispatch them and verify there is only on statuts attached to the building
-        sh = SignalDispatcher()
+        sh = AsyncSignalDispatcher()
         for s in signals:
             sh.dispatch(s)
 

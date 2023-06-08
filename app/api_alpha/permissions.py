@@ -1,7 +1,7 @@
 from rest_framework import permissions
 from django.contrib.auth.models import User
 from batid.models import ADS
-from batid.services.user import RNBUser
+from batid.services.models_gears import UserGear
 from api_alpha.services import calc_ads_cities
 
 
@@ -66,5 +66,5 @@ def user_can_manage_ads(user: User, ads: ADS) -> bool:
 
 
 def user_can_manage_insee_code(user: User, insee_code: str) -> bool:
-    user = RNBUser(user)
+    user = UserGear(user)
     return insee_code in user.get_managed_insee_codes()

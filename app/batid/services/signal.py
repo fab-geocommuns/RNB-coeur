@@ -1,24 +1,25 @@
 import inspect
 import sys
-from datetime import datetime
-from typing import Protocol, runtime_checkable, Optional
+from typing import Protocol, runtime_checkable, Optional, Set, List
 from batid.models import (
     Building,
     Organization,
-    Signal as SignalModel,
+    AsyncSignal as SignalModel,
     ADS,
     BuildingStatus,
     ADSAchievement,
+    BuildingADS,
 )
 from dateutil.utils import today
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from app.celery import app
-from batid.services.model_code import model_to_code, code_to_model
+from batid.services.model_code import model_to_code, code_to_model, code_to_pk
 from django.utils.timezone import now
+from batid.services.models_gears import SignalGear, BuildingADSGear
 
 
-def create_signal(
+def create_async_signal(
     type: str,
     origin,
     building: Building = None,
@@ -64,50 +65,8 @@ def _convert_user_to_org(user: User) -> Optional[Organization]:
     return None
 
 
-class SignalGear:
-    def __init__(self, signal: SignalModel):
-        self.model = signal
-
-    def is_handled(self) -> bool:
-        return isinstance(self.model.handled_at, datetime)
-
-    def origin_is_model(self) -> bool:
-        return self.model.origin.startswith("model:")
-
-    def origin_cls_name(self) -> str:
-        if self.origin_is_model():
-            return self.model.origin.split(":")[1]
-
-        raise ValueError("Origin is not a model, it is a string")
-
-    def get_origin(self):
-        if self.origin_is_model():
-            return code_to_model(self.model.origin)
-
-        return self.model.origin
-
-    def get_results(self, filters=Optional[dict]):
-        results = []
-        if filters is None:
-            filters = {}
-
-        for r in self.model.handle_result:
-            if filters.get("handler") and r["handler"] != filters.get("handler"):
-                continue
-
-            if filters.get("action") and r["action"] != filters.get("action"):
-                continue
-
-            if filters.get("target") and r["target"] != filters.get("target"):
-                continue
-
-            results.append(r)
-
-        return results
-
-
 @runtime_checkable
-class SignalHandlerProtocol(Protocol):
+class AsyncSignalHandlerProtocol(Protocol):
     def handle(self, signal: SignalGear) -> None:
         ...
 
@@ -118,7 +77,7 @@ class SignalHandlerProtocol(Protocol):
         ...
 
 
-class SignalDispatcher:
+class AsyncSignalDispatcher:
     def __init__(self):
         self.signal = None
         self._handlers = set()
@@ -134,7 +93,7 @@ class SignalDispatcher:
         # We will build handlers which should handle this signal
         self._build_handlers()
         for handler in self._handlers:
-            handler.handle(self.signal)
+            handler.handle()
             self.add_handle_results(handler.results)
 
         # Finally we set the signal as handled
@@ -158,7 +117,7 @@ class SignalDispatcher:
         self.signal.model.handled_at = now()
         self.signal.model.save()
 
-    def add_handler(self, obs: SignalHandlerProtocol):
+    def add_handler(self, obs: AsyncSignalHandlerProtocol):
         self._handlers.add(obs)
 
     def _build_handlers(self):
@@ -169,23 +128,27 @@ class SignalDispatcher:
 
         classes = inspect.getmembers(sys.modules[__name__], inspect.isclass)
         for name, cls in classes:
-            if issubclass(cls, SignalHandlerProtocol) and cls != SignalHandlerProtocol:
-                obs = cls()
-                if obs.should_handle(self.signal):
+            if (
+                issubclass(cls, AsyncSignalHandlerProtocol)
+                and cls != AsyncSignalHandlerProtocol
+            ):
+                obs = cls(self.signal)
+                if obs.should_handle():
                     self.add_handler(obs)
 
 
-class SignalHandler:
-    def __init__(self):
+class AsyncSignalHandler:
+    def __init__(self, signal: SignalGear):
+        self.signal = signal
         self.results = []
 
     def get_name(self) -> str:
         return self.__class__.__name__
 
-    def should_handle(self, signal: SignalGear) -> bool:
+    def should_handle(self) -> bool:
         return False
 
-    def handle(self, signal: SignalGear) -> None:
+    def handle(self) -> None:
         raise NotImplementedError
 
     def add_result(self, action: str = None, target=None) -> None:
@@ -203,65 +166,103 @@ class SignalHandler:
         self.results.append(result)
 
 
-class ADSWillBeBuiltSignalHandler(SignalHandler):
-    def handle(self, signal: SignalGear) -> None:
-        # We received a signal about a building which will be built
-        # This might not be the first time we receive a signal from this ADS
-        # In this case, we have to remove previous status set by this ADS
+class CalcBdgStatusFromADSHandler(AsyncSignalHandler):
+    def handle(self) -> None:
+        ads = self.signal.get_origin()
+        op = BuildingADS.objects.filter(
+            ads=ads, building=self.signal.model.building
+        ).first()
+        opGear = BuildingADSGear(op)
 
-        s = BuildingStatus.objects.create(
-            type="constructionProject",
-            building=signal.model.building,
-            happened_at=signal.get_origin().decided_at,
-            is_current=True,
+        previous_status = self.get_previous_status()
+        expected_status = opGear.get_expected_bdg_status()
+
+        self.install_status(previous_status, expected_status)
+
+    def install_status(
+        self, previous: List[BuildingStatus], expected: List[BuildingStatus]
+    ) -> None:
+        # All status are linked to the same building and the same ADS
+
+        # ###################
+        # Create missing expected status
+        for exp_status in expected:
+            exp_found = False
+
+            # We search
+            for prev_status in previous:
+                if exp_status.type == prev_status.type:
+                    exp_found = True
+                    break
+
+            # If not found, we create
+            if not exp_found:
+                exp_status.save()
+                self.add_result(action="create", target=exp_status)
+
+        # #################
+        # Delete unexpected status
+        for prev_status in previous:
+            prev_found = False
+
+            # We search
+            for exp_status in expected:
+                if exp_status.type == prev_status.type:
+                    prev_found = True
+                    break
+
+            # If not found, we create
+            if not prev_found:
+                self.add_result(action="delete", target=prev_status)
+                prev_status.delete()
+
+        pass
+
+    def get_previous_status(self) -> List[BuildingStatus]:
+        # all signals with same bdg and same origin, not this one
+        # get all results for status creation
+        # fetch those status
+        # return them
+
+        # Get all similar signals
+        same_signals = SignalModel.objects.filter(
+            building=self.signal.model.building,
+            origin=self.signal.model.origin,
+        ).exclude(id=self.signal.model.id)
+
+        # Get all BuildingStatus created by those signals
+        prev_results = []
+        for s_gear in [SignalGear(s) for s in same_signals]:
+            prev_results.extend(
+                s_gear.get_results(
+                    {
+                        "handler": self.get_name(),
+                        "action": "create",
+                        "target_class": "BuildingStatus",
+                    }
+                )
+            )
+
+        # Get all BuildingStatus objects
+        prev_status_ids = set()
+        for result in prev_results:
+            prev_status_ids.add(code_to_pk(result["target"]))
+
+        prev_status = BuildingStatus.objects.filter(id__in=prev_status_ids)
+
+        return list(prev_status)
+
+    def should_handle(self) -> bool:
+        return (
+            self.signal.model.type == "calcStatusFromADS"
+            and self.signal.origin_is_model()
+            and self.signal.get_origin_cls_name() == "ADS"
         )
-        self.add_result(action="create", target=s)
-
-        return
-
-    def should_handle(self, signal: SignalGear) -> bool:
-        if (
-            signal.origin_is_model()
-            and signal.origin_cls_name() == "ADS"
-            and signal.model.type == "willBeBuilt"
-        ):
-            return True
-
-        return False
 
 
-class ADSNewAlreadyExistingBuildingHandler(SignalHandler):
-    def handle(self, signal: SignalGear) -> None:
-        all_status = signal.model.building.status.all()
-
-        if len(all_status) == 0:
-            s = BuildingStatus.objects.create(
-                type="constructed",
-                building=signal.model.building,
-                happened_at=signal.get_origin().decided_at,
-                is_current=True,
-            )
-            self.add_result(action="create", target=s)
-
-        return
-
-    def should_handle(self, signal: SignalGear) -> bool:
-        if (
-            signal.origin_is_model()
-            and signal.origin_cls_name() == "ADS"
-            and (
-                signal.model.type == "willBeDemolished"
-                or signal.model.type == "willBeModified"
-            )
-        ):
-            return True
-
-        return False
-
-
-class ADSAchievementClueHandler(SignalHandler):
-    def handle(self, signal: SignalGear) -> None:
-        _, file_number = signal.model.origin.split(":")
+class ADSAchievementClueHandlerAsync(AsyncSignalHandler):
+    def handle(self) -> None:
+        _, file_number = self.signal.model.origin.split(":")
 
         # To build the achievement date, we need both the ADSAchievement and the ADS with the same file_number
         ads_achievement = ADSAchievement.objects.filter(file_number=file_number).first()
@@ -280,5 +281,5 @@ class ADSAchievementClueHandler(SignalHandler):
         ads.achieved_at = ads_achievement.achieved_at
         ads.save()
 
-    def should_handle(self, signal: SignalGear) -> bool:
-        return signal.model.type == "adsAchievementClue"
+    def should_handle(self) -> bool:
+        return self.signal.model.type == "adsAchievementClue"

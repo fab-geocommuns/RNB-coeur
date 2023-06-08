@@ -102,7 +102,6 @@ class ADS(models.Model):
     )
     decided_at = models.DateField(null=True)
     city = models.ForeignKey(City, on_delete=models.CASCADE, null=True)
-    insee_code = models.CharField(max_length=5, null=True)
     achieved_at = models.DateField(null=True)
 
     class Meta:
@@ -149,7 +148,7 @@ class Organization(models.Model):
     managed_cities = ArrayField(models.CharField(max_length=6), null=True)
 
 
-class Signal(models.Model):
+class AsyncSignal(models.Model):
     id = models.AutoField(primary_key=True)
     type = models.CharField(max_length=20, null=False, db_index=True)
     building = models.ForeignKey(Building, on_delete=models.CASCADE, null=True)
