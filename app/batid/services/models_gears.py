@@ -47,6 +47,12 @@ class SignalGear(ModelGear):
 
     def get_results(self, filters=Optional[dict]):
         results = []
+
+        # If self.model.handle_result is None, return empty list
+        if self.model.handle_result is None:
+            return results
+
+        # Set filters to dict so we can use .get()
         if filters is None:
             filters = {}
 

@@ -55,12 +55,14 @@ class TestSignal(TestCase):
         )
         BuildingADS.objects.create(building=self.building, ads=ads, operation="build")
 
-        signals = AsyncSignal.objects.filter(building=self.building, type="willBeBuilt")
+        signals = AsyncSignal.objects.filter(
+            building=self.building, type="calcStatusFromADS"
+        )
 
         # We verify the signal is created
         self.assertEqual(len(signals), 1)
         s = signals.first()
-        self.assertEqual(s.type, "willBeBuilt")
+        self.assertEqual(s.type, "calcStatusFromADS")
 
         # Then we verify it is correctly dispatched
         sh = AsyncSignalDispatcher()
@@ -75,12 +77,12 @@ class TestSignal(TestCase):
         self.assertIsNotNone(s.handled_at)
 
         expected_result = {
-            "handler": "ADSWillBeBuiltSignalHandler",
+            "handler": "CalcBdgStatusFromADSHandler",
             "action": "create",
             "target": model_to_code(self.building.current_status),
         }
         ads_result = next(
-            r for r in s.handle_result if r["handler"] == "ADSWillBeBuiltSignalHandler"
+            r for r in s.handle_result if r["handler"] == "CalcBdgStatusFromADSHandler"
         )
 
         self.assertDictEqual(ads_result, expected_result)
@@ -102,8 +104,10 @@ class TestSignal(TestCase):
         op.operation = "build"
         op.save()
 
-        signals = AsyncSignal.objects.filter(building=self.building, type="willBeBuilt")
-        self.assertEqual(len(signals), 2)
+        signals = AsyncSignal.objects.filter(
+            building=self.building, type="calcStatusFromADS"
+        )
+        self.assertEqual(len(signals), 3)
 
         # We have to signals (they must be quite identical)
         # We dispatch them and verify there is only on statuts attached to the building

@@ -968,16 +968,14 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
 class ADSEnpointsNoAuthTest(APITestCase):
     def setUp(self) -> None:
+        grenoble = create_grenoble()
+
         ADS.objects.create(
-            file_number="ADS-TEST-UPDATE-BDG",
-            decided_at="2025-01-01",
-            insee_code="4242",
+            file_number="ADS-TEST-UPDATE-BDG", decided_at="2025-01-01", city=grenoble
         )
 
         ADS.objects.create(
-            file_number="ADS-TEST-DELETE",
-            decided_at="2025-01-01",
-            insee_code="4242",
+            file_number="ADS-TEST-DELETE", decided_at="2025-01-01", city=grenoble
         )
 
     def test_ads_root(self):
