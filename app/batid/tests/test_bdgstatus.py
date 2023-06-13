@@ -6,12 +6,13 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
 
 from batid.models import Building, BuildingStatus
+from batid.tests.helpers import create_default_bdg
 
 
 class StatusTestCase(TestCase):
     def setUp(self):
         # One building with one status
-        b = self._create_bdg("WITH-STATUS")
+        b = create_default_bdg(rnb_id="WITH-STATUS")
 
         happened_at = datetime(1975, 1, 1)
         BuildingStatus.objects.create(
@@ -26,7 +27,7 @@ class StatusTestCase(TestCase):
         self.assertEqual(b.current_status.type, "constructionProject")
 
     def test_current_replacement(self):
-        b = self._create_bdg("TWO-STATUS")
+        b = create_default_bdg(rnb_id="TWO-STATUS")
 
         happened_at = datetime(1975, 1, 1)
         old_s = BuildingStatus.objects.create(
@@ -52,7 +53,7 @@ class StatusTestCase(TestCase):
         self.assertEqual(old_s.is_current, False)
 
     def test_status_order(self):
-        b = self._create_bdg("FOUR-STATUS")
+        b = create_default_bdg(rnb_id="FOUR-STATUS")
 
         # Create the middle status
         happened_at = datetime(1980, 1, 1)
@@ -86,27 +87,21 @@ class StatusTestCase(TestCase):
         self.assertEqual(status[1].type, "constructed")
         self.assertEqual(status[2].type, "demolished")
 
-    def _create_bdg(self, rnb_id: str) -> Building:
-        coords = {
-            "coordinates": [
-                [
-                    [
-                        [1.0654705955877262, 46.63423852982024],
-                        [1.065454930919401, 46.634105152847496],
-                        [1.0656648374661017, 46.63409009413692],
-                        [1.0656773692001593, 46.63422131990677],
-                        [1.0654705955877262, 46.63423852982024],
-                    ]
-                ]
-            ],
-            "type": "MultiPolygon",
-        }
-        geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
-
-        return Building.objects.create(
-            rnb_id=rnb_id,
-            source="dummy",
-            shape=geom,
-            point=geom.point_on_surface,
+    def test_missing_status(self):
+        b = create_default_bdg(rnb_id="MISSING-S")
+        BuildingStatus.objects.create(
+            building=b,
+            type="demolished",
+            happened_at=datetime(2020, 1, 1),
+            is_current=True,
         )
+
+        b.refresh_from_db()
+
+        # Assert the current status is the right one
+        self.assertEqual(b.current_status.type, "demolished")
+
+        # Assert the missing status is created
+        self.assertEqual(b.status.count(), 2)
+        self.assertEqual(b.status.first().type, "constructed")
+        self.assertEqual(b.status.first().is_current, False)

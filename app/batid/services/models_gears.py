@@ -6,12 +6,14 @@ from typing import Type, Optional, List, Set
 from django.contrib.auth.models import User as UserModel
 from django.db.models import Model
 from batid.models import (
+    Building as BuildingModel,
     AsyncSignal as SignalModel,
     ADS as ADSModel,
     BuildingADS as BuildingADSModel,
-    BuildingStatus,
+    BuildingStatus as BuildingStatusModel,
 )
 from batid.services.model_code import code_to_model, code_to_cls_name, is_model_code
+from batid.services.bdg_status import BuildingStatus
 
 
 class ModelGear(ABC):
@@ -78,7 +80,7 @@ class SignalGear(ModelGear):
 class BuildingADSGear(ModelGear):
     model_cls = BuildingADSModel
 
-    def get_expected_bdg_status(self) -> List[BuildingStatus]:
+    def get_expected_bdg_status(self) -> List[BuildingStatusModel]:
         results = []
 
         if self.model.operation == "build":
@@ -90,15 +92,15 @@ class BuildingADSGear(ModelGear):
 
         return results
 
-    def _get_expected_modify_status(self) -> List[BuildingStatus]:
+    def _get_expected_modify_status(self) -> List[BuildingStatusModel]:
         return []
 
-    def _get_expected_demolish_status(self) -> List[BuildingStatus]:
+    def _get_expected_demolish_status(self) -> List[BuildingStatusModel]:
         results = []
 
         if isinstance(self.model.ads.achieved_at, date):
             results.append(
-                BuildingStatus(
+                BuildingStatusModel(
                     type="demolished",
                     building=self.model.building,
                     happened_at=self.model.ads.achieved_at,
@@ -108,11 +110,11 @@ class BuildingADSGear(ModelGear):
 
         return results
 
-    def _get_expected_build_status(self) -> List[BuildingStatus]:
+    def _get_expected_build_status(self) -> List[BuildingStatusModel]:
         results = []
 
         results.append(
-            BuildingStatus(
+            BuildingStatusModel(
                 type="constructionProject",
                 building=self.model.building,
                 happened_at=self.model.ads.decided_at,
@@ -122,7 +124,7 @@ class BuildingADSGear(ModelGear):
 
         if isinstance(self.model.ads.achieved_at, date):
             results.append(
-                BuildingStatus(
+                BuildingStatusModel(
                     type="constructed",
                     building=self.model.building,
                     happened_at=self.model.ads.achieved_at,
@@ -159,3 +161,29 @@ class UserGear(ModelGear):
             codes += org.managed_cities
 
         return list(set(codes))
+
+
+class BuildingGear(ModelGear):
+    model_cls = BuildingModel
+
+    def calc_missing_status(self) -> List[BuildingStatusModel]:
+        results = []
+
+        has_constructed_status = False
+        has_post_constructed_status = False
+        for status in self.model.status.all():
+            if status.type == "constructed":
+                has_constructed_status = True
+            if status.type in BuildingStatus.POST_CONSTRUCTED_KEYS:
+                has_post_constructed_status = True
+
+        if not has_constructed_status and has_post_constructed_status:
+            results.append(
+                BuildingStatusModel(
+                    type="constructed",
+                    building=self.model,
+                    is_current=False,
+                )
+            )
+
+        return results

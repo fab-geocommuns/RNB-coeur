@@ -25,6 +25,14 @@ class BuildingStatus:
     PRIVATE_TYPES_KEYS = [s["key"] for s in TYPES if not s["public"]]
     ALL_TYPES_KEYS = [s["key"] for s in TYPES]
 
+    # Those are the status which trigger the creation of a "constructed" status
+    # if the building does not have one
+    POST_CONSTRUCTED_KEYS = [
+        "ongoingChange",
+        "notUsable",
+        "demolished",
+    ]
+
     TYPES_CHOICES = [(s["key"], s["label"]) for s in TYPES]
 
     @classmethod

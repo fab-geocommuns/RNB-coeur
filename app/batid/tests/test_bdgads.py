@@ -223,13 +223,18 @@ class TestBdgAdsToBdgStatus(TestCase):
         # We refresh to check the status infos
         bdg.refresh_from_db()
 
-        self.assertEqual(len(bdg.status.all()), 1)
+        self.assertEqual(len(bdg.status.all()), 2)
 
-        # demolished
-        self.assertEqual(bdg.status.all()[0].type, "demolished")
+        # constructed
+        self.assertEqual(bdg.status.all()[0].type, "constructed")
         self.assertEqual(bdg.status.all()[0].building, bdg)
-        self.assertEqual(bdg.status.all()[0].happened_at, ads.achieved_at)
-        self.assertEqual(bdg.status.all()[0].is_current, True)
+        self.assertIsNone(bdg.status.all()[0].happened_at)
+        self.assertEqual(bdg.status.all()[0].is_current, False)
+        # demolished
+        self.assertEqual(bdg.status.all()[1].type, "demolished")
+        self.assertEqual(bdg.status.all()[1].building, bdg)
+        self.assertEqual(bdg.status.all()[1].happened_at, ads.achieved_at)
+        self.assertEqual(bdg.status.all()[1].is_current, True)
 
     def test_fullCycle(self):
         old_house = create_default_bdg("oldHouse")
