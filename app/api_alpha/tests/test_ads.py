@@ -48,6 +48,10 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
 
 
 class ADSEndpointsWithAuthTest(APITestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = None
+
     def setUp(self):
         self.__insert_data()
 
@@ -131,8 +135,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertDictEqual(r_data, expected)
 
     def test_create_simple_ads(self):
-        self.maxDiff = None
-
         data = {
             "file_number": "ADS-TEST-2",
             "decided_at": "2019-01-01",
@@ -175,6 +177,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
             },
         }
         self.assertDictEqual(r_data, expected)
+
+        # Verify the creator
+        ads = ADS.objects.get(file_number="ADS-TEST-2")
+        self.assertEqual(ads.creator, self.user)
 
     def test_create_with_custom_id(self):
         data = {
@@ -956,13 +962,13 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
 
         # User, Org & Token
-        u = User.objects.create_user(
+        self.user = User.objects.create_user(
             first_name="John", last_name="Doe", username="johndoe"
         )
         org = Organization.objects.create(name="Test Org", managed_cities=["38185"])
-        org.users.add(u)
+        org.users.add(self.user)
 
-        token = Token.objects.create(user=u)
+        token = Token.objects.create(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
 

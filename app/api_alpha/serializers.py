@@ -117,10 +117,11 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
             + f"{BuildingADSLogic.OPERATIONS}."
         },
     )
+    creator = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
         model = BuildingADS
-        fields = ["building", "operation"]
+        fields = ["building", "operation", "creator"]
 
     def is_valid(self, *args, raise_exception=False):
         return super().is_valid(*args, raise_exception=raise_exception)
@@ -149,6 +150,7 @@ class ADSSerializer(serializers.ModelSerializer):
     decided_at = serializers.DateField(required=True, format="%Y-%m-%d")
     buildings_operations = BuildingsADSSerializer(many=True, required=False)
     city = CityADSSerializer(required=False, read_only=True)
+    creator = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -157,7 +159,13 @@ class ADSSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ADS
-        fields = ["file_number", "decided_at", "city", "buildings_operations"]
+        fields = [
+            "file_number",
+            "decided_at",
+            "city",
+            "buildings_operations",
+            "creator",
+        ]
         validators = [ADSValidator()]
 
     def install_cities(self, cities):
@@ -178,6 +186,8 @@ class ADSSerializer(serializers.ModelSerializer):
             bdg_ops = validated_data.pop("buildings_operations")
 
         validated_data["city"] = self.request_cities[0]
+        # validated_data["user"] = self.context["request"].user
+
         ads = ADS.objects.create(**validated_data)
 
         for bdg_op_data in bdg_ops:
