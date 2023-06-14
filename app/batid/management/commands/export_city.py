@@ -7,4 +7,4 @@ class Command(BaseCommand):
         parser.add_argument("city", type=str)
 
     def handle(self, *args, **options):
-        app.send_task("tasks.export_city", args=[options["city"]])
+        app.send_task("batid.tasks.export_city", args=[options["city"]])

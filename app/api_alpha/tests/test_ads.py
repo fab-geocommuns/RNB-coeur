@@ -7,7 +7,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from batid.models import Building, ADS, BuildingADS, Organization, City
-from api_alpha.tests.helpers import create_grenoble, create_cenac, create_paris
+from batid.tests.helpers import create_grenoble, create_cenac, create_paris
 
 
 class ADSEnpointsWithBadAuthTest(APITestCase):
@@ -25,7 +25,7 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
         # Building is in Paris
         data = {
             "file_number": "ADS-TEST-NEW-BDG",
-            "decision_date": "2019-03-18",
+            "decided_at": "2019-03-18",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -48,6 +48,10 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
 
 
 class ADSEndpointsWithAuthTest(APITestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = None
+
     def setUp(self):
         self.__insert_data()
 
@@ -67,7 +71,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "results": [
                 {
                     "file_number": "ADS-TEST-FUTURE",
-                    "decision_date": "2035-01-02",
+                    "decided_at": "2035-01-02",
                     "city": {
                         "code_insee": "38185",
                         "name": "Grenoble",
@@ -90,7 +94,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "results": [
                 {
                     "file_number": "ADS-TEST-FUTURE",
-                    "decision_date": "2035-01-02",
+                    "decided_at": "2035-01-02",
                     "city": {
                         "code_insee": "38185",
                         "name": "Grenoble",
@@ -109,7 +113,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         expected = {
             "file_number": "ADS-TEST",
-            "decision_date": "2019-01-01",
+            "decided_at": "2019-01-01",
             "city": {
                 "name": "Grenoble",
                 "code_insee": "38185",
@@ -131,11 +135,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertDictEqual(r_data, expected)
 
     def test_create_simple_ads(self):
-        self.maxDiff = None
-
         data = {
             "file_number": "ADS-TEST-2",
-            "decision_date": "2019-01-01",
+            "decided_at": "2019-01-01",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -156,7 +158,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         expected = {
             "file_number": "ADS-TEST-2",
-            "decision_date": "2019-01-01",
+            "decided_at": "2019-01-01",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -176,10 +178,14 @@ class ADSEndpointsWithAuthTest(APITestCase):
         }
         self.assertDictEqual(r_data, expected)
 
+        # Verify the creator
+        ads = ADS.objects.get(file_number="ADS-TEST-2")
+        self.assertEqual(ads.creator, self.user)
+
     def test_create_with_custom_id(self):
         data = {
             "file_number": "CUSTOM-ID",
-            "decision_date": "2023-05-12",
+            "decided_at": "2023-05-12",
             "buildings_operations": [
                 {
                     "building": {
@@ -205,7 +211,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         expected = {
             "file_number": "CUSTOM-ID",
-            "decision_date": "2023-05-12",
+            "decided_at": "2023-05-12",
             "city": {
                 "name": "Grenoble",
                 "code_insee": "38185",
@@ -231,7 +237,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_new_point_in_grenoble(self):
         data = {
             "file_number": "zef",
-            "decision_date": "2023-05-12",
+            "decided_at": "2023-05-12",
             "buildings_operations": [
                 {
                     "building": {
@@ -258,7 +264,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_create_ads_with_dash(self):
         data = {
             "file_number": "ADS-TEST-DASH",
-            "decision_date": "2019-01-02",
+            "decided_at": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -274,7 +280,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         expected = {
             "file_number": "ADS-TEST-DASH",
-            "decision_date": "2019-01-02",
+            "decided_at": "2019-01-02",
             "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
@@ -303,7 +309,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_create_ads(self):
         data = {
             "file_number": "ADS-TEST-2",
-            "decision_date": "2019-01-02",
+            "decided_at": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -319,7 +325,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         expected = {
             "file_number": "ADS-TEST-2",
-            "decision_date": "2019-01-02",
+            "decided_at": "2019-01-02",
             "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
@@ -346,7 +352,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_ads_create_with_new_bdg_mp(self):
         data = {
             "file_number": "ADS-TEST-NEW-BDG-MP",
-            "decision_date": "2019-03-18",
+            "decided_at": "2019-03-18",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -383,7 +389,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         expected = {
             "file_number": "ADS-TEST-NEW-BDG-MP",
-            "decision_date": "2019-03-18",
+            "decided_at": "2019-03-18",
             "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
@@ -404,7 +410,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_ads_create_with_new_bdg_point(self):
         data = {
             "file_number": "ADS-TEST-NEW-BDG",
-            "decision_date": "2019-03-18",
+            "decided_at": "2019-03-18",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -428,7 +434,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         expected = {
             "file_number": "ADS-TEST-NEW-BDG",
-            "decision_date": "2019-03-18",
+            "decided_at": "2019-03-18",
             "city": {
                 "name": "Grenoble",
                 "code_insee": "38185",
@@ -460,7 +466,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         data = {
             "file_number": "ADS-TEST-UPDATE",
-            "decision_date": "2025-01-02",
+            "decided_at": "2025-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -487,7 +493,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         expected = {
             "file_number": "ADS-TEST-UPDATE",
-            "decision_date": "2025-01-02",
+            "decided_at": "2025-01-02",
             "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
@@ -510,7 +516,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_ads_update_many_buildings(self):
         data = {
             "file_number": "ADS-TEST-UPDATE-MANY-BDG",
-            "decision_date": "2025-01-01",
+            "decided_at": "2025-01-01",
             "buildings_operations": [
                 {"operation": "modify", "building": {"rnb_id": "BDGSADSSONE1"}},
                 {
@@ -533,7 +539,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         expected = {
             "file_number": "ADS-TEST-UPDATE-MANY-BDG",
-            "decision_date": "2025-01-01",
+            "decided_at": "2025-01-01",
             "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
@@ -564,7 +570,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_ads_same_bdg_twice(self):
         data = {
             "file_number": "ADS-TEST-BDG-TWICE",
-            "decision_date": "2019-01-02",
+            "decided_at": "2019-01-02",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -594,7 +600,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_ads_wrong_file_number(self):
         data = {
             "file_number": "ADS-TEST",
-            "decision_date": "2019-01-02",
+            "decided_at": "2019-01-02",
             "insee_code": "4242",
         }
         r = self.client.post(
@@ -609,10 +615,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
         for key, msg in r_data.items():
             self.assertIn(msg_to_check[key], r_data[key])
 
-    def test_ads_wrong_decision_date(self):
+    def test_ads_wrong_decided_at(self):
         data = {
             "file_number": "ADS-TEST-DATE",
-            "decision_date": "2019-13-01",
+            "decided_at": "2019-13-01",
             "insee_code": "4242",
         }
         r = self.client.post(
@@ -623,13 +629,13 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
 
         msg_to_check = {
-            "decision_date": "Date has wrong format. Use one of these formats instead: YYYY-MM-DD."
+            "decided_at": "Date has wrong format. Use one of these formats instead: YYYY-MM-DD."
         }
 
         for key, msg in r_data.items():
             self.assertIn(msg_to_check[key], r_data[key])
 
-    def test_ads_absent_decision_date(self):
+    def test_ads_absent_decided_at(self):
         data = {"file_number": "ADS-TEST-DATE", "insee_code": "4242"}
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
@@ -638,7 +644,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = {"decision_date": "This field is required."}
+        msg_to_check = {"decided_at": "This field is required."}
 
         for key, msg in r_data.items():
             self.assertIn(msg_to_check[key], r_data[key])
@@ -646,7 +652,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_ads_wrong_bdg_rnbid(self):
         data = {
             "file_number": "ADS-TEST-2",
-            "decision_date": "2019-01-02",
+            "decided_at": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -671,7 +677,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_ads_wrong_operation(self):
         data = {
             "file_number": "ADS-TEST-2",
-            "decision_date": "2019-01-02",
+            "decided_at": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "destroy",
@@ -695,7 +701,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_ads_absent_lat(self):
         data = {
             "file_number": "ADS-TEST-2",
-            "decision_date": "2019-01-02",
+            "decided_at": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -720,7 +726,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_ads_wrong_geometry(self):
         data = {
             "file_number": "ADS-TEST-2",
-            "decision_date": "2019-01-02",
+            "decided_at": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -744,7 +750,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_ads_absent_geometry(self):
         data = {
             "file_number": "ADS-TEST-2",
-            "decision_date": "2019-01-02",
+            "decided_at": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -769,7 +775,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_ads_invalid_geometry(self):
         data = {
             "file_number": "ADS-TEST-2",
-            "decision_date": "2019-01-02",
+            "decided_at": "2019-01-02",
             "insee_code": "4242",
             "buildings_operations": [
                 {
@@ -821,7 +827,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         expected = {
             "file_number": "ADS-TEST",
-            "decision_date": "2019-01-01",
+            "decided_at": "2019-01-01",
             "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
@@ -912,40 +918,40 @@ class ADSEndpointsWithAuthTest(APITestCase):
         # ############
         # ADS
         ads = ADS.objects.create(
-            city=grenoble, file_number="ADS-TEST", decision_date="2019-01-01"
+            city=grenoble, file_number="ADS-TEST", decided_at="2019-01-01"
         )
         BuildingADS.objects.create(building=b, ads=ads, operation="build")
 
         ADS.objects.create(
-            file_number="ADS-TEST-FUTURE", decision_date="2035-01-02", city=grenoble
+            file_number="ADS-TEST-FUTURE", decided_at="2035-01-02", city=grenoble
         )
 
         ADS.objects.create(
             file_number="ADS-TEST-UPDATE",
-            decision_date="2025-01-01",
+            decided_at="2025-01-01",
             city=grenoble,
         )
         ADS.objects.create(
             file_number="ADS-TEST-UPDATE-BDG",
-            decision_date="2025-01-01",
+            decided_at="2025-01-01",
             city=grenoble,
         )
 
         ADS.objects.create(
             file_number="ADS-TEST-DELETE-YES",
-            decision_date="2025-01-01",
+            decided_at="2025-01-01",
             city=grenoble,
         )
         ADS.objects.create(
             file_number="ADS-TEST-DELETE-NO",
-            decision_date="2025-01-01",
+            decided_at="2025-01-01",
             city=cenac,
         )
 
         # For many buildings in one ADS (for update and delete test)
         many_bdg_ads = ADS.objects.create(
             file_number="ADS-TEST-UPDATE-MANY-BDG",
-            decision_date="2025-01-01",
+            decided_at="2025-01-01",
             city=grenoble,
         )
         BuildingADS.objects.create(
@@ -956,28 +962,26 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
 
         # User, Org & Token
-        u = User.objects.create_user(
+        self.user = User.objects.create_user(
             first_name="John", last_name="Doe", username="johndoe"
         )
         org = Organization.objects.create(name="Test Org", managed_cities=["38185"])
-        org.users.add(u)
+        org.users.add(self.user)
 
-        token = Token.objects.create(user=u)
+        token = Token.objects.create(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
 
 class ADSEnpointsNoAuthTest(APITestCase):
     def setUp(self) -> None:
+        grenoble = create_grenoble()
+
         ADS.objects.create(
-            file_number="ADS-TEST-UPDATE-BDG",
-            decision_date="2025-01-01",
-            insee_code="4242",
+            file_number="ADS-TEST-UPDATE-BDG", decided_at="2025-01-01", city=grenoble
         )
 
         ADS.objects.create(
-            file_number="ADS-TEST-DELETE",
-            decision_date="2025-01-01",
-            insee_code="4242",
+            file_number="ADS-TEST-DELETE", decided_at="2025-01-01", city=grenoble
         )
 
     def test_ads_root(self):

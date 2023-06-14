@@ -5,6 +5,8 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.gis.db import models
 from django.utils.timezone import now
 from django.conf import settings
+from django.db.models import F
+from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 
 
 class Building(models.Model):
@@ -25,6 +27,8 @@ class Building(models.Model):
     ext_bdtopo_id = models.CharField(
         max_length=40, null=True, unique=True, db_index=True
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def point_geojson(self):
         # todo : is there a better way to go from a PointField to geojson dict ?
@@ -40,8 +44,42 @@ class Building(models.Model):
     def point_lng(self):
         return self.point_geojson()["coordinates"][0]
 
+    @property
+    def current_status(self):
+        return self.status.filter(is_current=True).first()
+
     class Meta:
         ordering = ["rnb_id"]
+
+
+class BuildingStatus(models.Model):
+    id = models.AutoField(primary_key=True)
+    type = models.CharField(
+        choices=BuildingStatusModel.TYPES_CHOICES,
+        null=False,
+        db_index=True,
+        max_length=30,
+    )
+    happened_at = models.DateField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_current = models.BooleanField(null=False, default=False)
+    building = models.ForeignKey(
+        Building, related_name="status", on_delete=models.CASCADE
+    )
+
+    class Meta:
+        ordering = [F("happened_at").asc(nulls_first=True)]
+
+    @property
+    def label(self):
+        return BuildingStatusModel.get_label(self.type)
+
+    def save(self, *args, **kwargs):
+        # If the status is current, we make sure that the previous current status is not current anymore
+        if self.is_current:
+            self.building.status.filter(is_current=True).update(is_current=False)
+        super().save(*args, **kwargs)
 
 
 class City(models.Model):
@@ -51,18 +89,33 @@ class City(models.Model):
     shape = models.MultiPolygonField(
         null=True, spatial_index=True, srid=settings.DEFAULT_SRID
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class ADSAchievement(models.Model):
+    file_number = models.CharField(
+        max_length=40, null=False, unique=True, db_index=True
+    )
+    achieved_at = models.DateField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class ADS(models.Model):
     file_number = models.CharField(
         max_length=40, null=False, unique=True, db_index=True
     )
-    decision_date = models.DateField(null=True)
+    decided_at = models.DateField(null=True)
     city = models.ForeignKey(City, on_delete=models.CASCADE, null=True)
-    insee_code = models.CharField(max_length=5, null=True)
+    achieved_at = models.DateField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
 
     class Meta:
-        ordering = ["decision_date"]
+        ordering = ["decided_at"]
 
 
 class BuildingADS(models.Model):
@@ -71,6 +124,10 @@ class BuildingADS(models.Model):
         ADS, related_name="buildings_operations", on_delete=models.CASCADE
     )
     operation = models.CharField(max_length=10, null=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
 
     class Meta:
         unique_together = ("building", "ads")
@@ -87,6 +144,9 @@ class Address(models.Model):
     city_name = models.CharField(max_length=100, null=True)
     city_zipcode = models.CharField(max_length=5, null=True)
 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
 
 class Candidate(models.Model):
     shape = models.MultiPolygonField(null=True, srid=settings.DEFAULT_SRID)
@@ -94,7 +154,10 @@ class Candidate(models.Model):
     source_id = models.CharField(max_length=40, null=False)
     address_keys = ArrayField(models.CharField(max_length=40), null=True)
     is_light = models.BooleanField(null=True)
-    created_at = models.DateTimeField(default=now, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     inspected_at = models.DateTimeField(null=True)
     inspect_result = models.CharField(max_length=20, null=True, db_index=True)
 
@@ -103,3 +166,25 @@ class Organization(models.Model):
     name = models.CharField(max_length=100, null=False)
     users = models.ManyToManyField(User, related_name="organizations")
     managed_cities = ArrayField(models.CharField(max_length=6), null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class AsyncSignal(models.Model):
+    id = models.AutoField(primary_key=True)
+    type = models.CharField(max_length=20, null=False, db_index=True)
+    building = models.ForeignKey(Building, on_delete=models.CASCADE, null=True)
+    origin = models.CharField(max_length=100, null=False, db_index=True)
+    handled_at = models.DateTimeField(null=True)
+    handle_result = models.JSONField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    creator_copy_id = models.IntegerField(null=True)
+    creator_copy_fname = models.CharField(max_length=100, null=True)
+    creator_copy_lname = models.CharField(max_length=100, null=True)
+    creator_org_copy_id = models.IntegerField(null=True)
+    creator_org_copy_name = models.CharField(max_length=100, null=True)
+
+    class Meta:
+        ordering = ["created_at"]

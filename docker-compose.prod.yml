@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: ./app/Dockerfile
+      target: app_web
     restart: unless-stopped
     ports:
       - '8000:8000'
@@ -20,6 +21,7 @@ services:
       - VIRTUAL_HOST=rnb-api.beta.gouv.fr
       - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=rnb-api.beta.gouv.fr
+    container_name: web
   nginx-proxy:
     container_name: nginx-proxy
     build: ./nginx
@@ -50,8 +52,9 @@ services:
   worker:
     build:
       context: .
-      dockerfile: ./worker/Dockerfile
-    command: celery -A tasks worker --loglevel=INFO
+      dockerfile: ./app/Dockerfile
+      target: app_worker
+    command: celery -A app worker --loglevel=INFO
     volumes:
       - ./worker:/worker
       - ./source_data:/data/downloads
@@ -63,6 +66,7 @@ services:
     depends_on:
       - rabbitmq
       - redis
+    container_name: worker
   rabbitmq:
     image: rabbitmq:3.9-alpine
   redis:

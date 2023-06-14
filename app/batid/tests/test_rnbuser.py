@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from batid.models import Organization
-from batid.logic.user import RNBUser
+from batid.services.models_gears import UserGear
 
 
 class TestRNBUser(TestCase):
@@ -23,7 +23,7 @@ class TestRNBUser(TestCase):
     def test_user_can_manage_ads(self):
         u = User.objects.get(username="johndoe")
 
-        rnbuser = RNBUser(u)
+        rnbuser = UserGear(u)
         managed_codes = rnbuser.get_managed_insee_codes()
 
         managed_codes.sort()

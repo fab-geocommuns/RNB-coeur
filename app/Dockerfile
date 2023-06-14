@@ -1,4 +1,4 @@
-FROM python:3.10
+FROM python:3.10 as app
 
 WORKDIR /app
 
@@ -12,10 +12,10 @@ RUN pip install --upgrade pip
 COPY ./app/requirements.txt .
 RUN pip install -r requirements.txt
 
-#COPY ./app
-COPY ./shared_libs /shared_libs
-ENV PYTHONPATH "${PYTHONPATH}:/shared_libs"
+FROM app as app_web
 
 COPY ./app/entrypoint.sh .
 RUN chmod +x  ./entrypoint.sh
 ENTRYPOINT ["./entrypoint.sh"]
+
+FROM app as app_worker
