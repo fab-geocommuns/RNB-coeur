@@ -69,6 +69,7 @@ def _transform_bdtopo_feature(feature) -> dict:
         "source_id": feature["properties"]["ID"],
         "address_keys": f"{{{','.join(address_keys)}}}",
         "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
     }
 
     return bdg

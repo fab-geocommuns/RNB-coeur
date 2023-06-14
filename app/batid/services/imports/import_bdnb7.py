@@ -41,6 +41,7 @@ def import_bdnb7(dpt):
                 "source_id": row["batiment_construction_id"],
                 "address_keys": f"{{{','.join(address_keys)}}}",
                 "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
             }
             bdgs.append(bdg)
 

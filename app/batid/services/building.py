@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 
 import requests
-from batid.services.city import get_dpt_cities_geojson, get_city_geojson
+from batid.services.city import fetch_dpt_cities_geojson, fetch_city_geojson
 from batid.services.source import Source
 from batid.models import Building, City, BuildingStatus
 from django.db import connection
@@ -13,7 +13,7 @@ from django.conf import settings
 def remove_dpt(dpt: str):
     print(f"remove_dpt {dpt}")
 
-    cities_geojson = get_dpt_cities_geojson(dpt)
+    cities_geojson = fetch_dpt_cities_geojson(dpt)
 
     q = (
         "DELETE "
@@ -97,7 +97,7 @@ def export_city(insee_code: str):
     src.set_param("city", insee_code)
     src.set_param("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
-    cities_geojson = get_city_geojson(insee_code)
+    cities_geojson = fetch_city_geojson(insee_code)
 
     q = (
         "SELECT rnb_id, ST_AsGeoJSON(shape) as shape "
@@ -145,7 +145,7 @@ def add_default_status() -> int:
     )
 
     insert_q = (
-        f"INSERT INTO {BuildingStatus._meta.db_table}  (building_id, type, created_at, is_current) "
+        f"INSERT INTO {BuildingStatus._meta.db_table}  (building_id, type, created_at, updated_at, is_current) "
         "VALUES %s"
     )
 
@@ -153,7 +153,10 @@ def add_default_status() -> int:
         cursor.execute(select_q)
         rows = cursor.fetchall()
 
-        values = [(row[0], "constructed", datetime.now(), True) for row in rows]
+        values = [
+            (row[0], "constructed", datetime.now(), datetime.now(), True)
+            for row in rows
+        ]
         count += len(values)
 
         execute_values(cursor, insert_q, values, page_size=1000)

@@ -5,13 +5,13 @@ import psycopg2
 from psycopg2.extras import RealDictCursor, execute_values
 from shapely.geometry import MultiPolygon
 from django.db import connection
-from datetime import datetime
 from batid.services.geo import dbgeom_to_shapely
 from batid.services.rnb_id import generate_rnb_id
 from django.conf import settings
 from batid.models import Building
 from batid.models import Candidate as CandidateModel
 from batid.utils.db import dictfetchall
+from datetime import datetime, timezone
 
 
 # todo : convert old worker approach (dataclass to mimic django model) to new approach (django model)
@@ -159,7 +159,7 @@ class Inspector:
                 raise error
 
     def __create_buildings(self):
-        q = f"INSERT INTO {Building._meta.db_table} (rnb_id, source, point, shape) VALUES %s "
+        q = f"INSERT INTO {Building._meta.db_table} (rnb_id, source, point, shape, created_at, updated_at) VALUES %s "
 
         values = []
         for c in self.creations:
@@ -170,6 +170,8 @@ class Inspector:
                     bdg_dict["source"],
                     f"{bdg_dict['point'].wkt}",
                     f"{bdg_dict['shape'].wkt}",
+                    datetime.now(timezone.utc),
+                    datetime.now(timezone.utc),
                 )
             )
 

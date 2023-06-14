@@ -7,46 +7,66 @@ import psycopg2
 import requests
 from django.db import connection
 from batid.services.source import Source
-from batid.services.city import get_dpt_cities_geojson
+from batid.services.city import fetch_dpt_cities_geojson
 from batid.models import City
 from psycopg2.extras import execute_values
 
 # from settings import settings
 from django.conf import settings
 
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
+
 
 def import_etalab_cities(dpt: str):
-    cities_geojson = get_dpt_cities_geojson(dpt)
+    cities_geojson = fetch_dpt_cities_geojson(dpt)
 
-    q = (
-        f"INSERT INTO {City._meta.db_table} (code_insee, name, shape) VALUES (%(code_insee)s, %(name)s, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(shape)s), 4326), %(db_srid)s)) "
-        "ON CONFLICT (code_insee) DO UPDATE "
-        "SET code_insee = EXCLUDED.code_insee, name = EXCLUDED.name, shape = EXCLUDED.shape"
-    )
+    for c in cities_geojson["features"]:
+        geom = GEOSGeometry(json.dumps(c["geometry"]), srid=4326)
 
-    with connection.cursor() as cursor:
-        for c in cities_geojson["features"]:
-            print(f'--- {c["properties"]["nom"]} ---')
+        if geom.geom_type == "Polygon":
+            # transform into a multipolygon
+            geom = MultiPolygon([geom], srid=4326)
 
-            shape = c["geometry"]
-            if shape["type"] == "Polygon":
-                shape["coordinates"] = [shape["coordinates"]]
-                shape["type"] = "MultiPolygon"
+        geom.transform(settings.DEFAULT_SRID)
 
-            params = {
-                "code_insee": c["properties"]["code"],
-                "name": c["properties"]["nom"],
-                "shape": json.dumps(shape),
-                "db_srid": settings.DEFAULT_SRID,
-            }
+        try:
+            city = City.objects.get(code_insee=c["properties"]["code"])
+        except City.DoesNotExist:
+            city = City(code_insee=c["properties"]["code"])
 
-            try:
-                cursor.execute(q, params)
-                # connection.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cursor.close()
-                raise error
+        city.shape = geom
+        city.name = c["properties"]["nom"]
+        city.save()
+
+    # q = (
+    #     f"INSERT INTO {City._meta.db_table} (code_insee, name, shape) VALUES (%(code_insee)s, %(name)s, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(shape)s), 4326), %(db_srid)s)) "
+    #     "ON CONFLICT (code_insee) DO UPDATE "
+    #     "SET code_insee = EXCLUDED.code_insee, name = EXCLUDED.name, shape = EXCLUDED.shape"
+    # )
+    #
+    # with connection.cursor() as cursor:
+    #     for c in cities_geojson["features"]:
+    #         print(f'--- {c["properties"]["nom"]} ---')
+    #
+    #         shape = c["geometry"]
+    #         if shape["type"] == "Polygon":
+    #             shape["coordinates"] = [shape["coordinates"]]
+    #             shape["type"] = "MultiPolygon"
+    #
+    #         params = {
+    #             "code_insee": c["properties"]["code"],
+    #             "name": c["properties"]["nom"],
+    #             "shape": json.dumps(shape),
+    #             "db_srid": settings.DEFAULT_SRID,
+    #         }
+    #
+    #         try:
+    #             cursor.execute(q, params)
+    #             # connection.commit()
+    #         except (Exception, psycopg2.DatabaseError) as error:
+    #             connection.rollback()
+    #             cursor.close()
+    #             raise error
 
 
 def import_insee_cities(state_date):
