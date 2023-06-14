@@ -50,22 +50,6 @@ services:
       - rabbitmq
     restart: unless-stopped
     container_name: worker
-#  worker:
-#    build:
-#      context: .
-#      dockerfile: ./worker/Dockerfile
-#    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A tasks worker --loglevel=INFO
-#    volumes:
-#      - ./worker:/worker
-#      - ./source_data:/data/downloads
-#    env_file:
-#      - ./.env.db_auth.dev
-#      - ./.env.worker.dev
-#      - ./.env.rnb.dev
-#    depends_on:
-#      - db
-#      - rabbitmq
-#    restart: unless-stopped
   rabbitmq:
     restart: unless-stopped
     image: rabbitmq:3.9-alpine
