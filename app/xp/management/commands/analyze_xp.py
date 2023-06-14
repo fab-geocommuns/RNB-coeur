@@ -11,7 +11,7 @@ from batid.models import Building
 import pandas as pd
 
 
-from batid.logic.source import Source
+from batid.services.source import Source
 
 from batid.utils.db import dictfetchall
 
@@ -21,7 +21,6 @@ from batid.utils.db import dictfetchall
 
 
 class Command(BaseCommand):
-
     TARGET_SRID = 2154
     MIN_AREA = 5
 
@@ -35,29 +34,32 @@ class Command(BaseCommand):
         super().__init__()
 
     def __init_city_bdgs(self):
-
         # First load raw data
-        source = Source('xp-grenoble')
+        source = Source("xp-grenoble")
 
-        with open(source.path, 'r') as f:
+        with open(source.path, "r") as f:
             data = json.load(f)
 
             if isinstance(self.SAMPLE_SIZE, int):
                 end = self.SAMPLE_SIZE
                 print(f">>> Limited sample size: {self.SAMPLE_SIZE}")
             else:
-                end = len(data['features'])
+                end = len(data["features"])
 
-            self.city_bdgs = data['features'][0:end]
+            self.city_bdgs = data["features"][0:end]
 
             # Keep only one id if required
             if isinstance(self.TARGET_BATIM_ID, int):
-                self.city_bdgs = [b for b in self.city_bdgs if b['properties']['BATIM_ID'] == self.TARGET_BATIM_ID]
+                self.city_bdgs = [
+                    b
+                    for b in self.city_bdgs
+                    if b["properties"]["BATIM_ID"] == self.TARGET_BATIM_ID
+                ]
 
             print(f">>> Loaded {len(self.city_bdgs)} features")
 
         # Add geom and area
-        print('-- init city bdgs')
+        print("-- init city bdgs")
 
         init_count = 0
         features = []
@@ -70,17 +72,16 @@ class Command(BaseCommand):
 
         self.city_bdgs = features
 
-        print('')
+        print("")
+
 
 def feature_w_geom(feature: dict) -> dict:
-
-
-    geom = GEOSGeometry(json.dumps(feature['geometry']))
+    geom = GEOSGeometry(json.dumps(feature["geometry"]))
 
     if geom.srid != settings.DEFAULT_SRID:
         geom.transform(settings.DEFAULT_SRID)
 
-    feature['properties']['geom'] = geom
-    feature['properties']['area'] = geom.area
+    feature["properties"]["geom"] = geom
+    feature["properties"]["area"] = geom.area
 
     return feature

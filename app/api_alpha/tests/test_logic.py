@@ -1,6 +1,6 @@
 from rest_framework.test import APITestCase
-from api_alpha.logic import calc_ads_cities
-from api_alpha.tests.helpers import create_bdg, create_paris, create_grenoble
+from api_alpha.services import calc_ads_cities
+from batid.tests.helpers import create_bdg, create_paris, create_grenoble
 
 
 class LogicTest(APITestCase):
@@ -111,7 +111,7 @@ class LogicTest(APITestCase):
     def test_calc_one_new_bdg_point_paris(self):
         data = {
             "file_number": "ADS-TEST-NEW-BDG",
-            "decision_date": "2019-03-18",
+            "decided_at": "2019-03-18",
             "buildings_operations": [
                 {
                     "operation": "build",

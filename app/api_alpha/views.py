@@ -1,15 +1,16 @@
 from api_alpha.permissions import ADSPermission, ADSCityPermission
 from api_alpha.serializers import ADSSerializer, BuildingSerializer
-from api_alpha.logic import calc_ads_cities
-from batid.logic.ads_search import ADSSearch
-from batid.logic.bdg_search import BuildingSearch
+from batid.services.search_ads import ADSSearch
+from batid.services.search_bdg import BuildingSearch
+from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.models import ADS, Building, BuildingADS
+
 from rest_framework import viewsets
 from rest_framework.exceptions import ParseError
 from rest_framework.generics import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rnbid.generator import clean_rnb_id
+from batid.services.rnb_id import clean_rnb_id
 
 
 class BuildingViewSet(viewsets.ModelViewSet):
@@ -41,7 +42,23 @@ class BuildingViewSet(viewsets.ModelViewSet):
         return obj
 
     def get_queryset(self):
-        search = BuildingSearch(**self.request.query_params.dict())
+        search = BuildingSearch()
+
+        # If the user is authenticated, it has access to the full list of status
+        if self.request.user.is_authenticated:
+            search.params.allowed_status = BuildingStatusModel.ALL_TYPES_KEYS
+
+        # If we are listing buildings, the default status we display are those ones
+        if self.action == "list":
+            search.params.status = [
+                "ongoingConstruction",
+                "constructed",
+                "ongoingChange",
+                "notUsable",
+            ]
+
+        # Then we apply the filters requested by the user
+        search.set_params(**self.request.query_params.dict())
 
         if not search.is_valid():
             raise ParseError({"errors": search.errors})

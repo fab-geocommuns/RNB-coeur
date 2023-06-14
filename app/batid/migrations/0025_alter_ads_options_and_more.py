@@ -4,24 +4,23 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('batid', '0024_alter_city_code_insee'),
+        ("batid", "0024_alter_city_code_insee"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='ads',
-            options={'ordering': ['decision_date']},
+            name="ads",
+            options={"ordering": ["decided_at"]},
         ),
         migrations.RenameField(
-            model_name='ads',
-            old_name='issue_date',
-            new_name='decision_date',
+            model_name="ads",
+            old_name="issue_date",
+            new_name="decision_date",
         ),
         migrations.RenameField(
-            model_name='ads',
-            old_name='issue_number',
-            new_name='file_number',
+            model_name="ads",
+            old_name="issue_number",
+            new_name="file_number",
         ),
     ]

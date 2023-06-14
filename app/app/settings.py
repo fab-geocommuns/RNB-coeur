@@ -168,6 +168,7 @@ CELERY_BACKEND_URL = os.environ.get("CELERY_RESULT_BACKEND")
 
 # Bat ID custom settings
 DEFAULT_SRID = int(os.environ.get("DEFAULT_SRID"))  # 2154 = Lambert 93
+MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))
 
 sentry_dsn = os.environ.get("SENTRY_DSN", None)
 if sentry_dsn:

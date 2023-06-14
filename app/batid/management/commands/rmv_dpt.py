@@ -19,5 +19,5 @@ class Command(BaseCommand):
             print("Aborting")
             return
 
-        app.send_task("tasks.remove_dpt", args=[dpt])
+        app.send_task("batid.tasks.remove_dpt", args=[dpt])
         print("Task sent to the worker")

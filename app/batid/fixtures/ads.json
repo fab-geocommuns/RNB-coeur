@@ -4,7 +4,7 @@
     "pk": 1,
     "fields": {
       "issue_number": "AAAAAA",
-      "decision_date": "2023-03-16"
+      "decided_at": "2023-03-16"
     }
   },
   {
@@ -12,7 +12,7 @@
     "pk": 2,
     "fields": {
       "issue_number": "BBBB",
-      "decision_date": "2023-03-14"
+      "decided_at": "2023-03-14"
     }
   }
 
