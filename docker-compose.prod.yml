@@ -56,7 +56,7 @@ services:
       context: .
       dockerfile: ./app/Dockerfile
       target: app_worker
-    command: celery -A app worker --loglevel=INFO
+    command: celery -A app worker --concurrency=1 --loglevel=INFO
     volumes:
       - ./app:/app
       - ./source_data:/data/downloads
