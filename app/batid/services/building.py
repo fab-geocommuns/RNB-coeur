@@ -10,6 +10,7 @@ from psycopg2.extras import RealDictCursor, execute_values
 from django.conf import settings
 
 
+
 def remove_dpt(dpt: str):
     print(f"remove_dpt {dpt}")
 
