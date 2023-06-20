@@ -2,44 +2,19 @@ import json
 from datetime import datetime, timezone
 
 import requests
-from batid.services.city import fetch_dpt_cities_geojson, fetch_city_geojson
+from batid.services.france import fetch_dpt_cities_geojson, fetch_city_geojson
 from batid.services.source import Source
-from batid.models import Building, City, BuildingStatus
+from batid.models import Building, City, BuildingStatus, Department
 from django.db import connection
 from psycopg2.extras import RealDictCursor, execute_values
 from django.conf import settings
 
 
+def remove_dpt_bdgs(dpt_code: str):
+    print(f"remove bdgs from department {dpt_code}")
 
-def remove_dpt(dpt: str):
-    print(f"remove_dpt {dpt}")
-
-    cities_geojson = fetch_dpt_cities_geojson(dpt)
-
-    q = (
-        "DELETE "
-        f"FROM {Building._meta.db_table} "
-        "WHERE ST_Intersects(shape, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(geom)s), 4326), %(db_srid)s)) "
-    )
-
-    with connection.cursor() as cursor:
-        for c in cities_geojson["features"]:
-            name = c["properties"]["nom"]
-
-            print(f"Removing bdgs in {name} (insee : {c['properties']['code']})")
-
-            params = {
-                "geom": json.dumps(c["geometry"]),
-                "db_srid": settings.DEFAULT_SRID,
-            }
-
-            try:
-                cursor.execute(q, params)
-                connection.commit()
-            except Exception as error:
-                connection.rollback()
-                cursor.close()
-                raise error
+    dpt = Department.objects.get(code=dpt_code)
+    Building.objects.filter(point__intersects=dpt.shape).delete()
 
 
 def remove_light_bdgs(dpt):

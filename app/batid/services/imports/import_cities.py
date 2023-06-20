@@ -1,5 +1,4 @@
 import base64
-import csv
 import json
 import os
 
@@ -7,11 +6,9 @@ import psycopg2
 import requests
 from django.db import connection
 from batid.services.source import Source
-from batid.services.city import fetch_dpt_cities_geojson
+from batid.services.france import fetch_dpt_cities_geojson
 from batid.models import City
 from psycopg2.extras import execute_values
-
-# from settings import settings
 from django.conf import settings
 
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
