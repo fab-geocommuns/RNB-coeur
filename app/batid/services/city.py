@@ -10,3 +10,11 @@ def fetch_city_geojson(insee_code: int) -> dict:
 def fetch_dpt_cities_geojson(dpt: str) -> dict:
     url = f"https://geo.api.gouv.fr/departements/{dpt}/communes?format=geojson&geometry=contour"
     return requests.get(url).json()
+
+def dpt_codes() -> set:
+    metro = {str(i).zfill(2) for i in range(1, 96)}
+    metro.add("2A")
+    metro.add("2B")
+    metro.remove("20")
+    outre_mer = set(["971", "972", "973", "974", "976"])
+    return metro.union(outre_mer)
