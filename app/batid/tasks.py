@@ -64,7 +64,8 @@ def inspect_candidates():
     while True:
         i = Inspector()
         inspections_len = i.inspect()
-        if inspections_len > 0:
+        print(f"inspections_len: {inspections_len}")
+        if inspections_len <= 0:
             break
 
     return "done"
@@ -100,7 +101,8 @@ def add_default_status():
 
     while True:
         c = add_default_status_job()
-        if c > 0:
+        print(f"add_default_status: {c}")
+        if c <= 0:
             break
 
     return "done"
