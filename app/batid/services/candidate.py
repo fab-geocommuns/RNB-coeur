@@ -2,8 +2,9 @@ from dataclasses import dataclass, field
 from typing import List
 
 import psycopg2
+from django.contrib.gis.geos import MultiPolygon
 from psycopg2.extras import RealDictCursor, execute_values
-from shapely.geometry import MultiPolygon
+from shapely.geometry import MultiPolygon as ShapelyMultiPolygon
 from django.db import connection
 from batid.services.geo import dbgeom_to_shapely
 from batid.services.rnb_id import generate_rnb_id
@@ -18,7 +19,7 @@ from datetime import datetime, timezone
 @dataclass
 class Candidate:
     id: int
-    shape: MultiPolygon
+    shape: ShapelyMultiPolygon
     is_light: bool
     source: str
     source_id: str
@@ -54,6 +55,8 @@ class Inspector:
     BATCH_SIZE = 50000
 
     def __init__(self):
+        self.zone = None  # MultiPolygon
+
         self.refusals = []
         self.creations = []
         self.updates = []
@@ -205,17 +208,23 @@ class Inspector:
             self.__refuse(c)
 
     def get_matches_query(self):
+        params = {"min_intersect_ratio": 0.85, "limit": self.BATCH_SIZE}
+
+        where_conds = ["c.inspected_at is null"]
+
+        if isinstance(self.zone, MultiPolygon):
+            where_conds.append("ST_Intersects(c.shape, %(zone)s)")
+            params["zone"] = f"{self.zone}"
+
         q = (
             "SELECT c.*, count(b.id) as match_cnt "
             f"from {CandidateModel._meta.db_table} as c "
             "left join batid_building as b on ST_Intersects(b.shape, c.shape) "
             "and ST_Area(ST_Intersection(b.shape, c.shape)) / ST_Area(c.shape) >= %(min_intersect_ratio)s "
-            "where c.inspected_at is null  "
+            f"where {' and '.join(where_conds)}  "
             "group by c.id "
             "limit %(limit)s"
         )
-
-        params = {"min_intersect_ratio": 0.85, "limit": self.BATCH_SIZE}
 
         return q, params
 
