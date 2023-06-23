@@ -8,30 +8,13 @@ class Source:
     _dl_dir = os.environ.get("DOWNLOAD_DIR")
 
     # Must be prefixed with a dot
-    refs = {
-        "bdnb_7_buffer": {
-            "folder": "bdnb_7",
-            "filename": "buffer.csv",
-        },
-        "bdtopo": {
-            "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_224$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15.7z",
-            "filename": "BATIMENT.shp",
-        },
-        "bdnb_7": {
-            "url": "https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz",
-        },
-        "insee-cog-commune": {
-            "url": "https://api.insee.fr/metadonnees/V1/geo/communes",
-            "folder": "insee_cog",
-            "filename": "commune_insee.csv",
-        },
-        "export": {"filename": "export-{{city}}-{{date}}.geojson"},
-        "ads-dgfip": {"filename": "{{fname}}"},
-    }
+
     archive_exts = [".7z", ".tar.gz"]
 
     def __init__(self, name, custom_ref=None):
         self.name = name
+
+        self.refs = self.default_ref()
 
         if isinstance(custom_ref, dict):
             self.ref = custom_ref
@@ -39,6 +22,28 @@ class Source:
             self.ref = self.refs[name]
 
         self.create_abs_dir()
+
+    def default_ref(self) -> dict:
+        return {
+            "bdnb_7_buffer": {
+                "folder": "bdnb_7",
+                "filename": "buffer.csv",
+            },
+            "bdtopo": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_224$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdnb_7": {
+                "url": "https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz",
+            },
+            "insee-cog-commune": {
+                "url": "https://api.insee.fr/metadonnees/V1/geo/communes",
+                "folder": "insee_cog",
+                "filename": "commune_insee.csv",
+            },
+            "export": {"filename": "export-{{city}}-{{date}}.geojson"},
+            "ads-dgfip": {"filename": "{{fname}}"},
+        }
 
     def set_param(self, p_key, p_val):
         for k in self.ref:
