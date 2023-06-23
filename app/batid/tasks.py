@@ -60,10 +60,13 @@ def import_dpts():
 
 @shared_task
 def inspect_candidates():
-    i = Inspector()
-    inspections_len = i.inspect()
-    if inspections_len > 0:
-        app.send_task("batid.tasks.inspect_candidates")
+
+    while True:
+        i = Inspector()
+        inspections_len = i.inspect()
+        if inspections_len > 0:
+            break
+
     return "done"
 
 
@@ -94,10 +97,12 @@ def export_city(insee_code):
 
 @shared_task
 def add_default_status():
-    c = add_default_status_job()
-    print(f"Added {c} default status")
-    if c > 0:
-        app.send_task("batid.tasks.add_default_status")
+
+    while True:
+        c = add_default_status_job()
+        if c > 0:
+            break
+
     return "done"
 
 
