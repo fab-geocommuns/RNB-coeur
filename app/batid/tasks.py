@@ -61,10 +61,15 @@ def import_dpts():
 @shared_task
 def inspect_candidates():
 
+    print('---- Inspecting candidates ----')
+
+    inspected = 0
+
     while True:
         i = Inspector()
         inspections_len = i.inspect()
-        print(f"inspections_len: {inspections_len}")
+        inspected += inspections_len
+        print(f"Inspected {inspected} candidates so far")
         if inspections_len <= 0:
             break
 
@@ -98,10 +103,14 @@ def export_city(insee_code):
 
 @shared_task
 def add_default_status():
+    print('---- Adding default status ----')
+
+    added = 0
 
     while True:
         c = add_default_status_job()
-        print(f"add_default_status: {c}")
+        added += c
+        print(f"Added {added} default status so far")
         if c <= 0:
             break
 
