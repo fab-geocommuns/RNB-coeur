@@ -77,7 +77,7 @@ class Inspector:
         q = f"DELETE FROM {CandidateModel._meta.db_table} WHERE shape IS NULL " \
             "OR ST_IsEmpty(shape) " \
             "OR ST_IsValid(shape) = false " \
-            "OR ST_Area(c.shape) = 0 " \
+            "OR ST_Area(shape) = 0 " \
 
         with connection.cursor() as cur:
             try:
