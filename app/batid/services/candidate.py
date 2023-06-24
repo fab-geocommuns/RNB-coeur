@@ -72,7 +72,26 @@ class Inspector:
                 cur.close()
                 raise error
 
+    def remove_zero_invalid_candidates(self):
+
+        q = f"DELETE FROM {CandidateModel._meta.db_table} WHERE shape IS NULL " \
+            "OR ST_IsEmpty(shape) " \
+            "OR ST_IsValid(shape) = false " \
+            "OR ST_Area(c.shape) = 0 " \
+
+        with connection.cursor() as cur:
+            try:
+                cur.execute(q)
+                connection.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                connection.rollback()
+                cur.close()
+                raise error
+
     def inspect(self) -> int:
+
+        self.remove_zero_invalid_candidates()
+
         q, params = self.get_matches_query()
 
         with connection.cursor() as cur:
