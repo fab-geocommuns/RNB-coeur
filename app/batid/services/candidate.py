@@ -93,6 +93,7 @@ class Inspector:
         print("")
         print("-- Inspect batch")
 
+        b_start = perf_counter()
         q, params = self.get_matches_query()
 
         with connection.cursor() as cur:
@@ -110,6 +111,9 @@ class Inspector:
             print(f"inspect_match: {end - start:.2f}s")
 
         self.handle_inspected_candidates()
+
+        b_end = perf_counter()
+        print(f"Total batch time: {b_end - b_start:.2f}s")
 
         return c
 
