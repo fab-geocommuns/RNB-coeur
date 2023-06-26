@@ -90,7 +90,7 @@ class Inspector:
                 raise error
 
     def inspect(self) -> int:
-        print("")
+        print("\r")
         print("-- Inspect batch")
 
         b_start = perf_counter()
