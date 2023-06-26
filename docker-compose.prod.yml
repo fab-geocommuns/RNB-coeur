@@ -73,6 +73,8 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.9-alpine
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
   redis:
     image: redis:latest
     command: redis-server --appendonly yes --replica-read-only no

@@ -55,6 +55,7 @@ services:
     image: rabbitmq:3.9-alpine
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
   redis:
     image: redis:latest
     ports:
