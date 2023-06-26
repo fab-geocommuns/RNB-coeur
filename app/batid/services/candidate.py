@@ -214,7 +214,7 @@ class Inspector:
 
         with connection.cursor() as cur:
             try:
-                execute_values(cur, q, values, page_size=1000)
+                execute_values(cur, q, values, page_size=5000)
                 connection.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 connection.rollback()
