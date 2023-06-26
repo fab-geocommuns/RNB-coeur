@@ -93,6 +93,8 @@ class Inspector:
         print("\r")
         print("-- Inspect batch")
 
+        self._adapt_db_settings()
+
         b_start = perf_counter()
         q, params = self.get_matches_query()
 
@@ -181,7 +183,10 @@ class Inspector:
             return
 
         # Create the buildings
+        start = perf_counter()
         self.__create_buildings()
+        end = perf_counter()
+        print(f"-- create_buildings: {end - start:.2f}s")
 
         # Then update the candidates
         q = f"UPDATE {CandidateModel._meta.db_table} SET inspected_at = now(), inspect_result = 'created_bdg' WHERE id in %(ids)s"
@@ -190,8 +195,11 @@ class Inspector:
 
         with connection.cursor() as cur:
             try:
+                start = perf_counter()
                 cur.execute(q, params)
                 connection.commit()
+                end = perf_counter()
+                print(f"-- update_candidates after bdg creation: {end - start:.2f}s")
             except (Exception, psycopg2.DatabaseError) as error:
                 connection.rollback()
                 cur.close()
@@ -201,6 +209,8 @@ class Inspector:
         q = f"INSERT INTO {Building._meta.db_table} (rnb_id, source, point, shape, created_at, updated_at) VALUES %s "
 
         values = []
+
+        start = perf_counter()
         for c in self.creations:
             bdg_dict = c.to_bdg_dict()
             values.append(
@@ -213,11 +223,16 @@ class Inspector:
                     datetime.now(timezone.utc),
                 )
             )
+        end = perf_counter()
+        print(f"---- create_buildings : calculate values: {end - start:.2f}s")
 
         with connection.cursor() as cur:
             try:
+                start = perf_counter()
                 execute_values(cur, q, values, page_size=5000)
                 connection.commit()
+                end = perf_counter()
+                print(f"---- create_buildings : execute_values: {end - start:.2f}s")
             except (Exception, psycopg2.DatabaseError) as error:
                 connection.rollback()
                 cur.close()
@@ -289,3 +304,16 @@ class Inspector:
         self.refusals.append(c)
 
         # self.__close_inspection(c, 'refused')
+
+    def _adapt_db_settings(self):
+        with connection.cursor() as cur:
+            cur.execute("SET work_mem TO '200MB';")
+            connection.commit()
+
+            cur.execute("SET maintenance_work_mem TO '1GB';")
+            connection.commit()
+
+            cur.execute("SET max_parallel_workers_per_gather TO 4;")
+            connection.commit()
+
+        pass
