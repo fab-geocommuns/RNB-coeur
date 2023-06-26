@@ -90,28 +90,30 @@ class Inspector:
                 raise error
 
     def inspect(self) -> int:
-        start = perf_counter()
-        self.remove_invalid_candidates()
-        end = perf_counter()
-        print(f"remove_invalid_candidates: {end - start:.2f}s")
+        print("\r")
+        print("-- Inspect batch")
 
-        start = perf_counter()
+        b_start = perf_counter()
         q, params = self.get_matches_query()
-        end = perf_counter()
-        print(f"get_matches_query: {end - start:.2f}s")
 
-        start = perf_counter()
         with connection.cursor() as cur:
+            start = perf_counter()
             matches = dictfetchall(cur, q, params)
+            end = perf_counter()
+            print(f"fetch_matches: {end - start:.2f}s")
 
             c = 0
+            start = perf_counter()
             for m_row in matches:
                 c += 1
                 self.inspect_match(m_row)
-        end = perf_counter()
-        print(f"inspect_match: {end - start:.2f}s")
+            end = perf_counter()
+            print(f"inspect_match: {end - start:.2f}s")
 
         self.handle_inspected_candidates()
+
+        b_end = perf_counter()
+        print(f"Total batch time: {b_end - b_start:.2f}s")
 
         return c
 

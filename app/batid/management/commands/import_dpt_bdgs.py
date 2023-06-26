@@ -26,7 +26,7 @@ class Command(BaseCommand):
             "dl_bdnb7",
             "import_bdtopo",
             "import_bdnb7",
-            "remove_inspected_candidates",
+            "pre_clean_candidates",
             "inspect",
             "add_status",
         ]
@@ -65,9 +65,12 @@ class Command(BaseCommand):
             tasks.append(
                 Signature("batid.tasks.import_bdnb7", args=[dpt], immutable=True)
             )
-        if "remove_inspected_candidates" in steps:
+        if "pre_clean_candidates" in steps:
             tasks.append(
                 Signature("batid.tasks.remove_inspected_candidates", immutable=True)
+            )
+            tasks.append(
+                Signature("batid.tasks.remove_invalid_candidates", immutable=True)
             )
         if "inspect" in steps:
             tasks.append(Signature("batid.tasks.inspect_candidates", immutable=True))

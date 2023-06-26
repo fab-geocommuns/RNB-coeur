@@ -60,8 +60,7 @@ def import_dpts():
 
 @shared_task
 def inspect_candidates():
-
-    print('---- Inspecting candidates ----')
+    print("---- Inspecting candidates ----")
 
     inspected = 0
 
@@ -80,6 +79,13 @@ def inspect_candidates():
 def remove_inspected_candidates():
     i = Inspector()
     i.remove_inspected()
+    return "done"
+
+
+@shared_task
+def remove_invalid_candidates():
+    i = Inspector()
+    i.remove_invalid_candidates()
     return "done"
 
 
@@ -103,7 +109,7 @@ def export_city(insee_code):
 
 @shared_task
 def add_default_status():
-    print('---- Adding default status ----')
+    print("---- Adding default status ----")
 
     added = 0
 
