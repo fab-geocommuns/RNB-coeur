@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from time import perf_counter
 from typing import List
 
 import psycopg2
@@ -72,13 +73,13 @@ class Inspector:
                 cur.close()
                 raise error
 
-    def remove_zero_invalid_candidates(self):
-
-        q = f"DELETE FROM {CandidateModel._meta.db_table} WHERE shape IS NULL " \
-            "OR ST_IsEmpty(shape) " \
-            "OR ST_IsValid(shape) = false " \
-            "OR ST_Area(shape) = 0 " \
-
+    def remove_invalid_candidates(self):
+        q = (
+            f"DELETE FROM {CandidateModel._meta.db_table} WHERE shape IS NULL "
+            "OR ST_IsEmpty(shape) "
+            "OR ST_IsValid(shape) = false "
+            "OR ST_Area(shape) = 0 "
+        )
         with connection.cursor() as cur:
             try:
                 cur.execute(q)
@@ -89,11 +90,17 @@ class Inspector:
                 raise error
 
     def inspect(self) -> int:
+        start = perf_counter()
+        self.remove_invalid_candidates()
+        end = perf_counter()
+        print(f"remove_invalid_candidates: {end - start:.2f}s")
 
-        self.remove_zero_invalid_candidates()
-
+        start = perf_counter()
         q, params = self.get_matches_query()
+        end = perf_counter()
+        print(f"get_matches_query: {end - start:.2f}s")
 
+        start = perf_counter()
         with connection.cursor() as cur:
             matches = dictfetchall(cur, q, params)
 
@@ -101,20 +108,28 @@ class Inspector:
             for m_row in matches:
                 c += 1
                 self.inspect_match(m_row)
-
-        # print(f"inspected: {c}")
-        # print(f"refusals: {len(self.refusals)}")
-        # print(f"creations: {len(self.creations)}")
-        # print(f"updates: {len(self.updates)}")
+        end = perf_counter()
+        print(f"inspect_match: {end - start:.2f}s")
 
         self.handle_inspected_candidates()
 
         return c
 
     def handle_inspected_candidates(self):
+        start = perf_counter()
         self.__handle_refusals()
+        end = perf_counter()
+        print(f"handle_refusals: {end - start:.2f}s")
+
+        start = perf_counter()
         self.__handle_creations()
+        end = perf_counter()
+        print(f"handle_creations: {end - start:.2f}s")
+
+        start = perf_counter()
         self.__handle_updates()
+        end = perf_counter()
+        print(f"handle_updates: {end - start:.2f}s")
 
     # update all refused candidates with status 'refused'
     def __handle_refusals(self):
