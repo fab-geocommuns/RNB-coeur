@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass, field
 from time import perf_counter
 from typing import List
@@ -12,6 +13,7 @@ from batid.services.rnb_id import generate_rnb_id
 from django.conf import settings
 from batid.models import Building
 from batid.models import Candidate as CandidateModel
+from batid.services.source import BufferToCopy
 from batid.utils.db import dictfetchall
 from datetime import datetime, timezone
 
@@ -153,9 +155,12 @@ class Inspector:
         if len(self.refusals) == 0:
             return
 
-        q = f"UPDATE {CandidateModel._meta.db_table} SET inspected_at = now(), inspect_result = 'refused' WHERE id in %(ids)s"
+        ids = tuple([c.id for c in self.refusals])
+        self.__remove_candidates(ids)
 
-        params = {"ids": tuple([c.id for c in self.refusals])}
+    def __remove_candidates(self, ids: tuple):
+        q = f"DELETE FROM {CandidateModel._meta.db_table} WHERE id in %(ids)s"
+        params = {"ids": ids}
 
         with connection.cursor() as cur:
             try:
@@ -173,18 +178,8 @@ class Inspector:
         if len(self.updates) == 0:
             return
 
-        q = f"UPDATE {CandidateModel._meta.db_table} SET inspected_at = now(), inspect_result = 'updated_bdg' WHERE id in %(ids)s"
-
-        params = {"ids": tuple([c.id for c in self.updates])}
-
-        with connection.cursor() as cur:
-            try:
-                cur.execute(q, params)
-                connection.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cur.close()
-                raise error
+        ids = tuple([c.id for c in self.updates])
+        self.__remove_candidates(ids)
 
     # create new buildings for all created candidates
     def __handle_creations(self):
@@ -199,24 +194,13 @@ class Inspector:
         end = perf_counter()
         print(f"-- create_buildings: {end - start:.2f}s")
 
-        # Then update the candidates
-        q = f"UPDATE {CandidateModel._meta.db_table} SET inspected_at = now(), inspect_result = 'created_bdg' WHERE id in %(ids)s"
-
-        params = {"ids": tuple([c.id for c in self.creations])}
-
-        with connection.cursor() as cur:
-            try:
-                start = perf_counter()
-                cur.execute(q, params)
-                connection.commit()
-                end = perf_counter()
-                print(f"-- update_candidates after bdg creation: {end - start:.2f}s")
-            except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cur.close()
-                raise error
+        # Remove handled candidates
+        ids = tuple([c.id for c in self.creations])
+        self.__remove_candidates(ids)
 
     def __create_buildings(self):
+        buffer = BufferToCopy()
+
         q = f"INSERT INTO {Building._meta.db_table} (rnb_id, source, point, shape, created_at, updated_at) VALUES %s "
 
         values = []
@@ -234,15 +218,29 @@ class Inspector:
                     datetime.now(timezone.utc),
                 )
             )
+
+        buffer.write_data(values)
         end = perf_counter()
         print(f"---- create_buildings : calculate values: {end - start:.2f}s")
 
-        with connection.cursor() as cur:
+        with connection.cursor() as cur, open(buffer.path, "r") as f:
             try:
                 start = perf_counter()
-                execute_values(cur, q, values, page_size=5000)
-                connection.commit()
+                cur.copy_from(
+                    f,
+                    Building._meta.db_table,
+                    sep=";",
+                    columns=(
+                        "rnb_id",
+                        "source",
+                        "point",
+                        "shape",
+                        "created_at",
+                        "updated_at",
+                    ),
+                )
                 end = perf_counter()
+                os.remove(buffer.path)
                 print(f"---- create_buildings : execute_values: {end - start:.2f}s")
             except (Exception, psycopg2.DatabaseError) as error:
                 connection.rollback()
@@ -317,28 +315,32 @@ class Inspector:
         # self.__close_inspection(c, 'refused')
 
     def _adapt_db_settings(self):
-        # with connection.cursor() as cur:
-        #     cur.execute("SET work_mem TO '200MB';")
-        #     connection.commit()
-        #
-        #     cur.execute("SET maintenance_work_mem TO '1GB';")
-        #     connection.commit()
-        #
-        #     cur.execute("SET max_parallel_workers_per_gather TO 4;")
-        #     connection.commit()
+        with connection.cursor() as cur:
+            cur.execute("SET work_mem TO '200MB';")
+            connection.commit()
+
+            cur.execute("SET maintenance_work_mem TO '1GB';")
+            connection.commit()
+
+            cur.execute("SET max_parallel_workers_per_gather TO 4;")
+            connection.commit()
 
         pass
 
     def clean_candidate_table(self):
-        print("clean_candidate_table")
-        q = f"VACUUM ANALYZE {CandidateModel._meta.db_table};"
-        with connection.cursor() as cur:
-            cur.execute(q)
-            connection.commit()
+        # print("clean_candidate_table")
+        # q = f"VACUUM ANALYZE {CandidateModel._meta.db_table};"
+        # with connection.cursor() as cur:
+        #     cur.execute(q)
+        #     connection.commit()
+
+        pass
 
     def clean_bdg_table(self):
-        print("clean_bdg_table")
-        q = f"VACUUM ANALYZE {Building._meta.db_table};"
-        with connection.cursor() as cur:
-            cur.execute(q)
-            connection.commit()
+        # print("clean_bdg_table")
+        # q = f"VACUUM ANALYZE {Building._meta.db_table};"
+        # with connection.cursor() as cur:
+        #     cur.execute(q)
+        #     connection.commit()
+
+        pass

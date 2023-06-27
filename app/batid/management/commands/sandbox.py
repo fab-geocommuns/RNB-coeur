@@ -1,26 +1,22 @@
 from time import perf_counter
 
-from batid.services.search_bdg import BuildingSearch
-from batid.services.source import Source
+from batid.models import Candidate, Building
 from django.core.management.base import BaseCommand
-import pandas as pd
-from batid.services.imports.import_dgfip_ads import import_dgfip_ads_achievements
+
+from batid.services.building import add_default_status
+from batid.services.candidate import Inspector
 
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        loops = 1
-        duration = 0
-        for _ in range(loops):
-            s = BuildingSearch()
-            s.set_params(
-                bb="44.85286264607754,-0.5931455176501856,44.85092733766149,-0.5826084823448241"
-            )
-            start = perf_counter()
-            qs = s.get_queryset()
-            c = qs.count()
-            end = perf_counter()
+        # print("-- remove")
+        # Building.objects.all().delete()
 
-            duration += end - start
+        print("-- create")
+        start = perf_counter()
 
-        print(f"Average : {duration/loops:.3f}s per search")
+        i = Inspector()
+        i.inspect()
+
+        end = perf_counter()
+        print(f"-- done in {end - start:0.4f} seconds")
