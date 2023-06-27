@@ -317,28 +317,32 @@ class Inspector:
         # self.__close_inspection(c, 'refused')
 
     def _adapt_db_settings(self):
-        # with connection.cursor() as cur:
-        #     cur.execute("SET work_mem TO '200MB';")
-        #     connection.commit()
-        #
-        #     cur.execute("SET maintenance_work_mem TO '1GB';")
-        #     connection.commit()
-        #
-        #     cur.execute("SET max_parallel_workers_per_gather TO 4;")
-        #     connection.commit()
+        with connection.cursor() as cur:
+            cur.execute("SET work_mem TO '200MB';")
+            connection.commit()
+
+            cur.execute("SET maintenance_work_mem TO '1GB';")
+            connection.commit()
+
+            cur.execute("SET max_parallel_workers_per_gather TO 4;")
+            connection.commit()
 
         pass
 
     def clean_candidate_table(self):
-        print("clean_candidate_table")
-        q = f"VACUUM ANALYZE {CandidateModel._meta.db_table};"
-        with connection.cursor() as cur:
-            cur.execute(q)
-            connection.commit()
+        # print("clean_candidate_table")
+        # q = f"VACUUM ANALYZE {CandidateModel._meta.db_table};"
+        # with connection.cursor() as cur:
+        #     cur.execute(q)
+        #     connection.commit()
+
+        pass
 
     def clean_bdg_table(self):
-        print("clean_bdg_table")
-        q = f"VACUUM ANALYZE {Building._meta.db_table};"
-        with connection.cursor() as cur:
-            cur.execute(q)
-            connection.commit()
+        # print("clean_bdg_table")
+        # q = f"VACUUM ANALYZE {Building._meta.db_table};"
+        # with connection.cursor() as cur:
+        #     cur.execute(q)
+        #     connection.commit()
+
+        pass
