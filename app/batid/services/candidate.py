@@ -317,15 +317,15 @@ class Inspector:
         # self.__close_inspection(c, 'refused')
 
     def _adapt_db_settings(self):
-        with connection.cursor() as cur:
-            cur.execute("SET work_mem TO '200MB';")
-            connection.commit()
-
-            cur.execute("SET maintenance_work_mem TO '1GB';")
-            connection.commit()
-
-            cur.execute("SET max_parallel_workers_per_gather TO 4;")
-            connection.commit()
+        # with connection.cursor() as cur:
+        #     cur.execute("SET work_mem TO '200MB';")
+        #     connection.commit()
+        #
+        #     cur.execute("SET maintenance_work_mem TO '1GB';")
+        #     connection.commit()
+        #
+        #     cur.execute("SET max_parallel_workers_per_gather TO 4;")
+        #     connection.commit()
 
         pass
 
