@@ -1,9 +1,12 @@
 import json
+import os
 from datetime import datetime, timezone
+from time import perf_counter
 
+import nanoid
 import requests
 from batid.services.france import fetch_dpt_cities_geojson, fetch_city_geojson
-from batid.services.source import Source
+from batid.services.source import Source, BufferToCopy
 from batid.models import Building, City, BuildingStatus, Department
 from django.db import connection
 from psycopg2.extras import RealDictCursor, execute_values
@@ -117,25 +120,48 @@ def add_default_status() -> int:
         f"FROM {Building._meta.db_table} b "
         "LEFT JOIN batid_buildingstatus as s ON b.id = s.building_id "
         "WHERE s.id IS NULL "
-        "LIMIT 100000"
+        "LIMIT 300000"
     )
 
-    insert_q = (
-        f"INSERT INTO {BuildingStatus._meta.db_table}  (building_id, type, created_at, updated_at, is_current) "
-        "VALUES %s"
-    )
+    buffer = BufferToCopy()
 
     with connection.cursor() as cursor:
+        start = perf_counter()
         cursor.execute(select_q)
         rows = cursor.fetchall()
+        end = perf_counter()
+        print(f"fetch done in {end - start:0.4f} seconds")
 
         values = [
             (row[0], "constructed", datetime.now(), datetime.now(), True)
             for row in rows
         ]
+        buffer.write_data(values)
         count += len(values)
 
-        execute_values(cursor, insert_q, values, page_size=1000)
-        connection.commit()
+        start = perf_counter()
+        with open(buffer.path, "r") as f:
+            cursor.copy_from(
+                f,
+                BuildingStatus._meta.db_table,
+                sep=",",
+                columns=(
+                    "building_id",
+                    "type",
+                    "created_at",
+                    "updated_at",
+                    "is_current",
+                ),
+            )
+        end = perf_counter()
+        print(f"insert done in {end - start:0.4f} seconds)")
+
+        os.remove(buffer.path)
+
+        # start = perf_counter()
+        # execute_values(cursor, insert_q, values, page_size=p_size)
+        # connection.commit()
+        # end = perf_counter()
+        # print(f"insert done in {end - start:0.4f} seconds (page size : {p_size})")
 
     return count

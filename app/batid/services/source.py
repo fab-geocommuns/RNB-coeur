@@ -1,5 +1,8 @@
+import csv
 import os
 import tarfile
+
+import nanoid
 import py7zr
 import requests
 
@@ -14,11 +17,10 @@ class Source:
     def __init__(self, name, custom_ref=None):
         self.name = name
 
-        self.refs = self.default_ref()
-
         if isinstance(custom_ref, dict):
             self.ref = custom_ref
         else:
+            self.refs = self.default_ref()
             self.ref = self.refs[name]
 
         self.create_abs_dir()
@@ -156,3 +158,23 @@ class Source:
                 return f"{root}/{filename}"
 
         return None
+
+
+class BufferToCopy(Source):
+    def __init__(self):
+        uuid = nanoid.generate(size=10)
+        name = f"buffer_{uuid}"
+
+        super().__init__(
+            name,
+            {
+                "folder": "buffers_to_copy",
+                "filename": f"{name}.csv",
+            },
+        )
+
+    # write data to a csv file, no header
+    def write_data(self, data):
+        with open(self.path, "w") as f:
+            writer = csv.writer(f)
+            writer.writerows(data)
