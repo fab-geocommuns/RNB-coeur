@@ -24,6 +24,7 @@ services:
   db:
     image: postgis/postgis:14-master
     platform: linux/amd64
+    shm_size: 1gb
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # by default, docker when creating the db will run scripts in docker-entrypoint-initdb.d
@@ -55,6 +56,7 @@ services:
     image: rabbitmq:3.9-alpine
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
   redis:
     image: redis:latest
     ports:

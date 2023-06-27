@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from time import perf_counter
 from typing import List
 
 import psycopg2
@@ -72,30 +73,78 @@ class Inspector:
                 cur.close()
                 raise error
 
+        self.clean_candidate_table()
+
+    def remove_invalid_candidates(self):
+        q = (
+            f"DELETE FROM {CandidateModel._meta.db_table} WHERE shape IS NULL "
+            "OR ST_IsEmpty(shape) "
+            "OR ST_IsValid(shape) = false "
+            "OR ST_Area(shape) = 0 "
+        )
+        with connection.cursor() as cur:
+            try:
+                cur.execute(q)
+                connection.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                connection.rollback()
+                cur.close()
+                raise error
+
+        self.clean_candidate_table()
+
     def inspect(self) -> int:
+        print("\r")
+        print("-- Inspect batch")
+
+        self._adapt_db_settings()
+
+        b_start = perf_counter()
         q, params = self.get_matches_query()
 
         with connection.cursor() as cur:
+            start = perf_counter()
             matches = dictfetchall(cur, q, params)
+            end = perf_counter()
+            print(f"fetch_matches: {end - start:.2f}s")
 
             c = 0
+            start = perf_counter()
             for m_row in matches:
                 c += 1
                 self.inspect_match(m_row)
-
-        # print(f"inspected: {c}")
-        # print(f"refusals: {len(self.refusals)}")
-        # print(f"creations: {len(self.creations)}")
-        # print(f"updates: {len(self.updates)}")
+            end = perf_counter()
+            print(f"inspect_match: {end - start:.2f}s")
 
         self.handle_inspected_candidates()
+
+        start = perf_counter()
+        self.clean_candidate_table()
+        self.clean_bdg_table()
+        end = perf_counter()
+        print(f"clean db tables: {end - start:.2f}s")
+
+        b_end = perf_counter()
+
+        print(f"Total batch time: {b_end - b_start:.2f}s")
 
         return c
 
     def handle_inspected_candidates(self):
+        start = perf_counter()
         self.__handle_refusals()
+        end = perf_counter()
+        print(f"handle_refusals: {end - start:.2f}s")
+
+        start = perf_counter()
         self.__handle_creations()
+        end = perf_counter()
+        print(f"handle_creations: {end - start:.2f}s")
+
+        start = perf_counter()
         self.__handle_updates()
+        end = perf_counter()
+        print(f"handle_updates: {end - start:.2f}s")
 
     # update all refused candidates with status 'refused'
     def __handle_refusals(self):
@@ -145,7 +194,10 @@ class Inspector:
             return
 
         # Create the buildings
+        start = perf_counter()
         self.__create_buildings()
+        end = perf_counter()
+        print(f"-- create_buildings: {end - start:.2f}s")
 
         # Then update the candidates
         q = f"UPDATE {CandidateModel._meta.db_table} SET inspected_at = now(), inspect_result = 'created_bdg' WHERE id in %(ids)s"
@@ -154,8 +206,11 @@ class Inspector:
 
         with connection.cursor() as cur:
             try:
+                start = perf_counter()
                 cur.execute(q, params)
                 connection.commit()
+                end = perf_counter()
+                print(f"-- update_candidates after bdg creation: {end - start:.2f}s")
             except (Exception, psycopg2.DatabaseError) as error:
                 connection.rollback()
                 cur.close()
@@ -165,6 +220,8 @@ class Inspector:
         q = f"INSERT INTO {Building._meta.db_table} (rnb_id, source, point, shape, created_at, updated_at) VALUES %s "
 
         values = []
+
+        start = perf_counter()
         for c in self.creations:
             bdg_dict = c.to_bdg_dict()
             values.append(
@@ -177,11 +234,16 @@ class Inspector:
                     datetime.now(timezone.utc),
                 )
             )
+        end = perf_counter()
+        print(f"---- create_buildings : calculate values: {end - start:.2f}s")
 
         with connection.cursor() as cur:
             try:
-                execute_values(cur, q, values, page_size=1000)
+                start = perf_counter()
+                execute_values(cur, q, values, page_size=5000)
                 connection.commit()
+                end = perf_counter()
+                print(f"---- create_buildings : execute_values: {end - start:.2f}s")
             except (Exception, psycopg2.DatabaseError) as error:
                 connection.rollback()
                 cur.close()
@@ -253,3 +315,30 @@ class Inspector:
         self.refusals.append(c)
 
         # self.__close_inspection(c, 'refused')
+
+    def _adapt_db_settings(self):
+        with connection.cursor() as cur:
+            cur.execute("SET work_mem TO '200MB';")
+            connection.commit()
+
+            cur.execute("SET maintenance_work_mem TO '1GB';")
+            connection.commit()
+
+            cur.execute("SET max_parallel_workers_per_gather TO 4;")
+            connection.commit()
+
+        pass
+
+    def clean_candidate_table(self):
+        print("clean_candidate_table")
+        q = f"VACUUM ANALYZE {CandidateModel._meta.db_table};"
+        with connection.cursor() as cur:
+            cur.execute(q)
+            connection.commit()
+
+    def clean_bdg_table(self):
+        print("clean_bdg_table")
+        q = f"VACUUM ANALYZE {Building._meta.db_table};"
+        with connection.cursor() as cur:
+            cur.execute(q)
+            connection.commit()

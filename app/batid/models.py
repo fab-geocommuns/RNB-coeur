@@ -3,6 +3,7 @@ import json
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.gis.db import models
+from django.contrib.postgres.indexes import SpGistIndex
 from django.utils.timezone import now
 from django.conf import settings
 from django.db.models import F
@@ -92,6 +93,7 @@ class City(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+
 class Department(models.Model):
     id = models.AutoField(primary_key=True)
     code = models.CharField(max_length=3, null=False, db_index=True, unique=True)
@@ -101,7 +103,6 @@ class Department(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
 
 
 class ADSAchievement(models.Model):
