@@ -73,6 +73,8 @@ class Inspector:
                 cur.close()
                 raise error
 
+        self.clean_candidate_table()
+
     def remove_invalid_candidates(self):
         q = (
             f"DELETE FROM {CandidateModel._meta.db_table} WHERE shape IS NULL "
@@ -88,6 +90,8 @@ class Inspector:
                 connection.rollback()
                 cur.close()
                 raise error
+
+        self.clean_candidate_table()
 
     def inspect(self) -> int:
         print("\r")
@@ -114,7 +118,14 @@ class Inspector:
 
         self.handle_inspected_candidates()
 
+        start = perf_counter()
+        self.clean_candidate_table()
+        self.clean_bdg_table()
+        end = perf_counter()
+        print(f"clean db tables: {end - start:.2f}s")
+
         b_end = perf_counter()
+
         print(f"Total batch time: {b_end - b_start:.2f}s")
 
         return c
@@ -317,3 +328,17 @@ class Inspector:
             connection.commit()
 
         pass
+
+    def clean_candidate_table(self):
+        print("clean_candidate_table")
+        q = f"VACUUM ANALYZE {CandidateModel._meta.db_table};"
+        with connection.cursor() as cur:
+            cur.execute(q)
+            connection.commit()
+
+    def clean_bdg_table(self):
+        print("clean_bdg_table")
+        q = f"VACUUM ANALYZE {Building._meta.db_table};"
+        with connection.cursor() as cur:
+            cur.execute(q)
+            connection.commit()

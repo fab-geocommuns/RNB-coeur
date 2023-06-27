@@ -16,7 +16,11 @@ class BuildingSearch:
 
     def get_queryset(self) -> QuerySet:
         # Init
-        queryset = Building.objects.prefetch_related("addresses").all()
+        queryset = (
+            Building.objects.prefetch_related("addresses")
+            .prefetch_related("status")
+            .all()
+        )
 
         # ###################
         # Filters
