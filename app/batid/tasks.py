@@ -86,6 +86,7 @@ def remove_inspected_candidates():
 def remove_invalid_candidates():
     i = Inspector()
     i.remove_invalid_candidates()
+    i.clean_candidate_table()
     return "done"
 
 
