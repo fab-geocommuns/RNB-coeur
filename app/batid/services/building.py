@@ -144,7 +144,7 @@ def add_default_status() -> int:
             cursor.copy_from(
                 f,
                 BuildingStatus._meta.db_table,
-                sep=",",
+                sep=";",
                 columns=(
                     "building_id",
                     "type",

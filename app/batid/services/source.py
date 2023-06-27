@@ -176,5 +176,5 @@ class BufferToCopy(Source):
     # write data to a csv file, no header
     def write_data(self, data):
         with open(self.path, "w") as f:
-            writer = csv.writer(f)
+            writer = csv.writer(f, delimiter=";")
             writer.writerows(data)
