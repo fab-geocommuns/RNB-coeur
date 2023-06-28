@@ -1,9 +1,11 @@
+from django.db import connection
+
 from api_alpha.permissions import ADSPermission, ADSCityPermission
 from api_alpha.serializers import ADSSerializer, BuildingSerializer
 from batid.services.search_ads import ADSSearch
 from batid.services.search_bdg import BuildingSearch
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
-from batid.models import ADS, Building, BuildingADS
+from batid.models import ADS, Building
 
 from rest_framework import viewsets
 from rest_framework.exceptions import ParseError
@@ -11,6 +13,14 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from batid.services.rnb_id import clean_rnb_id
+
+from django.http import HttpResponse
+from batid.services.vector_tiles import (
+    tileIsValid,
+    tileToEnvelope,
+    envelopeToBoundsSQL,
+    envelopeToSQL,
+)
 
 
 class BuildingViewSet(viewsets.ModelViewSet):
@@ -118,3 +128,20 @@ class ADSViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, file_number=None):
         return super().retrieve(request, file_number)
+
+
+def tile_view(request, x, y, z):
+    tile = {"x": int(x), "y": int(y), "zoom": int(z), "format": "pbf"}
+
+    if not tileIsValid(tile):
+        return HttpResponse("Invalid tile", status=400)
+
+    envelope = tileToEnvelope(tile)
+    sql = envelopeToSQL(envelope)
+
+    with connection.cursor() as cursor:
+        cursor.execute(sql)
+        tile = cursor.fetchone()
+
+    return HttpResponse(sql)
+    # return HttpResponse(tile[0], content_type="application/vnd.mapbox-vector-tile")
