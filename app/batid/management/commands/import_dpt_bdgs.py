@@ -17,6 +17,7 @@ class Command(BaseCommand):
         bdtopo_dpt = dpt.zfill(
             3
         )  # BD Topo departements are zero-prefixed 3 digits codes.
+        bdnb_dpt = dpt.lower()
 
         # ###########
         # Steps
@@ -53,7 +54,9 @@ class Command(BaseCommand):
             )
         if "dl_bdnb7" in steps:
             tasks.append(
-                Signature("batid.tasks.dl_source", args=["bdnb_7", dpt], immutable=True)
+                Signature(
+                    "batid.tasks.dl_source", args=["bdnb_7", bdnb_dpt], immutable=True
+                )
             )
         if "import_bdtopo" in steps:
             tasks.append(
@@ -63,7 +66,7 @@ class Command(BaseCommand):
             )
         if "import_bdnb7" in steps:
             tasks.append(
-                Signature("batid.tasks.import_bdnb7", args=[dpt], immutable=True)
+                Signature("batid.tasks.import_bdnb7", args=[bdnb_dpt], immutable=True)
             )
         if "pre_clean_candidates" in steps:
             tasks.append(
