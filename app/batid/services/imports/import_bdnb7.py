@@ -8,6 +8,9 @@ from datetime import datetime, timezone
 
 
 def import_bdnb7(dpt):
+    # lowercase
+    dpt = dpt.lower()
+
     src = Source("bdnb_7")
     src.set_param("dpt", dpt)
 
