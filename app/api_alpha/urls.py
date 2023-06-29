@@ -1,7 +1,7 @@
-from api_alpha.views import ADSViewSet, BuildingViewSet
+from api_alpha.views import ADSViewSet, BuildingViewSet, tile_view
 from django.urls import include, path
 from rest_framework import routers
-from rest_framework.authtoken import views
+from rest_framework.authtoken import views as auth_views
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
@@ -12,6 +12,7 @@ router.register(r"ads", ADSViewSet)
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
     path("", include(router.urls)),
-    path("login/", views.obtain_auth_token)
+    path("login/", auth_views.obtain_auth_token),
+    path("tiles/<int:x>/<int:y>/<int:z>.pbf", tile_view)
     # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
