@@ -15,12 +15,7 @@ from rest_framework.response import Response
 from batid.services.rnb_id import clean_rnb_id
 
 from django.http import HttpResponse
-from batid.services.vector_tiles import (
-    tileIsValid,
-    tileToEnvelope,
-    envelopeToBoundsSQL,
-    envelopeToSQL,
-)
+from batid.services.vector_tiles import tile_sql, url_params_to_tile
 
 
 class BuildingViewSet(viewsets.ModelViewSet):
@@ -131,17 +126,12 @@ class ADSViewSet(viewsets.ModelViewSet):
 
 
 def tile_view(request, x, y, z):
-    tile = {"x": int(x), "y": int(y), "zoom": int(z), "format": "pbf"}
+    tile = url_params_to_tile(x, y, z)
 
-    if not tileIsValid(tile):
-        return HttpResponse("Invalid tile", status=400)
-
-    envelope = tileToEnvelope(tile)
-    sql = envelopeToSQL(envelope)
+    sql = tile_sql(tile)
 
     with connection.cursor() as cursor:
         cursor.execute(sql)
-        tile = cursor.fetchone()
+        tile_file = cursor.fetchone()[0]
 
-    return HttpResponse(sql)
-    # return HttpResponse(tile[0], content_type="application/vnd.mapbox-vector-tile")
+    return HttpResponse(tile_file, content_type="application/vnd.mapbox-vector-tile")
