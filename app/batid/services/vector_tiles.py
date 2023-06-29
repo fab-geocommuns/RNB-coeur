@@ -1,12 +1,5 @@
-from typing import Generator
-
-import math
 from django.conf import settings
-from django.db import connection
-
-from batid.models import Building, Department
-from batid.services.france import get_metropolitan_bbox
-from batid.utils.db import dictfetchone
+from batid.models import Building
 
 TABLE = {
     "table": Building._meta.db_table,
