@@ -125,10 +125,9 @@ class ADSViewSet(viewsets.ModelViewSet):
         return super().retrieve(request, file_number)
 
 
-def tile_view(request, x, y, z):
-    tile = url_params_to_tile(x, y, z)
-
-    sql = tile_sql(tile)
+def get_tile(request, x, y, z):
+    tile_dict = url_params_to_tile(x, y, z)
+    sql = tile_sql(tile_dict)
 
     with connection.cursor() as cursor:
         cursor.execute(sql)

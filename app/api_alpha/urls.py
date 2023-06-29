@@ -1,4 +1,4 @@
-from api_alpha.views import ADSViewSet, BuildingViewSet, tile_view
+from api_alpha.views import ADSViewSet, BuildingViewSet, get_tile
 from django.urls import include, path
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
@@ -13,6 +13,6 @@ router.register(r"ads", ADSViewSet)
 urlpatterns = [
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
-    path("tiles/<int:x>/<int:y>/<int:z>.pbf", tile_view)
+    path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile)
     # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
