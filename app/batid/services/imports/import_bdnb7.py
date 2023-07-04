@@ -74,3 +74,7 @@ def import_bdnb7(dpt):
 
     print("- remove buffer")
     os.remove(buffer_src.path)
+
+
+def import_addresses(dpt: str):
+    pass

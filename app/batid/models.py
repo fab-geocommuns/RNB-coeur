@@ -19,10 +19,7 @@ class Building(models.Model):
         null=True, spatial_index=True, srid=settings.DEFAULT_SRID
     )
 
-    children = models.ManyToManyField(
-        "self", blank=True, symmetrical=False, related_name="parents"
-    )
-    addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
+    addresses = models.JSONField(null=True)
 
     ext_bdnb_id = models.CharField(max_length=40, null=True, unique=True, db_index=True)
     ext_bdtopo_id = models.CharField(
@@ -145,26 +142,11 @@ class BuildingADS(models.Model):
         unique_together = ("building", "ads")
 
 
-class Address(models.Model):
-    id = models.CharField(max_length=40, primary_key=True)
-    source = models.CharField(max_length=10, null=False)  # BAN or other origin
-
-    street_number = models.CharField(max_length=10, null=True)
-    street_rep = models.CharField(max_length=5, null=True)
-    street_name = models.CharField(max_length=100, null=True)
-    street_type = models.CharField(max_length=100, null=True)
-    city_name = models.CharField(max_length=100, null=True)
-    city_zipcode = models.CharField(max_length=5, null=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-
 class Candidate(models.Model):
     shape = models.MultiPolygonField(null=True, srid=settings.DEFAULT_SRID)
     source = models.CharField(max_length=20, null=False)
     source_id = models.CharField(max_length=40, null=False)
-    address_keys = ArrayField(models.CharField(max_length=40), null=True)
+    addresses = models.JSONField(null=True)
     is_light = models.BooleanField(null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
