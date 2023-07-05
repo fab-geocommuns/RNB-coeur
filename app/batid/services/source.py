@@ -1,4 +1,5 @@
 import csv
+import json
 import os
 import tarfile
 
@@ -176,5 +177,30 @@ class BufferToCopy(Source):
     # write data to a csv file, no header
     def write_data(self, data):
         with open(self.path, "w") as f:
-            writer = csv.writer(f, delimiter=";")
-            writer.writerows(data)
+            if isinstance(data[0], list) or isinstance(data[0], tuple):
+                writer = csv.writer(
+                    f,
+                    delimiter=";",
+                    quotechar="'",
+                    quoting=csv.QUOTE_NONE,
+                    escapechar="\\",
+                )
+                writer.writerows(data)
+                return
+
+            if isinstance(data[0], dict):
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=data[0].keys(),
+                    delimiter=";",
+                    quotechar="'",
+                    quoting=csv.QUOTE_NONE,
+                    escapechar="\\",
+                )
+                # writer.writeheader()
+                writer.writerows(data)
+                return
+
+        raise Exception(
+            f"Can't write buffer, data rows must be a list or a dict, {type(data)} given"
+        )
