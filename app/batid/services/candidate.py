@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from time import perf_counter
 from typing import List
 
+import nanoid
 import psycopg2
 from django.contrib.gis.geos import MultiPolygon
 from psycopg2.extras import RealDictCursor, execute_values
@@ -26,10 +27,11 @@ class Candidate:
     is_light: bool
     source: str
     source_id: str
-    address_keys: List[str]
+    addresses: List[dict]
     created_at: datetime
     inspected_at: datetime
     inspect_result: str
+    matched_ids: List[int]
 
     def to_bdg_dict(self):
         return {
@@ -47,18 +49,19 @@ def row_to_candidate(row):
         source=row["source"],
         is_light=row["is_light"],
         source_id=row["source_id"],
-        address_keys=row["address_keys"],
+        addresses=row["addresses"],
         created_at=row.get("created_at", None),
         inspected_at=row.get("inspected_at", None),
         inspect_result=row.get("inspect_result", None),
+        matched_ids=row.get("match_ids", []),
     )
 
 
 class Inspector:
-    BATCH_SIZE = 50000
+    BATCH_SIZE = 10000
 
     def __init__(self):
-        self.zone = None  # MultiPolygon
+        self.stamp = None
 
         self.refusals = []
         self.creations = []
@@ -99,6 +102,9 @@ class Inspector:
         print("\r")
         print("-- Inspect batch")
 
+        self.build_stamp()
+        self.reserve_candidates()
+
         self._adapt_db_settings()
 
         b_start = perf_counter()
@@ -119,16 +125,16 @@ class Inspector:
             print(f"inspect_match: {end - start:.2f}s")
 
         self.handle_inspected_candidates()
-
-        start = perf_counter()
-        self.clean_candidate_table()
-        self.clean_bdg_table()
-        end = perf_counter()
-        print(f"clean db tables: {end - start:.2f}s")
-
-        b_end = perf_counter()
-
-        print(f"Total batch time: {b_end - b_start:.2f}s")
+        #
+        # start = perf_counter()
+        # self.clean_candidate_table()
+        # self.clean_bdg_table()
+        # end = perf_counter()
+        # print(f"clean db tables: {end - start:.2f}s")
+        #
+        # b_end = perf_counter()
+        #
+        # print(f"Total batch time: {b_end - b_start:.2f}s")
 
         return c
 
@@ -178,8 +184,15 @@ class Inspector:
         if len(self.updates) == 0:
             return
 
+        self.__update_buildings()
+
+        # Remove handled candidates
         ids = tuple([c.id for c in self.updates])
         self.__remove_candidates(ids)
+
+    def __update_buildings(self):
+        for c in self.updates:
+            print(c)
 
     # create new buildings for all created candidates
     def __handle_creations(self):
@@ -258,26 +271,28 @@ class Inspector:
             self.__refuse(c)
             return
 
-        if row["match_cnt"] == 0:
+        match_len = len(row["match_ids"])
+
+        if match_len == 0:
             self.__create_new_building(c)
 
-        if row["match_cnt"] == 1:
+        if match_len == 1:
             self.__update_building(c)
 
-        if row["match_cnt"] > 1:
+        if match_len > 1:
             self.__refuse(c)
 
     def get_matches_query(self):
-        params = {"min_intersect_ratio": 0.85, "limit": self.BATCH_SIZE}
+        params = {
+            "min_intersect_ratio": 0.85,
+            "limit": self.BATCH_SIZE,
+            "inspect_stamp": self.stamp,
+        }
 
-        where_conds = ["c.inspected_at is null"]
-
-        if isinstance(self.zone, MultiPolygon):
-            where_conds.append("ST_Intersects(c.shape, %(zone)s)")
-            params["zone"] = f"{self.zone}"
+        where_conds = ["c.inspected_at is null", "c.inspect_stamp = %(inspect_stamp)s"]
 
         q = (
-            "SELECT c.*, count(b.id) as match_cnt "
+            "SELECT c.*, array_agg(b.id) as match_ids "
             f"from {CandidateModel._meta.db_table} as c "
             "left join batid_building as b on ST_Intersects(b.shape, c.shape) "
             "and ST_Area(ST_Intersection(b.shape, c.shape)) / ST_Area(c.shape) >= %(min_intersect_ratio)s "
@@ -327,20 +342,14 @@ class Inspector:
 
         pass
 
-    def clean_candidate_table(self):
-        # print("clean_candidate_table")
-        # q = f"VACUUM ANALYZE {CandidateModel._meta.db_table};"
-        # with connection.cursor() as cur:
-        #     cur.execute(q)
-        #     connection.commit()
-
+    def build_stamp(self):
+        self.stamp = nanoid.generate(size=12)
         pass
 
-    def clean_bdg_table(self):
-        # print("clean_bdg_table")
-        # q = f"VACUUM ANALYZE {Building._meta.db_table};"
-        # with connection.cursor() as cur:
-        #     cur.execute(q)
-        #     connection.commit()
-
-        pass
+    def reserve_candidates(self):
+        candidates = CandidateModel.objects.filter(inspected_at__isnull=True).order_by(
+            "id"
+        )[: self.BATCH_SIZE]
+        CandidateModel.objects.filter(id__in=candidates).update(
+            inspect_stamp=self.stamp
+        )

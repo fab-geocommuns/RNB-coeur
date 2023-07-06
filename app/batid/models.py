@@ -152,6 +152,10 @@ class Candidate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # The inspect_stamp is a DIY lock system to ensure a candidate is not inspected twice
+    # It MIGHT be replaced by systems closer to the db (eg : SELECT ... FOR UPDATE and postegresql LOCK system)
+    # but I do not know those enough to use them
+    inspect_stamp = models.CharField(max_length=20, null=True, db_index=True)
     inspected_at = models.DateTimeField(null=True)
     inspect_result = models.CharField(max_length=20, null=True, db_index=True)
 
