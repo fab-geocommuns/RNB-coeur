@@ -26,7 +26,8 @@ class Command(BaseCommand):
             "dl_bdtopo",
             "dl_bdnb7",
             "import_bdtopo",
-            "import_bdnb7",
+            "import_bdnb7_addresses",
+            "import_bdnb7_bdgs",
             "pre_clean_candidates",
             "inspect",
             "add_status",
@@ -64,9 +65,19 @@ class Command(BaseCommand):
                     "batid.tasks.import_bdtopo", args=[bdtopo_dpt], immutable=True
                 )
             )
-        if "import_bdnb7" in steps:
+        if "import_bdnb7_addresses" in steps:
             tasks.append(
-                Signature("batid.tasks.import_bdnb7", args=[bdnb_dpt], immutable=True)
+                Signature(
+                    "batid.tasks.import_bdnb7_addresses",
+                    args=[bdnb_dpt],
+                    immutable=True,
+                )
+            )
+        if "import_bdnb7_bdgs" in steps:
+            tasks.append(
+                Signature(
+                    "batid.tasks.import_bdnb7_bdgs", args=[bdnb_dpt], immutable=True
+                )
             )
         if "pre_clean_candidates" in steps:
             tasks.append(

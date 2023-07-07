@@ -161,8 +161,10 @@ class Candidate(models.Model):
 
 
 class Address(models.Model):
-    id = models.CharField(max_length=40, primary_key=True)
+    id = models.CharField(max_length=40, primary_key=True, db_index=True)
     source = models.CharField(max_length=10, null=False)  # BAN or other origin
+
+    point = models.PointField(null=True, spatial_index=True, srid=settings.DEFAULT_SRID)
 
     street_number = models.CharField(max_length=10, null=True)
     street_rep = models.CharField(max_length=5, null=True)
@@ -170,6 +172,7 @@ class Address(models.Model):
     street_type = models.CharField(max_length=100, null=True)
     city_name = models.CharField(max_length=100, null=True)
     city_zipcode = models.CharField(max_length=5, null=True)
+    city_insee_code = models.CharField(max_length=5, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -29,7 +29,7 @@ class Candidate:
     is_light: bool
     source: str
     source_id: str
-    addresses: List[dict]
+    address_keys: List[dict]
     created_at: datetime
     inspected_at: datetime
     inspect_result: str
@@ -41,23 +41,23 @@ class Candidate:
             "rnb_id": None,
             "source": self.source,
             "point": self.shape.point_on_surface(),
-            "addresses": self.addresses,
+            "address_keys": self.address_keys,
         }
 
     def update_bdg(self, bdg: Building):
-        has_changed = False
+        has_changed_props = False
 
-        # Merge addresses
-        if bdg.addresses is None:
-            bdg.addresses = []
-        bdg_addresses_ids = [a["id"] for a in bdg.addresses]
+        # Handle change in address
+        # We will return all the address keys that are not in the bdg
+        added_address_keys = []
 
-        for address in self.addresses:
-            if address["id"] not in bdg_addresses_ids:
-                has_changed = True
-                bdg.addresses.append(address)
+        bdg_addresses_keys = [a.id for a in bdg.addresses.all()]
 
-        return has_changed, bdg
+        for c_address_key in self.address_keys:
+            if c_address_key not in bdg_addresses_keys:
+                added_address_keys.append(c_address_key)
+
+        return has_changed_props, added_address_keys, bdg
 
 
 def row_to_candidate(row):
@@ -86,6 +86,7 @@ class Inspector:
         self.updates = []
 
         self.bdgs_to_updates = []
+        self.bdg_address_relations = []
 
     @show_duration
     def inspect(self) -> int:
@@ -182,7 +183,11 @@ class Inspector:
 
     def __fetch_bdg_to_updates(self):
         bdg_ids = tuple(c.matched_ids[0] for c in self.updates)
-        return Building.objects.filter(id__in=bdg_ids).only("addresses")
+        return (
+            Building.objects.filter(id__in=bdg_ids)
+            .prefetch_related("addresses")
+            .only("addresses")
+        )
 
     def __update_buildings(self):
         # Get all buildings concerned by the updates
@@ -191,16 +196,27 @@ class Inspector:
         # Foreach building verify if anything must be updated
         for c in self.updates:
             bdg = next(b for b in bdgs if b.id == c.matched_ids[0])
-            has_changed, bdg = c.update_bdg(bdg)
-            if has_changed:
+            has_changed_props, added_address_keys, bdg = c.update_bdg(bdg)
+            if has_changed_props:
                 self.bdgs_to_updates.append(bdg)
+            if len(added_address_keys) > 0:
+                self.add_addresses_to_bdg(bdg, added_address_keys)
 
         # Save all buildings which must be updated
         self.__save_bdgs_to_updates()
 
+    def add_addresses_to_bdg(self, bdg: Building, added_address_keys: List):
+        for add_key in added_address_keys:
+            self.bdg_address_relations.append((bdg.id, add_key))
+
     @show_duration
     def __save_bdgs_to_updates(self):
-        print("- save buildings to update")
+        # ############
+        # Building properties
+        # ############
+        print(
+            f"- save buildings properties to update ({len(self.bdgs_to_updates)} bdgs)"
+        )
 
         # Create a buffer file
         buffer = self.__create_update_buffer_file()
@@ -220,6 +236,30 @@ class Inspector:
 
         # Remove the buffer file
         os.remove(buffer.path)
+
+        # ############
+        # Building addresses relations
+        # ############
+        print(
+            f"- save buildings addresses relations to create ({len(self.bdg_address_relations)} relations)"
+        )
+
+        # Create a buffer file
+        buffer = BufferToCopy()
+        buffer.write_data(self.bdg_address_relations)
+
+        with connection.cursor() as cur:
+            try:
+                cur.copy_from(
+                    buffer.path,
+                    Building.addresses.through._meta.db_table,
+                    columns=["building_id", "address_id"],
+                )
+                connection.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                connection.rollback()
+                cur.close()
+                raise error
 
     def __update_bdgs_from_tmp_update_table(self, cursor):
         q = f"UPDATE {Building._meta.db_table} SET addresses = tmp.addresses FROM tmp_update_table tmp WHERE buildings.id = tmp.id"
@@ -322,7 +362,7 @@ class Inspector:
                 )
                 end = perf_counter()
                 os.remove(buffer.path)
-                print(f"---- create_buildings : execute_values: {end - start:.2f}s")
+                print(f"---- create_buildings : copy_from: {end - start:.2f}s")
             except (Exception, psycopg2.DatabaseError) as error:
                 connection.rollback()
                 cur.close()

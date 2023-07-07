@@ -178,25 +178,12 @@ class BufferToCopy(Source):
     def write_data(self, data):
         with open(self.path, "w") as f:
             if isinstance(data[0], list) or isinstance(data[0], tuple):
-                writer = csv.writer(
-                    f,
-                    delimiter=";",
-                    quotechar="'",
-                    quoting=csv.QUOTE_NONE,
-                    escapechar="\\",
-                )
+                writer = csv.writer(f, delimiter=";")
                 writer.writerows(data)
                 return
 
             if isinstance(data[0], dict):
-                writer = csv.DictWriter(
-                    f,
-                    fieldnames=data[0].keys(),
-                    delimiter=";",
-                    quotechar="'",
-                    # quoting=csv.QUOTE_NONE,
-                    escapechar="\\",
-                )
+                writer = csv.DictWriter(f, fieldnames=data[0].keys(), delimiter=";")
                 # writer.writeheader()
                 writer.writerows(data)
                 return
