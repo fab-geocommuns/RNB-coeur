@@ -194,7 +194,7 @@ class BufferToCopy(Source):
                     fieldnames=data[0].keys(),
                     delimiter=";",
                     quotechar="'",
-                    quoting=csv.QUOTE_NONE,
+                    # quoting=csv.QUOTE_NONE,
                     escapechar="\\",
                 )
                 # writer.writeheader()

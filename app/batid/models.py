@@ -19,7 +19,7 @@ class Building(models.Model):
         null=True, spatial_index=True, srid=settings.DEFAULT_SRID
     )
 
-    addresses = models.JSONField(null=True)
+    addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
 
     ext_bdnb_id = models.CharField(max_length=40, null=True, unique=True, db_index=True)
     ext_bdtopo_id = models.CharField(
@@ -146,7 +146,7 @@ class Candidate(models.Model):
     shape = models.MultiPolygonField(null=True, srid=settings.DEFAULT_SRID)
     source = models.CharField(max_length=20, null=False)
     source_id = models.CharField(max_length=40, null=False)
-    addresses = models.JSONField(null=True)
+    address_keys = ArrayField(models.CharField(max_length=40), null=True)
     is_light = models.BooleanField(null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -158,6 +158,21 @@ class Candidate(models.Model):
     inspect_stamp = models.CharField(max_length=20, null=True, db_index=True)
     inspected_at = models.DateTimeField(null=True)
     inspect_result = models.CharField(max_length=20, null=True, db_index=True)
+
+
+class Address(models.Model):
+    id = models.CharField(max_length=40, primary_key=True)
+    source = models.CharField(max_length=10, null=False)  # BAN or other origin
+
+    street_number = models.CharField(max_length=10, null=True)
+    street_rep = models.CharField(max_length=5, null=True)
+    street_name = models.CharField(max_length=100, null=True)
+    street_type = models.CharField(max_length=100, null=True)
+    city_name = models.CharField(max_length=100, null=True)
+    city_zipcode = models.CharField(max_length=5, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class Organization(models.Model):

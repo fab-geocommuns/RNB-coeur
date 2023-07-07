@@ -1,3 +1,4 @@
+import json
 import os
 from dataclasses import dataclass, field
 from time import perf_counter
@@ -15,6 +16,7 @@ from django.conf import settings
 from batid.models import Building
 from batid.models import Candidate as CandidateModel
 from batid.services.source import BufferToCopy
+from batid.utils.decorators import show_duration
 from batid.utils.db import dictfetchall
 from datetime import datetime, timezone
 
@@ -39,7 +41,23 @@ class Candidate:
             "rnb_id": None,
             "source": self.source,
             "point": self.shape.point_on_surface(),
+            "addresses": self.addresses,
         }
+
+    def update_bdg(self, bdg: Building):
+        has_changed = False
+
+        # Merge addresses
+        if bdg.addresses is None:
+            bdg.addresses = []
+        bdg_addresses_ids = [a["id"] for a in bdg.addresses]
+
+        for address in self.addresses:
+            if address["id"] not in bdg_addresses_ids:
+                has_changed = True
+                bdg.addresses.append(address)
+
+        return has_changed, bdg
 
 
 def row_to_candidate(row):
@@ -49,7 +67,7 @@ def row_to_candidate(row):
         source=row["source"],
         is_light=row["is_light"],
         source_id=row["source_id"],
-        addresses=row["addresses"],
+        addresses=json.loads(row["addresses"]),
         created_at=row.get("created_at", None),
         inspected_at=row.get("inspected_at", None),
         inspect_result=row.get("inspect_result", None),
@@ -58,7 +76,7 @@ def row_to_candidate(row):
 
 
 class Inspector:
-    BATCH_SIZE = 10000
+    BATCH_SIZE = 10
 
     def __init__(self):
         self.stamp = None
@@ -66,6 +84,38 @@ class Inspector:
         self.refusals = []
         self.creations = []
         self.updates = []
+
+        self.bdgs_to_updates = []
+
+    @show_duration
+    def inspect(self) -> int:
+        print("\r")
+        print("-- Inspect batch")
+
+        # Adapt DB session settings for this job
+        self._adapt_db_settings()
+
+        # Lock some candidates for this batch
+        self.build_stamp()
+        self.reserve_candidates()
+
+        # Get matches and inspect them
+        matches = self.get_matches()
+        self.inspect_matches(matches)
+
+        # Now, trigger the consequences of the inspections
+        self.handle_bdgs_creations()
+        self.handle_bdgs_updates()
+        self.handle_bdgs_refusals()
+
+        # Clean up
+        # self.remove_stamped()
+
+        return len(matches)
+
+    def remove_stamped(self):
+        print("- remove stamped candidates")
+        CandidateModel.objects.filter(inspect_stamp=self.stamp).delete()
 
     def remove_inspected(self):
         q = f"DELETE FROM {CandidateModel._meta.db_table} WHERE inspected_at IS NOT NULL"
@@ -77,8 +127,6 @@ class Inspector:
                 connection.rollback()
                 cur.close()
                 raise error
-
-        self.clean_candidate_table()
 
     def remove_invalid_candidates(self):
         q = (
@@ -95,64 +143,6 @@ class Inspector:
                 connection.rollback()
                 cur.close()
                 raise error
-
-        self.clean_candidate_table()
-
-    def inspect(self) -> int:
-        print("\r")
-        print("-- Inspect batch")
-
-        self.build_stamp()
-        self.reserve_candidates()
-
-        self._adapt_db_settings()
-
-        b_start = perf_counter()
-        q, params = self.get_matches_query()
-
-        with connection.cursor() as cur:
-            start = perf_counter()
-            matches = dictfetchall(cur, q, params)
-            end = perf_counter()
-            print(f"fetch_matches: {end - start:.2f}s")
-
-            c = 0
-            start = perf_counter()
-            for m_row in matches:
-                c += 1
-                self.inspect_match(m_row)
-            end = perf_counter()
-            print(f"inspect_match: {end - start:.2f}s")
-
-        self.handle_inspected_candidates()
-        #
-        # start = perf_counter()
-        # self.clean_candidate_table()
-        # self.clean_bdg_table()
-        # end = perf_counter()
-        # print(f"clean db tables: {end - start:.2f}s")
-        #
-        # b_end = perf_counter()
-        #
-        # print(f"Total batch time: {b_end - b_start:.2f}s")
-
-        return c
-
-    def handle_inspected_candidates(self):
-        start = perf_counter()
-        self.__handle_refusals()
-        end = perf_counter()
-        print(f"handle_refusals: {end - start:.2f}s")
-
-        start = perf_counter()
-        self.__handle_creations()
-        end = perf_counter()
-        print(f"handle_creations: {end - start:.2f}s")
-
-        start = perf_counter()
-        self.__handle_updates()
-        end = perf_counter()
-        print(f"handle_updates: {end - start:.2f}s")
 
     # update all refused candidates with status 'refused'
     def __handle_refusals(self):
@@ -190,35 +180,115 @@ class Inspector:
         ids = tuple([c.id for c in self.updates])
         self.__remove_candidates(ids)
 
+    def __fetch_bdg_to_updates(self):
+        bdg_ids = tuple(c.matched_ids[0] for c in self.updates)
+        return Building.objects.filter(id__in=bdg_ids).only("addresses")
+
     def __update_buildings(self):
+        # Get all buildings concerned by the updates
+        bdgs = self.__fetch_bdg_to_updates()
+
+        # Foreach building verify if anything must be updated
         for c in self.updates:
-            print(c)
+            bdg = next(b for b in bdgs if b.id == c.matched_ids[0])
+            has_changed, bdg = c.update_bdg(bdg)
+            if has_changed:
+                self.bdgs_to_updates.append(bdg)
+
+        # Save all buildings which must be updated
+        self.__save_bdgs_to_updates()
+
+    @show_duration
+    def __save_bdgs_to_updates(self):
+        print("- save buildings to update")
+
+        # Create a buffer file
+        buffer = self.__create_update_buffer_file()
+
+        with connection.cursor() as cur:
+            try:
+                self.__create_tmp_update_table(cur)
+                self.__populate_tmp_update_table(buffer, cur)
+                self.__update_bdgs_from_tmp_update_table(cur)
+                self.__drop_tmp_update_table(cur)
+                cur.commit()
+                cur.close()
+            except (Exception, psycopg2.DatabaseError) as error:
+                connection.rollback()
+                cur.close()
+                raise error
+
+        # Remove the buffer file
+        os.remove(buffer.path)
+
+    def __update_bdgs_from_tmp_update_table(self, cursor):
+        q = f"UPDATE {Building._meta.db_table} SET addresses = tmp.addresses FROM tmp_update_table tmp WHERE buildings.id = tmp.id"
+        cursor.execute(q)
+
+    def __drop_tmp_update_table(self, cursor):
+        q = f"DROP TABLE {self.__tmp_update_table}"
+        cursor.execute(q)
+
+    @property
+    def __tmp_update_table(self):
+        if self.stamp is None:
+            raise Exception("Stamp is not set")
+
+        return f"tmp_update_table_{self.stamp}"
+
+    def __populate_tmp_update_table(self, buffer: BufferToCopy, cursor):
+        with open(buffer.path, "r") as f:
+            cursor.copy_from(
+                f,
+                self.__tmp_update_table,
+                columns=["id", "addresses"],
+            )
+
+    def __create_tmp_update_table(self, cursor):
+        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, addresses jsonb)"
+        cursor.execute(q)
+
+    def __create_update_buffer_file(self) -> BufferToCopy:
+        data = []
+        for bdg in self.bdgs_to_updates:
+            data.append(
+                {
+                    "id": bdg.id,
+                    "addresses": json.dumps(bdg.addresses),
+                }
+            )
+
+        buffer = BufferToCopy()
+        buffer.write_data(data)
+
+        return buffer
 
     # create new buildings for all created candidates
-    def __handle_creations(self):
-        print(f"creations: {len(self.creations)}")
-
+    def handle_bdgs_creations(self):
+        print(f"- creations: {len(self.creations)}")
         if len(self.creations) == 0:
             return
 
         # Create the buildings
-        start = perf_counter()
         self.__create_buildings()
-        end = perf_counter()
-        print(f"-- create_buildings: {end - start:.2f}s")
 
-        # Remove handled candidates
-        ids = tuple([c.id for c in self.creations])
-        self.__remove_candidates(ids)
+    # to keep
+    @show_duration
+    def handle_bdgs_updates(self):
+        print(f"- updates: {len(self.updates)}")
+        if len(self.updates) == 0:
+            return
+
+        # Create the buildings
+        self.__update_buildings()
+
+    def handle_bdgs_refusals(self):
+        print(f"- refusals: {len(self.refusals)}")
 
     def __create_buildings(self):
         buffer = BufferToCopy()
-
-        q = f"INSERT INTO {Building._meta.db_table} (rnb_id, source, point, shape, created_at, updated_at) VALUES %s "
-
         values = []
 
-        start = perf_counter()
         for c in self.creations:
             bdg_dict = c.to_bdg_dict()
             values.append(
@@ -233,8 +303,6 @@ class Inspector:
             )
 
         buffer.write_data(values)
-        end = perf_counter()
-        print(f"---- create_buildings : calculate values: {end - start:.2f}s")
 
         with connection.cursor() as cur, open(buffer.path, "r") as f:
             try:
@@ -264,25 +332,33 @@ class Inspector:
         c = row_to_candidate(row)
 
         if c.is_light == True:
-            self.__refuse(c)
+            self.__to_refusals(c)
             return
 
         if c.shape.area < settings.MIN_BDG_AREA:
-            self.__refuse(c)
+            self.__to_refusals(c)
             return
 
         match_len = len(row["match_ids"])
 
         if match_len == 0:
-            self.__create_new_building(c)
+            self.__to_creations(c)
 
         if match_len == 1:
-            self.__update_building(c)
+            self.__to_updates(c)
 
         if match_len > 1:
-            self.__refuse(c)
+            self.__to_refusals(c)
 
-    def get_matches_query(self):
+    @show_duration
+    def inspect_matches(self, matches):
+        print(f"- inspect_matches")
+        for row in matches:
+            self.inspect_match(row)
+
+    @show_duration
+    def get_matches(self):
+        print(f"- get_matches")
         params = {
             "min_intersect_ratio": 0.85,
             "limit": self.BATCH_SIZE,
@@ -301,15 +377,10 @@ class Inspector:
             "limit %(limit)s"
         )
 
-        return q, params
+        with connection.cursor() as cur:
+            matches = dictfetchall(cur, q, params)
 
-    def __update_building(self, c: Candidate):
-        self.updates.append(c)
-
-        # self.__close_inspection(c, 'updated_bdg')
-
-    def __create_new_building(self, c: Candidate):
-        self.creations.append(c)
+        return matches
 
     def __close_inspection(self, c, inspect_result):
         try:
@@ -324,7 +395,13 @@ class Inspector:
             connection.close()
             raise error
 
-    def __refuse(self, c):
+    def __to_updates(self, c):
+        self.updates.append(c)
+
+    def __to_creations(self, c):
+        self.creations.append(c)
+
+    def __to_refusals(self, c):
         self.refusals.append(c)
 
         # self.__close_inspection(c, 'refused')
@@ -332,24 +409,24 @@ class Inspector:
     def _adapt_db_settings(self):
         with connection.cursor() as cur:
             cur.execute("SET work_mem TO '200MB';")
-            connection.commit()
-
             cur.execute("SET maintenance_work_mem TO '1GB';")
-            connection.commit()
-
             cur.execute("SET max_parallel_workers_per_gather TO 4;")
             connection.commit()
 
         pass
 
     def build_stamp(self):
-        self.stamp = nanoid.generate(size=12)
-        pass
+        # The stamp must be lowercase since pg seems to lowercase it anyway
+        # Postegresql uses the stamp to create a temporary table
+        self.stamp = nanoid.generate(size=12).lower()
+        print(f"- stamp : {self.stamp}")
 
     def reserve_candidates(self):
+        print("- reserve candidates")
         candidates = CandidateModel.objects.filter(inspected_at__isnull=True).order_by(
             "id"
         )[: self.BATCH_SIZE]
+
         CandidateModel.objects.filter(id__in=candidates).update(
             inspect_stamp=self.stamp
         )
