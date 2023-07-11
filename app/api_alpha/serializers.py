@@ -2,7 +2,7 @@ import random
 from pprint import pprint
 
 from rest_framework import serializers
-from batid.models import Building, BuildingStatus, Address, ADS, BuildingADS, City
+from batid.models import Building, BuildingStatus, ADS, BuildingADS, City, Address
 from batid.services.models_gears import ADSGear as ADSLogic
 from api_alpha.validators import (
     ads_validate_rnbid,
@@ -28,6 +28,7 @@ class AddressSerializer(serializers.ModelSerializer):
             "street_type",
             "city_name",
             "city_zipcode",
+            "city_insee_code",
         ]
 
 

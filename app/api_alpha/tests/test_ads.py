@@ -843,8 +843,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
             ],
         }
 
-        self.maxDiff = None
-
         self.assertEqual(r.json(), expected)
 
     def test_ads_delete_yes(self):
