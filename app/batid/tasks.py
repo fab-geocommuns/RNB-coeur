@@ -2,7 +2,10 @@ from celery import shared_task
 from app.celery import app
 from batid.services.imports.import_dpt import import_etalab_dpts
 from batid.services.source import Source
-from batid.services.imports.import_bdnb7 import import_bdnb7 as import_bdnb7_job
+from batid.services.imports.import_bdnb7 import (
+    import_bdnb7_bdgs as import_bdnb7_bdgs_job,
+    import_bdnb7_addresses as import_bdnb7_addresses_job,
+)
 from batid.services.imports.import_bdtopo import import_bdtopo as import_bdtopo_job
 from batid.services.imports.import_cities import import_etalab_cities
 from batid.services.candidate import Inspector
@@ -36,8 +39,14 @@ def dl_source(src, dpt):
 
 
 @shared_task
-def import_bdnb7(dpt):
-    import_bdnb7_job(dpt)
+def import_bdnb7_addresses(dpt):
+    import_bdnb7_addresses_job(dpt)
+    return "done"
+
+
+@shared_task
+def import_bdnb7_bdgs(dpt):
+    import_bdnb7_bdgs_job(dpt)
     return "done"
 
 
