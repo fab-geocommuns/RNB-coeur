@@ -80,9 +80,10 @@ class Command(BaseCommand):
                 )
             )
         if "pre_clean_candidates" in steps:
-            tasks.append(
-                Signature("batid.tasks.remove_inspected_candidates", immutable=True)
-            )
+            # This task is commented out because inspected candidates are removed during the inspection
+            # tasks.append(
+            #     Signature("batid.tasks.remove_inspected_candidates", immutable=True)
+            # )
             tasks.append(
                 Signature("batid.tasks.remove_invalid_candidates", immutable=True)
             )

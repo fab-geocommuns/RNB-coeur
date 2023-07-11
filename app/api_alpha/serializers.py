@@ -2,7 +2,7 @@ import random
 from pprint import pprint
 
 from rest_framework import serializers
-from batid.models import Building, BuildingStatus, ADS, BuildingADS, City
+from batid.models import Building, BuildingStatus, ADS, BuildingADS, City, Address
 from batid.services.models_gears import ADSGear as ADSLogic
 from api_alpha.validators import (
     ads_validate_rnbid,
@@ -16,6 +16,22 @@ from batid.services.rnb_id import generate_rnb_id, clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry
 
 
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = [
+            "id",
+            "source",
+            "street_number",
+            "street_rep",
+            "street_name",
+            "street_type",
+            "city_name",
+            "city_zipcode",
+            "city_insee_code",
+        ]
+
+
 class BuildingStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = BuildingStatus
@@ -24,13 +40,13 @@ class BuildingStatusSerializer(serializers.ModelSerializer):
 
 class BuildingSerializer(serializers.ModelSerializer):
     point = serializers.DictField(source="point_geojson", read_only=True)
-    # addresses = AddressSerializer(many=True, read_only=True)
+    addresses = AddressSerializer(many=True, read_only=True)
     source = serializers.CharField(read_only=True)
     status = BuildingStatusSerializer(read_only=True, many=True)
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "status", "source", "point"]
+        fields = ["rnb_id", "status", "source", "point", "addresses"]
 
 
 class CityADSSerializer(serializers.ModelSerializer):

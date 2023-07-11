@@ -1,18 +1,20 @@
 from django.core.management.base import BaseCommand
 
-from batid.models import Address
+from batid.models import Address, Candidate
 from batid.services.candidate import Inspector
-from batid.services.imports.import_bdnb7 import import_bdnb7_addresses
+from batid.services.imports.import_bdnb7 import (
+    import_bdnb7_addresses,
+    import_bdnb7_bdgs,
+)
 
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        # Address.objects.all().delete()
+        # Candidate.objects.all().delete()
+        # import_bdnb7_bdgs("33")
 
-        import_bdnb7_addresses("33")
+        i_class = Inspector
+        i_class.BATCH_SIZE = 10000
 
-        # i_class = Inspector
-        # i_class.BATCH_SIZE = 1000
-        #
-        # i = i_class()
-        # i.inspect()
+        i = i_class()
+        i.inspect()

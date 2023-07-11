@@ -45,11 +45,20 @@ class Candidate:
         }
 
     def update_bdg(self, bdg: Building):
+        # The returned values
         has_changed_props = False
+        added_address_keys = []
 
+        # ##############################
+        # PROPERTIES
+        # A place to verify properties changes
+        # eg: ext_rnb_id, ext_bdnb_id, ...
+        # If any property has changed, we will set has_changed_props to True
+
+        # ##############################
+        # ADDRESSES
         # Handle change in address
         # We will return all the address keys that are not in the bdg
-        added_address_keys = []
 
         bdg_addresses_keys = [a.id for a in bdg.addresses.all()]
 
@@ -67,7 +76,7 @@ def row_to_candidate(row):
         source=row["source"],
         is_light=row["is_light"],
         source_id=row["source_id"],
-        addresses=json.loads(row["addresses"]),
+        address_keys=row["address_keys"],
         created_at=row.get("created_at", None),
         inspected_at=row.get("inspected_at", None),
         inspect_result=row.get("inspect_result", None),
@@ -76,7 +85,7 @@ def row_to_candidate(row):
 
 
 class Inspector:
-    BATCH_SIZE = 10
+    BATCH_SIZE = 10000
 
     def __init__(self):
         self.stamp = None
@@ -110,7 +119,7 @@ class Inspector:
         self.handle_bdgs_refusals()
 
         # Clean up
-        # self.remove_stamped()
+        self.remove_stamped()
 
         return len(matches)
 
@@ -197,17 +206,24 @@ class Inspector:
         for c in self.updates:
             bdg = next(b for b in bdgs if b.id == c.matched_ids[0])
             has_changed_props, added_address_keys, bdg = c.update_bdg(bdg)
+
+            # Need to update the building properties ?
             if has_changed_props:
                 self.bdgs_to_updates.append(bdg)
+
+            # Need to add some building <> adresse relations ?
             if len(added_address_keys) > 0:
                 self.add_addresses_to_bdg(bdg, added_address_keys)
+
+        print(f"bdgs to update: {len(self.bdgs_to_updates)}")
+        print(f"bdg address relations: {len(self.bdg_address_relations)}")
 
         # Save all buildings which must be updated
         self.__save_bdgs_to_updates()
 
     def add_addresses_to_bdg(self, bdg: Building, added_address_keys: List):
         for add_key in added_address_keys:
-            self.bdg_address_relations.append((bdg.id, add_key))
+            self.bdg_address_relations.append((bdg.rnb_id, add_key))
 
     @show_duration
     def __save_bdgs_to_updates(self):
@@ -218,48 +234,80 @@ class Inspector:
             f"- save buildings properties to update ({len(self.bdgs_to_updates)} bdgs)"
         )
 
-        # Create a buffer file
-        buffer = self.__create_update_buffer_file()
+        if len(self.bdgs_to_updates) > 0:
+            # Create a buffer file
+            buffer = self.__create_update_buffer_file()
 
-        with connection.cursor() as cur:
-            try:
-                self.__create_tmp_update_table(cur)
-                self.__populate_tmp_update_table(buffer, cur)
-                self.__update_bdgs_from_tmp_update_table(cur)
-                self.__drop_tmp_update_table(cur)
-                cur.commit()
-                cur.close()
-            except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cur.close()
-                raise error
+            with connection.cursor() as cur:
+                try:
+                    self.__create_tmp_update_table(cur)
+                    self.__populate_tmp_update_table(buffer, cur)
+                    self.__update_bdgs_from_tmp_update_table(cur)
+                    self.__drop_tmp_update_table(cur)
+                    cur.commit()
+                    cur.close()
+                except (Exception, psycopg2.DatabaseError) as error:
+                    connection.rollback()
+                    cur.close()
+                    raise error
 
-        # Remove the buffer file
-        os.remove(buffer.path)
+            # Remove the buffer file
+            os.remove(buffer.path)
 
         # ############
         # Building addresses relations
         # ############
+        self.__save_bdg_address_relations()
+
+    def __save_bdg_address_relations(self):
         print(
             f"- save buildings addresses relations to create ({len(self.bdg_address_relations)} relations)"
         )
 
-        # Create a buffer file
-        buffer = BufferToCopy()
-        buffer.write_data(self.bdg_address_relations)
+        if len(self.bdg_address_relations) > 0:
+            data = self.__convert_bdg_address_relations()
+
+            # Create a buffer file
+            q = f"INSERT INTO {Building.addresses.through._meta.db_table} (building_id, address_id) VALUES %s ON CONFLICT DO NOTHING"
+
+            with connection.cursor() as cur:
+                try:
+                    execute_values(cur, q, data)
+                    connection.commit()
+                except (Exception, psycopg2.DatabaseError) as error:
+                    connection.rollback()
+                    cur.close()
+                    raise error
+
+    def __convert_bdg_address_relations(self) -> list:
+        # The self.bdg_address_relations property is a list of tuples (rnb_id, address_id)
+        # We need to convert it to a list of tuples (building_id, address_id)
+        # We have to replace all rnb_id by the corresponding building_id
+
+        # Get all rnb_id
+        rnb_ids = tuple([rnb_id for rnb_id, _ in self.bdg_address_relations])
+        q = f"SELECT id, rnb_id FROM {Building._meta.db_table} WHERE rnb_id in %(rnb_ids)s"
+        params = {"rnb_ids": rnb_ids}
 
         with connection.cursor() as cur:
             try:
-                cur.copy_from(
-                    buffer.path,
-                    Building.addresses.through._meta.db_table,
-                    columns=["building_id", "address_id"],
-                )
+                cur.execute(q, params)
+                rows = cur.fetchall()
                 connection.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 connection.rollback()
                 cur.close()
                 raise error
+
+        # Create a dict to convert rnb_id to building_id
+        rnb_id_to_building_id = {rnb_id: building_id for building_id, rnb_id in rows}
+
+        # Convert the list of tuples (rnb_id, address_id) to a list of tuples (building_id, address_id)
+        data = []
+        for _, (rnb_id, address_id) in enumerate(self.bdg_address_relations):
+            data.append((rnb_id_to_building_id[rnb_id], address_id))
+
+        return data
 
     def __update_bdgs_from_tmp_update_table(self, cursor):
         q = f"UPDATE {Building._meta.db_table} SET addresses = tmp.addresses FROM tmp_update_table tmp WHERE buildings.id = tmp.id"
@@ -311,6 +359,7 @@ class Inspector:
 
         # Create the buildings
         self.__create_buildings()
+        self.__save_bdg_address_relations()
 
     # to keep
     @show_duration
@@ -330,10 +379,12 @@ class Inspector:
         values = []
 
         for c in self.creations:
+            rnb_id = generate_rnb_id()
+
             bdg_dict = c.to_bdg_dict()
             values.append(
                 (
-                    generate_rnb_id(),
+                    rnb_id,
                     bdg_dict["source"],
                     f"{bdg_dict['point'].wkt}",
                     f"{bdg_dict['shape'].wkt}",
@@ -341,6 +392,10 @@ class Inspector:
                     datetime.now(timezone.utc),
                 )
             )
+
+            # Add bdg <> addresses relations. They wil be created once the building are in db.
+            for add_key in c.address_keys:
+                self.bdg_address_relations.append((rnb_id, add_key))
 
         buffer.write_data(values)
 
@@ -463,7 +518,7 @@ class Inspector:
 
     def reserve_candidates(self):
         print("- reserve candidates")
-        candidates = CandidateModel.objects.filter(inspected_at__isnull=True).order_by(
+        candidates = CandidateModel.objects.filter(inspect_stamp__isnull=True).order_by(
             "id"
         )[: self.BATCH_SIZE]
 

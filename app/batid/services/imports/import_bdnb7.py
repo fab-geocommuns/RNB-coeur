@@ -10,6 +10,8 @@ from batid.models import Address
 from batid.services.source import Source, BufferToCopy
 from datetime import datetime, timezone
 
+from batid.utils.db import list_to_pgarray
+
 
 def import_bdnb7_bdgs(dpt):
     print(f"## Import BDNB 7 buildings in dpt {dpt}")
@@ -24,13 +26,16 @@ def import_bdnb7_bdgs(dpt):
     with open(src.find("batiment_construction.csv"), "r") as f:
         print("- list buildings")
         reader = csv.DictReader(f, delimiter=",")
+
         for row in list(reader):
             candidate = {
                 "shape": row["WKT"],
                 "source": "bdnb_7",
                 "is_light": False,
                 "source_id": row["batiment_construction_id"],
-                "address_keys": groups_addresses.get(row["batiment_groupe_id"], []),
+                "address_keys": list_to_pgarray(
+                    groups_addresses.get(row["batiment_groupe_id"], [])
+                ),
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc),
             }
