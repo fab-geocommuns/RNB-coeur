@@ -7,11 +7,94 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.conf import settings
 from batid.services.search_bdg import BuildingSearch
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
+from batid.tests.helpers import create_bdg
+
 
 # Create your tests here.
 
 
 class SearchTestCase(TestCase):
+    def _bdgs_for_polygon_search(self):
+        # Building One
+        coords = [
+            [-1.1983397171689774, 48.355340684903325],
+            [-1.1983895230302721, 48.355231052836956],
+            [-1.1983106637508456, 48.355216573112045],
+            [-1.1983148142389553, 48.35520209338344],
+            [-1.1982618955111946, 48.35519175071778],
+            [-1.1982183153827464, 48.35528483463503],
+            [-1.198265008377632, 48.3552924192426],
+            [-1.1982525569119957, 48.35532620520999],
+            [-1.1983397171689774, 48.355340684903325],
+        ]
+        b = create_bdg("BDG-ONE", coords)
+        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+
+        # Building Two
+        coords = [
+            [-1.198285760819516, 48.3554475587039],
+            [-1.1983386795472768, 48.355339305885195],
+            [-1.198157095677459, 48.35531034649364],
+            [-1.1981487947012397, 48.35533241079355],
+            [-1.1981913372067083, 48.355342753430676],
+            [-1.1981612461655686, 48.35542135740579],
+            [-1.198285760819516, 48.3554475587039],
+        ]
+        b = create_bdg("BDG-TWO", coords)
+        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+
+    def test_poly_exact_shape(self):
+        coords = [
+            [-1.1983397171689774, 48.355340684903325],
+            [-1.1983895230302721, 48.355231052836956],
+            [-1.1983106637508456, 48.355216573112045],
+            [-1.1983148142389553, 48.35520209338344],
+            [-1.1982618955111946, 48.35519175071778],
+            [-1.1982183153827464, 48.35528483463503],
+            [-1.198265008377632, 48.3552924192426],
+            [-1.1982525569119957, 48.35532620520999],
+            [-1.1983397171689774, 48.355340684903325],
+        ]
+
+        search = BuildingSearch()
+        search.set_params(
+            **{
+                "poly": GEOSGeometry(
+                    json.dumps({"type": "Polygon", "coordinates": [coords]}), srid=4326
+                ),
+            }
+        )
+
+        qs = search.get_queryset()
+
+        self.assertEqual(qs.count(), 1)
+
+        rnb_id = qs.first().rnb_id
+        self.assertEqual(rnb_id, "BDG-ONE")
+
+    def test_too_big_poly(self):
+        coords = [
+            [-1.198300287528582, 48.35550202978007],
+            [-1.198601197941258, 48.355369644278056],
+            [-1.1981612461655686, 48.35516141221896],
+            [-1.1979568346091867, 48.35531310453146],
+            [-1.197899765382573, 48.355505477318815],
+            [-1.198300287528582, 48.35550202978007],
+        ]
+
+        search = BuildingSearch()
+        search.set_params(
+            **{
+                "poly": GEOSGeometry(
+                    json.dumps({"type": "Polygon", "coordinates": [coords]}), srid=4326
+                ),
+            }
+        )
+
+        qs = search.get_queryset()
+
+        self.assertEqual(qs.count(), 0)
+
     def _bdg_in_bbox(self):
         coords = {
             "coordinates": [
@@ -179,44 +262,47 @@ class SearchTestCase(TestCase):
         ## Test constructionProject & canceledConstructionProject are protected
         self._bdg_construction_project()
 
+        ## Test Polygon search
+        self._bdgs_for_polygon_search()
+
     def test_status_search(self):
         params = {
             "status": "constructed",
         }
         s = BuildingSearch()
-        s.set_params(**params)
+        s.set_params_from_url(**params)
         qs = s.get_queryset()
 
-        self.assertEqual(qs.count(), 3)
+        self.assertEqual(qs.count(), 5)
 
         rnb_id = qs.first().rnb_id
         self.assertEqual(rnb_id, "BDG-CONSTR")
 
     def test_bdg_default_count(self):
         s = BuildingSearch()
-        s.set_params(**{})
+        s.set_params_from_url(**{})
         qs = s.get_queryset()
-        self.assertEqual(qs.count(), 5)
+        self.assertEqual(qs.count(), 7)
 
     def test_bdg_all_status_count(self):
         s = BuildingSearch()
 
-        s.set_params(
+        s.set_params_from_url(
             **{
                 "status": ",".join(BuildingStatusModel.PUBLIC_TYPES_KEYS),
             }
         )
         qs = s.get_queryset()
 
-        self.assertEqual(qs.count(), 4)
+        self.assertEqual(qs.count(), 6)
 
-    def test_search(self):
+    def test_bbox_filter(self):
         params = {
             "bb": "46.63505754305547,1.063091817650701,46.63316977636086,1.0677381191425752",
         }
 
         s = BuildingSearch()
-        s.set_params(**params)
+        s.set_params_from_url(**params)
         qs = s.get_queryset()
 
         self.assertEqual(qs.count(), 1)

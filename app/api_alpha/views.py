@@ -63,7 +63,7 @@ class BuildingViewSet(viewsets.ModelViewSet):
             ]
 
         # Then we apply the filters requested by the user
-        search.set_params(**self.request.query_params.dict())
+        search.set_params_from_url(**self.request.query_params.dict())
 
         if not search.is_valid():
             raise ParseError({"errors": search.errors})

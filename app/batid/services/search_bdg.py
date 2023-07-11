@@ -8,11 +8,14 @@ from django.db.models import QuerySet
 
 class BuildingSearch:
     def __init__(self):
-        self.params = self.params = self.BuildingSearchParams()
+        self.params = self.BuildingSearchParams()
         self.qs = None
 
     def set_params(self, **kwargs):
-        self.params.build_filters(**kwargs)
+        self.params.set_filters(**kwargs)
+
+    def set_params_from_url(self, **kwargs):
+        self.params.set_filters_from_url(**kwargs)
 
     def get_queryset(self) -> QuerySet:
         # Init
@@ -35,6 +38,10 @@ class BuildingSearch:
             queryset = queryset.filter(
                 status__type__in=self.params.status, status__is_current=True
             )
+
+        # Polygon
+        if self.params.poly:
+            queryset = queryset.filter(point__within=self.params.poly)
 
         # Sorting
         if self.params.sort:
@@ -63,8 +70,7 @@ class BuildingSearch:
             # Filters
             self.bb = None
             self.status = []
-            self.circle = None
-            self.ban_id = None
+            self.poly = None
             self.sort = None
 
             # Allowed status
@@ -73,16 +79,36 @@ class BuildingSearch:
             # Internals
             self.__errors = []
 
-        def build_filters(self, **kwargs):
+        def set_filters(self, **kwargs):
+            if "bb" in kwargs:
+                self.set_bb(kwargs["bb"])
+
+            if "status" in kwargs:
+                self.set_status(kwargs["status"])
+
+            if "poly" in kwargs:
+                self.set_poly(kwargs["poly"])
+
+            if "sort" in kwargs:
+                self.set_sort(kwargs["sort"])
+
+        def set_filters_from_url(self, **kwargs):
             # ##########
             # Set up filters
             # ##########
 
-            self.set_bb_str(kwargs.get("bb", None))
-            # todo : self.set_circle_str(kwargs.get('circle', None))
-            # todo : self.set_ban_id_str(kwargs.get('ban_id', None))
-            self.set_status_str(kwargs.get("status", None))
-            self.set_sort_str(kwargs.get("sort", self.SORT_DEFAULT))
+            if "bb" in kwargs:
+                self.set_bb_str(kwargs["bb"])
+
+            if "status" in kwargs:
+                self.set_status_str(kwargs["status"])
+
+            # todo : poly
+            # if "poly" in kwargs:
+            #     self.set_poly_str(kwargs["poly"])
+
+            if "sort" in kwargs:
+                self.set_sort_str(kwargs["sort"])
 
         @property
         def errors(self):
@@ -92,11 +118,15 @@ class BuildingSearch:
             return len(self.__errors) == 0
 
         def set_sort_str(self, sort_str: str) -> None:
-            if self.__validate_sort_str(sort_str):
-                self.sort = sort_str
+            if sort_str is not None:
+                self.set_sort(sort_str)
 
-        def __validate_sort_str(self, sort_str: str) -> bool:
-            if sort_str not in self.SORT_CHOICES:
+        def set_sort(self, sort: str) -> None:
+            if self.__validate_sort(sort):
+                self.sort = sort
+
+        def __validate_sort(self, sort: str) -> bool:
+            if sort not in self.SORT_CHOICES:
                 self.__errors.append(
                     f"sort : sort parameter must be one of {self.SORT_CHOICES}"
                 )
@@ -105,33 +135,15 @@ class BuildingSearch:
             return True
 
         def set_bb_str(self, bb_str: str) -> None:
-            if self.__validate_bb_str(bb_str):
-                self.bb = self.__convert_bb_str(bb_str)
+            if bb_str is not None:
+                if self.__validate_bb_str(bb_str):
+                    bb = self.__convert_bb_str(bb_str)
+                    self.set_bb(bb)
 
-        def set_status_str(self, status_str: str) -> None:
-            if status_str and self.__validate_status_str(status_str):
-                self.status = self.__convert_status_str(status_str)
+        def set_bb(self, bb) -> None:
+            if self.__validate_bb(bb):
+                self.bb = bb
 
-        def __convert_status_str(self, status_str: str) -> list:
-            if status_str == "all":
-                return self.allowed_status
-            return status_str.split(",")
-
-        def __validate_status_str(self, status_str: str) -> bool:
-            # "all" is a shortcut to search on all allowed status
-            if status_str == "all":
-                return True
-
-            status = status_str.split(",")
-            for s in status:
-                if s not in self.allowed_status:
-                    self.__errors.append(
-                        f'status : status "{s}" is invalid. Available status are: {BuildingStatusModel.TYPES}'
-                    )
-                    return False
-            return True
-
-        # The bb property is a Polygon object
         def __convert_bb_str(self, bb_str: str) -> Polygon:
             nw_lat, nw_lng, se_lat, se_lng = [
                 float(coord) for coord in bb_str.split(self.PARAM_SPLITTER)
@@ -169,7 +181,6 @@ class BuildingSearch:
             # Convert all params to floats and dispatch them to the right property
             nw_lat, nw_lng, se_lat, se_lng = [float(coord) for coord in coords]
 
-            # Check that the bounding box is valid
             if nw_lat <= se_lat:
                 self.__errors.append(
                     "bb : north-west latitude must be greater than south-east latitude"
@@ -179,6 +190,68 @@ class BuildingSearch:
             if nw_lng >= se_lng:
                 self.__errors.append(
                     "bb : south-east longitude must be greater than north-west longitude"
+                )
+                return False
+
+            return True
+
+        def __validate_bb(self, bb: Polygon) -> bool:
+            if bb is None:
+                return False
+
+            # Error is srid is none
+            if bb.srid is None:
+                self.__errors.append("bb : bounding box must have a SRID")
+                return False
+
+            if not bb.valid:
+                self.__errors.append(
+                    f"bb : bounding box is not valid. Reason: {bb.valid_reason}"
+                )
+                return False
+
+            return True
+
+        def set_status_str(self, status_str: str) -> None:
+            if status_str is not None:
+                status = self.__convert_status_str(status_str)
+                self.set_status(status)
+
+        def set_status(self, status: list) -> None:
+            if self.__validate_status(status):
+                self.status = status
+
+        def __validate_status(self, status: list) -> bool:
+            for s in status:
+                if s not in self.allowed_status:
+                    self.__errors.append(
+                        f'status : status "{s}" is invalid. Available status are: {BuildingStatusModel.TYPES}'
+                    )
+                    return False
+            return True
+
+        def __convert_status_str(self, status_str: str) -> list:
+            if status_str == "all":
+                return self.allowed_status
+            return status_str.split(",")
+
+        def set_poly(self, poly: Polygon) -> None:
+            if poly is not None:
+                if self.__validate_poly(poly):
+                    self.poly = poly
+
+        def __validate_poly(self, poly: Polygon):
+            if not isinstance(poly, Polygon):
+                self.__errors.append("poly : polygon must be a Polygon object")
+                return False
+
+            if poly.srid is None:
+                self.__errors.append("poly : polygon must have a SRID")
+                return False
+
+            if not poly.valid:
+                self.__errors.append(
+                    f"poly : polygon is not valid. Reason: {poly.valid_reason}"
                 )
                 return False
 
