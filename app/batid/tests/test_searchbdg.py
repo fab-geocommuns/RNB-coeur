@@ -7,7 +7,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.conf import settings
 from batid.services.search_bdg import BuildingSearch
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
-from batid.tests.helpers import create_bdg
+from batid.tests.helpers import create_bdg, create_grenoble, create_paris
 
 
 class SearchStatusTestCase(TestCase):
@@ -299,6 +299,73 @@ class SearchPolygonTestCase(TestCase):
 
         self.assertEqual(len(list(qs)), 0)
 
+    def test_quasi_similar_poly(self):
+        coords = [
+            [-1.1983369837494706, 48.35533870250637],
+            [-1.1983950034402255, 48.3552195335989],
+            [-1.1982620856030053, 48.35519219481043],
+            [-1.1982009012018864, 48.355314868747485],
+            [-1.1983369837494706, 48.35533870250637],
+        ]
+
+        search = BuildingSearch()
+        search.set_params(
+            **{
+                "poly": GEOSGeometry(
+                    json.dumps({"type": "Polygon", "coordinates": [coords]}), srid=4326
+                ),
+            }
+        )
+
+        qs = search.get_queryset()
+
+        self.assertEqual(len(list(qs)), 1)
+
     def setUp(self):
         ## Test Polygon search
         self._bdgs_for_polygon_search()
+
+
+class SearchCityTestCase(TestCase):
+    def setUp(self) -> None:
+        create_grenoble()
+        create_paris()
+
+        # Grenoble 1
+        coords = [
+            [5.727677616548021, 45.18650547532101],
+            [5.726661353775256, 45.18614386549888],
+            [5.726875130733703, 45.18586106647285],
+            [5.727891393506468, 45.18620181594525],
+            [5.727677616548021, 45.18650547532101],
+        ]
+        b = create_bdg("GRENOBLE-1", coords)
+        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+
+        # Grenoble 2
+        coords = [
+            [5.727677616548021, 45.18650547532101],
+            [5.726661353775256, 45.18614386549888],
+            [5.726875130733703, 45.18586106647285],
+            [5.727891393506468, 45.18620181594525],
+            [5.727677616548021, 45.18650547532101],
+        ]
+        b = create_bdg("GRENOBLE-2", coords)
+        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+
+        # Paris, to be sure it is not returned
+        coords = [
+            [2.3523348950355967, 48.8571274784089],
+            [2.3516700473636547, 48.85592928853123],
+            [2.352705860766207, 48.855707398369816],
+            [2.3533851616483332, 48.85690559355845],
+            [2.3523348950355967, 48.8571274784089],
+        ]
+        b = create_bdg("PARIS-1", coords)
+        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+
+    def test_grenoble(self):
+        search = BuildingSearch()
+        search.set_params(**{"insee_code": "38185"})
+        qs = search.get_queryset()
+        self.assertEqual(len(list(qs)), 2)
