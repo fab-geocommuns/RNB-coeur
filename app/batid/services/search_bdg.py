@@ -1,12 +1,14 @@
 from batid.utils.misc import is_float
-from batid.models import Building
-from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
+from batid.models import Building, BuildingStatus
+from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
 from django.conf import settings
 from django.contrib.gis.geos import Polygon
 from django.db.models import QuerySet
 
 
 class BuildingSearch:
+    MAX_HAUSDORFF_DISTANCE = 1.5
+
     def __init__(self):
         self.params = self.BuildingSearchParams()
         self.qs = None
@@ -18,36 +20,68 @@ class BuildingSearch:
         self.params.set_filters_from_url(**kwargs)
 
     def get_queryset(self) -> QuerySet:
-        # Init
-        queryset = (
-            Building.objects.prefetch_related("addresses")
-            .prefetch_related("status")
-            .all()
-        )
-
         # ###################
         # Filters
         # ###################
 
+        wheres = []
+        joins = []
+        group_by = None
+        params = {}
+
         # Bounding box
         if self.params.bb:
-            queryset = queryset.filter(point__intersects=self.params.bb)
+            wheres = ["ST_Intersects(point, %(bb)s)"]
+            params["bb"] = f"{self.params.bb}"
 
         # Status
         if self.params.status:
-            queryset = queryset.filter(
-                status__type__in=self.params.status, status__is_current=True
+            joins.append(
+                f"LEFT JOIN {BuildingStatus._meta.db_table} as s ON s.building_id = b.id"
             )
+            group_by = "b.id"
+
+            wheres.append("s.type IN %(status)s AND s.is_current = TRUE")
+            params["status"] = tuple(self.params.status)
 
         # Polygon
         if self.params.poly:
-            queryset = queryset.filter(point__within=self.params.poly)
+            wheres = ["ST_HausdorffDistance(shape, %(poly)s) <= %(max_hausdorff_dist)s"]
+            params["poly"] = f"{self.params.poly}"
+            params["max_hausdorff_dist"] = self.MAX_HAUSDORFF_DISTANCE
 
-        # Sorting
+        # JOIN
+        joins_str = ""
+        if joins:
+            joins_str = " ".join(joins)
+
+        # WHERE
+        where_str = ""
+        if wheres:
+            where_str = "WHERE " + " AND ".join(wheres)
+
+        # GROUP BY
+        group_by_str = ""
+        if group_by:
+            group_by_str = f"GROUP BY {group_by}"
+
+        # ORBER BY
+        order_str = ""
         if self.params.sort:
-            queryset = queryset.order_by(self.params.sort)
+            order_str = f"ORDER BY {self.params.sort} ASC"
 
-        return queryset
+        query = f"SELECT b.id, b.rnb_id FROM {Building._meta.db_table} as b {joins_str} {where_str} {group_by_str} {order_str} LIMIT 10"
+
+        qs = (
+            Building.objects.raw(query, params)
+            .prefetch_related("addresses")
+            .prefetch_related("status")
+        )
+
+        # print("---- QUERY ---")
+        # print(qs.query)
+
+        return qs
 
     def is_valid(self):
         return self.params.is_valid()
@@ -74,7 +108,7 @@ class BuildingSearch:
             self.sort = None
 
             # Allowed status
-            self.allowed_status = BuildingStatusModel.PUBLIC_TYPES_KEYS
+            self.allowed_status = BuildingStatusRef.PUBLIC_TYPES_KEYS
 
             # Internals
             self.__errors = []
@@ -225,7 +259,7 @@ class BuildingSearch:
             for s in status:
                 if s not in self.allowed_status:
                     self.__errors.append(
-                        f'status : status "{s}" is invalid. Available status are: {BuildingStatusModel.TYPES}'
+                        f'status : status "{s}" is invalid. Available status are: {BuildingStatusRef.TYPES}'
                     )
                     return False
             return True
@@ -238,7 +272,13 @@ class BuildingSearch:
         def set_poly(self, poly: Polygon) -> None:
             if poly is not None:
                 if self.__validate_poly(poly):
-                    self.poly = poly
+                    self.poly = self.__convert_poly(poly)
+
+        def __convert_poly(self, poly: Polygon) -> Polygon:
+            if poly.srid == settings.DEFAULT_SRID:
+                return poly
+
+            return poly.transform(settings.DEFAULT_SRID, clone=True)
 
         def __validate_poly(self, poly: Polygon):
             if not isinstance(poly, Polygon):
