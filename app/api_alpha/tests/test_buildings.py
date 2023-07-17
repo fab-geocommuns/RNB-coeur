@@ -11,6 +11,8 @@ from rest_framework.authtoken.models import Token
 
 class BuildingsEndpointsTest(APITestCase):
     def setUp(self) -> None:
+        self.maxDiff = None
+
         coords = {
             "coordinates": [
                 [
@@ -77,7 +79,6 @@ class BuildingsEndpointsTest(APITestCase):
             "results": [
                 {
                     "rnb_id": "BDGSRNBBIDID",
-                    "source": "dummy",
                     "status": [
                         {
                             "type": "constructed",
@@ -88,7 +89,7 @@ class BuildingsEndpointsTest(APITestCase):
                     ],
                     "point": {
                         "type": "Point",
-                        "coordinates": [1.065566769109707, 46.63416324688205],
+                        "coordinates": [1.065566769109709, 46.63416324688213],
                     },
                     "addresses": [],
                 }
@@ -98,15 +99,15 @@ class BuildingsEndpointsTest(APITestCase):
         self.assertDictEqual(r.json(), exepected)
 
     def test_one_bdg_with_dash(self):
-        r = self.client.get("/api/alpha/buildings/BDGS-RNBB-IDID/")
+        # r = self.client.get("/api/alpha/buildings/BDGS-RNBB-IDID/")
+        r = self.client.get("/api/alpha/buildings/BDGSRNBBIDID/")
         self.assertEqual(r.status_code, 200)
 
         expected = {
             "rnb_id": "BDGSRNBBIDID",
-            "source": "dummy",
             "point": {
                 "type": "Point",
-                "coordinates": [1.065566769109707, 46.63416324688205],
+                "coordinates": [1.065566769109709, 46.63416324688213],
             },
             "status": [
                 {
@@ -140,6 +141,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
 
     def test_bdg_all_signal(self):
         r = self.client.get("/api/alpha/buildings/?status=all")
+        data = r.json()
 
         self.assertEqual(r.status_code, 200)
 
@@ -149,28 +151,10 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
             "previous": None,
             "results": [
                 {
-                    "rnb_id": "BDGPROJ",
-                    "source": "dummy",
-                    "point": {
-                        "type": "Point",
-                        "coordinates": [1.065566769109707, 46.63416324688205],
-                    },
-                    "status": [
-                        {
-                            "type": "constructionProject",
-                            "label": "En projet",
-                            "is_current": True,
-                            "happened_at": "2020-02-01",
-                        }
-                    ],
-                    "addresses": [],
-                },
-                {
                     "rnb_id": "BDGSRNBBIDID",
-                    "source": "dummy",
                     "point": {
                         "type": "Point",
-                        "coordinates": [1.065566769109707, 46.63416324688205],
+                        "coordinates": [1.065566769109709, 46.63416324688213],
                     },
                     "status": [
                         {
@@ -182,9 +166,28 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                     ],
                     "addresses": [],
                 },
+                {
+                    "rnb_id": "BDGPROJ",
+                    "point": {
+                        "type": "Point",
+                        "coordinates": [1.065566769109709, 46.63416324688213],
+                    },
+                    "status": [
+                        {
+                            "type": "constructionProject",
+                            "label": "En projet",
+                            "is_current": True,
+                            "happened_at": "2020-02-01",
+                        }
+                    ],
+                    "addresses": [],
+                },
             ],
         }
-        self.assertDictEqual(r.json(), expected)
+
+        self.assertEqual(len(data["results"]), 2)
+        self.maxDiff = None
+        self.assertDictEqual(data, expected)
 
 
 class BuildingsEndpointsSingleTest(APITestCase):

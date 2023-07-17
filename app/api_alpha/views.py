@@ -14,7 +14,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from batid.services.rnb_id import clean_rnb_id
 
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from batid.services.vector_tiles import tile_sql, url_params_to_tile
 
 
@@ -22,24 +22,26 @@ class BuildingViewSet(viewsets.ModelViewSet):
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
     http_method_names = ["get"]
-    pagination_class = PageNumberPagination
     lookup_field = "rnb_id"
 
     def get_object(self):
-        queryset = self.filter_queryset(self.get_queryset())
-
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
 
-        assert lookup_url_kwarg in self.kwargs, (
-            "Expected view %s to be called with a URL keyword argument "
-            'named "%s". Fix your URL conf, or set the `.lookup_field` '
-            "attribute on the view correctly."
-            % (self.__class__.__name__, lookup_url_kwarg)
-        )
+        search = BuildingSearch()
 
-        filter_kwargs = {self.lookup_field: clean_rnb_id(self.kwargs[lookup_url_kwarg])}
+        search.set_params_from_url(**{"rnb_id": self.kwargs[lookup_url_kwarg]})
 
-        obj = get_object_or_404(queryset, **filter_kwargs)
+        if not search.is_valid():
+            raise ParseError({"errors": search.errors})
+            return
+
+        qs = search.get_queryset()
+
+        if len(qs) == 0:
+            raise Http404
+            return
+
+        obj = qs[0]
 
         # May raise a permission denied
         self.check_object_permissions(self.request, obj)

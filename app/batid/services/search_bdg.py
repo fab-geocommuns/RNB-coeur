@@ -1,3 +1,4 @@
+from batid.services.rnb_id import clean_rnb_id
 from batid.utils.misc import is_float
 from batid.models import Building, BuildingStatus, City
 from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
@@ -34,6 +35,11 @@ class BuildingSearch:
             wheres = ["ST_Intersects(point, %(bb)s)"]
             params["bb"] = f"{self.params.bb}"
 
+        # RNB ID
+        if self.params.rnb_id:
+            wheres.append("rnb_id = %(rnb_id)s")
+            params["rnb_id"] = self.params.rnb_id
+
         # Status
         if self.params.status:
             joins.append(
@@ -52,14 +58,14 @@ class BuildingSearch:
 
         # City poly
         if self.params._city_poly:
-            print("--- filter in city poly")
-
             wheres = ["ST_Intersects(b.point, %(city_poly)s)"]
             params["city_poly"] = f"{self.params._city_poly}"
 
         # SELECT
         selects = ["b.id", "b.rnb_id"]
-        # selects.append("ST_AsEWKB(b.point) as point") # geometries must be sent back as EWKB to work with RawQuerySet
+        selects.append(
+            "ST_AsEWKB(b.point) as point"
+        )  # geometries must be sent back as EWKB to work with RawQuerySet
         # selects.append("ST_HausdorffDistance(b.shape, %(poly)s) as hausdorff_dist")
         select_str = ", ".join(selects)
 
@@ -83,7 +89,7 @@ class BuildingSearch:
         if self.params.sort:
             order_str = f"ORDER BY {self.params.sort} ASC"
 
-        query = f"SELECT {select_str} FROM {Building._meta.db_table} as b {joins_str} {where_str} {group_by_str} {order_str} LIMIT 10"
+        query = f"SELECT {select_str} FROM {Building._meta.db_table} as b {joins_str} {where_str} {group_by_str} {order_str}"
 
         qs = (
             Building.objects.raw(query, params)
@@ -115,6 +121,7 @@ class BuildingSearch:
             # ##########
 
             # Filters
+            self.rnb_id = None
             self.bb = None
             self.status = []
             self.poly = None
@@ -129,6 +136,9 @@ class BuildingSearch:
             self.__errors = []
 
         def set_filters(self, **kwargs):
+            if "rnb_id" in kwargs:
+                self.set_rnb_id(kwargs["rnb_id"])
+
             if "bb" in kwargs:
                 self.set_bb(kwargs["bb"])
 
@@ -149,13 +159,16 @@ class BuildingSearch:
             # Set up filters
             # ##########
 
+            if "rnb_id" in kwargs:
+                self.set_rnb_id_str(kwargs["rnb_id"])
+
             if "bb" in kwargs:
                 self.set_bb_str(kwargs["bb"])
 
             if "status" in kwargs:
                 self.set_status_str(kwargs["status"])
 
-            # todo : poly
+            # todo : poly (for now it is not used in the url)
             # if "poly" in kwargs:
             #     self.set_poly_str(kwargs["poly"])
 
@@ -351,3 +364,9 @@ class BuildingSearch:
                     f"insee_code : insee code {self.insee_code} does not exist"
                 )
                 return None
+
+        def set_rnb_id_str(self, rnb_id):
+            self.set_rnb_id(rnb_id)
+
+        def set_rnb_id(self, rnb_id):
+            self.rnb_id = clean_rnb_id(rnb_id)

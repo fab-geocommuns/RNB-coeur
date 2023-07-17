@@ -125,7 +125,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820704, 45.17874138804159],
+                            "coordinates": [5.718191258820708, 45.17874138804167],
                         },
                     },
                 }
@@ -166,7 +166,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820704, 45.17874138804159],
+                            "coordinates": [5.718191258820708, 45.17874138804167],
                         },
                     },
                 }
@@ -225,7 +225,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "custom_id": "OUR-BDG",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.724331358994108, 45.181573710196766],
+                            "coordinates": [5.724331358994108, 45.18157371019682],
                         },
                     },
                     "operation": "build",
@@ -289,14 +289,13 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820704, 45.17874138804159],
+                            "coordinates": [5.718191258820708, 45.17874138804167],
                         },
                     },
                 }
             ],
         }
 
-        self.maxDiff = None
         # Assert that the response is correct
         self.assertDictEqual(r_data, expected)
         self.assertEqual(r.status_code, 200)
@@ -334,7 +333,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820704, 45.17874138804159],
+                            "coordinates": [5.718191258820708, 45.17874138804167],
                         },
                     },
                 }
@@ -397,7 +396,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                     "building": {
                         "rnb_id": new_rnb_id,
                         "geometry": {
-                            "coordinates": [5.736539944382292, 45.1873696473121],
+                            "coordinates": [5.73653994438229, 45.18736964731217],
                             "type": "Point",
                         },
                     },
@@ -446,7 +445,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": new_rnb_id,
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.717771597834023, 45.17739684209891],
+                            "coordinates": [5.717771597834023, 45.177396842098986],
                         },
                     },
                 }
@@ -462,8 +461,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertDictEqual(r_data, expected)
 
     def test_ads_update_with_new_bdg(self):
-        self.maxDiff = None
-
         data = {
             "file_number": "ADS-TEST-UPDATE",
             "decided_at": "2025-01-02",
@@ -502,7 +499,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": new_rnb_id,
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.720861502527287, 45.18380982645836],
+                            "coordinates": [5.720861502527285, 45.18380982645842],
                         },
                     },
                 }
@@ -548,7 +545,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSADSSONE1",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820704, 45.17874138804159],
+                            "coordinates": [5.718191258820708, 45.17874138804167],
                         },
                     },
                 },
@@ -558,13 +555,13 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSADSSTWO2",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820704, 45.17874138804159],
+                            "coordinates": [5.718191258820708, 45.17874138804167],
                         },
                     },
                 },
             ],
         }
-        self.maxDiff = None
+
         self.assertDictEqual(r_data, expected)
 
     def test_ads_same_bdg_twice(self):
@@ -836,7 +833,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820704, 45.17874138804159],
+                            "coordinates": [5.718191258820708, 45.17874138804167],
                         },
                     },
                 }
