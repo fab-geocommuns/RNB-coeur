@@ -182,6 +182,65 @@ class ADSEndpointsWithAuthTest(APITestCase):
         ads = ADS.objects.get(file_number="ADS-TEST-2")
         self.assertEqual(ads.creator, self.user)
 
+    def test_create_with_guess_bdg(self):
+        data = {
+            "file_number": "ADS-TEST-GUESS-BDG",
+            "decided_at": "2023-07-17",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "guess",
+                        "geometry": {
+                            "type": "MultiPolygon",
+                            "coordinates": [
+                                [
+                                    [
+                                        [5.727677616548021, 45.18650547532101],
+                                        [5.726661353775256, 45.18614386549888],
+                                        [5.726875130733703, 45.18586106647285],
+                                        [5.727891393506468, 45.18620181594525],
+                                        [5.727677616548021, 45.18650547532101],
+                                    ]
+                                ]
+                            ],
+                        },
+                    },
+                }
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        expected = {
+            "file_number": "ADS-TEST-GUESS-BDG",
+            "decided_at": "2023-07-17",
+            "city": {
+                "name": "Grenoble",
+                "code_insee": "38185",
+            },
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "GUESSGUESSGO",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [5.727273071919174, 45.18617292308352],
+                        },
+                    },
+                }
+            ],
+        }
+
+        print(r.json())
+        self.maxDiff = None
+
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(r.json(), expected)
+
     def test_create_with_custom_id(self):
         data = {
             "file_number": "CUSTOM-ID",
@@ -905,6 +964,30 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
         bdg_ads_two = Building.objects.create(
             rnb_id="BDGSADSSTWO2",
+            source="dummy",
+            shape=geom,
+            point=geom.point_on_surface,
+        )
+
+        # Building for the guess option
+        coords = {
+            "coordinates": [
+                [
+                    [
+                        [5.727677616548021, 45.18650547532101],
+                        [5.726661353775256, 45.18614386549888],
+                        [5.726875130733703, 45.18586106647285],
+                        [5.727891393506468, 45.18620181594525],
+                        [5.727677616548021, 45.18650547532101],
+                    ]
+                ]
+            ],
+            "type": "MultiPolygon",
+        }
+        geom = GEOSGeometry(json.dumps(coords), srid=4326)
+        geom.transform(settings.DEFAULT_SRID)
+        b_guess = Building.objects.create(
+            rnb_id="GUESSGUESSGO",
             source="dummy",
             shape=geom,
             point=geom.point_on_surface,

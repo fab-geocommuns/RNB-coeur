@@ -12,6 +12,7 @@ class BuildingADS:
 
 class BdgInADS:
     NEW_STR = "new"
+    GUESS_STR = "guess"
 
 
 def calc_ads_cities(data):
@@ -26,6 +27,11 @@ def calc_ads_cities(data):
     }
 
     for op in data["buildings_operations"]:
+        if op["building"]["rnb_id"] == BdgInADS.GUESS_STR:
+            if op["building"]["geometry"]["type"] == "MultiPolygon":
+                for poly in op["building"]["geometry"]["coordinates"]:
+                    multipolygons["coordinates"].append(poly)
+
         if op["building"]["rnb_id"] == BdgInADS.NEW_STR:
             if op["building"]["geometry"]["type"] == "Point":
                 # Add the op point to the multipoints
