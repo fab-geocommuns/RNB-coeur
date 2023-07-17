@@ -235,9 +235,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
             ],
         }
 
-        print(r.json())
-        self.maxDiff = None
-
         self.assertEqual(r.status_code, 200)
         self.assertDictEqual(r.json(), expected)
 
