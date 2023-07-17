@@ -10,6 +10,9 @@ def ads_validate_rnbid(rnb_id):
     if rnb_id == BdgInADS.NEW_STR:
         return
 
+    if rnb_id == BdgInADS.GUESS_STR:
+        return
+
     clean_id = clean_rnb_id(rnb_id)
     if not Building.objects.filter(rnb_id=clean_id).exists():
         raise serializers.ValidationError(f'Building "{rnb_id}" does not exist.')
@@ -17,9 +20,8 @@ def ads_validate_rnbid(rnb_id):
 
 class BdgInADSValidator:
     def __call__(self, value):
-        if value["rnb_id"] == BdgInADS.NEW_STR:
+        if value["rnb_id"] in [BdgInADS.NEW_STR, BdgInADS.GUESS_STR]:
             geojson = value.get("ads_geojson")
-
             if not geojson:
                 raise serializers.ValidationError(
                     {
@@ -27,10 +29,18 @@ class BdgInADSValidator:
                     }
                 )
 
-            if geojson["type"] not in ("Point", "MultiPolygon"):
-                raise serializers.ValidationError(
-                    {"geometry": "GeoJSON must be a Point or a MultiPolygon."}
-                )
+            if value["rnb_id"] == BdgInADS.NEW_STR:
+                if geojson["type"] not in ("Point", "MultiPolygon"):
+                    raise serializers.ValidationError(
+                        {"geometry": "GeoJSON must be a Point or a MultiPolygon."}
+                    )
+            if value["rnb_id"] == BdgInADS.GUESS_STR:
+                if geojson["type"] not in ("MultiPolygon",):
+                    raise serializers.ValidationError(
+                        {
+                            "geometry": "GeoJSON must be a MultiPolygon if you set 'guess' as rnb_id."
+                        }
+                    )
 
             try:
                 geometry = GEOSGeometry(str(geojson))
