@@ -1,5 +1,6 @@
 import random
 from pprint import pprint
+from typing import Optional
 
 from rest_framework import serializers
 from batid.models import Building, BuildingStatus, ADS, BuildingADS, City, Address
@@ -13,7 +14,9 @@ from api_alpha.validators import (
 from api_alpha.services import BuildingADS as BuildingADSLogic, BdgInADS
 from rest_framework.validators import UniqueValidator
 from batid.services.rnb_id import generate_rnb_id, clean_rnb_id
-from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
+
+from batid.services.search_bdg import BuildingSearch
 
 
 class AddressSerializer(serializers.ModelSerializer):
@@ -41,12 +44,12 @@ class BuildingStatusSerializer(serializers.ModelSerializer):
 class BuildingSerializer(serializers.ModelSerializer):
     point = serializers.DictField(source="point_geojson", read_only=True)
     addresses = AddressSerializer(many=True, read_only=True)
-    source = serializers.CharField(read_only=True)
+    # source = serializers.CharField(read_only=True)
     status = BuildingStatusSerializer(read_only=True, many=True)
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "status", "source", "point", "addresses"]
+        fields = ["rnb_id", "status", "point", "addresses"]
 
 
 class CityADSSerializer(serializers.ModelSerializer):
@@ -101,11 +104,40 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
             validated_data["source"] = "ADS"
             building = super().create(validated_data)
             return building
+        elif validated_data.get("rnb_id") == BdgInADS.GUESS_STR:
+            geojson = validated_data.pop("ads_geojson")
+            geometry = GEOSGeometry(str(geojson))
+
+            if geometry.geom_type == "MultiPolygon":
+                validated_data["shape"] = f"{geometry}"
+                validated_data["point"] = f"{geometry.point_on_surface}"
+
+            bdg = self.guess_bdg(geometry)
+            if isinstance(bdg, Building):
+                return bdg
+
+            if bdg is None:
+                validated_data["rnb_id"] = generate_rnb_id()
+                validated_data["source"] = "ADS"
+                building = super().create(validated_data)
+                return building
+
         else:
             clean_id = clean_rnb_id(validated_data["rnb_id"])
             bdg = Building.objects.get(rnb_id=clean_id)
 
             return bdg
+
+    def guess_bdg(self, mp: MultiPolygon) -> Optional[Building]:
+        """Try to guess the building from the MultiPolygon"""
+
+        search = BuildingSearch()
+        search.set_params(**{"poly": mp[0]})
+        qs = search.get_queryset()
+        if len(qs) == 1:
+            return qs[0]
+
+        return None
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):
