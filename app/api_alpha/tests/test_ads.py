@@ -233,18 +233,25 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 },
             ],
         }
+
         r = self.client.put(
             "/api/alpha/ads/MODIFY-GUESS/",
             data=json.dumps(data),
             content_type="application/json",
         )
 
-        r = self.client.get("/api/alpha/ads/MODIFY-GUESS/")
-
         data = r.json()
-        print(data)
+
         self.assertEqual(r.status_code, 200)
         self.assertEqual(len(data["buildings_operations"]), 2)
+
+        # We verify we have the right buildings in the right order
+        self.assertEqual(
+            data["buildings_operations"][0]["building"]["rnb_id"], "BDGSRNBBIDID"
+        )
+        self.assertEqual(
+            data["buildings_operations"][1]["building"]["rnb_id"], "GUESSGUESSG2"
+        )
 
     def test_create_with_guess_new_bdg(self):
         data = {
