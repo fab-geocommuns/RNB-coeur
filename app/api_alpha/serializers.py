@@ -105,6 +105,8 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
             building = super().create(validated_data)
             return building
         elif validated_data.get("rnb_id") == BdgInADS.GUESS_STR:
+            print(">>>> GUESS")
+
             geojson = validated_data.pop("ads_geojson")
             geometry = GEOSGeometry(str(geojson))
 
@@ -114,9 +116,11 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
 
             bdg = self.guess_bdg(geometry)
             if isinstance(bdg, Building):
+                print("--> we found a building with the same geometry")
                 return bdg
 
             if bdg is None:
+                print("--> we have to create a new bdg")
                 validated_data["rnb_id"] = generate_rnb_id()
                 validated_data["source"] = "ADS"
                 building = super().create(validated_data)
@@ -160,11 +164,17 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
         return super().is_valid(*args, raise_exception=raise_exception)
 
     def create(self, validated_data):
+        print(">>>> create bdg_ads")
+        print(validated_data)
+
         bdg_data = validated_data.pop("building")
         bdg = BdgInAdsSerializer().create(bdg_data)
         return BuildingADS(building=bdg, **validated_data)
 
     def update(self, bdg_ads, validated_data):
+        print(">>>> update bdg_ads")
+        print(validated_data)
+
         validated_data.pop("building")
         for attr, value in validated_data.items():
             setattr(bdg_ads, attr, value)
@@ -237,9 +247,20 @@ class ADSSerializer(serializers.ModelSerializer):
 
         for attr, value in validated_data.items():
             setattr(ads, attr, value)
+
         ads.save()
 
         if data_bdg_ops:
+            # First, we remove operations which are in the ADS but not in sent data (matching on RNB ID)
+            data_rnb_ids = [b["building"]["rnb_id"] for b in data_bdg_ops]
+            for model_bdg_op in ads.buildings_operations.all():
+                if model_bdg_op.building.rnb_id not in data_rnb_ids:
+                    model_bdg_op.delete()
+                    print("we delete this bdgOperation")
+                    print(model_bdg_op.operation)
+                    print(model_bdg_op.building.rnb_id)
+
+            # Then we add the new operations
             for data_bdg_op in data_bdg_ops:
                 # First we check if the building is already in the ADS
                 adslogic = ADSLogic(ads)
@@ -249,12 +270,9 @@ class ADSSerializer(serializers.ModelSerializer):
                 else:
                     bdg_op = BuildingsADSSerializer().create(data_bdg_op.copy())
                     bdg_op.ads = ads
+                    print("we gonna save this bdgOperation ")
+                    print(bdg_op.operation)
+                    print(bdg_op.building.rnb_id)
                 bdg_op.save()
-
-            # We remove operations which are in the ADS but not in sent data (matching on RNB ID)
-            data_rnb_ids = [b["building"]["rnb_id"] for b in data_bdg_ops]
-            for model_bdg_op in ads.buildings_operations.all():
-                if model_bdg_op.building.rnb_id not in data_rnb_ids:
-                    model_bdg_op.delete()
 
         return ads
