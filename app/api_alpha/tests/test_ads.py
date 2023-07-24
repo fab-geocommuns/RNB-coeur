@@ -182,6 +182,317 @@ class ADSEndpointsWithAuthTest(APITestCase):
         ads = ADS.objects.get(file_number="ADS-TEST-2")
         self.assertEqual(ads.creator, self.user)
 
+    # This test needs a refacto of the BuildingsADSSerializer to pass
+    # We can follow what the double step validation done in the ADSSerializer with the cities
+    # issue :https://github.com/fab-geocommuns/BatID-core/issues/168
+    # def test_twice_same_bdg_one_guess(self):
+    #     data = {
+    #         "file_number": "ADS-TEST-GUESS-NEW-BDG",
+    #         "decided_at": "2023-07-19",
+    #         "buildings_operations": [
+    #             {
+    #                 "operation": "build",
+    #                 "building": {
+    #                     "rnb_id": "guess",
+    #                     "geometry": {
+    #                         "type": "MultiPolygon",
+    #                         "coordinates": [
+    #                             [
+    #                                 [
+    #                                     [5.727481544742659, 45.18703215564693],
+    #                                     [5.726913971918663, 45.18682335805852],
+    #                                     [5.727180892471154, 45.186454342625154],
+    #                                     [5.727817395327776, 45.18666934350475],
+    #                                     [5.727836461081949, 45.18671068973464],
+    #                                     [5.727481544742659, 45.18703215564693],
+    #                                 ]
+    #                             ]
+    #                         ],
+    #                     },
+    #                 },
+    #             },
+    #             {
+    #                 "operation": "build",
+    #                 "building": {
+    #                     "rnb_id": "GUESSGUESSG2",
+    #                 },
+    #             },
+    #         ],
+    #     }
+    #
+    #     r = self.client.post(
+    #         "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+    #     )
+    #     data = r.json()
+    #
+    #     self.assertEqual(r.status_code, 400)
+    #     self.assertEqual(
+    #         data["buildings_operations"],
+    #         ["A building can only be present once in an ADS."],
+    #     )
+
+    def test_guess_twice_same_bdg(self):
+        data = {
+            "file_number": "ADS-TEST-GUESS-NEW-BDG",
+            "decided_at": "2023-07-19",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "guess",
+                        "geometry": {
+                            "type": "MultiPolygon",
+                            "coordinates": [
+                                [
+                                    [
+                                        [5.7268098966978584, 45.18679068601881],
+                                        [5.726715493784042, 45.18675856568265],
+                                        [5.726765950514107, 45.18668858917246],
+                                        [5.72641763631384, 45.1865658432821],
+                                        [5.726378573039369, 45.18663237847073],
+                                        [5.726284170125581, 45.18659566941048],
+                                        [5.726531570865745, 45.18624234350065],
+                                        [5.727065435620517, 45.18643391983434],
+                                        [5.7268098966978584, 45.18679068601881],
+                                    ]
+                                ]
+                            ],
+                        },
+                    },
+                },
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "guess",
+                        "geometry": {
+                            "type": "MultiPolygon",
+                            "coordinates": [
+                                [
+                                    [
+                                        [5.7268098966978584, 45.18679068601881],
+                                        [5.726715493784042, 45.18675856568265],
+                                        [5.726765950514107, 45.18668858917246],
+                                        [5.72641763631384, 45.1865658432821],
+                                        [5.726378573039369, 45.18663237847073],
+                                        [5.726284170125581, 45.18659566941048],
+                                        [5.726531570865745, 45.18624234350065],
+                                        [5.727065435620517, 45.18643391983434],
+                                        [5.7268098966978584, 45.18679068601881],
+                                    ]
+                                ]
+                            ],
+                        },
+                    },
+                },
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        data = r.json()
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            data["buildings_operations"],
+            ["A building can only be present once in an ADS."],
+        )
+
+    def test_guess_w_point(self):
+        data = {
+            "file_number": "GUESS-POINT",
+            "decided_at": "2023-07-19",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "guess",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [5.7268098966978584, 45.18679068601881],
+                        },
+                    },
+                }
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        data = r.json()
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            data["buildings_operations"][0]["building"]["geometry"],
+            ["GeoJSON must be a MultiPolygon if you set 'guess' as rnb_id."],
+        )
+
+    def test_guess_w_invalid_polygon(self):
+        data = {
+            "file_number": "GUESS-INVALID",
+            "decided_at": "2023-07-19",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "guess",
+                        "geometry": {
+                            "type": "MultiPolygon",
+                            "coordinates": [
+                                [
+                                    [
+                                        [5.7268098966978584, 45.18679068601881],
+                                        [5.726715493784042, 45.18675856568265],
+                                        [5.726765950514107, 45.18668858917246],
+                                        [5.72641763631384, 45.1865658432821],
+                                        [5.726378573039369, 45.18663237847073],
+                                        [5.726284170125581, 45.18659566941048],
+                                        [5.726531570865745, 45.18624234350065],
+                                        [5.727065435620517, 45.18643391983434],
+                                        # [5.7268098966978584, 45.18679068601881],
+                                    ]
+                                ]
+                            ],
+                        },
+                    },
+                }
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        data = r.json()
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            data["buildings_operations"][0]["building"]["geometry"],
+            ["GeoJSON is invalid."],
+        )
+
+    def test_create_then_modify_with_guess(self):
+        # First we verify the ADS contains only one building
+        r = self.client.get("/api/alpha/ads/MODIFY-GUESS/")
+        data = r.json()
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(data["buildings_operations"]), 1)
+        self.assertEqual(
+            data["buildings_operations"][0]["building"]["rnb_id"], "BDGSRNBBIDID"
+        )
+
+        # Then we modify the ADS to guess one building
+        data = {
+            "file_number": "MODIFY-GUESS",
+            "decided_at": "2023-07-19",
+            "buildings_operations": [
+                {"operation": "build", "building": {"rnb_id": "BDGSRNBBIDID"}},
+                {
+                    "operation": "demolish",
+                    "building": {
+                        "rnb_id": "guess",
+                        "geometry": {
+                            "type": "MultiPolygon",
+                            "coordinates": [
+                                [
+                                    [
+                                        [5.727481544742659, 45.18703215564693],
+                                        [5.726913971918663, 45.18682335805852],
+                                        [5.727180892471154, 45.186454342625154],
+                                        [5.727817395327776, 45.18666934350475],
+                                        [5.727836461081949, 45.18671068973464],
+                                        [5.727481544742659, 45.18703215564693],
+                                    ]
+                                ]
+                            ],
+                        },
+                    },
+                },
+            ],
+        }
+
+        r = self.client.put(
+            "/api/alpha/ads/MODIFY-GUESS/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        data = r.json()
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(data["buildings_operations"]), 2)
+
+        # We verify we have the right buildings in the right order
+        self.assertEqual(
+            data["buildings_operations"][0]["building"]["rnb_id"], "BDGSRNBBIDID"
+        )
+        self.assertEqual(
+            data["buildings_operations"][1]["building"]["rnb_id"], "GUESSGUESSG2"
+        )
+
+    def test_create_with_guess_new_bdg(self):
+        data = {
+            "file_number": "ADS-TEST-GUESS-NEW-BDG",
+            "decided_at": "2023-07-19",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": "guess",
+                        "geometry": {
+                            "type": "MultiPolygon",
+                            "coordinates": [
+                                [
+                                    [
+                                        [5.7268098966978584, 45.18679068601881],
+                                        [5.726715493784042, 45.18675856568265],
+                                        [5.726765950514107, 45.18668858917246],
+                                        [5.72641763631384, 45.1865658432821],
+                                        [5.726378573039369, 45.18663237847073],
+                                        [5.726284170125581, 45.18659566941048],
+                                        [5.726531570865745, 45.18624234350065],
+                                        [5.727065435620517, 45.18643391983434],
+                                        [5.7268098966978584, 45.18679068601881],
+                                    ]
+                                ]
+                            ],
+                        },
+                    },
+                }
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+        data = r.json()
+        new_rnb_id = data["buildings_operations"][0]["building"]["rnb_id"]
+
+        expected = {
+            "file_number": "ADS-TEST-GUESS-NEW-BDG",
+            "decided_at": "2023-07-19",
+            "city": {
+                "name": "Grenoble",
+                "code_insee": "38185",
+            },
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "building": {
+                        "rnb_id": new_rnb_id,
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [5.726684715445033, 45.18649988155823],
+                        },
+                    },
+                }
+            ],
+        }
+
+        self.maxDiff = None
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(data, expected)
+
     def test_create_with_guess_bdg(self):
         data = {
             "file_number": "ADS-TEST-GUESS-BDG",
@@ -983,8 +1294,32 @@ class ADSEndpointsWithAuthTest(APITestCase):
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
         geom.transform(settings.DEFAULT_SRID)
-        b_guess = Building.objects.create(
+        to_guess_bdg = Building.objects.create(
             rnb_id="GUESSGUESSGO",
+            source="dummy",
+            shape=geom,
+            point=geom.point_on_surface,
+        )
+
+        coords = {
+            "coordinates": [
+                [
+                    [
+                        [5.727481544742659, 45.18703215564693],
+                        [5.726913971918663, 45.18682335805852],
+                        [5.727180892471154, 45.186454342625154],
+                        [5.727817395327776, 45.18666934350475],
+                        [5.727836461081949, 45.18671068973464],
+                        [5.727481544742659, 45.18703215564693],
+                    ]
+                ]
+            ],
+            "type": "MultiPolygon",
+        }
+        geom = GEOSGeometry(json.dumps(coords), srid=4326)
+        geom.transform(settings.DEFAULT_SRID)
+        to_guess_bdg_two = Building.objects.create(
+            rnb_id="GUESSGUESSG2",
             source="dummy",
             shape=geom,
             point=geom.point_on_surface,
@@ -992,6 +1327,12 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         # ############
         # ADS
+
+        ads = ADS.objects.create(
+            city=grenoble, file_number="MODIFY-GUESS", decided_at="2019-01-01"
+        )
+        BuildingADS.objects.create(building=b, ads=ads, operation="build")
+
         ads = ADS.objects.create(
             city=grenoble, file_number="ADS-TEST", decided_at="2019-01-01"
         )
@@ -1061,11 +1402,11 @@ class ADSEnpointsNoAuthTest(APITestCase):
 
     def test_ads_root(self):
         r = self.client.get("/api/alpha/ads/")
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 401)
 
     def test_ads_detail(self):
         r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE-BDG/")
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 401)
 
     def test_ads_cant_delete(self):
         r = self.client.delete("/api/alpha/ads/ADS-TEST-DELETE/")

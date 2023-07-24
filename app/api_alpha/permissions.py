@@ -41,8 +41,11 @@ class ADSPermission(permissions.BasePermission):
     """Custom permission class to allow access to ADS API."""
 
     def has_permission(self, request, view):
-        # The permission is checked later in the process (in the ADSCityPermission class)
-        return True
+        # You must best authenticated to do anything with an ADS
+        if request.user.is_authenticated:
+            return True
+        else:
+            return False
 
     def has_object_permission(self, request, view, obj):
         if view.action in ["create", "update", "destroy"]:
