@@ -1,7 +1,4 @@
-import random
-from pprint import pprint
 from typing import Optional
-
 from rest_framework import serializers
 from batid.models import Building, BuildingStatus, ADS, BuildingADS, City, Address
 from batid.services.models_gears import ADSGear as ADSLogic
@@ -9,7 +6,6 @@ from api_alpha.validators import (
     ads_validate_rnbid,
     BdgInADSValidator,
     ADSValidator,
-    ADSCitiesValidator,
 )
 from api_alpha.services import BuildingADS as BuildingADSLogic, BdgInADS
 from rest_framework.validators import UniqueValidator
@@ -156,9 +152,6 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
         model = BuildingADS
         fields = ["building", "operation", "creator"]
 
-    def is_valid(self, *args, raise_exception=False):
-        return super().is_valid(*args, raise_exception=raise_exception)
-
     def create(self, validated_data):
         bdg_data = validated_data.pop("building")
         bdg = BdgInAdsSerializer().create(bdg_data)
@@ -187,7 +180,6 @@ class ADSSerializer(serializers.ModelSerializer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.request_cities = []
         self._errors = []
 
     class Meta:
@@ -201,25 +193,10 @@ class ADSSerializer(serializers.ModelSerializer):
         ]
         validators = [ADSValidator()]
 
-    def install_cities(self, cities):
-        # Verify the number of cities and throw error if not 1
-
-        self.request_cities = cities
-
-    def has_valid_cities(self):
-        try:
-            ADSCitiesValidator()(self.request_cities)
-        except serializers.ValidationError as e:
-            self._errors = e.detail
-        return not bool(self._errors)
-
     def create(self, validated_data):
         bdg_ops = []
         if "buildings_operations" in validated_data:
             bdg_ops = validated_data.pop("buildings_operations")
-
-        validated_data["city"] = self.request_cities[0]
-        # validated_data["user"] = self.context["request"].user
 
         ads = ADS.objects.create(**validated_data)
 
@@ -237,9 +214,17 @@ class ADSSerializer(serializers.ModelSerializer):
 
         for attr, value in validated_data.items():
             setattr(ads, attr, value)
+
         ads.save()
 
         if data_bdg_ops:
+            # First, we remove operations which are in the ADS but not in sent data (matching on RNB ID)
+            data_rnb_ids = [b["building"]["rnb_id"] for b in data_bdg_ops]
+            for model_bdg_op in ads.buildings_operations.all():
+                if model_bdg_op.building.rnb_id not in data_rnb_ids:
+                    model_bdg_op.delete()
+
+            # Then we add the new operations
             for data_bdg_op in data_bdg_ops:
                 # First we check if the building is already in the ADS
                 adslogic = ADSLogic(ads)
@@ -250,11 +235,5 @@ class ADSSerializer(serializers.ModelSerializer):
                     bdg_op = BuildingsADSSerializer().create(data_bdg_op.copy())
                     bdg_op.ads = ads
                 bdg_op.save()
-
-            # We remove operations which are in the ADS but not in sent data (matching on RNB ID)
-            data_rnb_ids = [b["building"]["rnb_id"] for b in data_bdg_ops]
-            for model_bdg_op in ads.buildings_operations.all():
-                if model_bdg_op.building.rnb_id not in data_rnb_ids:
-                    model_bdg_op.delete()
 
         return ads

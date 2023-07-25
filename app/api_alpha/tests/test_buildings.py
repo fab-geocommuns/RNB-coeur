@@ -1,7 +1,5 @@
 import datetime
 import json
-from pprint import pprint
-
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.test import APITestCase

@@ -2,47 +2,38 @@ from rest_framework import permissions
 from django.contrib.auth.models import User
 from batid.models import ADS
 from batid.services.models_gears import UserGear
-from api_alpha.services import calc_ads_cities
 
 
 # We have to create a specific permission class for city validation
 # It is executed after the ADSPermission class AND after the verification of the ADSSerializer.is_valid()
 # We do so because we need some field of the request to calculate the permission.
 # We prefer those fields to be validated before we use them.
-class ADSCityPermission(permissions.BasePermission):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.request_cities = []
 
-    def has_permission(self, request, view):
-        if view.action in ["create", "update"]:
-            # We have to calculate anyway since we will need the cities later
-            self.request_cities = calc_ads_cities(request.data)
 
-            if request.user.is_superuser:
-                return True
-
-            # should it be here we validate they can only request one city at a time ?
-            # It might be in a validator of the serializer
-            # if len(self.request_cities) != 1:
-            #     return False
-
-            for city in self.request_cities:
-                if not user_can_manage_insee_code(request.user, city.code_insee):
-                    return False
-
+class ADSCityPermission:
+    def user_has_permission(self, city, user, view):
+        if user.is_superuser:
             return True
 
-        else:
+        # We verify cities only in create and update views
+        if view.action not in ["create", "update"]:
             return True
+
+        if not user_can_manage_insee_code(user, city.code_insee):
+            return False
+
+        return True
 
 
 class ADSPermission(permissions.BasePermission):
     """Custom permission class to allow access to ADS API."""
 
     def has_permission(self, request, view):
-        # The permission is checked later in the process (in the ADSCityPermission class)
-        return True
+        # You must best authenticated to do anything with an ADS
+        if request.user.is_authenticated:
+            return True
+        else:
+            return False
 
     def has_object_permission(self, request, view, obj):
         if view.action in ["create", "update", "destroy"]:
