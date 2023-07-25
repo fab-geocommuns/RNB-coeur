@@ -55,19 +55,6 @@ class BdgInADSValidator:
             return
 
 
-class ADSCitiesValidator:
-    def __call__(self, cities):
-        if len(cities) == 0:
-            raise serializers.ValidationError(
-                {"buildings_operations": ["Buildings are in an unknown city"]}
-            )
-
-        if len(cities) > 1:
-            raise serializers.ValidationError(
-                {"buildings_operations": ["Buildings must be in only one city"]}
-            )
-
-
 class ADSValidator:
     def __call__(self, data):
         self.validate_bdg_once(data)

@@ -1,6 +1,4 @@
 import json
-from pprint import pprint
-
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
@@ -1229,6 +1227,113 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r = self.client.get("/api/alpha/ads/ADS-TEST-DELETE-NO/")
         self.assertEqual(r.status_code, 200)
 
+    def test_batch_create(self):
+        data = [
+            {
+                "file_number": "ADS-TEST-BATCH-1",
+                "decided_at": "2019-01-02",
+                "buildings_operations": [
+                    {
+                        "operation": "build",
+                        "building": {
+                            "rnb_id": "new",
+                            "geometry": {
+                                "type": "Point",
+                                "coordinates": [5.718634111400531, 45.183134802624544],
+                            },
+                        },
+                    }
+                ],
+            },
+            {
+                "file_number": "ADS-TEST-BATCH-2",
+                "decided_at": "2019-01-02",
+                "buildings_operations": [
+                    {
+                        "operation": "build",
+                        "building": {
+                            "rnb_id": "new",
+                            "geometry": {
+                                "type": "Point",
+                                "coordinates": [5.718254905289841, 45.18335144905792],
+                            },
+                        },
+                    }
+                ],
+            },
+        ]
+
+        r = self.client.post(
+            "/api/alpha/ads/batch/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.get("/api/alpha/ads/ADS-TEST-BATCH-1/")
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.get("/api/alpha/ads/ADS-TEST-BATCH-2/")
+        self.assertEqual(r.status_code, 200)
+
+    def test_batch_update(self):
+        existing = ADS.objects.get(file_number="BATCH-UPDATE").id
+
+        data = [
+            {
+                "file_number": "BATCH-UPDATE",
+                "decided_at": "2019-01-02",
+                "buildings_operations": [
+                    {
+                        "operation": "build",
+                        "building": {
+                            "rnb_id": "BDGSRNBBIDID",
+                        },
+                    }
+                ],
+            },
+            {
+                "file_number": "BATCH-UP-NEW",
+                "decided_at": "2019-01-02",
+                "buildings_operations": [
+                    {
+                        "operation": "build",
+                        "building": {
+                            "rnb_id": "BDGSADSSONE1",
+                        },
+                    }
+                ],
+            },
+        ]
+
+        r = self.client.post(
+            "/api/alpha/ads/batch/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+        print(r.json())
+
+        # We check there is still the same id
+        kept_id = ADS.objects.get(file_number="BATCH-UPDATE").id
+
+        r = self.client.get("/api/alpha/ads/BATCH-UPDATE/")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual("2019-01-02", data["decided_at"])
+
+        self.assertEqual(existing, kept_id)
+
+    def test_empty_batch(self):
+        data = []
+        r = self.client.post(
+            "/api/alpha/ads/batch/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+
     def __insert_data(self):
         # ############
         # Cities
@@ -1327,6 +1432,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         # ############
         # ADS
+        ads = ADS.objects.create(
+            city=grenoble, file_number="BATCH-UPDATE", decided_at="2019-01-01"
+        )
+        BuildingADS.objects.create(building=b, ads=ads, operation="build")
 
         ads = ADS.objects.create(
             city=grenoble, file_number="MODIFY-GUESS", decided_at="2019-01-01"
