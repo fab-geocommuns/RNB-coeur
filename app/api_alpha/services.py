@@ -1,5 +1,8 @@
 import json
 
+from rest_framework import exceptions, serializers
+
+from api_alpha.permissions import ADSCityPermission
 from batid.models import City
 from django.conf import settings
 from django.db import connection
@@ -48,8 +51,8 @@ def calc_ads_cities(data):
             rnb_ids.append(clean_rnb_id(op["building"]["rnb_id"]))
 
     """
-        Toutes les villes qui soient : 
-        - continennet un batiment dont le rnb_id est dans la liste des rnb_id
+        Toutes les villes qui soit : 
+        - contiennent un batiment dont le rnb_id est dans la liste des rnb_id
         - soit contiennent un point dans la liste des points
         - soit contiennent un multipolygone dans la liste des multipolygones
     """
@@ -86,3 +89,30 @@ def calc_ads_cities(data):
     cities = City.objects.raw(q, params)
 
     return [c for c in cities]
+
+
+def get_city_from_request(data, user, view):
+    cities = calc_ads_cities(data)
+
+    # First we validate we have only one city
+
+    if len(cities) == 0:
+        raise serializers.ValidationError(
+            {"buildings_operations": ["Buildings are in an unknown city"]}
+        )
+
+    if len(cities) > 1:
+        raise serializers.ValidationError(
+            {"buildings_operations": ["Buildings must be in only one city"]}
+        )
+
+    city = cities[0]
+
+    # Then we do permission
+
+    perm = ADSCityPermission()
+
+    if not perm.user_has_permission(city, user, view):
+        raise exceptions.PermissionDenied(detail="You can not edit ADS in this city.")
+
+    return city
