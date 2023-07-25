@@ -1324,6 +1324,16 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         self.assertEqual(existing, kept_id)
 
+    def test_empty_batch(self):
+        data = []
+        r = self.client.post(
+            "/api/alpha/ads/batch/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+
     def __insert_data(self):
         # ############
         # Cities

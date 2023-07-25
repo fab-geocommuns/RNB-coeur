@@ -81,10 +81,13 @@ class ADSBatchViewSet(viewsets.ModelViewSet):
     permission_classes = [ADSPermission]
     http_method_names = ["post"]
 
+    max_batch_size = 30
+
     def create(self, request, *args, **kwargs):
         to_save = []
-
         errors = {}
+
+        self.validate_length(request.data)
 
         for ads in request.data:
             try:
@@ -110,6 +113,15 @@ class ADSBatchViewSet(viewsets.ModelViewSet):
                 to_show.append(item["serializer"].data)
 
             return Response(to_show)
+
+    def validate_length(self, data):
+        if len(data) > self.max_batch_size:
+            raise ParseError(
+                {"errors": f"Too many items in the request. Max: {self.max_batch_size}"}
+            )
+
+        if len(data) == 0:
+            raise ParseError({"errors": "No data in the request."})
 
 
 class ADSViewSet(viewsets.ModelViewSet):
