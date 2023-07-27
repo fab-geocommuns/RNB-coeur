@@ -142,7 +142,6 @@ class ADSViewSet(viewsets.ModelViewSet):
         return search.get_queryset()
 
     def create(self, request):
-        print("adsviewset create")
 
         serializer = self.get_serializer(data=request.data)
 

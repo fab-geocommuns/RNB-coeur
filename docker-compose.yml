@@ -68,8 +68,7 @@ services:
     command: blackd --bind-host 0.0.0.0 --bind-port 45484
     ports:
       - "45484:45484"
-
-
+      -
 volumes:
   postgres_data:
   rabbitmq_data:
