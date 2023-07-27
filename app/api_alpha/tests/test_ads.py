@@ -495,6 +495,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertDictEqual(data, expected)
 
     def test_create_with_guess_bdg(self):
+
+        self.maxDiff = None
+
         data = {
             "file_number": "ADS-TEST-GUESS-BDG",
             "decided_at": "2023-07-17",
@@ -819,6 +822,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 }
             ],
         }
+        self.maxDiff = None
         # Assert that the response is correct
         self.assertDictEqual(r_data, expected)
         self.assertEqual(r.status_code, 200)
