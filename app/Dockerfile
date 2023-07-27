@@ -21,4 +21,6 @@ COPY ./app/entrypoint.sh .
 RUN chmod +x  ./entrypoint.sh
 ENTRYPOINT ["./entrypoint.sh"]
 
+
+
 FROM app as app_worker
