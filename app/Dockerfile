@@ -14,6 +14,9 @@ RUN pip install -r requirements.txt
 
 FROM app as app_web
 
+## Add the wait script to the image
+COPY --from=ghcr.io/ufoscout/docker-compose-wait:latest /wait /wait
+
 COPY ./app/entrypoint.sh .
 RUN chmod +x  ./entrypoint.sh
 ENTRYPOINT ["./entrypoint.sh"]

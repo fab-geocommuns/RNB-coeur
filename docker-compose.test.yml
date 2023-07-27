@@ -27,6 +27,7 @@ services:
       - DOWNLOAD_DIR=/data/downloads
       - MIN_BDG_AREA=5
       - DEFAULT_SRID=2154
+      - WAIT_HOSTS=db:5432 rabbitmq:5672 redis:6379
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./app:/app
