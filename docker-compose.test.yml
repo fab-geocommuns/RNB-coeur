@@ -48,7 +48,7 @@ services:
       - POSTGRES_NAME=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-    restart: unless-stopped
+    restart: always
   rabbitmq:
     restart: unless-stopped
     image: rabbitmq:3.9-alpine
