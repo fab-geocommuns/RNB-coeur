@@ -44,8 +44,8 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_PORT=5432
       - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
       - POSTGRES_NAME=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
