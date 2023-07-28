@@ -40,3 +40,7 @@ docker compose up -d
 ```bash
 docker exec -ti web python manage.py import_dpt_bdgs [numero_departement]
 ```
+
+## License
+
+Projet distribué sous la License Apache 2. Voir la [`LICENSE`](LICENSE) pour plus de détails. 
