@@ -103,7 +103,7 @@ class Inspector:
         print("-- Inspect batch")
 
         # Adapt DB session settings for this job
-        self._adapt_db_settings()
+        # self._adapt_db_settings()
 
         # Lock some candidates for this batch
         self.build_stamp()
@@ -239,17 +239,10 @@ class Inspector:
             buffer = self.__create_update_buffer_file()
 
             with connection.cursor() as cur:
-                try:
-                    self.__create_tmp_update_table(cur)
-                    self.__populate_tmp_update_table(buffer, cur)
-                    self.__update_bdgs_from_tmp_update_table(cur)
-                    self.__drop_tmp_update_table(cur)
-                    cur.commit()
-                    cur.close()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    connection.rollback()
-                    cur.close()
-                    raise error
+                self.__create_tmp_update_table(cur)
+                self.__populate_tmp_update_table(buffer, cur)
+                self.__update_bdgs_from_tmp_update_table(cur)
+                self.__drop_tmp_update_table(cur)
 
             # Remove the buffer file
             os.remove(buffer.path)
@@ -271,13 +264,7 @@ class Inspector:
             q = f"INSERT INTO {Building.addresses.through._meta.db_table} (building_id, address_id) VALUES %s ON CONFLICT DO NOTHING"
 
             with connection.cursor() as cur:
-                try:
-                    execute_values(cur, q, data)
-                    connection.commit()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    connection.rollback()
-                    cur.close()
-                    raise error
+                execute_values(cur, q, data)
 
     def __convert_bdg_address_relations(self) -> list:
         # The self.bdg_address_relations property is a list of tuples (rnb_id, address_id)
@@ -290,14 +277,8 @@ class Inspector:
         params = {"rnb_ids": rnb_ids}
 
         with connection.cursor() as cur:
-            try:
-                cur.execute(q, params)
-                rows = cur.fetchall()
-                connection.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cur.close()
-                raise error
+            cur.execute(q, params)
+            rows = cur.fetchall()
 
         # Create a dict to convert rnb_id to building_id
         rnb_id_to_building_id = {rnb_id: building_id for building_id, rnb_id in rows}
@@ -362,7 +343,6 @@ class Inspector:
         self.__save_bdg_address_relations()
 
     # to keep
-    @show_duration
     def handle_bdgs_updates(self):
         print(f"- updates: {len(self.updates)}")
         if len(self.updates) == 0:
