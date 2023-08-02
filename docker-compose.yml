@@ -27,8 +27,6 @@ services:
     shm_size: 1gb
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # by default, docker when creating the db will run scripts in docker-entrypoint-initdb.d
-      - ./sql/00_postgres_setup.sql:/docker-entrypoint-initdb.d/00_postgres_setup.sql
     env_file:
       - ./.env.db_auth.dev
     ports:
