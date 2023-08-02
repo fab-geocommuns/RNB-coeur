@@ -41,6 +41,10 @@ docker compose up -d
 docker exec -ti web python manage.py import_dpt_bdgs [numero_departement]
 ```
 
+## API, outils et documentation
+
+L'[ensemble de la documentation](https://rnb.beta.gouv.fr/doc) est accessible sur notre site.
+
 ## License
 
-Projet distribué sous la License Apache 2. Voir la [`LICENSE`](LICENSE) pour plus de détails. 
+Projet distribué sous la License Apache 2. Voir la [`LICENSE`](LICENSE) pour plus de détails.
