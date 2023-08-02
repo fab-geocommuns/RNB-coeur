@@ -21,10 +21,8 @@ class Building(models.Model):
 
     addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
 
-    ext_bdnb_id = models.CharField(max_length=40, null=True, unique=True, db_index=True)
-    ext_bdtopo_id = models.CharField(
-        max_length=40, null=True, unique=True, db_index=True
-    )
+    ext_bdnb_id = models.CharField(max_length=40, null=True, db_index=True)
+    ext_bdtopo_id = models.CharField(max_length=40, null=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -54,6 +54,14 @@ class Candidate:
         # A place to verify properties changes
         # eg: ext_rnb_id, ext_bdnb_id, ...
         # If any property has changed, we will set has_changed_props to True
+        if self.source == "bdnb":
+            if bdg.ext_bdnb_id != self.source_id:
+                bdg.ext_bdnb_id = self.source_id
+                has_changed_props = True
+        if self.source == "bdtopo":
+            if bdg.ext_bdtopo_id != self.source_id:
+                bdg.ext_bdtopo_id = self.source_id
+                has_changed_props = True
 
         # ##############################
         # ADDRESSES
@@ -291,7 +299,7 @@ class Inspector:
         return data
 
     def __update_bdgs_from_tmp_update_table(self, cursor):
-        q = f"UPDATE {Building._meta.db_table} SET addresses = tmp.addresses FROM tmp_update_table tmp WHERE buildings.id = tmp.id"
+        q = f"UPDATE {Building._meta.db_table} as b SET ext_bdnb_id = tmp.ext_bdnb_id, ext_bdtopo_id = tmp.ext_bdtopo_id FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
         cursor.execute(q)
 
     def __drop_tmp_update_table(self, cursor):
@@ -310,11 +318,12 @@ class Inspector:
             cursor.copy_from(
                 f,
                 self.__tmp_update_table,
-                columns=["id", "addresses"],
+                sep=";",
+                columns=["id", "ext_bdnb_id", "ext_bdtopo_id"],
             )
 
     def __create_tmp_update_table(self, cursor):
-        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, addresses jsonb)"
+        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_bdnb_id varchar(40), ext_bdtopo_id varchar(40))"
         cursor.execute(q)
 
     def __create_update_buffer_file(self) -> BufferToCopy:
@@ -323,7 +332,8 @@ class Inspector:
             data.append(
                 {
                     "id": bdg.id,
-                    "addresses": json.dumps(bdg.addresses),
+                    "ext_bdnb_id": bdg.ext_bdnb_id,
+                    "ext_bdtopo_id": bdg.ext_bdtopo_id,
                 }
             )
 
@@ -361,11 +371,16 @@ class Inspector:
         for c in self.creations:
             rnb_id = generate_rnb_id()
 
+            bdnb_id = c.source_id if c.source == "bdnb" else None
+            bdtopo_id = c.source_id if c.source == "bdtopo" else None
+
             bdg_dict = c.to_bdg_dict()
             values.append(
                 (
                     rnb_id,
                     bdg_dict["source"],
+                    bdnb_id,
+                    bdtopo_id,
                     f"{bdg_dict['point'].wkt}",
                     f"{bdg_dict['shape'].wkt}",
                     datetime.now(timezone.utc),
@@ -389,6 +404,8 @@ class Inspector:
                     columns=(
                         "rnb_id",
                         "source",
+                        "ext_bdnb_id",
+                        "ext_bdtopo_id",
                         "point",
                         "shape",
                         "created_at",
@@ -443,7 +460,7 @@ class Inspector:
         where_conds = ["c.inspected_at is null", "c.inspect_stamp = %(inspect_stamp)s"]
 
         q = (
-            "SELECT c.*, array_agg(b.id) as match_ids "
+            "SELECT c.*, coalesce(array_agg(b.id) filter (where b.id is not null), '{}') as match_ids "
             f"from {CandidateModel._meta.db_table} as c "
             "left join batid_building as b on ST_Intersects(b.shape, c.shape) "
             "and ST_Area(ST_Intersection(b.shape, c.shape)) / ST_Area(c.shape) >= %(min_intersect_ratio)s "
