@@ -32,10 +32,16 @@ class Source:
                 "folder": "bdnb_7",
                 "filename": "buffer.csv",
             },
+            # 2022 december
             "bdtopo": {
                 "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_224$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15.7z",
                 "filename": "BATIMENT.shp",
             },
+            # 2023 june
+            # "bdtopo": {
+            #     "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_232$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-06-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-06-15.7z",
+            #     "filename": "BATIMENT.shp",
+            # },
             "bdnb_7": {
                 "url": "https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz",
             },
