@@ -389,8 +389,9 @@ class Inspector:
             )
 
             # Add bdg <> addresses relations. They wil be created once the building are in db.
-            for add_key in c.address_keys:
-                self.bdg_address_relations.append((rnb_id, add_key))
+            if c.address_keys:
+                for add_key in c.address_keys:
+                    self.bdg_address_relations.append((rnb_id, add_key))
 
         buffer.write_data(values)
 
