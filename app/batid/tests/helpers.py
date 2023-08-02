@@ -1,9 +1,10 @@
 import json
+from datetime import datetime
 
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 
-from batid.models import City, Building, AsyncSignal, ADS
+from batid.models import City, Building, AsyncSignal, ADS, BuildingStatus
 from batid.services.signal import AsyncSignalDispatcher
 
 
@@ -1104,13 +1105,40 @@ def create_grenoble():
     return City.objects.create(name="Grenoble", shape=geom, code_insee="38185")
 
 
-def create_bdg(rnb_id, coords_list):
+def create_constructed_bdg(rnb_id, coords_list):
+    b = create_bdg(rnb_id, coords_list)
+    BuildingStatus.objects.create(
+        building=b,
+        type="constructed",
+        happened_at=datetime(2020, 1, 1),
+        is_current=True,
+    )
+
+    return b
+
+
+def coords_to_mp_geom(coords_list):
     coords = {
         "coordinates": [[coords_list]],
         "type": "MultiPolygon",
     }
     geom = GEOSGeometry(json.dumps(coords), srid=4326)
     geom.transform(settings.DEFAULT_SRID)
+    return geom
+
+
+def coords_to_point_geom(lng: float, lat: float):
+    coords = {
+        "coordinates": [lng, lat],
+        "type": "Point",
+    }
+    geom = GEOSGeometry(json.dumps(coords), srid=4326)
+    geom.transform(settings.DEFAULT_SRID)
+    return geom
+
+
+def create_bdg(rnb_id, coords_list):
+    geom = coords_to_mp_geom(coords_list)
 
     return Building.objects.create(
         rnb_id=rnb_id,

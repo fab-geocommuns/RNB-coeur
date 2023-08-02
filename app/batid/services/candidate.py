@@ -54,6 +54,14 @@ class Candidate:
         # A place to verify properties changes
         # eg: ext_rnb_id, ext_bdnb_id, ...
         # If any property has changed, we will set has_changed_props to True
+        if self.source == "bdnb":
+            if bdg.ext_bdnb_id != self.source_id:
+                bdg.ext_bdnb_id = self.source_id
+                has_changed_props = True
+        if self.source == "bdtopo":
+            if bdg.ext_bdtopo_id != self.source_id:
+                bdg.ext_bdtopo_id = self.source_id
+                has_changed_props = True
 
         # ##############################
         # ADDRESSES
@@ -103,7 +111,7 @@ class Inspector:
         print("-- Inspect batch")
 
         # Adapt DB session settings for this job
-        self._adapt_db_settings()
+        # self._adapt_db_settings()
 
         # Lock some candidates for this batch
         self.build_stamp()
@@ -239,17 +247,10 @@ class Inspector:
             buffer = self.__create_update_buffer_file()
 
             with connection.cursor() as cur:
-                try:
-                    self.__create_tmp_update_table(cur)
-                    self.__populate_tmp_update_table(buffer, cur)
-                    self.__update_bdgs_from_tmp_update_table(cur)
-                    self.__drop_tmp_update_table(cur)
-                    cur.commit()
-                    cur.close()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    connection.rollback()
-                    cur.close()
-                    raise error
+                self.__create_tmp_update_table(cur)
+                self.__populate_tmp_update_table(buffer, cur)
+                self.__update_bdgs_from_tmp_update_table(cur)
+                self.__drop_tmp_update_table(cur)
 
             # Remove the buffer file
             os.remove(buffer.path)
@@ -271,13 +272,7 @@ class Inspector:
             q = f"INSERT INTO {Building.addresses.through._meta.db_table} (building_id, address_id) VALUES %s ON CONFLICT DO NOTHING"
 
             with connection.cursor() as cur:
-                try:
-                    execute_values(cur, q, data)
-                    connection.commit()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    connection.rollback()
-                    cur.close()
-                    raise error
+                execute_values(cur, q, data)
 
     def __convert_bdg_address_relations(self) -> list:
         # The self.bdg_address_relations property is a list of tuples (rnb_id, address_id)
@@ -290,14 +285,8 @@ class Inspector:
         params = {"rnb_ids": rnb_ids}
 
         with connection.cursor() as cur:
-            try:
-                cur.execute(q, params)
-                rows = cur.fetchall()
-                connection.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cur.close()
-                raise error
+            cur.execute(q, params)
+            rows = cur.fetchall()
 
         # Create a dict to convert rnb_id to building_id
         rnb_id_to_building_id = {rnb_id: building_id for building_id, rnb_id in rows}
@@ -310,7 +299,7 @@ class Inspector:
         return data
 
     def __update_bdgs_from_tmp_update_table(self, cursor):
-        q = f"UPDATE {Building._meta.db_table} SET addresses = tmp.addresses FROM tmp_update_table tmp WHERE buildings.id = tmp.id"
+        q = f"UPDATE {Building._meta.db_table} as b SET ext_bdnb_id = tmp.ext_bdnb_id, ext_bdtopo_id = tmp.ext_bdtopo_id FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
         cursor.execute(q)
 
     def __drop_tmp_update_table(self, cursor):
@@ -329,11 +318,12 @@ class Inspector:
             cursor.copy_from(
                 f,
                 self.__tmp_update_table,
-                columns=["id", "addresses"],
+                sep=";",
+                columns=["id", "ext_bdnb_id", "ext_bdtopo_id"],
             )
 
     def __create_tmp_update_table(self, cursor):
-        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, addresses jsonb)"
+        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_bdnb_id varchar(40), ext_bdtopo_id varchar(40))"
         cursor.execute(q)
 
     def __create_update_buffer_file(self) -> BufferToCopy:
@@ -342,7 +332,8 @@ class Inspector:
             data.append(
                 {
                     "id": bdg.id,
-                    "addresses": json.dumps(bdg.addresses),
+                    "ext_bdnb_id": bdg.ext_bdnb_id,
+                    "ext_bdtopo_id": bdg.ext_bdtopo_id,
                 }
             )
 
@@ -362,7 +353,6 @@ class Inspector:
         self.__save_bdg_address_relations()
 
     # to keep
-    @show_duration
     def handle_bdgs_updates(self):
         print(f"- updates: {len(self.updates)}")
         if len(self.updates) == 0:
@@ -381,11 +371,16 @@ class Inspector:
         for c in self.creations:
             rnb_id = generate_rnb_id()
 
+            bdnb_id = c.source_id if c.source == "bdnb" else None
+            bdtopo_id = c.source_id if c.source == "bdtopo" else None
+
             bdg_dict = c.to_bdg_dict()
             values.append(
                 (
                     rnb_id,
                     bdg_dict["source"],
+                    bdnb_id,
+                    bdtopo_id,
                     f"{bdg_dict['point'].wkt}",
                     f"{bdg_dict['shape'].wkt}",
                     datetime.now(timezone.utc),
@@ -409,6 +404,8 @@ class Inspector:
                     columns=(
                         "rnb_id",
                         "source",
+                        "ext_bdnb_id",
+                        "ext_bdtopo_id",
                         "point",
                         "shape",
                         "created_at",
@@ -463,7 +460,7 @@ class Inspector:
         where_conds = ["c.inspected_at is null", "c.inspect_stamp = %(inspect_stamp)s"]
 
         q = (
-            "SELECT c.*, array_agg(b.id) as match_ids "
+            "SELECT c.*, coalesce(array_agg(b.id) filter (where b.id is not null), '{}') as match_ids "
             f"from {CandidateModel._meta.db_table} as c "
             "left join batid_building as b on ST_Intersects(b.shape, c.shape) "
             "and ST_Area(ST_Intersection(b.shape, c.shape)) / ST_Area(c.shape) >= %(min_intersect_ratio)s "
