@@ -511,7 +511,8 @@ class Inspector:
     def build_stamp(self):
         # The stamp must be lowercase since pg seems to lowercase it anyway
         # Postegresql uses the stamp to create a temporary table
-        self.stamp = nanoid.generate(size=12).lower()
+        alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+        self.stamp = nanoid.generate(size=12, alphabet=alphabet).lower()
         print(f"- stamp : {self.stamp}")
 
     def reserve_candidates(self):
