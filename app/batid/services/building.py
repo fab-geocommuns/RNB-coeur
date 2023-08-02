@@ -136,32 +136,28 @@ def add_default_status() -> int:
             (row[0], "constructed", datetime.now(), datetime.now(), True)
             for row in rows
         ]
-        buffer.write_data(values)
-        count += len(values)
 
-        start = perf_counter()
-        with open(buffer.path, "r") as f:
-            cursor.copy_from(
-                f,
-                BuildingStatus._meta.db_table,
-                sep=";",
-                columns=(
-                    "building_id",
-                    "type",
-                    "created_at",
-                    "updated_at",
-                    "is_current",
-                ),
-            )
-        end = perf_counter()
-        print(f"insert done in {end - start:0.4f} seconds)")
+        if values:
+            buffer.write_data(values)
+            count += len(values)
 
-        os.remove(buffer.path)
+            start = perf_counter()
+            with open(buffer.path, "r") as f:
+                cursor.copy_from(
+                    f,
+                    BuildingStatus._meta.db_table,
+                    sep=";",
+                    columns=(
+                        "building_id",
+                        "type",
+                        "created_at",
+                        "updated_at",
+                        "is_current",
+                    ),
+                )
+            end = perf_counter()
+            print(f"insert done in {end - start:0.4f} seconds)")
 
-        # start = perf_counter()
-        # execute_values(cursor, insert_q, values, page_size=p_size)
-        # connection.commit()
-        # end = perf_counter()
-        # print(f"insert done in {end - start:0.4f} seconds (page size : {p_size})")
+            os.remove(buffer.path)
 
     return count

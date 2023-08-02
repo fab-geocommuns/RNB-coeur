@@ -42,10 +42,11 @@ class BuildingSerializer(serializers.ModelSerializer):
     addresses = AddressSerializer(many=True, read_only=True)
     # source = serializers.CharField(read_only=True)
     status = BuildingStatusSerializer(read_only=True, many=True)
+    ext_bdtopo_id = serializers.CharField(read_only=True)
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "status", "point", "addresses"]
+        fields = ["rnb_id", "status", "point", "addresses", "ext_bdtopo_id"]
 
 
 class CityADSSerializer(serializers.ModelSerializer):
