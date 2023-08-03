@@ -19,7 +19,9 @@ git clone git@github.com:fab-geocommuns/RNB-coeur.git
 
 ### Renseigner les fichiers de configuration
 
-Pour une installation locale de la version de développement, copiez, renommez et remplissez les fichiers de configurations suivants : 
+Pour une installation locale de la version de développement, copiez, renommez et remplissez les fichiers de configurations ci-dessous.
+
+Le détail des paramètres à modifier est disponible dans chacun des fichiers d'exemple.
 
 NB : l'extension `.example` devient `.dev`
 
