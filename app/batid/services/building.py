@@ -79,7 +79,7 @@ def export_city(insee_code: str):
     cities_geojson = fetch_city_geojson(insee_code)
 
     q = (
-        "SELECT rnb_id, ext_bdtopo_id, ST_AsGeoJSON(shape) as shape "
+        "SELECT rnb_id, ext_bdtopo_id, ST_AsGeoJSON(ST_Transform(shape, 4326)) as shape "
         f"FROM {Building._meta.db_table} "
         "WHERE ST_Intersects(shape, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(geom)s), 4326), %(db_srid)s)) "
     )
