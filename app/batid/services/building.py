@@ -79,7 +79,7 @@ def export_city(insee_code: str):
     cities_geojson = fetch_city_geojson(insee_code)
 
     q = (
-        "SELECT rnb_id, ST_AsGeoJSON(shape) as shape "
+        "SELECT rnb_id, ext_bdtopo_id, ST_AsGeoJSON(shape) as shape "
         f"FROM {Building._meta.db_table} "
         "WHERE ST_Intersects(shape, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(geom)s), 4326), %(db_srid)s)) "
     )
@@ -92,16 +92,16 @@ def export_city(insee_code: str):
         cursor.execute(q, params)
 
         # export the result to a geojson featurecollection
-        # with a property rnb_id
-        # and a property source
+        # with rnb_id and bdtopo_id as properties
 
         feature_collection = {"type": "FeatureCollection", "features": []}
 
-        for rnb_id, shape in cursor:
+        for rnb_id, bdtopo_id, shape in cursor:
             feature = {
                 "type": "Feature",
                 "properties": {
                     "rnb_id": rnb_id,
+                    "bdtopod_id": bdtopo_id,
                 },
                 "geometry": json.loads(shape),
             }
