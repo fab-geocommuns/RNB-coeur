@@ -9,11 +9,17 @@ from batid.services.imports.import_bdnb7 import (
     import_bdnb7_addresses,
     import_bdnb7_bdgs,
 )
+from batid.services.imports.import_bdtopo import import_bdtopo
 from batid.services.source import Source
 
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        s = Source("bdtopo")
-        s.set_param("dpt", "090")
-        s.download()
+        Candidate.objects.all().delete()
+
+        import_bdtopo("01")
+
+        Candidate.objects.exclude(source_id="BATIMENT0000000008739051").delete()
+
+        i = Inspector()
+        i.inspect()

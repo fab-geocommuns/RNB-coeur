@@ -2,15 +2,32 @@ from django.urls import path
 from django.contrib import admin
 from batid.views import worker
 
-from batid.models import Organization
+from batid.models import Organization, Address
 
 
-class OrganozationAdmin(admin.ModelAdmin):
+class OrganizationAdmin(admin.ModelAdmin):
     list_display = ("name", "managed_cities")
 
 
-# Display and edit models in admin
-admin.site.register(Organization, OrganozationAdmin)
+admin.site.register(Organization, OrganizationAdmin)
+
+
+class AddressAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "source",
+        "street_number",
+        "street_rep",
+        "street_type",
+        "street_name",
+        "city_name",
+        "city_zipcode",
+        "city_insee_code",
+        "created_at",
+    )
+
+
+admin.site.register(Address, AddressAdmin)
 
 
 def get_admin_urls(urls):
