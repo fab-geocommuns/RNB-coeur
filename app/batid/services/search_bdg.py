@@ -3,7 +3,7 @@ from batid.utils.misc import is_float
 from batid.models import Building, BuildingStatus, City
 from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
 from django.conf import settings
-from django.contrib.gis.geos import Polygon, MultiPolygon
+from django.contrib.gis.geos import Polygon, MultiPolygon, Point
 from django.db.models import QuerySet
 
 
@@ -55,6 +55,11 @@ class BuildingSearch:
             wheres = ["ST_HausdorffDistance(shape, %(poly)s) <= %(max_hausdorff_dist)s"]
             params["poly"] = f"{self.params.poly}"
             params["max_hausdorff_dist"] = self.MAX_HAUSDORFF_DISTANCE
+
+        # Point
+        if self.params.point:
+            wheres = ["ST_Intersects(point, %(point)s)"]
+            params["point"] = f"{self.params.point}"
 
         # City poly
         if self.params._city_poly:
@@ -125,6 +130,7 @@ class BuildingSearch:
             self.bb = None
             self.status = []
             self.poly = None
+            self.point = None
             self.sort = None
             self.insee_code = None
             self._city_poly = None
@@ -147,6 +153,9 @@ class BuildingSearch:
 
             if "poly" in kwargs:
                 self.set_poly(kwargs["poly"])
+
+            if "point" in kwargs:
+                self.set_point(kwargs["point"])
 
             if "sort" in kwargs:
                 self.set_sort(kwargs["sort"])
@@ -303,6 +312,11 @@ class BuildingSearch:
                 return self.allowed_status
             return status_str.split(",")
 
+        def set_point(self, point: Point) -> None:
+            if point is not None:
+                if self.__validate_point(point):
+                    self.point = point
+
         def set_poly(self, poly: Polygon) -> None:
             if poly is not None:
                 if self.__validate_poly(poly):
@@ -313,6 +327,24 @@ class BuildingSearch:
                 return poly
 
             return poly.transform(settings.DEFAULT_SRID, clone=True)
+
+        def __validate_point(self, point: Point) -> bool:
+
+            if not isinstance(point, Point):
+                self.__errors.append("point : point must be a Point object")
+                return False
+
+            if point.srid is None:
+                self.__errors.append("point : point must have a SRID")
+                return False
+
+            if not point.valid:
+                self.__errors.append(
+                    f"point : point is not valid. Reason: {point.valid_reason}"
+                )
+                return False
+
+            return True
 
         def __validate_poly(self, poly: Polygon):
             if not isinstance(poly, Polygon):

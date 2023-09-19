@@ -72,7 +72,10 @@ class Source:
         if "dl_filename" in self.ref:
             return self.ref["dl_filename"]
 
-        return os.path.basename(self.url)
+        if "url" in self.ref:
+            return os.path.basename(self.url)
+
+        return None
 
     @property
     def path(self) -> str:
@@ -112,8 +115,14 @@ class Source:
 
     @property
     def is_archive(self):
+        filename = self.dl_filename if self.dl_filename is not None else self.filename
+
+        print("filename")
+        print(filename)
+
         for ext in self.archive_exts:
-            if self.dl_filename.endswith(ext):
+            # First we check the downloaded file
+            if filename.endswith(ext):
                 return True
 
         return False
