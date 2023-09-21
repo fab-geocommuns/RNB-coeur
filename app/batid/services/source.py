@@ -117,9 +117,6 @@ class Source:
     def is_archive(self):
         filename = self.dl_filename if self.dl_filename is not None else self.filename
 
-        print("filename")
-        print(filename)
-
         for ext in self.archive_exts:
             # First we check the downloaded file
             if filename.endswith(ext):

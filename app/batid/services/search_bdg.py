@@ -58,7 +58,7 @@ class BuildingSearch:
 
         # Point
         if self.params.point:
-            wheres = ["ST_Intersects(point, %(point)s)"]
+            wheres = ["ST_Intersects(shape, %(point)s)"]
             params["point"] = f"{self.params.point}"
 
         # City poly
@@ -329,7 +329,6 @@ class BuildingSearch:
             return poly.transform(settings.DEFAULT_SRID, clone=True)
 
         def __validate_point(self, point: Point) -> bool:
-
             if not isinstance(point, Point):
                 self.__errors.append("point : point must be a Point object")
                 return False
