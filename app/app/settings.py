@@ -62,7 +62,14 @@ INSTALLED_APPS = [
     "website",
     "api_alpha",
     "xp",
+    "django_extensions",
 ]
+
+NOTEBOOK_ARGUMENTS = [
+    '--ip', '0.0.0.0', 
+    '--allow-root',
+    '--no-browser', 
+] # see https://stackoverflow.com/a/47063057/1892308
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
