@@ -1,5 +1,7 @@
 import datetime
 import json
+from pprint import pprint
+
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.test import APITestCase
@@ -143,12 +145,12 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
 
         self.assertEqual(r.status_code, 200)
 
+        pprint(data)
+
         expected = {
-            "count": 2,
-            "next": None,
-            "previous": None,
-            "results": [
+            [
                 {
+                    "ex_bdtopo_id": None,
                     "rnb_id": "BDGSRNBBIDID",
                     "point": {
                         "type": "Point",
@@ -165,6 +167,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                     "addresses": [],
                 },
                 {
+                    "ex_bdtopo_id": None,
                     "rnb_id": "BDGPROJ",
                     "point": {
                         "type": "Point",
@@ -180,10 +183,10 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                     ],
                     "addresses": [],
                 },
-            ],
+            ]
         }
 
-        self.assertEqual(len(data["results"]), 2)
+        self.assertEqual(len(data), 2)
         self.maxDiff = None
         self.assertDictEqual(data, expected)
 
