@@ -180,11 +180,11 @@ class BuildingSearch:
             if "poly" in kwargs:
                 self.set_poly(kwargs["poly"])
 
-            if "point" in kwargs:
-                self.set_poly(kwargs["point"])
-
-            if "address" in kwargs:
-                self.set_address(kwargs["address"])
+            # if "point" in kwargs:
+            #     self.set_poly(kwargs["point"])
+            #
+            # if "address" in kwargs:
+            #     self.set_address(kwargs["address"])
 
             if "sort" in kwargs:
                 self.set_sort(kwargs["sort"])
@@ -213,11 +213,11 @@ class BuildingSearch:
             # if "poly" in kwargs:
             #     self.set_poly_str(kwargs["poly"])
 
-            if "point" in kwargs:
-                self.set_point_str(kwargs["point"])
-
-            if "address" in kwargs:
-                self.set_address_str(kwargs["address"])
+            # if "point" in kwargs:
+            #     self.set_point_str(kwargs["point"])
+            #
+            # if "address" in kwargs:
+            #     self.set_address_str(kwargs["address"])
 
             if "sort" in kwargs:
                 self.set_sort_str(kwargs["sort"])
