@@ -50,6 +50,25 @@ class BuildingSearch:
             wheres.append("s.type IN %(status)s AND s.is_current = TRUE")
             params["status"] = tuple(self.params.status)
 
+        # Address
+        # todo : address filter
+
+        # Point
+        if self.params.point:
+            print("----- point")
+            print(self.params.point)
+
+            self.params.point.transform(settings.DEFAULT_SRID)
+
+            # get building within a distance of the point
+            wheres = ["ST_DWithin(shape, %(point)s, 10)"]
+
+            # This is kind of hacky to set sorting here.
+            self.params.sort = "ST_Distance(shape, %(point)s)"
+
+            # wheres = ["ST_Intersects(shape, %(point)s)"]
+            params["point"] = f"{self.params.point}"
+
         # Polygon
         if self.params.poly:
             wheres = ["ST_HausdorffDistance(shape, %(poly)s) <= %(max_hausdorff_dist)s"]
@@ -161,6 +180,12 @@ class BuildingSearch:
             if "poly" in kwargs:
                 self.set_poly(kwargs["poly"])
 
+            if "point" in kwargs:
+                self.set_poly(kwargs["point"])
+
+            if "address" in kwargs:
+                self.set_address(kwargs["address"])
+
             if "sort" in kwargs:
                 self.set_sort(kwargs["sort"])
 
@@ -169,9 +194,6 @@ class BuildingSearch:
 
             if "page" in kwargs:
                 self.set_page(kwargs["page"])
-
-            if "point" in kwargs:
-                self.set_poly(kwargs["point"])
 
         def set_filters_from_url(self, **kwargs):
             # ##########
@@ -193,6 +215,9 @@ class BuildingSearch:
 
             if "point" in kwargs:
                 self.set_point_str(kwargs["point"])
+
+            if "address" in kwargs:
+                self.set_address_str(kwargs["address"])
 
             if "sort" in kwargs:
                 self.set_sort_str(kwargs["sort"])
@@ -326,6 +351,9 @@ class BuildingSearch:
 
             return True
 
+        def set_address_str(self, address_str: str):
+            self.set_address(address_str)
+
         def set_point_str(self, point_str: str) -> None:
             if self.__validate_point_str(point_str):
                 point = self.__convert_point_str(point_str)
@@ -358,7 +386,7 @@ class BuildingSearch:
             if not coords_str:
                 return False
 
-            coords = ",".split(coords_str)
+            coords = coords_str.split(",")
 
             if len(coords) != 2:
                 self.__errors.append(
@@ -366,20 +394,20 @@ class BuildingSearch:
                 )
                 return False
 
-            if not coords[0].isdigit():
+            if not is_float(coords[0]):
                 self.__errors.append("point: latitude is invalid")
                 return False
 
-            if not coords[1].isdigit():
+            if not is_float(coords[1]):
                 self.__errors.append("point: longitude is invalid")
                 return False
 
             return True
 
         def __convert_point_str(self, coords_str) -> Point:
-            lat, lng = ",".split(coords_str)
+            lat, lng = coords_str.split(",")
 
-            return Point(lng, lat, srid=4326)
+            return Point(float(lng), float(lat), srid=4326)
 
         def set_point(self, point: Point) -> None:
             if point is not None:
@@ -401,6 +429,10 @@ class BuildingSearch:
                 return False
 
             return True
+
+        def set_address(self, address: str):
+            if address is not None:
+                self.address = address
 
         def set_poly(self, poly: Polygon) -> None:
             if poly is not None:
