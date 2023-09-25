@@ -44,6 +44,13 @@ if DEBUG:
         "10.0.2.2",
     ]
 
+    NOTEBOOK_ARGUMENTS = [
+        "--ip",
+        "0.0.0.0",
+        "--allow-root",
+        "--no-browser",
+    ]  # see https://stackoverflow.com/a/47063057/1892308
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -64,12 +71,6 @@ INSTALLED_APPS = [
     "xp",
     "django_extensions",
 ]
-
-NOTEBOOK_ARGUMENTS = [
-    '--ip', '0.0.0.0', 
-    '--allow-root',
-    '--no-browser', 
-] # see https://stackoverflow.com/a/47063057/1892308
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
