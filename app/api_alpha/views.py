@@ -23,6 +23,8 @@ class BuildingViewSet(viewsets.ModelViewSet):
     http_method_names = ["get"]
     lookup_field = "rnb_id"
 
+    pagination_class = None
+
     def get_object(self):
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
 
@@ -142,7 +144,6 @@ class ADSViewSet(viewsets.ModelViewSet):
         return search.get_queryset()
 
     def create(self, request):
-
         serializer = self.get_serializer(data=request.data)
 
         if serializer.is_valid():

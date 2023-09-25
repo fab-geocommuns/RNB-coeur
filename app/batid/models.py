@@ -130,6 +130,7 @@ class BuildingADS(models.Model):
     ads = models.ForeignKey(
         ADS, related_name="buildings_operations", on_delete=models.CASCADE
     )
+
     operation = models.CharField(max_length=10, null=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
