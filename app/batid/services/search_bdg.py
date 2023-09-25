@@ -55,9 +55,6 @@ class BuildingSearch:
 
         # Point
         if self.params.point:
-            print("----- point")
-            print(self.params.point)
-
             self.params.point.transform(settings.DEFAULT_SRID)
 
             # get building within a distance of the point
@@ -192,8 +189,8 @@ class BuildingSearch:
             if "poly" in kwargs:
                 self.set_poly(kwargs["poly"])
 
-            # if "point" in kwargs:
-            #     self.set_point(kwargs["point"])
+            if "point" in kwargs:
+                self.set_point(kwargs["point"])
             #
             # if "address" in kwargs:
             #     self.set_address(kwargs["address"])

@@ -18,8 +18,8 @@ class Command(BaseCommand):
 
         self.shp_data = []
 
-        self.test_only = False
-        self.focus_on = 963398
+        self.test_only = True
+        self.focus_on = 963827
 
         # List of (sig_id, [rnb_id,]) that should be matched
         self.expected_matches = [
@@ -118,25 +118,25 @@ class Command(BaseCommand):
                     continue
 
     def __report(self):
-        # self.__display_wrong_results()
-        #
-        # df = pd.DataFrame(self.shp_data)
-        #
-        # print("----------------")
-        #
-        # # How many rows are with empty errors ?
-        # print(f"Correct rows : {len(df[df['errors'].apply(lambda x: len(x) == 0)])}")
-        #
-        # # How many rows are with errors ?
-        # print(f"Incorrect rows : {len(df[df['errors'].apply(lambda x: len(x) > 0)])}")
-        #
-        # # List errors by type and count each of them
-        #
-        # errors = df["errors"].explode().value_counts()
-        # print("-- errors breakdown")
-        # print(errors)
-        #
-        # print("------------")
+        self.__display_wrong_results()
+
+        df = pd.DataFrame(self.shp_data)
+
+        print("----------------")
+
+        # How many rows are with empty errors ?
+        print(f"Correct rows : {len(df[df['errors'].apply(lambda x: len(x) == 0)])}")
+
+        # How many rows are with errors ?
+        print(f"Incorrect rows : {len(df[df['errors'].apply(lambda x: len(x) > 0)])}")
+
+        # List errors by type and count each of them
+
+        errors = df["errors"].explode().value_counts()
+        print("-- errors breakdown")
+        print(errors)
+
+        print("------------")
         self.display_counts()
 
     def __display_wrong_results(self):
@@ -144,7 +144,9 @@ class Command(BaseCommand):
             if "errors" not in row:
                 continue
 
-            if len(row["errors"]) > 0:
+            if len(row["errors"]) > 0 and (
+                self.focus_on is None or row["id_sig"] == self.focus_on
+            ):
                 print(f"Errors : {row['errors']}")
                 print(f"SIG_ID : {row['id_sig']}")
                 print(f"RNB_ID : {row['rnb_id']}")
