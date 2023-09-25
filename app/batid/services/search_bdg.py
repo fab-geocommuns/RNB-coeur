@@ -58,7 +58,13 @@ class BuildingSearch:
 
         # Point
         if self.params.point:
-            wheres = ["ST_Intersects(shape, %(point)s)"]
+            # get building within a distance of the point
+            wheres = ["ST_DWithin(shape, %(point)s, 10)"]
+
+            # This is kind of hacky to set sorting here.
+            self.params.sort = "ST_Distance(shape, %(point)s)"
+
+            # wheres = ["ST_Intersects(shape, %(point)s)"]
             params["point"] = f"{self.params.point}"
 
         # City poly

@@ -18,7 +18,8 @@ class Command(BaseCommand):
 
         self.shp_data = []
 
-        self.test_only = True
+        self.test_only = False
+        self.focus_on = 963398
 
         # List of (sig_id, [rnb_id,]) that should be matched
         self.expected_matches = [
@@ -117,6 +118,28 @@ class Command(BaseCommand):
                     continue
 
     def __report(self):
+        # self.__display_wrong_results()
+        #
+        # df = pd.DataFrame(self.shp_data)
+        #
+        # print("----------------")
+        #
+        # # How many rows are with empty errors ?
+        # print(f"Correct rows : {len(df[df['errors'].apply(lambda x: len(x) == 0)])}")
+        #
+        # # How many rows are with errors ?
+        # print(f"Incorrect rows : {len(df[df['errors'].apply(lambda x: len(x) > 0)])}")
+        #
+        # # List errors by type and count each of them
+        #
+        # errors = df["errors"].explode().value_counts()
+        # print("-- errors breakdown")
+        # print(errors)
+        #
+        # print("------------")
+        self.display_counts()
+
+    def __display_wrong_results(self):
         for row in self.shp_data:
             if "errors" not in row:
                 continue
@@ -127,22 +150,6 @@ class Command(BaseCommand):
                 print(f"RNB_ID : {row['rnb_id']}")
                 print(f"Expected results : {row['expected_results']}")
                 print("")
-
-        df = pd.DataFrame(self.shp_data)
-
-        print("----------------")
-
-        # How many rows are with empty errors ?
-        print(f"Correct rows : {len(df[df['errors'].apply(lambda x: len(x) == 0)])}")
-
-        # How many rows are with errors ?
-        print(f"Incorrect rows : {len(df[df['errors'].apply(lambda x: len(x) > 0)])}")
-
-        # List errors by type and count each of them
-
-        errors = df["errors"].explode().value_counts()
-        print("-- errors breakdown")
-        print(errors)
 
     def __get_checked_ids(self):
         return [id for id, _ in self.expected_matches]
@@ -252,8 +259,7 @@ class Command(BaseCommand):
                 # We add the row to the df data
                 self.shp_data.append(row)
 
-        # self.display_counts()
-        self.display_erp_with_rnb_id()
+        # self.display_erp_with_rnb_id()
 
     def display_erp_with_rnb_id(self):
         print("SIG_ID with RNB_ID :")
@@ -274,12 +280,8 @@ class Command(BaseCommand):
         # How many rows are without point ?
         print(f"Rows without point : {len(df[df['point'].isnull()])}")
 
-        # How many rows are without rnb_ids ?
-        print(
-            f"Rows without rnb_id : {len(df[df['rnb_id'].apply(lambda x: len(x) == 0)])}"
-        )
+        # How many rows are with a rnb_id ?
+        print(f"Rows with rnb_id : {len(df[df['rnb_id'].notnull()])}")
 
-        # How many rows are with more than one rnb_id ?
-        print(
-            f"Rows with more than one rnb_id : {len(df[df['rnb_id'].apply(lambda x: len(x) > 1)])}"
-        )
+        # How many rows are without rnb_id ?
+        print(f"Rows without rnb_id : {len(df[df['rnb_id'].isnull()])}")

@@ -34,6 +34,7 @@ def dl_source(src, dpt):
     print(f"-- downloading {src.url}")
     src.download()
     src.uncompress()
+    src.remove_archive()
 
     return "done"
 

@@ -1,19 +1,7 @@
-import json
-
-from django.contrib.gis.geos import GEOSGeometry
 from django.core.management.base import BaseCommand
-
-from batid.models import Address, Candidate, Building
-from batid.services.candidate import Inspector
-from batid.services.imports.import_bdnb7 import (
-    import_bdnb7_addresses,
-    import_bdnb7_bdgs,
-)
-from batid.services.source import Source
+from batid.services.imports.import_plots import import_etalab_plots
 
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        s = Source("bdtopo")
-        s.set_param("dpt", "090")
-        s.download()
+        import_etalab_plots("38")
