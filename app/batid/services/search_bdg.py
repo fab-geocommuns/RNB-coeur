@@ -3,7 +3,7 @@ from batid.utils.misc import is_float
 from batid.models import Building, BuildingStatus, City
 from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
 from django.conf import settings
-from django.contrib.gis.geos import Polygon, MultiPolygon
+from django.contrib.gis.geos import Polygon, MultiPolygon, Point
 from django.db.models import QuerySet
 
 
@@ -89,7 +89,15 @@ class BuildingSearch:
         if self.params.sort:
             order_str = f"ORDER BY {self.params.sort} ASC"
 
-        query = f"SELECT {select_str} FROM {Building._meta.db_table} as b {joins_str} {where_str} {group_by_str} {order_str}"
+        # PAGINATION
+        pagination_str = ""
+        if self.params.page:
+            limit = 100
+            offset = (self.params.page - 1) * limit
+
+            pagination_str = f"LIMIT {limit} OFFSET {offset}"
+
+        query = f"SELECT {select_str} FROM {Building._meta.db_table} as b {joins_str} {where_str} {group_by_str} {order_str} {pagination_str}"
 
         qs = (
             Building.objects.raw(query, params)
@@ -124,10 +132,15 @@ class BuildingSearch:
             self.rnb_id = None
             self.bb = None
             self.status = []
+            self.point = None  # Can be any SRID
+            self.address = None
             self.poly = None
             self.sort = None
             self.insee_code = None
             self._city_poly = None
+
+            # Pagination
+            self.page = 1
 
             # Allowed status
             self.allowed_status = BuildingStatusRef.PUBLIC_TYPES_KEYS
@@ -154,6 +167,12 @@ class BuildingSearch:
             if "insee_code" in kwargs:
                 self.set_insee_code(kwargs["insee_code"])
 
+            if "page" in kwargs:
+                self.set_page(kwargs["page"])
+
+            if "point" in kwargs:
+                self.set_poly(kwargs["point"])
+
         def set_filters_from_url(self, **kwargs):
             # ##########
             # Set up filters
@@ -172,11 +191,17 @@ class BuildingSearch:
             # if "poly" in kwargs:
             #     self.set_poly_str(kwargs["poly"])
 
+            if "point" in kwargs:
+                self.set_point_str(kwargs["point"])
+
             if "sort" in kwargs:
                 self.set_sort_str(kwargs["sort"])
 
             if "insee_code" in kwargs:
                 self.set_insee_code_str(kwargs["insee_code"])
+
+            if "page" in kwargs:
+                self.set_page_str(kwargs["page"])
 
         @property
         def errors(self):
@@ -184,6 +209,13 @@ class BuildingSearch:
 
         def is_valid(self) -> bool:
             return len(self.__errors) == 0
+
+        def set_page_str(self, page: str):
+            if self.__validate_page_str(page):
+                self.set_page(int(page))
+
+        def set_page(self, page: int):
+            self.page = page
 
         def set_sort_str(self, sort_str: str) -> None:
             if sort_str is not None:
@@ -193,11 +225,25 @@ class BuildingSearch:
             if self.__validate_sort(sort):
                 self.sort = sort
 
+        def set_point(self, point: Point):
+            if self.__validate_point(point):
+                self.point = point
+
         def __validate_sort(self, sort: str) -> bool:
             if sort not in self.SORT_CHOICES:
                 self.__errors.append(
                     f"sort : sort parameter must be one of {self.SORT_CHOICES}"
                 )
+                return False
+
+            return True
+
+        def __validate_page_str(self, page: str) -> bool:
+            if not page:
+                return False
+
+            if not page.isdigit():
+                self.__errors.append("page : page parameter must be an integer")
                 return False
 
             return True
@@ -280,6 +326,11 @@ class BuildingSearch:
 
             return True
 
+        def set_point_str(self, point_str: str) -> None:
+            if self.__validate_point_str(point_str):
+                point = self.__convert_point_str(point_str)
+                self.set_point(point)
+
         def set_status_str(self, status_str: str) -> None:
             if status_str is not None:
                 status = self.__convert_status_str(status_str)
@@ -302,6 +353,54 @@ class BuildingSearch:
             if status_str == "all":
                 return self.allowed_status
             return status_str.split(",")
+
+        def __validate_point_str(self, coords_str: str) -> bool:
+            if not coords_str:
+                return False
+
+            coords = ",".split(coords_str)
+
+            if len(coords) != 2:
+                self.__errors.append(
+                    f"point: point must have latitude and longitude separated by a comma"
+                )
+                return False
+
+            if not coords[0].isdigit():
+                self.__errors.append("point: latitude is invalid")
+                return False
+
+            if not coords[1].isdigit():
+                self.__errors.append("point: longitude is invalid")
+                return False
+
+            return True
+
+        def __convert_point_str(self, coords_str) -> Point:
+            lat, lng = ",".split(coords_str)
+
+            return Point(lng, lat, srid=4326)
+
+        def set_point(self, point: Point) -> None:
+            if point is not None:
+                if self.__validate_point(point):
+                    self.point = point
+
+        def __validate_point(self, point: Point) -> bool:
+            if point is None:
+                return False
+
+            if point.srid is None:
+                self.__errors.append("point : point must have a SRID")
+                return False
+
+            if not point.valid:
+                self.__errors.append(
+                    f"point : point is not valid. Reason: {point.valid_reason}"
+                )
+                return False
+
+            return True
 
         def set_poly(self, poly: Polygon) -> None:
             if poly is not None:
