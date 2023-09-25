@@ -104,6 +104,7 @@ class BuildingsEndpointsTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         expected = {
+            "ext_bdtopo_id": None,
             "rnb_id": "BDGSRNBBIDID",
             "point": {
                 "type": "Point",
