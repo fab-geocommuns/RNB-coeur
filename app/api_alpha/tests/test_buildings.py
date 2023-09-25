@@ -1,5 +1,7 @@
 import datetime
 import json
+from pprint import pprint
+
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.test import APITestCase
@@ -143,46 +145,50 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
 
         self.assertEqual(r.status_code, 200)
 
-        expected = [
-            {
-                "ext_bdtopo_id": None,
-                "rnb_id": "BDGSRNBBIDID",
-                "point": {
-                    "type": "Point",
-                    "coordinates": [1.065566769109709, 46.63416324688213],
+        pprint(data)
+
+        expected = {
+            [
+                {
+                    "ex_bdtopo_id": None,
+                    "rnb_id": "BDGSRNBBIDID",
+                    "point": {
+                        "type": "Point",
+                        "coordinates": [1.065566769109709, 46.63416324688213],
+                    },
+                    "status": [
+                        {
+                            "type": "constructed",
+                            "label": "Construit",
+                            "happened_at": None,
+                            "is_current": True,
+                        }
+                    ],
+                    "addresses": [],
                 },
-                "status": [
-                    {
-                        "type": "constructed",
-                        "label": "Construit",
-                        "happened_at": None,
-                        "is_current": True,
-                    }
-                ],
-                "addresses": [],
-            },
-            {
-                "ext_bdtopo_id": None,
-                "rnb_id": "BDGPROJ",
-                "point": {
-                    "type": "Point",
-                    "coordinates": [1.065566769109709, 46.63416324688213],
+                {
+                    "ex_bdtopo_id": None,
+                    "rnb_id": "BDGPROJ",
+                    "point": {
+                        "type": "Point",
+                        "coordinates": [1.065566769109709, 46.63416324688213],
+                    },
+                    "status": [
+                        {
+                            "type": "constructionProject",
+                            "label": "En projet",
+                            "is_current": True,
+                            "happened_at": "2020-02-01",
+                        }
+                    ],
+                    "addresses": [],
                 },
-                "status": [
-                    {
-                        "type": "constructionProject",
-                        "label": "En projet",
-                        "is_current": True,
-                        "happened_at": "2020-02-01",
-                    }
-                ],
-                "addresses": [],
-            },
-        ]
+            ]
+        }
 
         self.assertEqual(len(data), 2)
         self.maxDiff = None
-        self.assertListEqual(data, expected)
+        self.assertDictEqual(data, expected)
 
 
 class BuildingsEndpointsSingleTest(APITestCase):
