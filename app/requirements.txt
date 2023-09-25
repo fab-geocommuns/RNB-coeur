@@ -69,3 +69,7 @@ watchdog==3.0.0
 wcwidth==0.2.6
 websocket-client==1.5.1
 whitenoise==6.4.0
+django-extensions==3.2.3
+ipython==8.15.0
+notebook==6.5.5 # see https://github.com/microsoft/azuredatastudio/issues/23945#issuecomment-1655543692
+traitlets==5.9.0 # see https://github.com/microsoft/azuredatastudio/issues/24436#issuecomment-1723328100
