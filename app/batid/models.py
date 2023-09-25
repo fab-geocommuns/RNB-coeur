@@ -130,6 +130,7 @@ class BuildingADS(models.Model):
     ads = models.ForeignKey(
         ADS, related_name="buildings_operations", on_delete=models.CASCADE
     )
+
     operation = models.CharField(max_length=10, null=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -165,7 +166,7 @@ class Address(models.Model):
     point = models.PointField(null=True, spatial_index=True, srid=settings.DEFAULT_SRID)
 
     street_number = models.CharField(max_length=10, null=True)
-    street_rep = models.CharField(max_length=5, null=True)
+    street_rep = models.CharField(max_length=10, null=True)
     street_name = models.CharField(max_length=100, null=True)
     street_type = models.CharField(max_length=100, null=True)
     city_name = models.CharField(max_length=100, null=True)

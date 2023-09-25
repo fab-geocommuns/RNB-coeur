@@ -1,3 +1,4 @@
+import csv
 import json
 
 from django.contrib.gis.geos import GEOSGeometry
@@ -15,11 +16,22 @@ from batid.services.source import Source
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        Candidate.objects.all().delete()
+        src = Source("bdnb_7")
+        src.set_param("dpt", "44")
 
-        import_bdtopo("01")
+        with open(src.find("adresse.csv"), "r") as f:
+            print("- list addresses")
+            reader = csv.DictReader(f, delimiter=",")
 
-        Candidate.objects.exclude(source_id="BATIMENT0000000008739051").delete()
+            for row in list(reader):
+                if len(row["rep"]) > 5:
+                    print("rep is too long")
+                    print(row["rep"])
 
-        i = Inspector()
-        i.inspect()
+                if len(row["code_postal"]) > 5:
+                    print("code_postal is too long")
+                    print(row["code_postal"])
+
+                if len(row["code_commune_insee"]) > 5:
+                    print("code_commune_insee is too long")
+                    print(row["code_commune_insee"])
