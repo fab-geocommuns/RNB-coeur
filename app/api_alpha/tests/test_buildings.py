@@ -72,31 +72,27 @@ class BuildingsEndpointsTest(APITestCase):
         r = self.client.get("/api/alpha/buildings/")
         self.assertEqual(r.status_code, 200)
 
-        exepected = {
-            "count": 1,
-            "next": None,
-            "previous": None,
-            "results": [
-                {
-                    "rnb_id": "BDGSRNBBIDID",
-                    "status": [
-                        {
-                            "type": "constructed",
-                            "label": "Construit",
-                            "happened_at": None,
-                            "is_current": True,
-                        }
-                    ],
-                    "point": {
-                        "type": "Point",
-                        "coordinates": [1.065566769109709, 46.63416324688213],
-                    },
-                    "addresses": [],
-                }
-            ],
-        }
+        expected = [
+            {
+                "ext_bdtopo_id": None,
+                "rnb_id": "BDGSRNBBIDID",
+                "status": [
+                    {
+                        "type": "constructed",
+                        "label": "Construit",
+                        "happened_at": None,
+                        "is_current": True,
+                    }
+                ],
+                "point": {
+                    "type": "Point",
+                    "coordinates": [1.065566769109709, 46.63416324688213],
+                },
+                "addresses": [],
+            }
+        ]
 
-        self.assertDictEqual(r.json(), exepected)
+        self.assertListEqual(r.json(), expected)
 
     def test_one_bdg_with_dash(self):
         # r = self.client.get("/api/alpha/buildings/BDGS-RNBB-IDID/")
