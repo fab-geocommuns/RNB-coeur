@@ -29,6 +29,7 @@ class BuildingSearch:
         joins = []
         group_by = None
         params = {}
+        scores = {}
 
         # Bounding box
         if self.params.bb:
@@ -52,35 +53,40 @@ class BuildingSearch:
 
         # Address
         # todo : address filter
-        score_address_str = "CASE WHEN true THEN 0 END as address_score"
 
         # #########################################
         # Point
 
         # The default score is 0
-        score_point_str = "CASE WHEN true THEN 0 END as point_score"
-
         if self.params.point:
             self.params.point.transform(settings.DEFAULT_SRID)
 
             # get building within a distance of the point
             # wheres = ["ST_DWithin(shape, %(point)s, 10)"]
 
-            # ON THIS SIDE OF THE ROAD FILTER
+            # ON THIS SIDE OF THE ROAD SCORE
             # Points tend to be on the right side of the road. We can filter out buildings that are on the other side of the road.
             # Public roads are not in cadastre plots. By grouping contiguous plots we can recreate simili-roads and keep only buildings intersecting this plot group.
             # todo : it might be interesting to pre-calculate cluster and store them in DB. It would be faster.
             cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Building._meta.db_table} WHERE ST_DWithin(shape, %(point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(point)s) ASC LIMIT 1"
-            wheres = [f"ST_Intersects(shape, ({cluster_q}))"]
+            scores[
+                "point_plot_cluster"
+            ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 1 ELSE 0 END"
 
-            # This is kind of hacky to set sorting here.
-            self.params.sort = "ST_Distance(shape, %(point)s)"
+            # DISTANCE TO THE POINT SCORE
+            # We want to keep buildings that are close to the point
+            # todo : does the double ST_Distance evaluation is a performance problem ?
+            scores[
+                "point_distance"
+            ] = f"CASE WHEN ST_Distance(shape, %(point)s) > 0 THEN 1 / ST_Distance(shape, %(point)s) ELSE 5 END"
 
-            # wheres = ["ST_Intersects(shape, %(point)s)"]
+            # LIMIT THE DISTANCE TO THE POINT
+            wheres.append(f"ST_DWithin(shape, %(point)s, 400)")
+
+            # Add the point to the params
             params["point"] = f"{self.params.point}"
 
         # Polygon
-        score_polygon_str = "CASE WHEN true THEN 0 END as polygon_score"
         if self.params.poly:
             wheres = ["ST_HausdorffDistance(shape, %(poly)s) <= %(max_hausdorff_dist)s"]
             params["poly"] = f"{self.params.poly}"
@@ -96,9 +102,6 @@ class BuildingSearch:
         selects.append(
             "ST_AsEWKB(b.point) as point",
         )  # geometries must be sent back as EWKB to work with RawQuerySet
-        selects.append(score_point_str)
-        selects.append(score_address_str)
-        selects.append(score_polygon_str)
         select_str = ", ".join(selects)
 
         # JOIN
@@ -129,18 +132,29 @@ class BuildingSearch:
 
             pagination_str = f"LIMIT {limit} OFFSET {offset}"
 
+        # SCORE CASES
+        score_cases_str = ""
+        if len(scores):
+            score_cases_str = ", " + self.__each_score_case_str(scores)
+
+        # SCORE SUM
+        scores_sum = "0 as score"
+        if len(scores):
+            scores_sum = ", " + " + ".join(scores.keys()) + " as score"
+
         # ######################
         # Assembling the queries
 
         score_query = (
-            f"SELECT {select_str} "
+            f"SELECT {select_str} {score_cases_str} "
             f"FROM {Building._meta.db_table} as b {joins_str} "
             f"{where_str} {group_by_str} {order_str}"
         )
 
         global_query = (
             f"WITH scored_bdgs AS ({score_query}) "
-            "SELECT *, point_score + address_score + polygon_score as score FROM scored_bdgs "
+            f"SELECT *  {scores_sum} "
+            f"FROM scored_bdgs "
             "ORDER BY score DESC "
             f"{pagination_str}"
         )
@@ -162,6 +176,14 @@ class BuildingSearch:
     @property
     def errors(self):
         return self.params.errors
+
+    def __each_score_case_str(self, scores_dict):
+        all = []
+
+        for name, rule in scores_dict.items():
+            all.append(f"{rule} AS {name}")
+
+        return ", ".join(all)
 
     class BuildingSearchParams:
         SORT_DEFAULT = "rnb_id"
