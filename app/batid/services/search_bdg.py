@@ -58,7 +58,14 @@ class BuildingSearch:
             self.params.point.transform(settings.DEFAULT_SRID)
 
             # get building within a distance of the point
-            wheres = ["ST_DWithin(shape, %(point)s, 10)"]
+            # wheres = ["ST_DWithin(shape, %(point)s, 10)"]
+
+            # ON THIS SIDE OF THE ROAD FILTER
+            # Points tend to be on the right side of the road. We can filter out buildings that are on the other side of the road.
+            # Public roads are not in cadastre plots. By grouping contiguous plots we can recreate simili-roads and keep only buildings intersecting this plot group.
+            # todo : it can be interesting to pre-calculate cluster and store them in DB. It would be faster.
+            cluster_q = f"SELECT ST_ClusterIntersecting(shape) as cluster FROM {Building._meta.db_table} WHERE ST_DWithin(shape, %(point)s, 50) ORDER BY ST_Distance(cluster, %(point)s) ASC LIMIT 1"
+            wheres = [f"ST_Intersects(shape, ({cluster_q}))"]
 
             # This is kind of hacky to set sorting here.
             self.params.sort = "ST_Distance(shape, %(point)s)"
