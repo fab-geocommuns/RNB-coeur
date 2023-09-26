@@ -52,8 +52,14 @@ class BuildingSearch:
 
         # Address
         # todo : address filter
+        score_address_str = "CASE WHEN true THEN 0 END as address_score"
 
+        # #########################################
         # Point
+
+        # The default score is 0
+        score_point_str = "CASE WHEN true THEN 0 END as point_score"
+
         if self.params.point:
             self.params.point.transform(settings.DEFAULT_SRID)
 
@@ -63,8 +69,8 @@ class BuildingSearch:
             # ON THIS SIDE OF THE ROAD FILTER
             # Points tend to be on the right side of the road. We can filter out buildings that are on the other side of the road.
             # Public roads are not in cadastre plots. By grouping contiguous plots we can recreate simili-roads and keep only buildings intersecting this plot group.
-            # todo : it can be interesting to pre-calculate cluster and store them in DB. It would be faster.
-            cluster_q = f"SELECT ST_ClusterIntersecting(shape) as cluster FROM {Building._meta.db_table} WHERE ST_DWithin(shape, %(point)s, 50) ORDER BY ST_Distance(cluster, %(point)s) ASC LIMIT 1"
+            # todo : it might be interesting to pre-calculate cluster and store them in DB. It would be faster.
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Building._meta.db_table} WHERE ST_DWithin(shape, %(point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(point)s) ASC LIMIT 1"
             wheres = [f"ST_Intersects(shape, ({cluster_q}))"]
 
             # This is kind of hacky to set sorting here.
@@ -74,21 +80,11 @@ class BuildingSearch:
             params["point"] = f"{self.params.point}"
 
         # Polygon
+        score_polygon_str = "CASE WHEN true THEN 0 END as polygon_score"
         if self.params.poly:
             wheres = ["ST_HausdorffDistance(shape, %(poly)s) <= %(max_hausdorff_dist)s"]
             params["poly"] = f"{self.params.poly}"
             params["max_hausdorff_dist"] = self.MAX_HAUSDORFF_DISTANCE
-
-        # Point
-        if self.params.point:
-            # get building within a distance of the point
-            wheres = ["ST_DWithin(shape, %(point)s, 10)"]
-
-            # This is kind of hacky to set sorting here.
-            self.params.sort = "ST_Distance(shape, %(point)s)"
-
-            # wheres = ["ST_Intersects(shape, %(point)s)"]
-            params["point"] = f"{self.params.point}"
 
         # City poly
         if self.params._city_poly:
@@ -98,9 +94,11 @@ class BuildingSearch:
         # SELECT
         selects = ["b.id", "b.rnb_id"]
         selects.append(
-            "ST_AsEWKB(b.point) as point"
+            "ST_AsEWKB(b.point) as point",
         )  # geometries must be sent back as EWKB to work with RawQuerySet
-        # selects.append("ST_HausdorffDistance(b.shape, %(poly)s) as hausdorff_dist")
+        selects.append(score_point_str)
+        selects.append(score_address_str)
+        selects.append(score_polygon_str)
         select_str = ", ".join(selects)
 
         # JOIN
@@ -126,21 +124,35 @@ class BuildingSearch:
         # PAGINATION
         pagination_str = ""
         if self.params.page:
-            limit = 100
+            limit = 20
             offset = (self.params.page - 1) * limit
 
             pagination_str = f"LIMIT {limit} OFFSET {offset}"
 
-        query = f"SELECT {select_str} FROM {Building._meta.db_table} as b {joins_str} {where_str} {group_by_str} {order_str} {pagination_str}"
+        # ######################
+        # Assembling the queries
+
+        score_query = (
+            f"SELECT {select_str} "
+            f"FROM {Building._meta.db_table} as b {joins_str} "
+            f"{where_str} {group_by_str} {order_str}"
+        )
+
+        global_query = (
+            f"WITH scored_bdgs AS ({score_query}) "
+            "SELECT *, point_score + address_score + polygon_score as score FROM scored_bdgs "
+            "ORDER BY score DESC "
+            f"{pagination_str}"
+        )
 
         qs = (
-            Building.objects.raw(query, params)
+            Building.objects.raw(global_query, params)
             .prefetch_related("addresses")
             .prefetch_related("status")
         )
 
-        # print("---- QUERY ---")
-        # print(qs.query)
+        print("---- QUERY ---")
+        print(qs.query)
 
         return qs
 

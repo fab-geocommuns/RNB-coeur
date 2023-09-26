@@ -19,7 +19,7 @@ class Command(BaseCommand):
         self.shp_data = []
 
         self.test_only = True
-        self.focus_on = 963827
+        self.focus_on = None
 
         # List of (sig_id, [rnb_id,]) that should be matched
         self.expected_matches = [
