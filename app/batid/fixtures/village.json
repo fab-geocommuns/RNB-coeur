@@ -1,0 +1,85 @@
+[
+    {
+        "model": "batid.building",
+        "pk": 721799,
+        "fields": {
+            "rnb_id": "2MG793YGTMHG",
+            "source": "bdtopo",
+            "point": "SRID=2154;POINT (898502.7366666667 6450731)",
+            "shape": "SRID=2154;MULTIPOLYGON (((898508.4 6450725.8, 898496.1 6450727.2, 898496.9 6450736.2, 898509.5 6450734.8, 898508.4 6450725.8)))",
+            "ext_bdnb_id": null,
+            "ext_bdtopo_id": null,
+            "created_at": "2023-09-28T14:00:58.778Z",
+            "updated_at": "2023-09-28T14:00:58.778Z",
+            "addresses": [
+                "2966fe62-6e2c-4173-ab0a-d94e336384da"
+            ]
+        }
+    },
+    {
+        "model": "batid.building",
+        "pk": 721800,
+        "fields": {
+            "rnb_id": "73M7EQ3WEK97",
+            "source": "bdtopo",
+            "point": "SRID=2154;POINT (898510.2779411766 6450722.95)",
+            "shape": "SRID=2154;MULTIPOLYGON (((898508.4 6450725.8, 898512.8 6450725.2, 898512.1 6450720.1, 898507.8 6450720.7, 898508.4 6450725.8)))",
+            "ext_bdnb_id": null,
+            "ext_bdtopo_id": null,
+            "created_at": "2023-09-28T14:00:58.806Z",
+            "updated_at": "2023-09-28T14:00:58.806Z",
+            "addresses": []
+        }
+    },
+    {
+        "model": "batid.building",
+        "pk": 721801,
+        "fields": {
+            "rnb_id": "V1DNA2FGPCWF",
+            "source": "bdtopo",
+            "point": "SRID=2154;POINT (898556.2241749174 6450735.5)",
+            "shape": "SRID=2154;MULTIPOLYGON (((898567.9 6450748.5, 898564.4 6450718.2, 898554.3 6450719.5, 898549.7 6450722.8, 898545.3 6450726.1, 898545.8 6450732.9, 898546.3 6450738.1, 898546.6 6450740.5, 898547 6450742.5, 898547.3 6450743.7, 898547.7 6450744.6, 898548.3 6450745.2, 898549 6450746, 898549.6 6450746.8, 898550.2 6450747.3, 898551.1 6450748, 898551.9 6450748.5, 898552.3 6450748.7, 898553.2 6450749.1, 898554.6 6450749.4, 898556 6450749.8, 898557.6 6450749.7, 898567.9 6450748.5)))",
+            "ext_bdnb_id": null,
+            "ext_bdtopo_id": null,
+            "created_at": "2023-09-28T14:00:58.813Z",
+            "updated_at": "2023-09-28T14:00:58.813Z",
+            "addresses": [
+                "8c12f4c3-cc7d-49ed-b083-ec010daad713"
+            ]
+        }
+    },
+    {
+        "model": "batid.address",
+        "pk": "2966fe62-6e2c-4173-ab0a-d94e336384da",
+        "fields": {
+            "source": "BAN",
+            "point": null,
+            "street_number": "20",
+            "street_rep": null,
+            "street_name": "des narces",
+            "street_type": "route",
+            "city_name": "Autrans-Méaudre en Vercors",
+            "city_zipcode": "38112",
+            "city_insee_code": null,
+            "created_at": "2023-09-28T14:00:58.792Z",
+            "updated_at": "2023-09-28T14:00:58.792Z"
+        }
+    },
+    {
+        "model": "batid.address",
+        "pk": "8c12f4c3-cc7d-49ed-b083-ec010daad713",
+        "fields": {
+            "source": "BAN",
+            "point": null,
+            "street_number": "91",
+            "street_rep": null,
+            "street_name": "des mateaux",
+            "street_type": "rue",
+            "city_name": "Autrans-Méaudre en Vercors",
+            "city_zipcode": "38112",
+            "city_insee_code": null,
+            "created_at": "2023-09-28T14:00:58.819Z",
+            "updated_at": "2023-09-28T14:00:58.819Z"
+        }
+    }
+]
