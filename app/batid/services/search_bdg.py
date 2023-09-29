@@ -2,6 +2,7 @@ from batid.services.rnb_id import clean_rnb_id
 from batid.utils.misc import is_float
 from batid.models import Building, BuildingStatus, City
 from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
+from batid.services.ban import BanFetcher
 from django.conf import settings
 from django.contrib.gis.geos import Polygon, MultiPolygon, Point
 from django.db.models import QuerySet
@@ -21,6 +22,8 @@ class BuildingSearch:
         self.params.set_filters_from_url(**kwargs)
 
     def get_queryset(self) -> QuerySet:
+        self.build_extra_params_from_address()
+
         # ###################
         # Filters
         # ###################
@@ -52,17 +55,35 @@ class BuildingSearch:
             params["status"] = tuple(self.params.status)
 
         # Address
-        # todo : address filter
+        if self.params._address_point:
+            # Those scores and filters are almost similar to the ones used on the point params
+
+            # ON THIS SIDE OF THE ROAD SCORE
+            # We give more score (2 points) when point comes from BAN than from query
+            # todo : if we have both point and address, we should use the same cluster for both
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Building._meta.db_table} WHERE ST_DWithin(shape, %(address_point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(point)s) ASC LIMIT 1"
+            scores[
+                "address_point_plot_cluster"
+            ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
+
+            # DISTANCE TO THE POINT SCORE
+            # We want to keep buildings that are close to the point
+            # todo : does the double ST_Distance evaluation is a performance problem ?
+            scores[
+                "point_distance"
+            ] = f"CASE WHEN ST_Distance(shape, %(address_point)s) > 0 THEN 2 / ST_Distance(shape, %(point)s) ELSE 5 END"
+
+            # LIMIT THE DISTANCE TO THE POINT
+            wheres.append(f"ST_DWithin(shape, %(address_point)s, 400)")
+
+            # Add the point to the params
+            params["address_point"] = f"{self.params._address_point}"
 
         # #########################################
         # Point
 
-        # The default score is 0
         if self.params.point:
             self.params.point.transform(settings.DEFAULT_SRID)
-
-            # get building within a distance of the point
-            # wheres = ["ST_DWithin(shape, %(point)s, 10)"]
 
             # ON THIS SIDE OF THE ROAD SCORE
             # Points tend to be on the right side of the road. We can filter out buildings that are on the other side of the road.
@@ -170,6 +191,9 @@ class BuildingSearch:
 
         return qs
 
+    def build_extra_params_from_address(self):
+        self.params.build_extra_params_from_address()
+
     def is_valid(self):
         return self.params.is_valid()
 
@@ -184,6 +208,10 @@ class BuildingSearch:
             all.append(f"{rule} AS {name}")
 
         return ", ".join(all)
+
+    # Allow to override the BanFetcher class, for mocking it in tests
+    def set_ban_fetcher_cls(self, cls):
+        self.params.set_ban_fetcher_cls = cls
 
     class BuildingSearchParams:
         SORT_DEFAULT = "rnb_id"
@@ -206,7 +234,12 @@ class BuildingSearch:
             self.point = None
             self.sort = None
             self.insee_code = None
+
+            # Filters constructed from other filters
+            # They can not be set directly
             self._city_poly = None
+            self._address_point = None
+            self._ban_id = None
 
             # Pagination
             self.page = 1
@@ -216,6 +249,7 @@ class BuildingSearch:
 
             # Internals
             self.__errors = []
+            self.__banFetcherCls = BanFetcher
 
         def set_filters(self, **kwargs):
             if "rnb_id" in kwargs:
@@ -233,8 +267,8 @@ class BuildingSearch:
             if "point" in kwargs:
                 self.set_point(kwargs["point"])
             #
-            # if "address" in kwargs:
-            #     self.set_address(kwargs["address"])
+            if "address" in kwargs:
+                self.set_address(kwargs["address"])
 
             if "sort" in kwargs:
                 self.set_sort(kwargs["sort"])
@@ -263,11 +297,11 @@ class BuildingSearch:
             # if "poly" in kwargs:
             #     self.set_poly_str(kwargs["poly"])
 
-            # if "point" in kwargs:
-            #     self.set_point_str(kwargs["point"])
+            if "point" in kwargs:
+                self.set_point_str(kwargs["point"])
             #
-            # if "address" in kwargs:
-            #     self.set_address_str(kwargs["address"])
+            if "address" in kwargs:
+                self.set_address_str(kwargs["address"])
 
             if "sort" in kwargs:
                 self.set_sort_str(kwargs["sort"])
@@ -277,6 +311,28 @@ class BuildingSearch:
 
             if "page" in kwargs:
                 self.set_page_str(kwargs["page"])
+
+        def set_ban_fetcher_cls(self, cls):
+            self.__banFetcherCls = cls
+
+        def build_extra_params_from_address(self):
+            if self.address:
+                fetcher = self.__banFetcherCls()
+                geocode_results = fetcher.geocode(self.address)
+
+                # If there is any result coming from the geocoder
+                if geocode_results["features"]:
+                    best = geocode_results["features"][0]
+
+                    # And if the result is good enough
+                    if best["properties"]["score"] > 0.7:
+                        # We set the address point
+                        self._address_point = Point(
+                            best["geometry"]["coordinates"], srid=4326
+                        ).transform(settings.DEFAULT_SRID, clone=True)
+
+                        # We set the ban id
+                        self._ban_id = best["properties"]["id"]
 
         @property
         def errors(self):

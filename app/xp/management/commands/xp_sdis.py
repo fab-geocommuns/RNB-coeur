@@ -249,13 +249,21 @@ class Command(BaseCommand):
                     point = Point(feature["geometry"]["coordinates"])
                     point.srid = 2154
 
-                rnb_id = None
-                score = None
+                address = " ".join(
+                    [
+                        feature["properties"]["NUM_VOIE"],
+                        feature["properties"]["ADRESSE"],
+                        str(feature["properties"]["CODE_POSTA"]),
+                        feature["properties"]["COMMUNE"],
+                    ]
+                )
 
                 s = BuildingSearch()
-                s.set_params(point=point)
-
+                s.set_params(point=point, address=address)
                 matches = s.get_queryset()
+
+                rnb_id = None
+                score = None
                 if len(matches) > 0:
                     rnb_id = matches[0].rnb_id
                     score = matches[0].score
