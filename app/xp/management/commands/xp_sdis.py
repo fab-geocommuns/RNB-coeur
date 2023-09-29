@@ -19,7 +19,7 @@ class Command(BaseCommand):
         self.shp_data = []
 
         self.test_only = True
-        self.focus_on = None
+        self.focus_on = 963398
 
         # List of (sig_id, [rnb_id,]) that should be matched
         self.expected_matches = [
@@ -118,40 +118,42 @@ class Command(BaseCommand):
                     continue
 
     def __report(self):
-        self.__display_wrong_results()
-
-        df = pd.DataFrame(self.shp_data)
-
-        print("----------------")
-
-        # How many rows are with empty errors ?
-        print(f"Correct rows : {len(df[df['errors'].apply(lambda x: len(x) == 0)])}")
-
-        # How many rows are with errors ?
-        print(f"Incorrect rows : {len(df[df['errors'].apply(lambda x: len(x) > 0)])}")
-
-        # List errors by type and count each of them
-
-        errors = df["errors"].explode().value_counts()
-        print("-- errors breakdown")
-        print(errors)
-
-        print("------------")
-        self.display_counts()
-
-    def __display_wrong_results(self):
+        # Detail per SIG_ID
         for row in self.shp_data:
-            if "errors" not in row:
-                continue
+            in_test = True if "expected_results" in row else False
 
-            if len(row["errors"]) > 0 and (
-                self.focus_on is None or row["id_sig"] == self.focus_on
-            ):
-                print(f"Errors : {row['errors']}")
-                print(f"SIG_ID : {row['id_sig']}")
-                print(f"RNB_ID : {row['rnb_id']}")
+            print("----")
+            print(f"SIG_ID : {row['id_sig']}")
+            print(f"RNB_ID trouvé : {row['rnb_id']}")
+            print(f"Dans test : {'Oui' if in_test else 'Non'}")
+
+            if in_test:
+                if len(row["errors"]) > 0:
+                    self.stdout.write(self.style.ERROR(f"Wrong result"))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f"Correct result"))
+
+                print(f"Best Score : {row['best_score']}")
                 print(f"Expected results : {row['expected_results']}")
-                print("")
+                print(f"Errors : {row['errors']}")
+
+        print("------------TESTS ONLY RESULTS --------------")
+
+        # Count of correct results
+        correct_len = len(
+            [
+                row
+                for row in self.shp_data
+                if "errors" in row and len(row["errors"]) == 0
+            ]
+        )
+        print(f"Correct results : {correct_len}")
+
+        # Count of incorrect results
+        incorrect_len = len(
+            [row for row in self.shp_data if "errors" in row and len(row["errors"]) > 0]
+        )
+        print(f"Incorrect results : {incorrect_len}")
 
     def __get_checked_ids(self):
         return [id for id, _ in self.expected_matches]
@@ -212,19 +214,32 @@ class Command(BaseCommand):
 
         src = Source("xp-sdis", {"folder": "xp-sdis", "filename": filename})
 
-        checked_ids = self.__get_checked_ids()
+        # The row ids we want to test
+        tested_ids = self.__get_checked_ids()
 
         with fiona.open(src.find(filename)) as f:
             c = 1
-            total = len(f) if not self.test_only else len(checked_ids)
+
+            # Count the total number of rows
+            if self.focus_on:
+                total = 1
+            elif self.test_only:
+                total = len(tested_ids)
+            else:
+                total = len(f)
 
             for feature in f:
-                # We skip the rows that are not in the test set (if the flag test_only is True)
-                if (
-                    self.test_only
-                    and feature["properties"]["ID_SIG"] not in checked_ids
-                ):
-                    continue
+                # ####################################################
+                # We may filter on specific rows (for testing purpose)
+
+                if self.focus_on is not None:
+                    # Focused id is top priority
+                    if feature["properties"]["ID_SIG"] != self.focus_on:
+                        continue
+                elif self.test_only:
+                    # If not focus on, we may filter on test_only
+                    if feature["properties"]["ID_SIG"] not in tested_ids:
+                        continue
 
                 print(f"\r{c}/{total}", end="")
                 c += 1
@@ -235,13 +250,15 @@ class Command(BaseCommand):
                     point.srid = 2154
 
                 rnb_id = None
-                if point is not None:
-                    s = BuildingSearch()
-                    s.set_params(point=point)
+                score = None
 
-                    matches = s.get_queryset()
-                    if len(matches) > 0:
-                        rnb_id = matches[0].rnb_id
+                s = BuildingSearch()
+                s.set_params(point=point)
+
+                matches = s.get_queryset()
+                if len(matches) > 0:
+                    rnb_id = matches[0].rnb_id
+                    score = matches[0].score
 
                 row = {
                     "toponyme": feature["properties"]["TOPONYME"],
@@ -253,6 +270,7 @@ class Command(BaseCommand):
                     "point": point,
                     "id_sig": feature["properties"]["ID_SIG"],
                     "rnb_id": rnb_id,
+                    "best_score": score,
                 }
 
                 # First we collect the sig_id from the shp to check if some are shared witht the xls file

@@ -138,7 +138,7 @@ class BuildingSearch:
             score_cases_str = ", " + self.__each_score_case_str(scores)
 
         # SCORE SUM
-        scores_sum = "0 as score"
+        scores_sum = ", 0 as score"
         if len(scores):
             scores_sum = ", " + " + ".join(scores.keys()) + " as score"
 
@@ -165,8 +165,8 @@ class BuildingSearch:
             .prefetch_related("status")
         )
 
-        print("---- QUERY ---")
-        print(qs.query)
+        # print("---- QUERY ---")
+        # print(qs.query)
 
         return qs
 
