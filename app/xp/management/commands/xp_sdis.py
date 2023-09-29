@@ -19,7 +19,7 @@ class Command(BaseCommand):
         self.shp_data = []
 
         self.test_only = True
-        self.focus_on = 963398
+        self.focus_on = None
 
         # List of (sig_id, [rnb_id,]) that should be matched
         self.expected_matches = [
@@ -59,6 +59,9 @@ class Command(BaseCommand):
                     "ZY1TR37B9KDG",
                     "47XV85TYDZ21",
                     "KV6NH2AJXB5H",
+                    "MXFNFX4GSJHC",
+                    "UNK4F97HSQVS",
+                    "75N7JKEPXE8L",
                 ],
             ),
             (964252, ["SFXGD4ZBZUUK", "NQQJXWAB1GP7"]),
@@ -134,8 +137,26 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS(f"Correct result"))
 
                 print(f"Best Score : {row['best_score']}")
+                print(f"Used scores : {row['used_scores']}")
+
                 print(f"Expected results : {row['expected_results']}")
                 print(f"Errors : {row['errors']}")
+
+                if self.focus_on is not None:
+                    print("Matches :")
+                    for match in row["matches"]:
+                        expected = (
+                            True if match.rnb_id in row["expected_results"] else False
+                        )
+                        match_str = f"  - {match.rnb_id} : {match.score} {' -> Expected' if expected else ''}"
+
+                        if expected:
+                            self.stdout.write(self.style.SUCCESS(match_str))
+                        else:
+                            self.stdout.write(match_str)
+
+                        for subscore in row["used_scores"]:
+                            print(f"    - {subscore} : {getattr(match, subscore)}")
 
         print("------------TESTS ONLY RESULTS --------------")
 
@@ -249,24 +270,26 @@ class Command(BaseCommand):
                     point = Point(feature["geometry"]["coordinates"])
                     point.srid = 2154
 
-                address = " ".join(
-                    [
-                        feature["properties"]["NUM_VOIE"],
-                        feature["properties"]["ADRESSE"],
-                        str(feature["properties"]["CODE_POSTA"]),
-                        feature["properties"]["COMMUNE"],
-                    ]
-                )
+                adress_items = [
+                    feature["properties"]["NUM_VOIE"],
+                    feature["properties"]["ADRESSE"],
+                    str(feature["properties"]["CODE_POSTA"]),
+                    feature["properties"]["COMMUNE"],
+                ]
+                adress_items = [i for i in adress_items if i is not None]
+                address = " ".join(adress_items)
 
                 s = BuildingSearch()
                 s.set_params(point=point, address=address)
-                matches = s.get_queryset()
+                matches = s.get_queryset()[:10]
 
                 rnb_id = None
                 score = None
+                used_scores = []
                 if len(matches) > 0:
                     rnb_id = matches[0].rnb_id
                     score = matches[0].score
+                    used_scores = s.scores.keys()
 
                 row = {
                     "toponyme": feature["properties"]["TOPONYME"],
@@ -279,6 +302,8 @@ class Command(BaseCommand):
                     "id_sig": feature["properties"]["ID_SIG"],
                     "rnb_id": rnb_id,
                     "best_score": score,
+                    "used_scores": used_scores,
+                    "matches": matches,
                 }
 
                 # First we collect the sig_id from the shp to check if some are shared witht the xls file

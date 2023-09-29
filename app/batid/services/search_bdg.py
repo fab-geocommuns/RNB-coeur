@@ -1,6 +1,6 @@
 from batid.services.rnb_id import clean_rnb_id
 from batid.utils.misc import is_float
-from batid.models import Building, BuildingStatus, City
+from batid.models import Building, BuildingStatus, City, Plot
 from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
 from batid.services.ban import BanFetcher
 from django.conf import settings
@@ -14,6 +14,7 @@ class BuildingSearch:
     def __init__(self):
         self.params = self.BuildingSearchParams()
         self.qs = None
+        self.scores = {}
 
     def set_params(self, **kwargs):
         self.params.set_filters(**kwargs)
@@ -28,11 +29,12 @@ class BuildingSearch:
         # Filters
         # ###################
 
+        selects = ["b.id", "b.rnb_id"]
         wheres = []
         joins = []
         group_by = None
         params = {}
-        scores = {}
+        self.scores = {}
 
         # Bounding box
         if self.params.bb:
@@ -54,27 +56,39 @@ class BuildingSearch:
             wheres.append("s.type IN %(status)s AND s.is_current = TRUE")
             params["status"] = tuple(self.params.status)
 
-        # Address
+        # #########################################
+        # BAN ID
+        if self.params._ban_id:
+            joins.append(
+                f"LEFT JOIN {Building.addresses.through._meta.db_table} as b_rel_a ON b_rel_a.building_id = b.id"
+            )
+
+            group_by = "b.id"
+
+            self.scores[
+                "ban_id_shared"
+            ] = f"CASE WHEN %(ban_id)s = ANY(array_agg(b_rel_a.address_id)) THEN 2 ELSE 0 END"
+            params["ban_id"] = self.params._ban_id
+
+        # #########################################
+        # Address point
         if self.params._address_point:
             # Those scores and filters are almost similar to the ones used on the point params
 
             # ON THIS SIDE OF THE ROAD SCORE
             # We give more score (2 points) when point comes from BAN than from query
             # todo : if we have both point and address, we should use the same cluster for both
-            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Building._meta.db_table} WHERE ST_DWithin(shape, %(address_point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(point)s) ASC LIMIT 1"
-            scores[
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape, %(address_point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(address_point)s) ASC LIMIT 1"
+            self.scores[
                 "address_point_plot_cluster"
             ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
             # todo : does the double ST_Distance evaluation is a performance problem ?
-            scores[
-                "point_distance"
-            ] = f"CASE WHEN ST_Distance(shape, %(address_point)s) > 0 THEN 2 / ST_Distance(shape, %(point)s) ELSE 5 END"
-
-            # LIMIT THE DISTANCE TO THE POINT
-            wheres.append(f"ST_DWithin(shape, %(address_point)s, 400)")
+            self.scores[
+                "address_point_distance"
+            ] = f"CASE WHEN ST_Distance(shape, %(address_point)s) > 0 THEN 2 / ST_Distance(shape, %(address_point)s) ELSE 5 END"
 
             # Add the point to the params
             params["address_point"] = f"{self.params._address_point}"
@@ -89,15 +103,15 @@ class BuildingSearch:
             # Points tend to be on the right side of the road. We can filter out buildings that are on the other side of the road.
             # Public roads are not in cadastre plots. By grouping contiguous plots we can recreate simili-roads and keep only buildings intersecting this plot group.
             # todo : it might be interesting to pre-calculate cluster and store them in DB. It would be faster.
-            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Building._meta.db_table} WHERE ST_DWithin(shape, %(point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(point)s) ASC LIMIT 1"
-            scores[
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape, %(point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(point)s) ASC LIMIT 1"
+            self.scores[
                 "point_plot_cluster"
             ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 1 ELSE 0 END"
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
             # todo : does the double ST_Distance evaluation is a performance problem ?
-            scores[
+            self.scores[
                 "point_distance"
             ] = f"CASE WHEN ST_Distance(shape, %(point)s) > 0 THEN 1 / ST_Distance(shape, %(point)s) ELSE 5 END"
 
@@ -106,6 +120,19 @@ class BuildingSearch:
 
             # Add the point to the params
             params["point"] = f"{self.params.point}"
+
+        # #########################################
+        # Restrict research in a radius around point and address point
+
+        address_point_where = "ST_DWithin(shape, %(address_point)s, 400)"
+        point_where = "ST_DWithin(shape, %(point)s, 400)"
+
+        if self.params.point and self.params._address_point:
+            wheres.append(f"({address_point_where} or {point_where})")
+        elif self.params.point:
+            wheres.append(point_where)
+        elif self.params._address_point:
+            wheres.append(address_point_where)
 
         # Polygon
         if self.params.poly:
@@ -119,7 +146,7 @@ class BuildingSearch:
             params["city_poly"] = f"{self.params._city_poly}"
 
         # SELECT
-        selects = ["b.id", "b.rnb_id"]
+
         selects.append(
             "ST_AsEWKB(b.point) as point",
         )  # geometries must be sent back as EWKB to work with RawQuerySet
@@ -155,13 +182,18 @@ class BuildingSearch:
 
         # SCORE CASES
         score_cases_str = ""
-        if len(scores):
-            score_cases_str = ", " + self.__each_score_case_str(scores)
+        if len(self.scores):
+            score_cases_str = ", " + self.__each_score_case_str(self.scores)
 
         # SCORE SUM
         scores_sum = ", 0 as score"
-        if len(scores):
-            scores_sum = ", " + " + ".join(scores.keys()) + " as score"
+        if len(self.scores):
+            scores_sum = (
+                ", "
+                + " + ".join(self.scores.keys())
+                + " as score, "
+                + ", ".join(self.scores.keys())
+            )
 
         # ######################
         # Assembling the queries
