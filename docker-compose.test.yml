@@ -33,10 +33,12 @@ services:
     volumes:
       - ./app:/app
     depends_on:
-      - db
+      db:
         condition: service_healthy
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_started
     container_name: web
   db:
     image: postgis/postgis:14-master
