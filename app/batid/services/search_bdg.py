@@ -23,7 +23,7 @@ class BuildingSearch:
         self.params.set_filters_from_url(**kwargs)
 
     def get_queryset(self) -> QuerySet:
-        self.build_extra_params_from_address()
+        self.prepare_params()
 
         # ###################
         # Filters
@@ -67,31 +67,31 @@ class BuildingSearch:
 
             self.scores[
                 "ban_id_shared"
-            ] = f"CASE WHEN %(ban_id)s = ANY(array_agg(b_rel_a.address_id)) THEN 2 ELSE 0 END"
+            ] = f"CASE WHEN %(ban_id)s = ANY(array_agg(b_rel_a.address_id)) THEN 1 ELSE 0 END"
             params["ban_id"] = self.params._ban_id
 
         # #########################################
         # Address point
-        if self.params._address_point:
+        if self.params._ban_point:
             # Those scores and filters are almost similar to the ones used on the point params
 
             # ON THIS SIDE OF THE ROAD SCORE
             # We give more score (2 points) when point comes from BAN than from query
             # todo : if we have both point and address, we should use the same cluster for both
-            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape, %(address_point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(address_point)s) ASC LIMIT 1"
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape, %(ban_point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(ban_point)s) ASC LIMIT 1"
             self.scores[
-                "address_point_plot_cluster"
+                "ban_point_plot_cluster"
             ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
             # todo : does the double ST_Distance evaluation is a performance problem ?
             self.scores[
-                "address_point_distance"
-            ] = f"CASE WHEN ST_Distance(shape, %(address_point)s) > 0 THEN 2 / ST_Distance(shape, %(address_point)s) ELSE 5 END"
+                "ban_point_distance"
+            ] = f"CASE WHEN ST_Distance(shape, %(ban_point)s) > 0 THEN 2 / ST_Distance(shape, %(ban_point)s) ELSE 5 END"
 
             # Add the point to the params
-            params["address_point"] = f"{self.params._address_point}"
+            params["ban_point"] = f"{self.params._ban_point}"
 
         # #########################################
         # Point
@@ -124,15 +124,15 @@ class BuildingSearch:
         # #########################################
         # Restrict research in a radius around point and address point
 
-        address_point_where = "ST_DWithin(shape, %(address_point)s, 400)"
+        ban_point_where = "ST_DWithin(shape, %(ban_point)s, 400)"
         point_where = "ST_DWithin(shape, %(point)s, 400)"
 
-        if self.params.point and self.params._address_point:
-            wheres.append(f"({address_point_where} or {point_where})")
+        if self.params.point and self.params._ban_point:
+            wheres.append(f"({ban_point_where} or {point_where})")
         elif self.params.point:
             wheres.append(point_where)
-        elif self.params._address_point:
-            wheres.append(address_point_where)
+        elif self.params._ban_point:
+            wheres.append(ban_point_where)
 
         # Polygon
         if self.params.poly:
@@ -223,8 +223,8 @@ class BuildingSearch:
 
         return qs
 
-    def build_extra_params_from_address(self):
-        self.params.build_extra_params_from_address()
+    def prepare_params(self):
+        self.params.prepare_params()
 
     def is_valid(self):
         return self.params.is_valid()
@@ -266,11 +266,15 @@ class BuildingSearch:
             self.point = None
             self.sort = None
             self.insee_code = None
+            self.name = None
 
             # Filters constructed from other filters
             # They can not be set directly
             self._city_poly = None
-            self._address_point = None
+
+            self._osm_point = None
+
+            self._ban_point = None
             self._ban_id = None
 
             # Pagination
@@ -284,6 +288,9 @@ class BuildingSearch:
             self.__banFetcherCls = BanFetcher
 
         def set_filters(self, **kwargs):
+            if "name" in kwargs:
+                self.set_name(kwargs["name"])
+
             if "rnb_id" in kwargs:
                 self.set_rnb_id(kwargs["rnb_id"])
 
@@ -317,37 +324,49 @@ class BuildingSearch:
             # ##########
 
             if "rnb_id" in kwargs:
-                self.set_rnb_id_str(kwargs["rnb_id"])
+                self.set_rnb_id_from_url(kwargs["rnb_id"])
 
             if "bb" in kwargs:
-                self.set_bb_str(kwargs["bb"])
+                self.set_bb_from_url(kwargs["bb"])
 
             if "status" in kwargs:
-                self.set_status_str(kwargs["status"])
+                self.set_status_from_url(kwargs["status"])
 
             # todo : poly (for now it is not used in the url)
             # if "poly" in kwargs:
             #     self.set_poly_str(kwargs["poly"])
 
             if "point" in kwargs:
-                self.set_point_str(kwargs["point"])
+                self.set_point_from_url(kwargs["point"])
             #
             if "address" in kwargs:
-                self.set_address_str(kwargs["address"])
+                self.set_address_from_url(kwargs["address"])
 
             if "sort" in kwargs:
-                self.set_sort_str(kwargs["sort"])
+                self.set_sort_from_url(kwargs["sort"])
 
             if "insee_code" in kwargs:
-                self.set_insee_code_str(kwargs["insee_code"])
+                self.set_insee_code_from_url(kwargs["insee_code"])
 
             if "page" in kwargs:
-                self.set_page_str(kwargs["page"])
+                self.set_page_from_url(kwargs["page"])
 
         def set_ban_fetcher_cls(self, cls):
             self.__banFetcherCls = cls
 
-        def build_extra_params_from_address(self):
+        def prepare_params(self):
+            self.prepare_address()
+            self.prepare_point()  # Point preparation must be done after address preparation
+
+        def prepare_point(self):
+            if self.point and self._ban_point:
+                distance = self.point.distance(self._ban_point)
+
+                # We consider that if point address and point are too far, it comes from an incoherent query point, then we remove it
+                if distance > 1000:
+                    self.point = None
+
+        def prepare_address(self):
             if self.address:
                 fetcher = self.__banFetcherCls()
                 geocode_results = fetcher.geocode(self.address)
@@ -357,9 +376,12 @@ class BuildingSearch:
                     best = geocode_results["features"][0]
 
                     # And if the result is good enough
-                    if best["properties"]["score"] > 0.7:
+                    if (
+                        best["properties"]["score"] > 0.7
+                        and best["properties"]["type"] == "housenumber"
+                    ):
                         # We set the address point
-                        self._address_point = Point(
+                        self._ban_point = Point(
                             best["geometry"]["coordinates"], srid=4326
                         ).transform(settings.DEFAULT_SRID, clone=True)
 
@@ -373,14 +395,14 @@ class BuildingSearch:
         def is_valid(self) -> bool:
             return len(self.__errors) == 0
 
-        def set_page_str(self, page: str):
-            if self.__validate_page_str(page):
+        def set_page_from_url(self, page: str):
+            if self.__validate_page_from_url(page):
                 self.set_page(int(page))
 
         def set_page(self, page: int):
             self.page = page
 
-        def set_sort_str(self, sort_str: str) -> None:
+        def set_sort_from_url(self, sort_str: str) -> None:
             if sort_str is not None:
                 self.set_sort(sort_str)
 
@@ -401,7 +423,7 @@ class BuildingSearch:
 
             return True
 
-        def __validate_page_str(self, page: str) -> bool:
+        def __validate_page_from_url(self, page: str) -> bool:
             if not page:
                 return False
 
@@ -411,17 +433,17 @@ class BuildingSearch:
 
             return True
 
-        def set_bb_str(self, bb_str: str) -> None:
+        def set_bb_from_url(self, bb_str: str) -> None:
             if bb_str is not None:
-                if self.__validate_bb_str(bb_str):
-                    bb = self.__convert_bb_str(bb_str)
+                if self.__validate_bb_from_url(bb_str):
+                    bb = self.__convert_bb_from_url(bb_str)
                     self.set_bb(bb)
 
         def set_bb(self, bb) -> None:
             if self.__validate_bb(bb):
                 self.bb = bb
 
-        def __convert_bb_str(self, bb_str: str) -> Polygon:
+        def __convert_bb_from_url(self, bb_str: str) -> Polygon:
             nw_lat, nw_lng, se_lat, se_lng = [
                 float(coord) for coord in bb_str.split(self.PARAM_SPLITTER)
             ]
@@ -438,7 +460,7 @@ class BuildingSearch:
                 settings.DEFAULT_SRID, clone=True
             )
 
-        def __validate_bb_str(self, bb_str: str) -> bool:
+        def __validate_bb_from_url(self, bb_str: str) -> bool:
             format_msg = "bb : bounding box parameter must be a string of 4 floats separated by a comma"
 
             if not bb_str:
@@ -489,17 +511,17 @@ class BuildingSearch:
 
             return True
 
-        def set_address_str(self, address_str: str):
+        def set_address_from_url(self, address_str: str):
             self.set_address(address_str)
 
-        def set_point_str(self, point_str: str) -> None:
-            if self.__validate_point_str(point_str):
-                point = self.__convert_point_str(point_str)
+        def set_point_from_url(self, point_str: str) -> None:
+            if self.__validate_point_from_url(point_str):
+                point = self.__convert_point_from_url(point_str)
                 self.set_point(point)
 
-        def set_status_str(self, status_str: str) -> None:
+        def set_status_from_url(self, status_str: str) -> None:
             if status_str is not None:
-                status = self.__convert_status_str(status_str)
+                status = self.__convert_status_from_url(status_str)
                 self.set_status(status)
 
         def set_status(self, status: list) -> None:
@@ -515,12 +537,12 @@ class BuildingSearch:
                     return False
             return True
 
-        def __convert_status_str(self, status_str: str) -> list:
+        def __convert_status_from_url(self, status_str: str) -> list:
             if status_str == "all":
                 return self.allowed_status
             return status_str.split(",")
 
-        def __validate_point_str(self, coords_str: str) -> bool:
+        def __validate_point_from_url(self, coords_str: str) -> bool:
             if not coords_str:
                 return False
 
@@ -542,7 +564,7 @@ class BuildingSearch:
 
             return True
 
-        def __convert_point_str(self, coords_str) -> Point:
+        def __convert_point_from_url(self, coords_str) -> Point:
             lat, lng = coords_str.split(",")
 
             return Point(float(lng), float(lat), srid=4326)
@@ -617,7 +639,7 @@ class BuildingSearch:
 
             return True
 
-        def set_insee_code_str(self, code: str) -> None:
+        def set_insee_code_from_url(self, code: str) -> None:
             self.set_insee_code(code)
 
         def set_insee_code(self, code: str) -> None:
@@ -651,8 +673,11 @@ class BuildingSearch:
                 )
                 return None
 
-        def set_rnb_id_str(self, rnb_id):
+        def set_rnb_id_from_url(self, rnb_id):
             self.set_rnb_id(rnb_id)
 
         def set_rnb_id(self, rnb_id):
             self.rnb_id = clean_rnb_id(rnb_id)
+
+        def set_name(self, name: str):
+            self.name = name
