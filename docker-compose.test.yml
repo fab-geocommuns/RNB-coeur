@@ -40,6 +40,7 @@ services:
       redis:
         condition: service_started
     container_name: web
+    restart: always
   db:
     image: postgis/postgis:14-master
     platform: linux/amd64
@@ -54,6 +55,11 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   rabbitmq:
     restart: unless-stopped
     image: rabbitmq:3.9-alpine
