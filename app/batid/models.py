@@ -146,6 +146,10 @@ class Candidate(models.Model):
     source = models.CharField(max_length=20, null=False)
     source_id = models.CharField(max_length=40, null=False)
     address_keys = ArrayField(models.CharField(max_length=40), null=True)
+    # information coming from the BDTOPO
+    # see https://geoservices.ign.fr/sites/default/files/2021-07/DC_BDTOPO_3-0.pdf
+    # Indique qu'il s'agit d'une structure légère, non attachée au sol par l'intermédiaire de fondations, ou d'un
+    # bâtiment ou partie de bâtiment ouvert sur au moins un côté.
     is_light = models.BooleanField(null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
