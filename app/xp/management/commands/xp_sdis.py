@@ -1,3 +1,5 @@
+import time
+
 from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand
 
@@ -19,75 +21,238 @@ class Command(BaseCommand):
         self.shp_data = []
 
         self.test_only = True
-        self.focus_on = 961338
+        self.focus_on = None
 
         # List of (sig_id, [rnb_id,]) that should be matched
         self.expected_matches = [
-            (961830, ["N191UHQDSS27"]),
-            (961496, ["4LM3UE6R5VGF", "MM3NSR1JSX8P"]),
-            (961338, ["9KREWCETUZNE"]),
-            (961788, ["11PMNB2RQGE9"]),
-            (962306, ["58R2XS49VTLY", "ZPSERH5CLGYM"]),
-            (962700, ["8EYFDEFVQWNN"]),
-            (962912, ["6CU2N6LDQ4U1"]),
-            (963501, ["XQRJ2698JFG9", "RZXWARR8WX8F"]),
-            (
-                963827,
-                [
-                    "P79EWQX4BLSP",
-                    "GZ7S935Q3V27",
-                    "L4VE8V67LS1J",
-                    "3UYGUS3BZV5W",
-                    "EYQB3Q67WQCL",
-                    "38W3Q5BVWK91",
+            # {"id_sig": 961830, "expected": ["N191UHQDSS27"]},
+            # {"id_sig": 961496, "expected": ["4LM3UE6R5VGF", "MM3NSR1JSX8P"]},
+            # {"id_sig": 961338, "expected": ["9KREWCETUZNE"]},
+            # {"id_sig": 961788, "expected": ["11PMNB2RQGE9"]},
+            # {"id_sig": 962306, "expected": ["58R2XS49VTLY", "ZPSERH5CLGYM"]},
+            # {"id_sig": 962700, "expected": ["8EYFDEFVQWNN"]},
+            # {"id_sig": 962912, "expected": ["6CU2N6LDQ4U1"]},
+            # {"id_sig": 963501, "expected": ["XQRJ2698JFG9", "RZXWARR8WX8F"]},
+            # {
+            #     "id_sig": 963827,
+            #     "expected": [
+            #         "P79EWQX4BLSP",
+            #         "GZ7S935Q3V27",
+            #         "L4VE8V67LS1J",
+            #         "3UYGUS3BZV5W",
+            #         "EYQB3Q67WQCL",
+            #         "38W3Q5BVWK91",
+            #     ],
+            # },
+            # {"id_sig": 963730, "expected": ["WQWQKPZR8UYD"]},
+            # {"id_sig": 962083, "expected": ["SJHHQAKLU685"]},
+            # {"id_sig": 963398, "expected": ["TXYJR8XEK11G"]},
+            # {"id_sig": 964299, "expected": ["S12FCWHPAAWN"]},
+            # {"id_sig": 964635, "expected": ["3AU3R4W341WL"]},
+            # {
+            #     "id_sig": 963903,
+            #     "expected": ["MNHRJRCD6VAC", "FPTLX6CCM7Z4", "8JS4FDKY84XB"],
+            # },
+            # {"id_sig": 964074, "expected": ["9253DCT1SRQV"]},
+            # {"id_sig": 961483, "expected": ["LUVRR9HZFWGH"]},
+            # {"id_sig": 964731, "expected": None},
+            # {
+            #     "id_sig": 964532,
+            #     "expected": [
+            #         "7EYRH9NGRPFE",
+            #         "Y6YDVEGR6UF6",
+            #         "ZY1TR37B9KDG",
+            #         "47XV85TYDZ21",
+            #         "KV6NH2AJXB5H",
+            #         "MXFNFX4GSJHC",
+            #         "UNK4F97HSQVS",
+            #         "75N7JKEPXE8L",
+            #     ],
+            # },
+            # {"id_sig": 964252, "expected": ["SFXGD4ZBZUUK", "NQQJXWAB1GP7"]},
+            # # Those below are positionned on the building. We should always find them.
+            # {"id_sig": 964561, "expected": ["4SX3GG32Q3AP", "CVTQXZ5MZDC5"]},
+            # {"id_sig": 964372, "expected": ["8T2CRL1TUWFM"]},
+            # {"id_sig": 964271, "expected": ["RK4PQBFSX3F8"]},
+            # {"id_sig": 964483, "expected": ["DH1Q54MY46HF"]},
+            # {"id_sig": 964186, "expected": ["DYRJ6Z2L1M8H", "T88VBXE7BLU3"]},
+            # {"id_sig": 963688, "expected": ["KC45PXMKVC8L"]},
+            # {"id_sig": 963884, "expected": ["TGJF7T7W6ZM2"]},
+            # {"id_sig": 963441, "expected": ["XDPNWM36MYME"]},
+            # {"id_sig": 963490, "expected": ["V49L4R9G97UW"]},
+            # {"id_sig": 963376, "expected": ["HXQJLLB3Y8X3"]},
+            # {"id_sig": 963242, "expected": ["S5KQ9GL68TVS"]},
+            # {"id_sig": 963153, "expected": ["MAFFZCYJDNQZ"]},
+            # {"id_sig": 963490, "expected": ["V49L4R9G97UW"]},
+            # {"id_sig": 963541, "expected": ["VWMMGPEU6KLK"]},
+            # {"id_sig": 963575, "expected": ["1D6P85NBJP22"]},
+            # {"id_sig": 963576, "expected": ["1D6P85NBJP22"]},
+            # {"id_sig": 963587, "expected": ["1CAANK7M4G52"]},
+            # {"id_sig": 963203, "expected": ["MBSA4CBTF5BA"]},
+            # {"id_sig": 963136, "expected": ["CLZYBD6P65ZC"]},
+            # {"id_sig": 963970, "expected": ["EJG89PH5VJ95"]},
+            # Those below are the one in the xlsx file (no point)
+            {
+                "id_sig": 1068370,
+                "expected": [],
+                "note": "The building is not in the RNB. Why ? This is the one at 45.43535336243443, 5.979235698580166",
+            },
+            {
+                "id_sig": 1068798,
+                "expected": ["CEDDH6T64FKJ"],
+                "note": "Le point donné est un ancien point qui devrait être considéré comme détruit.. Le supermarché est tout neuf.",
+            },
+            {"id_sig": 1068799, "expected": ["UCVCA89PV936"]},
+            {
+                "id_sig": 1068800,
+                "expected": ["762LVKM5U2VB", "VBA7GD1ZMDDN"],
+                "note": "Ecole",
+            },
+            {"id_sig": 1068801, "expected": ["Z73WECWCKLJB"], "note": "Piscine"},
+            {
+                "id_sig": 1068802,
+                "expected": [],
+                "note": "Batiment absent du RNB. Hotel tout neuf.",
+            },
+            {
+                "id_sig": 992969,
+                "expected": ["LGWUELNCM6S4"],
+                "note": "Nouvelle salle polyvalente",
+            },
+            {"id_sig": 992970, "expected": ["SFW6UADDYC7Z"], "note": "Gite"},
+            {"id_sig": 992971, "expected": ["9QL9HTWKDA19"], "note": "micro creche"},
+            {
+                "id_sig": 992974,
+                "expected": [
+                    "4KV72YBBC5TW",
+                    "WMNU13FX7PAP",
+                    "J2LMCXREB19S",
+                    "L78CDZ51XLY6",
+                    "H2LBDC3C985G",
                 ],
-            ),
-            (963730, ["WQWQKPZR8UYD"]),
-            (962083, ["SJHHQAKLU685"]),
-            (963398, ["TXYJR8XEK11G"]),
-            (964299, ["S12FCWHPAAWN"]),
-            (964635, ["3AU3R4W341WL"]),
-            (963903, ["MNHRJRCD6VAC", "FPTLX6CCM7Z4", "8JS4FDKY84XB"]),
-            (964074, ["9253DCT1SRQV"]),
-            (961483, ["LUVRR9HZFWGH"]),
-            (964731, None),
-            (
-                964532,
-                [
-                    "7EYRH9NGRPFE",
-                    "Y6YDVEGR6UF6",
-                    "ZY1TR37B9KDG",
-                    "47XV85TYDZ21",
-                    "KV6NH2AJXB5H",
-                    "MXFNFX4GSJHC",
-                    "UNK4F97HSQVS",
-                    "75N7JKEPXE8L",
-                ],
-            ),
-            (964252, ["SFXGD4ZBZUUK", "NQQJXWAB1GP7"]),
-            # Ci-dessous, ce sont des ERP qui ont été correctement positionnés sur les bâtiments
-            # On les ajoute au résultats à vérifier pour être sûr que la complexité qu'on va introduire
-            # ne fait pas sortir des cas aussi simples
-            (964561, ["4SX3GG32Q3AP", "CVTQXZ5MZDC5"]),
-            (964372, ["8T2CRL1TUWFM"]),
-            (964271, ["RK4PQBFSX3F8"]),
-            (964483, ["DH1Q54MY46HF"]),
-            (964186, ["DYRJ6Z2L1M8H", "T88VBXE7BLU3"]),
-            (963688, ["KC45PXMKVC8L"]),
-            (963884, ["TGJF7T7W6ZM2"]),
-            (963441, ["XDPNWM36MYME"]),
-            (963490, ["V49L4R9G97UW"]),
-            (963376, ["HXQJLLB3Y8X3"]),
-            (963242, ["S5KQ9GL68TVS"]),
-            (963153, ["MAFFZCYJDNQZ"]),
-            (963490, ["V49L4R9G97UW"]),
-            (963541, ["VWMMGPEU6KLK"]),
-            (963575, ["1D6P85NBJP22"]),
-            (963576, ["1D6P85NBJP22"]),
-            (963587, ["1CAANK7M4G52"]),
-            (963203, ["MBSA4CBTF5BA"]),
-            (963136, ["CLZYBD6P65ZC"]),
-            (963970, ["EJG89PH5VJ95"]),
+                "note": "Abbaye loin de la ville",
+            },
+            # {"id_sig": 992975, "expected": []},
+            # {"id_sig": 992976, "expected": []},
+            # {"id_sig": 992977, "expected": []},
+            # {"id_sig": 992979, "expected": []},
+            # {"id_sig": 992980, "expected": []},
+            # {"id_sig": 992981, "expected": []},
+            # {"id_sig": 992983, "expected": []},
+            # {"id_sig": 992985, "expected": []},
+            # {"id_sig": 992986, "expected": []},
+            # {"id_sig": 992987, "expected": []},
+            # {"id_sig": 992988, "expected": []},
+            # {"id_sig": 992990, "expected": []},
+            # {"id_sig": 992991, "expected": []},
+            # {"id_sig": 992992, "expected": []},
+            # {"id_sig": 992993, "expected": []},
+            # {"id_sig": 992994, "expected": []},
+            # {"id_sig": 992996, "expected": []},
+            # {"id_sig": 992998, "expected": []},
+            # {"id_sig": 992999, "expected": []},
+            # {"id_sig": 993000, "expected": []},
+            # {"id_sig": 993001, "expected": []},
+            # {"id_sig": 993002, "expected": []},
+            # {"id_sig": 993003, "expected": []},
+            # {"id_sig": 993004, "expected": []},
+            # {"id_sig": 993005, "expected": []},
+            # {"id_sig": 993006, "expected": []},
+            # {"id_sig": 993007, "expected": []},
+            # {"id_sig": 993008, "expected": []},
+            # {"id_sig": 993009, "expected": []},
+            # {"id_sig": 993010, "expected": []},
+            # {"id_sig": 993011, "expected": []},
+            # {"id_sig": 993012, "expected": []},
+            # {"id_sig": 993013, "expected": []},
+            # {"id_sig": 993014, "expected": []},
+            # {"id_sig": 993015, "expected": []},
+            # {"id_sig": 993016, "expected": []},
+            # {"id_sig": 993018, "expected": []},
+            # {"id_sig": 993019, "expected": []},
+            # {"id_sig": 993020, "expected": []},
+            # {"id_sig": 993021, "expected": []},
+            # {"id_sig": 993024, "expected": []},
+            # {"id_sig": 993025, "expected": []},
+            # {"id_sig": 993026, "expected": []},
+            # {"id_sig": 993027, "expected": []},
+            # {"id_sig": 993028, "expected": []},
+            # {"id_sig": 993029, "expected": []},
+            # {"id_sig": 1068803, "expected": []},
+            # {"id_sig": 1068804, "expected": []},
+            # {"id_sig": 1068805, "expected": []},
+            # {"id_sig": 1068806, "expected": []},
+            # {"id_sig": 1068807, "expected": []},
+            # {"id_sig": 1068808, "expected": []},
+            # {"id_sig": 1068809, "expected": []},
+            # {"id_sig": 1068810, "expected": []},
+            # {"id_sig": 1068811, "expected": []},
+            # {"id_sig": 1068812, "expected": []},
+            # {"id_sig": 1068813, "expected": []},
+            # {"id_sig": 1068814, "expected": []},
+            # {"id_sig": 1068815, "expected": []},
+            # {"id_sig": 1068816, "expected": []},
+            # {"id_sig": 1068817, "expected": []},
+            # {"id_sig": 1068818, "expected": []},
+            # {"id_sig": 1068819, "expected": []},
+            # {"id_sig": 1068820, "expected": []},
+            # {"id_sig": 1068821, "expected": []},
+            # {"id_sig": 1068822, "expected": []},
+            # {"id_sig": 1068823, "expected": []},
+            # {"id_sig": 1068824, "expected": []},
+            # {"id_sig": 1068825, "expected": []},
+            # {"id_sig": 1068826, "expected": []},
+            # {"id_sig": 1068827, "expected": []},
+            # {"id_sig": 1068828, "expected": []},
+            # {"id_sig": 1068829, "expected": []},
+            # {"id_sig": 1068830, "expected": []},
+            # {"id_sig": 1068831, "expected": []},
+            # {"id_sig": 1068832, "expected": []},
+            # {"id_sig": 1068833, "expected": []},
+            # {"id_sig": 1068834, "expected": []},
+            # {"id_sig": 1068835, "expected": []},
+            # {"id_sig": 1068836, "expected": []},
+            # {"id_sig": 1068837, "expected": []},
+            # {"id_sig": 1068838, "expected": []},
+            # {"id_sig": 1068839, "expected": []},
+            # {"id_sig": 1068840, "expected": []},
+            # {"id_sig": 1068841, "expected": []},
+            # {"id_sig": 1068842, "expected": []},
+            # {"id_sig": 1068843, "expected": []},
+            # {"id_sig": 1068844, "expected": []},
+            # {"id_sig": 1068845, "expected": []},
+            # {"id_sig": 1068846, "expected": []},
+            # {"id_sig": 1068847, "expected": []},
+            # {"id_sig": 1068848, "expected": []},
+            # {"id_sig": 1068849, "expected": []},
+            # {"id_sig": 1068850, "expected": []},
+            # {"id_sig": 1068851, "expected": []},
+            # {"id_sig": 1068852, "expected": []},
+            # {"id_sig": 1068853, "expected": []},
+            # {"id_sig": 1068854, "expected": []},
+            # {"id_sig": 1068855, "expected": []},
+            # {"id_sig": 1068856, "expected": []},
+            # {"id_sig": 1068857, "expected": []},
+            # {"id_sig": 1068858, "expected": []},
+            # {"id_sig": 1068859, "expected": []},
+            # {"id_sig": 1068860, "expected": []},
+            # {"id_sig": 1068861, "expected": []},
+            # {"id_sig": 1068862, "expected": []},
+            # {"id_sig": 1068863, "expected": []},
+            # {"id_sig": 1068867, "expected": []},
+            # {"id_sig": 1068868, "expected": []},
+            # {"id_sig": 1068869, "expected": []},
+            # {"id_sig": 1068870, "expected": []},
+            # {"id_sig": 1068871, "expected": []},
+            # {"id_sig": 1068872, "expected": []},
+            # {"id_sig": 1068873, "expected": []},
+            # {"id_sig": 1068874, "expected": []},
+            # {"id_sig": 1068875, "expected": []},
+            # {"id_sig": 1068876, "expected": []},
+            # {"id_sig": 1068877, "expected": []},
+            # {"id_sig": 1068878, "expected": []},
+            # {"id_sig": 1068879, "expected": []},
+            # {"id_sig": 1068880, "expected": []},
         ]
 
     def handle(self, *args, **options):
@@ -177,7 +342,7 @@ class Command(BaseCommand):
         print(f"Incorrect results : {incorrect_len}")
 
     def __get_checked_ids(self):
-        return [id for id, _ in self.expected_matches]
+        return [test["id_sig"] for test in self.expected_matches]
 
     def __attach_expected_results(self):
         checked_ids = self.__get_checked_ids()
@@ -189,15 +354,15 @@ class Command(BaseCommand):
 
             # We get the expected results
             expected_results = [
-                rnb_ids
-                for sig_id, rnb_ids in self.expected_matches
-                if sig_id == row["id_sig"]
+                test["expected"]
+                for test in self.expected_matches
+                if test["id_sig"] == row["id_sig"]
             ][0]
 
             self.shp_data[idx]["expected_results"] = expected_results
             self.shp_data[idx][
                 "correct_result"
-            ] = False  # We assume the result iqs wrong
+            ] = False  # We assume the result is wrong
             self.shp_data[idx]["errors"] = []
 
     def __count_ids(self):
@@ -229,6 +394,9 @@ class Command(BaseCommand):
         return read_excel(src.find(filename), sheet_name="23-06-2023")
 
     def __handle_shp(self):
+        # We wait 1 second the ease on Nominatim API
+        time.sleep(1)
+
         print("--- Shapefile ---")
 
         filename = "erp_geolocalises_20112020.shp"
@@ -280,7 +448,9 @@ class Command(BaseCommand):
                 address = " ".join(adress_items)
 
                 s = BuildingSearch()
-                s.set_params(point=point, address=address)
+                s.set_params(
+                    point=point, address=address, name=feature["properties"]["TOPONYME"]
+                )
                 matches = s.get_queryset()[:10]
 
                 rnb_id = None

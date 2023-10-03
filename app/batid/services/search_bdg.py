@@ -1,8 +1,10 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from batid.services.rnb_id import clean_rnb_id
 from batid.utils.misc import is_float
 from batid.models import Building, BuildingStatus, City, Plot
 from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
-from batid.services.ban import BanFetcher
+from batid.services.geocoders import BanGeocoder, NominatimGeocoder
 from django.conf import settings
 from django.contrib.gis.geos import Polygon, MultiPolygon, Point
 from django.db.models import QuerySet
@@ -57,6 +59,29 @@ class BuildingSearch:
             params["status"] = tuple(self.params.status)
 
         # #########################################
+        # OSM Address point
+        if self.params._osm_point:
+            # Those scores and filters are almost similar to the ones used on the point params
+
+            # ON THIS SIDE OF THE ROAD SCORE
+            # We give more score (2 points) when point comes from OSM than from query
+            # todo : if we have both point and address, we should use the same cluster for both
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape, %(osm_point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(osm_point)s) ASC LIMIT 1"
+            self.scores[
+                "osm_point_plot_cluster"
+            ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
+
+            # DISTANCE TO THE POINT SCORE
+            # We want to keep buildings that are close to the point
+            # todo : does the double ST_Distance evaluation is a performance problem ?
+            self.scores[
+                "osm_point_distance"
+            ] = f"CASE WHEN ST_Distance(shape, %(osm_point)s) > 0 THEN 2 / ST_Distance(shape, %(osm_point)s) ELSE 5 END"
+
+            # Add the point to the params
+            params["osm_point"] = f"{self.params._osm_point}"
+
+        # #########################################
         # BAN ID
         if self.params._ban_id:
             joins.append(
@@ -71,7 +96,7 @@ class BuildingSearch:
             params["ban_id"] = self.params._ban_id
 
         # #########################################
-        # Address point
+        # Ban Address point
         if self.params._ban_point:
             # Those scores and filters are almost similar to the ones used on the point params
 
@@ -243,7 +268,7 @@ class BuildingSearch:
 
     # Allow to override the BanFetcher class, for mocking it in tests
     def set_ban_fetcher_cls(self, cls):
-        self.params.set_ban_fetcher_cls = cls
+        self.params.set_ban_geocoder_cls = cls
 
     class BuildingSearchParams:
         SORT_DEFAULT = "rnb_id"
@@ -285,7 +310,8 @@ class BuildingSearch:
 
             # Internals
             self.__errors = []
-            self.__banFetcherCls = BanFetcher
+            self.__banGeocoderCls = BanGeocoder
+            self.__osmGeocoderCls = NominatimGeocoder
 
         def set_filters(self, **kwargs):
             if "name" in kwargs:
@@ -351,8 +377,11 @@ class BuildingSearch:
             if "page" in kwargs:
                 self.set_page_from_url(kwargs["page"])
 
-        def set_ban_fetcher_cls(self, cls):
-            self.__banFetcherCls = cls
+        def set_ban_geocoder_cls(self, cls):
+            self.__banGeocoderCls = cls
+
+        def set_osm_geocoder_cls(self, cls):
+            self.__osmGeocoderCls = cls
 
         def prepare_params(self):
             self.prepare_address()
@@ -368,25 +397,93 @@ class BuildingSearch:
 
         def prepare_address(self):
             if self.address:
-                fetcher = self.__banFetcherCls()
-                geocode_results = fetcher.geocode(self.address)
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    from_ban_future = executor.submit(self.geocode_from_ban)
+                    from_osm_future = executor.submit(self.geocode_from_osm)
 
-                # If there is any result coming from the geocoder
-                if geocode_results["features"]:
-                    best = geocode_results["features"][0]
+                    from_ban_future.result()
+                    from_osm_future.result()
 
-                    # And if the result is good enough
-                    if (
-                        best["properties"]["score"] > 0.7
-                        and best["properties"]["type"] == "housenumber"
-                    ):
-                        # We set the address point
-                        self._ban_point = Point(
-                            best["geometry"]["coordinates"], srid=4326
-                        ).transform(settings.DEFAULT_SRID, clone=True)
+            return
 
-                        # We set the ban id
-                        self._ban_id = best["properties"]["id"]
+        def geocode_from_osm(self):
+            geocoder = self.__osmGeocoderCls()
+
+            # First try, we send query as is
+            first_try_params = self.osm_geocode_raw_params()
+            results = geocoder.geocode(first_try_params)
+
+            # If there is no result, we try to clean the name
+            if not results["features"]:
+                second_try_params = self.osm_geocode_clean_name_params()
+                if second_try_params["q"] != first_try_params["q"]:
+                    results = geocoder.geocode(second_try_params)
+
+            # If there is still no result we check just with the name in a limited viewbox
+            if not results["features"] and self.name and self.point:
+                third_try_params = self.osm_geocode_name_in_box_params()
+                results = geocoder.geocode(third_try_params)
+
+            if results and results["features"]:
+                best = results["features"][0]
+
+                # And if the result is good enough
+                if best["properties"]["geocoding"]["type"] == "house":
+                    # We set the address point
+                    self._osm_point = Point(
+                        best["geometry"]["coordinates"], srid=4326
+                    ).transform(settings.DEFAULT_SRID, clone=True)
+
+        def osm_geocode_raw_params(self):
+            query = self.address
+            if self.name:
+                query = f"{self.name} {self.address}"
+
+            return {"q": query}
+
+        def osm_geocode_clean_name_params(self):
+            query = self.address
+            if self.name:
+                name = self.__osmGeocoderCls.prepare_name_string(self.name)
+                query = f"{name} {self.address}"
+
+            return {"q": query}
+
+        def osm_geocode_name_in_box_params(self):
+            name = self.__osmGeocoderCls.prepare_name_string(self.name)
+
+            point = self.point.clone()
+            point.transform(settings.DEFAULT_SRID)
+            zone = point.buffer(200)
+            zone.transform(4326)
+            boundary = zone.extent
+
+            return {
+                "q": name,
+                "viewbox": f"{boundary[0]},{boundary[1]},{boundary[2]},{boundary[3]}",
+                "bounded": 1,
+            }
+
+        def geocode_from_ban(self):
+            geocoder = self.__banGeocoderCls()
+            results = geocoder.geocode(self.address)
+
+            # If there is any result coming from the geocoder
+            if results["features"]:
+                best = results["features"][0]
+
+                # And if the result is good enough
+                if (
+                    best["properties"]["score"] > 0.7
+                    and best["properties"]["type"] == "housenumber"
+                ):
+                    # We set the address point
+                    self._ban_point = Point(
+                        best["geometry"]["coordinates"], srid=4326
+                    ).transform(settings.DEFAULT_SRID, clone=True)
+
+                    # We set the ban id
+                    self._ban_id = best["properties"]["id"]
 
         @property
         def errors(self):
