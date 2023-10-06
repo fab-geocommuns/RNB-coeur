@@ -20,12 +20,22 @@ class BanGeocoder:
         return reverse_result
 
 
+class PhotonGeocoder:
+    GEOCODE_URL = "https://photon.komoot.io/api/"
+
+    def geocode(self, params):
+        if "q" not in params:
+            raise Exception("Missing 'q' parameter for Photon geocoding")
+
+        response = requests.get(self.GEOCODE_URL, params=params)
+
+        return response.json()
+
+
 class NominatimGeocoder:
     GEOCODE_URL = "https://nominatim.openstreetmap.org/search"
 
     def geocode(self, params):
-        if "q" not in params:
-            raise Exception("Missing 'q' parameter for OSM geocoding")
 
         if "format" not in params:
             params["format"] = "geocodejson"
@@ -35,16 +45,20 @@ class NominatimGeocoder:
         geocode_result = response.json()
 
         return geocode_result
+    
+class GeocodeEarthGeocoder:
 
-    @staticmethod
-    def prepare_name_string(name: str) -> str:
-        # remove a list of generic words in the name
-        generic_words = [
-            "magasin",
-        ]
+    API_KEY = "ge-9b206ad0e734c565"
+    GEOCODE_URL = "https://api.geocode.earth/v1/search"
 
-        for w in generic_words:
-            name = name.replace(w, "")
-            name = name.replace(w.upper(), "")
+    def geocode(self, params):
+        if "text" not in params:
+            raise Exception("Missing 'text' parameter for GeocodeEarth geocoding")
 
-        return name
+        params["api_key"] = self.API_KEY
+
+        response = requests.get(self.GEOCODE_URL, params=params)
+
+        geocode_result = response.json()
+
+        return geocode_result

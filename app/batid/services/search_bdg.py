@@ -4,7 +4,7 @@ from batid.services.rnb_id import clean_rnb_id
 from batid.utils.misc import is_float
 from batid.models import Building, BuildingStatus, City, Plot
 from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
-from batid.services.geocoders import BanGeocoder, NominatimGeocoder
+from batid.services.geocoders import BanGeocoder, NominatimGeocoder, PhotonGeocoder
 from django.conf import settings
 from django.contrib.gis.geos import Polygon, MultiPolygon, Point
 from django.db.models import QuerySet
@@ -268,7 +268,7 @@ class BuildingSearch:
 
     # Allow to override the BanFetcher class, for mocking it in tests
     def set_ban_fetcher_cls(self, cls):
-        self.params.set_ban_geocoder_cls = cls
+        self.params.set_ban_handler_cls = cls
 
     class BuildingSearchParams:
         SORT_DEFAULT = "rnb_id"
@@ -310,8 +310,8 @@ class BuildingSearch:
 
             # Internals
             self.__errors = []
-            self.__banGeocoderCls = BanGeocoder
-            self.__osmGeocoderCls = NominatimGeocoder
+            self.__ban_handler_cls = BANGeocodingHandler
+            self.__osm_handler_cls = PhotonGeocodingHandler
 
         def set_filters(self, **kwargs):
             if "name" in kwargs:
@@ -377,11 +377,11 @@ class BuildingSearch:
             if "page" in kwargs:
                 self.set_page_from_url(kwargs["page"])
 
-        def set_ban_geocoder_cls(self, cls):
-            self.__banGeocoderCls = cls
+        def set_ban_handler_cls(self, cls):
+            self.__ban_handler_cls = cls
 
-        def set_osm_geocoder_cls(self, cls):
-            self.__osmGeocoderCls = cls
+        def set_osm_handler_cls(self, cls):
+            self.__osm_handler_cls = cls
 
         def prepare_params(self):
             self.prepare_address()
@@ -407,83 +407,12 @@ class BuildingSearch:
             return
 
         def geocode_from_osm(self):
-            geocoder = self.__osmGeocoderCls()
-
-            # First try, we send query as is
-            first_try_params = self.osm_geocode_raw_params()
-            results = geocoder.geocode(first_try_params)
-
-            # If there is no result, we try to clean the name
-            if not results["features"]:
-                second_try_params = self.osm_geocode_clean_name_params()
-                if second_try_params["q"] != first_try_params["q"]:
-                    results = geocoder.geocode(second_try_params)
-
-            # If there is still no result we check just with the name in a limited viewbox
-            if not results["features"] and self.name and self.point:
-                third_try_params = self.osm_geocode_name_in_box_params()
-                results = geocoder.geocode(third_try_params)
-
-            if results and results["features"]:
-                best = results["features"][0]
-
-                # And if the result is good enough
-                if best["properties"]["geocoding"]["type"] == "house":
-                    # We set the address point
-                    self._osm_point = Point(
-                        best["geometry"]["coordinates"], srid=4326
-                    ).transform(settings.DEFAULT_SRID, clone=True)
-
-        def osm_geocode_raw_params(self):
-            query = self.address
-            if self.name:
-                query = f"{self.name} {self.address}"
-
-            return {"q": query}
-
-        def osm_geocode_clean_name_params(self):
-            query = self.address
-            if self.name:
-                name = self.__osmGeocoderCls.prepare_name_string(self.name)
-                query = f"{name} {self.address}"
-
-            return {"q": query}
-
-        def osm_geocode_name_in_box_params(self):
-            name = self.__osmGeocoderCls.prepare_name_string(self.name)
-
-            point = self.point.clone()
-            point.transform(settings.DEFAULT_SRID)
-            zone = point.buffer(200)
-            zone.transform(4326)
-            boundary = zone.extent
-
-            return {
-                "q": name,
-                "viewbox": f"{boundary[0]},{boundary[1]},{boundary[2]},{boundary[3]}",
-                "bounded": 1,
-            }
+            handler = self.__osm_handler_cls()
+            handler.geocode(self)
 
         def geocode_from_ban(self):
-            geocoder = self.__banGeocoderCls()
-            results = geocoder.geocode(self.address)
-
-            # If there is any result coming from the geocoder
-            if results["features"]:
-                best = results["features"][0]
-
-                # And if the result is good enough
-                if (
-                    best["properties"]["score"] > 0.7
-                    and best["properties"]["type"] == "housenumber"
-                ):
-                    # We set the address point
-                    self._ban_point = Point(
-                        best["geometry"]["coordinates"], srid=4326
-                    ).transform(settings.DEFAULT_SRID, clone=True)
-
-                    # We set the ban id
-                    self._ban_id = best["properties"]["id"]
+            handler = self.__ban_handler_cls()
+            handler.geocode(self)
 
         @property
         def errors(self):
@@ -778,3 +707,65 @@ class BuildingSearch:
 
         def set_name(self, name: str):
             self.name = name
+
+
+class PhotonGeocodingHandler:
+    def __init__(self):
+        self.geocoder = PhotonGeocoder()
+
+    def geocode(self, search_params):
+        if search_params.address is None and search_params.name is None:
+            raise Exception("Missing 'address' or 'name' parameter for Photon geocoding")
+
+        q = search_params.address
+        if search_params.name:
+            q = f"{search_params.name}, {search_params.address}"
+
+        params = {
+            "q": q,
+            "limit": 1,
+            "lang": "fr",
+        }
+
+        results = self.geocoder.geocode(params)
+
+        if results["features"]:
+
+            best = results["features"][0]
+
+            # If the result is good enough
+            if (
+                best["properties"]["score"] > 0.7
+                and best["properties"]["type"] == "housenumber"
+            ):
+                # We set the address point
+                search_params._osm_point = Point(
+                    best["geometry"]["coordinates"], srid=4326
+                ).transform(settings.DEFAULT_SRID, clone=True)
+
+
+
+
+class BANGeocodingHandler:
+    def __init__(self):
+        self.geocoder = BanGeocoder()
+
+    def geocode(self, search_params):
+        results = self.geocoder.geocode(search_params.address)
+
+        # If there is any result coming from the geocoder
+        if results["features"]:
+            best = results["features"][0]
+
+            # And if the result is good enough
+            if (
+                best["properties"]["score"] > 0.7
+                and best["properties"]["type"] == "housenumber"
+            ):
+                # We set the address point
+                search_params._ban_point = Point(
+                    best["geometry"]["coordinates"], srid=4326
+                ).transform(settings.DEFAULT_SRID, clone=True)
+
+                # We set the ban id
+                search_params._ban_id = best["properties"]["id"]
