@@ -3,7 +3,7 @@ import os
 
 
 from batid.services.source import Source
-from shapely.geometry import mapping, shape, MultiPolygon
+from shapely.geometry import shape, MultiPolygon
 from shapely.ops import transform
 import fiona
 from datetime import datetime, timezone

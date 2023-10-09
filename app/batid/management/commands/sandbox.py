@@ -1,37 +1,26 @@
-import csv
-import json
-
-from django.contrib.gis.geos import GEOSGeometry
+from pprint import pprint
+from typing import Optional
 from django.core.management.base import BaseCommand
-
-from batid.models import Address, Candidate, Building
-from batid.services.candidate import Inspector
-from batid.services.imports.import_bdnb7 import (
-    import_bdnb7_addresses,
-    import_bdnb7_bdgs,
+import json
+from batid.models import Plot
+from batid.services.geocoders import (
+    GeocodeEarthGeocoder,
+    NominatimGeocoder,
+    PhotonGeocoder,
 )
-from batid.services.imports.import_bdtopo import import_bdtopo
-from batid.services.source import Source
+from batid.services.imports.import_plots import import_etalab_plots
+from batid.services.search_bdg import BuildingSearch
+
+from django.contrib.gis.geos import GEOSGeometry, Point
+
+from django.db import connection
 
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        src = Source("bdnb_7")
-        src.set_param("dpt", "44")
+        with connection.cursor() as cur:
+            q = "select * from batid_plot where id = 1"
+            cur.execute(q)
 
-        with open(src.find("adresse.csv"), "r") as f:
-            print("- list addresses")
-            reader = csv.DictReader(f, delimiter=",")
-
-            for row in list(reader):
-                if len(row["rep"]) > 5:
-                    print("rep is too long")
-                    print(row["rep"])
-
-                if len(row["code_postal"]) > 5:
-                    print("code_postal is too long")
-                    print(row["code_postal"])
-
-                if len(row["code_commune_insee"]) > 5:
-                    print("code_commune_insee is too long")
-                    print(row["code_commune_insee"])
+            for row in cur.fetchall():
+                print(row)
