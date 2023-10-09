@@ -1,5 +1,7 @@
 import requests
 
+from batid.utils.decorators import show_duration
+
 
 class BanGeocoder:
     GEOCODE_URL = "https://api-adresse.data.gouv.fr/search/?q={address}"
@@ -36,7 +38,6 @@ class NominatimGeocoder:
     GEOCODE_URL = "https://nominatim.openstreetmap.org/search"
 
     def geocode(self, params):
-
         if "format" not in params:
             params["format"] = "geocodejson"
 
@@ -45,9 +46,9 @@ class NominatimGeocoder:
         geocode_result = response.json()
 
         return geocode_result
-    
-class GeocodeEarthGeocoder:
 
+
+class GeocodeEarthGeocoder:
     API_KEY = "ge-9b206ad0e734c565"
     GEOCODE_URL = "https://api.geocode.earth/v1/search"
 

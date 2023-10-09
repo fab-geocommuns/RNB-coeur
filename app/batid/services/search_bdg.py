@@ -1,10 +1,10 @@
-from concurrent.futures import ThreadPoolExecutor
+from pprint import pprint
 
 from batid.services.rnb_id import clean_rnb_id
 from batid.utils.misc import is_float
 from batid.models import Building, BuildingStatus, City, Plot
 from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
-from batid.services.geocoders import BanGeocoder, NominatimGeocoder, PhotonGeocoder
+from batid.services.geocoders import BanGeocoder, PhotonGeocoder
 from django.conf import settings
 from django.contrib.gis.geos import Polygon, MultiPolygon, Point
 from django.db.models import QuerySet
@@ -73,7 +73,6 @@ class BuildingSearch:
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
-            # todo : does the double ST_Distance evaluation is a performance problem ?
             self.scores[
                 "osm_point_distance"
             ] = f"CASE WHEN ST_Distance(shape, %(osm_point)s) > 0 THEN 2 / ST_Distance(shape, %(osm_point)s) ELSE 5 END"
@@ -396,15 +395,12 @@ class BuildingSearch:
                     self.point = None
 
         def prepare_address(self):
+            # We have to geocode from BAN first. The BAN point will be used by the OSM geocoder.
             if self.address:
-                with ThreadPoolExecutor(max_workers=2) as executor:
-                    from_ban_future = executor.submit(self.geocode_from_ban)
-                    from_osm_future = executor.submit(self.geocode_from_osm)
+                self.geocode_from_ban()
 
-                    from_ban_future.result()
-                    from_osm_future.result()
-
-            return
+            if self.name or self.address:
+                self.geocode_from_osm()
 
         def geocode_from_osm(self):
             handler = self.__osm_handler_cls()
@@ -715,35 +711,36 @@ class PhotonGeocodingHandler:
 
     def geocode(self, search_params):
         if search_params.address is None and search_params.name is None:
-            raise Exception("Missing 'address' or 'name' parameter for Photon geocoding")
+            raise Exception(
+                "Missing 'address' or 'name' parameter for Photon geocoding"
+            )
 
-        q = search_params.address
-        if search_params.name:
-            q = f"{search_params.name}, {search_params.address}"
+        params = {"q": search_params.name, "lang": "fr", "limit": 1}
 
-        params = {
-            "q": q,
-            "limit": 1,
-            "lang": "fr",
-        }
+        if isinstance(search_params._ban_point, Point):
+            ban_point = search_params._ban_point.transform(4326, clone=True)
 
-        results = self.geocoder.geocode(params)
+            params["lon"] = ban_point.x
+            params["lat"] = ban_point.y
 
-        if results["features"]:
+        elif isinstance(search_params.address, str):
+            q_elements = []
+            if isinstance(search_params.name, str):
+                q_elements.append(search_params.name)
+            if isinstance(search_params.address, str):
+                q_elements.append(search_params.address)
 
-            best = results["features"][0]
+            params["q"] = " ".join(q_elements)
 
-            # If the result is good enough
-            if (
-                best["properties"]["score"] > 0.7
-                and best["properties"]["type"] == "housenumber"
-            ):
-                # We set the address point
+        if isinstance(params["q"], str):
+            results = self.geocoder.geocode(params)
+
+            if results["features"]:
+                best = results["features"][0]
+
                 search_params._osm_point = Point(
                     best["geometry"]["coordinates"], srid=4326
                 ).transform(settings.DEFAULT_SRID, clone=True)
-
-
 
 
 class BANGeocodingHandler:

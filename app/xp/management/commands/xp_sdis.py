@@ -21,7 +21,7 @@ class Command(BaseCommand):
         self.shp_data = []
 
         self.test_only = True
-        self.focus_on = None
+        self.focus_on = 992976
 
         # List of (sig_id, [rnb_id,]) that should be matched
         self.expected_matches = [
@@ -132,27 +132,85 @@ class Command(BaseCommand):
                 ],
                 "note": "Abbaye loin de la ville",
             },
-            # {"id_sig": 992975, "expected": []},
-            # {"id_sig": 992976, "expected": []},
-            # {"id_sig": 992977, "expected": []},
-            # {"id_sig": 992979, "expected": []},
-            # {"id_sig": 992980, "expected": []},
-            # {"id_sig": 992981, "expected": []},
-            # {"id_sig": 992983, "expected": []},
-            # {"id_sig": 992985, "expected": []},
-            # {"id_sig": 992986, "expected": []},
-            # {"id_sig": 992987, "expected": []},
-            # {"id_sig": 992988, "expected": []},
-            # {"id_sig": 992990, "expected": []},
-            # {"id_sig": 992991, "expected": []},
-            # {"id_sig": 992992, "expected": []},
-            # {"id_sig": 992993, "expected": []},
-            # {"id_sig": 992994, "expected": []},
-            # {"id_sig": 992996, "expected": []},
-            # {"id_sig": 992998, "expected": []},
-            # {"id_sig": 992999, "expected": []},
-            # {"id_sig": 993000, "expected": []},
-            # {"id_sig": 993001, "expected": []},
+            {"id_sig": 992975, "expected": ["NS5DDH2167TD"], "note": "école privée"},
+            {
+                "id_sig": 992976,
+                "expected": ["ME21JNV7Y1YX"],
+                "note": "bacchus plaza resturant",
+            },
+            {
+                "id_sig": 992977,
+                "expected": [
+                    "77GZSW9LZQAK",
+                    "ETY3ZE6RFRBZ",
+                    "8N99ZEUU3DN2",
+                    "5GP1RPXMR6GN",
+                    "5GP1RPXMR6GN",
+                    "7YFJDHPY6WV9",
+                    "YEHD7YUBJHZR",
+                ],
+            },
+            {
+                "id_sig": 992979,
+                "expected": ["1X479J1UKP1R"],
+                "note": "centre hebergement",
+            },
+            {"id_sig": 992980, "expected": ["KLY7ND23HFVW"], "note": "micro crèche"},
+            {"id_sig": 992981, "expected": ["7B3GZ5WF6QC1"]},
+            {
+                "id_sig": 992983,
+                "expected": ["NHE62T5XUQQ2", "3FP7LD3XZ1PR", "8DKHCUVBQ6ZC"],
+            },
+            {"id_sig": 992985, "expected": ["683F7L5TQ1YM"]},
+            {"id_sig": 992986, "expected": ["P283MQTR4R7E"], "note": "nouvelle ecole"},
+            {"id_sig": 992987, "expected": ["TQ19V5CYR63N"], "note": "CE Caterpillar"},
+            {
+                "id_sig": 992988,
+                "expected": ["NTS5T1EB97Q2"],
+                "note": "salle de reception",
+            },
+            {
+                "id_sig": 992990,
+                "expected": ["TK8D7SSLJ652"],
+                "note": "institut medico educatif georges bonneton",
+            },
+            {"id_sig": 992991, "expected": ["88EMEDG4S5N4", "9LLFMQKAHDC4"]},
+            {
+                "id_sig": 992992,
+                "expected": ["NLYRNMF4VX7E"],
+                "note": "gare pour train touristique",
+            },
+            {
+                "id_sig": 992993,
+                "expected": ["VJQNN3XS3357"],
+                "note": "nouvelle salle polyvalente du collège",
+            },
+            {
+                "id_sig": 992994,
+                "expected": ["VJQNN3XS3357"],
+                "note": "nouvelle batiment enseigment du collège",
+            },
+            {
+                "id_sig": 992996,
+                "expected": ["HWS8T59DGM7Z", "LMLATD7TK8P1"],
+                "note": "mc do",
+            },
+            {
+                "id_sig": 992998,
+                "expected": ["9Q9K4GJELCC2"],
+                "note": "chalet des glacies - pas visible sur sateliette",
+            },
+            {
+                "id_sig": 992999,
+                "expected": ["KRFCRHFVKHQN"],
+                "note": "nouvelle salle polyvalente",
+            },
+            {
+                "id_sig": 993000,
+                "expected": ["SM5GSPS3X3MU"],
+                "note": "centre de loisir",
+            },
+            {"id_sig": 993001, "expected": ["69YU1WPPYNK6"]},
             # {"id_sig": 993002, "expected": []},
             # {"id_sig": 993003, "expected": []},
             # {"id_sig": 993004, "expected": []},

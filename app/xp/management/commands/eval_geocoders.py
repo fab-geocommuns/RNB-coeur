@@ -15,6 +15,35 @@ class Command(BaseCommand):
 
     TESTS = [
         {
+            "address": "1, LOTISSEMENT LE PARC DU SEUIL, 38660 sainte-marie d'alloix",
+            "name": "SALLE POLYVALENTE (NOUVELLE)",
+            "poly_coords": [
+          [
+            [
+              5.967772650205347,
+              45.37982517372984
+            ],
+            [
+              5.967602656998906,
+              45.37960947602079
+            ],
+            [
+              5.968101669313739,
+              45.37940340690545
+            ],
+            [
+              5.968326499036749,
+              45.37964606765428
+            ],
+            [
+              5.967772650205347,
+              45.37982517372984
+            ]
+          ]
+        ]
+
+        },
+        {
             "address": "24 allée victor basch, 94170 le perreux sur mane",
             "name": None,
             "poly_coords": [
