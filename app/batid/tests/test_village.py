@@ -2,6 +2,7 @@ from django.contrib.gis.geos import Point
 from django.test import TestCase
 from batid.models import Building, Address
 from batid.services.search_bdg import BuildingSearch
+from django.test import tag
 
 
 # loads the village fixture in the database
@@ -50,3 +51,12 @@ class TestSearch(TestCase):
         results = search.get_queryset()
 
         self.assertEqual(len(results), 0)
+
+    @tag("futuristic_search")
+    def test_futuristic_search(self):
+        search = BuildingSearch()
+        # I give no search params
+        search.set_params()
+        results = search.get_queryset()
+        # the correct result is given!
+        self.assertEqual(len(results), 1)
