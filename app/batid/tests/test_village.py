@@ -2,6 +2,12 @@ from django.contrib.gis.geos import Point
 from django.test import TestCase
 from batid.models import Building, Address
 from batid.services.search_bdg import BuildingSearch
+from unittest.mock import patch
+
+from batid.tests.helpers import (
+    mock_ban_geocoder_result,
+    mock_photon_geocoder_empty_result,
+)
 
 
 # loads the village fixture in the database
@@ -50,3 +56,23 @@ class TestSearch(TestCase):
         results = search.get_queryset()
 
         self.assertEqual(len(results), 0)
+
+    @patch("batid.services.geocoders.BanGeocoder.geocode")
+    @patch("batid.services.geocoders.PhotonGeocoder.geocode")
+    def test_simple_address_search(self, photon_geocode, ban_geocode):
+        ban_geocode.return_value = mock_ban_geocoder_result(
+            id="38185_6400_00003", lng=5.736469, lat=45.179156
+        )
+        photon_geocode.return_value = mock_photon_geocoder_empty_result()
+
+        address = "3  impasse simard, Grenoble"
+
+        search = BuildingSearch()
+        search.set_params(address=address)
+
+        results = search.get_queryset()
+
+        # Test geocoders
+        ban_geocode.assert_called_once()
+
+        self.assertEqual(results[0].rnb_id, "78AEVARTSXL6")
