@@ -2,6 +2,7 @@ from django.contrib.gis.geos import Point
 from django.test import TestCase
 from batid.models import Building, Address
 from batid.services.search_bdg import BuildingSearch
+from django.test import tag
 from unittest.mock import patch
 
 from batid.tests.helpers import (
@@ -76,3 +77,12 @@ class TestSearch(TestCase):
         ban_geocode.assert_called_once()
 
         self.assertEqual(results[0].rnb_id, "78AEVARTSXL6")
+
+    @tag("futuristic_search")
+    def test_futuristic_search(self):
+        search = BuildingSearch()
+        # I give no search params
+        search.set_params()
+        results = search.get_queryset()
+        # the correct result is given!
+        self.assertEqual(len(results), 1)
