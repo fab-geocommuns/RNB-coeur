@@ -59,6 +59,10 @@ class Command(BaseCommand):
                     "batid.tasks.dl_source", args=["bdnb_7", bdnb_dpt], immutable=True
                 )
             )
+        if "dl_plots" in steps:
+            tasks.append(
+                Signature("batid.tasks.dl_source", args=["plot", dpt], immutable=True)
+            )
         if "import_bdtopo" in steps:
             tasks.append(
                 Signature(
