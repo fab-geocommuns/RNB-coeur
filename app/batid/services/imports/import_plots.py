@@ -44,9 +44,7 @@ def import_etalab_plots(dpt: str):
 
 def __handle_batch(batch):
     print("-- converting batch")
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        rows = executor.map(_feature_to_row, batch)
-
+    rows = map(_feature_to_row, batch)
     print("-- saving batch")
     __save_batch(rows)
 
