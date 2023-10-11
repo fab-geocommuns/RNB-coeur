@@ -1165,3 +1165,26 @@ def create_default_ads(city: City, file_number="PC1234"):
     return ADS.objects.create(
         file_number=file_number, decided_at="2023-01-01", city=city
     )
+
+
+def mock_ban_geocoder_result(id: str, lng: float, lat: float, score=0.99):
+    return {
+        "features": [
+            {
+                "geometry": {"coordinates": [lng, lat], "type": "Point"},
+                "properties": {
+                    "id": id,
+                    "score": score,
+                    "type": "housenumber",
+                    "x": lng,
+                    "y": lat,
+                },
+                "type": "Feature",
+            }
+        ],
+        "type": "FeatureCollection",
+    }
+
+
+def mock_photon_geocoder_empty_result():
+    return {"features": [], "type": "FeatureCollection"}

@@ -38,6 +38,8 @@ class BuildingSearch:
         params = {}
         self.scores = {}
 
+        # print(self.params.__dict__)
+
         # Bounding box
         if self.params.bb:
             wheres = ["ST_Intersects(point, %(bb)s)"]
@@ -404,7 +406,7 @@ class BuildingSearch:
 
         def geocode_from_osm(self):
             handler = self.__osm_handler_cls()
-            handler.geocode(self)
+            self._osm_point = handler.geocode(self)
 
         def geocode_from_ban(self):
             handler = self.__ban_handler_cls()
@@ -709,12 +711,7 @@ class PhotonGeocodingHandler:
     def __init__(self):
         self.geocoder = PhotonGeocoder()
 
-    def geocode(self, search_params):
-        if search_params.address is None and search_params.name is None:
-            raise Exception(
-                "Missing 'address' or 'name' parameter for Photon geocoding"
-            )
-
+    def geocode_params(self, search_params):
         params = {"q": search_params.name, "lang": "fr", "limit": 1}
 
         if isinstance(search_params._ban_point, Point):
@@ -731,6 +728,16 @@ class PhotonGeocodingHandler:
                 q_elements.append(search_params.address)
 
             params["q"] = " ".join(q_elements)
+
+        return params
+
+    def geocode(self, search_params):
+        if search_params.address is None and search_params.name is None:
+            raise Exception(
+                "Missing 'address' or 'name' parameter for Photon geocoding"
+            )
+
+        params = self.geocode_params(search_params)
 
         if isinstance(params["q"], str):
             results = self.geocoder.geocode(params)
@@ -756,7 +763,7 @@ class BANGeocodingHandler:
 
             # And if the result is good enough
             if (
-                best["properties"]["score"] > 0.7
+                best["properties"]["score"] >= 0.7
                 and best["properties"]["type"] == "housenumber"
             ):
                 # We set the address point
