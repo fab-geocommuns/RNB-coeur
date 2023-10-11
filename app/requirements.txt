@@ -137,3 +137,4 @@ webcolors==1.13
 webencodings==0.5.1
 websocket-client==1.5.1
 whitenoise==6.4.0
+drf-api-tracking==1.8.4

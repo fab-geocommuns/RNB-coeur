@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "django.contrib.postgres",
     "corsheaders",
+    "rest_framework_tracking",
     "batid",
     "website",
     "api_alpha",
