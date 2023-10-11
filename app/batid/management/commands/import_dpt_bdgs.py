@@ -25,9 +25,11 @@ class Command(BaseCommand):
             "import_cities",
             "dl_bdtopo",
             "dl_bdnb7",
+            "dl_plots",
             "import_bdtopo",
             "import_bdnb7_addresses",
             "import_bdnb7_bdgs",
+            "import_plots",
             "pre_clean_candidates",
             "inspect",
             "add_status",
@@ -82,6 +84,10 @@ class Command(BaseCommand):
                 Signature(
                     "batid.tasks.import_bdnb7_bdgs", args=[bdnb_dpt], immutable=True
                 )
+            )
+        if "import_plots" in steps:
+            tasks.append(
+                Signature("batid.tasks.import_plots", args=[dpt], immutable=True)
             )
         if "pre_clean_candidates" in steps:
             # This task is commented out because inspected candidates are removed during the inspection
