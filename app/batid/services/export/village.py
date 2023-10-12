@@ -9,32 +9,7 @@ from batid.tests.helpers import in_village
 @in_village
 def export_village():
     export_buildings()
-    export_plots()
-
-
-def export_plots():
-    cursor = connection.cursor()
-    q = """SELECT json_build_object(
-                        'type', 'FeatureCollection',
-                        'features', json_agg(ST_AsGeoJSON(limited_plots.*)::json)
-                    ) 
-                    FROM (
-                        SELECT ST_Transform(p.shape, 4326), p.* FROM batid_plot as p
-                         
-                    ) as limited_plots;"""
-
-    cursor.execute(q)
-    data = cursor.fetchone()
-
-    source = Source(
-        "village_plots_geojson",
-        custom_ref={"folder": "village", "filename": "village_plots.geojson"},
-    )
-
-    json_obj = json.dumps(data[0], indent=4)
-
-    with open(source.path, "w") as f:
-        f.write(json_obj)
+    # Todo : créer une fonction export_plots qui permettra de générer le fichier village_plots.geojson
 
 
 def export_buildings():
