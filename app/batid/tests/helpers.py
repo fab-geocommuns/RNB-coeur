@@ -1188,3 +1188,11 @@ def mock_ban_geocoder_result(id: str, lng: float, lat: float, score=0.99):
 
 def mock_photon_geocoder_empty_result():
     return {"features": [], "type": "FeatureCollection"}
+
+
+# loads the village fixture in the database
+# useful from a jupyter notebook
+def create_village():
+    from django.core.management import call_command
+
+    call_command("loaddata", "village.json", verbosity=0, app_label="batid")
