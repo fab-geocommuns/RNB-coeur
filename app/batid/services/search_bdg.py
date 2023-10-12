@@ -217,7 +217,10 @@ class BuildingSearch:
             scores_sum = (
                 ", "
                 + " + ".join(self.scores.keys())
-                + " as score, "
+                # we divide the score by the max score to have a score between 0 and 1
+                + "::float / max("
+                + " + ".join(self.scores.keys())
+                + ") over() as score, "
                 + ", ".join(self.scores.keys())
             )
 
@@ -238,6 +241,8 @@ class BuildingSearch:
             f"{pagination_str}"
         )
 
+        print(global_query)
+
         qs = (
             Building.objects.raw(global_query, params)
             .prefetch_related("addresses")
@@ -247,7 +252,7 @@ class BuildingSearch:
         # print("---- QUERY ---")
         # print(qs.query)
 
-        return qs
+        return list(qs)
 
     def prepare_params(self):
         self.params.prepare_params()
