@@ -18,9 +18,11 @@ from django.db import connection
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        with connection.cursor() as cur:
-            q = "select * from batid_plot where id = 1"
-            cur.execute(q)
+        s = BuildingSearch()
 
-            for row in cur.fetchall():
-                print(row)
+        results = s.get_queryset()
+
+        for b in results:
+            print("---------")
+            print(b.rnb_id)
+            print(b.point_geojson())

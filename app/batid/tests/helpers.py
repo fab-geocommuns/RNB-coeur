@@ -3,7 +3,8 @@ from datetime import datetime
 
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
-
+from contextlib import ContextDecorator
+from django.db import connection
 from batid.models import City, Building, AsyncSignal, ADS, BuildingStatus
 from batid.services.signal import AsyncSignalDispatcher
 
@@ -1188,3 +1189,36 @@ def mock_ban_geocoder_result(id: str, lng: float, lat: float, score=0.99):
 
 def mock_photon_geocoder_empty_result():
     return {"features": [], "type": "FeatureCollection"}
+
+
+# loads the village fixture in the database
+# useful from a jupyter notebook
+def create_village():
+    from django.core.management import call_command
+
+    call_command("loaddata", "village.json", verbosity=0, app_label="batid")
+
+
+# création d'un décorateur qui vide la table building (et les tables associées en cascade)
+class insert_village(ContextDecorator):
+    cursor = connection.cursor()
+
+    def __enter__(self):
+        self.cursor.execute("BEGIN TRANSACTION")
+        self.cursor.execute("TRUNCATE TABLE batid_building CASCADE")
+        self.cursor.execute("TRUNCATE TABLE batid_city CASCADE")
+        create_village()
+        return self
+
+    def __exit__(self, *exc):
+        self.cursor.execute("ROLLBACK TRANSACTION")
+        return False
+
+
+# le décorateur précédent est appelé par le décorateur transaction.atomic() qui permet de ne pas faire de commit
+# dans la base après chaque execution SQL, mais de tout wrapper dans une transaction que l'on peut rollback
+# une fois terminée
+def in_village(func):
+    from django.db import transaction
+
+    return transaction.atomic(insert_village()(func))

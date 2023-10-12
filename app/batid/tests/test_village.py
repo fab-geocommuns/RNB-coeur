@@ -11,14 +11,6 @@ from batid.tests.helpers import (
 )
 
 
-# loads the village fixture in the database
-# useful from a jupyter notebook
-def create_village():
-    from django.core.management import call_command
-
-    call_command("loaddata", "village.json", verbosity=0, app_label="batid")
-
-
 class TestSearch(TestCase):
     fixtures = ["village.json"]
 
