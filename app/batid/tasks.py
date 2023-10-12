@@ -7,6 +7,9 @@ from batid.services.imports.import_bdnb7 import (
     import_bdnb7_addresses as import_bdnb7_addresses_job,
 )
 from batid.services.imports.import_bdtopo import import_bdtopo as import_bdtopo_job
+from batid.services.imports.import_plots import (
+    import_etalab_plots as import_etalab_plots_job,
+)
 from batid.services.imports.import_cities import import_etalab_cities
 from batid.services.candidate import Inspector
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
@@ -54,6 +57,12 @@ def import_bdnb7_bdgs(dpt):
 @shared_task
 def import_bdtopo(dpt):
     import_bdtopo_job(dpt)
+    return "done"
+
+
+@shared_task
+def import_plots(dpt):
+    import_etalab_plots_job(dpt)
     return "done"
 
 

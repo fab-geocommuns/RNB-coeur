@@ -16,16 +16,13 @@ from batid.services.source import Source
 
 def import_etalab_plots(dpt: str):
     """Import plots from Etalab"""
-    print("---- Importing plots ----")
+    print("---- Importing Etalab plots ----")
 
+    src = Source("plot")
+    src.set_param("dpt", dpt)
     batch_size = 50000
 
-    s = Source("plot")
-    s.set_param("dpt", dpt)
-    s.download()
-    s.uncompress()
-
-    with open(s.path) as f:
+    with open(src.path) as f:
         features = ijson.items(f, "features.item", use_float=True)
 
         batch = []
@@ -47,9 +44,7 @@ def import_etalab_plots(dpt: str):
 
 def __handle_batch(batch):
     print("-- converting batch")
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        rows = executor.map(_feature_to_row, batch)
-
+    rows = map(_feature_to_row, batch)
     print("-- saving batch")
     __save_batch(rows)
 
