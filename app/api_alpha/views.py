@@ -15,9 +15,10 @@ from rest_framework.response import Response
 
 from django.http import HttpResponse, Http404
 from batid.services.vector_tiles import tile_sql, url_params_to_tile
+from rest_framework_tracking.mixins import LoggingMixin
 
 
-class BuildingViewSet(viewsets.ModelViewSet):
+class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
     http_method_names = ["get"]
@@ -75,7 +76,7 @@ class BuildingViewSet(viewsets.ModelViewSet):
         return search.get_queryset()
 
 
-class ADSBatchViewSet(viewsets.ModelViewSet):
+class ADSBatchViewSet(LoggingMixin, viewsets.ModelViewSet):
     queryset = ADS.objects.all()
     serializer_class = ADSSerializer
     lookup_field = "file_number"
@@ -126,7 +127,7 @@ class ADSBatchViewSet(viewsets.ModelViewSet):
             raise ParseError({"errors": "No data in the request."})
 
 
-class ADSViewSet(viewsets.ModelViewSet):
+class ADSViewSet(LoggingMixin, viewsets.ModelViewSet):
     queryset = ADS.objects.all()
     serializer_class = ADSSerializer
     lookup_field = "file_number"
