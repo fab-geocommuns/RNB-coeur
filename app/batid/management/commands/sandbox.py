@@ -18,12 +18,11 @@ from django.db import connection
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        with connection.cursor() as cur:
-            s = BuildingSearch()
+        s = BuildingSearch()
 
-            results = s.get_queryset()
+        results = s.get_queryset()
 
-            for b in results:
-                print("---------")
-                print(b.rnb_id)
-                print(b.point_geojson())
+        for b in results:
+            print("---------")
+            print(b.rnb_id)
+            print(b.point_geojson())
