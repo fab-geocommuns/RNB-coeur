@@ -91,6 +91,37 @@ class BuildingsEndpointsTest(APITestCase):
             happened_at=datetime.datetime(2023, 2, 1),
         )
 
+    def test_bdg_in_bbox(self):
+        r = self.client.get(
+            "/api/alpha/buildings/?bbox=45.18468473541278,5.7211808330356,45.18355043319679,5.722614035153486"
+        )
+        self.assertEqual(r.status_code, 200)
+
+        expected = [
+            {
+                "addresses": [],
+                "ext_bdtopo_id": None,
+                "point": {
+                    "coordinates": [5.7211808330356, 45.18433388648706],
+                    "type": "Point",
+                },
+                "rnb_id": "INGRENOBLEGO",
+                "status": [
+                    {
+                        "happened_at": "2023-02-01",
+                        "is_current": True,
+                        "label": "Construit",
+                        "type": "constructed",
+                    }
+                ],
+            }
+        ]
+
+        data = r.json()
+
+        self.assertEqual(len(data), 1)
+        self.assertListEqual(data, expected)
+
     def test_bdg_in_city(self):
         r = self.client.get("/api/alpha/buildings/?insee_code=38185")
         self.assertEqual(r.status_code, 200)
