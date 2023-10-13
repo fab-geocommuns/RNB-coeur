@@ -244,8 +244,8 @@ class BuildingSearch:
             .prefetch_related("status")
         )
 
-        print("---- QUERY ---")
-        print(qs.query)
+        # print("---- QUERY ---")
+        # print(qs.query)
 
         return qs
 
