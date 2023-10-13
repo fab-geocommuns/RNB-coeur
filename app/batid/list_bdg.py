@@ -10,7 +10,7 @@ def public_bdg_queryset(user=None) -> QuerySet:
     if user and user.is_authenticated:
         allowed_status = BuildingStatus.ALL_TYPES_KEYS
 
-    return Building.objects.filter(status__type__in=allowed_status).order_by("-rnb_id")
+    return Building.objects.filter(status__type__in=allowed_status).order_by("id")
 
 
 def filter_bdg_queryset(qs: QuerySet, params) -> QuerySet:

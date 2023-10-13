@@ -171,23 +171,6 @@ class BuildingsEndpointsTest(APITestCase):
             "previous": None,
             "results": [
                 {
-                    "addresses": [],
-                    "ext_bdtopo_id": None,
-                    "point": {
-                        "coordinates": [5.7211808330356, 45.18433388648706],
-                        "type": "Point",
-                    },
-                    "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
-                },
-                {
                     "ext_bdtopo_id": None,
                     "rnb_id": "BDGSRNBBIDID",
                     "status": [
@@ -203,6 +186,23 @@ class BuildingsEndpointsTest(APITestCase):
                         "coordinates": [1.065566769109709, 46.63416324688213],
                     },
                     "addresses": [],
+                },
+                {
+                    "addresses": [],
+                    "ext_bdtopo_id": None,
+                    "point": {
+                        "coordinates": [5.7211808330356, 45.18433388648706],
+                        "type": "Point",
+                    },
+                    "rnb_id": "INGRENOBLEGO",
+                    "status": [
+                        {
+                            "happened_at": "2023-02-01",
+                            "is_current": True,
+                            "label": "Construit",
+                            "type": "constructed",
+                        }
+                    ],
                 },
             ],
         }
@@ -263,23 +263,6 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
             "previous": None,
             "results": [
                 {
-                    "addresses": [],
-                    "ext_bdtopo_id": None,
-                    "point": {
-                        "coordinates": [5.7211808330356, 45.18433388648706],
-                        "type": "Point",
-                    },
-                    "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
-                },
-                {
                     "ext_bdtopo_id": None,
                     "rnb_id": "BDGSRNBBIDID",
                     "point": {
@@ -312,6 +295,23 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                         }
                     ],
                     "addresses": [],
+                },
+                {
+                    "addresses": [],
+                    "ext_bdtopo_id": None,
+                    "point": {
+                        "coordinates": [5.7211808330356, 45.18433388648706],
+                        "type": "Point",
+                    },
+                    "rnb_id": "INGRENOBLEGO",
+                    "status": [
+                        {
+                            "happened_at": "2023-02-01",
+                            "is_current": True,
+                            "label": "Construit",
+                            "type": "constructed",
+                        }
+                    ],
                 },
             ],
         }
