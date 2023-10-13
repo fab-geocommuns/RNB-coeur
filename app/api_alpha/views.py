@@ -26,7 +26,7 @@ class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
     http_method_names = ["get"]
     lookup_field = "rnb_id"
 
-    pagination_class = None
+    pagination_class = PageNumberPagination
 
     def get_object(self):
         try:
