@@ -564,7 +564,9 @@ class BuildingSearch:
         def __convert_status_from_url(self, status_str: str) -> list:
             if status_str == "all":
                 return self.allowed_status
-            return status_str.split(",")
+
+            labels = status_str.split(",")
+            return [BuildingStatus.label_to_int(label) for label in labels]
 
         def __validate_point_from_url(self, coords_str: str) -> bool:
             if not coords_str:

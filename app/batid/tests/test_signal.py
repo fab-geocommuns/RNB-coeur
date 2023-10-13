@@ -71,7 +71,7 @@ class TestSignal(TestCase):
         s.refresh_from_db()
 
         # After the dispatch, the building inside the signal must have a "constructionProject" status
-        self.assertEqual(s.building.current_status.type, "constructionProject")
+        self.assertEqual(s.building.current_status.label, "constructionProject")
 
         # We also verify the signal has been handled correctly
         self.assertIsNotNone(s.handled_at)

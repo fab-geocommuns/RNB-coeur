@@ -133,7 +133,7 @@ def add_default_status() -> int:
         print(f"fetch done in {end - start:0.4f} seconds")
 
         values = [
-            (row[0], "constructed", datetime.now(), datetime.now(), True)
+            (row[0], BuildingStatus.CONSTRUCTED, datetime.now(), datetime.now(), True)
             for row in rows
         ]
 

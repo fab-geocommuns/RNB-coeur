@@ -1110,7 +1110,7 @@ def create_constructed_bdg(rnb_id, coords_list):
     b = create_bdg(rnb_id, coords_list)
     BuildingStatus.objects.create(
         building=b,
-        type="constructed",
+        type=BuildingStatus.CONSTRUCTED,
         happened_at=datetime(2020, 1, 1),
         is_current=True,
     )

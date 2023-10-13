@@ -32,9 +32,13 @@ class SearchStatusTestCase(TestCase):
     def test_bdg_all_status_count(self):
         s = BuildingSearch()
 
+        status_str = ",".join(
+            [BuildingStatus.int_to_label(s) for s in BuildingStatusModel.PUBLIC_TYPES]
+        )
+
         s.set_params_from_url(
             **{
-                "status": ",".join(BuildingStatusModel.PUBLIC_TYPES),
+                "status": status_str,
             }
         )
         qs = s.get_queryset()
@@ -65,7 +69,7 @@ class SearchStatusTestCase(TestCase):
 
         BuildingStatus.objects.create(
             building=b,
-            type="constructed",
+            type=BuildingStatus.CONSTRUCTED,
             is_current=True,
             happened_at=datetime.datetime(2019, 1, 1),
         )
@@ -96,14 +100,14 @@ class SearchStatusTestCase(TestCase):
 
         BuildingStatus.objects.create(
             building=b,
-            type="constructed",
+            type=BuildingStatus.CONSTRUCTED,
             is_current=False,
             happened_at=datetime.datetime(2001, 1, 1),
         )
 
         BuildingStatus.objects.create(
             building=b,
-            type="demolished",
+            type=BuildingStatus.DEMOLISHED,
             is_current=True,
             happened_at=datetime.datetime(2021, 1, 1),
         )
@@ -134,7 +138,7 @@ class SearchStatusTestCase(TestCase):
 
         BuildingStatus.objects.create(
             building=b,
-            type="constructionProject",
+            type=BuildingStatus.CONSTRUCTION_PROJECT,
             is_current=True,
             happened_at=datetime.datetime(2001, 1, 1),
         )
@@ -183,7 +187,9 @@ class SearchBBoxTestCase(TestCase):
             rnb_id="IN-BBOX", source="dummy", shape=geom, point=geom.point_on_surface
         )
 
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+        BuildingStatus.objects.create(
+            building=b, type=BuildingStatus.CONSTRUCTED, is_current=True
+        )
 
         return b
 
@@ -212,7 +218,9 @@ class SearchBBoxTestCase(TestCase):
         b = Building.objects.create(
             rnb_id="OUT-BBOX", source="dummy", shape=geom, point=geom.point_on_surface
         )
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+        BuildingStatus.objects.create(
+            building=b, type=BuildingStatus.CONSTRUCTED, is_current=True
+        )
 
         return b
 
@@ -232,7 +240,9 @@ class SearchPolygonTestCase(TestCase):
             [-1.1983397171689774, 48.355340684903325],
         ]
         b = create_bdg("BDG-ONE", coords)
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+        BuildingStatus.objects.create(
+            building=b, type=BuildingStatus.CONSTRUCTED, is_current=True
+        )
 
         # Building Two
         coords = [
@@ -245,7 +255,9 @@ class SearchPolygonTestCase(TestCase):
             [-1.198285760819516, 48.3554475587039],
         ]
         b = create_bdg("BDG-TWO", coords)
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+        BuildingStatus.objects.create(
+            building=b, type=BuildingStatus.CONSTRUCTED, is_current=True
+        )
 
     def test_poly_exact_shape(self):
         coords = [
@@ -340,7 +352,9 @@ class SearchCityTestCase(TestCase):
             [5.727677616548021, 45.18650547532101],
         ]
         b = create_bdg("GRENOBLE-1", coords)
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+        BuildingStatus.objects.create(
+            building=b, type=BuildingStatus.CONSTRUCTED, is_current=True
+        )
 
         # Grenoble 2
         coords = [
@@ -351,7 +365,9 @@ class SearchCityTestCase(TestCase):
             [5.727677616548021, 45.18650547532101],
         ]
         b = create_bdg("GRENOBLE-2", coords)
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+        BuildingStatus.objects.create(
+            building=b, type=BuildingStatus.CONSTRUCTED, is_current=True
+        )
 
         # Paris, to be sure it is not returned
         coords = [
@@ -362,7 +378,9 @@ class SearchCityTestCase(TestCase):
             [2.3523348950355967, 48.8571274784089],
         ]
         b = create_bdg("PARIS-1", coords)
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+        BuildingStatus.objects.create(
+            building=b, type=BuildingStatus.CONSTRUCTED, is_current=True
+        )
 
     def test_grenoble(self):
         search = BuildingSearch()

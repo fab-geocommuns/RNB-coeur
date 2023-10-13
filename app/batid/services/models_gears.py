@@ -180,7 +180,7 @@ class BuildingGear(ModelGear):
         if not has_constructed_status and has_post_constructed_status:
             results.append(
                 BuildingStatusModel(
-                    type="constructed",
+                    type=BuildingStatusModel.CONSTRUCTED,
                     building=self.model,
                     is_current=False,
                 )

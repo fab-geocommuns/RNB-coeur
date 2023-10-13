@@ -38,7 +38,9 @@ class BuildingsEndpointsTest(APITestCase):
             shape=geom,
             point=geom.point_on_surface,
         )
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+        BuildingStatus.objects.create(
+            building=b, type=BuildingStatus.CONSTRUCTED, is_current=True
+        )
 
         coords = {
             "coordinates": [
@@ -65,7 +67,7 @@ class BuildingsEndpointsTest(APITestCase):
         )
         BuildingStatus.objects.create(
             building=b,
-            type="constructionProject",
+            type=BuildingStatus.CONSTRUCTION_PROJECT,
             is_current=True,
             happened_at=datetime.datetime(2020, 2, 1),
         )
@@ -86,7 +88,7 @@ class BuildingsEndpointsTest(APITestCase):
         )
         BuildingStatus.objects.create(
             building=bdg,
-            type="constructed",
+            type=BuildingStatus.CONSTRUCTED,
             is_current=True,
             happened_at=datetime.datetime(2023, 2, 1),
         )
@@ -348,16 +350,16 @@ class BuildingsEndpointsSingleTest(APITestCase):
         )
         BuildingStatus.objects.create(
             building=b,
-            type="constructed",
+            type=BuildingStatus.CONSTRUCTED,
             happened_at=datetime.datetime(2020, 2, 1),
         )
         BuildingStatus.objects.create(
             building=b,
-            type="constructionProject",
+            type=BuildingStatus.CONSTRUCTION_PROJECT,
         )
         BuildingStatus.objects.create(
             building=b,
-            type="demolished",
+            type=BuildingStatus.DEMOLISHED,
             is_current=True,
             happened_at=datetime.datetime(2022, 2, 1),
         )
@@ -368,6 +370,6 @@ class BuildingsEndpointsSingleTest(APITestCase):
 
         status = r.json()["status"]
 
-        self.assertEqual(status[0]["type"], "constructionProject")
-        self.assertEqual(status[1]["type"], "constructed")
-        self.assertEqual(status[2]["type"], "demolished")
+        self.assertEqual(status[0]["type"], BuildingStatus.CONSTRUCTION_PROJECT)
+        self.assertEqual(status[1]["type"], BuildingStatus.CONSTRUCTED)
+        self.assertEqual(status[2]["type"], BuildingStatus.DEMOLISHED)
