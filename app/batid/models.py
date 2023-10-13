@@ -3,8 +3,6 @@ import json
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.gis.db import models
-from django.contrib.postgres.indexes import SpGistIndex
-from django.utils.timezone import now
 from django.conf import settings
 from django.db.models import F
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel

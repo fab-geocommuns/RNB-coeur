@@ -20,6 +20,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         s = BuildingSearch()
 
+
         results = s.get_queryset()
 
         for b in results:
