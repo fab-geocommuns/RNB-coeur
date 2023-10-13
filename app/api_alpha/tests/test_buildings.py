@@ -116,7 +116,6 @@ class BuildingsEndpointsTest(APITestCase):
                         {
                             "happened_at": "2023-02-01",
                             "is_current": True,
-                            "label": "Construit",
                             "type": "constructed",
                         }
                     ],
@@ -150,7 +149,6 @@ class BuildingsEndpointsTest(APITestCase):
                         {
                             "happened_at": "2023-02-01",
                             "is_current": True,
-                            "label": "Construit",
                             "type": "constructed",
                         }
                     ],
@@ -178,7 +176,6 @@ class BuildingsEndpointsTest(APITestCase):
                     "status": [
                         {
                             "type": "constructed",
-                            "label": "Construit",
                             "happened_at": None,
                             "is_current": True,
                         }
@@ -201,7 +198,6 @@ class BuildingsEndpointsTest(APITestCase):
                         {
                             "happened_at": "2023-02-01",
                             "is_current": True,
-                            "label": "Construit",
                             "type": "constructed",
                         }
                     ],
@@ -226,7 +222,6 @@ class BuildingsEndpointsTest(APITestCase):
             "status": [
                 {
                     "type": "constructed",
-                    "label": "Construit",
                     "happened_at": None,
                     "is_current": True,
                 }
@@ -274,7 +269,6 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                     "status": [
                         {
                             "type": "constructed",
-                            "label": "Construit",
                             "happened_at": None,
                             "is_current": True,
                         }
@@ -291,7 +285,6 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                     "status": [
                         {
                             "type": "constructionProject",
-                            "label": "En projet",
                             "is_current": True,
                             "happened_at": "2020-02-01",
                         }
@@ -310,7 +303,6 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                         {
                             "happened_at": "2023-02-01",
                             "is_current": True,
-                            "label": "Construit",
                             "type": "constructed",
                         }
                     ],
@@ -370,6 +362,6 @@ class BuildingsEndpointsSingleTest(APITestCase):
 
         status = r.json()["status"]
 
-        self.assertEqual(status[0]["type"], BuildingStatus.CONSTRUCTION_PROJECT)
-        self.assertEqual(status[1]["type"], BuildingStatus.CONSTRUCTED)
-        self.assertEqual(status[2]["type"], BuildingStatus.DEMOLISHED)
+        self.assertEqual(status[0]["type"], "constructionProject")
+        self.assertEqual(status[1]["type"], "constructed")
+        self.assertEqual(status[2]["type"], "demolished")

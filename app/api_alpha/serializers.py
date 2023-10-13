@@ -32,9 +32,11 @@ class AddressSerializer(serializers.ModelSerializer):
 
 
 class BuildingStatusSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source="label", read_only=True)
+
     class Meta:
         model = BuildingStatus
-        fields = ["type", "happened_at", "label", "is_current"]
+        fields = ["type", "happened_at", "is_current"]
 
 
 class BuildingSerializer(serializers.ModelSerializer):
