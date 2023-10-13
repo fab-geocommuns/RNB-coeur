@@ -187,6 +187,23 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
 
         expected = [
             {
+                "addresses": [],
+                "ext_bdtopo_id": None,
+                "point": {
+                    "coordinates": [5.7211808330356, 45.18433388648706],
+                    "type": "Point",
+                },
+                "rnb_id": "INGRENOBLEGO",
+                "status": [
+                    {
+                        "happened_at": "2023-02-01",
+                        "is_current": True,
+                        "label": "Construit",
+                        "type": "constructed",
+                    }
+                ],
+            },
+            {
                 "ext_bdtopo_id": None,
                 "rnb_id": "BDGSRNBBIDID",
                 "point": {
@@ -222,7 +239,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
             },
         ]
 
-        self.assertEqual(len(data), 2)
+        self.assertEqual(len(data), 3)
         self.maxDiff = None
         self.assertListEqual(data, expected)
 
