@@ -19,7 +19,7 @@ from django.db import connection
 class Command(BaseCommand):
     def handle(self, *args, **options):
         s = BuildingSearch()
-        s.set_params()
+
 
         results = s.get_queryset()
 
