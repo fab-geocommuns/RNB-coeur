@@ -101,7 +101,7 @@ class BuildingADSGear(ModelGear):
         if isinstance(self.model.ads.achieved_at, date):
             results.append(
                 BuildingStatusModel(
-                    type="demolished",
+                    type=BuildingStatusModel.DEMOLISHED,
                     building=self.model.building,
                     happened_at=self.model.ads.achieved_at,
                     is_current=True,
@@ -115,7 +115,7 @@ class BuildingADSGear(ModelGear):
 
         results.append(
             BuildingStatusModel(
-                type="constructionProject",
+                type=BuildingStatusModel.CONSTRUCTION_PROJECT,
                 building=self.model.building,
                 happened_at=self.model.ads.decided_at,
                 is_current=True,
@@ -125,7 +125,7 @@ class BuildingADSGear(ModelGear):
         if isinstance(self.model.ads.achieved_at, date):
             results.append(
                 BuildingStatusModel(
-                    type="constructed",
+                    type=BuildingStatusModel.CONSTRUCTED,
                     building=self.model.building,
                     happened_at=self.model.ads.achieved_at,
                     is_current=True,
@@ -172,9 +172,9 @@ class BuildingGear(ModelGear):
         has_constructed_status = False
         has_post_constructed_status = False
         for status in self.model.status.all():
-            if status.type == "constructed":
+            if status.type == BuildingStatusModel.CONSTRUCTED:
                 has_constructed_status = True
-            if status.type in BuildingStatus.POST_CONSTRUCTED_KEYS:
+            if status.type in BuildingStatus.POST_CONSTRUCTED_TYPES:
                 has_post_constructed_status = True
 
         if not has_constructed_status and has_post_constructed_status:

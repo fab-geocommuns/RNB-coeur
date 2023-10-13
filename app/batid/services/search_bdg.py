@@ -307,7 +307,7 @@ class BuildingSearch:
             self.page = 1
 
             # Allowed status
-            self.allowed_status = BuildingStatusRef.PUBLIC_TYPES_KEYS
+            self.allowed_status = BuildingStatusRef.PUBLIC_TYPES
 
             # Internals
             self.__errors = []

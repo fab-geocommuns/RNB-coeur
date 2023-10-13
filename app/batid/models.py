@@ -5,7 +5,6 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.gis.db import models
 from django.conf import settings
 from django.db.models import F
-from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 
 
 class Building(models.Model):
@@ -47,13 +46,34 @@ class Building(models.Model):
 
 
 class BuildingStatus(models.Model):
-    id = models.AutoField(primary_key=True)
-    type = models.CharField(
-        choices=BuildingStatusModel.TYPES_CHOICES,
-        null=False,
-        db_index=True,
-        max_length=30,
+    CONSTRUCTION_PROJECT = 0
+    CANCELED_CONSTRUCTION_PROJECT = 1
+    ONGOING_CONSTRUCTION = 2
+    CONSTRUCTED = 3
+    ONGOING_CHANGE = 4
+    NOT_USABLE = 5
+    DEMOLISHED = 6
+
+    TYPES = (
+        (CONSTRUCTION_PROJECT, "constructionProject"),
+        (CANCELED_CONSTRUCTION_PROJECT, "canceledConstructionProject"),
+        (ONGOING_CONSTRUCTION, "ongoingConstruction"),
+        (CONSTRUCTED, "constructed"),
+        (ONGOING_CHANGE, "ongoingChange"),
+        (NOT_USABLE, "notUsable"),
+        (DEMOLISHED, "demolished"),
     )
+
+    id = models.AutoField(primary_key=True)
+    # type = models.CharField(
+    #     choices=BuildingStatusModel.TYPES_CHOICES,
+    #     null=False,
+    #     db_index=True,
+    #     max_length=30,
+    # )
+
+    type = models.IntegerField(choices=TYPES, default=CONSTRUCTED)
+
     happened_at = models.DateField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -67,7 +87,19 @@ class BuildingStatus(models.Model):
 
     @property
     def label(self):
-        return BuildingStatusModel.get_label(self.type)
+        return self.int_to_label(self.type)
+
+    @classmethod
+    def int_to_label(cls, status_int):
+        for t_int, t_label in cls.TYPES:
+            if t_int == status_int:
+                return t_label
+
+    @classmethod
+    def label_to_int(cls, status_label):
+        for t_int, t_label in cls.TYPES:
+            if t_label == status_label:
+                return t_int
 
     def save(self, *args, **kwargs):
         # If the status is current, we make sure that the previous current status is not current anymore

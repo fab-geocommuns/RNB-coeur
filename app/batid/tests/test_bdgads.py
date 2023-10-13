@@ -2,7 +2,7 @@ from datetime import date
 
 from django.test import TestCase
 
-from batid.models import BuildingADS, ADS
+from batid.models import BuildingADS, ADS, BuildingStatus
 from batid.services.models_gears import BuildingADSGear
 from batid.tests.helpers import (
     create_default_bdg,
@@ -30,7 +30,7 @@ class TestBdgAdsToBdgStatus(TestCase):
         status = gear.get_expected_bdg_status()
 
         self.assertEqual(len(status), 1)
-        self.assertEqual(status[0].type, "constructionProject")
+        self.assertEqual(status[0].type, BuildingStatus.CONSTRUCTION_PROJECT)
         self.assertEqual(status[0].building, bdg)
 
     # willBeBuilt + achieved_at
@@ -49,11 +49,11 @@ class TestBdgAdsToBdgStatus(TestCase):
         self.assertEqual(len(status), 2)
 
         # constructionProject
-        self.assertEqual(status[0].type, "constructionProject")
+        self.assertEqual(status[0].type, BuildingStatus.CONSTRUCTION_PROJECT)
         self.assertEqual(status[0].building, bdg)
         self.assertEqual(status[0].happened_at, ads.decided_at)
         # constructed
-        self.assertEqual(status[1].type, "constructed")
+        self.assertEqual(status[1].type, BuildingStatus.CONSTRUCTED)
         self.assertEqual(status[1].building, bdg)
         self.assertEqual(status[1].happened_at, ads.achieved_at)
 
@@ -84,7 +84,7 @@ class TestBdgAdsToBdgStatus(TestCase):
         self.assertEqual(len(status), 1)
 
         # demolished
-        self.assertEqual(status[0].type, "demolished")
+        self.assertEqual(status[0].type, BuildingStatus.DEMOLISHED)
         self.assertEqual(status[0].building, bdg)
         self.assertEqual(status[0].happened_at, ads.achieved_at)
 
@@ -128,7 +128,7 @@ class TestBdgAdsToBdgStatus(TestCase):
         bdg.refresh_from_db()
 
         self.assertEqual(len(bdg.status.all()), 1)
-        self.assertEqual(bdg.current_status.type, "constructionProject")
+        self.assertEqual(bdg.current_status.type, BuildingStatus.CONSTRUCTION_PROJECT)
 
     # willBeBuilt > willBeModified > willBeBuilt
     def test_multiOperationChange(self):
@@ -152,7 +152,7 @@ class TestBdgAdsToBdgStatus(TestCase):
 
         # We check the status
         self.assertEqual(len(bdg.status.all()), 1)
-        self.assertEqual(bdg.current_status.type, "constructionProject")
+        self.assertEqual(bdg.current_status.type, BuildingStatus.CONSTRUCTION_PROJECT)
 
     # willBeBuilt > achieved_at
     def test_builtAchieved(self):
@@ -175,12 +175,12 @@ class TestBdgAdsToBdgStatus(TestCase):
         self.assertEqual(len(bdg.status.all()), 2)
 
         # constructionProject
-        self.assertEqual(bdg.status.all()[0].type, "constructionProject")
+        self.assertEqual(bdg.status.all()[0].type, BuildingStatus.CONSTRUCTION_PROJECT)
         self.assertEqual(bdg.status.all()[0].building, bdg)
         self.assertEqual(bdg.status.all()[0].happened_at, ads.decided_at)
         self.assertEqual(bdg.status.all()[0].is_current, False)
         # constructed
-        self.assertEqual(bdg.status.all()[1].type, "constructed")
+        self.assertEqual(bdg.status.all()[1].type, BuildingStatus.CONSTRUCTED)
         self.assertEqual(bdg.status.all()[1].building, bdg)
         self.assertEqual(bdg.status.all()[1].happened_at, ads.achieved_at)
         self.assertEqual(bdg.status.all()[1].is_current, True)
@@ -226,12 +226,12 @@ class TestBdgAdsToBdgStatus(TestCase):
         self.assertEqual(len(bdg.status.all()), 2)
 
         # constructed
-        self.assertEqual(bdg.status.all()[0].type, "constructed")
+        self.assertEqual(bdg.status.all()[0].type, BuildingStatus.CONSTRUCTED)
         self.assertEqual(bdg.status.all()[0].building, bdg)
         self.assertIsNone(bdg.status.all()[0].happened_at)
         self.assertEqual(bdg.status.all()[0].is_current, False)
         # demolished
-        self.assertEqual(bdg.status.all()[1].type, "demolished")
+        self.assertEqual(bdg.status.all()[1].type, BuildingStatus.DEMOLISHED)
         self.assertEqual(bdg.status.all()[1].building, bdg)
         self.assertEqual(bdg.status.all()[1].happened_at, ads.achieved_at)
         self.assertEqual(bdg.status.all()[1].is_current, True)
@@ -285,17 +285,17 @@ class TestBdgAdsToBdgStatus(TestCase):
         # build a date
 
         # constructionProject
-        self.assertEqual(bdg.status.all()[0].type, "constructionProject")
+        self.assertEqual(bdg.status.all()[0].type, BuildingStatus.CONSTRUCTION_PROJECT)
         self.assertEqual(bdg.status.all()[0].building, bdg)
         self.assertEqual(bdg.status.all()[0].happened_at, date(1969, 7, 21))
         self.assertEqual(bdg.status.all()[0].is_current, False)
         # constructed
-        self.assertEqual(bdg.status.all()[1].type, "constructed")
+        self.assertEqual(bdg.status.all()[1].type, BuildingStatus.CONSTRUCTED)
         self.assertEqual(bdg.status.all()[1].building, bdg)
         self.assertEqual(bdg.status.all()[1].happened_at, date(1972, 8, 15))
         self.assertEqual(bdg.status.all()[1].is_current, False)
         # demolished
-        self.assertEqual(bdg.status.all()[2].type, "demolished")
+        self.assertEqual(bdg.status.all()[2].type, BuildingStatus.DEMOLISHED)
         self.assertEqual(bdg.status.all()[2].building, bdg)
         self.assertEqual(bdg.status.all()[2].happened_at, date(2022, 1, 1))
         self.assertEqual(bdg.status.all()[2].is_current, True)

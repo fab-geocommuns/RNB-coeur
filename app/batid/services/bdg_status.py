@@ -1,48 +1,33 @@
+from batid.models import BuildingStatus as BuildingStatusModel
+
+
 class BuildingStatus:
-    TYPES = [
-        {"key": "constructionProject", "label": "En projet", "public": False},
-        {
-            "key": "canceledConstructionProject",
-            "label": "Projet annulé",
-            "public": False,
-        },
-        {
-            "key": "ongoingConstruction",
-            "label": "Construction en cours",
-            "public": True,
-        },
-        {"key": "constructed", "label": "Construit", "public": True},
-        {"key": "ongoingChange", "label": "En cours de modification", "public": True},
-        {
-            "key": "notUsable",
-            "label": "Non utilisable",
-            "public": True,
-        },
-        {"key": "demolished", "label": "Démoli", "public": True},
+    PRIVATE_TYPES = [
+        BuildingStatusModel.CONSTRUCTION_PROJECT,
+        BuildingStatusModel.CANCELED_CONSTRUCTION_PROJECT,
     ]
 
-    PUBLIC_TYPES_KEYS = [s["key"] for s in TYPES if s["public"]]
-    PRIVATE_TYPES_KEYS = [s["key"] for s in TYPES if not s["public"]]
-    ALL_TYPES_KEYS = [s["key"] for s in TYPES]
+    PUBLIC_TYPES = [
+        BuildingStatusModel.ONGOING_CONSTRUCTION,
+        BuildingStatusModel.CONSTRUCTED,
+        BuildingStatusModel.ONGOING_CHANGE,
+        BuildingStatusModel.NOT_USABLE,
+        BuildingStatusModel.DEMOLISHED,
+    ]
 
-    # Those are the default status display in the listing API
-    DEFAULT_DISPLAY_STATUS = [
-        "ongoingConstruction",
-        "constructed",
-        "ongoingChange",
-        "notUsable",
+    ALL_TYPES = PUBLIC_TYPES + PRIVATE_TYPES
+
+    DEFAULT_DISPLAY_TYPES = [
+        BuildingStatusModel.ONGOING_CONSTRUCTION,
+        BuildingStatusModel.CONSTRUCTED,
+        BuildingStatusModel.ONGOING_CHANGE,
+        BuildingStatusModel.NOT_USABLE,
     ]
 
     # Those are the status which trigger the creation of a "constructed" status
     # if the building does not have one
-    POST_CONSTRUCTED_KEYS = [
-        "ongoingChange",
-        "notUsable",
-        "demolished",
+    POST_CONSTRUCTED_TYPES = [
+        BuildingStatusModel.ONGOING_CHANGE,
+        BuildingStatusModel.NOT_USABLE,
+        BuildingStatusModel.DEMOLISHED,
     ]
-
-    TYPES_CHOICES = [(s["key"], s["label"]) for s in TYPES]
-
-    @classmethod
-    def get_label(cls, key):
-        return next(s["label"] for s in cls.TYPES if s["key"] == key)

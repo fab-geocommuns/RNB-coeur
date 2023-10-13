@@ -34,7 +34,7 @@ class SearchStatusTestCase(TestCase):
 
         s.set_params_from_url(
             **{
-                "status": ",".join(BuildingStatusModel.PUBLIC_TYPES_KEYS),
+                "status": ",".join(BuildingStatusModel.PUBLIC_TYPES),
             }
         )
         qs = s.get_queryset()

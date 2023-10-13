@@ -3,11 +3,9 @@ from django.db import connection
 from api_alpha.permissions import ADSPermission
 from api_alpha.serializers import ADSSerializer, BuildingSerializer
 from api_alpha.services import get_city_from_request
-from batid.list_bdg import public_bdg_queryset, filter_bdg_queryset
+from batid.services.list_bdg import public_bdg_queryset, filter_bdg_queryset
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.search_bdg import BuildingSearch
-from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.models import ADS, Building
 
 from rest_framework import viewsets
