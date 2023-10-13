@@ -95,8 +95,8 @@ class BuildingsEndpointsTest(APITestCase):
         self.assertListEqual(r.json(), expected)
 
     def test_one_bdg_with_dash(self):
-        # r = self.client.get("/api/alpha/buildings/BDGS-RNBB-IDID/")
-        r = self.client.get("/api/alpha/buildings/BDGSRNBBIDID/")
+        r = self.client.get("/api/alpha/buildings/BDGS-RNBB-IDID/")
+        # r = self.client.get("/api/alpha/buildings/BDGSRNBBIDID/")
         self.assertEqual(r.status_code, 200)
 
         expected = {
