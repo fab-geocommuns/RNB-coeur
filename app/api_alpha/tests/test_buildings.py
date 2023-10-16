@@ -97,117 +97,102 @@ class BuildingsEndpointsTest(APITestCase):
         )
         self.assertEqual(r.status_code, 200)
 
-        expected = {
-            "count": 1,
-            "next": None,
-            "previous": None,
-            "results": [
-                {
-                    "addresses": [],
-                    "ext_bdtopo_id": None,
-                    "point": {
-                        "coordinates": [5.7211808330356, 45.18433388648706],
-                        "type": "Point",
-                    },
-                    "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
-                }
-            ],
-        }
+        expected = [
+            {
+                "addresses": [],
+                "ext_bdtopo_id": None,
+                "point": {
+                    "coordinates": [5.7211808330356, 45.18433388648706],
+                    "type": "Point",
+                },
+                "rnb_id": "INGRENOBLEGO",
+                "status": [
+                    {
+                        "happened_at": "2023-02-01",
+                        "is_current": True,
+                        "label": "Construit",
+                        "type": "constructed",
+                    }
+                ],
+            }
+        ]
 
         data = r.json()
 
-        self.assertEqual(len(data["results"]), 1)
-        self.assertDictEqual(data, expected)
+        self.assertEqual(len(data), 1)
+        self.assertListEqual(data, expected)
 
     def test_bdg_in_city(self):
         r = self.client.get("/api/alpha/buildings/?insee_code=38185")
         self.assertEqual(r.status_code, 200)
 
-        expected = {
-            "count": 1,
-            "next": None,
-            "previous": None,
-            "results": [
-                {
-                    "addresses": [],
-                    "ext_bdtopo_id": None,
-                    "point": {
-                        "coordinates": [5.7211808330356, 45.18433388648706],
-                        "type": "Point",
-                    },
-                    "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
-                }
-            ],
-        }
+        expected = [
+            {
+                "addresses": [],
+                "ext_bdtopo_id": None,
+                "point": {
+                    "coordinates": [5.7211808330356, 45.18433388648706],
+                    "type": "Point",
+                },
+                "rnb_id": "INGRENOBLEGO",
+                "status": [
+                    {
+                        "happened_at": "2023-02-01",
+                        "is_current": True,
+                        "label": "Construit",
+                        "type": "constructed",
+                    }
+                ],
+            }
+        ]
 
         data = r.json()
 
-        self.assertEqual(len(data["results"]), 1)
-        self.assertDictEqual(data, expected)
+        self.assertEqual(len(data), 1)
+        self.assertListEqual(data, expected)
 
     def test_buildings_root(self):
         r = self.client.get("/api/alpha/buildings/")
         self.assertEqual(r.status_code, 200)
 
-        expected = {
-            "count": 2,
-            "next": None,
-            "previous": None,
-            "results": [
-                {
-                    "ext_bdtopo_id": None,
-                    "rnb_id": "BDGSRNBBIDID",
-                    "status": [
-                        {
-                            "type": "constructed",
-                            "label": "Construit",
-                            "happened_at": None,
-                            "is_current": True,
-                        }
-                    ],
-                    "point": {
-                        "type": "Point",
-                        "coordinates": [1.065566769109709, 46.63416324688213],
-                    },
-                    "addresses": [],
+        expected = [
+            {
+                "ext_bdtopo_id": None,
+                "rnb_id": "BDGSRNBBIDID",
+                "status": [
+                    {
+                        "type": "constructed",
+                        "label": "Construit",
+                        "happened_at": None,
+                        "is_current": True,
+                    }
+                ],
+                "point": {
+                    "type": "Point",
+                    "coordinates": [1.065566769109709, 46.63416324688213],
                 },
-                {
-                    "addresses": [],
-                    "ext_bdtopo_id": None,
-                    "point": {
-                        "coordinates": [5.7211808330356, 45.18433388648706],
-                        "type": "Point",
-                    },
-                    "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
+                "addresses": [],
+            },
+            {
+                "addresses": [],
+                "ext_bdtopo_id": None,
+                "point": {
+                    "coordinates": [5.7211808330356, 45.18433388648706],
+                    "type": "Point",
                 },
-            ],
-        }
+                "rnb_id": "INGRENOBLEGO",
+                "status": [
+                    {
+                        "happened_at": "2023-02-01",
+                        "is_current": True,
+                        "label": "Construit",
+                        "type": "constructed",
+                    }
+                ],
+            },
+        ]
 
-        self.assertDictEqual(r.json(), expected)
+        self.assertListEqual(r.json(), expected)
 
     def test_one_bdg_with_dash(self):
         r = self.client.get("/api/alpha/buildings/BDGS-RNBB-IDID/")
@@ -257,68 +242,62 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
 
         self.assertEqual(r.status_code, 200)
 
-        expected = {
-            "count": 3,
-            "next": None,
-            "previous": None,
-            "results": [
-                {
-                    "ext_bdtopo_id": None,
-                    "rnb_id": "BDGSRNBBIDID",
-                    "point": {
-                        "type": "Point",
-                        "coordinates": [1.065566769109709, 46.63416324688213],
-                    },
-                    "status": [
-                        {
-                            "type": "constructed",
-                            "label": "Construit",
-                            "happened_at": None,
-                            "is_current": True,
-                        }
-                    ],
-                    "addresses": [],
+        expected = [
+            {
+                "ext_bdtopo_id": None,
+                "rnb_id": "BDGSRNBBIDID",
+                "point": {
+                    "type": "Point",
+                    "coordinates": [1.065566769109709, 46.63416324688213],
                 },
-                {
-                    "ext_bdtopo_id": None,
-                    "rnb_id": "BDGPROJ",
-                    "point": {
-                        "type": "Point",
-                        "coordinates": [1.065566769109709, 46.63416324688213],
-                    },
-                    "status": [
-                        {
-                            "type": "constructionProject",
-                            "label": "En projet",
-                            "is_current": True,
-                            "happened_at": "2020-02-01",
-                        }
-                    ],
-                    "addresses": [],
+                "status": [
+                    {
+                        "type": "constructed",
+                        "label": "Construit",
+                        "happened_at": None,
+                        "is_current": True,
+                    }
+                ],
+                "addresses": [],
+            },
+            {
+                "ext_bdtopo_id": None,
+                "rnb_id": "BDGPROJ",
+                "point": {
+                    "type": "Point",
+                    "coordinates": [1.065566769109709, 46.63416324688213],
                 },
-                {
-                    "addresses": [],
-                    "ext_bdtopo_id": None,
-                    "point": {
-                        "coordinates": [5.7211808330356, 45.18433388648706],
-                        "type": "Point",
-                    },
-                    "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
+                "status": [
+                    {
+                        "type": "constructionProject",
+                        "label": "En projet",
+                        "is_current": True,
+                        "happened_at": "2020-02-01",
+                    }
+                ],
+                "addresses": [],
+            },
+            {
+                "addresses": [],
+                "ext_bdtopo_id": None,
+                "point": {
+                    "coordinates": [5.7211808330356, 45.18433388648706],
+                    "type": "Point",
                 },
-            ],
-        }
+                "rnb_id": "INGRENOBLEGO",
+                "status": [
+                    {
+                        "happened_at": "2023-02-01",
+                        "is_current": True,
+                        "label": "Construit",
+                        "type": "constructed",
+                    }
+                ],
+            },
+        ]
 
-        self.assertEqual(len(data["results"]), 3)
-        self.maxDiff = None
-        self.assertDictEqual(data, expected)
+        self.assertEqual(len(data), 3)
+        self.assertListEqual(data, expected)
 
 
 class BuildingsEndpointsSingleTest(APITestCase):

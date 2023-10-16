@@ -1,5 +1,6 @@
 from django.db import connection
 
+from api_alpha.pagination import PagedNumberNoCount
 from api_alpha.permissions import ADSPermission
 from api_alpha.serializers import ADSSerializer, BuildingSerializer
 from api_alpha.services import get_city_from_request
@@ -25,8 +26,9 @@ class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
     serializer_class = BuildingSerializer
     http_method_names = ["get"]
     lookup_field = "rnb_id"
+    page_size = 20
 
-    pagination_class = PageNumberPagination
+    pagination_class = None
 
     def get_object(self):
         try:
@@ -36,8 +38,14 @@ class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = public_bdg_queryset(self.request.user)
+        qs = filter_bdg_queryset(qs, self.request.query_params)
 
-        return filter_bdg_queryset(qs, self.request.query_params)
+        # Paginate the queryset
+        page = self.request.query_params.get("page", 1)
+        start = (int(page) - 1) * self.page_size
+        end = start + self.page_size
+
+        return qs[start:end]
 
 
 class ADSBatchViewSet(LoggingMixin, viewsets.ModelViewSet):
