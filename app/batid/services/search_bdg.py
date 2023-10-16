@@ -1,8 +1,5 @@
-from pprint import pprint
-
-from batid.services.rnb_id import clean_rnb_id
 from batid.utils.misc import is_float
-from batid.models import Building, BuildingStatus, City, Plot
+from batid.models import Building, BuildingStatus, Plot
 from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
 from batid.services.geocoders import BanGeocoder, PhotonGeocoder
 from django.conf import settings
@@ -25,6 +22,12 @@ class BuildingSearch:
         self.params.set_filters_from_url(**kwargs)
 
     def get_queryset(self) -> QuerySet:
+        # We verify we have at least one required parameter
+        self.params.verify_params()
+        if not self.params.is_valid():
+            return None
+
+        # Before launching the query, we have to transform/convert some parameters (eg: address->geocode->point)
         self.prepare_params()
 
         # ###################
@@ -37,18 +40,6 @@ class BuildingSearch:
         group_by = None
         params = {}
         self.scores = {}
-
-        # print(self.params.__dict__)
-
-        # Bounding box
-        if self.params.bb:
-            wheres = ["ST_Intersects(point, %(bb)s)"]
-            params["bb"] = f"{self.params.bb}"
-
-        # RNB ID
-        if self.params.rnb_id:
-            wheres.append("rnb_id = %(rnb_id)s")
-            params["rnb_id"] = self.params.rnb_id
 
         # Status
         if self.params.status:
@@ -166,11 +157,6 @@ class BuildingSearch:
             params["poly"] = f"{self.params.poly}"
             params["max_hausdorff_dist"] = self.MAX_HAUSDORFF_DISTANCE
 
-        # City poly
-        if self.params._city_poly:
-            wheres = ["ST_Intersects(b.point, %(city_poly)s)"]
-            params["city_poly"] = f"{self.params._city_poly}"
-
         # SELECT
 
         selects.append(
@@ -283,23 +269,18 @@ class BuildingSearch:
             # ##########
 
             # Filters
-            self.rnb_id = None
-            self.bb = None
             self.status = []
+
             self.point = None  # Can be any SRID
+            self.name = None
             self.address = None
             self.poly = None
-            self.point = None
+
             self.sort = None
-            self.insee_code = None
-            self.name = None
 
             # Filters constructed from other filters
             # They can not be set directly
-            self._city_poly = None
-
             self._osm_point = None
-
             self._ban_point = None
             self._ban_id = None
 
@@ -318,12 +299,6 @@ class BuildingSearch:
             if "name" in kwargs:
                 self.set_name(kwargs["name"])
 
-            if "rnb_id" in kwargs:
-                self.set_rnb_id(kwargs["rnb_id"])
-
-            if "bb" in kwargs:
-                self.set_bb(kwargs["bb"])
-
             if "status" in kwargs:
                 self.set_status(kwargs["status"])
 
@@ -339,9 +314,6 @@ class BuildingSearch:
             if "sort" in kwargs:
                 self.set_sort(kwargs["sort"])
 
-            if "insee_code" in kwargs:
-                self.set_insee_code(kwargs["insee_code"])
-
             if "page" in kwargs:
                 self.set_page(kwargs["page"])
 
@@ -349,12 +321,6 @@ class BuildingSearch:
             # ##########
             # Set up filters
             # ##########
-
-            if "rnb_id" in kwargs:
-                self.set_rnb_id_from_url(kwargs["rnb_id"])
-
-            if "bb" in kwargs:
-                self.set_bb_from_url(kwargs["bb"])
 
             if "status" in kwargs:
                 self.set_status_from_url(kwargs["status"])
@@ -371,9 +337,6 @@ class BuildingSearch:
 
             if "sort" in kwargs:
                 self.set_sort_from_url(kwargs["sort"])
-
-            if "insee_code" in kwargs:
-                self.set_insee_code_from_url(kwargs["insee_code"])
 
             if "page" in kwargs:
                 self.set_page_from_url(kwargs["page"])
@@ -453,84 +416,6 @@ class BuildingSearch:
 
             if not page.isdigit():
                 self.__errors.append("page : page parameter must be an integer")
-                return False
-
-            return True
-
-        def set_bb_from_url(self, bb_str: str) -> None:
-            if bb_str is not None:
-                if self.__validate_bb_from_url(bb_str):
-                    bb = self.__convert_bb_from_url(bb_str)
-                    self.set_bb(bb)
-
-        def set_bb(self, bb) -> None:
-            if self.__validate_bb(bb):
-                self.bb = bb
-
-        def __convert_bb_from_url(self, bb_str: str) -> Polygon:
-            nw_lat, nw_lng, se_lat, se_lng = [
-                float(coord) for coord in bb_str.split(self.PARAM_SPLITTER)
-            ]
-
-            poly_coords = (
-                (nw_lng, nw_lat),
-                (nw_lng, se_lat),
-                (se_lng, se_lat),
-                (se_lng, nw_lat),
-                (nw_lng, nw_lat),
-            )
-
-            return Polygon(poly_coords, srid=4326).transform(
-                settings.DEFAULT_SRID, clone=True
-            )
-
-        def __validate_bb_from_url(self, bb_str: str) -> bool:
-            format_msg = "bb : bounding box parameter must be a string of 4 floats separated by a comma"
-
-            if not bb_str:
-                return False
-
-            coords = bb_str.split(self.PARAM_SPLITTER)
-
-            if len(coords) != 4:
-                self.__errors.append(format_msg)
-                return False
-
-            for coord in coords:
-                if not is_float(coord):
-                    self.__errors.append(format_msg)
-                    return False
-
-            # Convert all params to floats and dispatch them to the right property
-            nw_lat, nw_lng, se_lat, se_lng = [float(coord) for coord in coords]
-
-            if nw_lat <= se_lat:
-                self.__errors.append(
-                    "bb : north-west latitude must be greater than south-east latitude"
-                )
-                return False
-
-            if nw_lng >= se_lng:
-                self.__errors.append(
-                    "bb : south-east longitude must be greater than north-west longitude"
-                )
-                return False
-
-            return True
-
-        def __validate_bb(self, bb: Polygon) -> bool:
-            if bb is None:
-                return False
-
-            # Error is srid is none
-            if bb.srid is None:
-                self.__errors.append("bb : bounding box must have a SRID")
-                return False
-
-            if not bb.valid:
-                self.__errors.append(
-                    f"bb : bounding box is not valid. Reason: {bb.valid_reason}"
-                )
                 return False
 
             return True
@@ -663,48 +548,16 @@ class BuildingSearch:
 
             return True
 
-        def set_insee_code_from_url(self, code: str) -> None:
-            self.set_insee_code(code)
-
-        def set_insee_code(self, code: str) -> None:
-            if code is None:
-                self.insee_code = None
-                self._city_poly = None
-            else:
-                if self.__validate_insee_code(code):
-                    self.insee_code = code
-                    self._city_poly = self.__get_city_polygon()
-
-        def __validate_insee_code(self, code):
-            if not code:
-                return False
-
-            if len(code) != 5:
-                self.__errors.append(
-                    "insee_code : insee code must be a string of 5 digits"
-                )
-                return False
-
-            return True
-
-        def __get_city_polygon(self) -> MultiPolygon:
-            try:
-                city = City.objects.get(code_insee=self.insee_code)
-                return city.shape
-            except City.DoesNotExist:
-                self.__errors.append(
-                    f"insee_code : insee code {self.insee_code} does not exist"
-                )
-                return None
-
-        def set_rnb_id_from_url(self, rnb_id):
-            self.set_rnb_id(rnb_id)
-
-        def set_rnb_id(self, rnb_id):
-            self.rnb_id = clean_rnb_id(rnb_id)
-
         def set_name(self, name: str):
             self.name = name
+
+        def verify_params(self):
+            if not self.address and not self.name and not self.point and not self.poly:
+                self.__errors.append(
+                    "You must provide at least one of the following parameters: address, name, point, poly"
+                )
+
+            pass
 
 
 class PhotonGeocodingHandler:
