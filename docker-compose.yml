@@ -3,13 +3,12 @@ version: "3.9"
 services:
   web:
     build:
-        context: .
-        dockerfile: ./app/Dockerfile
-        target: app_web
+      context: .
+      dockerfile: ./app/Dockerfile
+      target: app_web
     ports:
       - '8000:8000'
       - '8888:8888'
-      - '5555:5555'
     env_file:
       - ./.env.db_auth.dev
       - ./.env.app.dev
@@ -17,8 +16,8 @@ services:
       - ./.env.rnb.dev
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
-        - ./app:/app
-        - ./source_data:/data/downloads
+      - ./app:/app
+      - ./source_data:/data/downloads
     depends_on:
       - db
       - rabbitmq
@@ -68,6 +67,15 @@ services:
     command: blackd --bind-host 0.0.0.0 --bind-port 45484
     ports:
       - "45484:45484"
+  flower:
+    image: mher/flower
+    container_name: flower
+    command: celery flower --url_prefix=flower # This will execute flower.
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq//
+      - FLOWER_PORT=5555
+    ports:
+      - 5555:5555 # docker will expose this ports for flower
 volumes:
   postgres_data:
   rabbitmq_data:
