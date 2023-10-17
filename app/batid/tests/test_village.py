@@ -73,7 +73,7 @@ class TestSearch(TestCase):
     @patch("batid.services.geocoders.BanGeocoder.geocode")
     @patch("batid.services.geocoders.PhotonGeocoder.geocode")
     def test_point_and_address(self, photon_geocode, ban_geocode):
-        # We test a point and and address.
+        # We test a point and address.
         # The point is close to two buildings, the address should make the difference to find the right building
 
         ban_geocode.return_value = mock_ban_geocoder_result(
