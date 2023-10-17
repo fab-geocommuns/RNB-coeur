@@ -34,6 +34,8 @@ CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS").split(" ")
 CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(" ")
 CORS_ALLOW_ALL_ORIGINS = True
 
+LOGIN_URL = "/admin/login/"
+
 
 if DEBUG:
     import socket  # only if you haven't already imported this
@@ -71,6 +73,7 @@ INSTALLED_APPS = [
     "api_alpha",
     "xp",
     "django_extensions",
+    "revproxy",
 ]
 
 MIDDLEWARE = [

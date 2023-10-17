@@ -67,6 +67,15 @@ services:
     command: blackd --bind-host 0.0.0.0 --bind-port 45484
     ports:
       - "45484:45484"
+  flower:
+    image: mher/flower
+    container_name: flower
+    command: celery flower --url_prefix=flower # This will execute flower.
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq//
+      - FLOWER_PORT=5555
+    ports:
+      - 5555:5555 # docker will expose this ports for flower
 volumes:
   postgres_data:
   rabbitmq_data:
