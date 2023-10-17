@@ -1197,6 +1197,7 @@ def create_village():
     from django.core.management import call_command
 
     call_command("loaddata", "village.json", verbosity=0, app_label="batid")
+    call_command("loaddata", "village_plots.json", verbosity=0, app_label="batid")
 
 
 # création d'un décorateur qui vide la table building (et les tables associées en cascade)

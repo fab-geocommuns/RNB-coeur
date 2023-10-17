@@ -20,7 +20,9 @@ def worker(request):
 
 class FlowerProxyView(UserPassesTestMixin, ProxyView):
     # `flower` is Docker container, you can use `localhost` instead
-    upstream = "http://flower:5555"
+    
+    upstream = "http://flower:{}".format(os.environ.get("FLOWER_PORT", "5555"))
+
     url_prefix = "flower"
     rewrite = ((r"^/{}$".format(url_prefix), r"/{}/".format(url_prefix)),)
 
