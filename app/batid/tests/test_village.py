@@ -1,7 +1,7 @@
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from batid.models import Building, Address
-from batid.services.search_bdg import BuildingSearch
+from batid.services.search_bdg import BuildingGuess
 from django.test import tag
 from unittest.mock import patch
 
@@ -22,7 +22,7 @@ class TestSearch(TestCase):
 
         point = Point(5.7359531, 45.1799726, srid=4326)
 
-        search = BuildingSearch()
+        search = BuildingGuess()
         search.set_params(point=point)
 
         best = search.get_queryset()[0]
@@ -34,7 +34,7 @@ class TestSearch(TestCase):
 
         point = Point(5.73571756, 45.17993763, srid=4326)
 
-        search = BuildingSearch()
+        search = BuildingGuess()
         search.set_params(point=point)
 
         best = search.get_queryset()[0]
@@ -44,7 +44,7 @@ class TestSearch(TestCase):
     def test_point_very_far_from_village(self):
         point = Point(5.726823, 45.185496, srid=4326)
 
-        search = BuildingSearch()
+        search = BuildingGuess()
         search.set_params(point=point)
         results = search.get_queryset()
 
@@ -60,7 +60,7 @@ class TestSearch(TestCase):
 
         address = "3  impasse simard, Grenoble"
 
-        search = BuildingSearch()
+        search = BuildingGuess()
         search.set_params(address=address)
 
         results = search.get_queryset()
@@ -72,7 +72,7 @@ class TestSearch(TestCase):
 
     @tag("futuristic_search")
     def test_futuristic_search(self):
-        search = BuildingSearch()
+        search = BuildingGuess()
         # I give no search params
         search.set_params()
         results = search.get_queryset()

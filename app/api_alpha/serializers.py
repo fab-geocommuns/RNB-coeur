@@ -12,7 +12,7 @@ from rest_framework.validators import UniqueValidator
 from batid.services.rnb_id import generate_rnb_id, clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 
-from batid.services.search_bdg import BuildingSearch
+from batid.services.search_bdg import BuildingGuess
 
 
 class AddressSerializer(serializers.ModelSerializer):
@@ -139,7 +139,7 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
     def guess_bdg(self, mp: MultiPolygon) -> Optional[Building]:
         """Try to guess the building from the MultiPolygon"""
 
-        search = BuildingSearch()
+        search = BuildingGuess()
         search.set_params(**{"poly": mp[0]})
         qs = search.get_queryset()
         if len(qs) == 1:

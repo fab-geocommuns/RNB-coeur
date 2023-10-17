@@ -14,7 +14,7 @@ from api_alpha.services import get_city_from_request
 from batid.list_bdg import public_bdg_queryset, filter_bdg_queryset
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.search_bdg import BuildingSearch
+from batid.services.search_bdg import BuildingGuess
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.models import ADS, Building
 
@@ -30,7 +30,7 @@ from rest_framework_tracking.mixins import LoggingMixin
 
 class BuildingGuessView(APIView):
     def get(self, request, *args, **kwargs):
-        search = BuildingSearch()
+        search = BuildingGuess()
         search.set_params(**request.query_params.dict())
 
         qs = search.get_queryset()
