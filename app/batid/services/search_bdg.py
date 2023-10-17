@@ -241,7 +241,6 @@ class BuildingSearch:
             f"{pagination_str}"
         )
 
-        print(global_query)
 
         qs = (
             Building.objects.raw(global_query, params)
