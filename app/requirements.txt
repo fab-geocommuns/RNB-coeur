@@ -138,3 +138,5 @@ webencodings==0.5.1
 websocket-client==1.5.1
 whitenoise==6.4.0
 drf-api-tracking==1.8.4
+flower==2.0.1
+django-revproxy==0.11.0
