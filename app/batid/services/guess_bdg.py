@@ -203,7 +203,10 @@ class BuildingGuess:
             scores_sum = (
                 ", "
                 + " + ".join(self.scores.keys())
-                + " as score, "
+                # we divide the score by the max score to have a score between 0 and 1
+                + "::float / max("
+                + " + ".join(self.scores.keys())
+                + ") over() as score, "
                 + ", ".join(self.scores.keys())
             )
 
@@ -223,6 +226,7 @@ class BuildingGuess:
             "ORDER BY score DESC "
             f"{pagination_str}"
         )
+
 
         qs = (
             Building.objects.raw(global_query, params)
