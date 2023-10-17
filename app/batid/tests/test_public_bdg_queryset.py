@@ -7,7 +7,6 @@ from batid.list_bdg import public_bdg_queryset, filter_bdg_queryset
 from batid.models import Building, BuildingStatus
 from django.contrib.gis.geos import GEOSGeometry
 from django.conf import settings
-from batid.services.search_bdg import BuildingSearch
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.tests.helpers import create_bdg, create_grenoble, create_paris
 
