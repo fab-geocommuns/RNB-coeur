@@ -200,14 +200,10 @@ class BuildingGuess:
         # SCORE SUM
         scores_sum = ", 0 as score"
         if len(self.scores):
+            subscore_sum_str = " + ".join(self.scores.keys())
+
             scores_sum = (
-                ", "
-                + " + ".join(self.scores.keys())
-                # we divide the score by the max score to have a score between 0 and 1
-                + "::float / max("
-                + " + ".join(self.scores.keys())
-                + ") over() as score, "
-                + ", ".join(self.scores.keys())
+                f", ({subscore_sum_str}) / (sum({subscore_sum_str}) over()) as score "
             )
 
         # ######################
@@ -226,7 +222,6 @@ class BuildingGuess:
             "ORDER BY score DESC "
             f"{pagination_str}"
         )
-
 
         qs = (
             Building.objects.raw(global_query, params)
