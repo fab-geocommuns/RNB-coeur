@@ -10,7 +10,7 @@ class Command(BaseCommand):
     help = "Import data for France"
 
     def add_arguments(self, parser):
-        parser.add_argument("start_dpt", type=int, default=1)
+        parser.add_argument("--start_dpt", type=int, default=1)
 
     def handle(self, *args, **options):
         start_dpt = options["start_dpt"]
