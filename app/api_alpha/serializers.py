@@ -40,13 +40,24 @@ class BuildingStatusSerializer(serializers.ModelSerializer):
 class BuildingSerializer(serializers.ModelSerializer):
     point = serializers.DictField(source="point_geojson", read_only=True)
     addresses = AddressSerializer(many=True, read_only=True)
-    # source = serializers.CharField(read_only=True)
     status = BuildingStatusSerializer(read_only=True, many=True)
     ext_bdtopo_id = serializers.CharField(read_only=True)
 
     class Meta:
         model = Building
         fields = ["rnb_id", "status", "point", "addresses", "ext_bdtopo_id"]
+
+
+class GuessBuildingSerializer(serializers.ModelSerializer):
+    score = serializers.FloatField(read_only=True)
+    point = serializers.DictField(source="point_geojson", read_only=True)
+    addresses = AddressSerializer(many=True, read_only=True)
+    status = BuildingStatusSerializer(read_only=True, many=True)
+    ext_bdtopo_id = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Building
+        fields = ["rnb_id", "score", "status", "point", "addresses", "ext_bdtopo_id"]
 
 
 class CityADSSerializer(serializers.ModelSerializer):
