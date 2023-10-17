@@ -29,7 +29,9 @@ def test_all() -> str:
     return "done"
 
 
-@shared_task
+@shared_task(
+    autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 5}
+)
 def dl_source(src, dpt):
     src = Source(src)
     src.set_param("dpt", dpt)
@@ -42,42 +44,42 @@ def dl_source(src, dpt):
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_bdnb7_addresses(dpt):
     import_bdnb7_addresses_job(dpt)
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_bdnb7_bdgs(dpt):
     import_bdnb7_bdgs_job(dpt)
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_bdtopo(dpt):
     import_bdtopo_job(dpt)
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_plots(dpt):
     import_etalab_plots_job(dpt)
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_cities(dpt):
     import_etalab_cities(dpt)
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_dpts():
     import_etalab_dpts()
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def inspect_candidates():
     print("---- Inspecting candidates ----")
 
@@ -94,39 +96,39 @@ def inspect_candidates():
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def remove_inspected_candidates():
     i = Inspector()
     i.remove_inspected()
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def remove_invalid_candidates():
     i = Inspector()
     i.remove_invalid_candidates()
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def remove_dpt_bdgs(dpt):
     remove_dpt_bdgs_job(dpt)
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def remove_light_bdgs(dpt):
     remove_light_bdgs_job(dpt)
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def export_city(insee_code):
     export_city_job(insee_code)
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def add_default_status():
     print("---- Adding default status ----")
 
@@ -142,13 +144,13 @@ def add_default_status():
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_dgfip_ads_achievements(filename: str):
     import_dgfip_ads_achievements_job(filename)
     return "done"
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def dispatch_signal(pk: int):
     s = AsyncSignal.objects.get(pk=pk)
     d = AsyncSignalDispatcher()

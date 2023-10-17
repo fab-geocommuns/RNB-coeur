@@ -19,7 +19,7 @@ def public_bdg_queryset(user=None) -> QuerySet:
 
 def filter_bdg_queryset(qs: QuerySet, params) -> QuerySet:
     # Bounding box
-    bbox_str = params.get("bbox", None)
+    bbox_str = params.get("bb", None)
     if bbox_str:
         nw_lat, nw_lng, se_lat, se_lng = [float(coord) for coord in bbox_str.split(",")]
         poly_coords = (
@@ -49,6 +49,6 @@ def filter_bdg_queryset(qs: QuerySet, params) -> QuerySet:
         else:
             status = query_status_str.split(",")
 
-    qs = qs.filter(status__type__in=status)
+    qs = qs.filter(status__type__in=status, status__is_current=True)
 
     return qs

@@ -4,7 +4,7 @@ from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand
 
 from batid.models import Building
-from batid.services.search_bdg import BuildingSearch
+from batid.services.guess_bdg import BuildingGuess
 from batid.services.source import Source
 from pandas import read_excel
 import pandas as pd
@@ -505,7 +505,7 @@ class Command(BaseCommand):
                 adress_items = [i for i in adress_items if i is not None]
                 address = " ".join(adress_items)
 
-                s = BuildingSearch()
+                s = BuildingGuess()
                 s.set_params(
                     point=point, address=address, name=feature["properties"]["TOPONYME"]
                 )

@@ -15,10 +15,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from batid.views import FlowerProxyView
 
 urlpatterns = [
     path("", include("website.urls")),
     path("api/alpha/", include("api_alpha.urls")),
     path("admin/", admin.site.urls),
+    FlowerProxyView.as_url(),
     path("__debug__/", include("debug_toolbar.urls")),
 ]
