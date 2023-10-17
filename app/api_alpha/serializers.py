@@ -12,7 +12,7 @@ from rest_framework.validators import UniqueValidator
 from batid.services.rnb_id import generate_rnb_id, clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 
-from batid.services.search_bdg import BuildingGuess
+from batid.services.guess_bdg import BuildingGuess
 
 
 class AddressSerializer(serializers.ModelSerializer):

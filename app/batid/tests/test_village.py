@@ -1,7 +1,7 @@
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from batid.models import Building, Address
-from batid.services.search_bdg import BuildingGuess
+from batid.services.guess_bdg import BuildingGuess
 from django.test import tag
 from unittest.mock import patch
 

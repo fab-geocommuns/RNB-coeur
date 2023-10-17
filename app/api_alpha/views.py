@@ -14,7 +14,7 @@ from api_alpha.services import get_city_from_request
 from batid.list_bdg import public_bdg_queryset, filter_bdg_queryset
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.search_bdg import BuildingGuess
+from batid.services.guess_bdg import BuildingGuess
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.models import ADS, Building
 

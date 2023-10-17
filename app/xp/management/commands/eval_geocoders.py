@@ -10,7 +10,7 @@ from batid.services.geocoders import (
     BanGeocoder,
 )
 from batid.services.imports.import_plots import import_etalab_plots
-from batid.services.search_bdg import BuildingGuess
+from batid.services.guess_bdg import BuildingGuess
 
 from django.contrib.gis.geos import GEOSGeometry, Point
 

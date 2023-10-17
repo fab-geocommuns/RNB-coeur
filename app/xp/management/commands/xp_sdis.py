@@ -4,7 +4,7 @@ from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand
 
 from batid.models import Building
-from batid.services.search_bdg import BuildingGuess
+from batid.services.guess_bdg import BuildingGuess
 from batid.services.source import Source
 from pandas import read_excel
 import pandas as pd
