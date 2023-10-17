@@ -1,8 +1,11 @@
 from django.db import connection
 
+from api_alpha.pagination import PagedNumberNoCount
 from api_alpha.permissions import ADSPermission
 from api_alpha.serializers import ADSSerializer, BuildingSerializer
 from api_alpha.services import get_city_from_request
+from batid.list_bdg import public_bdg_queryset, filter_bdg_queryset
+from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.search_bdg import BuildingSearch
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
@@ -23,57 +26,26 @@ class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
     serializer_class = BuildingSerializer
     http_method_names = ["get"]
     lookup_field = "rnb_id"
+    page_size = 20
 
     pagination_class = None
 
     def get_object(self):
-        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
-
-        search = BuildingSearch()
-
-        search.set_params_from_url(**{"rnb_id": self.kwargs[lookup_url_kwarg]})
-
-        if not search.is_valid():
-            raise ParseError({"errors": search.errors})
-            return
-
-        qs = search.get_queryset()
-
-        if len(qs) == 0:
+        try:
+            return Building.objects.get(rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
+        except Building.DoesNotExist:
             raise Http404
-            return
-
-        obj = qs[0]
-
-        # May raise a permission denied
-        self.check_object_permissions(self.request, obj)
-
-        return obj
 
     def get_queryset(self):
-        search = BuildingSearch()
+        qs = public_bdg_queryset(self.request.user)
+        qs = filter_bdg_queryset(qs, self.request.query_params)
 
-        # If the user is authenticated, it has access to the full list of status
-        if self.request.user.is_authenticated:
-            search.params.allowed_status = BuildingStatusModel.ALL_TYPES_KEYS
+        # Paginate the queryset
+        page = self.request.query_params.get("page", 1)
+        start = (int(page) - 1) * self.page_size
+        end = start + self.page_size
 
-        # If we are listing buildings, the default status we display are those ones
-        if self.action == "list":
-            search.params.status = [
-                "ongoingConstruction",
-                "constructed",
-                "ongoingChange",
-                "notUsable",
-            ]
-
-        # Then we apply the filters requested by the user
-        search.set_params_from_url(**self.request.query_params.dict())
-
-        if not search.is_valid():
-            raise ParseError({"errors": search.errors})
-            return
-
-        return search.get_queryset()
+        return qs[start:end]
 
 
 class ADSBatchViewSet(LoggingMixin, viewsets.ModelViewSet):
