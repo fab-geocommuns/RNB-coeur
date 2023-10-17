@@ -80,6 +80,14 @@ services:
     command: redis-server --appendonly yes --replica-read-only no
     ports:
       - "6379:6379"
+  flower:
+    image: mher/flower
+    container_name: flower
+    command: celery flower --url_prefix=flower # This will execute flower.
+    env_file:
+      - ./.env.worker.prod
+    ports:
+      - 5555:5555 # docker will expose this ports for flower
 volumes:
   certs:
   vhost:

@@ -1,7 +1,7 @@
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from batid.models import Building, Address
-from batid.services.search_bdg import BuildingSearch
+from batid.services.guess_bdg import BuildingGuess
 from django.test import tag
 from unittest.mock import patch
 
@@ -22,7 +22,7 @@ class TestSearch(TestCase):
 
         point = Point(5.7359531, 45.1799726, srid=4326)
 
-        search = BuildingSearch()
+        search = BuildingGuess()
         search.set_params(point=point)
 
         best = search.get_queryset()[0]
@@ -34,19 +34,19 @@ class TestSearch(TestCase):
 
         point = Point(5.73571756, 45.17993763, srid=4326)
 
-        search = BuildingSearch()
-        search.set_params(point=point)
+        guess = BuildingGuess()
+        guess.set_params(point=point)
 
-        best = search.get_queryset()[0]
+        best = guess.get_queryset()[0]
 
         self.assertEqual(best.rnb_id, "XTNU9H8DASX6")
 
     def test_point_very_far_from_village(self):
         point = Point(5.726823, 45.185496, srid=4326)
 
-        search = BuildingSearch()
-        search.set_params(point=point)
-        results = search.get_queryset()
+        guess = BuildingGuess()
+        guess.set_params(point=point)
+        results = guess.get_queryset()
 
         self.assertEqual(len(results), 0)
 
@@ -60,7 +60,7 @@ class TestSearch(TestCase):
 
         address = "3  impasse simard, Grenoble"
 
-        search = BuildingSearch()
+        search = BuildingGuess()
         search.set_params(address=address)
 
         results = search.get_queryset()
@@ -84,10 +84,10 @@ class TestSearch(TestCase):
         address = "2  rue germain, Grenoble"
         point = Point(5.73520463, 45.17937231, srid=4326)
 
-        search = BuildingSearch()
-        search.set_params(address=address, point=point)
+        guess = BuildingGuess()
+        guess.set_params(address=address, point=point)
 
-        results = search.get_queryset()
+        results = guess.get_queryset()
 
         self.assertEqual(results[0].rnb_id, "8JAX6VVU378C")
 
@@ -97,16 +97,16 @@ class TestSearch(TestCase):
 
         point = Point(5.736114236184472, 45.178655320207696, srid=4326)
 
-        search = BuildingSearch()
-        search.set_params(point=point)
+        guess = BuildingGuess()
+        guess.set_params(point=point)
 
-        results = search.get_queryset()
+        results = guess.get_queryset()
 
         self.assertEqual(results[0].rnb_id, "GTRH2SQNY8G1")
 
     @tag("futuristic_search")
     def test_futuristic_search(self):
-        search = BuildingSearch()
+        search = BuildingGuess()
         # I give no search params
         search.set_params()
         results = search.get_queryset()

@@ -7,11 +7,11 @@ from django.contrib.gis.geos import Polygon, MultiPolygon, Point
 from django.db.models import QuerySet
 
 
-class BuildingSearch:
+class BuildingGuess:
     MAX_HAUSDORFF_DISTANCE = 4  # This value must be precised with a test set
 
     def __init__(self):
-        self.params = self.BuildingSearchParams()
+        self.params = self.BuildingGuessParams()
         self.qs = None
         self.scores = {}
 
@@ -261,7 +261,7 @@ class BuildingSearch:
     def set_ban_fetcher_cls(self, cls):
         self.params.set_ban_handler_cls = cls
 
-    class BuildingSearchParams:
+    class BuildingGuessParams:
         SORT_DEFAULT = "rnb_id"
         SORT_CHOICES = ["rnb_id"]
 
