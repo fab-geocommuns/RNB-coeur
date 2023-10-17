@@ -20,16 +20,13 @@ class Command(BaseCommand):
 
         # Send the tasks
         if len(tasks) > 0:
+            print("Sending tasks to celery")
+            print(steps)
             chain(*tasks)()
 
 
-def create_tasks_list(dpt, steps):
-    bdtopo_dpt = dpt.zfill(3)  # BD Topo departements are zero-prefixed 3 digits codes.
-    bdnb_dpt = dpt.lower()
-
-    # ###########
-    # Steps
-    all_steps = [
+def steps_list():
+    return [
         "import_cities",
         "dl_bdtopo",
         "dl_bdnb7",
@@ -42,14 +39,17 @@ def create_tasks_list(dpt, steps):
         "inspect",
         "add_status",
     ]
+
+
+def create_tasks_list(dpt, steps):
+    bdtopo_dpt = dpt.zfill(3)  # BD Topo departements are zero-prefixed 3 digits codes.
+    bdnb_dpt = dpt.lower()
+
+    all_steps = steps_list()
     steps = all_steps if steps == "all" else steps.split(",")
 
     # ###########
     # Define tasks to send to celery
-
-    print("Sending tasks to celery")
-    print(steps)
-
     tasks = []
 
     if "import_cities" in steps:
