@@ -43,18 +43,6 @@ class BuildingSerializer(serializers.ModelSerializer):
     # source = serializers.CharField(read_only=True)
     status = BuildingStatusSerializer(read_only=True, many=True)
     ext_bdtopo_id = serializers.CharField(read_only=True)
-    score = serializers.SerializerMethodField("get_score")
-
-    def __init__(self, *args, **kwargs):
-        query_params = kwargs["context"]["request"].query_params
-        # little bit hacky for the moment: we show the score only for point and address queries
-        if "point" not in query_params and "address" not in query_params:
-            del self.fields["score"]
-
-        super().__init__(*args, **kwargs)
-
-    def get_score(self, bdg):
-        return bdg.score
 
     class Meta:
         model = Building
