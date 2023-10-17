@@ -251,7 +251,7 @@ class BuildingSearch:
         # print("---- QUERY ---")
         # print(qs.query)
 
-        return list(qs)
+        return qs
 
     def prepare_params(self):
         self.params.prepare_params()
