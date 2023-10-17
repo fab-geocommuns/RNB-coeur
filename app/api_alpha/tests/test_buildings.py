@@ -93,7 +93,7 @@ class BuildingsEndpointsTest(APITestCase):
 
     def test_bdg_in_bbox(self):
         r = self.client.get(
-            "/api/alpha/buildings/?bbox=45.18468473541278,5.7211808330356,45.18355043319679,5.722614035153486"
+            "/api/alpha/buildings/?bb=45.18468473541278,5.7211808330356,45.18355043319679,5.722614035153486"
         )
         self.assertEqual(r.status_code, 200)
 
