@@ -46,7 +46,7 @@ class BuildingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "status", "point", "addresses", "ext_bdtopo_id", "score"]
+        fields = ["rnb_id", "status", "point", "addresses", "ext_bdtopo_id"]
 
 
 class CityADSSerializer(serializers.ModelSerializer):
