@@ -37,7 +37,7 @@ services:
       context: .
       dockerfile: ./app/Dockerfile
       target: app_worker
-    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=INFO
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=INFO --concurrency=1
     env_file:
       - ./.env.db_auth.dev
       - ./.env.app.dev
