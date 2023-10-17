@@ -3,7 +3,7 @@ from app.celery import app as celery_app
 from django.contrib.auth.mixins import UserPassesTestMixin
 from revproxy.views import ProxyView
 from django.urls import re_path
-
+import os
 
 def worker(request):
     i = celery_app.control.inspect()
