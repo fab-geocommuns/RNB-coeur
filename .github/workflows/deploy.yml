@@ -12,8 +12,8 @@ jobs:
         - name: connect to server with ssh and run commands to deploy
           uses: appleboy/ssh-action@v1.0.0
           with:
-            host: ${{ variables.SSH_HOST }}
+            host: ${{ secrets.SSH_HOST }}
             username: ${{ secrets.SSH_USERNAME }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
-            port: ${{ variables.SSH_PORT }}
+            port: ${{ secrets.SSH_PORT }}
             script: whoami
