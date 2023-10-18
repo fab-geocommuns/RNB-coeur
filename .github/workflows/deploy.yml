@@ -3,6 +3,7 @@ on:
     push:
         branches:
             - main
+            - continuous_deployment
 jobs:
     build:
         name: Build
