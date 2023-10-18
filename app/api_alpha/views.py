@@ -31,7 +31,7 @@ from rest_framework_tracking.mixins import LoggingMixin
 class BuildingGuessView(APIView):
     def get(self, request, *args, **kwargs):
         search = BuildingGuess()
-        search.set_params(**request.query_params.dict())
+        search.set_params_from_url(**request.query_params.dict())
 
         qs = search.get_queryset()
 
