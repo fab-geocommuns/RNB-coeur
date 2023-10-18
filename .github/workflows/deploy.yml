@@ -3,7 +3,6 @@ on:
     push:
         branches:
             - main
-            - continuous_deployment
 jobs:
     build:
         name: Build
@@ -16,4 +15,4 @@ jobs:
             username: ${{ secrets.SSH_USERNAME }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
             port: ${{ secrets.SSH_PORT }}
-            script: whoami
+            script: cd /srv/BatID-core && git pull && docker compose -f docker-compose.prod.yml build --no-cache && docker compose -f docker-compose.prod.yml up -d
