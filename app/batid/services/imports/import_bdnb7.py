@@ -30,7 +30,8 @@ def import_bdnb7_bdgs(dpt):
         for row in list(reader):
             candidate = {
                 "shape": row["WKT"],
-                "source": "bdnb_7",
+                "source": "bdnb",
+                "source_version": "7.2",
                 "is_light": False,
                 "source_id": row["batiment_construction_id"],
                 "address_keys": list_to_pgarray(
