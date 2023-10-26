@@ -28,6 +28,7 @@ class Candidate:
     shape: ShapelyMultiPolygon
     is_light: bool
     source: str
+    source_version: str
     source_id: str
     address_keys: List[dict]
     created_at: datetime
@@ -42,7 +43,18 @@ class Candidate:
             "source": self.source,
             "point": self.shape.point_on_surface(),
             "address_keys": self.address_keys,
+            "ext_ids": self.get_ext_ids(),
         }
+
+    def get_ext_ids(self):
+        return [
+            {
+                "source": self.source,
+                "source_version": self.source_version,
+                "id": self.source_id,
+                "created_at": datetime.now(timezone.utc),
+            }
+        ]
 
     def update_bdg(self, bdg: Building):
         # The returned values
@@ -54,14 +66,11 @@ class Candidate:
         # A place to verify properties changes
         # eg: ext_rnb_id, ext_bdnb_id, ...
         # If any property has changed, we will set has_changed_props to True
-        if self.source == "bdnb":
-            if bdg.ext_bdnb_id != self.source_id:
-                bdg.ext_bdnb_id = self.source_id
-                has_changed_props = True
-        if self.source == "bdtopo":
-            if bdg.ext_bdtopo_id != self.source_id:
-                bdg.ext_bdtopo_id = self.source_id
-                has_changed_props = True
+        if not bdg.contains_ext_id(self.source, self.source_version, self.source_id):
+            bdg.add_ext_id(
+                self.source, self.source_version, self.source_id, self.created_at
+            )
+            has_changed_props = True
 
         # ##############################
         # ADDRESSES
@@ -82,6 +91,7 @@ def row_to_candidate(row):
         id=row["id"],
         shape=dbgeom_to_shapely(row.get("shape", None)),
         source=row["source"],
+        source_version=row["source_version"],
         is_light=row["is_light"],
         source_id=row["source_id"],
         address_keys=row["address_keys"],
@@ -299,7 +309,7 @@ class Inspector:
         return data
 
     def __update_bdgs_from_tmp_update_table(self, cursor):
-        q = f"UPDATE {Building._meta.db_table} as b SET ext_bdnb_id = tmp.ext_bdnb_id, ext_bdtopo_id = tmp.ext_bdtopo_id FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
+        q = f"UPDATE {Building._meta.db_table} as b SET ext_ids = tmp.ext_ids FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
         cursor.execute(q)
 
     def __drop_tmp_update_table(self, cursor):
@@ -319,23 +329,17 @@ class Inspector:
                 f,
                 self.__tmp_update_table,
                 sep=";",
-                columns=["id", "ext_bdnb_id", "ext_bdtopo_id"],
+                columns=["id", "ext_ids"],
             )
 
     def __create_tmp_update_table(self, cursor):
-        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_bdnb_id varchar(40), ext_bdtopo_id varchar(40))"
+        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_ids jsonb)"
         cursor.execute(q)
 
     def __create_update_buffer_file(self) -> BufferToCopy:
         data = []
         for bdg in self.bdgs_to_updates:
-            data.append(
-                {
-                    "id": bdg.id,
-                    "ext_bdnb_id": bdg.ext_bdnb_id,
-                    "ext_bdtopo_id": bdg.ext_bdtopo_id,
-                }
-            )
+            data.append({"id": bdg.id, "ext_ids": bdg.ext_ids})
 
         buffer = BufferToCopy()
         buffer.write_data(data)
@@ -371,16 +375,12 @@ class Inspector:
         for c in self.creations:
             rnb_id = generate_rnb_id()
 
-            bdnb_id = c.source_id if c.source == "bdnb" else None
-            bdtopo_id = c.source_id if c.source == "bdtopo" else None
-
             bdg_dict = c.to_bdg_dict()
             values.append(
                 (
                     rnb_id,
                     bdg_dict["source"],
-                    bdnb_id,
-                    bdtopo_id,
+                    bdg_dict["ext_ids"],
                     f"{bdg_dict['point'].wkt}",
                     f"{bdg_dict['shape'].wkt}",
                     datetime.now(timezone.utc),
@@ -405,8 +405,7 @@ class Inspector:
                     columns=(
                         "rnb_id",
                         "source",
-                        "ext_bdnb_id",
-                        "ext_bdtopo_id",
+                        "ext_ids",
                         "point",
                         "shape",
                         "created_at",
