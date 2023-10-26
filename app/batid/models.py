@@ -39,6 +39,20 @@ class Building(models.Model):
             }
         )
 
+    def contains_ext_id(self, source, source_version, id):
+        if not self.ext_ids:
+            return False
+
+        for ext_id in self.ext_ids:
+            if (
+                ext_id["source"] == source
+                and ext_id["source_version"] == source_version
+                and ext_id["id"] == id
+            ):
+                return True
+
+        return False
+
     def point_geojson(self):
         # todo : is there a better way to go from a PointField to geojson dict ?
         # We are doing points > dict > json str > dict. It is inefficient.
@@ -157,6 +171,7 @@ class BuildingADS(models.Model):
 class Candidate(models.Model):
     shape = models.MultiPolygonField(null=True, srid=settings.DEFAULT_SRID)
     source = models.CharField(max_length=20, null=False)
+    source_version = models.CharField(max_length=20, null=False)
     source_id = models.CharField(max_length=40, null=False)
     address_keys = ArrayField(models.CharField(max_length=40), null=True)
     # information coming from the BDTOPO
