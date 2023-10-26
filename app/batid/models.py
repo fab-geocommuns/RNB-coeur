@@ -171,7 +171,7 @@ class BuildingADS(models.Model):
 class Candidate(models.Model):
     shape = models.MultiPolygonField(null=True, srid=settings.DEFAULT_SRID)
     source = models.CharField(max_length=20, null=False)
-    source_version = models.CharField(max_length=20, null=False)
+    source_version = models.CharField(max_length=20, null=True)
     source_id = models.CharField(max_length=40, null=False)
     address_keys = ArrayField(models.CharField(max_length=40), null=True)
     # information coming from the BDTOPO
