@@ -29,6 +29,7 @@ class TestInspectorBdgCreate(TestCase):
         Candidate.objects.create(
             shape=coords_to_mp_geom(coords),
             source="bdnb",
+            source_version="7.2",
             source_id="bdnb_1",
             address_keys=["add_1", "add_2"],
             is_light=False,
@@ -78,9 +79,10 @@ class TestInspectorBdgCreate(TestCase):
         self.assertIn("add_1", addresses_ids)
         self.assertIn("add_2", addresses_ids)
 
-        # Check the ext_ids are correct
-        self.assertEqual(b.ext_bdnb_id, "bdnb_1")
-        self.assertEqual(b.ext_bdtopo_id, "")
+        self.assertEqual(len(b.ext_ids), 1)
+        self.assertEqual(b.ext_ids[0]["source"], "bdnb")
+        self.assertEqual(b.ext_ids[0]["source_version"], "7.2")
+        self.assertEqual(b.ext_ids[0]["id"], "bdnb_1")
 
 
 class TestInspectorBdgUpdate(TestCase):
