@@ -27,6 +27,18 @@ class Building(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def add_ext_id(self, source, source_version, id, created_at):
+        if not self.ext_ids:
+            self.ext_ids = []
+        self.ext_ids.append(
+            {
+                "source": source,
+                "source_version": source_version,
+                "id": id,
+                "created_at": created_at,
+            }
+        )
+
     def point_geojson(self):
         # todo : is there a better way to go from a PointField to geojson dict ?
         # We are doing points > dict > json str > dict. It is inefficient.
