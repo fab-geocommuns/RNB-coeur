@@ -1,9 +1,10 @@
 import json
 import os
 from dataclasses import dataclass, field
+from pprint import pprint
 from time import perf_counter
 from typing import List
-
+from psycopg2.extras import Json
 import nanoid
 import psycopg2
 from django.contrib.gis.geos import MultiPolygon
@@ -52,7 +53,7 @@ class Candidate:
                 "source": self.source,
                 "source_version": self.source_version,
                 "id": self.source_id,
-                "created_at": datetime.now(timezone.utc),
+                "created_at": self.created_at.isoformat(),
             }
         ]
 
@@ -68,7 +69,10 @@ class Candidate:
         # If any property has changed, we will set has_changed_props to True
         if not bdg.contains_ext_id(self.source, self.source_version, self.source_id):
             bdg.add_ext_id(
-                self.source, self.source_version, self.source_id, self.created_at
+                self.source,
+                self.source_version,
+                self.source_id,
+                self.created_at.isoformat(),
             )
             has_changed_props = True
 
@@ -325,11 +329,9 @@ class Inspector:
 
     def __populate_tmp_update_table(self, buffer: BufferToCopy, cursor):
         with open(buffer.path, "r") as f:
-            cursor.copy_from(
+            cursor.copy_expert(
+                f"COPY {self.__tmp_update_table} (id, ext_ids) FROM STDIN WITH (FORMAT CSV, DELIMITER ';')",
                 f,
-                self.__tmp_update_table,
-                sep=";",
-                columns=["id", "ext_ids"],
             )
 
     def __create_tmp_update_table(self, cursor):
@@ -339,7 +341,10 @@ class Inspector:
     def __create_update_buffer_file(self) -> BufferToCopy:
         data = []
         for bdg in self.bdgs_to_updates:
-            data.append({"id": bdg.id, "ext_ids": bdg.ext_ids})
+            print("rnb id ", bdg.rnb_id)
+            print(bdg.ext_ids)
+
+            data.append({"id": bdg.id, "ext_ids": json.dumps(bdg.ext_ids)})
 
         buffer = BufferToCopy()
         buffer.write_data(data)
@@ -376,11 +381,15 @@ class Inspector:
             rnb_id = generate_rnb_id()
 
             bdg_dict = c.to_bdg_dict()
+
+            ext_ids = bdg_dict["ext_ids"]
+            ext_ids_str = json.dumps(ext_ids)
+
             values.append(
                 (
                     rnb_id,
                     bdg_dict["source"],
-                    bdg_dict["ext_ids"],
+                    ext_ids_str,
                     f"{bdg_dict['point'].wkt}",
                     f"{bdg_dict['shape'].wkt}",
                     datetime.now(timezone.utc),
@@ -397,24 +406,13 @@ class Inspector:
 
         with connection.cursor() as cur, open(buffer.path, "r") as f:
             try:
-                start = perf_counter()
-                cur.copy_from(
+                # We need to use copy_expert since the combinaison of json, csv and postegresql is quite tricky to make work. It needs the CSV Format argument
+                cur.copy_expert(
+                    f"COPY {Building._meta.db_table} (rnb_id, source, ext_ids, point, shape, created_at, updated_at) FROM STDIN WITH (FORMAT CSV, DELIMITER ';')",
                     f,
-                    Building._meta.db_table,
-                    sep=";",
-                    columns=(
-                        "rnb_id",
-                        "source",
-                        "ext_ids",
-                        "point",
-                        "shape",
-                        "created_at",
-                        "updated_at",
-                    ),
                 )
-                end = perf_counter()
+
                 os.remove(buffer.path)
-                print(f"---- create_buildings : copy_from: {end - start:.2f}s")
             except (Exception, psycopg2.DatabaseError) as error:
                 connection.rollback()
                 cur.close()

@@ -175,5 +175,4 @@ class TestInspectorBdgUpdate(TestCase):
         self.assertIn("add_3", addresses_ids)
 
         # Check the ext_ids are correct
-        self.assertEqual(b.ext_bdnb_id, "bdnb_1")
-        self.assertEqual(b.ext_bdtopo_id, "bdtopo_1")
+        self.assertEqual(len(b.ext_ids), 2)

@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
@@ -11,23 +12,30 @@ from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 class Building(models.Model):
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
     source = models.CharField(max_length=10, null=False, db_index=True)
-
     point = models.PointField(null=True, spatial_index=True, srid=settings.DEFAULT_SRID)
     shape = models.MultiPolygonField(
         null=True, spatial_index=True, srid=settings.DEFAULT_SRID
     )
-
     addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
-
-    # ext_bdnb_id = models.CharField(max_length=40, null=True, db_index=True)
-    # ext_bdtopo_id = models.CharField(max_length=40, null=True, db_index=True)
-
     ext_ids = models.JSONField(null=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def add_ext_id(self, source, source_version, id, created_at):
+    def add_ext_id(
+        self, source: str, source_version: Optional[str], id: str, created_at: str
+    ):
+        if not isinstance(source, str):
+            raise TypeError("source must be a str")
+
+        if not isinstance(source_version, str) and source_version is not None:
+            raise TypeError("source_version must be a str or None")
+
+        if not isinstance(id, str):
+            raise TypeError("id must be a str")
+
+        if not isinstance(created_at, str):
+            raise TypeError("created_at must be a str")
+
         if not self.ext_ids:
             self.ext_ids = []
         self.ext_ids.append(
