@@ -27,14 +27,11 @@ class Command(BaseCommand):
 
 def steps_list():
     return [
-        "import_cities",
         "dl_bdtopo",
         "dl_bdnb7",
-        "dl_plots",
         "import_bdtopo",
         "import_bdnb7_addresses",
         "import_bdnb7_bdgs",
-        "import_plots",
         "pre_clean_candidates",
         "inspect",
         "add_status",
@@ -67,10 +64,6 @@ def create_tasks_list(dpt, steps="all"):
                 "batid.tasks.dl_source", args=["bdnb_7", bdnb_dpt], immutable=True
             )
         )
-    if "dl_plots" in steps:
-        tasks.append(
-            Signature("batid.tasks.dl_source", args=["plot", dpt], immutable=True)
-        )
     if "import_bdtopo" in steps:
         tasks.append(
             Signature("batid.tasks.import_bdtopo", args=[bdtopo_dpt], immutable=True)
@@ -87,8 +80,6 @@ def create_tasks_list(dpt, steps="all"):
         tasks.append(
             Signature("batid.tasks.import_bdnb7_bdgs", args=[bdnb_dpt], immutable=True)
         )
-    if "import_plots" in steps:
-        tasks.append(Signature("batid.tasks.import_plots", args=[dpt], immutable=True))
     if "pre_clean_candidates" in steps:
         # This task is commented out because inspected candidates are removed during the inspection
         # tasks.append(
