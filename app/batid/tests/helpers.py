@@ -7,6 +7,7 @@ from contextlib import ContextDecorator
 from django.db import connection
 from batid.models import City, Building, AsyncSignal, ADS, BuildingStatus
 from batid.services.signal import AsyncSignalDispatcher
+import os
 
 
 def dispatch_signals():
@@ -1223,3 +1224,8 @@ def in_village(func):
     from django.db import transaction
 
     return transaction.atomic(insert_village()(func))
+
+
+def fixture_path(filename):
+    file_dir = os.path.dirname(os.path.realpath("__file__"))
+    return os.path.join(file_dir, "batid/fixtures", filename)
