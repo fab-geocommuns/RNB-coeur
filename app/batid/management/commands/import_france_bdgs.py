@@ -2,30 +2,46 @@
 from celery import chain
 from django.core.management.base import BaseCommand
 from batid.management.commands.import_dpt_bdgs import (
-    create_tasks_list as create_tasks_list_dpt,
+    create_tasks_list as create_tasks_list_bdgs_dpt,
+)
+from batid.management.commands.import_cities_dpt import (
+    create_tasks_list as create_tasks_list_cities_dpt,
 )
 
 
 class Command(BaseCommand):
-    help = "Import data for France"
+    help = (
+        "Import data for France by calling successively an import for each departement"
+    )
 
     def add_arguments(self, parser):
+        parser.add_argument("task", type=str)
         parser.add_argument("--start-dpt", type=str, default="01")
 
     def handle(self, *args, **options):
         start_dpt = options["start_dpt"]
-        tasks = create_tasks_list_france(start_dpt)
+        task_name = options["task"]
+        tasks = create_tasks_list_france(start_dpt, task_name)
         chain(*tasks)()
 
 
-def create_tasks_list_france(start_dpt):
+def task_method(task_name):
+    d = {
+        "cities": create_tasks_list_cities_dpt,
+        "buildings": create_tasks_list_bdgs_dpt,
+    }
+    return d[task_name]
+
+
+def create_tasks_list_france(start_dpt, task_name):
     tasks = []
     dpts = dpts_list()
     # find start_dpt index in dpts list. Return 0 if not found
     start_dpt_index = dpts.index(start_dpt) if start_dpt in dpts else 0
+    create_task_method = task_method(task_name)
 
     for dpt in dpts[start_dpt_index:]:
-        tasks.append(create_tasks_list_dpt(dpt, "all"))
+        tasks.append(create_task_method(dpt))
     # flattern the list
     tasks = [item for sublist in tasks for item in sublist]
     return tasks
