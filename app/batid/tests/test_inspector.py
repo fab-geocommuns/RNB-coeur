@@ -176,3 +176,10 @@ class TestInspectorBdgUpdate(TestCase):
 
         # Check the ext_ids are correct
         self.assertEqual(len(b.ext_ids), 2)
+        self.assertEqual(b.ext_ids[0]["source"], "bdnb")
+        self.assertEqual(b.ext_ids[0]["source_version"], None)
+        self.assertEqual(b.ext_ids[0]["id"], "bdnb_1")
+
+        self.assertEqual(b.ext_ids[1]["source"], "bdtopo")
+        self.assertEqual(b.ext_ids[1]["source_version"], None)
+        self.assertEqual(b.ext_ids[1]["id"], "bdtopo_1")

@@ -7,6 +7,7 @@ from django.contrib.gis.db import models
 from django.conf import settings
 from django.db.models import F
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
+from batid.validators import validate_one_ext_id
 
 
 class Building(models.Model):
@@ -24,30 +25,26 @@ class Building(models.Model):
     def add_ext_id(
         self, source: str, source_version: Optional[str], id: str, created_at: str
     ):
-        if not isinstance(source, str):
-            raise TypeError("source must be a str")
+        # Get the format
+        ext_id = {
+            "source": source,
+            "source_version": source_version,
+            "id": id,
+            "created_at": created_at,
+        }
+        # Validate the content
+        validate_one_ext_id(ext_id)
 
-        if not isinstance(source_version, str) and source_version is not None:
-            raise TypeError("source_version must be a str or None")
-
-        if not isinstance(id, str):
-            raise TypeError("id must be a str")
-
-        if not isinstance(created_at, str):
-            raise TypeError("created_at must be a str")
-
+        # Init if necessary
         if not self.ext_ids:
             self.ext_ids = []
-        self.ext_ids.append(
-            {
-                "source": source,
-                "source_version": source_version,
-                "id": id,
-                "created_at": created_at,
-            }
-        )
 
-    def contains_ext_id(self, source, source_version, id):
+        # Append
+        self.ext_ids.append(ext_id)
+
+    def contains_ext_id(
+        self, source: str, source_version: Optional[str], id: str
+    ) -> bool:
         if not self.ext_ids:
             return False
 

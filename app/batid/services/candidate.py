@@ -341,9 +341,6 @@ class Inspector:
     def __create_update_buffer_file(self) -> BufferToCopy:
         data = []
         for bdg in self.bdgs_to_updates:
-            print("rnb id ", bdg.rnb_id)
-            print(bdg.ext_ids)
-
             data.append({"id": bdg.id, "ext_ids": json.dumps(bdg.ext_ids)})
 
         buffer = BufferToCopy()
