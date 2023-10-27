@@ -41,7 +41,7 @@ def steps_list():
     ]
 
 
-def create_tasks_list(dpt, steps):
+def create_tasks_list(dpt, steps="all"):
     bdtopo_dpt = dpt.zfill(3)  # BD Topo departements are zero-prefixed 3 digits codes.
     bdnb_dpt = dpt.lower()
 
