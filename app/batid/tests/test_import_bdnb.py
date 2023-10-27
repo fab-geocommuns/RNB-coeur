@@ -4,7 +4,7 @@
 from django.test import TransactionTestCase
 from unittest.mock import patch
 import batid.services.imports.import_bdnb7 as import_bdnb7
-from batid.models import Address
+from batid.models import Address, Building, Candidate
 import batid.tests.helpers as helpers
 
 
@@ -32,3 +32,21 @@ class ImportBDNBTestCase(TransactionTestCase):
         self.assertEqual(address_1.city_name, "L'Abergement-Clémenciat")
         self.assertEqual(address_1.city_zipcode, "01002")
         self.assertEqual(address_1.city_insee_code, "01001")
+
+    @patch("batid.services.imports.import_bdnb7.Source.find")
+    def test_import_bdnb_buildings(self, sourceMock):
+        sourceMock.side_effect = [
+            helpers.fixture_path("rel_batiment_groupe_adresse.csv"),
+            helpers.fixture_path("batiment_construction_bdnb.csv"),
+        ]
+
+        # there are initially no buildings nor candidate
+        self.assertEqual(Building.objects.count(), 0)
+        self.assertEqual(Candidate.objects.count(), 0)
+
+        # launch the import
+        import_bdnb7.import_bdnb7_bdgs("33")
+
+        # the fixture contains 3 buildings => 3 candidates
+        self.assertEqual(Building.objects.count(), 0)
+        self.assertEqual(Candidate.objects.count(), 3)
