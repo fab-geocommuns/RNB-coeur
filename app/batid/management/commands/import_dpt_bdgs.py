@@ -48,36 +48,15 @@ def create_tasks_list(dpt, steps="all"):
     # Define tasks to send to celery
     tasks = []
 
-    if "import_cities" in steps:
-        tasks.append(Signature("batid.tasks.import_cities", args=[dpt], immutable=True))
-
     if "dl_bdtopo" in steps:
         tasks.append(
             Signature(
                 "batid.tasks.dl_source", args=["bdtopo", bdtopo_dpt], immutable=True
             )
         )
-    if "dl_bdnb7" in steps:
-        tasks.append(
-            Signature(
-                "batid.tasks.dl_source", args=["bdnb_7", bdnb_dpt], immutable=True
-            )
-        )
     if "import_bdtopo" in steps:
         tasks.append(
             Signature("batid.tasks.import_bdtopo", args=[bdtopo_dpt], immutable=True)
-        )
-    if "import_bdnb7_addresses" in steps:
-        tasks.append(
-            Signature(
-                "batid.tasks.import_bdnb7_addresses",
-                args=[bdnb_dpt],
-                immutable=True,
-            )
-        )
-    if "import_bdnb7_bdgs" in steps:
-        tasks.append(
-            Signature("batid.tasks.import_bdnb7_bdgs", args=[bdnb_dpt], immutable=True)
         )
     if "inspect" in steps:
         tasks.append(Signature("batid.tasks.inspect_candidates", immutable=True))
