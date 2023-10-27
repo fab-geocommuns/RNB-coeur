@@ -7,6 +7,9 @@ from batid.management.commands.import_dpt_bdgs import (
 from batid.management.commands.import_cities_dpt import (
     create_tasks_list as create_tasks_list_cities_dpt,
 )
+from batid.management.commands.import_plots_dpt import (
+    create_tasks_list as create_tasks_list_plots_dpt,
+)
 
 
 class Command(BaseCommand):
@@ -28,6 +31,7 @@ class Command(BaseCommand):
 def task_method(task_name):
     d = {
         "cities": create_tasks_list_cities_dpt,
+        "plots": create_tasks_list_plots_dpt,
         "buildings": create_tasks_list_bdgs_dpt,
     }
     return d[task_name]
