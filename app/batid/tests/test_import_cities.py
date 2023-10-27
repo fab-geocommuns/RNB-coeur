@@ -5,7 +5,7 @@ import batid.services.imports.import_cities as import_cities
 from batid.models import City
 import os
 import json
-import helpers
+import batid.tests.helpers as helpers
 
 
 class ImportCitiesTestCase(TestCase):

@@ -1,5 +1,5 @@
 from django.test import TestCase
-from app.batid.management.commands.import_france import create_tasks_list_france
+from batid.management.commands.import_france import create_tasks_list_france
 from batid.management.commands.import_dpt_bdgs import (
     steps_list as import_buildings_steps_list,
 )

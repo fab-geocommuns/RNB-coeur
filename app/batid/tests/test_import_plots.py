@@ -6,7 +6,7 @@ from batid.models import Plot
 import os
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
-import helpers
+import batid.tests.helpers as helpers
 
 
 class ImportPlotsTestCase(TestCase):
