@@ -32,7 +32,6 @@ def steps_list():
         "import_bdtopo",
         "import_bdnb7_addresses",
         "import_bdnb7_bdgs",
-        "pre_clean_candidates",
         "inspect",
         "add_status",
     ]
@@ -80,12 +79,6 @@ def create_tasks_list(dpt, steps="all"):
         tasks.append(
             Signature("batid.tasks.import_bdnb7_bdgs", args=[bdnb_dpt], immutable=True)
         )
-    if "pre_clean_candidates" in steps:
-        # This task is commented out because inspected candidates are removed during the inspection
-        # tasks.append(
-        #     Signature("batid.tasks.remove_inspected_candidates", immutable=True)
-        # )
-        tasks.append(Signature("batid.tasks.remove_invalid_candidates", immutable=True))
     if "inspect" in steps:
         tasks.append(Signature("batid.tasks.inspect_candidates", immutable=True))
     if "add_status" in steps:
