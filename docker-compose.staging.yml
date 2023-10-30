@@ -1,0 +1,95 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
+      target: app_web
+    restart: unless-stopped
+    ports:
+      - '8000:8000'
+    env_file:
+      - ./.env.db_auth.staging
+      - ./.env.app.staging
+      - ./.env.rnb.staging
+      - ./.env.worker.staging
+      - ./.env.sentry.staging
+    command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - ./app:/app
+      - ./source_data:/home/app/source_data
+    environment:
+      - VIRTUAL_HOST=rnb-api-staging.beta.gouv.fr
+      - VIRTUAL_PORT=8000
+      - LETSENCRYPT_HOST=rnb-api-staging.beta.gouv.fr
+    container_name: web
+    depends_on:
+      - rabbitmq
+  nginx-proxy:
+    container_name: nginx-proxy
+    build: ./nginx
+    restart: unless-stopped
+    ports:
+      - 443:443
+      - 80:80
+    depends_on:
+      - web
+    volumes:
+      - certs:/etc/nginx/certs
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+  nginx-letsencrypt:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    restart: unless-stopped
+    env_file:
+      - ./.env.nginx-encrypt.staging
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - certs:/etc/nginx/certs
+      - html:/usr/share/nginx/html
+      - vhost:/etc/nginx/vhost.d
+      - acme:/etc/acme.sh
+    depends_on:
+      - nginx-proxy
+  worker:
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
+      target: app_worker
+    command: celery -A app worker --concurrency=1 --loglevel=INFO
+    volumes:
+      - ./app:/app
+      - ./source_data:/data/downloads
+    env_file:
+      - ./.env.db_auth.staging
+      - ./.env.app.staging
+      - ./.env.worker.staging
+      - ./.env.rnb.staging
+      - ./.env.sentry.staging
+    depends_on:
+      - rabbitmq
+      - redis
+    container_name: worker
+
+  rabbitmq:
+    image: rabbitmq:3.9-alpine
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+  redis:
+    image: redis:latest
+    command: redis-server --appendonly yes --replica-read-only no
+    ports:
+      - "6379:6379"
+  flower:
+    image: mher/flower
+    container_name: flower
+    command: celery flower --url_prefix=flower # This will execute flower.
+    env_file:
+      - ./.env.worker.staging
+    ports:
+      - 5555:5555 # docker will expose this ports for flower
+volumes:
+  certs:
+  vhost:
+  acme:
+  html:
