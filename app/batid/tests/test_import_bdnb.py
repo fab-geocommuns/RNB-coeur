@@ -6,6 +6,7 @@ from unittest.mock import patch
 import batid.services.imports.import_bdnb7 as import_bdnb7
 from batid.models import Address, Building, Candidate
 import batid.tests.helpers as helpers
+from django.conf import settings
 
 
 class ImportBDNBTestCase(TransactionTestCase):
@@ -48,5 +49,41 @@ class ImportBDNBTestCase(TransactionTestCase):
         import_bdnb7.import_bdnb7_bdgs("33")
 
         # the fixture contains 3 buildings => 3 candidates
+        # but no buildings are created
         self.assertEqual(Building.objects.count(), 0)
         self.assertEqual(Candidate.objects.count(), 3)
+
+        # check the candidates are correctly imported
+        candidates = Candidate.objects.all()
+
+        addresses = ["01300_0013_00145", "3000000C051200101", "3000000C051200201"]
+
+        candidate_1 = candidates[0]
+        self.assertEqual(candidate_1.shape.srid, settings.DEFAULT_SRID)
+        self.assertEqual(candidate_1.source, "bdnb_7")
+        self.assertEqual(candidate_1.is_light, False)
+        self.assertEqual(candidate_1.source_id, "BATIMENT0000000008834985-1")
+        self.assertEqual(
+            candidate_1.address_keys,
+            addresses,
+        )
+
+        candidate_2 = candidates[1]
+        self.assertEqual(candidate_2.shape.srid, settings.DEFAULT_SRID)
+        self.assertEqual(candidate_2.source, "bdnb_7")
+        self.assertEqual(candidate_2.is_light, False)
+        self.assertEqual(candidate_2.source_id, "BATIMENT0000000008834991-1")
+        # construction 0 and 1 are linked to the same building group
+        # so they share the same addresses
+        self.assertEqual(
+            candidate_2.address_keys,
+            addresses,
+        )
+
+        candidate_3 = candidates[2]
+        self.assertEqual(candidate_3.shape.srid, settings.DEFAULT_SRID)
+        self.assertEqual(candidate_3.source, "bdnb_7")
+        self.assertEqual(candidate_3.is_light, False)
+        self.assertEqual(candidate_3.source_id, "BATIMENT0000000008838153-1")
+        # no address is linked to this building
+        self.assertEqual(candidate_3.address_keys, [])
