@@ -42,6 +42,9 @@ class Building(models.Model):
         # Append
         self.ext_ids.append(ext_id)
 
+        # Sort by created_at
+        self.ext_ids = sorted(self.ext_ids, key=lambda k: k["created_at"])
+
     def contains_ext_id(
         self, source: str, source_version: Optional[str], id: str
     ) -> bool:

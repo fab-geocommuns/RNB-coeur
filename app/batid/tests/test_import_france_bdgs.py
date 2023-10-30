@@ -16,5 +16,5 @@ class ImportFranceTestCase(TestCase):
     def test_create_tasks_from_custom(self):
         tasks = create_tasks_list_france("90")
         # expected tasks for 7 departements (90 to 96)
-        print(tasks)
+
         self.assertEqual(len(tasks), 7 * len(steps_list()))
