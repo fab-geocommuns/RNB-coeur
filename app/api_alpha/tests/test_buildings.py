@@ -157,7 +157,7 @@ class BuildingsEndpointsTest(APITestCase):
 
         expected = [
             {
-                "ext_bdtopo_id": None,
+                "ext_ids": None,
                 "rnb_id": "BDGSRNBBIDID",
                 "status": [
                     {
@@ -175,7 +175,7 @@ class BuildingsEndpointsTest(APITestCase):
             },
             {
                 "addresses": [],
-                "ext_bdtopo_id": None,
+                "ext_ids": None,
                 "point": {
                     "coordinates": [5.7211808330356, 45.18433388648706],
                     "type": "Point",
