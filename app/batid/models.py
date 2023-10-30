@@ -16,6 +16,7 @@ class Building(models.Model):
     shape = models.MultiPolygonField(
         null=True, spatial_index=True, srid=settings.DEFAULT_SRID
     )
+    shape_wgs84 = models.MultiPolygonField(null=True, srid=4326)
 
     addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
 
