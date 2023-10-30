@@ -27,11 +27,6 @@ class Command(BaseCommand):
 
 def steps_list():
     return [
-        "dl_bdtopo",
-        "dl_bdnb7",
-        "import_bdtopo",
-        "import_bdnb7_addresses",
-        "import_bdnb7_bdgs",
         "inspect",
         "add_status",
     ]
@@ -48,16 +43,6 @@ def create_tasks_list(dpt, steps="all"):
     # Define tasks to send to celery
     tasks = []
 
-    if "dl_bdtopo" in steps:
-        tasks.append(
-            Signature(
-                "batid.tasks.dl_source", args=["bdtopo", bdtopo_dpt], immutable=True
-            )
-        )
-    if "import_bdtopo" in steps:
-        tasks.append(
-            Signature("batid.tasks.import_bdtopo", args=[bdtopo_dpt], immutable=True)
-        )
     if "inspect" in steps:
         tasks.append(Signature("batid.tasks.inspect_candidates", immutable=True))
     if "add_status" in steps:
