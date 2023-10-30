@@ -1,20 +1,26 @@
 # Configurations files
 .env.worker.dev
 .env.worker.prod
+.env.worker.staging
 
 .env.rnb.dev
 .env.rnb.prod
+.env.rnb.staging
 
 .env.app.dev
 .env.app.prod
+.env.app.staging
 
 .env.db_auth.dev
 .env.db_auth.prod
+.env.db_auth.staging
 
 .env.sentry.dev
 .env.sentry.prod
+.env.sentry.staging
 
 .env.nginx-encrypt.prod
+.env.nginx-encrypt.staging
 
 # Remove files in data folder since they are used for importing default data
 source_data/
