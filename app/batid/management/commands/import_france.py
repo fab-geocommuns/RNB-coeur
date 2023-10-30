@@ -1,9 +1,7 @@
 # empty django command
 from celery import chain
 from django.core.management.base import BaseCommand
-from batid.management.commands.import_dpt_bdgs import (
-    create_tasks_list as create_tasks_list_bdgs_dpt,
-)
+
 from batid.management.commands.import_cities_dpt import (
     create_tasks_list as create_tasks_list_cities_dpt,
 )
