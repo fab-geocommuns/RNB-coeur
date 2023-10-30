@@ -99,7 +99,9 @@ class TestInspectorBdgUpdate(TestCase):
             [2.3499452164882086, 48.857847406681174],
             [2.349804906833981, 48.85789205519228],
         ]
-        create_constructed_bdg("EXISTING", coords)
+        b = create_constructed_bdg("EXISTING", coords)
+        b.add_ext_id("bdnb", "7.2", "bdnb_previous", datetime.now().isoformat())
+        b.save()
 
         # Create a candidate for the merge
         Candidate.objects.create(
@@ -175,11 +177,16 @@ class TestInspectorBdgUpdate(TestCase):
         self.assertIn("add_3", addresses_ids)
 
         # Check the ext_ids are correct
-        self.assertEqual(len(b.ext_ids), 2)
-        self.assertEqual(b.ext_ids[0]["source"], "bdnb")
-        self.assertEqual(b.ext_ids[0]["source_version"], None)
-        self.assertEqual(b.ext_ids[0]["id"], "bdnb_1")
+        self.assertEqual(len(b.ext_ids), 3)
 
-        self.assertEqual(b.ext_ids[1]["source"], "bdtopo")
+        self.assertEqual(b.ext_ids[0]["source"], "bdnb")
+        self.assertEqual(b.ext_ids[0]["source_version"], "7.2")
+        self.assertEqual(b.ext_ids[0]["id"], "bdnb_previous")
+
+        self.assertEqual(b.ext_ids[1]["source"], "bdnb")
         self.assertEqual(b.ext_ids[1]["source_version"], None)
-        self.assertEqual(b.ext_ids[1]["id"], "bdtopo_1")
+        self.assertEqual(b.ext_ids[1]["id"], "bdnb_1")
+
+        self.assertEqual(b.ext_ids[2]["source"], "bdtopo")
+        self.assertEqual(b.ext_ids[2]["source_version"], None)
+        self.assertEqual(b.ext_ids[2]["id"], "bdtopo_1")
