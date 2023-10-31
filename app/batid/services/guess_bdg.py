@@ -470,6 +470,14 @@ class BuildingGuess:
                 self.__errors.append("point: longitude is invalid")
                 return False
 
+            if float(coords[0]) < -90 or float(coords[0]) > 90:
+                self.__errors.append("point: latitude must be between -90 and 90")
+                return False
+
+            if float(coords[1]) < -180 or float(coords[1]) > 180:
+                self.__errors.append("point: longitude must be between -180 and 180")
+                return False
+
             return True
 
         def __convert_point_from_url(self, coords_str) -> Point:
