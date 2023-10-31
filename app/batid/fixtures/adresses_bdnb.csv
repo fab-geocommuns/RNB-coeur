@@ -1,0 +1,5 @@
+WKT,cle_interop_adr,code_departement_insee,numero,rep,nom_voie,type_voie,code_commune_insee,code_postal,libelle_commune,source
+POINT (848187.571085125 6563153.58897607),0010000A032800101,01,9,B,des 5 chemins,rue,01001,01002,L'Abergement-Clémenciat,Arcep
+POINT (848257.670401297 6562941.17054037),0010000A040300101,01,204,,de la fontaine,route,01001,,L'Abergement-Clémenciat,Arcep
+POINT (848358.577745227 6562737.67844117),0010000A089700101,01,414,,de la fontaine,route,01001,,L'Abergement-Clémenciat,Arcep
+POINT (848187.571085125 6563153.58897607),0010000A032800101,01,9,,des 5 chemins,rue,01001,,L'Abergement-Clémenciat,Arcep
