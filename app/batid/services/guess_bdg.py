@@ -202,9 +202,7 @@ class BuildingGuess:
         if len(self.scores):
             subscore_sum_str = " + ".join(self.scores.keys())
 
-            scores_sum = (
-                f", ({subscore_sum_str}) / (sum({subscore_sum_str}) over()) as score "
-            )
+            scores_sum = f", ({subscore_sum_str}) / (sum({subscore_sum_str}) over()) as score, {subscore_sum_str} as abs_score "
 
         # ######################
         # Assembling the queries
@@ -468,6 +466,14 @@ class BuildingGuess:
 
             if not is_float(coords[1]):
                 self.__errors.append("point: longitude is invalid")
+                return False
+
+            if float(coords[0]) < -90 or float(coords[0]) > 90:
+                self.__errors.append("point: latitude must be between -90 and 90")
+                return False
+
+            if float(coords[1]) < -180 or float(coords[1]) > 180:
+                self.__errors.append("point: longitude must be between -180 and 180")
                 return False
 
             return True
