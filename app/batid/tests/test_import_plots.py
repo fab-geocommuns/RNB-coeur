@@ -19,7 +19,7 @@ class ImportPlotsTestCase(TestCase):
         # launch the import
         import_plots.import_etalab_plots("75")
 
-        self.assertEqual(Plot.objects.count(), 2)
+        self.assertEqual(Plot.objects.count(), 3)
 
         plot_1 = Plot.objects.get(id="380010000A0507")
         self.assertEqual(plot_1.shape.geom_type, "MultiPolygon")
@@ -46,3 +46,8 @@ class ImportPlotsTestCase(TestCase):
             ).count(),
             1,
         )
+
+        # this one is interesting because its shape is invalid
+        # and has to be buffered
+        plot_3 = Plot.objects.get(id="010080000A0382")
+        self.assertEqual(plot_3.shape.geom_type, "MultiPolygon")
