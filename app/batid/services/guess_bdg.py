@@ -202,9 +202,7 @@ class BuildingGuess:
         if len(self.scores):
             subscore_sum_str = " + ".join(self.scores.keys())
 
-            scores_sum = (
-                f", ({subscore_sum_str}) / (sum({subscore_sum_str}) over()) as score "
-            )
+            scores_sum = f", ({subscore_sum_str}) / (sum({subscore_sum_str}) over()) as score, {subscore_sum_str} as abs_score "
 
         # ######################
         # Assembling the queries
