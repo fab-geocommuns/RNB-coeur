@@ -616,7 +616,7 @@ class BANGeocodingHandler:
         results = self.geocoder.geocode(search_params.address)
 
         # If there is any result coming from the geocoder
-        if results["features"]:
+        if "features" in results and results["features"]:
             best = results["features"][0]
 
             # And if the result is good enough
