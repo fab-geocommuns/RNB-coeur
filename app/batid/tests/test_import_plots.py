@@ -6,11 +6,7 @@ from batid.models import Plot
 import os
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
-
-
-def fixture_path(filename):
-    file_dir = os.path.dirname(os.path.realpath("__file__"))
-    return os.path.join(file_dir, "batid/fixtures", filename)
+import batid.tests.helpers as helpers
 
 
 class ImportPlotsTestCase(TestCase):
@@ -18,7 +14,7 @@ class ImportPlotsTestCase(TestCase):
     def test_import_plot_data(self, sourceMock):
         # set up the source mock to return a path to our local fixture
         source_instance = sourceMock.return_value
-        source_instance.path = fixture_path("cadastre_extract.json")
+        source_instance.path = helpers.fixture_path("cadastre_extract.json")
 
         # launch the import
         import_plots.import_etalab_plots("75")
