@@ -87,3 +87,4 @@ class ImportBDNBTestCase(TransactionTestCase):
         self.assertEqual(candidate_3.source_id, "BATIMENT0000000008838153-1")
         # no address is linked to this building
         self.assertEqual(candidate_3.address_keys, [])
+        self.assertEqual(candidate_3.is_shape_fictive, True)
