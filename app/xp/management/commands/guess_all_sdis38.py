@@ -31,8 +31,15 @@ class Command(BaseCommand):
 
             guess = BuildingGuess()
 
-            point = Point(row["point"][1], row["point"][0], srid=4326)
+            # Point
+            point = None
+            if row["point"] is not None:
+                point = Point(row["point"][1], row["point"][0], srid=4326)
+
+            # Address
             address = f"{row['num_voie']} {row['adresse']}, {row['code_postal']} {row['commune']}"
+
+            # Name
             name = row["toponyme"]
 
             params = {
