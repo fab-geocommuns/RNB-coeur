@@ -11,9 +11,29 @@ from batid.services.source import Source
 
 
 class Command(BaseCommand):
+    def add_arguments(self, parser):
+        # Add a boolean to reset all guesses
+        parser.add_argument(
+            "--reset",
+            action="store_true",
+            help="Reset all guesses",
+        )
+
     def handle(self, *args, **options):
         raw_filename = "erp_geolocalises_20112020.json"
         raw_src = Source("xp-sdis", {"folder": "xp-sdis", "filename": raw_filename})
+
+        if options["reset"]:
+            print("resetting all guesses")
+            with open(raw_src.path) as f:
+                raw_data = json.load(f)
+
+            for idx, row in enumerate(raw_data):
+                raw_data[idx]["guess_done"] = False
+                raw_data[idx]["guess_matches"] = []
+
+            with open(raw_src.path, "w") as f:
+                json.dump(raw_data, f, indent=2)
 
         with open(raw_src.path) as f:
             raw_data = json.load(f)
