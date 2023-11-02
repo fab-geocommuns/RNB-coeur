@@ -202,9 +202,7 @@ class BuildingGuess:
         if len(self.scores):
             subscore_sum_str = " + ".join(self.scores.keys())
 
-            scores_sum = (
-                f", ({subscore_sum_str}) / (sum({subscore_sum_str}) over()) as score "
-            )
+            scores_sum = f", ({subscore_sum_str}) / (sum({subscore_sum_str}) over()) as score, {subscore_sum_str} as abs_score "
 
         # ######################
         # Assembling the queries
@@ -470,6 +468,14 @@ class BuildingGuess:
                 self.__errors.append("point: longitude is invalid")
                 return False
 
+            if float(coords[0]) < -90 or float(coords[0]) > 90:
+                self.__errors.append("point: latitude must be between -90 and 90")
+                return False
+
+            if float(coords[1]) < -180 or float(coords[1]) > 180:
+                self.__errors.append("point: longitude must be between -180 and 180")
+                return False
+
             return True
 
         def __convert_point_from_url(self, coords_str) -> Point:
@@ -610,7 +616,7 @@ class BANGeocodingHandler:
         results = self.geocoder.geocode(search_params.address)
 
         # If there is any result coming from the geocoder
-        if results["features"]:
+        if "features" in results and results["features"]:
             best = results["features"][0]
 
             # And if the result is good enough
