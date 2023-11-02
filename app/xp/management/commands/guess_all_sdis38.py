@@ -55,13 +55,13 @@ class Command(BaseCommand):
             for bdg in qs:
                 match = {
                     "rnb_id": bdg.rnb_id,
-                    "rel_score": bdg.score,
-                    "abs_score": bdg.abs_score,
+                    "rel_score": getattr(bdg, "score", None),
+                    "abs_score": getattr(bdg, "abs_score", None),
                     "sub_scores": {},
                 }
 
                 for sub_score in guess.scores.keys():
-                    match["sub_scores"][sub_score] = getattr(bdg, sub_score)
+                    match["sub_scores"][sub_score] = getattr(bdg, sub_score, None)
 
                 matches.append(match)
 
