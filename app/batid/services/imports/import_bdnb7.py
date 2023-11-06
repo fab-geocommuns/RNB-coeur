@@ -32,6 +32,7 @@ def import_bdnb7_bdgs(dpt):
                 "shape": row["WKT"],
                 "source": "bdnb_7",
                 "is_light": False,
+                "is_shape_fictive": row["fictive_geom_cstr"] == "1",
                 "source_id": row["batiment_construction_id"],
                 "address_keys": list_to_pgarray(
                     groups_addresses.get(row["batiment_groupe_id"], [])

@@ -56,26 +56,24 @@ def __save_batch(batch):
         execute_values(cursor, q, batch)
 
 
+def polygon_to_multipolygon(polygon):
+    return MultiPolygon(polygon)
+
+
 def _feature_to_row(feature):
     if feature["geometry"]["type"] not in ["Polygon", "MultiPolygon"]:
         raise ValueError(f"Unexpected geometry type: {feature['geometry']['type']}")
 
-    if feature["geometry"]["type"] == "Polygon":
-        mp_dict = {
-            "type": "MultiPolygon",
-            "coordinates": [feature["geometry"]["coordinates"]],
-        }
-
-    if feature["geometry"]["type"] == "MultiPolygon":
-        mp_dict = feature["geometry"]
-
-    multi_poly = GEOSGeometry(json.dumps(mp_dict))
+    multi_poly = GEOSGeometry(json.dumps(feature["geometry"]))
 
     if multi_poly.srid != settings.DEFAULT_SRID:
         multi_poly.transform(settings.DEFAULT_SRID)
 
     if not multi_poly.valid:
         multi_poly = multi_poly.buffer(0)
+
+    if multi_poly.geom_type == "Polygon":
+        multi_poly = polygon_to_multipolygon(multi_poly)
 
     now = datetime.now(timezone.utc)
 
