@@ -24,11 +24,13 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("task", type=str)
         parser.add_argument("--start-dpt", type=str, default="01")
+        parser.add_argument("--end-dpt", type=str, default="95")
 
     def handle(self, *args, **options):
         start_dpt = options["start_dpt"]
+        end_dpt = options["end_dpt"]
         task_name = options["task"]
-        tasks = create_tasks_list_france(start_dpt, task_name)
+        tasks = create_tasks_list_france(start_dpt, end_dpt, task_name)
         chain(*tasks)()
 
 
@@ -42,14 +44,15 @@ def task_method(task_name):
     return d[task_name]
 
 
-def create_tasks_list_france(start_dpt, task_name):
+def create_tasks_list_france(start_dpt, end_dpt, task_name):
     tasks = []
     dpts = dpts_list()
     # find start_dpt index in dpts list. Return 0 if not found
     start_dpt_index = dpts.index(start_dpt) if start_dpt in dpts else 0
+    end_dpt_index = dpts.index(end_dpt) + 1 if start_dpt in dpts else len(dpts)
     create_task_method = task_method(task_name)
 
-    for dpt in dpts[start_dpt_index:]:
+    for dpt in dpts[start_dpt_index:end_dpt_index]:
         tasks.append(create_task_method(dpt))
     # flattern the list
     tasks = [item for sublist in tasks for item in sublist]
