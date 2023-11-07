@@ -19,6 +19,7 @@ from batid.services.source import BufferToCopy
 from batid.utils.decorators import show_duration
 from batid.utils.db import dictfetchall
 from datetime import datetime, timezone
+from django.contrib.gis.geos import WKTReader
 
 
 # todo : convert old worker approach (dataclass to mimic django model) to new approach (django model)
@@ -77,10 +78,26 @@ class Candidate:
         return has_changed_props, added_address_keys, bdg
 
 
+def get_candidate_shape(shape: str, is_shape_fictive: bool):
+    if shape is None:
+        return None
+
+    wkt_r = WKTReader()
+    shape_geom = wkt_r.read(shape)
+
+    # when the shape is fictive, we store only a point
+    if is_shape_fictive:
+        return shape_geom.centroid()
+    else:
+        return shape_geom
+
+
 def row_to_candidate(row):
+    shape = get_candidate_shape(row.get("shape", None), row["is_shape_fictive"])
+
     return Candidate(
         id=row["id"],
-        shape=dbgeom_to_shapely(row.get("shape", None)),
+        shape=shape,
         source=row["source"],
         is_light=row["is_light"],
         source_id=row["source_id"],
@@ -428,7 +445,7 @@ class Inspector:
             self.__to_refusals(c)
             return
 
-        if c.shape.area < settings.MIN_BDG_AREA:
+        if c.shape.area < settings.MIN_BDG_AREA and c.shape.area > 0:
             self.__to_refusals(c)
             return
 
