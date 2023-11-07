@@ -11,7 +11,7 @@ from api_alpha.serializers import (
     GuessBuildingSerializer,
 )
 from api_alpha.services import get_city_from_request
-from batid.list_bdg import public_bdg_queryset, filter_bdg_queryset
+from batid.list_bdg import list_bdgs
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.guess_bdg import BuildingGuess
@@ -56,13 +56,16 @@ class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
 
     def get_object(self):
         try:
-            return Building.objects.get(rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
+            qs = list_bdgs({"user": self.request.user, "status": "all"})
+            return qs.get(rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
         except Building.DoesNotExist:
             raise Http404
 
     def get_queryset(self):
-        qs = public_bdg_queryset(self.request.user)
-        qs = filter_bdg_queryset(qs, self.request.query_params)
+        query_params = self.request.query_params.dict()
+        query_params["user"] = self.request.user
+
+        qs = list_bdgs(query_params)
 
         # Paginate the queryset
         page = self.request.query_params.get("page", 1)
