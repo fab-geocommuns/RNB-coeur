@@ -62,7 +62,7 @@ class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
             raise Http404
 
     def get_queryset(self):
-        query_params = self.request.query_params
+        query_params = self.request.query_params.dict()
         query_params["user"] = self.request.user
 
         qs = list_bdgs(query_params)
