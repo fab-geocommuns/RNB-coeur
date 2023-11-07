@@ -51,6 +51,6 @@ def list_bdgs(params):
         city = City.objects.get(code_insee=insee_code)
         qs = qs.filter(shape__intersects=city.shape)
 
-    qs = qs.order_by("id")
+    qs = qs.order_by("rnb_id")
 
     return qs
