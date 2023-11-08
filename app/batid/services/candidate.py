@@ -10,7 +10,6 @@ from django.contrib.gis.geos import MultiPolygon
 from psycopg2.extras import RealDictCursor, execute_values
 from shapely.geometry import MultiPolygon as ShapelyMultiPolygon
 from django.db import connection
-from batid.services.geo import dbgeom_to_shapely
 from batid.services.rnb_id import generate_rnb_id
 from django.conf import settings
 from batid.models import Building
