@@ -20,13 +20,12 @@ def import_etalab_plots(dpt: str):
 
     src = Source("plot")
     src.set_param("dpt", dpt)
-    batch_size = 50000
+    batch_size = 1000000
 
     with open(src.path) as f:
         features = ijson.items(f, "features.item", use_float=True)
 
         batch = []
-
         c = 0
         for plot in features:
             c += 1
@@ -53,7 +52,7 @@ def __save_batch(batch):
     q = f"INSERT INTO {Plot._meta.db_table} (id, shape, created_at, updated_at) VALUES %s ON CONFLICT DO NOTHING"
 
     with connection.cursor() as cursor:
-        execute_values(cursor, q, batch)
+        execute_values(cursor, q, batch, page_size=1000000)
 
 
 def polygon_to_multipolygon(polygon):
