@@ -28,10 +28,10 @@ class ImportCitiesTestCase(TestCase):
         city_1 = City.objects.get(code_insee="33001")
         self.assertEqual(city_1.name, "Abzac")
         self.assertEqual(city_1.shape.geom_type, "MultiPolygon")
-        self.assertEqual(city_1.shape.srid, 2154)
+        self.assertEqual(city_1.shape.srid, 4326)
 
         city_2 = City.objects.get(code_insee="33002")
         # the name has been updated by the duplicate
         self.assertEqual(city_2.name, "Aillas nouveau nom")
         self.assertEqual(city_2.shape.geom_type, "MultiPolygon")
-        self.assertEqual(city_2.shape.srid, 2154)
+        self.assertEqual(city_2.shape.srid, 4326)
