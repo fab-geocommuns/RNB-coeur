@@ -12,7 +12,7 @@ class Building(models.Model):
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
     source = models.CharField(max_length=10, null=False, db_index=True)
 
-    point = models.PointField(null=True, spatial_index=True, srid=settings.DEFAULT_SRID)
+    point = models.PointField(null=True, spatial_index=True, srid=4326)
     # todo: make this geometry field a generic geometry
     shape = models.MultiPolygonField(
         null=True, spatial_index=True, srid=settings.DEFAULT_SRID
@@ -138,7 +138,7 @@ class BuildingADS(models.Model):
 
 
 class Candidate(models.Model):
-    shape = models.MultiPolygonField(null=True, srid=settings.DEFAULT_SRID)
+    shape = models.MultiPolygonField(null=True, srid=4326)
     source = models.CharField(max_length=20, null=False)
     source_id = models.CharField(max_length=40, null=False)
     address_keys = ArrayField(models.CharField(max_length=40), null=True)

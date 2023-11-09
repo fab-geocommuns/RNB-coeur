@@ -59,7 +59,7 @@ class ImportBDNBTestCase(TransactionTestCase):
         addresses = ["01300_0013_00145", "3000000C051200101", "3000000C051200201"]
 
         candidate_1 = candidates[0]
-        self.assertEqual(candidate_1.shape.srid, settings.DEFAULT_SRID)
+        self.assertEqual(candidate_1.shape.srid, 4326)
         self.assertEqual(candidate_1.source, "bdnb_7")
         self.assertEqual(candidate_1.is_light, False)
         self.assertEqual(candidate_1.source_id, "BATIMENT0000000008834985-1")
@@ -69,7 +69,7 @@ class ImportBDNBTestCase(TransactionTestCase):
         )
 
         candidate_2 = candidates[1]
-        self.assertEqual(candidate_2.shape.srid, settings.DEFAULT_SRID)
+        self.assertEqual(candidate_2.shape.srid, 4326)
         self.assertEqual(candidate_2.source, "bdnb_7")
         self.assertEqual(candidate_2.is_light, False)
         self.assertEqual(candidate_2.source_id, "BATIMENT0000000008834991-1")
@@ -81,7 +81,7 @@ class ImportBDNBTestCase(TransactionTestCase):
         )
 
         candidate_3 = candidates[2]
-        self.assertEqual(candidate_3.shape.srid, settings.DEFAULT_SRID)
+        self.assertEqual(candidate_3.shape.srid, 4326)
         self.assertEqual(candidate_3.source, "bdnb_7")
         self.assertEqual(candidate_3.is_light, False)
         self.assertEqual(candidate_3.source_id, "BATIMENT0000000008838153-1")
