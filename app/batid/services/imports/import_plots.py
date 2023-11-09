@@ -13,8 +13,6 @@ from psycopg2.extras import execute_values
 from batid.models import Plot
 from batid.services.source import Source
 from io import StringIO
-
-# import polars as pl
 import csv
 
 
@@ -45,27 +43,16 @@ def import_etalab_plots(dpt: str):
 
 
 def __handle_batch(batch):
-    print("-- converting batch")
+    print("-- converting and saving batch")
     rows = map(_feature_to_row, batch)
-    print("-- saving batch")
-    # print(len(batch))
+    __save_batch(rows)
 
+
+def __save_batch(rows):
     f = StringIO()
-    print("-- create DF")
-
     writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
     writer.writerows(rows)
-
-    # df = pl.DataFrame(rows)
-    print("-- write csv")
-
-    # df.write_csv(f, has_header=False)
-
-    print("-- seaking......")
-
     f.seek(0)
-
-    print("-- inserting")
 
     with connection.cursor() as cursor:
         cursor.copy_from(
@@ -74,25 +61,6 @@ def __handle_batch(batch):
             columns=("id", "shape", "created_at", "updated_at"),
             sep=",",
         )
-
-    print("-- inserted")
-
-    # __save_batch(rows)
-
-
-def csv2string(data):
-    si = StringIO()
-    cw = csv.writer(si)
-    cw.writerow(data)
-    return si.getvalue().strip("\r\n")
-
-
-def __save_batch(batch):
-    print("page size = 10000")
-    q = f"INSERT INTO {Plot._meta.db_table} (id, shape, created_at, updated_at) VALUES %s ON CONFLICT DO NOTHING"
-
-    with connection.cursor() as cursor:
-        execute_values(cursor, q, batch, page_size=10000)
 
 
 def polygon_to_multipolygon(polygon):
