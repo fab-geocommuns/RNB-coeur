@@ -91,9 +91,7 @@ class Department(models.Model):
     id = models.AutoField(primary_key=True)
     code = models.CharField(max_length=3, null=False, db_index=True, unique=True)
     name = models.CharField(max_length=200, null=False)
-    shape = models.MultiPolygonField(
-        null=True, spatial_index=True, srid=settings.DEFAULT_SRID
-    )
+    shape = models.MultiPolygonField(null=True, spatial_index=True, srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
