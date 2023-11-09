@@ -3,7 +3,7 @@ import json
 
 from django.test import TestCase
 
-from batid.list_bdg import public_bdg_queryset, filter_bdg_queryset
+from batid.list_bdg import list_bdgs
 from batid.models import Building, BuildingStatus
 from django.contrib.gis.geos import GEOSGeometry
 from django.conf import settings
@@ -22,8 +22,7 @@ class SearchStatusTestCase(TestCase):
             "status": "constructed",
         }
 
-        qs = public_bdg_queryset()
-        qs = filter_bdg_queryset(qs, params)
+        qs = list_bdgs(params)
 
         self.assertEqual(len(qs), 1)
 
@@ -35,8 +34,7 @@ class SearchStatusTestCase(TestCase):
             "status": ",".join(BuildingStatusModel.PUBLIC_TYPES_KEYS),
         }
 
-        qs = public_bdg_queryset()
-        qs = filter_bdg_queryset(qs, params)
+        qs = list_bdgs(params)
 
         self.assertEqual(len(list(qs)), 2)
 
@@ -151,8 +149,7 @@ class SearchBBoxTestCase(TestCase):
             "bb": "46.63505754305547,1.063091817650701,46.63316977636086,1.0677381191425752",
         }
 
-        qs = public_bdg_queryset()
-        qs = filter_bdg_queryset(qs, params)
+        qs = list_bdgs(params)
 
         self.assertEqual(len(list(qs)), 1)
 
@@ -254,6 +251,6 @@ class SearchCityTestCase(TestCase):
         BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 
     def test_grenoble(self):
-        qs = filter_bdg_queryset(public_bdg_queryset(), {"insee_code": "38185"})
+        qs = list_bdgs({"insee_code": "38185"})
 
         self.assertEqual(len(list(qs)), 2)

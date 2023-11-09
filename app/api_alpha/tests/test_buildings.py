@@ -245,23 +245,6 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
         expected = [
             {
                 "ext_bdtopo_id": None,
-                "rnb_id": "BDGSRNBBIDID",
-                "point": {
-                    "type": "Point",
-                    "coordinates": [1.065566769109709, 46.63416324688213],
-                },
-                "status": [
-                    {
-                        "type": "constructed",
-                        "label": "Construit",
-                        "happened_at": None,
-                        "is_current": True,
-                    }
-                ],
-                "addresses": [],
-            },
-            {
-                "ext_bdtopo_id": None,
                 "rnb_id": "BDGPROJ",
                 "point": {
                     "type": "Point",
@@ -273,6 +256,23 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                         "label": "En projet",
                         "is_current": True,
                         "happened_at": "2020-02-01",
+                    }
+                ],
+                "addresses": [],
+            },
+            {
+                "ext_bdtopo_id": None,
+                "rnb_id": "BDGSRNBBIDID",
+                "point": {
+                    "type": "Point",
+                    "coordinates": [1.065566769109709, 46.63416324688213],
+                },
+                "status": [
+                    {
+                        "type": "constructed",
+                        "label": "Construit",
+                        "happened_at": None,
+                        "is_current": True,
                     }
                 ],
                 "addresses": [],
