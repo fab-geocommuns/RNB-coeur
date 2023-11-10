@@ -70,9 +70,10 @@ class Candidate:
 
         bdg_addresses_keys = [a.id for a in bdg.addresses.all()]
 
-        for c_address_key in self.address_keys:
-            if c_address_key not in bdg_addresses_keys:
-                added_address_keys.append(c_address_key)
+        if self.address_keys:
+            for c_address_key in self.address_keys:
+                if c_address_key not in bdg_addresses_keys:
+                    added_address_keys.append(c_address_key)
 
         return has_changed_props, added_address_keys, bdg
 
