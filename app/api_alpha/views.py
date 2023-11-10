@@ -20,7 +20,7 @@ from batid.models import ADS, Building
 
 from rest_framework import viewsets, status
 from rest_framework.exceptions import ParseError
-from rest_framework.pagination import PageNumberPagination
+from rest_framework.pagination import PageNumberPagination, CursorPagination
 from rest_framework.response import Response
 
 from django.http import HttpResponse, Http404
@@ -45,14 +45,19 @@ class BuildingGuessView(APIView):
         return Response(serializer.data)
 
 
+class BuildingCursorPagination(CursorPagination):
+    page_size = 20
+    ordering = "id"
+
+
 class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
     http_method_names = ["get"]
     lookup_field = "rnb_id"
-    page_size = 20
 
-    pagination_class = None
+    pagination_class = BuildingCursorPagination
+    # pagination_class = PageNumberPagination
 
     def get_object(self):
         try:
@@ -67,12 +72,7 @@ class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
 
         qs = list_bdgs(query_params)
 
-        # Paginate the queryset
-        page = self.request.query_params.get("page", 1)
-        start = (int(page) - 1) * self.page_size
-        end = start + self.page_size
-
-        return qs[start:end]
+        return qs
 
 
 class ADSBatchViewSet(LoggingMixin, viewsets.ModelViewSet):
