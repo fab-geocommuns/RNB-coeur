@@ -459,13 +459,19 @@ class Inspector:
             "inspect_stamp": self.stamp,
         }
 
-        where_conds = ["c.inspected_at is null", "c.inspect_stamp = %(inspect_stamp)s"]
+        where_conds = [
+            "c.inspected_at is null",
+            "c.inspect_stamp = %(inspect_stamp)s",
+        ]
 
         q = (
             "SELECT c.*, coalesce(array_agg(b.id) filter (where b.id is not null), '{}') as match_ids "
             f"from {CandidateModel._meta.db_table} as c "
             "left join batid_building as b on ST_Intersects(b.shape, c.shape) "
-            "and ST_Area(ST_Intersection(b.shape, c.shape)) / ST_Area(c.shape) >= %(min_intersect_ratio)s "
+            "and ("
+            "ST_Area(ST_Intersection(b.shape, c.shape)) / ST_Area(c.shape) >= %(min_intersect_ratio)s "
+            "or ST_Area(ST_Intersection(b.shape, c.shape)) / ST_Area(b.shape) >= %(min_intersect_ratio)s "
+            ") "
             f"where {' and '.join(where_conds)}  "
             "group by c.id "
             "limit %(limit)s"
