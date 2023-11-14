@@ -35,7 +35,7 @@ class BuildingsEndpointsTest(APITestCase):
         b = Building.objects.create(
             rnb_id="BDGSRNBBIDID",
             source="dummy",
-            shape=geom,
+            shape_wgs84=geom,
             point=geom.point_on_surface,
         )
         BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
@@ -60,7 +60,7 @@ class BuildingsEndpointsTest(APITestCase):
         b = Building.objects.create(
             rnb_id="BDGPROJ",
             source="dummy",
-            shape=geom,
+            shape_wgs84=geom,
             point=geom.point_on_surface,
         )
         BuildingStatus.objects.create(
@@ -102,7 +102,7 @@ class BuildingsEndpointsTest(APITestCase):
                 "addresses": [],
                 "ext_bdtopo_id": None,
                 "point": {
-                    "coordinates": [5.7211808330356, 45.18433388648706],
+                    "coordinates": [5.721181338205954, 45.18433384981944],
                     "type": "Point",
                 },
                 "rnb_id": "INGRENOBLEGO",
@@ -131,7 +131,7 @@ class BuildingsEndpointsTest(APITestCase):
                 "addresses": [],
                 "ext_bdtopo_id": None,
                 "point": {
-                    "coordinates": [5.7211808330356, 45.18433388648706],
+                    "coordinates": [5.721181338205954, 45.18433384981944],
                     "type": "Point",
                 },
                 "rnb_id": "INGRENOBLEGO",
@@ -177,7 +177,7 @@ class BuildingsEndpointsTest(APITestCase):
                 "addresses": [],
                 "ext_bdtopo_id": None,
                 "point": {
-                    "coordinates": [5.7211808330356, 45.18433388648706],
+                    "coordinates": [5.721181338205954, 45.18433384981944],
                     "type": "Point",
                 },
                 "rnb_id": "INGRENOBLEGO",
@@ -281,7 +281,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                 "addresses": [],
                 "ext_bdtopo_id": None,
                 "point": {
-                    "coordinates": [5.7211808330356, 45.18433388648706],
+                    "coordinates": [5.721181338205954, 45.18433384981944],
                     "type": "Point",
                 },
                 "rnb_id": "INGRENOBLEGO",
