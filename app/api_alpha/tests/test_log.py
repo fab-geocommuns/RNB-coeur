@@ -40,21 +40,3 @@ class LogEndpointsTest(APITestCase):
         count = APIRequestLog.objects.all().count()
 
         self.assertEqual(count, 0)
-
-    def test_tiles_log(self):
-        r = self.client.get("/api/alpha/tiles/130662/94493/18.pbf")
-
-        self.assertEqual(r.status_code, 200)
-
-        count = APIRequestLog.objects.all().count()
-
-        self.assertEqual(count, 1)
-
-    def test_tiles_no_log(self):
-        r = self.client.get("/api/alpha/tiles/130662/94493/18.pbf?from=monitoring")
-
-        self.assertEqual(r.status_code, 200)
-
-        count = APIRequestLog.objects.all().count()
-
-        self.assertEqual(count, 0)

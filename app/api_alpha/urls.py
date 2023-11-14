@@ -3,7 +3,7 @@ from api_alpha.views import (
     ADSBatchViewSet,
     BuildingViewSet,
     BuildingGuessView,
-    BuildingTilesView,
+    get_tile,
 )
 from django.urls import include, path
 from rest_framework import routers
@@ -22,6 +22,6 @@ urlpatterns = [
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
-    path("tiles/<int:x>/<int:y>/<int:z>.pbf", BuildingTilesView.as_view())
+    path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile)
     # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
