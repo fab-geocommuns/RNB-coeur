@@ -30,10 +30,7 @@ from rest_framework_tracking.mixins import LoggingMixin
 
 class RNBLoggingMixin(LoggingMixin):
     def should_log(self, request, response):
-        if request.query_params.get("from") == "monitoring":
-            return False
-
-        return True
+        return request.query_params.get("from") != "monitoring"
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
