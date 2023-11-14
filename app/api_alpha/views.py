@@ -28,7 +28,15 @@ from batid.services.vector_tiles import tile_sql, url_params_to_tile
 from rest_framework_tracking.mixins import LoggingMixin
 
 
-class BuildingGuessView(APIView):
+class RNBLoggingMixin(LoggingMixin):
+    def should_log(self, request, response):
+        if request.query_params.get("from") == "monitoring":
+            return False
+
+        return True
+
+
+class BuildingGuessView(RNBLoggingMixin, APIView):
     def get(self, request, *args, **kwargs):
         search = BuildingGuess()
         search.set_params_from_url(**request.query_params.dict())
@@ -50,7 +58,7 @@ class BuildingCursorPagination(CursorPagination):
     ordering = "id"
 
 
-class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
+class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
     http_method_names = ["get"]
@@ -75,7 +83,7 @@ class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
         return qs
 
 
-class ADSBatchViewSet(LoggingMixin, viewsets.ModelViewSet):
+class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     queryset = ADS.objects.all()
     serializer_class = ADSSerializer
     lookup_field = "file_number"
@@ -126,7 +134,7 @@ class ADSBatchViewSet(LoggingMixin, viewsets.ModelViewSet):
             raise ParseError({"errors": "No data in the request."})
 
 
-class ADSViewSet(LoggingMixin, viewsets.ModelViewSet):
+class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     queryset = ADS.objects.all()
     serializer_class = ADSSerializer
     lookup_field = "file_number"
@@ -158,12 +166,15 @@ class ADSViewSet(LoggingMixin, viewsets.ModelViewSet):
         return super().retrieve(request, file_number)
 
 
-def get_tile(request, x, y, z):
-    tile_dict = url_params_to_tile(x, y, z)
-    sql = tile_sql(tile_dict)
+class BuildingTilesView(RNBLoggingMixin, APIView):
+    def get(self, request, x, y, z):
+        tile_dict = url_params_to_tile(x, y, z)
+        sql = tile_sql(tile_dict)
 
-    with connection.cursor() as cursor:
-        cursor.execute(sql)
-        tile_file = cursor.fetchone()[0]
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            tile_file = cursor.fetchone()[0]
 
-    return HttpResponse(tile_file, content_type="application/vnd.mapbox-vector-tile")
+        return HttpResponse(
+            tile_file, content_type="application/vnd.mapbox-vector-tile"
+        )
