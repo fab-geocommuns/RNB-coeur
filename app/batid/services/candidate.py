@@ -421,6 +421,13 @@ class Inspector:
                 cur.close()
                 raise error
 
+    def compute_shape_area(self, shape):
+        with connection.cursor() as cursor:
+            cursor.execute("select ST_AREA(%s, true)", [shape.wkt])
+            row = cursor.fetchone()
+
+        return row[0]
+
     def inspect_match(self, row):
         c = row_to_candidate(row)
 
@@ -428,7 +435,7 @@ class Inspector:
             self.__to_refusals(c)
             return
 
-        if c.shape.area < settings.MIN_BDG_AREA:
+        if self.compute_shape_area(c.shape) < settings.MIN_BDG_AREA:
             self.__to_refusals(c)
             return
 
@@ -463,8 +470,8 @@ class Inspector:
         q = (
             "SELECT c.*, coalesce(array_agg(b.id) filter (where b.id is not null), '{}') as match_ids "
             f"from {CandidateModel._meta.db_table} as c "
-            "left join batid_building as b on ST_Intersects(b.shape, c.shape) "
-            "and ST_Area(ST_Intersection(b.shape, c.shape)) / ST_Area(c.shape) >= %(min_intersect_ratio)s "
+            "left join batid_building as b on ST_Intersects(b.shape_wgs84, c.shape) "
+            "and ST_Area(ST_Intersection(b.shape_wgs84, c.shape)) / ST_Area(c.shape) >= %(min_intersect_ratio)s "
             f"where {' and '.join(where_conds)}  "
             "group by c.id "
             "limit %(limit)s"
