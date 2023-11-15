@@ -4,7 +4,7 @@
 from django.test import TransactionTestCase
 from unittest.mock import patch
 import batid.services.imports.import_bdnb7 as import_bdnb7
-from batid.models import Address, Building, Candidate
+from batid.models import Address, Building, Candidate, BuildingImport
 import batid.tests.helpers as helpers
 from django.conf import settings
 
@@ -88,3 +88,16 @@ class ImportBDNBTestCase(TransactionTestCase):
         # no address is linked to this building
         self.assertEqual(candidate_3.address_keys, [])
         self.assertEqual(candidate_3.is_shape_fictive, True)
+
+        # test a building import has been recorded
+        building_imports = BuildingImport.objects.all()
+
+        self.assertEqual(len(building_imports), 1)
+        building_import = building_imports[0]
+
+        self.assertEqual(building_import.building_created_count, 0)
+        self.assertEqual(building_import.building_refused_count, 0)
+        self.assertEqual(building_import.building_updated_count, 0)
+        self.assertEqual(building_import.candidate_created_count, 3)
+        self.assertEqual(building_import.departement, '33')
+        self.assertEqual(building_import.import_source, 'bdnb_7')

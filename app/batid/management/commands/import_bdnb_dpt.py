@@ -13,7 +13,7 @@ class Command(BaseCommand):
         chain(*tasks)()
 
 
-def create_tasks_list(dpt):
+def create_tasks_list(dpt, bulk_launch_uuid=None):
     bdnb_dpt = dpt.lower()
     tasks = []
     tasks.append(
@@ -27,6 +27,10 @@ def create_tasks_list(dpt):
         )
     )
     tasks.append(
-        Signature("batid.tasks.import_bdnb7_bdgs", args=[bdnb_dpt], immutable=True)
+        Signature(
+            "batid.tasks.import_bdnb7_bdgs",
+            args=[bdnb_dpt, bulk_launch_uuid],
+            immutable=True,
+        )
     )
     return tasks

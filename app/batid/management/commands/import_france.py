@@ -14,6 +14,7 @@ from batid.management.commands.import_bdnb_dpt import (
 from batid.management.commands.import_bdtopo_dpt import (
     create_tasks_list as create_tasks_list_bdtopo_dpt,
 )
+import uuid
 
 
 class Command(BaseCommand):
@@ -53,7 +54,10 @@ def create_tasks_list_france(start_dpt, end_dpt, task_name):
     create_task_method = task_method(task_name)
 
     for dpt in dpts[start_dpt_index:end_dpt_index]:
-        tasks.append(create_task_method(dpt))
+        if task_name in ["bdnb"]:
+            tasks.append(create_task_method(dpt, uuid.uuid4()))
+        else:
+            tasks.append(create_task_method(dpt))
     # flattern the list
     tasks = [item for sublist in tasks for item in sublist]
     return tasks

@@ -3,18 +3,31 @@ import json
 import os
 
 import psycopg2
-from django.db import connection
+from django.db import connection, transaction
 from psycopg2.extras import execute_values
 
-from batid.models import Address
+from batid.models import Address, BuildingImport
 from batid.services.source import Source, BufferToCopy
 from datetime import datetime, timezone
 
 from batid.utils.db import list_to_pgarray
+import uuid
 
 
-def import_bdnb7_bdgs(dpt):
+def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
     print(f"## Import BDNB 7 buildings in dpt {dpt}")
+
+    # insert a record in the table BuildingImport
+    building_import = BuildingImport.objects.create(
+        import_source="bdnb_7",
+        bulk_launch_uuid=bulk_launch_uuid or uuid.uuid4(),
+        departement=dpt,
+        candidate_created_count=0,
+        building_created_count=0,
+        building_updated_count=0,
+        building_refused_count=0,
+    )
+    building_import.save()
 
     src = Source("bdnb_7")
     src.set_param("dpt", dpt)
@@ -49,15 +62,19 @@ def import_bdnb7_bdgs(dpt):
     cols = candidates[0].keys()
 
     with open(buffer.path, "r") as f:
-        with connection.cursor() as cursor:
-            print("- import buffer")
-            try:
-                cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
-                connection.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cursor.close()
-                raise error
+        with transaction.atomic():
+                print("- import buffer")
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
+                    
+                    candidates_count = len(candidates)
+                    building_import.candidate_created_count = (
+                        building_import.candidate_created_count + candidates_count
+                    )
+                    building_import.save()
+                except (Exception, psycopg2.DatabaseError) as error:
+                    raise error
 
     print("- remove buffer")
     os.remove(buffer.path)
