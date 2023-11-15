@@ -3,7 +3,7 @@ from batid.models import Building
 
 TABLE = {
     "table": Building._meta.db_table,
-    "srid": str(settings.DEFAULT_SRID),
+    "srid": str(4326),
     "geomColumn": "point",
     "attrColumns": "rnb_id",
 }
