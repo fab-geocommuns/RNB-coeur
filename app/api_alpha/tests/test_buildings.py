@@ -335,7 +335,7 @@ class BuildingsEndpointsSingleTest(APITestCase):
         b = Building.objects.create(
             rnb_id="SINGLEONE",
             source="dummy",
-            shape=geom,
+            shape_wgs84=geom,
             point=geom.point_on_surface,
         )
         BuildingStatus.objects.create(

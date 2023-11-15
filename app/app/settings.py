@@ -179,7 +179,6 @@ CELERY_BACKEND_URL = os.environ.get("CELERY_RESULT_BACKEND")
 
 
 # Bat ID custom settings
-DEFAULT_SRID = 4326
 MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))
 
 # Zoom range for vector tiles generation

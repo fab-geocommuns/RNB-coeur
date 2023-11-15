@@ -1386,7 +1386,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         b = Building.objects.create(
             rnb_id="BDGSRNBBIDID",
             source="dummy",
-            shape=geom,
+            shape_wgs84=geom,
             point=geom.point_on_surface,
         )
 

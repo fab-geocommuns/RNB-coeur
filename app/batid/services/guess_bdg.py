@@ -59,16 +59,16 @@ class BuildingGuess:
             # ON THIS SIDE OF THE ROAD SCORE
             # We give more score (2 points) when point comes from OSM than from query
             # todo : if we have both point and address, we should use the same cluster for both
-            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape, %(osm_point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(osm_point)s) ASC LIMIT 1"
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(osm_point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(osm_point)s) ASC LIMIT 1"
             self.scores[
                 "osm_point_plot_cluster"
-            ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
+            ] = f"CASE WHEN ST_Intersects(shape_wgs84, ({cluster_q})) THEN 2 ELSE 0 END"
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
             self.scores[
                 "osm_point_distance"
-            ] = f"CASE WHEN ST_Distance(shape, %(osm_point)s) > 0 THEN 2 / ST_Distance(shape, %(osm_point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape, %(osm_point)s) > 0 THEN 2 / ST_DistanceSphere(shape, %(osm_point)s) ELSE 5 END"
 
             # Add the point to the params
             params["osm_point"] = f"{self.params._osm_point}"
@@ -95,17 +95,17 @@ class BuildingGuess:
             # ON THIS SIDE OF THE ROAD SCORE
             # We give more score (2 points) when point comes from BAN than from query
             # todo : if we have both point and address, we should use the same cluster for both
-            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape, %(ban_point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(ban_point)s) ASC LIMIT 1"
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(ban_point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(ban_point)s) ASC LIMIT 1"
             self.scores[
                 "ban_point_plot_cluster"
-            ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
+            ] = f"CASE WHEN ST_Intersects(shape_wgs84, ({cluster_q})) THEN 2 ELSE 0 END"
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
             # todo : does the double ST_Distance evaluation is a performance problem ?
             self.scores[
                 "ban_point_distance"
-            ] = f"CASE WHEN ST_Distance(shape, %(ban_point)s) > 0 THEN 2 / ST_Distance(shape, %(ban_point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape_wgs84, %(ban_point)s) > 0 THEN 2 / ST_DistanceSphere(shape_wgs84, %(ban_point)s) ELSE 5 END"
 
             # Add the point to the params
             params["ban_point"] = f"{self.params._ban_point}"
@@ -601,7 +601,7 @@ class PhotonGeocodingHandler:
 
                 search_params._osm_point = Point(
                     best["geometry"]["coordinates"], srid=4326
-                ).transform(settings.DEFAULT_SRID, clone=True)
+                )
 
 
 class BANGeocodingHandler:
