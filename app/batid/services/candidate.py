@@ -408,7 +408,7 @@ class Inspector:
                         "ext_bdnb_id",
                         "ext_bdtopo_id",
                         "point",
-                        "shape",
+                        "shape_wgs84",
                         "created_at",
                         "updated_at",
                     ),
