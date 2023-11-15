@@ -114,26 +114,24 @@ class BuildingGuess:
         # Point
 
         if self.params.point:
-            self.params.point.transform(settings.DEFAULT_SRID)
-
             # ON THIS SIDE OF THE ROAD SCORE
             # Points tend to be on the right side of the road. We can filter out buildings that are on the other side of the road.
             # Public roads are not in cadastre plots. By grouping contiguous plots we can recreate simili-roads and keep only buildings intersecting this plot group.
             # todo : it might be interesting to pre-calculate cluster and store them in DB. It would be faster.
-            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape, %(point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(point)s) ASC LIMIT 1"
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(point)s) ASC LIMIT 1"
             self.scores[
                 "point_plot_cluster"
-            ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 1 ELSE 0 END"
+            ] = f"CASE WHEN ST_Intersects(shape_wgs84, ({cluster_q})) THEN 1 ELSE 0 END"
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
             # todo : does the double ST_Distance evaluation is a performance problem ?
             self.scores[
                 "point_distance"
-            ] = f"CASE WHEN ST_Distance(shape, %(point)s) > 0 THEN 1 / ST_Distance(shape, %(point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape_wgs84, %(point)s) > 0 THEN 1 / ST_DistanceSphere(shape_wgs84, %(point)s) ELSE 5 END"
 
             # LIMIT THE DISTANCE TO THE POINT
-            wheres.append(f"ST_DWithin(shape, %(point)s, 400)")
+            wheres.append(f"ST_DWithin(shape_wgs84::geography, %(point)s::geography, 400)")
 
             # Add the point to the params
             params["point"] = f"{self.params.point}"
@@ -141,8 +139,8 @@ class BuildingGuess:
         # #########################################
         # Restrict research in a radius around point and address point
 
-        ban_point_where = "ST_DWithin(shape, %(ban_point)s, 400)"
-        point_where = "ST_DWithin(shape, %(point)s, 400)"
+        ban_point_where = "ST_DWithin(shape_wgs84::geography, %(ban_point)s::geography, 400)"
+        point_where = "ST_DWithin(shape_wgs84::geography, %(point)s::geography, 400)"
 
         if self.params.point and self.params._ban_point:
             wheres.append(f"({ban_point_where} or {point_where})")
@@ -153,7 +151,11 @@ class BuildingGuess:
 
         # Polygon
         if self.params.poly:
-            wheres = ["ST_HausdorffDistance(shape, %(poly)s) <= %(max_hausdorff_dist)s"]
+            # warning : ST_HausdorffDistance is in degree when using wgs_84. 
+            # we need to find a way to fix a meaningful threshold
+            # for the time being I use https://epsg.io/4087 because it is a projected CRS (its unit is meters)
+            # and it is valid worldwide, but I am absolutely not sure this is precise!
+            wheres = ["ST_HausdorffDistance(ST_Transform(shape_wgs84, 4087), st_transform(%(poly)s, 4087)) <= %(max_hausdorff_dist)s"]
             params["poly"] = f"{self.params.poly}"
             params["max_hausdorff_dist"] = self.MAX_HAUSDORFF_DISTANCE
 
@@ -511,13 +513,7 @@ class BuildingGuess:
         def set_poly(self, poly: Polygon) -> None:
             if poly is not None:
                 if self.__validate_poly(poly):
-                    self.poly = self.__convert_poly(poly)
-
-        def __convert_poly(self, poly: Polygon) -> Polygon:
-            if poly.srid == settings.DEFAULT_SRID:
-                return poly
-
-            return poly.transform(settings.DEFAULT_SRID, clone=True)
+                    self.poly = poly
 
         def __validate_point(self, point: Point) -> bool:
             if not isinstance(point, Point):
@@ -627,7 +623,7 @@ class BANGeocodingHandler:
                 # We set the address point
                 search_params._ban_point = Point(
                     best["geometry"]["coordinates"], srid=4326
-                ).transform(settings.DEFAULT_SRID, clone=True)
+                )
 
                 # We set the ban id
                 search_params._ban_id = best["properties"]["id"]

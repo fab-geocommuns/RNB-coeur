@@ -30,7 +30,6 @@ class BuildingsEndpointsTest(APITestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
 
         b = Building.objects.create(
             rnb_id="BDGSRNBBIDID",
@@ -55,7 +54,6 @@ class BuildingsEndpointsTest(APITestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
 
         b = Building.objects.create(
             rnb_id="BDGPROJ",
@@ -169,7 +167,7 @@ class BuildingsEndpointsTest(APITestCase):
                 ],
                 "point": {
                     "type": "Point",
-                    "coordinates": [1.065566769109709, 46.63416324688213],
+                    "coordinates": [1.065566787499344, 46.634163236377134],
                 },
                 "addresses": [],
             },
@@ -204,7 +202,7 @@ class BuildingsEndpointsTest(APITestCase):
             "rnb_id": "BDGSRNBBIDID",
             "point": {
                 "type": "Point",
-                "coordinates": [1.065566769109709, 46.63416324688213],
+                "coordinates": [1.065566787499344, 46.634163236377134],
             },
             "status": [
                 {
@@ -248,7 +246,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                 "rnb_id": "BDGPROJ",
                 "point": {
                     "type": "Point",
-                    "coordinates": [1.065566769109709, 46.63416324688213],
+                    "coordinates": [1.065566787499344, 46.634163236377134],
                 },
                 "status": [
                     {
@@ -265,7 +263,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                 "rnb_id": "BDGSRNBBIDID",
                 "point": {
                     "type": "Point",
-                    "coordinates": [1.065566769109709, 46.63416324688213],
+                    "coordinates": [1.065566787499344, 46.634163236377134],
                 },
                 "status": [
                     {
@@ -317,7 +315,6 @@ class BuildingsEndpointsSingleTest(APITestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
 
         b = Building.objects.create(
             rnb_id="SINGLEONE",

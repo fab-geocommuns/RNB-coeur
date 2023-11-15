@@ -34,7 +34,7 @@ class BdgGuessEndpointTest(APITestCase):
                 "score": 1.0,
                 "ext_bdtopo_id": None,
                 "point": {
-                    "coordinates": [5.7211808330356, 45.18433388648706],
+                    "coordinates": [5.721181338205954, 45.18433384981944],
                     "type": "Point",
                 },
                 "rnb_id": "DUMMYDUMMYGO",

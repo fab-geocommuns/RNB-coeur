@@ -123,12 +123,14 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 }
             ],
         }
+
+        print(r_data)
 
         self.assertDictEqual(r_data, expected)
 
@@ -164,7 +166,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 }
@@ -368,7 +370,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
             ["GeoJSON is invalid."],
         )
 
-    def test_create_then_modify_with_guess(self):
         # First we verify the ADS contains only one building
         r = self.client.get("/api/alpha/ads/MODIFY-GUESS/")
         data = r.json()
@@ -606,7 +607,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "custom_id": "OUR-BDG",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.724331358994108, 45.18157371019682],
+                            "coordinates": [5.724331358994107, 45.18157371019683],
                         },
                     },
                     "operation": "build",
@@ -670,7 +671,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 }
@@ -714,7 +715,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 }
@@ -777,7 +778,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                     "building": {
                         "rnb_id": new_rnb_id,
                         "geometry": {
-                            "coordinates": [5.73653994438229, 45.18736964731217],
+                            "coordinates": [5.736539944382292, 45.18736964731217],
                             "type": "Point",
                         },
                     },
@@ -886,7 +887,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": new_rnb_id,
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.720861502527285, 45.18380982645842],
+                            "coordinates": [5.720861502527286, 45.18380982645842],
                         },
                     },
                 }
@@ -932,7 +933,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSADSSONE1",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 },
@@ -942,7 +943,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSADSSTWO2",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 },
@@ -1220,7 +1221,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 }
@@ -1380,7 +1381,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
 
         # Grenoble
         b = Building.objects.create(
@@ -1393,13 +1393,13 @@ class ADSEndpointsWithAuthTest(APITestCase):
         bdg_ads_one = Building.objects.create(
             rnb_id="BDGSADSSONE1",
             source="dummy",
-            shape=geom,
+            shape_wgs84=geom,
             point=geom.point_on_surface,
         )
         bdg_ads_two = Building.objects.create(
             rnb_id="BDGSADSSTWO2",
             source="dummy",
-            shape=geom,
+            shape_wgs84=geom,
             point=geom.point_on_surface,
         )
 
@@ -1419,11 +1419,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
+
         to_guess_bdg = Building.objects.create(
             rnb_id="GUESSGUESSGO",
             source="dummy",
-            shape=geom,
+            shape_wgs84=geom,
             point=geom.point_on_surface,
         )
 
@@ -1443,11 +1443,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
         to_guess_bdg_two = Building.objects.create(
             rnb_id="GUESSGUESSG2",
             source="dummy",
-            shape=geom,
+            shape_wgs84=geom,
             point=geom.point_on_surface,
         )
 
