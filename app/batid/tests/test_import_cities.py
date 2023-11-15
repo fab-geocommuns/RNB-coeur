@@ -1,11 +1,10 @@
 from django.test import TestCase
 from unittest.mock import patch
-from batid.services import source
 import batid.services.imports.import_cities as import_cities
 from batid.models import City
-import os
 import json
 import batid.tests.helpers as helpers
+from django.conf import settings
 
 
 class ImportCitiesTestCase(TestCase):

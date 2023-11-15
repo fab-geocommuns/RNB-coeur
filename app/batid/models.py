@@ -166,7 +166,7 @@ class Candidate(models.Model):
 
 class Plot(models.Model):
     id = models.CharField(max_length=40, primary_key=True, db_index=True)
-    shape = models.MultiPolygonField(null=True, srid=settings.DEFAULT_SRID)
+    shape = models.MultiPolygonField(null=True, srid=4326)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
