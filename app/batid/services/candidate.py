@@ -12,9 +12,10 @@ from shapely.geometry import MultiPolygon as ShapelyMultiPolygon
 from django.db import connection
 from batid.services.rnb_id import generate_rnb_id
 from django.conf import settings
-from batid.models import Building
+from batid.models import Building, BuildingStatus
 from batid.models import Candidate as CandidateModel
 from batid.services.source import BufferToCopy
+from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.utils.decorators import show_duration
 from batid.utils.db import dictfetchall
 from datetime import datetime, timezone
@@ -33,7 +34,7 @@ class Candidate:
     created_at: datetime
     inspected_at: datetime
     inspect_result: str
-    matched_ids: List[int]
+    matches: List[object]
 
     def to_bdg_dict(self):
         point_geom = (
@@ -83,6 +84,9 @@ class Candidate:
 
         return has_changed_props, added_address_keys, bdg
 
+    def reduce_matches(self):
+        pass
+
 
 def get_candidate_shape(shape: str, is_shape_fictive: bool):
     if shape is None:
@@ -110,7 +114,7 @@ def row_to_candidate(row):
         created_at=row.get("created_at", None),
         inspected_at=row.get("inspected_at", None),
         inspect_result=row.get("inspect_result", None),
-        matched_ids=row.get("match_ids", []),
+        matches=row.get("matches", []),
     )
 
 
@@ -139,9 +143,9 @@ class Inspector:
         self.build_stamp()
         self.reserve_candidates()
 
-        # Get matches and inspect them
-        matches = self.get_matches()
-        self.inspect_matches(matches)
+        # Get candidates and inspect them
+        candidates = self.get_candidates()
+        self.inspect_candidates(candidates)
 
         # Now, trigger the consequences of the inspections
         self.handle_bdgs_creations()
@@ -151,7 +155,7 @@ class Inspector:
         # Clean up
         self.remove_stamped()
 
-        return len(matches)
+        return len(candidates)
 
     def remove_stamped(self):
         print("- remove stamped candidates")
@@ -221,7 +225,7 @@ class Inspector:
         self.__remove_candidates(ids)
 
     def __fetch_bdg_to_updates(self):
-        bdg_ids = tuple(c.matched_ids[0] for c in self.updates)
+        bdg_ids = tuple(c.matches[0]["id"] for c in self.updates)
         return (
             Building.objects.filter(id__in=bdg_ids)
             .prefetch_related("addresses")
@@ -234,7 +238,7 @@ class Inspector:
 
         # Foreach building verify if anything must be updated
         for c in self.updates:
-            bdg = next(b for b in bdgs if b.id == c.matched_ids[0])
+            bdg = next(b for b in bdgs if b.id == c.matches[0]["id"])
             has_changed_props, added_address_keys, bdg = c.update_bdg(bdg)
 
             # Need to update the building properties ?
@@ -443,65 +447,79 @@ class Inspector:
                 cur.close()
                 raise error
 
-    def inspect_match(self, row):
-        c = row_to_candidate(row)
+    def inspect_candidate(self, candidate):
+        c = row_to_candidate(candidate)
 
+        # Light buildings do not match the RNB building definition
         if c.is_light == True:
             self.__to_refusals(c)
             return
 
+        # This is a very small polygon
         if c.shape.area < settings.MIN_BDG_AREA and c.shape.area > 0:
             self.__to_refusals(c)
             return
 
-        match_len = len(row["match_ids"])
+        # If the candidate has no match, we create a new building
 
-        if match_len == 0:
+        if len(c.matches) == 0:
             self.__to_creations(c)
+            return
 
-        if match_len == 1:
-            self.__to_updates(c)
+        # We review the matches for an update
+        good_matches = []
+        c_area = c.shape.area
+        min_cover_ratio = 0.85
+        for match in c.matches:
+            b_area = match["shape"].area
 
-        if match_len > 1:
-            self.__to_refusals(c)
+            intersection = c.shape.intersection(match["shape"])
+            intersection_area = intersection.area
+
+            # If we have a minimum cover we add
+            if (
+                intersection_area / c_area >= min_cover_ratio
+                or intersection_area / b_area >= min_cover_ratio
+            ):
+                good_matches.append(match)
+
+        # match_len = len(row["match_ids"])
+        #
+        # if match_len == 0:
+        #     self.__to_creations(c)
+        #
+        # if match_len == 1:
+        #     self.__to_updates(c)
+        #
+        # if match_len > 1:
+        #     self.__to_refusals(c)
 
     @show_duration
-    def inspect_matches(self, matches):
-        print(f"- inspect_matches")
-        for row in matches:
-            self.inspect_match(row)
+    def inspect_candidates(self, candidates):
+        for c in candidates:
+            self.inspect_candidate(c)
 
     @show_duration
-    def get_matches(self):
-        print(f"- get_matches")
+    def get_candidates(self):
+        print(f"- get_candidates")
         params = {
-            "min_intersect_ratio": 0.85,
+            "status": tuple(BuildingStatusService.REAL_BUILDINGS_STATUS),
             "limit": self.BATCH_SIZE,
             "inspect_stamp": self.stamp,
         }
 
-        where_conds = [
-            "c.inspected_at is null",
-            "c.inspect_stamp = %(inspect_stamp)s",
-        ]
-
         q = (
-            "SELECT c.*, coalesce(array_agg(b.id) filter (where b.id is not null), '{}') as match_ids "
-            f"from {CandidateModel._meta.db_table} as c "
-            "left join batid_building as b on ST_Intersects(b.shape, c.shape) "
-            "and ("
-            "ST_Area(ST_Intersection(b.shape, c.shape)) / ST_Area(c.shape) >= %(min_intersect_ratio)s "
-            "or ST_Area(ST_Intersection(b.shape, c.shape)) / ST_Area(b.shape) >= %(min_intersect_ratio)s "
-            ") "
-            f"where {' and '.join(where_conds)}  "
-            "group by c.id "
-            "limit %(limit)s"
+            "SELECT c.id, ST_AsEWKB(c.shape) as shape, json_agg(json_build_object('id', b.id, 'shape', ST_AsEWKB(b.shape))) as matches "
+            f"FROM {Candidate._meta.db_table} c "
+            f"LEFT JOIN {Building._meta.db_table} b on ST_Intersects(c.shape, b.shape) "
+            f"INNER JOIN {BuildingStatus._meta.db_table} bs on bs.building_id = b.id "
+            "WHERE bs.type IN %(status)s AND bs.is_current "
+            "AND c.inspected_at IS NULL AND c.inspect_stamp = %(inspect_stamp)s "
+            "GROUP BY c.id "
+            "LIMIT %(limit)s"
         )
 
-        with connection.cursor() as cur:
-            matches = dictfetchall(cur, q, params)
-
-        return matches
+        return CandidateModel.objects.raw(q, params)
 
     def __close_inspection(self, c, inspect_result):
         try:

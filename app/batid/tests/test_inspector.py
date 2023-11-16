@@ -151,31 +151,31 @@ class TestHalvishCover(InspectTest):
     ]
 
     def test_result(self):
+        candidates = self.get_candidates()
+
+        for c in candidates:
+            print(c)
+            for match in c.matches:
+                print(match)
+
+    def get_candidates(self):
+        params = {
+            "status": tuple(BuildingStatusService.REAL_BUILDINGS_STATUS),
+            "limit": 10,
+        }
+
         q = (
-            "SELECT c.*, json_agg(json_build_object('id', b.id, 'rnb_id', b.rnb_id, 'shape', b.shape)) as matches "
+            "SELECT c.id, ST_AsEWKB(c.shape) as shape, json_agg(json_build_object('id', b.id, 'shape', ST_AsEWKB(b.shape))) as matches "
             f"FROM {Candidate._meta.db_table} c "
             f"LEFT JOIN {Building._meta.db_table} b on ST_Intersects(c.shape, b.shape) "
             f"INNER JOIN {BuildingStatus._meta.db_table} bs on bs.building_id = b.id "
             "WHERE bs.type IN %(status)s AND bs.is_current "
             "AND c.inspected_at IS NULL "
             "GROUP BY c.id "
-            "LIMIT 10"
+            "LIMIT %(limit)s"
         )
 
-        with connection.cursor() as cursor:
-            rows = dictfetchall(
-                cursor,
-                q,
-                {"status": tuple(BuildingStatusService.REAL_BUILDINGS_STATUS)},
-            )
-
-            for row in rows:
-                print("--")
-                print(row["id"])
-                for m in row["matches"]:
-                    print(" --> ", m["rnb_id"])
-
-        self.assertEqual(Building.objects.all().count(), 1)
+        return Candidate.objects.raw(q, params)
 
 
 class OneSmallOneBig:
@@ -339,12 +339,14 @@ def data_to_bdg(data):
 
         shape = shape.transform(2154, clone=True)
 
-        Building.objects.create(
+        b = Building.objects.create(
             rnb_id=generate_rnb_id(),
             shape=shape,
             source=d["source"],
             point=shape.point_on_surface,
         )
+
+        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 
 
 class TestInspectorFictiveBdgCreate(TestCase):
