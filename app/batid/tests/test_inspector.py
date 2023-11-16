@@ -98,6 +98,62 @@ class InspectTest(TestCase):
         data_to_candidate(self.candidates_data)
 
 
+class TestHalvishCover(InspectTest):
+
+    """
+    We the the case where the candidate partially cover an existing building. Not enough to consider it as the same building but enought to be ambiguous.
+    It should result with the rejection of the candidate.
+    """
+
+    bdgs_data = [
+        {
+            "id": "BX_SQUARE",
+            "source": "dummy",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [
+                            [-0.5676725429616454, 44.838295594794175],
+                            [-0.5678845217807691, 44.838295594794175],
+                            [-0.5678845217807691, 44.838147629163586],
+                            [-0.5676725429616454, 44.838147629163586],
+                            [-0.5676725429616454, 44.838295594794175],
+                        ]
+                    ]
+                ],
+                "type": "MultiPolygon",
+            },
+        }
+    ]
+
+    candidates_data = [
+        {
+            "id": "SECOND_SQUARE",
+            "source": "dummy",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [
+                            [-0.5675952590175939, 44.83808812964935],
+                            [-0.5675952590175939, 44.83824470718619],
+                            [-0.5678083418932829, 44.83824470718619],
+                            [-0.5678083418932829, 44.83808812964935],
+                            [-0.5675952590175939, 44.83808812964935],
+                        ]
+                    ]
+                ],
+                "type": "MultiPolygon",
+            },
+        }
+    ]
+
+    def test_result(self):
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 1)
+
+
 class OneSmallOneBig:
 
     """
