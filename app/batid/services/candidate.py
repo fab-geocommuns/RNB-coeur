@@ -10,7 +10,6 @@ from django.contrib.gis.geos import MultiPolygon
 from psycopg2.extras import RealDictCursor, execute_values
 from shapely.geometry import MultiPolygon as ShapelyMultiPolygon
 from django.db import connection
-from batid.services.geo import dbgeom_to_shapely
 from batid.services.rnb_id import generate_rnb_id
 from django.conf import settings
 from batid.models import Building
@@ -19,6 +18,7 @@ from batid.services.source import BufferToCopy
 from batid.utils.decorators import show_duration
 from batid.utils.db import dictfetchall
 from datetime import datetime, timezone
+from django.contrib.gis.geos import GEOSGeometry
 
 
 # todo : convert old worker approach (dataclass to mimic django model) to new approach (django model)
@@ -36,11 +36,17 @@ class Candidate:
     matched_ids: List[int]
 
     def to_bdg_dict(self):
+        point_geom = (
+            self.shape
+            if self.shape.geom_type == "Point"
+            else self.shape.point_on_surface
+        )
+
         return {
             "shape": self.shape,
             "rnb_id": None,
             "source": self.source,
-            "point": self.shape.point_on_surface(),
+            "point": point_geom,
             "address_keys": self.address_keys,
         }
 
@@ -77,10 +83,25 @@ class Candidate:
         return has_changed_props, added_address_keys, bdg
 
 
+def get_candidate_shape(shape: str, is_shape_fictive: bool):
+    if shape is None:
+        return None
+
+    shape_geom = GEOSGeometry(shape)
+
+    # when the shape is fictive, we store only a point
+    if is_shape_fictive and shape_geom.geom_type != "Point":
+        return shape_geom.centroid
+    else:
+        return shape_geom
+
+
 def row_to_candidate(row):
+    shape = get_candidate_shape(row.get("shape", None), row["is_shape_fictive"])
+
     return Candidate(
         id=row["id"],
-        shape=dbgeom_to_shapely(row.get("shape", None)),
+        shape=shape,
         source=row["source"],
         is_light=row["is_light"],
         source_id=row["source_id"],
@@ -428,7 +449,7 @@ class Inspector:
             self.__to_refusals(c)
             return
 
-        if c.shape.area < settings.MIN_BDG_AREA:
+        if c.shape.area < settings.MIN_BDG_AREA and c.shape.area > 0:
             self.__to_refusals(c)
             return
 
