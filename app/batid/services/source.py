@@ -213,7 +213,7 @@ class BufferToCopy(Source):
                 return
 
             if isinstance(data[0], dict):
-                writer = csv.DictWriter(f, fieldnames=data[0].keys(), delimiter=";")
+                writer = csv.DictWriter(f, fieldnames=data[0].keys(), delimiter=";", doublequote=False, escapechar='\\')
                 # writer.writeheader()
                 writer.writerows(data)
                 return

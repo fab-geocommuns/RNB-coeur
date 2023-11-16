@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from batid.utils.db import list_to_pgarray
 import uuid
+import json
 
 
 def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
@@ -52,6 +53,9 @@ def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
                 ),
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc),
+                "candidate_created_by": json.dumps(
+                    {"source": "import", "id": building_import.id}
+                ),
             }
             candidates.append(candidate)
 
@@ -63,18 +67,18 @@ def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
 
     with open(buffer.path, "r") as f:
         with transaction.atomic():
-                print("- import buffer")
-                try:
-                    with connection.cursor() as cursor:
-                        cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
-                    
-                    candidates_count = len(candidates)
-                    building_import.candidate_created_count = (
-                        building_import.candidate_created_count + candidates_count
-                    )
-                    building_import.save()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    raise error
+            print("- import buffer")
+            try:
+                with connection.cursor() as cursor:
+                    cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
+
+                candidates_count = len(candidates)
+                building_import.candidate_created_count = (
+                    building_import.candidate_created_count + candidates_count
+                )
+                building_import.save()
+            except (Exception, psycopg2.DatabaseError) as error:
+                raise error
 
     print("- remove buffer")
     os.remove(buffer.path)

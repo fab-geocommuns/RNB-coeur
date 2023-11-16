@@ -99,5 +99,18 @@ class ImportBDNBTestCase(TransactionTestCase):
         self.assertEqual(building_import.building_refused_count, 0)
         self.assertEqual(building_import.building_updated_count, 0)
         self.assertEqual(building_import.candidate_created_count, 3)
-        self.assertEqual(building_import.departement, '33')
-        self.assertEqual(building_import.import_source, 'bdnb_7')
+        self.assertEqual(building_import.departement, "33")
+        self.assertEqual(building_import.import_source, "bdnb_7")
+
+        self.assertEqual(
+            candidate_1.candidate_created_by,
+            {"source": "import", "id": building_import.id},
+        )
+        self.assertEqual(
+            candidate_2.candidate_created_by,
+            {"source": "import", "id": building_import.id},
+        )
+        self.assertEqual(
+            candidate_3.candidate_created_by,
+            {"source": "import", "id": building_import.id},
+        )
