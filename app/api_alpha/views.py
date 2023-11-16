@@ -20,7 +20,7 @@ from batid.models import ADS, Building
 
 from rest_framework import viewsets, status
 from rest_framework.exceptions import ParseError
-from rest_framework.pagination import PageNumberPagination
+from rest_framework.pagination import PageNumberPagination, CursorPagination
 from rest_framework.response import Response
 
 from django.http import HttpResponse, Http404
@@ -28,7 +28,12 @@ from batid.services.vector_tiles import tile_sql, url_params_to_tile
 from rest_framework_tracking.mixins import LoggingMixin
 
 
-class BuildingGuessView(APIView):
+class RNBLoggingMixin(LoggingMixin):
+    def should_log(self, request, response):
+        return request.query_params.get("from") != "monitoring"
+
+
+class BuildingGuessView(RNBLoggingMixin, APIView):
     def get(self, request, *args, **kwargs):
         search = BuildingGuess()
         search.set_params_from_url(**request.query_params.dict())
@@ -45,14 +50,19 @@ class BuildingGuessView(APIView):
         return Response(serializer.data)
 
 
-class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
+class BuildingCursorPagination(CursorPagination):
+    page_size = 20
+    ordering = "id"
+
+
+class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     queryset = Building.objects.all()
     serializer_class = BuildingSerializer
     http_method_names = ["get"]
     lookup_field = "rnb_id"
-    page_size = 20
 
-    pagination_class = None
+    pagination_class = BuildingCursorPagination
+    # pagination_class = PageNumberPagination
 
     def get_object(self):
         try:
@@ -67,15 +77,10 @@ class BuildingViewSet(LoggingMixin, viewsets.ModelViewSet):
 
         qs = list_bdgs(query_params)
 
-        # Paginate the queryset
-        page = self.request.query_params.get("page", 1)
-        start = (int(page) - 1) * self.page_size
-        end = start + self.page_size
-
-        return qs[start:end]
+        return qs
 
 
-class ADSBatchViewSet(LoggingMixin, viewsets.ModelViewSet):
+class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     queryset = ADS.objects.all()
     serializer_class = ADSSerializer
     lookup_field = "file_number"
@@ -126,7 +131,7 @@ class ADSBatchViewSet(LoggingMixin, viewsets.ModelViewSet):
             raise ParseError({"errors": "No data in the request."})
 
 
-class ADSViewSet(LoggingMixin, viewsets.ModelViewSet):
+class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     queryset = ADS.objects.all()
     serializer_class = ADSSerializer
     lookup_field = "file_number"

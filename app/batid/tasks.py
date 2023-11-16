@@ -133,12 +133,13 @@ def add_default_status():
     print("---- Adding default status ----")
 
     added = 0
+    after_id = 0
 
     while True:
-        c = add_default_status_job()
-        added += c
+        count, after_id = add_default_status_job(after_id)
+        added += count
         print(f"Added {added} default status so far")
-        if c <= 0:
+        if count <= 0:
             break
 
     return "done"
