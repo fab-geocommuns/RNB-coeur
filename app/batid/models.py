@@ -13,8 +13,7 @@ class Building(models.Model):
     source = models.CharField(max_length=10, null=False, db_index=True)
 
     point = models.PointField(null=True, spatial_index=True, srid=settings.DEFAULT_SRID)
-    # todo: make this geometry field a generic geometry
-    shape = models.MultiPolygonField(
+    shape = models.GeometryField(
         null=True, spatial_index=True, srid=settings.DEFAULT_SRID
     )
     shape_wgs84 = models.GeometryField(null=True, spatial_index=True, srid=4326)
