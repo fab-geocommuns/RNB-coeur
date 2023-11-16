@@ -13,7 +13,7 @@ services:
       - ./.env.rnb.prod
       - ./.env.worker.prod
       - ./.env.sentry.prod
-    command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
+    command: gunicorn app.wsgi:application --bind 0.0.0.0:8000 --threads 6 --workers 6
     volumes:
       - ./app:/app
       - ./source_data:/home/app/source_data
