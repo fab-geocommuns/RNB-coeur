@@ -7,6 +7,7 @@ import batid.services.imports.import_bdnb7 as import_bdnb7
 from batid.models import Address, Building, Candidate, BuildingImport
 import batid.tests.helpers as helpers
 from django.conf import settings
+from batid.services.candidate import Inspector
 
 
 class ImportBDNBTestCase(TransactionTestCase):
@@ -114,3 +115,16 @@ class ImportBDNBTestCase(TransactionTestCase):
             candidate_3.candidate_created_by,
             {"source": "import", "id": building_import.id},
         )
+
+        # launch the inspector
+        i = Inspector()
+        i.inspect()
+
+        buildings = Building.objects.all()
+        self.assertEqual(len(buildings), 3)
+
+        building_import.refresh_from_db()
+
+        self.assertEqual(building_import.building_created_count, 4)
+        self.assertEqual(building_import.building_updated_count, 0)
+        self.assertEqual(building_import.building_refused_count, 0)
