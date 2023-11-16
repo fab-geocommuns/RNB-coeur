@@ -14,6 +14,22 @@ from batid.tests.helpers import (
 )
 
 
+class InspectTest(TestCase):
+    bdgs_data = None
+    candidates_data = None
+
+    def setUp(self):
+        i = Inspector()
+
+        # Install buildings
+        data_to_candidate(self.bdgs_data)
+        i.inspect()
+
+        # Install candidates
+        data_to_candidate(self.candidates_data)
+        i.inspect()
+
+
 class TestInspectorBdgCreate(TestCase):
     def setUp(self) -> None:
         # The city
@@ -216,7 +232,26 @@ class TestDifferentBdgUpdateBDTOPOFirst(TestCase):
 def get_bdtopo_data():
     return [
         {
+            "id": "BIGWITHTWOSMALLBDNB",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [
+                            [5.721127187330495, 45.18446405767136],
+                            [5.721027107406655, 45.18438595665771],
+                            [5.7210547676878605, 45.18433278646597],
+                            [5.721178484578388, 45.184427074905244],
+                            [5.721127187330495, 45.18446405767136],
+                        ]
+                    ]
+                ],
+                "type": "MultiPolygon",
+            },
+        },
+        {
             "id": "BATIMENT0000000302575039",
+            "source": "bdtopo",
             "geometry": {
                 "type": "MultiPolygon",
                 "coordinates": [
@@ -234,6 +269,7 @@ def get_bdtopo_data():
         },
         {
             "id": "BATIMENT0000000302575040",
+            "source": "bdtopo",
             "geometry": {
                 "type": "MultiPolygon",
                 "coordinates": [
@@ -254,6 +290,7 @@ def get_bdtopo_data():
         },
         {
             "id": "BATIMENT0000000302575042",
+            "source": "bdtopo",
             "geometry": {
                 "type": "MultiPolygon",
                 "coordinates": [
@@ -271,6 +308,7 @@ def get_bdtopo_data():
         },
         {
             "id": "BATIMENT0000000302575043",
+            "source": "bdtopo",
             "geometry": {
                 "type": "MultiPolygon",
                 "coordinates": [
@@ -289,6 +327,7 @@ def get_bdtopo_data():
         },
         {
             "id": "BATIMENT0000000302576336",
+            "source": "bdtopo",
             "geometry": {
                 "type": "MultiPolygon",
                 "coordinates": [
@@ -315,6 +354,7 @@ def get_bdnb_data():
     return [
         {
             "id": "BATIMENT0000000302575039-1",
+            "source": "bdnb",
             "geometry": {
                 "type": "MultiPolygon",
                 "coordinates": [
@@ -332,6 +372,7 @@ def get_bdnb_data():
         },
         {
             "id": "BATIMENT0000000302575040-2",
+            "source": "bdnb",
             "geometry": {
                 "type": "MultiPolygon",
                 "coordinates": [
@@ -354,6 +395,7 @@ def get_bdnb_data():
         },
         {
             "id": "BATIMENT0000000302575043-1",
+            "source": "bdnb",
             "geometry": {
                 "type": "MultiPolygon",
                 "coordinates": [
@@ -372,6 +414,7 @@ def get_bdnb_data():
         },
         {
             "id": "BATIMENT0000000302576336-1",
+            "source": "bdnb",
             "geometry": {
                 "type": "MultiPolygon",
                 "coordinates": [
@@ -414,7 +457,7 @@ def get_bdnb_data():
     ]
 
 
-def data_to_candidate(data, source):
+def data_to_candidate(data):
     for d in data:
         shape = GEOSGeometry(json.dumps(d["geometry"]))
         shape.srid = 4326
@@ -423,7 +466,7 @@ def data_to_candidate(data, source):
 
         Candidate.objects.create(
             shape=shape,
-            source=source,
+            source=d["source"],
             source_id=d["id"],
             is_light=False,
         )
