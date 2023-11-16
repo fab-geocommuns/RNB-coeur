@@ -28,9 +28,14 @@ class Migration(migrations.Migration):
                 USING ST_Transform(point, 2154);
             """,
             state_operations=[
-            model_name="address",
-            name="point",
-            field=django.contrib.gis.db.models.fields.PointField(null=True, srid=4326),]
+                migrations.AlterField(
+                    model_name="address",
+                    name="point",
+                    field=django.contrib.gis.db.models.fields.PointField(
+                        null=True, srid=4326
+                    ),
+                )
+            ],
         ),
         migrations.RunSQL(
             """
@@ -46,9 +51,14 @@ class Migration(migrations.Migration):
                 USING ST_Transform(point, 2154);
             """,
             state_operations=[
-            model_name="building",
-            name="point",
-            field=django.contrib.gis.db.models.fields.PointField(null=True, srid=4326),]
+                migrations.AlterField(
+                    model_name="building",
+                    name="point",
+                    field=django.contrib.gis.db.models.fields.PointField(
+                        null=True, srid=4326
+                    ),
+                )
+            ],
         ),
         migrations.RunSQL(
             """
@@ -64,11 +74,14 @@ class Migration(migrations.Migration):
                 USING ST_Transform(shape, 2154);
             """,
             state_operations=[
-            model_name="candidate",
-            name="shape",
-            field=django.contrib.gis.db.models.fields.MultiPolygonField(
-                null=True, srid=4326
-            )]
+                migrations.AlterField(
+                    model_name="candidate",
+                    name="shape",
+                    field=django.contrib.gis.db.models.fields.MultiPolygonField(
+                        null=True, srid=4326
+                    ),
+                )
+            ],
         ),
         migrations.RunSQL(
             """
@@ -107,11 +120,14 @@ class Migration(migrations.Migration):
                 USING ST_Transform(shape, 2154);
             """,
             state_operations=[
-            model_name="department",
-            name="shape",
-            field=django.contrib.gis.db.models.fields.MultiPolygonField(
-                null=True, srid=4326
-            ),]
+                migrations.AlterField(
+                    model_name="department",
+                    name="shape",
+                    field=django.contrib.gis.db.models.fields.MultiPolygonField(
+                        null=True, srid=4326
+                    ),
+                )
+            ],
         ),
         migrations.RunSQL(
             """
@@ -127,11 +143,13 @@ class Migration(migrations.Migration):
                 USING ST_Transform(shape, 2154);
             """,
             state_operations=[
-            model_name="plot",
-            name="shape",
-            field=django.contrib.gis.db.models.fields.MultiPolygonField(
-                null=True, srid=4326
-            ),
-            ]
+                migrations.AlterField(
+                    model_name="plot",
+                    name="shape",
+                    field=django.contrib.gis.db.models.fields.MultiPolygonField(
+                        null=True, srid=4326
+                    ),
+                )
+            ],
         ),
     ]
