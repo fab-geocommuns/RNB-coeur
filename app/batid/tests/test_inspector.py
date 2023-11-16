@@ -6,6 +6,7 @@ from django.db import connection
 from django.test import TestCase
 
 from batid.models import BuildingStatus, Candidate, Address, Building
+from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.services.candidate import Inspector
 from batid.services.rnb_id import generate_rnb_id
 from batid.tests.helpers import (
@@ -154,12 +155,19 @@ class TestHalvishCover(InspectTest):
             "SELECT c.*, json_agg(json_build_object('id', b.id, 'rnb_id', b.rnb_id, 'shape', b.shape)) as matches "
             f"FROM {Candidate._meta.db_table} c "
             f"LEFT JOIN {Building._meta.db_table} b on ST_Intersects(c.shape, b.shape) "
+            f"INNER JOIN {BuildingStatus._meta.db_table} bs on bs.building_id = b.id "
+            "WHERE bs.type IN %(status)s AND bs.is_current "
+            "AND c.inspected_at IS NULL "
             "GROUP BY c.id "
             "LIMIT 10"
         )
 
         with connection.cursor() as cursor:
-            rows = dictfetchall(cursor, q)
+            rows = dictfetchall(
+                cursor,
+                q,
+                {"status": tuple(BuildingStatusService.REAL_BUILDINGS_STATUS)},
+            )
 
             for row in rows:
                 print("--")
