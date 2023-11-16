@@ -1,12 +1,8 @@
 import json
 
-from django.contrib.gis.geos import Point, GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.management.base import BaseCommand
-from batid.list_bdg import list_bdgs
-from batid.services.building import add_default_status
-from batid.services.guess_bdg import BuildingGuess
-from batid.services.vector_tiles import url_params_to_tile, tile_sql
-from batid.tests.test_inspector import get_bdtopo_data, get_bdnb_data
+from batid.tests.test_inspector import get_bdnb_data
 
 
 class Command(BaseCommand):
