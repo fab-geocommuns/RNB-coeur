@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 
 from django.contrib.gis.geos import GEOSGeometry
+from django.db import connection
 from django.test import TestCase
 
 from batid.models import BuildingStatus, Candidate, Address, Building
@@ -13,6 +14,7 @@ from batid.tests.helpers import (
     coords_to_mp_geom,
     coords_to_point_geom,
 )
+from batid.utils.db import dictfetchall
 
 
 class TestInspectorBdgCreate(TestCase):
@@ -148,8 +150,22 @@ class TestHalvishCover(InspectTest):
     ]
 
     def test_result(self):
-        i = Inspector()
-        i.inspect()
+        q = (
+            "SELECT c.*, json_agg(json_build_object('id', b.id, 'rnb_id', b.rnb_id, 'shape', b.shape)) as matches "
+            f"FROM {Candidate._meta.db_table} c "
+            f"LEFT JOIN {Building._meta.db_table} b on ST_Intersects(c.shape, b.shape) "
+            "GROUP BY c.id "
+            "LIMIT 10"
+        )
+
+        with connection.cursor() as cursor:
+            rows = dictfetchall(cursor, q)
+
+            for row in rows:
+                print("--")
+                print(row["id"])
+                for m in row["matches"]:
+                    print(" --> ", m["rnb_id"])
 
         self.assertEqual(Building.objects.all().count(), 1)
 
