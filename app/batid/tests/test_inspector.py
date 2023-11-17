@@ -151,31 +151,10 @@ class TestHalvishCover(InspectTest):
     ]
 
     def test_result(self):
-        candidates = self.get_candidates()
+        i = Inspector()
+        i.inspect()
 
-        for c in candidates:
-            print(c)
-            for match in c.matches:
-                print(match)
-
-    def get_candidates(self):
-        params = {
-            "status": tuple(BuildingStatusService.REAL_BUILDINGS_STATUS),
-            "limit": 10,
-        }
-
-        q = (
-            "SELECT c.id, ST_AsEWKB(c.shape) as shape, json_agg(json_build_object('id', b.id, 'shape', ST_AsEWKB(b.shape))) as matches "
-            f"FROM {Candidate._meta.db_table} c "
-            f"LEFT JOIN {Building._meta.db_table} b on ST_Intersects(c.shape, b.shape) "
-            f"INNER JOIN {BuildingStatus._meta.db_table} bs on bs.building_id = b.id "
-            "WHERE bs.type IN %(status)s AND bs.is_current "
-            "AND c.inspected_at IS NULL "
-            "GROUP BY c.id "
-            "LIMIT %(limit)s"
-        )
-
-        return Candidate.objects.raw(q, params)
+        self.assertEqual(Building.objects.all().count(), 1)
 
 
 class OneSmallOneBig:

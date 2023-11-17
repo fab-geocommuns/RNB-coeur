@@ -417,9 +417,6 @@ class Inspector:
         kept_matches_ids = []
         c_area = c.shape.area
 
-        print("c_matches")
-        print(c.matches)
-
         for match in c.matches:
             b_shape = GEOSGeometry(json.dumps(match["shape"]))
             b_area = b_shape.area
