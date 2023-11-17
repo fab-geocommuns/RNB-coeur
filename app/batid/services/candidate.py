@@ -101,32 +101,16 @@ def get_candidate_shape(shape: str, is_shape_fictive: bool):
         return shape_geom
 
 
-def row_to_candidate(row):
-    shape = get_candidate_shape(row.get("shape", None), row["is_shape_fictive"])
-
-    return Candidate(
-        id=row["id"],
-        shape=shape,
-        source=row["source"],
-        is_light=row["is_light"],
-        source_id=row["source_id"],
-        address_keys=row["address_keys"],
-        created_at=row.get("created_at", None),
-        inspected_at=row.get("inspected_at", None),
-        inspect_result=row.get("inspect_result", None),
-        matches=row.get("matches", []),
-    )
-
-
 class Inspector:
     BATCH_SIZE = 10000
+
+    MATCH_UPDATE_MIN_COVER_RATIO = 0.85
+    MATCH_EXCLUDE_MAX_COVER_RATIO = 0.10
 
     def __init__(self):
         self.stamp = None
 
-        self.refusals = []
-        self.creations = []
-        self.updates = []
+        self.candidates = []
 
         self.bdgs_to_updates = []
         self.bdg_address_relations = []
@@ -144,8 +128,8 @@ class Inspector:
         self.reserve_candidates()
 
         # Get candidates and inspect them
-        candidates = self.get_candidates()
-        self.inspect_candidates(candidates)
+        self.get_candidates()
+        self.inspect_candidates()
 
         # Now, trigger the consequences of the inspections
         self.handle_bdgs_creations()
@@ -163,22 +147,6 @@ class Inspector:
 
     def remove_inspected(self):
         q = f"DELETE FROM {CandidateModel._meta.db_table} WHERE inspected_at IS NOT NULL"
-        with connection.cursor() as cur:
-            try:
-                cur.execute(q)
-                connection.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cur.close()
-                raise error
-
-    def remove_invalid_candidates(self):
-        q = (
-            f"DELETE FROM {CandidateModel._meta.db_table} WHERE shape IS NULL "
-            "OR ST_IsEmpty(shape) "
-            "OR ST_IsValid(shape) = false "
-            "OR ST_Area(shape) = 0 "
-        )
         with connection.cursor() as cur:
             try:
                 cur.execute(q)
@@ -284,15 +252,15 @@ class Inspector:
         # ############
         # Building addresses relations
         # ############
-        self.__save_bdg_address_relations()
+        self.save_bdg_address_relations()
 
-    def __save_bdg_address_relations(self):
+    def save_bdg_address_relations(self):
         print(
             f"- save buildings addresses relations to create ({len(self.bdg_address_relations)} relations)"
         )
 
         if len(self.bdg_address_relations) > 0:
-            data = self.__convert_bdg_address_relations()
+            data = self.convert_bdg_address_relations()
 
             # Create a buffer file
             q = f"INSERT INTO {Building.addresses.through._meta.db_table} (building_id, address_id) VALUES %s ON CONFLICT DO NOTHING"
@@ -300,7 +268,7 @@ class Inspector:
             with connection.cursor() as cur:
                 execute_values(cur, q, data)
 
-    def __convert_bdg_address_relations(self) -> list:
+    def convert_bdg_address_relations(self) -> list:
         # The self.bdg_address_relations property is a list of tuples (rnb_id, address_id)
         # We need to convert it to a list of tuples (building_id, address_id)
         # We have to replace all rnb_id by the corresponding building_id
@@ -370,13 +338,28 @@ class Inspector:
 
     # create new buildings for all created candidates
     def handle_bdgs_creations(self):
-        print(f"- creations: {len(self.creations)}")
-        if len(self.creations) == 0:
-            return
-
+        print(f"- creations")
         # Create the buildings
-        self.__create_buildings()
-        self.__save_bdg_address_relations()
+        self.create_buildings()
+        self.save_bdg_address_relations()
+
+    @property
+    def creations(self):
+        for c in self.candidates:
+            if c.inspect_result == "creation":
+                yield c
+
+    @property
+    def updates(self):
+        for c in self.candidates:
+            if c.inspect_result == "update":
+                yield c
+
+    @property
+    def conflicts(self):
+        for c in self.candidates:
+            if c.inspect_result == "conflict":
+                yield c
 
     # to keep
     def handle_bdgs_updates(self):
@@ -390,8 +373,8 @@ class Inspector:
     def handle_bdgs_refusals(self):
         print(f"- refusals: {len(self.refusals)}")
 
-    def __create_buildings(self):
-        buffer = BufferToCopy()
+    @show_duration
+    def create_buildings(self):
         values = []
 
         for c in self.creations:
@@ -419,11 +402,16 @@ class Inspector:
                 for add_key in c.address_keys:
                     self.bdg_address_relations.append((rnb_id, add_key))
 
+        # Anything to save?
+        if len(values) == 0:
+            # No? Then quit
+            return
+
+        buffer = BufferToCopy()
         buffer.write_data(values)
 
         with connection.cursor() as cur, open(buffer.path, "r") as f:
             try:
-                start = perf_counter()
                 cur.copy_from(
                     f,
                     Building._meta.db_table,
@@ -439,17 +427,14 @@ class Inspector:
                         "updated_at",
                     ),
                 )
-                end = perf_counter()
                 os.remove(buffer.path)
-                print(f"---- create_buildings : copy_from: {end - start:.2f}s")
+
             except (Exception, psycopg2.DatabaseError) as error:
                 connection.rollback()
                 cur.close()
                 raise error
 
-    def inspect_candidate(self, candidate):
-        c = row_to_candidate(candidate)
-
+    def inspect_candidate(self, c: CandidateModel):
         # Light buildings do not match the RNB building definition
         if c.is_light == True:
             self.__to_refusals(c)
@@ -460,28 +445,52 @@ class Inspector:
             self.__to_refusals(c)
             return
 
-        # If the candidate has no match, we create a new building
+        # We inspect the matches
+        self.inspect_candidate_matches(c)
 
-        if len(c.matches) == 0:
-            self.__to_creations(c)
-            return
-
-        # We review the matches for an update
-        good_matches = []
+    def inspect_candidate_matches(self, c: CandidateModel):
+        kept_matches_ids = []
         c_area = c.shape.area
-        min_cover_ratio = 0.85
+
         for match in c.matches:
             b_area = match["shape"].area
 
             intersection = c.shape.intersection(match["shape"])
             intersection_area = intersection.area
 
-            # If we have a minimum cover we add
+            candidate_cover_ratio = intersection_area / c_area
+            bdg_cover_ratio = intersection_area / b_area
+
+            # The building does not intersect enough with the candidate to be considered as a match
             if (
-                intersection_area / c_area >= min_cover_ratio
-                or intersection_area / b_area >= min_cover_ratio
+                candidate_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
+                and bdg_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
             ):
-                good_matches.append(match)
+                continue
+
+            # The building intersects significantly with the candidate but not enough to be considered as a match
+            if (
+                candidate_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
+                or bdg_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
+            ):
+                self.set_inspect_result(c, "conflict")
+                # one conflict is enough to refuse the candidate
+                return
+
+            kept_matches_ids.append(match["id"])
+
+        # We transfer the kept matches ids to the candidate
+        # We do not keep buildings shapes in memory to avoid memory issues
+        c.matches = kept_matches_ids
+
+        if len(c.matches) == 0:
+            self.set_inspect_result(c, "creation")
+
+        if len(c.matches) == 1:
+            self.set_inspect_result(c, "update")
+
+        if len(c.matches) > 1:
+            self.set_inspect_result(c, "conflict")
 
         # match_len = len(row["match_ids"])
         #
@@ -493,6 +502,10 @@ class Inspector:
         #
         # if match_len > 1:
         #     self.__to_refusals(c)
+
+    def set_inspect_result(self, c: CandidateModel, result: str):
+        c.inspect_result = result
+        c.inspected_at = datetime.now(timezone.utc)
 
     @show_duration
     def inspect_candidates(self, candidates):
@@ -519,7 +532,7 @@ class Inspector:
             "LIMIT %(limit)s"
         )
 
-        return CandidateModel.objects.raw(q, params)
+        self.candidates = CandidateModel.objects.raw(q, params)
 
     def __close_inspection(self, c, inspect_result):
         try:
