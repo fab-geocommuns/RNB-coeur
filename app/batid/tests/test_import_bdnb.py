@@ -51,10 +51,10 @@ class ImportBDNBTestCase(TransactionTestCase):
         # launch the import
         import_bdnb7.import_bdnb7_bdgs("33")
 
-        # the fixture contains 3 buildings => 3 candidates
+        # the fixture contains 4 buildings => 4 candidates
         # but no buildings are created
         self.assertEqual(Building.objects.count(), 0)
-        self.assertEqual(Candidate.objects.count(), 3)
+        self.assertEqual(Candidate.objects.count(), 4)
 
         # check the candidates are correctly imported
         candidates = Candidate.objects.all()
@@ -101,7 +101,7 @@ class ImportBDNBTestCase(TransactionTestCase):
         self.assertEqual(building_import.building_created_count, 0)
         self.assertEqual(building_import.building_refused_count, 0)
         self.assertEqual(building_import.building_updated_count, 0)
-        self.assertEqual(building_import.candidate_created_count, 3)
+        self.assertEqual(building_import.candidate_created_count, 4)
         self.assertEqual(building_import.departement, "33")
         self.assertEqual(building_import.import_source, "bdnb_7")
 
@@ -134,9 +134,10 @@ class ImportBDNBTestCase(TransactionTestCase):
 
         self.assertEqual(building_import.building_created_count, 3)
         self.assertEqual(building_import.building_updated_count, 0)
-        self.assertEqual(building_import.building_refused_count, 0)
+        # One candidate is refused because its area is too small
+        self.assertEqual(building_import.building_refused_count, 1)
 
-        # launch a second import
+        # launch a second import to test some building updates
         import_bdnb7.import_bdnb7_bdgs("33")
 
         # the fixture contains 1 building

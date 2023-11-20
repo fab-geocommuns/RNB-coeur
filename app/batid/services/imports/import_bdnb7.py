@@ -43,7 +43,7 @@ def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
         reader = csv.DictReader(f, delimiter=",")
 
         for row in list(reader):
-            geom = GEOSGeometry(row["WKT"])
+            geom = GEOSGeometry(row["WKT"], srid=2154).transform(4326, clone=True)
             candidate = {
                 "shape": geom.wkt,
                 "source": "bdnb_7",
