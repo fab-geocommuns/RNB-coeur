@@ -466,6 +466,13 @@ class Inspector:
             except (Exception, psycopg2.DatabaseError) as error:
                 raise error
 
+    def compute_shape_area(self, shape):
+        with connection.cursor() as cursor:
+            cursor.execute("select ST_AREA(%s, true)", [shape.wkt])
+            row = cursor.fetchone()
+
+        return row[0]
+
     def inspect_match(self, row):
         c = row_to_candidate(row)
 
@@ -473,7 +480,9 @@ class Inspector:
             self.__to_refusals(c)
             return
 
-        if c.shape.area < settings.MIN_BDG_AREA and c.shape.area > 0:
+        shape_area = self.compute_shape_area(c.shape)
+
+        if shape_area < settings.MIN_BDG_AREA and shape_area > 0:
             self.__to_refusals(c)
             return
 

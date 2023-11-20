@@ -54,7 +54,6 @@ class SearchStatusTestCase(TestCase):
         }
 
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
 
         b = Building.objects.create(
             rnb_id="BDG-CONSTR", source="dummy", shape=geom, point=geom.point_on_surface
@@ -85,7 +84,6 @@ class SearchStatusTestCase(TestCase):
         }
 
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
 
         b = Building.objects.create(
             rnb_id="OUT-DEMO", source="dummy", shape=geom, point=geom.point_on_surface
@@ -123,7 +121,6 @@ class SearchStatusTestCase(TestCase):
         }
 
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
 
         b = Building.objects.create(
             rnb_id="BDG-PROJ", source="dummy", shape=geom, point=geom.point_on_surface
@@ -172,10 +169,11 @@ class SearchBBoxTestCase(TestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
-
         b = Building.objects.create(
-            rnb_id="IN-BBOX", source="dummy", shape=geom, point=geom.point_on_surface
+            rnb_id="IN-BBOX",
+            source="dummy",
+            shape=geom,
+            point=geom.point_on_surface,
         )
 
         BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
@@ -202,10 +200,11 @@ class SearchBBoxTestCase(TestCase):
         }
 
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
-
         b = Building.objects.create(
-            rnb_id="OUT-BBOX", source="dummy", shape=geom, point=geom.point_on_surface
+            rnb_id="OUT-BBOX",
+            source="dummy",
+            shape=geom,
+            point=geom.point_on_surface,
         )
         BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 

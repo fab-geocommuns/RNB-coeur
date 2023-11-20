@@ -12,11 +12,8 @@ class Building(models.Model):
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
     source = models.CharField(max_length=10, null=False, db_index=True)
 
-    point = models.PointField(null=True, spatial_index=True, srid=settings.DEFAULT_SRID)
-    shape = models.GeometryField(
-        null=True, spatial_index=True, srid=settings.DEFAULT_SRID
-    )
-    shape_wgs84 = models.GeometryField(null=True, spatial_index=True, srid=4326)
+    point = models.PointField(null=True, spatial_index=True, srid=4326)
+    shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
 
     addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
 
@@ -82,9 +79,7 @@ class City(models.Model):
     id = models.AutoField(primary_key=True)
     code_insee = models.CharField(max_length=10, null=False, db_index=True, unique=True)
     name = models.CharField(max_length=200, null=False, db_index=True)
-    shape = models.MultiPolygonField(
-        null=True, spatial_index=True, srid=settings.DEFAULT_SRID
-    )
+    shape = models.MultiPolygonField(null=True, spatial_index=True, srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -93,9 +88,7 @@ class Department(models.Model):
     id = models.AutoField(primary_key=True)
     code = models.CharField(max_length=3, null=False, db_index=True, unique=True)
     name = models.CharField(max_length=200, null=False)
-    shape = models.MultiPolygonField(
-        null=True, spatial_index=True, srid=settings.DEFAULT_SRID
-    )
+    shape = models.MultiPolygonField(null=True, spatial_index=True, srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -142,7 +135,7 @@ class BuildingADS(models.Model):
 
 
 class Candidate(models.Model):
-    shape = models.MultiPolygonField(null=True, srid=settings.DEFAULT_SRID)
+    shape = models.MultiPolygonField(null=True, srid=4326)
     source = models.CharField(max_length=20, null=False)
     source_id = models.CharField(max_length=40, null=False)
     address_keys = ArrayField(models.CharField(max_length=40), null=True)
@@ -171,7 +164,7 @@ class Candidate(models.Model):
 
 class Plot(models.Model):
     id = models.CharField(max_length=40, primary_key=True, db_index=True)
-    shape = models.MultiPolygonField(null=True, srid=settings.DEFAULT_SRID)
+    shape = models.MultiPolygonField(null=True, srid=4326)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -181,7 +174,7 @@ class Address(models.Model):
     id = models.CharField(max_length=40, primary_key=True, db_index=True)
     source = models.CharField(max_length=10, null=False)  # BAN or other origin
 
-    point = models.PointField(null=True, spatial_index=True, srid=settings.DEFAULT_SRID)
+    point = models.PointField(null=True, spatial_index=True, srid=4326)
 
     street_number = models.CharField(max_length=10, null=True)
     street_rep = models.CharField(max_length=10, null=True)

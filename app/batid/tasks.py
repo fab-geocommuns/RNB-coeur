@@ -170,7 +170,7 @@ def fill_shapewhs84_col():
     while updated_count is None or updated_count > 0:
         with connection.cursor() as cursor:
             cursor.execute(
-                "UPDATE batid_building SET shape_wgs84 = ST_Transform(shape, 4326) WHERE id IN (SELECT id from batid_building WHERE shape_wgs84 IS NULL and shape IS NOT NULL LIMIT 50000);"
+                "UPDATE batid_building SET shape = ST_Transform(shape, 4326) WHERE id IN (SELECT id from batid_building WHERE shape IS NULL and shape IS NOT NULL LIMIT 50000);"
             )
             updated_count = cursor.rowcount
             total += updated_count
