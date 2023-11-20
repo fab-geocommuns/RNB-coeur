@@ -41,7 +41,7 @@ def list_bdgs(params):
             (nw_lng, nw_lat),
         )
         poly = Polygon(poly_coords, srid=4326)
-        qs = qs.filter(shape_wgs84__intersects=poly)
+        qs = qs.filter(shape__intersects=poly)
 
     # #######################
     # Insee Code filter
@@ -49,6 +49,6 @@ def list_bdgs(params):
     insee_code = params.get("insee_code", None)
     if insee_code:
         city = City.objects.get(code_insee=insee_code)
-        qs = qs.filter(shape_wgs84__intersects=city.shape)
+        qs = qs.filter(shape__intersects=city.shape)
 
     return qs

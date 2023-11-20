@@ -105,7 +105,7 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
                 validated_data["point"] = f"{geometry}"
 
             if geometry.geom_type == "MultiPolygon":
-                validated_data["shape_wgs84"] = f"{geometry}"
+                validated_data["shape"] = f"{geometry}"
                 validated_data["point"] = f"{geometry.point_on_surface}"
 
             validated_data["rnb_id"] = generate_rnb_id()
@@ -117,7 +117,7 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
             geometry = GEOSGeometry(str(geojson))
 
             if geometry.geom_type == "MultiPolygon":
-                validated_data["shape_wgs84"] = f"{geometry}"
+                validated_data["shape"] = f"{geometry}"
                 validated_data["point"] = f"{geometry.point_on_surface}"
 
             bdg = self.guess_bdg(geometry)

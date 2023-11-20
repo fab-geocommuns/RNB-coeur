@@ -13,7 +13,7 @@ class Building(models.Model):
     source = models.CharField(max_length=10, null=False, db_index=True)
 
     point = models.PointField(null=True, spatial_index=True, srid=4326)
-    shape_wgs84 = models.GeometryField(null=True, spatial_index=True, srid=4326)
+    shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
 
     addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
 

@@ -63,7 +63,7 @@ class BuildingGuess:
             cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(osm_point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(osm_point)s) ASC LIMIT 1"
             self.scores[
                 "osm_point_plot_cluster"
-            ] = f"CASE WHEN ST_Intersects(shape_wgs84, ({cluster_q})) THEN 2 ELSE 0 END"
+            ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
@@ -99,14 +99,14 @@ class BuildingGuess:
             cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(ban_point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(ban_point)s) ASC LIMIT 1"
             self.scores[
                 "ban_point_plot_cluster"
-            ] = f"CASE WHEN ST_Intersects(shape_wgs84, ({cluster_q})) THEN 2 ELSE 0 END"
+            ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
             # todo : does the double ST_Distance evaluation is a performance problem ?
             self.scores[
                 "ban_point_distance"
-            ] = f"CASE WHEN ST_DistanceSphere(shape_wgs84, %(ban_point)s) > 0 THEN 2 / ST_DistanceSphere(shape_wgs84, %(ban_point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape, %(ban_point)s) > 0 THEN 2 / ST_DistanceSphere(shape, %(ban_point)s) ELSE 5 END"
 
             # Add the point to the params
             params["ban_point"] = f"{self.params._ban_point}"
@@ -122,19 +122,17 @@ class BuildingGuess:
             cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(point)s) ASC LIMIT 1"
             self.scores[
                 "point_plot_cluster"
-            ] = f"CASE WHEN ST_Intersects(shape_wgs84, ({cluster_q})) THEN 1 ELSE 0 END"
+            ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 1 ELSE 0 END"
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
             # todo : does the double ST_Distance evaluation is a performance problem ?
             self.scores[
                 "point_distance"
-            ] = f"CASE WHEN ST_DistanceSphere(shape_wgs84, %(point)s) > 0 THEN 1 / ST_DistanceSphere(shape_wgs84, %(point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape, %(point)s) > 0 THEN 1 / ST_DistanceSphere(shape, %(point)s) ELSE 5 END"
 
             # LIMIT THE DISTANCE TO THE POINT
-            wheres.append(
-                f"ST_DWithin(shape_wgs84::geography, %(point)s::geography, 400)"
-            )
+            wheres.append(f"ST_DWithin(shape::geography, %(point)s::geography, 400)")
 
             # Add the point to the params
             params["point"] = f"{self.params.point}"
@@ -142,10 +140,8 @@ class BuildingGuess:
         # #########################################
         # Restrict research in a radius around point and address point
 
-        ban_point_where = (
-            "ST_DWithin(shape_wgs84::geography, %(ban_point)s::geography, 400)"
-        )
-        point_where = "ST_DWithin(shape_wgs84::geography, %(point)s::geography, 400)"
+        ban_point_where = "ST_DWithin(shape::geography, %(ban_point)s::geography, 400)"
+        point_where = "ST_DWithin(shape::geography, %(point)s::geography, 400)"
 
         if self.params.point and self.params._ban_point:
             wheres.append(f"({ban_point_where} or {point_where})")
@@ -161,7 +157,7 @@ class BuildingGuess:
             # for the time being I use https://epsg.io/4087 because it is a projected CRS (its unit is meters)
             # and it is valid worldwide, but I am absolutely not sure this is precise!
             wheres = [
-                "ST_HausdorffDistance(ST_Transform(shape_wgs84, 4087), st_transform(%(poly)s, 4087)) <= %(max_hausdorff_dist)s"
+                "ST_HausdorffDistance(ST_Transform(shape, 4087), st_transform(%(poly)s, 4087)) <= %(max_hausdorff_dist)s"
             ]
             params["poly"] = f"{self.params.poly}"
             params["max_hausdorff_dist"] = self.MAX_HAUSDORFF_DISTANCE

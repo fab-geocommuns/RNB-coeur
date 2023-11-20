@@ -468,9 +468,14 @@ class ADSEndpointsWithAuthTest(APITestCase):
         new_rnb_id = data["buildings_operations"][0]["building"]["rnb_id"]
 
         # We need to round because there is a precision difference between the local env and the github CI
-        rounded_lng = round(data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0], 15)
-        rounded_lat = round(data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1], 15)
-
+        rounded_lng = round(
+            data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0],
+            15,
+        )
+        rounded_lat = round(
+            data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1],
+            15,
+        )
 
         expected = {
             "file_number": "ADS-TEST-GUESS-NEW-BDG",
@@ -495,12 +500,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         self.maxDiff = None
 
-
         self.assertEqual(r.status_code, 200)
         self.assertDictEqual(data, expected)
 
     def test_create_with_guess_bdg(self):
-
         self.maxDiff = None
 
         data = {
@@ -537,8 +540,14 @@ class ADSEndpointsWithAuthTest(APITestCase):
         data = r.json()
 
         # We need to round because there is a precision difference between the local env and the github CI
-        rounded_lng = round(data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0], 15)
-        rounded_lat = round(data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1], 15)
+        rounded_lng = round(
+            data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0],
+            15,
+        )
+        rounded_lat = round(
+            data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1],
+            15,
+        )
 
         expected = {
             "file_number": "ADS-TEST-GUESS-BDG",
@@ -813,10 +822,15 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
         new_rnb_id = r_data["buildings_operations"][0]["building"]["rnb_id"]
 
-
         # We need to round because there is a precision difference between the local env and the github CI
-        rounded_lng = round(r_data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0], 15)
-        rounded_lat = round(r_data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1], 15)
+        rounded_lng = round(
+            r_data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0],
+            15,
+        )
+        rounded_lat = round(
+            r_data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1],
+            15,
+        )
 
         expected = {
             "file_number": "ADS-TEST-NEW-BDG",
@@ -1386,20 +1400,20 @@ class ADSEndpointsWithAuthTest(APITestCase):
         b = Building.objects.create(
             rnb_id="BDGSRNBBIDID",
             source="dummy",
-            shape_wgs84=geom,
+            shape=geom,
             point=geom.point_on_surface,
         )
 
         bdg_ads_one = Building.objects.create(
             rnb_id="BDGSADSSONE1",
             source="dummy",
-            shape_wgs84=geom,
+            shape=geom,
             point=geom.point_on_surface,
         )
         bdg_ads_two = Building.objects.create(
             rnb_id="BDGSADSSTWO2",
             source="dummy",
-            shape_wgs84=geom,
+            shape=geom,
             point=geom.point_on_surface,
         )
 
@@ -1423,7 +1437,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         to_guess_bdg = Building.objects.create(
             rnb_id="GUESSGUESSGO",
             source="dummy",
-            shape_wgs84=geom,
+            shape=geom,
             point=geom.point_on_surface,
         )
 
@@ -1446,7 +1460,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         to_guess_bdg_two = Building.objects.create(
             rnb_id="GUESSGUESSG2",
             source="dummy",
-            shape_wgs84=geom,
+            shape=geom,
             point=geom.point_on_surface,
         )
 
