@@ -40,6 +40,8 @@ class ImportBDNBTestCase(TransactionTestCase):
         sourceMock.side_effect = [
             helpers.fixture_path("rel_batiment_groupe_adresse.csv"),
             helpers.fixture_path("batiment_construction_bdnb.csv"),
+            helpers.fixture_path("rel_batiment_groupe_adresse.csv"),
+            helpers.fixture_path("batiment_construction_bdnb_update.csv"),
         ]
 
         # there are initially no buildings nor candidate
@@ -116,6 +118,11 @@ class ImportBDNBTestCase(TransactionTestCase):
             {"source": "import", "id": building_import.id},
         )
 
+        # manually insert some addresses for foreign key constraints
+        Address.objects.create(id="01300_0013_00145")
+        Address.objects.create(id="3000000C051200101")
+        Address.objects.create(id="3000000C051200201")
+
         # launch the inspector
         i = Inspector()
         i.inspect()
@@ -125,6 +132,29 @@ class ImportBDNBTestCase(TransactionTestCase):
 
         building_import.refresh_from_db()
 
-        self.assertEqual(building_import.building_created_count, 4)
+        self.assertEqual(building_import.building_created_count, 3)
         self.assertEqual(building_import.building_updated_count, 0)
         self.assertEqual(building_import.building_refused_count, 0)
+
+        # launch a second import
+        import_bdnb7.import_bdnb7_bdgs("33")
+
+        # the fixture contains 1 building
+        self.assertEqual(Candidate.objects.count(), 1)
+
+        building_imports = BuildingImport.objects.all().order_by("-created_at")
+        last_building_import = building_imports[0]
+
+        self.assertEqual(last_building_import.building_created_count, 0)
+        self.assertEqual(last_building_import.building_updated_count, 0)
+        self.assertEqual(last_building_import.building_refused_count, 0)
+
+        # launch the inspector
+        i = Inspector()
+        i.inspect()
+
+        last_building_import.refresh_from_db()
+
+        self.assertEqual(last_building_import.building_created_count, 0)
+        self.assertEqual(last_building_import.building_updated_count, 1)
+        self.assertEqual(last_building_import.building_refused_count, 0)

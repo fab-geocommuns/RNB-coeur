@@ -63,7 +63,7 @@ class Candidate:
         # A place to verify properties changes
         # eg: ext_rnb_id, ext_bdnb_id, ...
         # If any property has changed, we will set has_changed_props to True
-        if self.source == "bdnb":
+        if self.source == "bdnb_7":
             if bdg.ext_bdnb_id != self.source_id:
                 bdg.ext_bdnb_id = self.source_id
                 has_changed_props = True
@@ -237,12 +237,14 @@ class Inspector:
 
         # Foreach building verify if anything must be updated
         for c in self.updates:
+            import_id = c.candidate_created_by["id"] if c.candidate_created_by["source"] == "import" else None
+
             bdg = next(b for b in bdgs if b.id == c.matched_ids[0])
             has_changed_props, added_address_keys, bdg = c.update_bdg(bdg)
 
             # Need to update the building properties ?
             if has_changed_props:
-                self.bdgs_to_updates.append(bdg)
+                self.bdgs_to_updates.append({'building': bdg, 'import_id': import_id})
 
             # Need to add some building <> adresse relations ?
             if len(added_address_keys) > 0:
@@ -270,15 +272,29 @@ class Inspector:
         if len(self.bdgs_to_updates) > 0:
             # Create a buffer file
             buffer = self.__create_update_buffer_file()
+            
+            # Count the number of occurences of each import_id
+            # to update the BuildingImport entry
+            import_ids = [building_to_update['import_id'] for building_to_update in self.bdgs_to_updates if building_to_update['import_id'] is not None]
+            import_id_stats = Counter(import_ids)
 
-            with connection.cursor() as cur:
-                self.__create_tmp_update_table(cur)
-                self.__populate_tmp_update_table(buffer, cur)
-                self.__update_bdgs_from_tmp_update_table(cur)
-                self.__drop_tmp_update_table(cur)
+            with transaction.atomic():
+                try:
+                    with connection.cursor() as cur, open(buffer.path, "r") as f:
+                        self.__create_tmp_update_table(cur)
+                        self.__populate_tmp_update_table(buffer, cur)
+                        self.__update_bdgs_from_tmp_update_table(cur)
+                        self.__drop_tmp_update_table(cur)
+                        os.remove(buffer.path)
 
-            # Remove the buffer file
-            os.remove(buffer.path)
+                    # update the BuildingImport entry
+                    for import_id, count in import_id_stats.items():
+                        building_import = BuildingImport.objects.get(id=import_id)
+                        building_import.building_updated_count = building_import.building_updated_count + count
+                        building_import.save()
+                        
+                except (Exception, psycopg2.DatabaseError) as error:
+                    raise error
 
         # ############
         # Building addresses relations
@@ -356,9 +372,9 @@ class Inspector:
         for bdg in self.bdgs_to_updates:
             data.append(
                 {
-                    "id": bdg.id,
-                    "ext_bdnb_id": bdg.ext_bdnb_id,
-                    "ext_bdtopo_id": bdg.ext_bdtopo_id,
+                    "id": bdg['building'].id,
+                    "ext_bdnb_id": bdg['building'].ext_bdnb_id,
+                    "ext_bdtopo_id": bdg['building'].ext_bdtopo_id,
                 }
             )
 
@@ -388,6 +404,20 @@ class Inspector:
 
     def handle_bdgs_refusals(self):
         print(f"- refusals: {len(self.refusals)}")
+        if len(self.refusals) > 0:
+            import_ids = [c.candidate_created_by["id"] for c in self.refusals if c.candidate_created_by["source"] == "import"]
+            import_id_stats = Counter(import_ids)
+            with transaction.atomic():
+                try:
+                    # update the number of refused buildings for each import
+                    for import_id, count in import_id_stats.items():
+                        building_import = BuildingImport.objects.get(id=import_id)
+                        building_import.building_refused_count = (
+                            building_import.building_refused_count + count
+                        )
+                        building_import.save()
+                except (Exception, psycopg2.DatabaseError) as error:
+                    raise error
 
     def __create_buildings(self):
         buffer = BufferToCopy()
@@ -404,7 +434,7 @@ class Inspector:
             # bdg_dict = c.to_bdg_dict()
             candidate_created_by = c.candidate_created_by
             point_geom = (
-                c.shape if c.shape.geom_type == "Point" else c.shape.point_on_surface()
+                c.shape if c.shape.geom_type == "Point" else c.shape.point_on_surface
             )
 
             values.append(
@@ -413,8 +443,8 @@ class Inspector:
                     c.source,
                     bdnb_id,
                     bdtopo_id,
-                    point_geom.hexwkb,
-                    c.shape.hexewkb,
+                    point_geom.wkt,
+                    c.shape.wkt,
                     datetime.now(timezone.utc),
                     datetime.now(timezone.utc),
                     json.dumps(candidate_created_by),
@@ -450,6 +480,7 @@ class Inspector:
                             "shape",
                             "created_at",
                             "updated_at",
+                            "last_updated_by",
                         ),
                     )
                 end = perf_counter()
