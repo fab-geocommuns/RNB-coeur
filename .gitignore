@@ -2,25 +2,31 @@
 .env.worker.dev
 .env.worker.prod
 .env.worker.staging
+.env.worker.import
 
 .env.rnb.dev
 .env.rnb.prod
 .env.rnb.staging
+.env.rnb.import
 
 .env.app.dev
 .env.app.prod
 .env.app.staging
+.env.app.import
 
 .env.db_auth.dev
 .env.db_auth.prod
 .env.db_auth.staging
+.env.db_auth.import
 
 .env.sentry.dev
 .env.sentry.prod
 .env.sentry.staging
+.env.sentry.import
 
 .env.nginx-encrypt.prod
 .env.nginx-encrypt.staging
+.env.nginx-encrypt.import
 
 # Remove files in data folder since they are used for importing default data
 source_data/
