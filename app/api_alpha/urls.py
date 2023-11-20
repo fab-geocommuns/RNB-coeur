@@ -2,8 +2,8 @@ from api_alpha.views import (
     ADSViewSet,
     ADSBatchViewSet,
     BuildingViewSet,
-    get_tile,
     BuildingGuessView,
+    get_tile,
 )
 from django.urls import include, path
 from rest_framework import routers
