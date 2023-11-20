@@ -458,7 +458,7 @@ class Inspector:
 
         shape_area = self.compute_shape_area(c.shape)
 
-        if shape.area < settings.MIN_BDG_AREA and shape.area > 0:
+        if shape_area < settings.MIN_BDG_AREA and shape_area > 0:
             self.__to_refusals(c)
             return
 
