@@ -106,7 +106,7 @@ class TestInspectorBdgUpdate(TestCase):
         # Create a candidate for the merge
         Candidate.objects.create(
             shape=coords_to_mp_geom(coords),
-            source="bdnb_7",
+            source="bdnb",
             source_id="bdnb_1",
             address_keys=["add_1", "add_2"],
             is_light=False,
@@ -207,7 +207,7 @@ class TestInspectorFictiveBdgCreate(TestCase):
         ]
         Candidate.objects.create(
             shape=coords_to_mp_geom(coords),
-            source="bdnb_7",
+            source="bdnb",
             source_id="bdnb_1",
             address_keys=["add_1"],
             is_light=False,

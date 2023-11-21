@@ -370,7 +370,7 @@ class Inspector:
         return data
 
     def __update_bdgs_from_tmp_update_table(self, cursor):
-        q = f"UPDATE {Building._meta.db_table} as b SET ext_ids = tmp.ext_ids FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
+        q = f"UPDATE {Building._meta.db_table} as b SET ext_ids = tmp.ext_ids, last_updated_by = tmp.last_updated_by FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
         cursor.execute(q)
 
     def __drop_tmp_update_table(self, cursor):
@@ -390,11 +390,11 @@ class Inspector:
                 f,
                 self.__tmp_update_table,
                 sep=";",
-                columns=["id", "ext_ids"],
+                columns=["id", "ext_ids", "last_updated_by"],
             )
 
     def __create_tmp_update_table(self, cursor):
-        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_ids jsonb)"
+        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_ids jsonb, last_updated_by jsonb)"
         cursor.execute(q)
 
     def __create_update_buffer_file(self) -> BufferToCopy:
@@ -404,6 +404,9 @@ class Inspector:
                 {
                     "id": bdg["building"].id,
                     "ext_ids": json.dumps(bdg["building"].ext_ids),
+                    "last_updated_by": json.dumps(
+                        {"source": "import", "id": bdg["import_id"]}
+                    ),
                 }
             )
 
