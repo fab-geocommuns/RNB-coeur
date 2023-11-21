@@ -42,7 +42,7 @@ services:
     image: jrcs/letsencrypt-nginx-proxy-companion
     restart: unless-stopped
     env_file:
-      - ./.env.nginx-encrypt.staging
+      - ./.env.nginx-encrypt.import
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - certs:/etc/nginx/certs
