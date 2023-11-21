@@ -386,9 +386,11 @@ class Inspector:
 
     def __populate_tmp_update_table(self, buffer: BufferToCopy, cursor):
         with open(buffer.path, "r") as f:
-            cursor.copy_expert(
-                f"COPY {self.__tmp_update_table} (id, ext_ids) FROM STDIN WITH (FORMAT CSV, DELIMITER ';')",
+            cursor.copy_from(
                 f,
+                self.__tmp_update_table,
+                sep=";",
+                columns=["id", "ext_ids"],
             )
 
     def __create_tmp_update_table(self, cursor):
