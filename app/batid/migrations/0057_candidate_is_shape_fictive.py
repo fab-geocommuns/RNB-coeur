@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('batid', '0056_building_shape_wgs84'),
+        ("batid", "0056_remove_bdnbbdtopo_id_and_alter_bdg_shape"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='candidate',
-            name='is_shape_fictive',
+            model_name="candidate",
+            name="is_shape_fictive",
             field=models.BooleanField(null=True),
         ),
     ]

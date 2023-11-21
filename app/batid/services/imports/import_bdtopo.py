@@ -74,6 +74,7 @@ def _transform_bdtopo_feature(feature) -> dict:
         "shape": multipoly.wkt,
         "is_light": True if feature["properties"]["LEGER"] == "Oui" else False,
         "source": "bdtopo",
+        "source_version": "2022-12-15",
         "source_id": feature["properties"]["ID"],
         "address_keys": f"{{{','.join(address_keys)}}}",
         "created_at": datetime.now(timezone.utc),

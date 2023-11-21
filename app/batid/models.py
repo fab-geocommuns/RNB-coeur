@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
@@ -6,22 +7,59 @@ from django.contrib.gis.db import models
 from django.conf import settings
 from django.db.models import F
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
+from batid.validators import validate_one_ext_id
 
 
 class Building(models.Model):
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
     source = models.CharField(max_length=10, null=False, db_index=True)
-
     point = models.PointField(null=True, spatial_index=True, srid=4326)
     shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
 
     addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
-
-    ext_bdnb_id = models.CharField(max_length=40, null=True, db_index=True)
-    ext_bdtopo_id = models.CharField(max_length=40, null=True, db_index=True)
+    ext_ids = models.JSONField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_updated_by = models.JSONField(null=True)
+
+    def add_ext_id(
+        self, source: str, source_version: Optional[str], id: str, created_at: str
+    ):
+        # Get the format
+        ext_id = {
+            "source": source,
+            "source_version": source_version,
+            "id": id,
+            "created_at": created_at,
+        }
+        # Validate the content
+        validate_one_ext_id(ext_id)
+
+        # Init if necessary
+        if not self.ext_ids:
+            self.ext_ids = []
+
+        # Append
+        self.ext_ids.append(ext_id)
+
+        # Sort by created_at
+        self.ext_ids = sorted(self.ext_ids, key=lambda k: k["created_at"])
+
+    def contains_ext_id(
+        self, source: str, source_version: Optional[str], id: str
+    ) -> bool:
+        if not self.ext_ids:
+            return False
+
+        for ext_id in self.ext_ids:
+            if (
+                ext_id["source"] == source
+                and ext_id["source_version"] == source_version
+                and ext_id["id"] == id
+            ):
+                return True
+
+        return False
 
     def point_geojson(self):
         # todo : is there a better way to go from a PointField to geojson dict ?
@@ -137,6 +175,7 @@ class BuildingADS(models.Model):
 class Candidate(models.Model):
     shape = models.MultiPolygonField(null=True, srid=4326)
     source = models.CharField(max_length=20, null=False)
+    source_version = models.CharField(max_length=20, null=True)
     source_id = models.CharField(max_length=40, null=False)
     address_keys = ArrayField(models.CharField(max_length=40), null=True)
     # information coming from the BDTOPO

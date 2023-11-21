@@ -1,9 +1,10 @@
 import json
 import os
 from dataclasses import dataclass, field
+from pprint import pprint
 from time import perf_counter
 from typing import List
-
+from psycopg2.extras import Json
 import nanoid
 import psycopg2
 from django.contrib.gis.geos import MultiPolygon
@@ -29,6 +30,7 @@ class Candidate:
     shape: ShapelyMultiPolygon
     is_light: bool
     source: str
+    source_version: str
     source_id: str
     address_keys: List[dict]
     created_at: datetime
@@ -50,8 +52,19 @@ class Candidate:
             "source": self.source,
             "point": point_geom,
             "address_keys": self.address_keys,
-            "last_updated_by": self.candidate_created_by,
+            "candidate_created_by": self.candidate_created_by,
+            "ext_ids": self.get_ext_ids(),
         }
+
+    def get_ext_ids(self):
+        return [
+            {
+                "source": self.source,
+                "source_version": self.source_version,
+                "id": self.source_id,
+                "created_at": self.created_at.isoformat(),
+            }
+        ]
 
     def update_bdg(self, bdg: Building):
         # The returned values
@@ -63,14 +76,14 @@ class Candidate:
         # A place to verify properties changes
         # eg: ext_rnb_id, ext_bdnb_id, ...
         # If any property has changed, we will set has_changed_props to True
-        if self.source == "bdnb_7":
-            if bdg.ext_bdnb_id != self.source_id:
-                bdg.ext_bdnb_id = self.source_id
-                has_changed_props = True
-        if self.source == "bdtopo":
-            if bdg.ext_bdtopo_id != self.source_id:
-                bdg.ext_bdtopo_id = self.source_id
-                has_changed_props = True
+        if not bdg.contains_ext_id(self.source, self.source_version, self.source_id):
+            bdg.add_ext_id(
+                self.source,
+                self.source_version,
+                self.source_id,
+                self.created_at.isoformat(),
+            )
+            has_changed_props = True
 
         # ##############################
         # ADDRESSES
@@ -101,12 +114,17 @@ def get_candidate_shape(shape: str, is_shape_fictive: bool):
 
 def row_to_candidate(row):
     shape = get_candidate_shape(row.get("shape", None), row["is_shape_fictive"])
-    candidate_created_by = json.loads(row["candidate_created_by"]) if row["candidate_created_by"] is not None else None
+    candidate_created_by = (
+        json.loads(row["candidate_created_by"])
+        if row["candidate_created_by"] is not None
+        else None
+    )
 
     return Candidate(
         id=row["id"],
         shape=shape,
         source=row["source"],
+        source_version=row["source_version"],
         is_light=row["is_light"],
         source_id=row["source_id"],
         address_keys=row["address_keys"],
@@ -238,14 +256,19 @@ class Inspector:
 
         # Foreach building verify if anything must be updated
         for c in self.updates:
-            import_id = c.candidate_created_by["id"] if c.candidate_created_by and c.candidate_created_by["source"] == "import" else None
+            import_id = (
+                c.candidate_created_by["id"]
+                if c.candidate_created_by
+                and c.candidate_created_by["source"] == "import"
+                else None
+            )
 
             bdg = next(b for b in bdgs if b.id == c.matched_ids[0])
             has_changed_props, added_address_keys, bdg = c.update_bdg(bdg)
 
             # Need to update the building properties ?
             if has_changed_props:
-                self.bdgs_to_updates.append({'building': bdg, 'import_id': import_id})
+                self.bdgs_to_updates.append({"building": bdg, "import_id": import_id})
 
             # Need to add some building <> adresse relations ?
             if len(added_address_keys) > 0:
@@ -273,10 +296,14 @@ class Inspector:
         if len(self.bdgs_to_updates) > 0:
             # Create a buffer file
             buffer = self.__create_update_buffer_file()
-            
+
             # Count the number of occurences of each import_id
             # to update the BuildingImport entry
-            import_ids = [building_to_update['import_id'] for building_to_update in self.bdgs_to_updates if building_to_update['import_id'] is not None]
+            import_ids = [
+                building_to_update["import_id"]
+                for building_to_update in self.bdgs_to_updates
+                if building_to_update["import_id"] is not None
+            ]
             import_id_stats = Counter(import_ids)
 
             with transaction.atomic():
@@ -291,9 +318,11 @@ class Inspector:
                     # update the BuildingImport entry
                     for import_id, count in import_id_stats.items():
                         building_import = BuildingImport.objects.get(id=import_id)
-                        building_import.building_updated_count = building_import.building_updated_count + count
+                        building_import.building_updated_count = (
+                            building_import.building_updated_count + count
+                        )
                         building_import.save()
-                        
+
                 except (Exception, psycopg2.DatabaseError) as error:
                     raise error
 
@@ -341,7 +370,7 @@ class Inspector:
         return data
 
     def __update_bdgs_from_tmp_update_table(self, cursor):
-        q = f"UPDATE {Building._meta.db_table} as b SET ext_bdnb_id = tmp.ext_bdnb_id, ext_bdtopo_id = tmp.ext_bdtopo_id FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
+        q = f"UPDATE {Building._meta.db_table} as b SET ext_ids = tmp.ext_ids FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
         cursor.execute(q)
 
     def __drop_tmp_update_table(self, cursor):
@@ -357,15 +386,13 @@ class Inspector:
 
     def __populate_tmp_update_table(self, buffer: BufferToCopy, cursor):
         with open(buffer.path, "r") as f:
-            cursor.copy_from(
+            cursor.copy_expert(
+                f"COPY {self.__tmp_update_table} (id, ext_ids) FROM STDIN WITH (FORMAT CSV, DELIMITER ';')",
                 f,
-                self.__tmp_update_table,
-                sep=";",
-                columns=["id", "ext_bdnb_id", "ext_bdtopo_id"],
             )
 
     def __create_tmp_update_table(self, cursor):
-        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_bdnb_id varchar(40), ext_bdtopo_id varchar(40))"
+        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_ids jsonb)"
         cursor.execute(q)
 
     def __create_update_buffer_file(self) -> BufferToCopy:
@@ -373,9 +400,8 @@ class Inspector:
         for bdg in self.bdgs_to_updates:
             data.append(
                 {
-                    "id": bdg['building'].id,
-                    "ext_bdnb_id": bdg['building'].ext_bdnb_id,
-                    "ext_bdtopo_id": bdg['building'].ext_bdtopo_id,
+                    "id": bdg["building"].id,
+                    "ext_ids": json.dumps(bdg["building"].ext_ids),
                 }
             )
 
@@ -406,7 +432,11 @@ class Inspector:
     def handle_bdgs_refusals(self):
         print(f"- refusals: {len(self.refusals)}")
         if len(self.refusals) > 0:
-            import_ids = [c.candidate_created_by["id"] for c in self.refusals if c.candidate_created_by["source"] == "import"]
+            import_ids = [
+                c.candidate_created_by["id"]
+                for c in self.refusals
+                if c.candidate_created_by["source"] == "import"
+            ]
             import_id_stats = Counter(import_ids)
             with transaction.atomic():
                 try:
@@ -428,24 +458,19 @@ class Inspector:
 
         for c in self.creations:
             rnb_id = generate_rnb_id()
+            bdg_dict = c.to_bdg_dict()
 
-            bdnb_id = c.source_id if c.source == "bdnb_7" else None
-            bdtopo_id = c.source_id if c.source == "bdtopo" else None
-
-            # bdg_dict = c.to_bdg_dict()
-            candidate_created_by = c.candidate_created_by
-            point_geom = (
-                c.shape if c.shape.geom_type == "Point" else c.shape.point_on_surface
-            )
+            ext_ids = bdg_dict["ext_ids"]
+            ext_ids_str = json.dumps(ext_ids)
+            candidate_created_by = bdg_dict["candidate_created_by"]
 
             values.append(
                 (
                     rnb_id,
-                    c.source,
-                    bdnb_id,
-                    bdtopo_id,
-                    point_geom.wkt,
-                    c.shape.wkt,
+                    bdg_dict["source"],
+                    ext_ids_str,
+                    bdg_dict["point"].wkt,
+                    bdg_dict["shape"].wkt,
                     datetime.now(timezone.utc),
                     datetime.now(timezone.utc),
                     json.dumps(candidate_created_by),
@@ -457,7 +482,10 @@ class Inspector:
                 for add_key in c.address_keys:
                     self.bdg_address_relations.append((rnb_id, add_key))
 
-            if type(candidate_created_by) is dict and candidate_created_by.get("source") == "import":
+            if (
+                type(candidate_created_by) is dict
+                and candidate_created_by.get("source") == "import"
+            ):
                 import_id_stats.append(candidate_created_by["id"])
 
         buffer.write_data(values)
@@ -475,8 +503,7 @@ class Inspector:
                         columns=(
                             "rnb_id",
                             "source",
-                            "ext_bdnb_id",
-                            "ext_bdtopo_id",
+                            "ext_ids",
                             "point",
                             "shape",
                             "created_at",

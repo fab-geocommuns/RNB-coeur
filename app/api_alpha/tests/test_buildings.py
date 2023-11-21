@@ -101,7 +101,7 @@ class BuildingsEndpointsTest(APITestCase):
             "results": [
                 {
                     "addresses": [],
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
@@ -134,7 +134,7 @@ class BuildingsEndpointsTest(APITestCase):
             "results": [
                 {
                     "addresses": [],
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
@@ -166,7 +166,7 @@ class BuildingsEndpointsTest(APITestCase):
             "next": None,
             "results": [
                 {
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
                     "rnb_id": "BDGSRNBBIDID",
                     "status": [
                         {
@@ -184,7 +184,7 @@ class BuildingsEndpointsTest(APITestCase):
                 },
                 {
                     "addresses": [],
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
@@ -210,7 +210,7 @@ class BuildingsEndpointsTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         expected = {
-            "ext_bdtopo_id": None,
+            "ext_ids": None,
             "rnb_id": "BDGSRNBBIDID",
             "point": {
                 "type": "Point",
@@ -257,7 +257,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
             "next": None,
             "results": [
                 {
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
                     "rnb_id": "BDGSRNBBIDID",
                     "point": {
                         "type": "Point",
@@ -274,7 +274,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                     "addresses": [],
                 },
                 {
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
                     "rnb_id": "BDGPROJ",
                     "point": {
                         "type": "Point",
@@ -292,7 +292,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                 },
                 {
                     "addresses": [],
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",

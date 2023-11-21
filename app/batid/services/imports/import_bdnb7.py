@@ -40,7 +40,8 @@ def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
             geom = GEOSGeometry(row["WKT"], srid=2154).transform(4326, clone=True)
             candidate = {
                 "shape": geom.wkt,
-                "source": "bdnb_7",
+                "source": "bdnb",
+                "source_version": "7.2",
                 "is_light": False,
                 "is_shape_fictive": row["fictive_geom_cstr"] == "1",
                 "source_id": row["batiment_construction_id"],
