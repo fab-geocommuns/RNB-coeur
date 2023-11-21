@@ -429,7 +429,7 @@ class Inspector:
         for c in self.creations:
             rnb_id = generate_rnb_id()
 
-            bdnb_id = c.source_id if c.source == "bdnb" else None
+            bdnb_id = c.source_id if c.source == "bdnb_7" else None
             bdtopo_id = c.source_id if c.source == "bdtopo" else None
 
             # bdg_dict = c.to_bdg_dict()
