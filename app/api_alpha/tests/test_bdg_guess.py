@@ -32,7 +32,7 @@ class BdgGuessEndpointTest(APITestCase):
             {
                 "addresses": [],
                 "score": 1.0,
-                "ext_bdtopo_id": None,
+                "ext_ids": None,
                 "point": {
                     "coordinates": [5.7211808330356, 45.18433388648706],
                     "type": "Point",
