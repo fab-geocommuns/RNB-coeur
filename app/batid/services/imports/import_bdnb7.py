@@ -5,8 +5,7 @@ import os
 import psycopg2
 from django.db import connection, transaction
 from psycopg2.extras import execute_values
-from app.batid.services.imports import building_import_history
-from app.batid.services.imports.building_import_history import insert_building_import
+from batid.services.imports import building_import_history
 
 from batid.models import Address, BuildingImport
 from batid.services.source import Source, BufferToCopy
