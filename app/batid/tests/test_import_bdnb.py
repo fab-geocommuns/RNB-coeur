@@ -60,7 +60,7 @@ class ImportBDNBTestCase(TransactionTestCase):
 
         candidate_1 = candidates[0]
         self.assertEqual(candidate_1.shape.srid, 4326)
-        self.assertEqual(candidate_1.source, "bdnb_7")
+        self.assertEqual(candidate_1.source, "bdnb")
         self.assertEqual(candidate_1.is_light, False)
         self.assertEqual(candidate_1.source_id, "BATIMENT0000000008834985-1")
         self.assertEqual(
@@ -70,7 +70,7 @@ class ImportBDNBTestCase(TransactionTestCase):
 
         candidate_2 = candidates[1]
         self.assertEqual(candidate_2.shape.srid, 4326)
-        self.assertEqual(candidate_2.source, "bdnb_7")
+        self.assertEqual(candidate_2.source, "bdnb")
         self.assertEqual(candidate_2.is_light, False)
         self.assertEqual(candidate_2.source_id, "BATIMENT0000000008834991-1")
         # construction 0 and 1 are linked to the same building group
@@ -82,7 +82,7 @@ class ImportBDNBTestCase(TransactionTestCase):
 
         candidate_3 = candidates[2]
         self.assertEqual(candidate_3.shape.srid, 4326)
-        self.assertEqual(candidate_3.source, "bdnb_7")
+        self.assertEqual(candidate_3.source, "bdnb")
         self.assertEqual(candidate_3.is_light, False)
         self.assertEqual(candidate_3.source_id, "BATIMENT0000000008838153-1")
         # no address is linked to this building
