@@ -29,7 +29,8 @@ def create_tasks_list(dpt, bulk_launch_uuid=None):
     tasks.append(
         Signature(
             "batid.tasks.import_bdnb7_bdgs",
-            args=[bdnb_dpt, bulk_launch_uuid],
+            args=[bdnb_dpt],
+            kwargs={"bulk_launch_uuid": bulk_launch_uuid},
             immutable=True,
         )
     )
