@@ -101,6 +101,7 @@ def get_candidate_shape(shape: str, is_shape_fictive: bool):
 
 def row_to_candidate(row):
     shape = get_candidate_shape(row.get("shape", None), row["is_shape_fictive"])
+    candidate_created_by = json.loads(row["candidate_created_by"]) if row["candidate_created_by"] is not None else None
 
     return Candidate(
         id=row["id"],
@@ -113,7 +114,7 @@ def row_to_candidate(row):
         inspected_at=row.get("inspected_at", None),
         inspect_result=row.get("inspect_result", None),
         matched_ids=row.get("match_ids", []),
-        candidate_created_by=json.loads(row["candidate_created_by"]),
+        candidate_created_by=candidate_created_by,
     )
 
 
@@ -237,7 +238,7 @@ class Inspector:
 
         # Foreach building verify if anything must be updated
         for c in self.updates:
-            import_id = c.candidate_created_by["id"] if c.candidate_created_by["source"] == "import" else None
+            import_id = c.candidate_created_by["id"] if c.candidate_created_by and c.candidate_created_by["source"] == "import" else None
 
             bdg = next(b for b in bdgs if b.id == c.matched_ids[0])
             has_changed_props, added_address_keys, bdg = c.update_bdg(bdg)
@@ -456,7 +457,7 @@ class Inspector:
                 for add_key in c.address_keys:
                     self.bdg_address_relations.append((rnb_id, add_key))
 
-            if candidate_created_by["source"] == "import":
+            if type(candidate_created_by) is dict and candidate_created_by.get("source") == "import":
                 import_id_stats.append(candidate_created_by["id"])
 
         buffer.write_data(values)

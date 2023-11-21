@@ -13,7 +13,7 @@ def insert_building_import(source, bulk_launch_uuid, dpt):
         building_refused_count=0,
     )
     building_import.save()
-    return
+    return building_import
 
 
 def increment_created_candidates(building_import, candidates_count):
