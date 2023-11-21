@@ -5,6 +5,8 @@ import os
 import psycopg2
 from django.db import connection, transaction
 from psycopg2.extras import execute_values
+from app.batid.services.imports import building_import_history
+from app.batid.services.imports.building_import_history import insert_building_import
 
 from batid.models import Address, BuildingImport
 from batid.services.source import Source, BufferToCopy
@@ -20,16 +22,9 @@ def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
     print(f"## Import BDNB 7 buildings in dpt {dpt}")
 
     # insert a record in the table BuildingImport
-    building_import = BuildingImport.objects.create(
-        import_source="bdnb_7",
-        bulk_launch_uuid=bulk_launch_uuid or uuid.uuid4(),
-        departement=dpt,
-        candidate_created_count=0,
-        building_created_count=0,
-        building_updated_count=0,
-        building_refused_count=0,
+    building_import = building_import_history.insert_building_import(
+        "bdnb_7", bulk_launch_uuid, dpt
     )
-    building_import.save()
 
     src = Source("bdnb_7")
     src.set_param("dpt", dpt)
@@ -74,11 +69,9 @@ def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
                 with connection.cursor() as cursor:
                     cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
 
-                candidates_count = len(candidates)
-                building_import.candidate_created_count = (
-                    building_import.candidate_created_count + candidates_count
+                building_import_history.increment_created_candidates(
+                    building_import, len(candidates)
                 )
-                building_import.save()
             except (Exception, psycopg2.DatabaseError) as error:
                 raise error
 
