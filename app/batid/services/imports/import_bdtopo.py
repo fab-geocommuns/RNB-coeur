@@ -1,6 +1,6 @@
 import csv
 import os
-
+from app.batid.services.imports import building_import_history
 
 from batid.services.source import Source
 from shapely.geometry import shape, MultiPolygon
@@ -8,11 +8,15 @@ from shapely.ops import transform
 import fiona
 from datetime import datetime, timezone
 import psycopg2
-from django.db import connection
+from django.db import connection, transaction
 
 
-def import_bdtopo(dpt):
+def import_bdtopo(dpt, bulk_launch_uuid=None):
     dpt = dpt.zfill(3)
+
+    building_import = building_import_history.insert_building_import(
+        "bdtopo", bulk_launch_uuid, dpt
+    )
 
     src = Source("bdtopo")
     src.set_param("dpt", dpt)
@@ -42,15 +46,19 @@ def import_bdtopo(dpt):
             writer = csv.DictWriter(f, delimiter=";", fieldnames=cols)
             writer.writerows(bdgs)
 
-        with open(buffer_src.path, "r") as f, connection.cursor() as cursor:
-            print("-- transfer buffer to db --")
-            try:
-                cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
-                connection.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cursor.close()
-                raise error
+        with open(buffer_src.path, "r") as f:
+            with transaction.atomic():
+                print("-- transfer buffer to db --")
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
+
+                    building_import_history.increment_created_candidates(
+                        building_import, len(bdgs)
+                    )
+
+                except (Exception, psycopg2.DatabaseError) as error:
+                    raise error
 
         print("- remove buffer")
         os.remove(buffer_src.path)
