@@ -1,9 +1,10 @@
 import json
 import os
 from dataclasses import dataclass, field
+from pprint import pprint
 from time import perf_counter
 from typing import List
-
+from psycopg2.extras import Json
 import nanoid
 import psycopg2
 from django.contrib.gis.geos import MultiPolygon
@@ -28,6 +29,7 @@ class Candidate:
     shape: ShapelyMultiPolygon
     is_light: bool
     source: str
+    source_version: str
     source_id: str
     address_keys: List[dict]
     created_at: datetime
@@ -48,7 +50,18 @@ class Candidate:
             "source": self.source,
             "point": point_geom,
             "address_keys": self.address_keys,
+            "ext_ids": self.get_ext_ids(),
         }
+
+    def get_ext_ids(self):
+        return [
+            {
+                "source": self.source,
+                "source_version": self.source_version,
+                "id": self.source_id,
+                "created_at": self.created_at.isoformat(),
+            }
+        ]
 
     def update_bdg(self, bdg: Building):
         # The returned values
@@ -60,14 +73,14 @@ class Candidate:
         # A place to verify properties changes
         # eg: ext_rnb_id, ext_bdnb_id, ...
         # If any property has changed, we will set has_changed_props to True
-        if self.source == "bdnb":
-            if bdg.ext_bdnb_id != self.source_id:
-                bdg.ext_bdnb_id = self.source_id
-                has_changed_props = True
-        if self.source == "bdtopo":
-            if bdg.ext_bdtopo_id != self.source_id:
-                bdg.ext_bdtopo_id = self.source_id
-                has_changed_props = True
+        if not bdg.contains_ext_id(self.source, self.source_version, self.source_id):
+            bdg.add_ext_id(
+                self.source,
+                self.source_version,
+                self.source_id,
+                self.created_at.isoformat(),
+            )
+            has_changed_props = True
 
         # ##############################
         # ADDRESSES
@@ -103,6 +116,7 @@ def row_to_candidate(row):
         id=row["id"],
         shape=shape,
         source=row["source"],
+        source_version=row["source_version"],
         is_light=row["is_light"],
         source_id=row["source_id"],
         address_keys=row["address_keys"],
@@ -320,7 +334,7 @@ class Inspector:
         return data
 
     def __update_bdgs_from_tmp_update_table(self, cursor):
-        q = f"UPDATE {Building._meta.db_table} as b SET ext_bdnb_id = tmp.ext_bdnb_id, ext_bdtopo_id = tmp.ext_bdtopo_id FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
+        q = f"UPDATE {Building._meta.db_table} as b SET ext_ids = tmp.ext_ids FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
         cursor.execute(q)
 
     def __drop_tmp_update_table(self, cursor):
@@ -336,27 +350,19 @@ class Inspector:
 
     def __populate_tmp_update_table(self, buffer: BufferToCopy, cursor):
         with open(buffer.path, "r") as f:
-            cursor.copy_from(
+            cursor.copy_expert(
+                f"COPY {self.__tmp_update_table} (id, ext_ids) FROM STDIN WITH (FORMAT CSV, DELIMITER ';')",
                 f,
-                self.__tmp_update_table,
-                sep=";",
-                columns=["id", "ext_bdnb_id", "ext_bdtopo_id"],
             )
 
     def __create_tmp_update_table(self, cursor):
-        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_bdnb_id varchar(40), ext_bdtopo_id varchar(40))"
+        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_ids jsonb)"
         cursor.execute(q)
 
     def __create_update_buffer_file(self) -> BufferToCopy:
         data = []
         for bdg in self.bdgs_to_updates:
-            data.append(
-                {
-                    "id": bdg.id,
-                    "ext_bdnb_id": bdg.ext_bdnb_id,
-                    "ext_bdtopo_id": bdg.ext_bdtopo_id,
-                }
-            )
+            data.append({"id": bdg.id, "ext_ids": json.dumps(bdg.ext_ids)})
 
         buffer = BufferToCopy()
         buffer.write_data(data)
@@ -392,16 +398,16 @@ class Inspector:
         for c in self.creations:
             rnb_id = generate_rnb_id()
 
-            bdnb_id = c.source_id if c.source == "bdnb" else None
-            bdtopo_id = c.source_id if c.source == "bdtopo" else None
-
             bdg_dict = c.to_bdg_dict()
+
+            ext_ids = bdg_dict["ext_ids"]
+            ext_ids_str = json.dumps(ext_ids)
+
             values.append(
                 (
                     rnb_id,
                     bdg_dict["source"],
-                    bdnb_id,
-                    bdtopo_id,
+                    ext_ids_str,
                     f"{bdg_dict['point'].wkt}",
                     f"{bdg_dict['shape'].wkt}",
                     datetime.now(timezone.utc),
@@ -418,25 +424,13 @@ class Inspector:
 
         with connection.cursor() as cur, open(buffer.path, "r") as f:
             try:
-                start = perf_counter()
-                cur.copy_from(
+                # We need to use copy_expert since the combinaison of json, csv and postegresql is quite tricky to make work. It needs the CSV Format argument
+                cur.copy_expert(
+                    f"COPY {Building._meta.db_table} (rnb_id, source, ext_ids, point, shape, created_at, updated_at) FROM STDIN WITH (FORMAT CSV, DELIMITER ';')",
                     f,
-                    Building._meta.db_table,
-                    sep=";",
-                    columns=(
-                        "rnb_id",
-                        "source",
-                        "ext_bdnb_id",
-                        "ext_bdtopo_id",
-                        "point",
-                        "shape",
-                        "created_at",
-                        "updated_at",
-                    ),
                 )
-                end = perf_counter()
+
                 os.remove(buffer.path)
-                print(f"---- create_buildings : copy_from: {end - start:.2f}s")
             except (Exception, psycopg2.DatabaseError) as error:
                 connection.rollback()
                 cur.close()
