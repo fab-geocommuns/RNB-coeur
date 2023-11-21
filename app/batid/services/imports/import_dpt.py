@@ -24,8 +24,6 @@ def import_etalab_dpts() -> None:
         geoms = [GEOSGeometry(json.dumps(p), srid=4326) for p in polys]
 
         mp = MultiPolygon(geoms, srid=4326)
-        mp = mp.transform(settings.DEFAULT_SRID, clone=True)
-
         try:
             dpt_model = Department.objects.get(code=dpt["code"])
         except Department.DoesNotExist:

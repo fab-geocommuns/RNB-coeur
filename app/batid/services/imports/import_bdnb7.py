@@ -9,6 +9,7 @@ from psycopg2.extras import execute_values
 from batid.models import Address
 from batid.services.source import Source, BufferToCopy
 from datetime import datetime, timezone
+from django.contrib.gis.geos import GEOSGeometry
 
 from batid.utils.db import list_to_pgarray
 
@@ -28,8 +29,9 @@ def import_bdnb7_bdgs(dpt):
         reader = csv.DictReader(f, delimiter=",")
 
         for row in list(reader):
+            geom = GEOSGeometry(row["WKT"])
             candidate = {
-                "shape": row["WKT"],
+                "shape": geom.wkt,
                 "source": "bdnb_7",
                 "is_light": False,
                 "is_shape_fictive": row["fictive_geom_cstr"] == "1",

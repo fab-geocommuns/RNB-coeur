@@ -84,7 +84,7 @@ def export_city(insee_code: str):
     with connection.cursor() as cursor:
         params = {
             "geom": json.dumps(cities_geojson["features"][0]["geometry"]),
-            "db_srid": settings.DEFAULT_SRID,
+            "db_srid": 4326,
         }
         cursor.execute(q, params)
 

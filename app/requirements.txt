@@ -140,3 +140,4 @@ whitenoise==6.4.0
 drf-api-tracking==1.8.4
 flower==2.0.1
 django-revproxy==0.11.0
+geopy==2.4.0
