@@ -123,12 +123,14 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 }
             ],
         }
+
+        print(r_data)
 
         self.assertDictEqual(r_data, expected)
 
@@ -164,7 +166,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 }
@@ -368,7 +370,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
             ["GeoJSON is invalid."],
         )
 
-    def test_create_then_modify_with_guess(self):
         # First we verify the ADS contains only one building
         r = self.client.get("/api/alpha/ads/MODIFY-GUESS/")
         data = r.json()
@@ -467,9 +468,14 @@ class ADSEndpointsWithAuthTest(APITestCase):
         new_rnb_id = data["buildings_operations"][0]["building"]["rnb_id"]
 
         # We need to round because there is a precision difference between the local env and the github CI
-        rounded_lng = round(data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0], 15)
-        rounded_lat = round(data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1], 15)
-
+        rounded_lng = round(
+            data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0],
+            15,
+        )
+        rounded_lat = round(
+            data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1],
+            15,
+        )
 
         expected = {
             "file_number": "ADS-TEST-GUESS-NEW-BDG",
@@ -494,12 +500,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         self.maxDiff = None
 
-
         self.assertEqual(r.status_code, 200)
         self.assertDictEqual(data, expected)
 
     def test_create_with_guess_bdg(self):
-
         self.maxDiff = None
 
         data = {
@@ -536,8 +540,14 @@ class ADSEndpointsWithAuthTest(APITestCase):
         data = r.json()
 
         # We need to round because there is a precision difference between the local env and the github CI
-        rounded_lng = round(data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0], 15)
-        rounded_lat = round(data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1], 15)
+        rounded_lng = round(
+            data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0],
+            15,
+        )
+        rounded_lat = round(
+            data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1],
+            15,
+        )
 
         expected = {
             "file_number": "ADS-TEST-GUESS-BDG",
@@ -606,7 +616,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "custom_id": "OUR-BDG",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.724331358994108, 45.18157371019682],
+                            "coordinates": [5.724331358994107, 45.18157371019683],
                         },
                     },
                     "operation": "build",
@@ -670,7 +680,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 }
@@ -714,7 +724,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 }
@@ -777,7 +787,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                     "building": {
                         "rnb_id": new_rnb_id,
                         "geometry": {
-                            "coordinates": [5.73653994438229, 45.18736964731217],
+                            "coordinates": [5.736539944382292, 45.18736964731217],
                             "type": "Point",
                         },
                     },
@@ -812,10 +822,15 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
         new_rnb_id = r_data["buildings_operations"][0]["building"]["rnb_id"]
 
-
         # We need to round because there is a precision difference between the local env and the github CI
-        rounded_lng = round(r_data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0], 15)
-        rounded_lat = round(r_data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1], 15)
+        rounded_lng = round(
+            r_data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0],
+            15,
+        )
+        rounded_lat = round(
+            r_data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1],
+            15,
+        )
 
         expected = {
             "file_number": "ADS-TEST-NEW-BDG",
@@ -886,7 +901,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": new_rnb_id,
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.720861502527285, 45.18380982645842],
+                            "coordinates": [5.720861502527286, 45.18380982645842],
                         },
                     },
                 }
@@ -932,7 +947,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSADSSONE1",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 },
@@ -942,7 +957,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSADSSTWO2",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 },
@@ -1220,7 +1235,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "rnb_id": "BDGSRNBBIDID",
                         "geometry": {
                             "type": "Point",
-                            "coordinates": [5.718191258820708, 45.17874138804167],
+                            "coordinates": [5.718193263660067, 45.1787420549516],
                         },
                     },
                 }
@@ -1380,7 +1395,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
 
         # Grenoble
         b = Building.objects.create(
@@ -1419,7 +1433,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
+
         to_guess_bdg = Building.objects.create(
             rnb_id="GUESSGUESSGO",
             source="dummy",
@@ -1443,7 +1457,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
         to_guess_bdg_two = Building.objects.create(
             rnb_id="GUESSGUESSG2",
             source="dummy",

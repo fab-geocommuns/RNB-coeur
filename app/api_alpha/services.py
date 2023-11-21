@@ -84,7 +84,7 @@ def calc_ads_cities(data):
         "rnb_ids": tuple(rnb_ids),
         "multipoints": json.dumps(multipoints),
         "multipolygons": json.dumps(multipolygons),
-        "db_srid": settings.DEFAULT_SRID,
+        "db_srid": 4326,
     }
     cities = City.objects.raw(q, params)
 

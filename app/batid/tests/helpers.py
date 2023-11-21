@@ -561,8 +561,6 @@ def create_paris():
         ],
     }
     geom = GEOSGeometry(json.dumps(geometry), srid=4326)
-    geom.transform(settings.DEFAULT_SRID)
-
     return City.objects.create(name="Paris", shape=geom, code_insee="75056")
 
 
@@ -803,8 +801,6 @@ def create_cenac():
     }
 
     geom = GEOSGeometry(json.dumps(geometry), srid=4326)
-    geom.transform(settings.DEFAULT_SRID)
-
     return City.objects.create(name="Cénac", shape=geom, code_insee="33118")
 
 
@@ -1102,8 +1098,6 @@ def create_grenoble():
         ],
     }
     geom = GEOSGeometry(json.dumps(geometry), srid=4326)
-    geom.transform(settings.DEFAULT_SRID)
-
     return City.objects.create(name="Grenoble", shape=geom, code_insee="38185")
 
 
@@ -1125,7 +1119,6 @@ def coords_to_mp_geom(coords_list):
         "type": "MultiPolygon",
     }
     geom = GEOSGeometry(json.dumps(coords), srid=4326)
-    geom.transform(settings.DEFAULT_SRID)
     return geom
 
 
@@ -1135,7 +1128,6 @@ def coords_to_point_geom(lng: float, lat: float):
         "type": "Point",
     }
     geom = GEOSGeometry(json.dumps(coords), srid=4326)
-    geom.transform(settings.DEFAULT_SRID)
     return geom
 
 

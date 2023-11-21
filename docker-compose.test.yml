@@ -26,7 +26,6 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - DOWNLOAD_DIR=/data/downloads
       - MIN_BDG_AREA=5
-      - DEFAULT_SRID=2154
       - WAIT_HOSTS=db:5432 rabbitmq:5672 redis:6379
       - WAIT_BEFORE=8
     command: sh -c "/wait && python manage.py runserver 0.0.0.0:8000"
