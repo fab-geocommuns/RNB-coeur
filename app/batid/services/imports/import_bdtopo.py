@@ -1,6 +1,6 @@
 import csv
 import os
-from app.batid.services.imports import building_import_history
+from batid.services.imports import building_import_history
 
 from batid.services.source import Source
 from shapely.geometry import shape, MultiPolygon
