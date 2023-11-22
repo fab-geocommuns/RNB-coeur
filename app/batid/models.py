@@ -30,7 +30,11 @@ class Building(models.Model):
     ext_ids = models.JSONField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # temporal table field
     sys_period = DateTimeRangeField(null=False, default=from_now_to_infinity)
+    # in case of building merge, we want in the future to keep the list of the parent buildings
+    # not implemented for now
+    parent_buildings = models.JSONField(null=True)
 
     def add_ext_id(
         self, source: str, source_version: Optional[str], id: str, created_at: str
