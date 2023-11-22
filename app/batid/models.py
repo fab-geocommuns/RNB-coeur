@@ -20,7 +20,7 @@ def from_now_to_infinity():
     return DateTimeTZRange(now, None)
 
 
-class Building(models.Model):
+class BuildingAbstract(models.Model):
     # !!!WARNING!!! this table has a twin table used for historization, batid_building_history.
     # See migration file app/batid/migrations/0062_temporal_tables.py
     # If this model is modified, the twin table should be modified as well or some fields will be missing in the history.
@@ -39,6 +39,11 @@ class Building(models.Model):
     # not implemented for now
     parent_buildings = models.JSONField(null=True)
 
+    class Meta:
+        abstract = True
+
+
+class Building(BuildingAbstract):
     def add_ext_id(
         self, source: str, source_version: Optional[str], id: str, created_at: str
     ):
@@ -98,6 +103,13 @@ class Building(models.Model):
 
     class Meta:
         ordering = ["rnb_id"]
+
+
+class BuildingWithHistory(BuildingAbstract):
+    # this (read only) model is used to access the view
+    class Meta:
+        managed = False
+        db_table = "batid_building_with_history"
 
 
 class BuildingStatus(models.Model):
