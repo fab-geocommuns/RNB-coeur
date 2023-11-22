@@ -21,6 +21,9 @@ def from_now_to_infinity():
 
 
 class Building(models.Model):
+    # !!!WARNING!!! this table has a twin table used for historization, batid_building_history.
+    # See migration file app/batid/migrations/0062_temporal_tables.py
+    # If this model is modified, the twin table should be modified as well or some fields will be missing in the history.
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
     source = models.CharField(max_length=10, null=False, db_index=True)
     point = models.PointField(null=True, spatial_index=True, srid=4326)
