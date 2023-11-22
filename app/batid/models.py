@@ -1,13 +1,23 @@
+from email.policy import default
 import json
 from typing import Optional
 
 from django.contrib.auth.models import User
-from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import ArrayField, DateTimeRangeField
 from django.contrib.gis.db import models
 from django.conf import settings
 from django.db.models import F
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.validators import validate_one_ext_id
+import datetime
+
+
+def from_now_to_infinity():
+    from psycopg2.extras import DateTimeTZRange
+    from django.utils import timezone
+
+    now = timezone.now()
+    return DateTimeTZRange(now, None)
 
 
 class Building(models.Model):
@@ -20,6 +30,7 @@ class Building(models.Model):
     ext_ids = models.JSONField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    sys_period = DateTimeRangeField(null=False, default=from_now_to_infinity)
 
     def add_ext_id(
         self, source: str, source_version: Optional[str], id: str, created_at: str
