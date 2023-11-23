@@ -21,9 +21,6 @@ def from_now_to_infinity():
 
 
 class BuildingAbstract(models.Model):
-    # !!!WARNING!!! this table has a twin table used for historization, batid_building_history.
-    # See migration file app/batid/migrations/0062_temporal_tables.py
-    # If this model is modified, the twin table should be modified as well or some fields will be missing in the history.
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
     source = models.CharField(max_length=10, null=False, db_index=True)
     point = models.PointField(null=True, spatial_index=True, srid=4326)
@@ -106,10 +103,20 @@ class Building(BuildingAbstract):
 
 
 class BuildingWithHistory(BuildingAbstract):
-    # this (read only) model is used to access the view
+    # this read-only model is used to access the corresponding view
+    # it contains current AND previous versions of the buildings
     class Meta:
         managed = False
         db_table = "batid_building_with_history"
+
+
+class BuildingHistoryOnly(BuildingAbstract):
+    # this model is probably not going to be used in the app
+    # use BuildingWithHistory instead
+    # it is created only so that any change in the Building model is reflected in the history table
+    class Meta:
+        managed = True
+        db_table = "batid_building_history"
 
 
 class BuildingStatus(models.Model):
