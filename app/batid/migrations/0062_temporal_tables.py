@@ -251,14 +251,15 @@ class Migration(migrations.Migration):
             name="BuildingHistoryOnly",
             fields=[
                 (
-                    "id",
+                    "bh_id",
                     models.BigAutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
-                        verbose_name="ID",
+                        verbose_name="BH_ID",
                     ),
                 ),
+                ("id", models.BigIntegerField()),
                 (
                     "rnb_id",
                     models.CharField(db_index=True, max_length=12, unique=False),
@@ -301,7 +302,7 @@ class Migration(migrations.Migration):
             'sys_period', 'batid_building_history', true);
             -- create view
             create view batid_building_with_history as
-            select * from batid_building
+            select null as bh_id, * from batid_building
             union all
             select * from batid_building_history;
             """,

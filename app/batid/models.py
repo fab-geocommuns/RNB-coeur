@@ -114,6 +114,13 @@ class BuildingHistoryOnly(BuildingAbstract):
     # this model is probably not going to be used in the app
     # use BuildingWithHistory instead
     # it is created only so that any change in the Building model is reflected in the history table
+
+    # primary key for this table, because Django ORM wants one
+    bh_id = models.BigAutoField(
+        auto_created=True, primary_key=True, serialize=False, verbose_name="BH_ID"
+    )
+    # primary key coming from the Building table, but not unique here.
+    id = models.BigIntegerField()
     rnb_id = models.CharField(max_length=12, null=False, unique=False, db_index=True)
 
     class Meta:
