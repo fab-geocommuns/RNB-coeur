@@ -259,7 +259,10 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
-                ("rnb_id", models.CharField(db_index=True, max_length=12, unique=True)),
+                (
+                    "rnb_id",
+                    models.CharField(db_index=True, max_length=12, unique=False),
+                ),
                 ("source", models.CharField(db_index=True, max_length=10)),
                 (
                     "point",

@@ -114,6 +114,8 @@ class BuildingHistoryOnly(BuildingAbstract):
     # this model is probably not going to be used in the app
     # use BuildingWithHistory instead
     # it is created only so that any change in the Building model is reflected in the history table
+    rnb_id = models.CharField(max_length=12, null=False, unique=False, db_index=True)
+
     class Meta:
         managed = True
         db_table = "batid_building_history"
