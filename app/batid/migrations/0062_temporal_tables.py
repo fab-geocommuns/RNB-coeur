@@ -305,7 +305,6 @@ class Migration(migrations.Migration):
             reverse_sql="""
             DROP VIEW IF EXISTS batid_building_with_history;
             DROP TRIGGER IF EXISTS building_versioning_trigger ON batid_building;
-            DROP TABLE IF EXISTS batid_building_history;
             """,
         ),
     ]
