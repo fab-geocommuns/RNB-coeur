@@ -198,7 +198,7 @@ class Candidate(models.Model):
     inspect_stamp = models.CharField(max_length=20, null=True, db_index=True)
     inspected_at = models.DateTimeField(null=True)
     inspect_result = models.CharField(max_length=20, null=True, db_index=True)
-    candidate_created_by = models.JSONField(null=True)
+    created_by = models.JSONField(null=True)
 
 
 class Plot(models.Model):

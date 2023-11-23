@@ -106,15 +106,15 @@ class ImportBDNBTestCase(TransactionTestCase):
         self.assertEqual(building_import.import_source, "bdnb_7")
 
         self.assertEqual(
-            candidate_1.candidate_created_by,
+            candidate_1.created_by,
             {"source": "import", "id": building_import.id},
         )
         self.assertEqual(
-            candidate_2.candidate_created_by,
+            candidate_2.created_by,
             {"source": "import", "id": building_import.id},
         )
         self.assertEqual(
-            candidate_3.candidate_created_by,
+            candidate_3.created_by,
             {"source": "import", "id": building_import.id},
         )
 
@@ -137,9 +137,10 @@ class ImportBDNBTestCase(TransactionTestCase):
         # One candidate is refused because its area is too small
         self.assertEqual(building_import.building_refused_count, 1)
 
-
         buildings[0].refresh_from_db()
-        self.assertEqual(buildings[0].last_updated_by, {"source": "import", "id": building_import.id})
+        self.assertEqual(
+            buildings[0].last_updated_by, {"source": "import", "id": building_import.id}
+        )
 
         # launch a second import to test some building updates
         import_bdnb7.import_bdnb7_bdgs("33")
@@ -165,9 +166,12 @@ class ImportBDNBTestCase(TransactionTestCase):
         self.assertEqual(last_building_import.building_refused_count, 0)
 
         buildings = Building.objects.all().order_by("created_at")
-        
+
         self.assertEqual(buildings[0].ext_ids[0]["id"], "BATIMENT0000000008834985-1")
         self.assertEqual(buildings[0].ext_ids[1]["id"], "NOUVEL_ID")
 
         # we expect the last_updated_by field to be updated with the second import id
-        self.assertEqual(buildings[0].last_updated_by, {"source": "import", "id": last_building_import.id})
+        self.assertEqual(
+            buildings[0].last_updated_by,
+            {"source": "import", "id": last_building_import.id},
+        )

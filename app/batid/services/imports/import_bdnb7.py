@@ -50,7 +50,7 @@ def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
                 ),
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc),
-                "candidate_created_by": json.dumps(
+                "created_by": json.dumps(
                     {"source": "import", "id": building_import.id}
                 ),
             }

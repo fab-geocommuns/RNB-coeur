@@ -37,7 +37,7 @@ class Candidate:
     inspected_at: datetime
     inspect_result: str
     matched_ids: List[int]
-    candidate_created_by: dict
+    created_by: dict
 
     def to_bdg_dict(self):
         point_geom = (
@@ -52,7 +52,7 @@ class Candidate:
             "source": self.source,
             "point": point_geom,
             "address_keys": self.address_keys,
-            "candidate_created_by": self.candidate_created_by,
+            "created_by": self.created_by,
             "ext_ids": self.get_ext_ids(),
         }
 
@@ -114,10 +114,8 @@ def get_candidate_shape(shape: str, is_shape_fictive: bool):
 
 def row_to_candidate(row):
     shape = get_candidate_shape(row.get("shape", None), row["is_shape_fictive"])
-    candidate_created_by = (
-        json.loads(row["candidate_created_by"])
-        if row["candidate_created_by"] is not None
-        else None
+    created_by = (
+        json.loads(row["created_by"]) if row["created_by"] is not None else None
     )
 
     return Candidate(
@@ -132,7 +130,7 @@ def row_to_candidate(row):
         inspected_at=row.get("inspected_at", None),
         inspect_result=row.get("inspect_result", None),
         matched_ids=row.get("match_ids", []),
-        candidate_created_by=candidate_created_by,
+        created_by=created_by,
     )
 
 
@@ -257,9 +255,8 @@ class Inspector:
         # Foreach building verify if anything must be updated
         for c in self.updates:
             import_id = (
-                c.candidate_created_by["id"]
-                if c.candidate_created_by
-                and c.candidate_created_by["source"] == "import"
+                c.created_by["id"]
+                if c.created_by and c.created_by["source"] == "import"
                 else None
             )
 
@@ -438,9 +435,9 @@ class Inspector:
         print(f"- refusals: {len(self.refusals)}")
         if len(self.refusals) > 0:
             import_ids = [
-                c.candidate_created_by["id"]
+                c.created_by["id"]
                 for c in self.refusals
-                if c.candidate_created_by["source"] == "import"
+                if c.created_by["source"] == "import"
             ]
             import_id_stats = Counter(import_ids)
             with transaction.atomic():
@@ -467,7 +464,7 @@ class Inspector:
 
             ext_ids = bdg_dict["ext_ids"]
             ext_ids_str = json.dumps(ext_ids)
-            candidate_created_by = bdg_dict["candidate_created_by"]
+            created_by = bdg_dict["created_by"]
 
             values.append(
                 (
@@ -478,7 +475,7 @@ class Inspector:
                     bdg_dict["shape"].wkt,
                     datetime.now(timezone.utc),
                     datetime.now(timezone.utc),
-                    json.dumps(candidate_created_by),
+                    json.dumps(created_by),
                 )
             )
 
@@ -487,11 +484,8 @@ class Inspector:
                 for add_key in c.address_keys:
                     self.bdg_address_relations.append((rnb_id, add_key))
 
-            if (
-                type(candidate_created_by) is dict
-                and candidate_created_by.get("source") == "import"
-            ):
-                import_id_stats.append(candidate_created_by["id"])
+            if type(created_by) is dict and created_by.get("source") == "import":
+                import_id_stats.append(created_by["id"])
 
         buffer.write_data(values)
         # count the number of occurences in import_id_stats

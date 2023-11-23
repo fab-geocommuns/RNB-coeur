@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="candidate",
-            name="candidate_created_by",
+            name="created_by",
             field=models.JSONField(null=True),
         ),
     ]
