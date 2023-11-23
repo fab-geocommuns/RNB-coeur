@@ -247,10 +247,50 @@ class Migration(migrations.Migration):
             name="parent_buildings",
             field=models.JSONField(null=True),
         ),
+        migrations.CreateModel(
+            name="BuildingHistoryOnly",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("rnb_id", models.CharField(db_index=True, max_length=12, unique=True)),
+                ("source", models.CharField(db_index=True, max_length=10)),
+                (
+                    "point",
+                    django.contrib.gis.db.models.fields.PointField(
+                        null=True, srid=4326
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "shape",
+                    django.contrib.gis.db.models.fields.GeometryField(
+                        null=True, srid=4326
+                    ),
+                ),
+                ("ext_ids", models.JSONField(null=True)),
+                (
+                    "sys_period",
+                    django.contrib.postgres.fields.ranges.DateTimeRangeField(
+                        default=batid.models.from_now_to_infinity
+                    ),
+                ),
+                ("parent_buildings", models.JSONField(null=True)),
+            ],
+            options={
+                "db_table": "batid_building_history",
+                "managed": True,
+            },
+        ),
         migrations.RunSQL(
             """
-            -- create history table
-            CREATE TABLE batid_building_history (LIKE batid_building);
             -- create trigger
             CREATE TRIGGER building_versioning_trigger
             BEFORE INSERT OR UPDATE OR DELETE ON batid_building

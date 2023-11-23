@@ -24,12 +24,10 @@ class BuildingAbstract(models.Model):
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
     source = models.CharField(max_length=10, null=False, db_index=True)
     point = models.PointField(null=True, spatial_index=True, srid=4326)
-    shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
-
-    addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
-    ext_ids = models.JSONField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
+    ext_ids = models.JSONField(null=True)
     # temporal table field
     sys_period = DateTimeRangeField(null=False, default=from_now_to_infinity)
     # in case of building merge, we want in the future to keep the list of the parent buildings
@@ -41,6 +39,8 @@ class BuildingAbstract(models.Model):
 
 
 class Building(BuildingAbstract):
+    addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
+
     def add_ext_id(
         self, source: str, source_version: Optional[str], id: str, created_at: str
     ):
