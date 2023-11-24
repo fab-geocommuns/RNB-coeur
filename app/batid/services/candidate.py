@@ -390,6 +390,12 @@ class Inspector:
             "point": point,
             "address_keys": c.address_keys,
             "last_updated_by": c.created_by,
+            "ext_ids": {
+                "source": c.source,
+                "source_version": c.source_version,
+                "source_id": c.source_id,
+                "created_at": c.created_at.isoformat(),
+            },
         }
 
     @show_duration
