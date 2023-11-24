@@ -71,7 +71,7 @@ class Inspector:
         # Now, trigger the consequences of the inspections
         self.handle_bdgs_creations()
         self.handle_bdgs_updates()
-        self.handle_bdgs_conflicts()
+        self.handle_bdgs_refusals()
 
         # Clean up
         self.remove_stamped()
@@ -344,9 +344,9 @@ class Inspector:
                 yield c
 
     @property
-    def conflicts(self):
+    def refusals(self):
         for c in self.candidates:
-            if c.inspect_result == "conflict":
+            if c.inspect_result == "refusal":
                 yield c
 
     # to keep
@@ -356,27 +356,23 @@ class Inspector:
         # Create the buildings
         self.update_buildings()
 
-    def handle_bdgs_conflicts(self):
-        print(f"- refusals")
-
     def handle_bdgs_refusals(self):
-        print(f"- refusals: {len(self.refusals)}")
-        if len(self.refusals) > 0:
-            import_ids = [
-                c.created_by["id"]
-                for c in self.refusals
-                if c.created_by["source"] == "import"
-            ]
-            import_id_stats = Counter(import_ids)
-            with transaction.atomic():
-                try:
-                    # update the number of refused buildings for each import
-                    for import_id, count in import_id_stats.items():
+        import_ids = [
+            c.created_by["id"]
+            for c in self.refusals
+            if c.created_by["source"] == "import"
+        ]
+        import_id_stats = Counter(import_ids)
+        with transaction.atomic():
+            try:
+                # update the number of refused buildings for each import
+                for import_id, count in import_id_stats.items():
+                    if count > 0:
                         building_import = BuildingImport.objects.get(id=import_id)
                         building_import.building_refused_count += count
                         building_import.save()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    raise error
+            except (Exception, psycopg2.DatabaseError) as error:
+                raise error
 
     def candidate_to_bdg_dict(self, c: CandidateModel):
         # We have to go through this function to remove fictive shape
@@ -390,12 +386,14 @@ class Inspector:
             "point": point,
             "address_keys": c.address_keys,
             "last_updated_by": c.created_by,
-            "ext_ids": {
-                "source": c.source,
-                "source_version": c.source_version,
-                "source_id": c.source_id,
-                "created_at": c.created_at.isoformat(),
-            },
+            "ext_ids": [
+                {
+                    "source": c.source,
+                    "source_version": c.source_version,
+                    "id": c.source_id,
+                    "created_at": c.created_at.isoformat(),
+                }
+            ],
         }
 
     @show_duration
@@ -487,12 +485,12 @@ class Inspector:
     def inspect_candidate(self, c: CandidateModel):
         # Light buildings do not match the RNB building definition
         if c.is_light == True:
-            self.__to_refusals(c)
+            self.set_inspect_result(c, "refusal")
             return
 
         shape_area = self.compute_shape_area(c.shape)
         if shape_area < settings.MIN_BDG_AREA and shape_area > 0:
-            self.__to_refusals(c)
+            self.set_inspect_result(c, "refusal")
             return
 
         # We inspect the matches
@@ -524,7 +522,7 @@ class Inspector:
                 candidate_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
                 or bdg_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
             ):
-                self.set_inspect_result(c, "conflict")
+                self.set_inspect_result(c, "refusal")
                 # one conflict is enough to refuse the candidate
                 return
 
@@ -541,18 +539,7 @@ class Inspector:
             self.set_inspect_result(c, "update")
 
         if len(c.matches) > 1:
-            self.set_inspect_result(c, "conflict")
-
-        # match_len = len(row["match_ids"])
-        #
-        # if match_len == 0:
-        #     self.__to_creations(c)
-        #
-        # if match_len == 1:
-        #     self.__to_updates(c)
-        #
-        # if match_len > 1:
-        #     self.__to_refusals(c)
+            self.set_inspect_result(c, "refusal")
 
     def set_inspect_result(self, c: CandidateModel, result: str):
         c.inspect_result = result
@@ -597,15 +584,6 @@ class Inspector:
             connection.rollback()
             connection.close()
             raise error
-
-    def __to_updates(self, c):
-        self.updates.append(c)
-
-    def __to_creations(self, c):
-        self.creations.append(c)
-
-    def __to_refusals(self, c):
-        self.refusals.append(c)
 
         # self.__close_inspection(c, 'refused')
 

@@ -5,7 +5,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.test import TestCase
 
-from batid.models import BuildingStatus, Candidate, Address, Building
+from batid.models import BuildingStatus, Candidate, Address, Building, BuildingImport
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.services.candidate import Inspector
 from batid.services.rnb_id import generate_rnb_id
@@ -406,6 +406,15 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
 
 
 def data_to_candidate(data):
+    b_import = BuildingImport.objects.create(
+        departement="33",
+        import_source="dummy",
+        building_created_count=0,
+        building_updated_count=0,
+        building_refused_count=0,
+        candidate_created_count=0,
+    )
+
     for d in data:
         shape = GEOSGeometry(json.dumps(d["geometry"]))
         shape.srid = 4326
@@ -417,6 +426,7 @@ def data_to_candidate(data):
             source=d["source"],
             source_id=d["id"],
             is_light=False,
+            created_by={"source": "import", "id": b_import.id},
         )
 
 
