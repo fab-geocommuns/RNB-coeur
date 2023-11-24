@@ -411,7 +411,7 @@ class Inspector:
 
             ext_ids = bdg_dict["ext_ids"]
             ext_ids_str = json.dumps(ext_ids)
-            created_by = bdg_dict["created_by"]
+            last_updated_by = bdg_dict["last_updated_by"]
 
             values.append(
                 (
@@ -422,7 +422,7 @@ class Inspector:
                     bdg_dict["shape"].wkt,
                     datetime.now(timezone.utc),
                     datetime.now(timezone.utc),
-                    json.dumps(created_by),
+                    json.dumps(last_updated_by),
                 )
             )
 
@@ -431,8 +431,11 @@ class Inspector:
                 for add_key in c.address_keys:
                     self.bdg_address_relations.append((rnb_id, add_key))
 
-            if type(created_by) is dict and created_by.get("source") == "import":
-                import_id_stats.update([created_by["id"]])
+            if (
+                type(last_updated_by) is dict
+                and last_updated_by.get("source") == "import"
+            ):
+                import_id_stats.update([last_updated_by["id"]])
 
         # Anything to save?
         if len(values) == 0:
@@ -496,7 +499,7 @@ class Inspector:
         self.inspect_candidate_matches(c)
 
     def inspect_candidate_matches(self, c: CandidateModel):
-        kept_matches_ids = []
+        kept_matches = []
         c_area = c.shape.area
 
         for match in c.matches:
@@ -525,11 +528,11 @@ class Inspector:
                 # one conflict is enough to refuse the candidate
                 return
 
-            kept_matches_ids.append(match["id"])
+            kept_matches.append(match)
 
         # We transfer the kept matches ids to the candidate
         # We do not keep buildings shapes in memory to avoid memory issues
-        c.matches = kept_matches_ids
+        c.matches = kept_matches
 
         if len(c.matches) == 0:
             self.set_inspect_result(c, "creation")
