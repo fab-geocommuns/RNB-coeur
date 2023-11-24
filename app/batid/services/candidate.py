@@ -68,7 +68,7 @@ class Candidate:
 
     def update_bdg(self, bdg: Building):
         # The returned values
-        has_changed_props = False
+        has_changed = False
         added_address_keys = []
 
         # ##############################
@@ -83,7 +83,7 @@ class Candidate:
                 self.source_id,
                 self.created_at.isoformat(),
             )
-            has_changed_props = True
+            has_changed = True
 
         # ##############################
         # ADDRESSES
@@ -95,8 +95,12 @@ class Candidate:
         for c_address_key in self.address_keys:
             if c_address_key not in bdg_addresses_keys:
                 added_address_keys.append(c_address_key)
+                has_changed = True
 
-        return has_changed_props, added_address_keys, bdg
+        if has_changed:
+            bdg.last_updated_by = self.created_by
+
+        return has_changed, added_address_keys, bdg
 
 
 def get_candidate_shape(shape: str, is_shape_fictive: bool):
@@ -261,11 +265,11 @@ class Inspector:
             )
 
             bdg = next(b for b in bdgs if b.id == c.matched_ids[0])
-            has_changed_props, added_address_keys, bdg = c.update_bdg(bdg)
+            has_changed, added_address_keys, bdg = c.update_bdg(bdg)
 
             # Need to update the building properties ?
-            if has_changed_props:
-                self.bdgs_to_updates.append({"building": bdg, "import_id": import_id})
+            if has_changed:
+                self.bdgs_to_updates.append(bdg)
 
             # Need to add some building <> adresse relations ?
             if len(added_address_keys) > 0:
@@ -297,9 +301,10 @@ class Inspector:
             # Count the number of occurences of each import_id
             # to update the BuildingImport entry
             import_ids = [
-                building_to_update["import_id"]
-                for building_to_update in self.bdgs_to_updates
-                if building_to_update["import_id"] is not None
+                bdg.last_updated_by["id"]
+                for bdg in self.bdgs_to_updates
+                if isinstance(bdg.last_updated_by, dict)
+                and bdg.last_updated_by.get("source", None) == "import"
             ]
             import_id_stats = Counter(import_ids)
 
