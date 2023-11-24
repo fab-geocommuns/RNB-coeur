@@ -448,9 +448,7 @@ class Inspector:
                     # update the number of refused buildings for each import
                     for import_id, count in import_id_stats.items():
                         building_import = BuildingImport.objects.get(id=import_id)
-                        building_import.building_refused_count = (
-                            building_import.building_refused_count + count
-                        )
+                        building_import.building_refused_count += count
                         building_import.save()
                 except (Exception, psycopg2.DatabaseError) as error:
                     raise error
