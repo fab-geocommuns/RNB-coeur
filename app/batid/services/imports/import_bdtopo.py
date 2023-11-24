@@ -1,6 +1,9 @@
 import csv
+import json
 import os
 
+from batid.models import Candidate, BuildingImport
+from batid.services.imports import building_import_history
 
 from batid.services.source import Source
 from shapely.geometry import shape, MultiPolygon
@@ -8,23 +11,28 @@ from shapely.ops import transform
 import fiona
 from datetime import datetime, timezone
 import psycopg2
-from django.db import connection
+from django.db import connection, transaction
 
 
 def import_bdtopo(dpt):
     dpt = dpt.zfill(3)
 
-    src = Source("bdtopo")
+    source_id = "bdtopo"
+
+    building_import = building_import_history.insert_building_import(source_id, dpt)
+
+    src = Source(source_id)
     src.set_param("dpt", dpt)
 
     with fiona.open(src.find(src.filename)) as f:
         print("-- read bdtopo ")
 
-        bdgs = []
+        candidates = []
 
         for feature in f:
-            bdg = _transform_bdtopo_feature(feature)
-            bdgs.append(bdg)
+            candidate = _transform_bdtopo_feature(feature)
+            candidate = _add_import_info(candidate, building_import)
+            candidates.append(candidate)
 
         buffer_src = Source(
             "buffer",
@@ -35,22 +43,28 @@ def import_bdtopo(dpt):
         )
         buffer_src.set_param("dpt", dpt)
 
-        cols = bdgs[0].keys()
+        cols = candidates[0].keys()
 
         with open(buffer_src.path, "w") as f:
             print("-- writing buffer file --")
             writer = csv.DictWriter(f, delimiter=";", fieldnames=cols)
-            writer.writerows(bdgs)
+            writer.writerows(candidates)
 
-        with open(buffer_src.path, "r") as f, connection.cursor() as cursor:
-            print("-- transfer buffer to db --")
-            try:
-                cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
-                connection.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cursor.close()
-                raise error
+        with open(buffer_src.path, "r") as f:
+            with transaction.atomic():
+                print("-- transfer buffer to db --")
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.copy_from(
+                            f, Candidate._meta.db_table, sep=";", columns=cols
+                        )
+
+                    building_import_history.increment_created_candidates(
+                        building_import, len(candidates)
+                    )
+
+                except (Exception, psycopg2.DatabaseError) as error:
+                    raise error
 
         print("- remove buffer")
         os.remove(buffer_src.path)
@@ -59,10 +73,9 @@ def import_bdtopo(dpt):
 def _transform_bdtopo_feature(feature) -> dict:
     multipoly = feature_to_multipoly(feature)
 
-    # todo : handle addresses
     address_keys = []
 
-    bdg = {
+    candidate_dict = {
         "shape": multipoly.wkt,
         "is_light": True if feature["properties"]["LEGER"] == "Oui" else False,
         "source": "bdtopo",
@@ -73,7 +86,12 @@ def _transform_bdtopo_feature(feature) -> dict:
         "updated_at": datetime.now(timezone.utc),
     }
 
-    return bdg
+    return candidate_dict
+
+
+def _add_import_info(candidate, building_import: BuildingImport):
+    candidate["created_by"] = json.dumps({"source": "import", "id": building_import.id})
+    return candidate
 
 
 def feature_to_multipoly(feature) -> MultiPolygon:

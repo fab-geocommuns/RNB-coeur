@@ -16,7 +16,7 @@ def list_bdgs(params):
         allowed_status = BuildingStatus.ALL_TYPES_KEYS
 
     # Queries status and filter on allowed status
-    status_list = BuildingStatus.DEFAULT_DISPLAY_STATUS
+    status_list = BuildingStatus.REAL_BUILDINGS_STATUS
     if "status" in params:
         if params["status"] == "all":
             status_list = BuildingStatus.ALL_TYPES_KEYS
