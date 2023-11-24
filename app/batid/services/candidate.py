@@ -498,14 +498,14 @@ class Inspector:
 
     def inspect_candidate_matches(self, c: CandidateModel):
         kept_matches = []
-        c_area = c.shape.area
+        c_area = self.compute_shape_area(c.shape)
 
         for match in c.matches:
             b_shape = GEOSGeometry(json.dumps(match["shape"]))
-            b_area = b_shape.area
+            b_area = self.compute_shape_area(b_shape)
 
             intersection = c.shape.intersection(b_shape)
-            intersection_area = intersection.area
+            intersection_area = self.compute_shape_area(intersection)
 
             candidate_cover_ratio = intersection_area / c_area
             bdg_cover_ratio = intersection_area / b_area
