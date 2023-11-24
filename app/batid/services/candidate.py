@@ -10,15 +10,16 @@ import psycopg2
 from django.contrib.gis.geos import MultiPolygon
 from psycopg2.extras import RealDictCursor, execute_values
 from shapely.geometry import MultiPolygon as ShapelyMultiPolygon
-from django.db import connection
+from django.db import connection, transaction
 from batid.services.rnb_id import generate_rnb_id
 from django.conf import settings
-from batid.models import Building
+from batid.models import Building, BuildingImport
 from batid.models import Candidate as CandidateModel
 from batid.services.source import BufferToCopy
 from batid.utils.decorators import show_duration
 from batid.utils.db import dictfetchall
 from datetime import datetime, timezone
+from collections import Counter
 from django.contrib.gis.geos import GEOSGeometry
 
 
@@ -36,6 +37,7 @@ class Candidate:
     inspected_at: datetime
     inspect_result: str
     matched_ids: List[int]
+    created_by: dict
 
     def to_bdg_dict(self):
         point_geom = (
@@ -50,6 +52,7 @@ class Candidate:
             "source": self.source,
             "point": point_geom,
             "address_keys": self.address_keys,
+            "created_by": self.created_by,
             "ext_ids": self.get_ext_ids(),
         }
 
@@ -65,7 +68,7 @@ class Candidate:
 
     def update_bdg(self, bdg: Building):
         # The returned values
-        has_changed_props = False
+        has_changed = False
         added_address_keys = []
 
         # ##############################
@@ -80,7 +83,7 @@ class Candidate:
                 self.source_id,
                 self.created_at.isoformat(),
             )
-            has_changed_props = True
+            has_changed = True
 
         # ##############################
         # ADDRESSES
@@ -92,8 +95,12 @@ class Candidate:
         for c_address_key in self.address_keys:
             if c_address_key not in bdg_addresses_keys:
                 added_address_keys.append(c_address_key)
+                has_changed = True
 
-        return has_changed_props, added_address_keys, bdg
+        if has_changed:
+            bdg.last_updated_by = self.created_by
+
+        return has_changed, added_address_keys, bdg
 
 
 def get_candidate_shape(shape: str, is_shape_fictive: bool):
@@ -111,6 +118,9 @@ def get_candidate_shape(shape: str, is_shape_fictive: bool):
 
 def row_to_candidate(row):
     shape = get_candidate_shape(row.get("shape", None), row["is_shape_fictive"])
+    created_by = (
+        json.loads(row["created_by"]) if row["created_by"] is not None else None
+    )
 
     return Candidate(
         id=row["id"],
@@ -124,6 +134,7 @@ def row_to_candidate(row):
         inspected_at=row.get("inspected_at", None),
         inspect_result=row.get("inspect_result", None),
         matched_ids=row.get("match_ids", []),
+        created_by=created_by,
     )
 
 
@@ -247,11 +258,17 @@ class Inspector:
 
         # Foreach building verify if anything must be updated
         for c in self.updates:
+            import_id = (
+                c.created_by["id"]
+                if c.created_by and c.created_by["source"] == "import"
+                else None
+            )
+
             bdg = next(b for b in bdgs if b.id == c.matched_ids[0])
-            has_changed_props, added_address_keys, bdg = c.update_bdg(bdg)
+            has_changed, added_address_keys, bdg = c.update_bdg(bdg)
 
             # Need to update the building properties ?
-            if has_changed_props:
+            if has_changed:
                 self.bdgs_to_updates.append(bdg)
 
             # Need to add some building <> adresse relations ?
@@ -281,14 +298,35 @@ class Inspector:
             # Create a buffer file
             buffer = self.__create_update_buffer_file()
 
-            with connection.cursor() as cur:
-                self.__create_tmp_update_table(cur)
-                self.__populate_tmp_update_table(buffer, cur)
-                self.__update_bdgs_from_tmp_update_table(cur)
-                self.__drop_tmp_update_table(cur)
+            # Count the number of occurences of each import_id
+            # to update the BuildingImport entry
+            import_ids = [
+                bdg.last_updated_by["id"]
+                for bdg in self.bdgs_to_updates
+                if isinstance(bdg.last_updated_by, dict)
+                and bdg.last_updated_by.get("source", None) == "import"
+            ]
+            import_id_stats = Counter(import_ids)
 
-            # Remove the buffer file
-            os.remove(buffer.path)
+            with transaction.atomic():
+                try:
+                    with connection.cursor() as cur, open(buffer.path, "r") as f:
+                        self.__create_tmp_update_table(cur)
+                        self.__populate_tmp_update_table(buffer, cur)
+                        self.__update_bdgs_from_tmp_update_table(cur)
+                        self.__drop_tmp_update_table(cur)
+                        os.remove(buffer.path)
+
+                    # update the BuildingImport entry
+                    for import_id, count in import_id_stats.items():
+                        building_import = BuildingImport.objects.get(id=import_id)
+                        building_import.building_updated_count = (
+                            building_import.building_updated_count + count
+                        )
+                        building_import.save()
+
+                except (Exception, psycopg2.DatabaseError) as error:
+                    raise error
 
         # ############
         # Building addresses relations
@@ -334,7 +372,7 @@ class Inspector:
         return data
 
     def __update_bdgs_from_tmp_update_table(self, cursor):
-        q = f"UPDATE {Building._meta.db_table} as b SET ext_ids = tmp.ext_ids FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
+        q = f"UPDATE {Building._meta.db_table} as b SET ext_ids = tmp.ext_ids, last_updated_by = tmp.last_updated_by FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
         cursor.execute(q)
 
     def __drop_tmp_update_table(self, cursor):
@@ -350,19 +388,27 @@ class Inspector:
 
     def __populate_tmp_update_table(self, buffer: BufferToCopy, cursor):
         with open(buffer.path, "r") as f:
-            cursor.copy_expert(
-                f"COPY {self.__tmp_update_table} (id, ext_ids) FROM STDIN WITH (FORMAT CSV, DELIMITER ';')",
+            cursor.copy_from(
                 f,
+                self.__tmp_update_table,
+                sep=";",
+                columns=["id", "ext_ids", "last_updated_by"],
             )
 
     def __create_tmp_update_table(self, cursor):
-        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_ids jsonb)"
+        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_ids jsonb, last_updated_by jsonb)"
         cursor.execute(q)
 
     def __create_update_buffer_file(self) -> BufferToCopy:
         data = []
         for bdg in self.bdgs_to_updates:
-            data.append({"id": bdg.id, "ext_ids": json.dumps(bdg.ext_ids)})
+            data.append(
+                {
+                    "id": bdg.id,
+                    "ext_ids": json.dumps(bdg.ext_ids),
+                    "last_updated_by": json.dumps(bdg.last_updated_by),
+                }
+            )
 
         buffer = BufferToCopy()
         buffer.write_data(data)
@@ -390,28 +436,47 @@ class Inspector:
 
     def handle_bdgs_refusals(self):
         print(f"- refusals: {len(self.refusals)}")
+        if len(self.refusals) > 0:
+            import_ids = [
+                c.created_by["id"]
+                for c in self.refusals
+                if c.created_by["source"] == "import"
+            ]
+            import_id_stats = Counter(import_ids)
+            with transaction.atomic():
+                try:
+                    # update the number of refused buildings for each import
+                    for import_id, count in import_id_stats.items():
+                        building_import = BuildingImport.objects.get(id=import_id)
+                        building_import.building_refused_count += count
+                        building_import.save()
+                except (Exception, psycopg2.DatabaseError) as error:
+                    raise error
 
     def __create_buildings(self):
         buffer = BufferToCopy()
         values = []
+        # used to store the number of created buildings for each import
+        import_id_stats = Counter()
 
         for c in self.creations:
             rnb_id = generate_rnb_id()
-
             bdg_dict = c.to_bdg_dict()
 
             ext_ids = bdg_dict["ext_ids"]
             ext_ids_str = json.dumps(ext_ids)
+            created_by = bdg_dict["created_by"]
 
             values.append(
                 (
                     rnb_id,
                     bdg_dict["source"],
                     ext_ids_str,
-                    f"{bdg_dict['point'].wkt}",
-                    f"{bdg_dict['shape'].wkt}",
+                    bdg_dict["point"].wkt,
+                    bdg_dict["shape"].wkt,
                     datetime.now(timezone.utc),
                     datetime.now(timezone.utc),
+                    json.dumps(created_by),
                 )
             )
 
@@ -420,20 +485,40 @@ class Inspector:
                 for add_key in c.address_keys:
                     self.bdg_address_relations.append((rnb_id, add_key))
 
+            if type(created_by) is dict and created_by.get("source") == "import":
+                import_id_stats.update([created_by["id"]])
+
         buffer.write_data(values)
 
-        with connection.cursor() as cur, open(buffer.path, "r") as f:
+        with transaction.atomic():
             try:
-                # We need to use copy_expert since the combinaison of json, csv and postegresql is quite tricky to make work. It needs the CSV Format argument
-                cur.copy_expert(
-                    f"COPY {Building._meta.db_table} (rnb_id, source, ext_ids, point, shape, created_at, updated_at) FROM STDIN WITH (FORMAT CSV, DELIMITER ';')",
-                    f,
-                )
-
+                start = perf_counter()
+                with connection.cursor() as cursor, open(buffer.path, "r") as f:
+                    cursor.copy_from(
+                        f,
+                        Building._meta.db_table,
+                        sep=";",
+                        columns=(
+                            "rnb_id",
+                            "source",
+                            "ext_ids",
+                            "point",
+                            "shape",
+                            "created_at",
+                            "updated_at",
+                            "last_updated_by",
+                        ),
+                    )
+                end = perf_counter()
                 os.remove(buffer.path)
+                print(f"---- create_buildings : copy_from: {end - start:.2f}s")
+
+                # update the number of created buildings for each import
+                for import_id, count in import_id_stats.items():
+                    building_import = BuildingImport.objects.get(id=import_id)
+                    building_import.building_created_count += count
+                    building_import.save()
             except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cur.close()
                 raise error
 
     def compute_shape_area(self, shape):

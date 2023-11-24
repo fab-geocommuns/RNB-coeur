@@ -1,0 +1,2 @@
+WKT,batiment_construction_id,batiment_groupe_id,code_departement_insee,code_iris,code_commune_insee,s_geom_cstr,hauteur,altitude_sol,fictive_geom_cstr
+"MULTIPOLYGON (((908711.2 6564735.4,908712.0 6564730.4,908705.8 6564728.7,908705.0 6564733.9,908711.2 6564735.4)))",NOUVEL_ID,uf012040231485_e535573d3dfc10a,"01","012040000","01204","33",3.6,849.8,"0"

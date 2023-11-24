@@ -6,7 +6,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("batid", "0059_alter_building_shape"),
+        ("batid", "0059_buildingimport_building_last_updated_by_and_more"),
     ]
 
     operations = [
