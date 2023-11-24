@@ -7,7 +7,9 @@ from typing import List
 from psycopg2.extras import Json
 import nanoid
 import psycopg2
-from psycopg2.extras import execute_values
+from django.contrib.gis.geos import MultiPolygon
+from psycopg2.extras import RealDictCursor, execute_values
+from shapely.geometry import MultiPolygon as ShapelyMultiPolygon
 from django.db import connection, transaction
 from batid.services.rnb_id import generate_rnb_id
 from django.conf import settings
@@ -58,7 +60,7 @@ class Inspector:
 
         # Lock some candidates for this batch
         self.build_stamp()
-        self.reserve_candidates()
+        n = self.reserve_candidates()
 
         # Get candidates and inspect them
         self.get_candidates()
@@ -76,7 +78,9 @@ class Inspector:
         # Clean up
         self.remove_stamped()
 
-        return len(self.candidates)
+
+        return n
+
 
     def remove_stamped(self):
         print("- remove stamped candidates")
@@ -605,10 +609,15 @@ class Inspector:
 
     def reserve_candidates(self):
         print("- reserve candidates")
-        candidates = CandidateModel.objects.filter(inspect_stamp__isnull=True).order_by(
-            "id"
-        )[: self.BATCH_SIZE]
+        with transaction.atomic():
+            # select_for_update() will lock the selected rows until the end of the transaction
+            # avoid that another inspector selects the same candidates between the select and the update of this one
+            candidates = (
+                CandidateModel.objects.select_for_update()
+                .filter(inspect_stamp__isnull=True)
+                .order_by("id")[: self.BATCH_SIZE]
+            )
 
-        CandidateModel.objects.filter(id__in=candidates).update(
-            inspect_stamp=self.stamp
-        )
+            return CandidateModel.objects.filter(id__in=candidates).update(
+                inspect_stamp=self.stamp
+            )
