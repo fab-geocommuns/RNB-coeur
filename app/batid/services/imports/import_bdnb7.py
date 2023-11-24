@@ -11,7 +11,7 @@ from batid.models import Address, BuildingImport
 from batid.services.source import Source, BufferToCopy
 from datetime import datetime, timezone
 from django.contrib.gis.geos import GEOSGeometry
-
+from batid.models import Candidate
 from batid.utils.db import list_to_pgarray
 import uuid
 import json
@@ -69,7 +69,7 @@ def import_bdnb7_bdgs(dpt):
             print("- import buffer")
             try:
                 with connection.cursor() as cursor:
-                    cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
+                    cursor.copy_from(f, Candidate._meta.db_table, sep=";", columns=cols)
 
                 building_import_history.increment_created_candidates(
                     building_import, len(candidates)
