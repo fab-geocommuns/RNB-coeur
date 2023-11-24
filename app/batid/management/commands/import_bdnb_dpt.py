@@ -14,19 +14,16 @@ class Command(BaseCommand):
 
 
 def create_tasks_list(dpt):
-    bdnb_dpt = dpt.lower()
     tasks = []
     tasks.append(
-        Signature("batid.tasks.dl_source", args=["bdnb_7", bdnb_dpt], immutable=True)
+        Signature("batid.tasks.dl_source", args=["bdnb_2023_q4", dpt], immutable=True)
     )
     tasks.append(
         Signature(
-            "batid.tasks.import_bdnb7_addresses",
-            args=[bdnb_dpt],
+            "batid.tasks.import_bdnb_addresses",
+            args=[dpt],
             immutable=True,
         )
     )
-    tasks.append(
-        Signature("batid.tasks.import_bdnb7_bdgs", args=[bdnb_dpt], immutable=True)
-    )
+    tasks.append(Signature("batid.tasks.import_bdnb_bdgs", args=[dpt], immutable=True))
     return tasks

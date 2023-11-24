@@ -15,6 +15,8 @@ from batid.utils.db import list_to_pgarray
 
 
 def import_bdnb7_bdgs(dpt):
+    raise Exception("BDNB 7 is not used anymore. We use a more recent version of BDNB.")
+
     print(f"## Import BDNB 7 buildings in dpt {dpt}")
 
     src = Source("bdnb_7")
@@ -67,6 +69,8 @@ def import_bdnb7_bdgs(dpt):
 
 
 def import_bdnb7_addresses(dpt):
+    raise Exception("BDNB 7 is not used anymore. We use a more recent version of BDNB.")
+
     print(f"## Import BDNB 7 addresses in dpt {dpt}")
 
     src = Source("bdnb_7")
