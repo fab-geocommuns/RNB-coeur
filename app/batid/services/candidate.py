@@ -224,14 +224,12 @@ class Inspector:
                         self.__update_bdgs_from_tmp_update_table(cur)
                         self.__drop_tmp_update_table(cur)
                         os.remove(buffer.path)
-            self.bdgs_to_updates = []
+                        self.bdgs_to_updates = []
 
                     # update the BuildingImport entry
                     for import_id, count in import_id_stats.items():
                         building_import = BuildingImport.objects.get(id=import_id)
-                        building_import.building_updated_count = (
-                            building_import.building_updated_count + count
-                        )
+                        building_import.building_updated_count += count
                         building_import.save()
 
                 except (Exception, psycopg2.DatabaseError) as error:
@@ -391,7 +389,7 @@ class Inspector:
             "source": c.source,
             "point": point,
             "address_keys": c.address_keys,
-            "last_updated_by": c.created_by
+            "last_updated_by": c.created_by,
         }
 
     @show_duration
@@ -408,8 +406,6 @@ class Inspector:
             ext_ids = bdg_dict["ext_ids"]
             ext_ids_str = json.dumps(ext_ids)
             created_by = bdg_dict["created_by"]
-
-
 
             values.append(
                 (
@@ -456,7 +452,7 @@ class Inspector:
                             "shape",
                             "created_at",
                             "updated_at",
-                            "last_updated_by"
+                            "last_updated_by",
                         ),
                     )
                 end = perf_counter()
