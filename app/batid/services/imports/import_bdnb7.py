@@ -3,15 +3,18 @@ import json
 import os
 
 import psycopg2
-from django.db import connection
+from django.db import connection, transaction
 from psycopg2.extras import execute_values
+from batid.services.imports import building_import_history
 
-from batid.models import Address
+from batid.models import Address, BuildingImport
 from batid.services.source import Source, BufferToCopy
 from datetime import datetime, timezone
 from django.contrib.gis.geos import GEOSGeometry
 
 from batid.utils.db import list_to_pgarray
+import uuid
+import json
 
 
 def import_bdnb7_bdgs(dpt):
@@ -19,7 +22,12 @@ def import_bdnb7_bdgs(dpt):
 
     print(f"## Import BDNB 7 buildings in dpt {dpt}")
 
-    src = Source("bdnb_7")
+    source_id = "bdnb_7"
+
+    # insert a record in the table BuildingImport
+    building_import = building_import_history.insert_building_import(source_id, dpt)
+
+    src = Source(source_id)
     src.set_param("dpt", dpt)
 
     groups_addresses = _get_groups_addresses_from_files(dpt)
@@ -31,7 +39,7 @@ def import_bdnb7_bdgs(dpt):
         reader = csv.DictReader(f, delimiter=",")
 
         for row in list(reader):
-            geom = GEOSGeometry(row["WKT"])
+            geom = GEOSGeometry(row["WKT"], srid=2154).transform(4326, clone=True)
             candidate = {
                 "shape": geom.wkt,
                 "source": "bdnb",
@@ -44,6 +52,9 @@ def import_bdnb7_bdgs(dpt):
                 ),
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc),
+                "created_by": json.dumps(
+                    {"source": "import", "id": building_import.id}
+                ),
             }
             candidates.append(candidate)
 
@@ -54,14 +65,16 @@ def import_bdnb7_bdgs(dpt):
     cols = candidates[0].keys()
 
     with open(buffer.path, "r") as f:
-        with connection.cursor() as cursor:
+        with transaction.atomic():
             print("- import buffer")
             try:
-                cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
-                connection.commit()
+                with connection.cursor() as cursor:
+                    cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
+
+                building_import_history.increment_created_candidates(
+                    building_import, len(candidates)
+                )
             except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cursor.close()
                 raise error
 
     print("- remove buffer")

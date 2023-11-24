@@ -110,13 +110,6 @@ def remove_inspected_candidates():
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def remove_invalid_candidates():
-    i = Inspector()
-    i.remove_invalid_candidates()
-    return "done"
-
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def remove_dpt_bdgs(dpt):
     remove_dpt_bdgs_job(dpt)
     return "done"
@@ -164,25 +157,3 @@ def dispatch_signal(pk: int):
     d.dispatch(s)
 
     return "done"
-
-
-@shared_task
-def fill_shapewhs84_col():
-    from django.db import connection
-
-    updated_count = None
-    total = 0
-
-    while updated_count is None or updated_count > 0:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "UPDATE batid_building SET shape = ST_Transform(shape, 4326) WHERE id IN (SELECT id from batid_building WHERE shape IS NULL and shape IS NOT NULL LIMIT 50000);"
-            )
-            updated_count = cursor.rowcount
-            total += updated_count
-
-            print("--")
-            print(f"updated {updated_count} rows")
-            print(f"total {total} rows")
-
-    print("- Finished -")

@@ -25,5 +25,11 @@ def create_tasks_list(dpt):
             immutable=True,
         )
     )
-    tasks.append(Signature("batid.tasks.import_bdnb_bdgs", args=[dpt], immutable=True))
+    tasks.append(
+        Signature(
+            "batid.tasks.import_bdnb_bdgs",
+            args=[dpt],
+            immutable=True,
+        )
+    )
     return tasks

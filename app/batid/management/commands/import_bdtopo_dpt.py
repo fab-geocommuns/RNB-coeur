@@ -21,6 +21,10 @@ def create_tasks_list(dpt):
         Signature("batid.tasks.dl_source", args=["bdtopo", bdtopo_dpt], immutable=True)
     )
     tasks.append(
-        Signature("batid.tasks.import_bdtopo", args=[bdtopo_dpt], immutable=True)
+        Signature(
+            "batid.tasks.import_bdtopo",
+            args=[bdtopo_dpt],
+            immutable=True,
+        )
     )
     return tasks

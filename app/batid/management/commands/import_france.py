@@ -14,6 +14,7 @@ from batid.management.commands.import_bdnb_dpt import (
 from batid.management.commands.import_bdtopo_dpt import (
     create_tasks_list as create_tasks_list_bdtopo_dpt,
 )
+import uuid
 
 
 class Command(BaseCommand):
