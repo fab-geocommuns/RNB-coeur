@@ -51,6 +51,9 @@ class Source:
             "bdnb_7": {
                 "url": "https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz",
             },
+            "bdnb_2023_q4": {
+                "url": "https://rnb-open.s3.fr-par.scw.cloud/bdnb_2023_q4/{{dpt}}.zip"
+            },
             "insee-cog-commune": {
                 "url": "https://api.insee.fr/metadonnees/V1/geo/communes",
                 "folder": "insee_cog",
