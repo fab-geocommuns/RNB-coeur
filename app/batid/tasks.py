@@ -52,13 +52,13 @@ def dl_source(src, dpt):
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_bdnb_addresses(dpt):
-    import_bdnd_2023_q4_addresses(dpt)
+    import_bdnd_2023_01_addresses(dpt)
     return "done"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_bdnb_bdgs(dpt):
-    import_bdnd_2023_q4_bdgs(dpt)
+    import_bdnd_2023_01_bdgs(dpt)
     return "done"
 
 

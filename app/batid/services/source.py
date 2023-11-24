@@ -3,6 +3,7 @@ import json
 import os
 import tarfile
 import gzip
+import zipfile
 
 import nanoid
 import py7zr
@@ -14,7 +15,7 @@ class Source:
 
     # Must be prefixed with a dot
 
-    archive_exts = [".7z", ".tar.gz", ".gz"]
+    archive_exts = [".7z", ".tar.gz", ".gz", ".zip"]
 
     def __init__(self, name, custom_ref=None):
         self.name = name
@@ -51,7 +52,7 @@ class Source:
             "bdnb_7": {
                 "url": "https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz",
             },
-            "bdnb_2023_q4": {
+            "bdnb_2023_01": {
                 "url": "https://rnb-open.s3.fr-par.scw.cloud/bdnb_2023_q4/{{dpt}}.zip"
             },
             "insee-cog-commune": {
@@ -162,9 +163,17 @@ class Source:
             self.uncompress_gz()
             return
 
+        if self.dl_filename.endswith(".zip"):
+            self.uncompress_zip()
+            return
+
+    def uncompress_zip(self):
+        with zipfile.ZipFile(self.dl_path, "r") as zip_ref:
+            zip_ref.extractall(self.uncompress_abs_dir)
+
     def uncompress_7z(self):
         with py7zr.SevenZipFile(self.dl_path, "r") as archive:
-            archive.extractall(self.abs_dir)
+            archive.extractall(self.uncompress_abs_dir)
 
     def uncompress_tar_gz(self):
         with tarfile.open(self.dl_path, "r:gz") as tar:
