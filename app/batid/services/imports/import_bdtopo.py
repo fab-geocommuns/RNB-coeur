@@ -1,5 +1,7 @@
 import csv
 import os
+
+from batid.models import Candidate
 from batid.services.imports import building_import_history
 
 from batid.services.source import Source
@@ -51,7 +53,9 @@ def import_bdtopo(dpt):
                 print("-- transfer buffer to db --")
                 try:
                     with connection.cursor() as cursor:
-                        cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
+                        cursor.copy_from(
+                            f, Candidate._meta.db_table, sep=";", columns=cols
+                        )
 
                     building_import_history.increment_created_candidates(
                         building_import, len(bdgs)
