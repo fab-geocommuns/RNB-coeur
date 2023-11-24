@@ -1,4 +1,5 @@
 import csv
+import json
 import os
 
 from batid.models import Candidate
@@ -26,11 +27,16 @@ def import_bdtopo(dpt):
     with fiona.open(src.find(src.filename)) as f:
         print("-- read bdtopo ")
 
-        bdgs = []
+        candidates = []
 
         for feature in f:
-            bdg = _transform_bdtopo_feature(feature)
-            bdgs.append(bdg)
+            candidate = _transform_bdtopo_feature(feature)
+
+            # We add the building import id to the created_by field
+            candidate["created_by"] = json.dumps(
+                {"source": "import", "id": building_import.id}
+            )
+            candidates.append(candidate)
 
         buffer_src = Source(
             "buffer",
@@ -41,12 +47,12 @@ def import_bdtopo(dpt):
         )
         buffer_src.set_param("dpt", dpt)
 
-        cols = bdgs[0].keys()
+        cols = candidates[0].keys()
 
         with open(buffer_src.path, "w") as f:
             print("-- writing buffer file --")
             writer = csv.DictWriter(f, delimiter=";", fieldnames=cols)
-            writer.writerows(bdgs)
+            writer.writerows(candidates)
 
         with open(buffer_src.path, "r") as f:
             with transaction.atomic():
@@ -58,7 +64,7 @@ def import_bdtopo(dpt):
                         )
 
                     building_import_history.increment_created_candidates(
-                        building_import, len(bdgs)
+                        building_import, len(candidates)
                     )
 
                 except (Exception, psycopg2.DatabaseError) as error:
@@ -71,10 +77,9 @@ def import_bdtopo(dpt):
 def _transform_bdtopo_feature(feature) -> dict:
     multipoly = feature_to_multipoly(feature)
 
-    # todo : handle addresses
     address_keys = []
 
-    bdg = {
+    candidate_dict = {
         "shape": multipoly.wkt,
         "is_light": True if feature["properties"]["LEGER"] == "Oui" else False,
         "source": "bdtopo",
@@ -85,7 +90,7 @@ def _transform_bdtopo_feature(feature) -> dict:
         "updated_at": datetime.now(timezone.utc),
     }
 
-    return bdg
+    return candidate_dict
 
 
 def feature_to_multipoly(feature) -> MultiPolygon:
