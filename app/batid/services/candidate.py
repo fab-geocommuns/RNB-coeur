@@ -404,11 +404,9 @@ class Inspector:
         for bdg in self.bdgs_to_updates:
             data.append(
                 {
-                    "id": bdg["building"].id,
-                    "ext_ids": json.dumps(bdg["building"].ext_ids),
-                    "last_updated_by": json.dumps(
-                        {"source": "import", "id": bdg["import_id"]}
-                    ),
+                    "id": bdg.id,
+                    "ext_ids": json.dumps(bdg.ext_ids),
+                    "last_updated_by": json.dumps(bdg.last_updated_by),
                 }
             )
 
