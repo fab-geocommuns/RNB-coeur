@@ -456,7 +456,7 @@ class Inspector:
         buffer = BufferToCopy()
         values = []
         # used to store the number of created buildings for each import
-        import_id_stats = []
+        import_id_stats = Counter()
 
         for c in self.creations:
             rnb_id = generate_rnb_id()
@@ -485,11 +485,9 @@ class Inspector:
                     self.bdg_address_relations.append((rnb_id, add_key))
 
             if type(created_by) is dict and created_by.get("source") == "import":
-                import_id_stats.append(created_by["id"])
+                import_id_stats.update([created_by["id"]])
 
         buffer.write_data(values)
-        # count the number of occurences in import_id_stats
-        import_id_stats = Counter(import_id_stats)
 
         with transaction.atomic():
             try:
@@ -517,9 +515,7 @@ class Inspector:
                 # update the number of created buildings for each import
                 for import_id, count in import_id_stats.items():
                     building_import = BuildingImport.objects.get(id=import_id)
-                    building_import.building_created_count = (
-                        building_import.building_created_count + count
-                    )
+                    building_import.building_created_count += count
                     building_import.save()
             except (Exception, psycopg2.DatabaseError) as error:
                 raise error

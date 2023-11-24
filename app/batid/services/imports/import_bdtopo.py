@@ -2,7 +2,7 @@ import csv
 import json
 import os
 
-from batid.models import Candidate
+from batid.models import Candidate, BuildingImport
 from batid.services.imports import building_import_history
 
 from batid.services.source import Source
@@ -31,11 +31,7 @@ def import_bdtopo(dpt):
 
         for feature in f:
             candidate = _transform_bdtopo_feature(feature)
-
-            # We add the building import id to the created_by field
-            candidate["created_by"] = json.dumps(
-                {"source": "import", "id": building_import.id}
-            )
+            candidate = _add_import_info(candidate, building_import)
             candidates.append(candidate)
 
         buffer_src = Source(
@@ -91,6 +87,11 @@ def _transform_bdtopo_feature(feature) -> dict:
     }
 
     return candidate_dict
+
+
+def _add_import_info(candidate, building_import: BuildingImport):
+    candidate["created_by"] = json.dumps({"source": "import", "id": building_import.id})
+    return candidate
 
 
 def feature_to_multipoly(feature) -> MultiPolygon:
