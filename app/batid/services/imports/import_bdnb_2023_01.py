@@ -1,6 +1,7 @@
 import csv
 import json
 import os
+from pprint import pprint
 
 import psycopg2
 from django.contrib.gis.geos import GEOSGeometry
@@ -26,19 +27,28 @@ def import_bdnd_2023_01_bdgs(dpt):
 
     with open(file_path, "r") as f:
         print("- list buildings")
-        reader = csv.DictReader(f, delimiter=";")
+        reader = csv.DictReader(f)
 
         candidates = []
-        for row in list(reader)[:10]:
-            geom = GEOSGeometry(row["dummy"])
+        for row in list(reader)[:100]:
+            geom = GEOSGeometry(row["geom_batiment_construction"])
+            geom.srid = 4326
+
+            # replace addresses keys with only one item = null
+            add_keys = row["cle_interop_adr"]
+            if add_keys == "{NULL}":
+                add_keys = "{}"
+
             candidate = {
                 "shape": geom.wkt,
                 "source": "bdnb",
                 "source_version": "2023.01",
                 "is_light": False,
-                "is_shape_fictive": row["dummy"],
-                "source_id": row["dummy"],
-                "address_keys": row["dummy"],
+                "is_shape_fictive": False
+                if row["reelle_geom_batiment_construction"] == "t"
+                else True,
+                "source_id": row["batiment_construction_id"],
+                "address_keys": add_keys,
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc),
                 "created_by": json.dumps(

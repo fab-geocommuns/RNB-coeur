@@ -15,7 +15,11 @@ from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        # dl_source("bdnb_2023_01", "75")
+        # dl_source("bdnb_2023_01", "08")
 
-        import_bdnd_2023_01_bdgs("75")
-        pass
+        # Candidate.objects.all().delete()
+        #
+        # import_bdnd_2023_01_bdgs("08")
+
+        c = Candidate.objects.get(id=227)
+        print(c.address_keys)
