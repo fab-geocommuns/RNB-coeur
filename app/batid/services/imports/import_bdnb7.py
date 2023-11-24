@@ -17,15 +17,15 @@ import uuid
 import json
 
 
-def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
+def import_bdnb7_bdgs(dpt):
     print(f"## Import BDNB 7 buildings in dpt {dpt}")
 
-    # insert a record in the table BuildingImport
-    building_import = building_import_history.insert_building_import(
-        "bdnb_7", bulk_launch_uuid, dpt
-    )
+    source_id = "bdnb_7"
 
-    src = Source("bdnb_7")
+    # insert a record in the table BuildingImport
+    building_import = building_import_history.insert_building_import(source_id, dpt)
+
+    src = Source(source_id)
     src.set_param("dpt", dpt)
 
     groups_addresses = _get_groups_addresses_from_files(dpt)

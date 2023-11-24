@@ -2,10 +2,10 @@ import uuid
 from batid.models import BuildingImport
 
 
-def insert_building_import(source, bulk_launch_uuid, dpt) -> BuildingImport:
+def insert_building_import(source, dpt) -> BuildingImport:
     building_import = BuildingImport.objects.create(
         import_source=source,
-        bulk_launch_uuid=bulk_launch_uuid or uuid.uuid4(),
+        bulk_launch_uuid=uuid.uuid4(),
         departement=dpt,
         candidate_created_count=0,
         building_created_count=0,

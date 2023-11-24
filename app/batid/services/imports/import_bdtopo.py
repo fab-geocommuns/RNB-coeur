@@ -11,14 +11,14 @@ import psycopg2
 from django.db import connection, transaction
 
 
-def import_bdtopo(dpt, bulk_launch_uuid=None):
+def import_bdtopo(dpt):
     dpt = dpt.zfill(3)
 
-    building_import = building_import_history.insert_building_import(
-        "bdtopo", bulk_launch_uuid, dpt
-    )
+    source_id = "bdtopo"
 
-    src = Source("bdtopo")
+    building_import = building_import_history.insert_building_import(source_id, dpt)
+
+    src = Source(source_id)
     src.set_param("dpt", dpt)
 
     with fiona.open(src.find(src.filename)) as f:
