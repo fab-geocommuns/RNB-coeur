@@ -3,7 +3,7 @@ import csv
 from batid.services.source import Source
 
 
-def import_bdnd_2023_q4_bdgs(dpt):
+def import_bdnd_2023_01_bdgs(dpt):
     print("## Import BDNB 2023 Q4 buildings")
 
     src = Source("bdnb_2023_q4")
@@ -18,5 +18,5 @@ def import_bdnd_2023_q4_bdgs(dpt):
     pass
 
 
-def import_bdnd_2023_q4_addresses():
+def import_bdnd_2023_01_addresses():
     pass

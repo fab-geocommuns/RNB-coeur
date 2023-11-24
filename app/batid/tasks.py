@@ -7,9 +7,9 @@ from batid.services.imports.import_bdnb7 import (
     import_bdnb7_addresses as import_bdnb7_addresses_job,
 )
 
-from batid.services.imports.import_bdnb_2023_q4 import (
-    import_bdnd_2023_q4_bdgs,
-    import_bdnd_2023_q4_addresses,
+from batid.services.imports.import_bdnb_2023_01 import (
+    import_bdnd_2023_01_bdgs,
+    import_bdnd_2023_01_addresses,
 )
 
 from batid.services.imports.import_bdtopo import import_bdtopo as import_bdtopo_job
