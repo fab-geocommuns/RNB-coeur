@@ -30,7 +30,7 @@ def import_bdnd_2023_01_bdgs(dpt):
         reader = csv.DictReader(f)
 
         candidates = []
-        for row in list(reader)[:100]:
+        for row in list(reader):
             geom = GEOSGeometry(row["geom_batiment_construction"])
             geom.srid = 4326
 
