@@ -40,4 +40,4 @@ class ImportFranceTestCase(TestCase):
         import_buildings_tasks_uuid = [t.args[1] for t in tasks if t.name == 'batid.tasks.import_bdnb7_bdgs']
         counter = Counter(import_buildings_tasks_uuid)
         # A unique UUID is created for all the tasks coming from the same import_france command
-        self.assertEqual(counter.len(), 1)
+        self.assertEqual(len(counter), 1)
