@@ -8,6 +8,7 @@ from batid.models import Address, Building, Candidate, BuildingImport
 import batid.tests.helpers as helpers
 from django.conf import settings
 from batid.services.candidate import Inspector
+import uuid
 
 
 class ImportBDNBTestCase(TransactionTestCase):
@@ -48,8 +49,9 @@ class ImportBDNBTestCase(TransactionTestCase):
         self.assertEqual(Building.objects.count(), 0)
         self.assertEqual(Candidate.objects.count(), 0)
 
+        my_uuid = uuid.uuid4()
         # launch the import
-        import_bdnb7.import_bdnb7_bdgs("33")
+        import_bdnb7.import_bdnb7_bdgs("33", my_uuid)
 
         # the fixture contains 4 buildings => 4 candidates
         # but no buildings are created
@@ -104,6 +106,8 @@ class ImportBDNBTestCase(TransactionTestCase):
         self.assertEqual(building_import.candidate_created_count, 4)
         self.assertEqual(building_import.departement, "33")
         self.assertEqual(building_import.import_source, "bdnb_7")
+        # assert the uuid passed to the import is the same as the one effectively recorded
+        self.assertEqual(building_import.bulk_launch_uuid, my_uuid)
 
         self.assertEqual(
             candidate_1.created_by,
@@ -154,6 +158,9 @@ class ImportBDNBTestCase(TransactionTestCase):
         self.assertEqual(last_building_import.building_created_count, 0)
         self.assertEqual(last_building_import.building_updated_count, 0)
         self.assertEqual(last_building_import.building_refused_count, 0)
+        # this time I didn't pass a uuid, a new one should be generated
+        self.assertNotEqual(last_building_import.bulk_launch_uuid, my_uuid)
+        self.assertTrue(type(last_building_import.bulk_launch_uuid.hex) is str)
 
         # launch the inspector
         i = Inspector()

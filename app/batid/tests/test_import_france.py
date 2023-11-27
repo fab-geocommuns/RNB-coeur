@@ -1,3 +1,4 @@
+from collections import Counter
 from django.test import TestCase
 from batid.management.commands.import_france import create_tasks_list_france, dpts_list
 
@@ -35,3 +36,8 @@ class ImportFranceTestCase(TestCase):
         # there are 3 tasks per departement : dl_source and import_addresses and import_bdgs
         tasks = create_tasks_list_france("01", "95", "bdnb")
         self.assertEqual(len(tasks), len(dpts_list()) * 3)
+
+        import_buildings_tasks_uuid = [t.args[1] for t in tasks if t.name == 'batid.tasks.import_bdnb7_bdgs']
+        counter = Counter(import_buildings_tasks_uuid)
+        # A unique UUID is created for all the tasks coming from the same import_france command
+        self.assertEqual(counter.len(), 1)
