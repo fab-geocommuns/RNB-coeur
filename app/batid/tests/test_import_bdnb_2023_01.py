@@ -107,5 +107,12 @@ class ImportBDNB202301TestCase(TransactionTestCase):
         self.assertIsInstance(b.point, Point)
         self.assertEqual(b.addresses.count(), 0)
 
-    def test_import_addresses(self):
-        pass
+    @patch("batid.services.imports.import_bdnb_2023_01.Source.find")
+    def test_import_addresses(self, sourceMock):
+        sourceMock.return_value = helpers.fixture_path("bdnb_2023_01_addresses.csv")
+
+        self.assertEqual(Address.objects.count(), 0)
+
+        import_bdnb_2023_01.import_bdnd_2023_01_addresses("38")
+
+        self.assertEqual(Address.objects.count(), 3)
