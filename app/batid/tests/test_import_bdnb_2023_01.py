@@ -5,7 +5,8 @@ from django.test import TransactionTestCase
 from unittest.mock import patch
 
 import batid.services.imports.import_bdnb_2023_01 as import_bdnb_2023_01
-from batid.models import Candidate
+from batid.models import Candidate, Building, Address
+from batid.services.candidate import Inspector
 from batid.tests import helpers
 
 
@@ -13,6 +14,10 @@ class ImportBDNB202301TestCase(TransactionTestCase):
     @patch("batid.services.imports.import_bdnb_2023_01.Source.find")
     def test_import_bdgs(self, sourceMock):
         sourceMock.return_value = helpers.fixture_path("bdnb_2023_01_bdgs.csv")
+
+        # ############
+        # File to candidates
+        # ############
 
         # We check there are no candidates
         self.assertEqual(Candidate.objects.count(), 0)
@@ -55,6 +60,52 @@ class ImportBDNB202301TestCase(TransactionTestCase):
         self.assertIsInstance(c.shape, MultiPolygon)
         self.assertIsInstance(c.created_at, datetime)
         self.assertIsInstance(c.created_at, datetime)
+
+        # We create empty addresses
+        Address.objects.create(id="38517_0345_00007")
+        Address.objects.create(id="38117_0153_02822")
+        Address.objects.create(id="38117_0153_02824")
+
+        # ############
+        # Candidates to files
+        # ############
+
+        self.assertEqual(Building.objects.count(), 0)
+
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.count(), 3)
+
+        b = Building.objects.filter(
+            ext_ids__contains=[{"id": "bdnb-bc-1115-BJGL-HY7G"}]
+        ).first()
+        self.assertEqual(len(b.ext_ids), 1)
+        self.assertEqual(b.ext_ids[0]["source"], "bdnb")
+        self.assertEqual(b.ext_ids[0]["source_version"], "2023.01")
+        self.assertIsInstance(b.shape, MultiPolygon)
+        self.assertIsInstance(b.point, Point)
+        self.assertEqual(b.addresses.count(), 1)
+
+        b = Building.objects.filter(
+            ext_ids__contains=[{"id": "bdnb-bc-111D-RG76-V7GK"}]
+        ).first()
+        self.assertEqual(len(b.ext_ids), 1)
+        self.assertEqual(b.ext_ids[0]["source"], "bdnb")
+        self.assertEqual(b.ext_ids[0]["source_version"], "2023.01")
+        self.assertIsInstance(b.shape, MultiPolygon)
+        self.assertIsInstance(b.point, Point)
+        self.assertEqual(b.addresses.count(), 2)
+
+        b = Building.objects.filter(
+            ext_ids__contains=[{"id": "bdnb-bc-KCFS-ZDYC-D9D5"}]
+        ).first()
+        self.assertEqual(len(b.ext_ids), 1)
+        self.assertEqual(b.ext_ids[0]["source"], "bdnb")
+        self.assertEqual(b.ext_ids[0]["source_version"], "2023.01")
+        self.assertIsInstance(b.shape, Point)
+        self.assertIsInstance(b.point, Point)
+        self.assertEqual(b.addresses.count(), 0)
 
     def test_import_addresses(self):
         pass
