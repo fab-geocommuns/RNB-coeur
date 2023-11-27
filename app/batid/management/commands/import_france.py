@@ -52,9 +52,13 @@ def create_tasks_list_france(start_dpt, end_dpt, task_name):
     start_dpt_index = dpts.index(start_dpt) if start_dpt in dpts else 0
     end_dpt_index = dpts.index(end_dpt) + 1 if start_dpt in dpts else len(dpts)
     create_task_method = task_method(task_name)
+    bulk_launch_uuid = uuid.uuid4()
 
     for dpt in dpts[start_dpt_index:end_dpt_index]:
-        tasks.append(create_task_method(dpt))
+        if task_name in ["bdnb", "bdtopo"]:
+            tasks.append(create_task_method(dpt, bulk_launch_uuid))
+        else:
+            tasks.append(create_task_method(dpt))
     # flattern the list
     tasks = [item for sublist in tasks for item in sublist]
     return tasks
