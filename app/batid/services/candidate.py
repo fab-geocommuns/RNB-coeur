@@ -78,9 +78,7 @@ class Inspector:
         # Clean up
         self.remove_stamped()
 
-
         return n
-
 
     def remove_stamped(self):
         print("- remove stamped candidates")
@@ -126,7 +124,10 @@ class Inspector:
             for c_address_key in c.address_keys:
                 if c_address_key not in bdg_addresses_keys:
                     added_address_keys.append(c_address_key)
-                    has_changed = True
+                    # for the moment we don't consider a change in address as a change in the building
+                    # because we don't historize the addresses
+                    # so we don't know what has changed afterwards.
+                    # has_changed = True
 
         if has_changed:
             bdg.last_updated_by = c.created_by
