@@ -116,3 +116,17 @@ class ImportBDNB202301TestCase(TransactionTestCase):
         import_bdnb_2023_01.import_bdnd_2023_01_addresses("38")
 
         self.assertEqual(Address.objects.count(), 3)
+
+        a = Address.objects.get(id="38517_0345_00007")
+        self.assertEqual(a.street_number, "7")
+        self.assertEqual(a.street_rep, "")
+        self.assertEqual(a.street_type, "place")
+        self.assertEqual(a.street_name, "jean jaures")
+        self.assertEqual(a.city_name, "Tullins")
+        self.assertEqual(a.city_insee_code, "38517")
+        self.assertEqual(a.city_zipcode, "38210")
+        self.assertIsInstance(a.point, Point)
+
+        # There is a duplicate address in the fixture. It should be imported once (without conflict)
+        addresses = Address.objects.filter(id="38117_0153_02824")
+        self.assertEqual(addresses.count(), 1)
