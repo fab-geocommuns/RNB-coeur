@@ -74,17 +74,7 @@ class Inspector:
         self.handle_bdgs_creations()
         self.handle_bdgs_updates()
         self.handle_bdgs_refusals()
-
-        # Clean up
-        self.remove_stamped()
-
         return n
-
-    def remove_stamped(self):
-        print("- remove stamped candidates")
-        CandidateModel.objects.filter(inspect_stamp=self.stamp).delete()
-
-
 
     def calc_bdg_update(self, c: CandidateModel, bdg: Building):
         has_changed = False
