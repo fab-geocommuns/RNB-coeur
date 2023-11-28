@@ -20,7 +20,9 @@ def import_bdnd_2023_01_bdgs(dpt):
 
     source_id = "bdnb_2023_01"
 
-    building_import = building_import_history.insert_building_import(source_id, dpt)
+    building_import = building_import_history.insert_building_import(
+        source_id, None, dpt
+    )
 
     src = Source(source_id)
     src.set_param("dpt", dpt)
