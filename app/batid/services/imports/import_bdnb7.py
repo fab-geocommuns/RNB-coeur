@@ -14,13 +14,13 @@ from django.contrib.gis.geos import GEOSGeometry
 from batid.models import Candidate
 from batid.utils.db import list_to_pgarray
 import json
-
-from batid.utils.misc import DeprecationException
+from warnings import warn
 
 
 def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
-    raise DeprecationException(
-        "BDNB 7 is not used anymore. We use a more recent version of BDNB."
+    warn(
+        "BDNB 7 is not used anymore. We use a more recent version of BDNB.",
+        DeprecationWarning,
     )
     print(f"## Import BDNB 7 buildings in dpt {dpt}")
 
@@ -86,8 +86,9 @@ def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
 
 
 def import_bdnb7_addresses(dpt):
-    raise DeprecationException(
-        "BDNB 7 is not used anymore. We use a more recent version of BDNB."
+    warn(
+        "BDNB 7 is not used anymore. We use a more recent version of BDNB.",
+        DeprecationWarning,
     )
 
     print(f"## Import BDNB 7 addresses in dpt {dpt}")

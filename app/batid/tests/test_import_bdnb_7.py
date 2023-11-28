@@ -8,7 +8,6 @@ from batid.models import Address, Building, Candidate, BuildingImport
 import batid.tests.helpers as helpers
 from django.conf import settings
 from batid.services.candidate import Inspector
-from batid.utils.misc import DeprecationException
 import uuid
 
 
@@ -20,12 +19,7 @@ class ImportBDNB7TestCase(TransactionTestCase):
         # there are initially no addresses
         self.assertEqual(Address.objects.count(), 0)
 
-        # launch the import
-        try:
-            import_bdnb7.import_bdnb7_addresses("33")
-        except DeprecationException:
-            # The old BDNB 7 is not used anymore and it triggers an exception. We might still want to keep the code for reference.
-            return
+        import_bdnb7.import_bdnb7_addresses("33")
 
         # the fixture contains 4 addresses, but one is a duplicate
         self.assertEqual(Address.objects.count(), 3)
@@ -56,11 +50,8 @@ class ImportBDNB7TestCase(TransactionTestCase):
 
         my_uuid = uuid.uuid4()
         # launch the import
-        try:
-            import_bdnb7.import_bdnb7_bdgs("33", my_uuid)
-        except DeprecationException:
-            # The old BDNB 7 is not used anymore and it triggers an exception. We might still want to keep the code for reference.
-            return
+
+        import_bdnb7.import_bdnb7_bdgs("33", my_uuid)
 
         # the fixture contains 4 buildings => 4 candidates
         # but no buildings are created

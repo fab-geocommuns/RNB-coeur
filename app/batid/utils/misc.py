@@ -4,7 +4,3 @@ def is_float(string: str) -> bool:
         return True
     except ValueError:
         return False
-
-
-class DeprecationException(Exception):
-    pass
