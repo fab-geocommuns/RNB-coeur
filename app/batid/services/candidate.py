@@ -23,19 +23,6 @@ from collections import Counter
 from django.contrib.gis.geos import GEOSGeometry
 
 
-def get_candidate_shape(shape: str, is_shape_fictive: bool):
-    if shape is None:
-        return None
-
-    shape_geom = GEOSGeometry(shape)
-
-    # when the shape is fictive, we store only a point
-    if is_shape_fictive and shape_geom.geom_type != "Point":
-        return shape_geom.centroid
-    else:
-        return shape_geom
-
-
 class Inspector:
     BATCH_SIZE = 10000
 
@@ -381,7 +368,7 @@ class Inspector:
 
     def candidate_to_bdg_dict(self, c: CandidateModel):
         # We have to go through this function to remove fictive shape
-        shape = get_candidate_shape(c.shape, c.is_shape_fictive)
+        shape = c.shape
         point = shape if shape.geom_type == "Point" else shape.point_on_surface
 
         return {
