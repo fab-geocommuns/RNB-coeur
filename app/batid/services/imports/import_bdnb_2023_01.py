@@ -47,9 +47,7 @@ def import_bdnd_2023_01_bdgs(dpt):
                 "source": "bdnb",
                 "source_version": "2023_01",
                 "is_light": False,
-                "is_shape_fictive": False
-                if row["reelle_geom_batiment_construction"] == "t"
-                else True,
+                "is_shape_fictive": row["reelle_geom_batiment_construction"] != "t",
                 "source_id": row["batiment_construction_id"],
                 "address_keys": add_keys,
                 "created_at": datetime.now(timezone.utc),
