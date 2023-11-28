@@ -36,6 +36,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 LOGIN_URL = "/admin/login/"
 
+DATABASE_ROUTERS = ("app.dbrouters.DBRouter",)
 
 if DEBUG:
     import socket  # only if you haven't already imported this

@@ -11,12 +11,17 @@ from batid.models import Address, BuildingImport
 from batid.services.source import Source, BufferToCopy
 from datetime import datetime, timezone
 from django.contrib.gis.geos import GEOSGeometry
-
+from batid.models import Candidate
 from batid.utils.db import list_to_pgarray
 import json
+from warnings import warn
 
 
 def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
+    warn(
+        "BDNB 7 is not used anymore. We use a more recent version of BDNB.",
+        DeprecationWarning,
+    )
     print(f"## Import BDNB 7 buildings in dpt {dpt}")
 
     source_id = "bdnb_7"
@@ -70,7 +75,7 @@ def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
             print("- import buffer")
             try:
                 with connection.cursor() as cursor:
-                    cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
+                    cursor.copy_from(f, Candidate._meta.db_table, sep=";", columns=cols)
 
                 building_import_history.increment_created_candidates(
                     building_import, len(candidates)
@@ -83,6 +88,11 @@ def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
 
 
 def import_bdnb7_addresses(dpt):
+    warn(
+        "BDNB 7 is not used anymore. We use a more recent version of BDNB.",
+        DeprecationWarning,
+    )
+
     print(f"## Import BDNB 7 addresses in dpt {dpt}")
 
     src = Source("bdnb_7")
