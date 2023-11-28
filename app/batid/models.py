@@ -184,11 +184,6 @@ class Candidate(models.Model):
     # bâtiment ou partie de bâtiment ouvert sur au moins un côté.
     is_light = models.BooleanField(null=True)
 
-    # information coming from BDNB
-    # when the building is fictive its geometry is not known and is remplaces by an hexagon
-    # we don't want to import the shape of such buildings.
-    is_shape_fictive = models.BooleanField(null=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
