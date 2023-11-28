@@ -411,6 +411,44 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
         self.assertEqual(Building.objects.all().count(), 1)
 
 
+class TestPointCandidateOnPolyBdg(InspectTest):
+    bdgs_data = [
+        {
+            "id": "CLASSIC_BDG",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.567884072259659, 44.83820534369249],
+                        [-0.567884072259659, 44.838091952624836],
+                        [-0.5676364726049883, 44.838091952624836],
+                        [-0.5676364726049883, 44.83820534369249],
+                        [-0.567884072259659, 44.83820534369249],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        }
+    ]
+
+    candidates_data = [
+        {
+            "id": "POINT_BDG",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.5677886432262085, 44.83825929581545],
+                "type": "Point",
+            },
+        }
+    ]
+
+    def test_result(self):
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 1)
+
+
 def data_to_candidate(data):
     b_import = BuildingImport.objects.create(
         departement="33",
