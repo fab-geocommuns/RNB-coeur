@@ -320,19 +320,19 @@ class Inspector:
     @property
     def creations(self):
         for c in self.candidates:
-            if c.inspect_result == "creation":
+            if c.inspector_decision == "creation":
                 yield c
 
     @property
     def updates(self):
         for c in self.candidates:
-            if c.inspect_result == "update":
+            if c.inspector_decision == "update":
                 yield c
 
     @property
     def refusals(self):
         for c in self.candidates:
-            if c.inspect_result == "refusal":
+            if c.inspector_decision == "refusal":
                 yield c
 
     # to keep
@@ -471,12 +471,21 @@ class Inspector:
     def inspect_candidate(self, c: CandidateModel):
         # Light buildings do not match the RNB building definition
         if c.is_light == True:
-            self.set_inspect_result(c, "refusal")
+            c.inspector_decision = "refusal"
+            c.inspection_details = {
+                "decision": "refusal",
+                "reason": "is_light",
+            }
             return
 
         shape_area = self.compute_shape_area(c.shape)
         if shape_area < settings.MIN_BDG_AREA and shape_area > 0:
-            self.set_inspect_result(c, "refusal")
+            c.inspector_decision = "refusal"
+            c.inspection_details = {
+                "decision": "refusal",
+                "reason": "area_too_small",
+                "area": shape_area,
+            }
             return
 
         # We inspect the matches
@@ -508,7 +517,13 @@ class Inspector:
                 candidate_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
                 or bdg_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
             ):
-                self.set_inspect_result(c, "refusal")
+                c.inspector_decision = "refusal"
+                c.inspection_details = {
+                    "decision": "refusal",
+                    "reason": "ambiguous_building_overlap",
+                    "candidate_cover_ratio": candidate_cover_ratio,
+                    "bdg_cover_ratio": bdg_cover_ratio,
+                }
                 # one conflict is enough to refuse the candidate
                 return
 
@@ -519,16 +534,14 @@ class Inspector:
         c.matches = kept_matches
 
         if len(c.matches) == 0:
-            self.set_inspect_result(c, "creation")
+            c.inspector_decision = "creation"
 
         if len(c.matches) == 1:
-            self.set_inspect_result(c, "update")
+            c.inspector_decision = "update"
 
         if len(c.matches) > 1:
-            self.set_inspect_result(c, "refusal")
+            c.inspector_decision = "refusal"
 
-    def set_inspect_result(self, c: CandidateModel, result: str):
-        c.inspect_result = result
         c.inspected_at = datetime.now(timezone.utc)
 
     @show_duration
@@ -557,21 +570,6 @@ class Inspector:
         )
 
         self.candidates = CandidateModel.objects.raw(q, params)
-
-    def __close_inspection(self, c, inspect_result):
-        try:
-            q = f"UPDATE {CandidateModel._meta.db_table} SET inspected_at = now(), inspect_result = %(inspect_result)s WHERE id = %(id)s"
-
-            with connection.cursor() as cur:
-                cur.execute(q, {"id": c.id, "inspect_result": inspect_result})
-                connection.commit()
-        # catch db error and rollback
-        except (Exception, psycopg2.DatabaseError) as error:
-            connection.rollback()
-            connection.close()
-            raise error
-
-        # self.__close_inspection(c, 'refused')
 
     def _adapt_db_settings(self):
         with connection.cursor() as cur:
