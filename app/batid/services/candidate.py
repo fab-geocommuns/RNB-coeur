@@ -164,6 +164,10 @@ class Inspector:
             # Need to update the building properties ?
             if has_changed:
                 self.bdgs_to_updates.append(bdg)
+                c.inspection_details = {
+                    "decision": "update",
+                    "rnb_id": bdg.rnb_id,
+                }
 
             # Need to add some building <> adresse relations ?
             if len(added_address_keys) > 0:
@@ -211,6 +215,10 @@ class Inspector:
                         self.__drop_tmp_update_table(cur)
                         os.remove(buffer.path)
                         self.bdgs_to_updates = []
+
+                    for c in self.updates:
+                        # save the changes for the candidates inside the transaction
+                        c.save()
 
                     # update the BuildingImport entry
                     for import_id, count in import_id_stats.items():
@@ -351,6 +359,9 @@ class Inspector:
         import_id_stats = Counter(import_ids)
         with transaction.atomic():
             try:
+                for c in self.refusals:
+                    c.save()
+
                 # update the number of refused buildings for each import
                 for import_id, count in import_id_stats.items():
                     if count > 0:
@@ -390,6 +401,10 @@ class Inspector:
 
         for c in self.creations:
             rnb_id = generate_rnb_id()
+            c.inspection_details = {
+                "decision": "creation",
+                "rnb_id": rnb_id,
+            }
 
             bdg_dict = self.candidate_to_bdg_dict(c)
 
@@ -410,7 +425,7 @@ class Inspector:
                 )
             )
 
-            # Add bdg <> addresses relations. They wil be created once the building are in db.
+            # Add bdg <> addresses relations. They will be created once the building are in db.
             if c.address_keys:
                 for add_key in c.address_keys:
                     self.bdg_address_relations.append((rnb_id, add_key))
@@ -452,6 +467,9 @@ class Inspector:
                 os.remove(buffer.path)
                 print(f"---- create_buildings : copy_from: {end - start:.2f}s")
 
+                for c in self.creations:
+                    c.save()
+
                 # update the number of created buildings for each import
                 for import_id, count in import_id_stats.items():
                     building_import = BuildingImport.objects.get(id=import_id)
@@ -469,6 +487,9 @@ class Inspector:
         return row[0]
 
     def inspect_candidate(self, c: CandidateModel):
+        # record the inspection datetime
+        c.inspected_at = datetime.now(timezone.utc)
+
         # Light buildings do not match the RNB building definition
         if c.is_light == True:
             c.inspector_decision = "refusal"
@@ -541,8 +562,6 @@ class Inspector:
 
         if len(c.matches) > 1:
             c.inspector_decision = "refusal"
-
-        c.inspected_at = datetime.now(timezone.utc)
 
     @show_duration
     def inspect_candidates(self):
