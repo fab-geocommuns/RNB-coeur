@@ -18,9 +18,9 @@ class BuildingAbstract(models.Model):
     point = models.PointField(null=True, spatial_index=True, srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    last_updated_by = models.JSONField(null=True)
     shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
     ext_ids = models.JSONField(null=True)
+    last_updated_by = models.JSONField(null=True)
     # temporal table field
     sys_period = DateTimeRangeField(null=False, default=from_now_to_infinity)
     # in case of building merge, we want in the future to keep the list of the parent buildings

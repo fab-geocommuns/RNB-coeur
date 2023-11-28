@@ -281,6 +281,10 @@ class Migration(migrations.Migration):
                 ),
                 ("ext_ids", models.JSONField(null=True)),
                 (
+                    "last_updated_by",
+                    models.JSONField(null=True),
+                ),
+                (
                     "sys_period",
                     django.contrib.postgres.fields.ranges.DateTimeRangeField(
                         default=batid.models.from_now_to_infinity
