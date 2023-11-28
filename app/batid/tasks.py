@@ -51,14 +51,14 @@ def import_bdnb7_addresses(dpt):
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdnb7_bdgs(dpt):
-    import_bdnb7_bdgs_job(dpt)
+def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
+    import_bdnb7_bdgs_job(dpt, bulk_launch_uuid)
     return "done"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdtopo(dpt):
-    import_bdtopo_job(dpt)
+def import_bdtopo(dpt, bulk_launch_uuid=None):
+    import_bdtopo_job(dpt, bulk_launch_uuid)
     return "done"
 
 

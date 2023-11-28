@@ -14,12 +14,14 @@ import psycopg2
 from django.db import connection, transaction
 
 
-def import_bdtopo(dpt):
+def import_bdtopo(dpt, bulk_launch_uuid=None):
     dpt = dpt.zfill(3)
 
     source_id = "bdtopo"
 
-    building_import = building_import_history.insert_building_import(source_id, dpt)
+    building_import = building_import_history.insert_building_import(
+        source_id, bulk_launch_uuid, dpt
+    )
 
     src = Source(source_id)
     src.set_param("dpt", dpt)
