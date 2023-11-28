@@ -13,23 +13,23 @@ from datetime import datetime, timezone
 from django.contrib.gis.geos import GEOSGeometry
 from batid.models import Candidate
 from batid.utils.db import list_to_pgarray
-import uuid
 import json
 
 from batid.utils.misc import DeprecationException
 
 
-def import_bdnb7_bdgs(dpt):
+def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
     raise DeprecationException(
         "BDNB 7 is not used anymore. We use a more recent version of BDNB."
     )
-
     print(f"## Import BDNB 7 buildings in dpt {dpt}")
 
     source_id = "bdnb_7"
 
     # insert a record in the table BuildingImport
-    building_import = building_import_history.insert_building_import(source_id, dpt)
+    building_import = building_import_history.insert_building_import(
+        source_id, bulk_launch_uuid, dpt
+    )
 
     src = Source(source_id)
     src.set_param("dpt", dpt)
