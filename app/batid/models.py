@@ -100,6 +100,7 @@ class BuildingWithHistory(BuildingAbstract):
     # it contains current AND previous versions of the buildings
     class Meta:
         managed = False
+        # We could add an default ordering based on the temporal field (https://docs.djangoproject.com/en/4.2/ref/models/options/#ordering). It almost sure we will have to present chronologically the history of a building
         db_table = "batid_building_with_history"
 
 
