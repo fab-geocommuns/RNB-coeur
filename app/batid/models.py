@@ -9,15 +9,7 @@ from django.conf import settings
 from django.db.models import F
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.validators import validate_one_ext_id
-import datetime
-
-
-def from_now_to_infinity():
-    from psycopg2.extras import DateTimeTZRange
-    from django.utils import timezone
-
-    now = timezone.now()
-    return DateTimeTZRange(now, None)
+from batid.utils.db import from_now_to_infinity
 
 
 class BuildingAbstract(models.Model):
