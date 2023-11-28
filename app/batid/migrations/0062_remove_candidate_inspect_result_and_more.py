@@ -4,19 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('batid', '0061_rename_shape_wgs84_building_shape'),
+        ("batid", "0061_rename_shape_wgs84_building_shape"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='candidate',
-            name='inspect_result',
+            model_name="candidate",
+            name="inspect_result",
         ),
         migrations.AddField(
-            model_name='candidate',
-            name='inspection_details',
+            model_name="candidate",
+            name="inspection_details",
             field=models.JSONField(null=True),
+        ),
+        migrations.AlterField(
+            model_name="candidate",
+            name="inspected_at",
+            field=models.DateTimeField(db_index=True, null=True),
         ),
     ]

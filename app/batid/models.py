@@ -196,7 +196,7 @@ class Candidate(models.Model):
     # It MIGHT be replaced by systems closer to the db (eg : SELECT ... FOR UPDATE and postegresql LOCK system)
     # but I do not know those enough to use them right now.
     inspect_stamp = models.CharField(max_length=20, null=True, db_index=True)
-    inspected_at = models.DateTimeField(null=True)
+    inspected_at = models.DateTimeField(null=True, db_index=True)
     inspection_details = models.JSONField(null=True)
     created_by = models.JSONField(null=True)
 
