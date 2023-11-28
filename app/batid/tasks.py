@@ -97,13 +97,6 @@ def inspect_candidates():
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def remove_inspected_candidates():
-    i = Inspector()
-    i.remove_inspected()
-    return "done"
-
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def remove_dpt_bdgs(dpt):
     remove_dpt_bdgs_job(dpt)
     return "done"

@@ -84,16 +84,7 @@ class Inspector:
         print("- remove stamped candidates")
         CandidateModel.objects.filter(inspect_stamp=self.stamp).delete()
 
-    def remove_inspected(self):
-        q = f"DELETE FROM {CandidateModel._meta.db_table} WHERE inspected_at IS NOT NULL"
-        with connection.cursor() as cur:
-            try:
-                cur.execute(q)
-                connection.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cur.close()
-                raise error
+
 
     def calc_bdg_update(self, c: CandidateModel, bdg: Building):
         has_changed = False
