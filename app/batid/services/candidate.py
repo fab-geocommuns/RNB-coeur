@@ -367,12 +367,10 @@ class Inspector:
                 raise error
 
     def candidate_to_bdg_dict(self, c: CandidateModel):
-        # We have to go through this function to remove fictive shape
-        shape = c.shape
-        point = shape if shape.geom_type == "Point" else shape.point_on_surface
+        point = c.shape if c.shape.geom_type == "Point" else c.shape.point_on_surface
 
         return {
-            "shape": shape,
+            "shape": c.shape,
             "rnb_id": None,
             "source": c.source,
             "point": point,
