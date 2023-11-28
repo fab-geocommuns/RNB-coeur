@@ -309,6 +309,12 @@ class OneSmallOneBig:
         },
     }
 
+    def test_result(self):
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 1)
+
 
 class TestOneSmallBdgThenOneBigCand(InspectTest):
     bdgs_data = [OneSmallOneBig.small]
