@@ -16,9 +16,13 @@ from batid.utils.db import list_to_pgarray
 import uuid
 import json
 
+from batid.utils.misc import DeprecationException
+
 
 def import_bdnb7_bdgs(dpt):
-    raise Exception("BDNB 7 is not used anymore. We use a more recent version of BDNB.")
+    raise DeprecationException(
+        "BDNB 7 is not used anymore. We use a more recent version of BDNB."
+    )
 
     print(f"## Import BDNB 7 buildings in dpt {dpt}")
 
@@ -82,7 +86,9 @@ def import_bdnb7_bdgs(dpt):
 
 
 def import_bdnb7_addresses(dpt):
-    raise Exception("BDNB 7 is not used anymore. We use a more recent version of BDNB.")
+    raise DeprecationException(
+        "BDNB 7 is not used anymore. We use a more recent version of BDNB."
+    )
 
     print(f"## Import BDNB 7 addresses in dpt {dpt}")
 
