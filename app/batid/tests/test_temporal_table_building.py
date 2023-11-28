@@ -5,6 +5,7 @@ from batid.models import Building, BuildingWithHistory, BuildingHistoryOnly
 class TemporalTableCase(TestCase):
     def test_update_building(self):
         building = Building.objects.create(rnb_id="XYZ", source="bdtopo")
+        # We now update the building (and so create a new version of it)
         building.source = "dgfip"
         building.save()
 
