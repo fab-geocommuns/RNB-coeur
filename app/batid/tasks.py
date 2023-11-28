@@ -51,14 +51,14 @@ def import_bdnb7_addresses(dpt):
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdnb7_bdgs(dpt):
-    import_bdnb7_bdgs_job(dpt)
+def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
+    import_bdnb7_bdgs_job(dpt, bulk_launch_uuid)
     return "done"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdtopo(dpt):
-    import_bdtopo_job(dpt)
+def import_bdtopo(dpt, bulk_launch_uuid=None):
+    import_bdtopo_job(dpt, bulk_launch_uuid)
     return "done"
 
 
@@ -100,13 +100,6 @@ def inspect_candidates():
 def remove_inspected_candidates():
     i = Inspector()
     i.remove_inspected()
-    return "done"
-
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def remove_invalid_candidates():
-    i = Inspector()
-    i.remove_invalid_candidates()
     return "done"
 
 
@@ -158,25 +151,3 @@ def dispatch_signal(pk: int):
     d.dispatch(s)
 
     return "done"
-
-
-@shared_task
-def fill_shapewhs84_col():
-    from django.db import connection
-
-    updated_count = None
-    total = 0
-
-    while updated_count is None or updated_count > 0:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "UPDATE batid_building SET shape = ST_Transform(shape, 4326) WHERE id IN (SELECT id from batid_building WHERE shape IS NULL and shape IS NOT NULL LIMIT 50000);"
-            )
-            updated_count = cursor.rowcount
-            total += updated_count
-
-            print("--")
-            print(f"updated {updated_count} rows")
-            print(f"total {total} rows")
-
-    print("- Finished -")

@@ -4,9 +4,11 @@
 from django.test import TransactionTestCase
 from unittest.mock import patch
 import batid.services.imports.import_bdnb7 as import_bdnb7
-from batid.models import Address, Building, Candidate
+from batid.models import Address, Building, Candidate, BuildingImport
 import batid.tests.helpers as helpers
 from django.conf import settings
+from batid.services.candidate import Inspector
+import uuid
 
 
 class ImportBDNBTestCase(TransactionTestCase):
@@ -39,19 +41,22 @@ class ImportBDNBTestCase(TransactionTestCase):
         sourceMock.side_effect = [
             helpers.fixture_path("rel_batiment_groupe_adresse.csv"),
             helpers.fixture_path("batiment_construction_bdnb.csv"),
+            helpers.fixture_path("rel_batiment_groupe_adresse.csv"),
+            helpers.fixture_path("batiment_construction_bdnb_update.csv"),
         ]
 
         # there are initially no buildings nor candidate
         self.assertEqual(Building.objects.count(), 0)
         self.assertEqual(Candidate.objects.count(), 0)
 
+        my_uuid = uuid.uuid4()
         # launch the import
-        import_bdnb7.import_bdnb7_bdgs("33")
+        import_bdnb7.import_bdnb7_bdgs("33", my_uuid)
 
-        # the fixture contains 3 buildings => 3 candidates
+        # the fixture contains 4 buildings => 4 candidates
         # but no buildings are created
         self.assertEqual(Building.objects.count(), 0)
-        self.assertEqual(Candidate.objects.count(), 3)
+        self.assertEqual(Candidate.objects.count(), 4)
 
         # check the candidates are correctly imported
         candidates = Candidate.objects.all()
@@ -88,3 +93,92 @@ class ImportBDNBTestCase(TransactionTestCase):
         # no address is linked to this building
         self.assertEqual(candidate_3.address_keys, [])
         self.assertEqual(candidate_3.is_shape_fictive, True)
+
+        # test a building import has been recorded
+        building_imports = BuildingImport.objects.all()
+
+        self.assertEqual(len(building_imports), 1)
+        building_import = building_imports[0]
+
+        self.assertEqual(building_import.building_created_count, 0)
+        self.assertEqual(building_import.building_refused_count, 0)
+        self.assertEqual(building_import.building_updated_count, 0)
+        self.assertEqual(building_import.candidate_created_count, 4)
+        self.assertEqual(building_import.departement, "33")
+        self.assertEqual(building_import.import_source, "bdnb_7")
+        # assert the uuid passed to the import is the same as the one effectively recorded
+        self.assertEqual(building_import.bulk_launch_uuid, my_uuid)
+
+        self.assertEqual(
+            candidate_1.created_by,
+            {"source": "import", "id": building_import.id},
+        )
+        self.assertEqual(
+            candidate_2.created_by,
+            {"source": "import", "id": building_import.id},
+        )
+        self.assertEqual(
+            candidate_3.created_by,
+            {"source": "import", "id": building_import.id},
+        )
+
+        # manually insert some addresses for foreign key constraints
+        Address.objects.create(id="01300_0013_00145")
+        Address.objects.create(id="3000000C051200101")
+        Address.objects.create(id="3000000C051200201")
+
+        # launch the inspector
+        i = Inspector()
+        i.inspect()
+
+        buildings = Building.objects.all().order_by("created_at")
+        self.assertEqual(len(buildings), 3)
+
+        building_import.refresh_from_db()
+
+        self.assertEqual(building_import.building_created_count, 3)
+        self.assertEqual(building_import.building_updated_count, 0)
+        # One candidate is refused because its area is too small
+        self.assertEqual(building_import.building_refused_count, 1)
+
+        buildings[0].refresh_from_db()
+        self.assertEqual(
+            buildings[0].last_updated_by, {"source": "import", "id": building_import.id}
+        )
+
+        # launch a second import to test some building updates
+        import_bdnb7.import_bdnb7_bdgs("33")
+
+        # the fixture contains 1 building
+        self.assertEqual(Candidate.objects.count(), 1)
+
+        building_imports = BuildingImport.objects.all().order_by("-created_at")
+        last_building_import = building_imports[0]
+
+        self.assertEqual(last_building_import.building_created_count, 0)
+        self.assertEqual(last_building_import.building_updated_count, 0)
+        self.assertEqual(last_building_import.building_refused_count, 0)
+        # this time I didn't pass a uuid, a new one should be generated
+        self.assertNotEqual(last_building_import.bulk_launch_uuid, my_uuid)
+        self.assertTrue(type(last_building_import.bulk_launch_uuid.hex) is str)
+
+        # launch the inspector
+        i = Inspector()
+        i.inspect()
+
+        last_building_import.refresh_from_db()
+
+        self.assertEqual(last_building_import.building_created_count, 0)
+        self.assertEqual(last_building_import.building_updated_count, 1)
+        self.assertEqual(last_building_import.building_refused_count, 0)
+
+        buildings = Building.objects.all().order_by("created_at")
+
+        self.assertEqual(buildings[0].ext_ids[0]["id"], "BATIMENT0000000008834985-1")
+        self.assertEqual(buildings[0].ext_ids[1]["id"], "NOUVEL_ID")
+
+        # we expect the last_updated_by field to be updated with the second import id
+        self.assertEqual(
+            buildings[0].last_updated_by,
+            {"source": "import", "id": last_building_import.id},
+        )

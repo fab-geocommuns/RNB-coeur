@@ -14,13 +14,17 @@ class Command(BaseCommand):
         chain(*tasks)()
 
 
-def create_tasks_list(dpt):
+def create_tasks_list(dpt, bulk_launch_uuid=None):
     bdtopo_dpt = dpt.zfill(3)
     tasks = []
     tasks.append(
         Signature("batid.tasks.dl_source", args=["bdtopo", bdtopo_dpt], immutable=True)
     )
     tasks.append(
-        Signature("batid.tasks.import_bdtopo", args=[bdtopo_dpt], immutable=True)
+        Signature(
+            "batid.tasks.import_bdtopo",
+            args=[bdtopo_dpt, bulk_launch_uuid],
+            immutable=True,
+        )
     )
     return tasks

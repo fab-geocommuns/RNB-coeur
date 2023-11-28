@@ -18,6 +18,7 @@ class BuildingAbstract(models.Model):
     point = models.PointField(null=True, spatial_index=True, srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    last_updated_by = models.JSONField(null=True)
     shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
     ext_ids = models.JSONField(null=True)
     # temporal table field
@@ -235,6 +236,7 @@ class Candidate(models.Model):
     inspect_stamp = models.CharField(max_length=20, null=True, db_index=True)
     inspected_at = models.DateTimeField(null=True)
     inspect_result = models.CharField(max_length=20, null=True, db_index=True)
+    created_by = models.JSONField(null=True)
 
 
 class Plot(models.Model):
@@ -289,3 +291,20 @@ class AsyncSignal(models.Model):
 
     class Meta:
         ordering = ["created_at"]
+
+
+class BuildingImport(models.Model):
+    id = models.AutoField(primary_key=True)
+    import_source = models.CharField(max_length=20, null=False)
+    # the id of the "bulk launch"
+    # a bulk launch will typically launch an import on the country and will generate an import for each department
+    bulk_launch_uuid = models.UUIDField(null=True)
+    departement = models.CharField(max_length=3, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    # number of candidates created by the import
+    candidate_created_count = models.IntegerField(null=True)
+    # what happened to the candidates
+    building_created_count = models.IntegerField(null=True)
+    building_updated_count = models.IntegerField(null=True)
+    building_refused_count = models.IntegerField(null=True)
