@@ -216,9 +216,8 @@ class Inspector:
                         os.remove(buffer.path)
                         self.bdgs_to_updates = []
 
-                    for c in self.updates:
-                        # save the changes for the candidates inside the transaction
-                        c.save()
+                    # save the changes for the candidates inside the transaction
+                    save_candidates(self.updates)
 
                     # update the BuildingImport entry
                     for import_id, count in import_id_stats.items():
@@ -359,8 +358,7 @@ class Inspector:
         import_id_stats = Counter(import_ids)
         with transaction.atomic():
             try:
-                for c in self.refusals:
-                    c.save()
+                save_candidates(self.refusals)
 
                 # update the number of refused buildings for each import
                 for import_id, count in import_id_stats.items():
@@ -467,8 +465,7 @@ class Inspector:
                 os.remove(buffer.path)
                 print(f"---- create_buildings : copy_from: {end - start:.2f}s")
 
-                for c in self.creations:
-                    c.save()
+                save_candidates(self.creations)
 
                 # update the number of created buildings for each import
                 for import_id, count in import_id_stats.items():
@@ -620,3 +617,8 @@ class Inspector:
             return CandidateModel.objects.filter(id__in=candidates).update(
                 inspect_stamp=self.stamp
             )
+
+
+def save_candidates(candidates) -> None:
+    for c in candidates:
+        c.save()
