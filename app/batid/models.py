@@ -1,26 +1,38 @@
+from email.policy import default
 import json
 from typing import Any, Optional
 
 from django.contrib.auth.models import User
-from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import ArrayField, DateTimeRangeField
 from django.contrib.gis.db import models
 from django.conf import settings
 from django.db.models import F
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.validators import validate_one_ext_id
+from batid.utils.db import from_now_to_infinity
 
 
-class Building(models.Model):
+class BuildingAbstract(models.Model):
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
     source = models.CharField(max_length=10, null=False, db_index=True)
     point = models.PointField(null=True, spatial_index=True, srid=4326)
-    shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
-
-    addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
-    ext_ids = models.JSONField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
+    ext_ids = models.JSONField(null=True)
     last_updated_by = models.JSONField(null=True)
+    # temporal table field
+    sys_period = DateTimeRangeField(null=False, default=from_now_to_infinity)
+    # in case of building merge, we want in the future to keep the list of the parent buildings
+    # not implemented for now
+    parent_buildings = models.JSONField(null=True)
+
+    class Meta:
+        abstract = True
+
+
+class Building(BuildingAbstract):
+    addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
 
     def add_ext_id(
         self, source: str, source_version: Optional[str], id: str, created_at: str
@@ -81,6 +93,33 @@ class Building(models.Model):
 
     class Meta:
         ordering = ["rnb_id"]
+
+
+class BuildingWithHistory(BuildingAbstract):
+    # this read-only model is used to access the corresponding view
+    # it contains current AND previous versions of the buildings
+    class Meta:
+        managed = False
+        # We could add an default ordering based on the temporal field (https://docs.djangoproject.com/en/4.2/ref/models/options/#ordering). It almost sure we will have to present chronologically the history of a building
+        db_table = "batid_building_with_history"
+
+
+class BuildingHistoryOnly(BuildingAbstract):
+    # this model is probably not going to be used in the app
+    # use BuildingWithHistory instead
+    # it is created only so that any change in the Building model is reflected in the history table
+
+    # primary key for this table, because Django ORM wants one
+    bh_id = models.BigAutoField(
+        auto_created=True, primary_key=True, serialize=False, verbose_name="BH_ID"
+    )
+    # primary key coming from the Building table, but not unique here.
+    id = models.BigIntegerField()
+    rnb_id = models.CharField(max_length=12, null=False, unique=False, db_index=True)
+
+    class Meta:
+        managed = True
+        db_table = "batid_building_history"
 
 
 class BuildingStatus(models.Model):

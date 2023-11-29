@@ -6,6 +6,12 @@ from batid.services.imports.import_bdnb7 import (
     import_bdnb7_bdgs as import_bdnb7_bdgs_job,
     import_bdnb7_addresses as import_bdnb7_addresses_job,
 )
+
+from batid.services.imports.import_bdnb_2023_01 import (
+    import_bdnd_2023_01_bdgs,
+    import_bdnd_2023_01_addresses,
+)
+
 from batid.services.imports.import_bdtopo import import_bdtopo as import_bdtopo_job
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
@@ -45,14 +51,14 @@ def dl_source(src, dpt):
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdnb7_addresses(dpt):
-    import_bdnb7_addresses_job(dpt)
+def import_bdnb_addresses(dpt):
+    import_bdnd_2023_01_addresses(dpt)
     return "done"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
-    import_bdnb7_bdgs_job(dpt, bulk_launch_uuid)
+def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
+    import_bdnd_2023_01_bdgs(dpt, bulk_launch_uuid)
     return "done"
 
 
