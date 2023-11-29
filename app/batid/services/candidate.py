@@ -14,7 +14,7 @@ from django.db import connection, transaction
 from batid.services.rnb_id import generate_rnb_id
 from django.conf import settings
 from batid.models import Building, BuildingStatus, BuildingImport
-from batid.models import Candidate as CandidateModel
+from batid.models import Candidate as Candidate
 from batid.services.source import BufferToCopy
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.utils.decorators import show_duration
@@ -65,7 +65,7 @@ class Inspector:
         # Get candidates and inspect them
         self.get_candidates()
 
-        print(f"all candidate : {CandidateModel.objects.all().count()}")
+        print(f"all candidate : {Candidate.objects.all().count()}")
         print(f"candidates match: {len(self.candidates)}")
 
         self.inspect_candidates()
@@ -76,7 +76,7 @@ class Inspector:
         self.handle_bdgs_refusals()
         return n
 
-    def calc_bdg_update(self, c: CandidateModel, bdg: Building):
+    def calc_bdg_update(self, c: Candidate, bdg: Building):
         has_changed = False
         added_address_keys = []
 
@@ -126,7 +126,7 @@ class Inspector:
         self.__remove_candidates(ids)
 
     def __remove_candidates(self, ids: tuple):
-        q = f"DELETE FROM {CandidateModel._meta.db_table} WHERE id in %(ids)s"
+        q = f"DELETE FROM {Candidate._meta.db_table} WHERE id in %(ids)s"
         params = {"ids": ids}
 
         with connection.cursor() as cur:
@@ -164,10 +164,7 @@ class Inspector:
             # Need to update the building properties ?
             if has_changed:
                 self.bdgs_to_updates.append(bdg)
-                c.inspection_details = {
-                    "decision": "update",
-                    "rnb_id": bdg.rnb_id,
-                }
+                decide_update(c, bdg.rnb_id)
 
             # Need to add some building <> adresse relations ?
             if len(added_address_keys) > 0:
@@ -369,7 +366,7 @@ class Inspector:
             except (Exception, psycopg2.DatabaseError) as error:
                 raise error
 
-    def candidate_to_bdg_dict(self, c: CandidateModel):
+    def candidate_to_bdg_dict(self, c: Candidate):
         # We have to go through this function to remove fictive shape
         shape = get_candidate_shape(c.shape, c.is_shape_fictive)
         point = shape if shape.geom_type == "Point" else shape.point_on_surface
@@ -399,10 +396,7 @@ class Inspector:
 
         for c in self.creations:
             rnb_id = generate_rnb_id()
-            c.inspection_details = {
-                "decision": "creation",
-                "rnb_id": rnb_id,
-            }
+            decide_creation(c, rnb_id)
 
             bdg_dict = self.candidate_to_bdg_dict(c)
 
@@ -483,33 +477,26 @@ class Inspector:
 
         return row[0]
 
-    def inspect_candidate(self, c: CandidateModel):
+    def inspect_candidate(self, c: Candidate):
         # record the inspection datetime
         c.inspected_at = datetime.now(timezone.utc)
 
         # Light buildings do not match the RNB building definition
         if c.is_light == True:
             c.inspector_decision = "refusal"
-            c.inspection_details = {
-                "decision": "refusal",
-                "reason": "is_light",
-            }
+            decide_refusal_is_light(c)
             return
 
         shape_area = self.compute_shape_area(c.shape)
         if shape_area < settings.MIN_BDG_AREA and shape_area > 0:
             c.inspector_decision = "refusal"
-            c.inspection_details = {
-                "decision": "refusal",
-                "reason": "area_too_small",
-                "area": shape_area,
-            }
+            decide_refusal_area_too_small(c, shape_area)
             return
 
         # We inspect the matches
         self.inspect_candidate_matches(c)
 
-    def inspect_candidate_matches(self, c: CandidateModel):
+    def inspect_candidate_matches(self, c: Candidate):
         kept_matches = []
         c_area = self.compute_shape_area(c.shape)
 
@@ -536,12 +523,7 @@ class Inspector:
                 or bdg_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
             ):
                 c.inspector_decision = "refusal"
-                c.inspection_details = {
-                    "decision": "refusal",
-                    "reason": "ambiguous_building_overlap",
-                    "candidate_cover_ratio": candidate_cover_ratio,
-                    "bdg_cover_ratio": bdg_cover_ratio,
-                }
+                decide_refusal_ambiguous_building_overlap(c, candidate_cover_ratio, bdg_cover_ratio)
                 # one conflict is enough to refuse the candidate
                 return
 
@@ -576,7 +558,7 @@ class Inspector:
 
         q = (
             "SELECT c.id, ST_AsEWKB(c.shape) as shape, COALESCE(json_agg(json_build_object('id', b.id, 'shape', b.shape)) FILTER (WHERE b.id IS NOT NULL), '[]') as matches "
-            f"FROM {CandidateModel._meta.db_table} c "
+            f"FROM {Candidate._meta.db_table} c "
             f"LEFT JOIN {Building._meta.db_table} b on ST_Intersects(c.shape, b.shape) "
             f"LEFT JOIN {BuildingStatus._meta.db_table} bs on bs.building_id = b.id "
             "WHERE ((bs.type IN %(status)s AND bs.is_current) OR bs.id IS NULL) "
@@ -585,7 +567,7 @@ class Inspector:
             "LIMIT %(limit)s"
         )
 
-        self.candidates = CandidateModel.objects.raw(q, params)
+        self.candidates = Candidate.objects.raw(q, params)
 
     def _adapt_db_settings(self):
         with connection.cursor() as cur:
@@ -609,12 +591,12 @@ class Inspector:
             # select_for_update() will lock the selected rows until the end of the transaction
             # avoid that another inspector selects the same candidates between the select and the update of this one
             candidates = (
-                CandidateModel.objects.select_for_update()
+                Candidate.objects.select_for_update()
                 .filter(inspect_stamp__isnull=True)
                 .order_by("id")[: self.BATCH_SIZE]
             )
 
-            return CandidateModel.objects.filter(id__in=candidates).update(
+            return Candidate.objects.filter(id__in=candidates).update(
                 inspect_stamp=self.stamp
             )
 
@@ -622,3 +604,45 @@ class Inspector:
 def save_candidates(candidates) -> None:
     for c in candidates:
         c.save()
+
+
+def decide_creation(candidate: Candidate, rnb_id) -> Candidate:
+    candidate.inspection_details = {
+        "decision": "creation",
+        "rnb_id": rnb_id,
+    }
+    return candidate
+
+
+def decide_update(candidate: Candidate, rnb_id) -> Candidate:
+    candidate.inspection_details = {
+        "decision": "update",
+        "rnb_id": rnb_id,
+    }
+    return candidate
+
+
+def decide_refusal_is_light(candidate: Candidate) -> Candidate:
+    candidate.inspection_details = {"decision": "refusal", "reason": "is_light"}
+    return candidate
+
+
+def decide_refusal_area_too_small(candidate: Candidate, area: float) -> Candidate:
+    candidate.inspection_details = {
+        "decision": "refusal",
+        "reason": "area_too_small",
+        "area": area,
+    }
+    return candidate
+
+
+def decide_refusal_ambiguous_building_overlap(
+    candidate: Candidate, candidate_cover_ratio: float, bdg_cover_ratio: float
+) -> Candidate:
+    candidate.inspection_details = {
+        "decision": "refusal",
+        "reason": "ambiguous_building_overlap",
+        "candidate_cover_ratio": candidate_cover_ratio,
+        "bdg_cover_ratio": bdg_cover_ratio,
+    }
+    return candidate
