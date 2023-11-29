@@ -18,6 +18,15 @@ class Migration(migrations.Migration):
             name="inspection_details",
             field=models.JSONField(null=True),
         ),
+        # this constraint ensures that the inspection_details field is either null or contains a decision key with specific values
+        migrations.RunSQL(
+            """
+                ALTER TABLE batid_candidate ADD CONSTRAINT decision_must_exist CHECK (inspection_details = '"{}"' or (inspection_details->>'decision'=ANY ('{update,creation,refusal}'::text[])) is true);
+            """,
+            reverse_sql="""
+                ALTER TABLE batid_candidate DROP CONSTRAINT decision_must_exist;
+            """,
+        ),
         migrations.AlterField(
             model_name="candidate",
             name="inspected_at",
