@@ -16,7 +16,7 @@ class Command(BaseCommand):
 def create_tasks_list(dpt, bulk_launch_uuid=None):
     tasks = []
     tasks.append(
-        Signature("batid.tasks.dl_source", args=["bdnb_2023_q4", dpt], immutable=True)
+        Signature("batid.tasks.dl_source", args=["bdnb_2023_01", dpt], immutable=True)
     )
     tasks.append(
         Signature(
