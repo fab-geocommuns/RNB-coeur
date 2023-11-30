@@ -433,7 +433,7 @@ class TestPointCandidateInsidePolyBdg(InspectTest):
 
     candidates_data = [
         {
-            "id": "POINT_BDG",
+            "id": "POINT_CANDIDATE",
             "source": "bdnb",
             "geometry": {
                 "coordinates": [-0.567752052053379, 44.83814660030956],
@@ -443,12 +443,67 @@ class TestPointCandidateInsidePolyBdg(InspectTest):
     ]
 
     def test_result(self):
+        # Before inspection we have only one building
+        self.assertEqual(Building.objects.all().count(), 1)
+        b = Building.objects.all().first()
+        shape = b.shape.clone()
+        point = b.point.clone()
+
+        i = Inspector()
+        i.inspect()
+
+        # After inspection we still have only one building
+        self.assertEqual(Building.objects.all().count(), 1)
+
+        b.refresh_from_db()
+        self.assertIsInstance(b.shape, Polygon)
+        self.assertEqual(shape.equals(b.shape), True)
+        self.assertEqual(point.equals(b.point), True)
+
+
+class TestPolyCandidateOnPointBdg(InspectTest):
+    bdgs_data = [
+        {
+            "id": "POINT_BDG",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.567752052053379, 44.83814660030956],
+                "type": "Point",
+            },
+        }
+    ]
+
+    candidates_data = [
+        {
+            "id": "POLY_CANDIDATE",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.567884072259659, 44.83820534369249],
+                        [-0.567884072259659, 44.838091952624836],
+                        [-0.5676364726049883, 44.838091952624836],
+                        [-0.5676364726049883, 44.83820534369249],
+                        [-0.567884072259659, 44.83820534369249],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        }
+    ]
+
+    def test_result(self):
+        # Before inspection we have only one building with a point shape
+        b = Building.objects.all().first()
+        self.assertIsInstance(b.shape, Point)
+
         i = Inspector()
         i.inspect()
 
         self.assertEqual(Building.objects.all().count(), 1)
 
-        b = Building.objects.all().first()
+        # Check the building is now a polygon
+        b.refresh_from_db()
         self.assertIsInstance(b.shape, Polygon)
 
 
@@ -532,7 +587,13 @@ def data_to_bdg(data):
             rnb_id=generate_rnb_id(),
             shape=shape,
             source=d["source"],
-            ext_ids=[{"source": d["source"], "id": d["id"]}],
+            ext_ids=[
+                {
+                    "source": d["source"],
+                    "id": d["id"],
+                    "created_at": datetime.now().isoformat(),
+                }
+            ],
             point=shape.point_on_surface,
         )
 
