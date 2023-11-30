@@ -135,6 +135,9 @@ class ImportBDNB7TestCase(TransactionTestCase):
 
         buildings = Building.objects.all().order_by("created_at")
         self.assertEqual(len(buildings), 3)
+        
+        # candidates have not been deleted by the inspector
+        self.assertEqual(len(Candidate.objects.all()), 4)
 
         building_import.refresh_from_db()
 
@@ -142,6 +145,8 @@ class ImportBDNB7TestCase(TransactionTestCase):
         self.assertEqual(building_import.building_updated_count, 0)
         # One candidate is refused because its area is too small
         self.assertEqual(building_import.building_refused_count, 1)
+        self.assertEqual(Candidate.objects.filter(inspection_details__decision="refusal").
+                         filter(inspection_details__reason="area_too_small").count(), 1)
 
         buildings[0].refresh_from_db()
         self.assertEqual(
@@ -151,8 +156,8 @@ class ImportBDNB7TestCase(TransactionTestCase):
         # launch a second import to test some building updates
         import_bdnb7.import_bdnb7_bdgs("33")
 
-        # the fixture contains 1 building
-        self.assertEqual(Candidate.objects.count(), 1)
+        # the fixture contains 1 building -> 1 candidate not inspected yet
+        self.assertEqual(Candidate.objects.filter(inspected_at__isnull=True).count(), 1)
 
         building_imports = BuildingImport.objects.all().order_by("-created_at")
         last_building_import = building_imports[0]
@@ -173,6 +178,8 @@ class ImportBDNB7TestCase(TransactionTestCase):
         self.assertEqual(last_building_import.building_created_count, 0)
         self.assertEqual(last_building_import.building_updated_count, 1)
         self.assertEqual(last_building_import.building_refused_count, 0)
+
+        self.assertEqual(Candidate.objects.filter(inspection_details__decision="update").count(), 1)
 
         buildings = Building.objects.all().order_by("created_at")
 

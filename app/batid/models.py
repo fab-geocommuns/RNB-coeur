@@ -1,6 +1,6 @@
 from email.policy import default
 import json
-from typing import Optional
+from typing import Any, Optional
 
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField, DateTimeRangeField
@@ -230,9 +230,15 @@ class Candidate(models.Model):
     # It MIGHT be replaced by systems closer to the db (eg : SELECT ... FOR UPDATE and postegresql LOCK system)
     # but I do not know those enough to use them right now.
     inspect_stamp = models.CharField(max_length=20, null=True, db_index=True)
-    inspected_at = models.DateTimeField(null=True)
-    inspect_result = models.CharField(max_length=20, null=True, db_index=True)
+    inspected_at = models.DateTimeField(null=True, db_index=True)
+    inspection_details = models.JSONField(null=True)
     created_by = models.JSONField(null=True)
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # this field is used to store the decision of the inspector
+        # but is not intended to be stored in the database
+        self.inspector_decision = ""
 
 
 class Plot(models.Model):
