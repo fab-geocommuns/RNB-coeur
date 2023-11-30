@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass, field
 from pprint import pprint
 from time import perf_counter
-from typing import List
+from typing import List, Literal
 from psycopg2.extras import Json
 import nanoid
 import psycopg2
@@ -534,6 +534,37 @@ class Inspector:
 
         if len(c.matches) > 1:
             self.set_inspect_result(c, "refusal")
+
+    def match_shapes(
+        self, a: GEOSGeometry, b: GEOSGeometry
+    ) -> Literal["match", "no_match", "conflict"]:
+        families = (self.shape_family(a), self.shape_family(b))
+
+        if families == ("poly", "poly"):
+            return self.match_polygons(a, b)
+
+        if families == ("point", "point"):
+            return self.match_points(a, b)
+
+        if families == ("point", "poly") or families == ("poly", "point"):
+            return self.match_point_poly(a, b)
+
+        raise Exception(f"Unknown matching shape families case: {families}")
+
+    @staticmethod
+    def shape_family(shape: GEOSGeometry):
+        if shape.geom_type == "MultiPolygon":
+            return "poly"
+
+        if shape.geom_type == "Polygon":
+            return "poly"
+
+        if shape.geom_type == "Point":
+            return "point"
+
+        raise Exception(
+            f"We do not handle this shape type: {shape.geom_type} in inspector"
+        )
 
     def set_inspect_result(self, c: CandidateModel, result: str):
         c.inspect_result = result

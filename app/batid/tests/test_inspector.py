@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from django.contrib.gis.geos import GEOSGeometry, Point
+from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
 from django.db import connection
 from django.test import TestCase
 
@@ -409,6 +409,47 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
         i.inspect()
 
         self.assertEqual(Building.objects.all().count(), 1)
+
+
+class TestPointCandidateInsidePolyBdg(InspectTest):
+    bdgs_data = [
+        {
+            "id": "POLY_BDG",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.567884072259659, 44.83820534369249],
+                        [-0.567884072259659, 44.838091952624836],
+                        [-0.5676364726049883, 44.838091952624836],
+                        [-0.5676364726049883, 44.83820534369249],
+                        [-0.567884072259659, 44.83820534369249],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        }
+    ]
+
+    candidates_data = [
+        {
+            "id": "POINT_BDG",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.567752052053379, 44.83814660030956],
+                "type": "Point",
+            },
+        }
+    ]
+
+    def test_result(self):
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 1)
+
+        b = Building.objects.all().first()
+        self.assertIsInstance(b.shape, Polygon)
 
 
 class TestPointCandidateOutsidePolyBdg(InspectTest):
