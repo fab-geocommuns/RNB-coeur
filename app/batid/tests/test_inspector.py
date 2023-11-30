@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry, Point
 from django.db import connection
 from django.test import TestCase
 
@@ -411,10 +411,10 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
         self.assertEqual(Building.objects.all().count(), 1)
 
 
-class TestPointCandidateOnPolyBdg(InspectTest):
+class TestPointCandidateOutsidePolyBdg(InspectTest):
     bdgs_data = [
         {
-            "id": "CLASSIC_BDG",
+            "id": "POLY_BDG",
             "source": "bdtopo",
             "geometry": {
                 "coordinates": [
@@ -446,7 +446,13 @@ class TestPointCandidateOnPolyBdg(InspectTest):
         i = Inspector()
         i.inspect()
 
-        self.assertEqual(Building.objects.all().count(), 1)
+        self.assertEqual(Building.objects.all().count(), 2)
+
+        b_poly = Building.objects.get(ext_ids__contains=[{"id": "POLY_BDG"}])
+        self.assertEqual(b_poly.shape.geom_type, "Polygon")
+
+        b_point = Building.objects.get(ext_ids__contains=[{"id": "POINT_BDG"}])
+        self.assertEqual(b_point.shape.geom_type, "Point")
 
 
 def data_to_candidate(data):
@@ -485,6 +491,7 @@ def data_to_bdg(data):
             rnb_id=generate_rnb_id(),
             shape=shape,
             source=d["source"],
+            ext_ids=[{"source": d["source"], "id": d["id"]}],
             point=shape.point_on_surface,
         )
 

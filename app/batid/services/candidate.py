@@ -473,6 +473,10 @@ class Inspector:
         return row[0]
 
     def inspect_candidate(self, c: CandidateModel):
+        print("---")
+        print(f"candidate {c.id}")
+        print(f"matches: {len(c.matches)}")
+
         # Light buildings do not match the RNB building definition
         if c.is_light == True:
             self.set_inspect_result(c, "refusal")
