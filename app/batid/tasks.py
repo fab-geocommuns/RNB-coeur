@@ -2,10 +2,6 @@ from celery import shared_task
 from app.celery import app
 from batid.services.imports.import_dpt import import_etalab_dpts
 from batid.services.source import Source
-from batid.services.imports.import_bdnb7 import (
-    import_bdnb7_bdgs as import_bdnb7_bdgs_job,
-    import_bdnb7_addresses as import_bdnb7_addresses_job,
-)
 
 from batid.services.imports.import_bdnb_2023_01 import (
     import_bdnd_2023_01_bdgs,

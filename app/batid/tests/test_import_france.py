@@ -37,7 +37,9 @@ class ImportFranceTestCase(TestCase):
         tasks = create_tasks_list_france("01", "95", "bdnb")
         self.assertEqual(len(tasks), len(dpts_list()) * 3)
 
-        import_buildings_tasks_uuid = [t.args[1] for t in tasks if t.name == 'batid.tasks.import_bdnb7_bdgs']
+        import_buildings_tasks_uuid = [
+            t.args[1] for t in tasks if t.name == "batid.tasks.import_bdnb_bdgs"
+        ]
         counter = Counter(import_buildings_tasks_uuid)
         # A unique UUID is created for all the tasks coming from the same import_france command
         self.assertEqual(len(counter), 1)

@@ -89,7 +89,7 @@ def import_bdnd_2023_01_addresses(dpt):
 
     src = Source("bdnb_2023_01")
     src.set_param("dpt", dpt)
-    file_path = src.find(f"{dpt}_bdgs.csv")
+    file_path = src.find(f"{dpt}_adresses.csv")
 
     with open(file_path, "r") as f:
         reader = csv.DictReader(f, delimiter=",")
