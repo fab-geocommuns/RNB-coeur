@@ -282,17 +282,7 @@ class TestHalvishCover(InspectTest):
 
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
-        self.assertEqual(
-            candidate.inspection_details["reason"], "ambiguous_building_overlap"
-        )
-        self.assertTrue(
-            candidate.inspection_details["candidate_cover_ratio"] > 0.1
-            and candidate.inspection_details["candidate_cover_ratio"] < 0.85
-        )
-        self.assertTrue(
-            candidate.inspection_details["bdg_cover_ratio"] > 0.1
-            and candidate.inspection_details["bdg_cover_ratio"] < 0.85
-        )
+        self.assertEqual(candidate.inspection_details["reason"], "geoconflict")
 
 
 class OneSmallOneBig:
@@ -357,9 +347,7 @@ class TestOneSmallBdgThenOneBigCand(InspectTest):
 
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
-        self.assertEqual(
-            candidate.inspection_details["reason"], "ambiguous_building_overlap"
-        )
+        self.assertEqual(candidate.inspection_details["reason"], "geoconflict")
 
 
 class TestOneBigBdgThenOneSmallCand(InspectTest):
@@ -374,9 +362,7 @@ class TestOneBigBdgThenOneSmallCand(InspectTest):
 
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
-        self.assertEqual(
-            candidate.inspection_details["reason"], "ambiguous_building_overlap"
-        )
+        self.assertEqual(candidate.inspection_details["reason"], "geoconflict")
 
 
 class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
@@ -453,15 +439,11 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
 
         candidate = Candidate.objects.all().order_by("inspected_at").first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
-        self.assertEqual(
-            candidate.inspection_details["reason"], "ambiguous_building_overlap"
-        )
+        self.assertEqual(candidate.inspection_details["reason"], "geoconflict")
 
         candidate_2 = Candidate.objects.all().order_by("inspected_at").last()
         self.assertEqual(candidate_2.inspection_details["decision"], "refusal")
-        self.assertEqual(
-            candidate_2.inspection_details["reason"], "ambiguous_building_overlap"
-        )
+        self.assertEqual(candidate_2.inspection_details["reason"], "geoconflict")
 
 
 class TestPointCandidateInsidePolyBdg(InspectTest):
@@ -658,7 +640,8 @@ class TestCandidateOnTwoMatchingBdgs(InspectTest):
         self.assertEqual(Building.objects.all().count(), 2)
 
         c = Candidate.objects.all().first()
-        print(c.inspection_details)
+        self.assertEqual(c.inspection_details["decision"], "refusal")
+        self.assertEqual(c.inspection_details["reason"], "toomany_geomatches")
 
 
 def data_to_candidate(data):

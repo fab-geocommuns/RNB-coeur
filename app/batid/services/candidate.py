@@ -487,7 +487,7 @@ class Inspector:
 
         if self.shape_family(c.shape) == "poly":
             shape_area = self.compute_shape_area(c.shape)
-            if shape_area < settings.BUILDING_MIN_AREA:
+            if shape_area < settings.MIN_BDG_AREA:
                 c.inspector_decision = "refusal"
                 decide_refusal_area_too_small(c, shape_area)
                 return
@@ -557,6 +557,9 @@ class Inspector:
         a_cover_ratio = intersection_area / a_area
         b_cover_ratio = intersection_area / b_area
 
+        print("a_cover_ratio", a_cover_ratio)
+        print("b_cover_ratio", b_cover_ratio)
+
         # The building does not intersect enough with the candidate to be considered as a match
         if (
             a_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
@@ -567,7 +570,7 @@ class Inspector:
         # The building intersects significantly with the candidate but not enough to be considered as a match
         if (
             a_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
-            or b_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
+            and b_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
         ):
             return "conflict"
 
@@ -691,22 +694,22 @@ def decide_refusal_is_light(candidate: Candidate) -> Candidate:
     return candidate
 
 
-def decide_refusal_geoconflict(candidate: Candidate) -> Candidate:
-    candidate.inspection_details = {
-        "decision": "refusal",
-        "reason": "geoconflict",
-        "matches": ", ".join([str(m["id"]) for m in candidate.matches]),
-    }
-    return candidate
-
-
-def decide_refusal_toomany_geomatches(
+def decide_refusal_geoconflict(
     candidate: Candidate, conflict_with_bdg: int
 ) -> Candidate:
     candidate.inspection_details = {
         "decision": "refusal",
-        "reason": "toomany_geomatches",
+        "reason": "geoconflict",
         "conflict_with_bdg": conflict_with_bdg,
+    }
+    return candidate
+
+
+def decide_refusal_toomany_geomatches(candidate: Candidate) -> Candidate:
+    candidate.inspection_details = {
+        "decision": "refusal",
+        "reason": "toomany_geomatches",
+        "matches": [m["id"] for m in candidate.matches],
     }
     return candidate
 
