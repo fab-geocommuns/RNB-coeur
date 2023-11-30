@@ -90,6 +90,11 @@ class TestInspectorBdgCreate(TestCase):
         self.assertEqual(b.ext_ids[0]["source_version"], "7.2")
         self.assertEqual(b.ext_ids[0]["id"], "bdnb_1")
 
+        # check the candidate inspection_details is set
+        candidate = Candidate.objects.all().first()
+        self.assertEqual(candidate.inspection_details["decision"], "creation")
+        self.assertEqual(candidate.inspection_details["rnb_id"], b.rnb_id)
+
 
 class TestInspectorBdgUpdate(TestCase):
     def setUp(self):
@@ -197,6 +202,16 @@ class TestInspectorBdgUpdate(TestCase):
         self.assertEqual(b.ext_ids[2]["source_version"], None)
         self.assertEqual(b.ext_ids[2]["id"], "bdtopo_1")
 
+        # Check the candidate inspection_details is set
+        first_candidate = Candidate.objects.all().order_by("inspected_at").first()
+        second_candidate = Candidate.objects.all().order_by("inspected_at").last()
+
+        self.assertEqual(first_candidate.inspection_details["decision"], "update")
+        self.assertEqual(first_candidate.inspection_details["rnb_id"], b.rnb_id)
+
+        self.assertEqual(second_candidate.inspection_details["decision"], "update")
+        self.assertEqual(second_candidate.inspection_details["rnb_id"], b.rnb_id)
+
 
 class InspectTest(TestCase):
     bdgs_data = None
@@ -265,6 +280,20 @@ class TestHalvishCover(InspectTest):
 
         self.assertEqual(Building.objects.all().count(), 1)
 
+        candidate = Candidate.objects.all().first()
+        self.assertEqual(candidate.inspection_details["decision"], "refusal")
+        self.assertEqual(
+            candidate.inspection_details["reason"], "ambiguous_building_overlap"
+        )
+        self.assertTrue(
+            candidate.inspection_details["candidate_cover_ratio"] > 0.1
+            and candidate.inspection_details["candidate_cover_ratio"] < 0.85
+        )
+        self.assertTrue(
+            candidate.inspection_details["bdg_cover_ratio"] > 0.1
+            and candidate.inspection_details["bdg_cover_ratio"] < 0.85
+        )
+
 
 class OneSmallOneBig:
 
@@ -326,6 +355,12 @@ class TestOneSmallBdgThenOneBigCand(InspectTest):
 
         self.assertEqual(Building.objects.all().count(), 1)
 
+        candidate = Candidate.objects.all().first()
+        self.assertEqual(candidate.inspection_details["decision"], "refusal")
+        self.assertEqual(
+            candidate.inspection_details["reason"], "ambiguous_building_overlap"
+        )
+
 
 class TestOneBigBdgThenOneSmallCand(InspectTest):
     bdgs_data = [OneSmallOneBig.big]
@@ -336,6 +371,12 @@ class TestOneBigBdgThenOneSmallCand(InspectTest):
         i.inspect()
 
         self.assertEqual(Building.objects.all().count(), 1)
+
+        candidate = Candidate.objects.all().first()
+        self.assertEqual(candidate.inspection_details["decision"], "refusal")
+        self.assertEqual(
+            candidate.inspection_details["reason"], "ambiguous_building_overlap"
+        )
 
 
 class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
@@ -409,6 +450,18 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
         i.inspect()
 
         self.assertEqual(Building.objects.all().count(), 1)
+
+        candidate = Candidate.objects.all().order_by("inspected_at").first()
+        self.assertEqual(candidate.inspection_details["decision"], "refusal")
+        self.assertEqual(
+            candidate.inspection_details["reason"], "ambiguous_building_overlap"
+        )
+
+        candidate_2 = Candidate.objects.all().order_by("inspected_at").last()
+        self.assertEqual(candidate_2.inspection_details["decision"], "refusal")
+        self.assertEqual(
+            candidate_2.inspection_details["reason"], "ambiguous_building_overlap"
+        )
 
 
 class TestPointCandidateInsidePolyBdg(InspectTest):
