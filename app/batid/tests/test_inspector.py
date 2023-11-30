@@ -3,6 +3,7 @@ from datetime import datetime
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
+from django.db.utils import IntegrityError
 from django.test import TestCase
 
 from batid.models import BuildingStatus, Candidate, Address, Building, BuildingImport
@@ -498,3 +499,49 @@ def data_to_bdg(data):
         )
 
         BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+
+
+class TestRollback(TestCase):
+    def test_addresses_rollback(self):
+        # The candidate
+        coords = [
+            [2.349804906833981, 48.85789205519228],
+            [2.349701279442314, 48.85786369735885],
+            [2.3496535925009994, 48.85777922711969],
+            [2.349861764341199, 48.85773095834841],
+            [2.3499452164882086, 48.857847406681174],
+            [2.349804906833981, 48.85789205519228],
+        ]
+        addresses = list(Address.objects.all())
+        # we create a candidate with a non existing address
+        Candidate.objects.create(
+            shape=coords_to_mp_geom(coords),
+            source="bdnb",
+            source_version="7.2",
+            source_id="bdnb_1",
+            address_keys=["add_1sdsdsqdsds"],
+            is_light=False,
+        )
+
+        self.assertEqual(Building.objects.all().count(), 0)
+
+        i = Inspector()
+
+        # from django.db.utils import IntegrityError
+        # from psycopg2.errors import ForeignKeyViolation
+        # i.inspect()
+        self.assertRaises(Exception, i.inspect)
+
+        # the building insertion should have been rollbacked
+        # self.assertEqual(Building.objects.all().count(), 0)
+
+    def test_constraint(self):
+        building = Building.objects.create(rnb_id="XYZ", source="bdtopo")
+
+        q = f"INSERT INTO batid_building_addresses (building_id, address_id) VALUES ({building.id},'kdsj') ON CONFLICT DO NOTHING"
+
+        with connection.cursor() as cur:
+            cur.execute(q)
+            # rows = cur.fetchall()
+            # print(rows)
+
