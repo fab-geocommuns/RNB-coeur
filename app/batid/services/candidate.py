@@ -91,6 +91,9 @@ class Inspector:
         # A place to verify properties changes
         # eg: ext_rnb_id, ext_bdnb_id, ...
         # If any property has changed, we will set has_changed_props to True
+
+        # ##
+        # Prop : ext_ids
         if not bdg.contains_ext_id(c.source, c.source_version, c.source_id):
             bdg.add_ext_id(
                 c.source,
@@ -98,6 +101,15 @@ class Inspector:
                 c.source_id,
                 c.created_at.isoformat(),
             )
+            has_changed = True
+
+        # ##
+        # Prop : shape
+        if (
+            self.shape_family(c.shape) == "poly"
+            and self.shape_family(bdg.shape) == "point"
+        ):
+            bdg.shape = c.shape.clone()
             has_changed = True
 
         # ##############################
@@ -273,7 +285,7 @@ class Inspector:
         return data
 
     def __update_bdgs_from_tmp_update_table(self, cursor):
-        q = f"UPDATE {Building._meta.db_table} as b SET ext_ids = tmp.ext_ids, last_updated_by = tmp.last_updated_by FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
+        q = f"UPDATE {Building._meta.db_table} as b SET shape = tmp.shape, ext_ids = tmp.ext_ids, last_updated_by = tmp.last_updated_by FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
         cursor.execute(q)
 
     def __drop_tmp_update_table(self, cursor):
@@ -293,11 +305,11 @@ class Inspector:
                 f,
                 self.__tmp_update_table,
                 sep=";",
-                columns=["id", "ext_ids", "last_updated_by"],
+                columns=["id", "ext_ids", "shape", "last_updated_by"],
             )
 
     def __create_tmp_update_table(self, cursor):
-        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_ids jsonb, last_updated_by jsonb)"
+        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_ids jsonb, shape public.geometry(geometry, 4326), last_updated_by jsonb)"
         cursor.execute(q)
 
     def __create_update_buffer_file(self) -> BufferToCopy:
@@ -307,6 +319,7 @@ class Inspector:
                 {
                     "id": bdg.id,
                     "ext_ids": json.dumps(bdg.ext_ids),
+                    "shape": bdg.shape.wkt,
                     "last_updated_by": json.dumps(bdg.last_updated_by),
                 }
             )
