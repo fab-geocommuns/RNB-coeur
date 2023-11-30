@@ -476,9 +476,6 @@ class Inspector:
         return row[0]
 
     def inspect_candidate(self, c: Candidate):
-
-
-    def inspect_candidate(self, c: Candidate):
         # record the inspection datetime
         c.inspected_at = datetime.now(timezone.utc)
 
@@ -488,20 +485,18 @@ class Inspector:
             decide_refusal_is_light(c)
             return
 
-        if (
-            self.shape_family(c.shape) == "poly"
-            and self.compute_shape_area(c.shape) < settings.MIN_BDG_AREA
-        ):
-            c.inspector_decision = "refusal"
-            decide_refusal_area_too_small(c, shape_area)
-            return
+        if self.shape_family(c.shape) == "poly":
+            shape_area = self.compute_shape_area(c.shape)
+            if shape_area < settings.BUILDING_MIN_AREA:
+                c.inspector_decision = "refusal"
+                decide_refusal_area_too_small(c, shape_area)
+                return
 
         # We inspect the matches
         self.inspect_candidate_matches(c)
 
-    def inspect_candidate_matches(self, c: CandidateModel):
+    def inspect_candidate_matches(self, c: Candidate):
         kept_matches = []
-        c_area = self.compute_shape_area(c.shape)
 
         for match in c.matches:
             b_shape = GEOSGeometry(json.dumps(match["shape"]))
@@ -516,7 +511,8 @@ class Inspector:
                 continue
 
             if shape_match_result == "conflict":
-                self.set_inspect_result(c, "refusal")
+                c.inspector_decision = "refusal"
+                decide_refusal_geoconflict(c, match["id"])
                 return
 
         # We transfer the kept matches ids to the candidate
@@ -524,13 +520,14 @@ class Inspector:
         c.matches = kept_matches
 
         if len(c.matches) == 0:
-            self.set_inspect_result(c, "creation")
+            c.inspector_decision = "creation"
 
         if len(c.matches) == 1:
-            self.set_inspect_result(c, "update")
+            c.inspector_decision = "update"
 
         if len(c.matches) > 1:
-            self.set_inspect_result(c, "refusal")
+            c.inspector_decision = "refusal"
+            decide_refusal_toomany_geomatches(c)
 
     def match_shapes(
         self, a: GEOSGeometry, b: GEOSGeometry
@@ -608,8 +605,6 @@ class Inspector:
         raise Exception(
             f"We do not handle this shape type: {shape.geom_type} in inspector"
         )
-
-
 
     @show_duration
     def inspect_candidates(self):
@@ -693,6 +688,26 @@ def decide_update(candidate: Candidate, rnb_id) -> Candidate:
 
 def decide_refusal_is_light(candidate: Candidate) -> Candidate:
     candidate.inspection_details = {"decision": "refusal", "reason": "is_light"}
+    return candidate
+
+
+def decide_refusal_geoconflict(candidate: Candidate) -> Candidate:
+    candidate.inspection_details = {
+        "decision": "refusal",
+        "reason": "geoconflict",
+        "matches": ", ".join([str(m["id"]) for m in candidate.matches]),
+    }
+    return candidate
+
+
+def decide_refusal_toomany_geomatches(
+    candidate: Candidate, conflict_with_bdg: int
+) -> Candidate:
+    candidate.inspection_details = {
+        "decision": "refusal",
+        "reason": "toomany_geomatches",
+        "conflict_with_bdg": conflict_with_bdg,
+    }
     return candidate
 
 

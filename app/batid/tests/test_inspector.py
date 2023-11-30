@@ -604,6 +604,63 @@ class TestPointCandidateOutsidePolyBdg(InspectTest):
         self.assertEqual(b_point.shape.geom_type, "Point")
 
 
+class TestCandidateOnTwoMatchingBdgs(InspectTest):
+    bdgs_data = [
+        {
+            "id": "POLY_BDG",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.5739986747433647, 44.847888277336494],
+                        [-0.573975794455265, 44.84774228183113],
+                        [-0.5738054634203138, 44.84775670115647],
+                        [-0.5738372415973458, 44.84790359783108],
+                        [-0.5739986747433647, 44.847888277336494],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        },
+        {
+            "id": "POINT_BDG",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.5738844554153957, 44.847736563832484],
+                "type": "Point",
+            },
+        },
+    ]
+
+    candidates_data = [
+        {
+            "id": "bigger",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.5739981812005226, 44.84788784410253],
+                        [-0.5739717202509098, 44.84771301356989],
+                        [-0.5737983165781486, 44.847730177321466],
+                        [-0.5738360375068225, 44.8479038103348],
+                        [-0.5739981812005226, 44.84788784410253],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        }
+    ]
+
+    def test_result(self):
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 2)
+
+        c = Candidate.objects.all().first()
+        print(c.inspection_details)
+
+
 def data_to_candidate(data):
     b_import = BuildingImport.objects.create(
         departement="33",
