@@ -11,15 +11,14 @@ from batid.services.candidate import Inspector
 import uuid
 
 
-class ImportBDNBTestCase(TransactionTestCase):
+class ImportBDNB7TestCase(TransactionTestCase):
     @patch("batid.services.imports.import_bdnb7.Source.find")
     def test_import_bdnb_addresses(self, sourceMock):
-        sourceMock.return_value = helpers.fixture_path("adresses_bdnb.csv")
+        sourceMock.return_value = helpers.fixture_path("adresses_bdnb_7.csv")
 
         # there are initially no addresses
         self.assertEqual(Address.objects.count(), 0)
 
-        # launch the import
         import_bdnb7.import_bdnb7_addresses("33")
 
         # the fixture contains 4 addresses, but one is a duplicate
@@ -39,10 +38,10 @@ class ImportBDNBTestCase(TransactionTestCase):
     @patch("batid.services.imports.import_bdnb7.Source.find")
     def test_import_bdnb_buildings(self, sourceMock):
         sourceMock.side_effect = [
-            helpers.fixture_path("rel_batiment_groupe_adresse.csv"),
-            helpers.fixture_path("batiment_construction_bdnb.csv"),
-            helpers.fixture_path("rel_batiment_groupe_adresse.csv"),
-            helpers.fixture_path("batiment_construction_bdnb_update.csv"),
+            helpers.fixture_path("rel_batiment_groupe_adresse_7.csv"),
+            helpers.fixture_path("batiment_construction_bdnb_7.csv"),
+            helpers.fixture_path("rel_batiment_groupe_adresse_7.csv"),
+            helpers.fixture_path("batiment_construction_bdnb_update_7.csv"),
         ]
 
         # there are initially no buildings nor candidate
@@ -51,6 +50,7 @@ class ImportBDNBTestCase(TransactionTestCase):
 
         my_uuid = uuid.uuid4()
         # launch the import
+
         import_bdnb7.import_bdnb7_bdgs("33", my_uuid)
 
         # the fixture contains 4 buildings => 4 candidates
