@@ -512,7 +512,7 @@ class Inspector:
 
             if shape_match_result == "conflict":
                 c.inspector_decision = "refusal"
-                decide_refusal_geoconflict(c, match["id"])
+                decide_refusal_ambiguous_overlap(c, match["id"])
                 return
 
         # We transfer the kept matches ids to the candidate
@@ -557,6 +557,8 @@ class Inspector:
         a_cover_ratio = intersection_area / a_area
         b_cover_ratio = intersection_area / b_area
 
+        print(f"cover ratio : {a_cover_ratio} {b_cover_ratio}")
+
         # The building does not intersect enough with the candidate to be considered as a match
         if (
             a_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
@@ -567,7 +569,7 @@ class Inspector:
         # The building intersects significantly with the candidate but not enough to be considered as a match
         if (
             a_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
-            and b_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
+            or b_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
         ):
             return "conflict"
 
@@ -691,12 +693,12 @@ def decide_refusal_is_light(candidate: Candidate) -> Candidate:
     return candidate
 
 
-def decide_refusal_geoconflict(
+def decide_refusal_ambiguous_overlap(
     candidate: Candidate, conflict_with_bdg: int
 ) -> Candidate:
     candidate.inspection_details = {
         "decision": "refusal",
-        "reason": "geoconflict",
+        "reason": "ambiguous_overlap",
         "conflict_with_bdg": conflict_with_bdg,
     }
     return candidate

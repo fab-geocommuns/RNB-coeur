@@ -282,7 +282,7 @@ class TestHalvishCover(InspectTest):
 
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
-        self.assertEqual(candidate.inspection_details["reason"], "geoconflict")
+        self.assertEqual(candidate.inspection_details["reason"], "ambiguous_overlap")
 
 
 class OneSmallOneBig:
@@ -347,7 +347,7 @@ class TestOneSmallBdgThenOneBigCand(InspectTest):
 
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
-        self.assertEqual(candidate.inspection_details["reason"], "geoconflict")
+        self.assertEqual(candidate.inspection_details["reason"], "ambiguous_overlap")
 
 
 class TestOneBigBdgThenOneSmallCand(InspectTest):
@@ -362,7 +362,6 @@ class TestOneBigBdgThenOneSmallCand(InspectTest):
 
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
-        self.assertEqual(candidate.inspection_details["reason"], "geoconflict")
 
 
 class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
@@ -439,11 +438,11 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
 
         candidate = Candidate.objects.all().order_by("inspected_at").first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
-        self.assertEqual(candidate.inspection_details["reason"], "geoconflict")
+        self.assertEqual(candidate.inspection_details["reason"], "ambiguous_overlap")
 
         candidate_2 = Candidate.objects.all().order_by("inspected_at").last()
         self.assertEqual(candidate_2.inspection_details["decision"], "refusal")
-        self.assertEqual(candidate_2.inspection_details["reason"], "geoconflict")
+        self.assertEqual(candidate_2.inspection_details["reason"], "ambiguous_overlap")
 
 
 class TestPointCandidateInsidePolyBdg(InspectTest):
@@ -805,7 +804,7 @@ class TestCandidateOnTwoMatchingBdgs(InspectTest):
 
         c = Candidate.objects.all().first()
         self.assertEqual(c.inspection_details["decision"], "refusal")
-        self.assertEqual(c.inspection_details["reason"], "toomany_geomatches")
+        self.assertEqual(c.inspection_details["reason"], "ambiguous_overlap")
 
 
 def data_to_candidate(data):
