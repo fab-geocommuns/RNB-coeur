@@ -1,6 +1,7 @@
 # we must use TransactionTestCase instead of TestCase because we are using raw SQL
 # and are maually managing the transactions
 # see https://docs.djangoproject.com/en/dev/topics/testing/tools/#transactiontestcase
+from django.contrib.gis.geos import Point
 from django.test import TransactionTestCase
 from unittest.mock import patch
 import batid.services.imports.import_bdnb7 as import_bdnb7
@@ -92,7 +93,8 @@ class ImportBDNB7TestCase(TransactionTestCase):
         self.assertEqual(candidate_3.source_id, "BATIMENT0000000008838153-1")
         # no address is linked to this building
         self.assertEqual(candidate_3.address_keys, [])
-        self.assertEqual(candidate_3.is_shape_fictive, True)
+        # We check the building shape is point. This is because the building is fictive in the bdnb
+        self.assertIsInstance(candidate_3.shape, Point)
 
         # test a building import has been recorded
         building_imports = BuildingImport.objects.all()

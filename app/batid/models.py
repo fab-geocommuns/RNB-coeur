@@ -212,7 +212,7 @@ class BuildingADS(models.Model):
 
 
 class Candidate(models.Model):
-    shape = models.MultiPolygonField(null=True, srid=4326)
+    shape = models.GeometryField(null=True, srid=4326)
     source = models.CharField(max_length=20, null=False)
     source_version = models.CharField(max_length=20, null=True)
     source_id = models.CharField(max_length=40, null=False)
@@ -222,11 +222,6 @@ class Candidate(models.Model):
     # Indique qu'il s'agit d'une structure légère, non attachée au sol par l'intermédiaire de fondations, ou d'un
     # bâtiment ou partie de bâtiment ouvert sur au moins un côté.
     is_light = models.BooleanField(null=True)
-
-    # information coming from BDNB
-    # when the building is fictive its geometry is not known and is remplaces by an hexagon
-    # we don't want to import the shape of such buildings.
-    is_shape_fictive = models.BooleanField(null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
