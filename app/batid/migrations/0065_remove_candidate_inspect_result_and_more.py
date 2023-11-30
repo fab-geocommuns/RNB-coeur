@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("batid", "0063_buildingwithhistory"),
+        ("batid", "0064_remove_candidate_is_shape_fictive_and_more"),
     ]
 
     operations = [
