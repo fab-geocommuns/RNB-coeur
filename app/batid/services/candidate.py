@@ -482,8 +482,10 @@ class Inspector:
             self.set_inspect_result(c, "refusal")
             return
 
-        shape_area = self.compute_shape_area(c.shape)
-        if shape_area < settings.MIN_BDG_AREA and shape_area > 0:
+        if (
+            self.shape_family(c.shape) == "poly"
+            and self.compute_shape_area(c.shape) < settings.MIN_BDG_AREA
+        ):
             self.set_inspect_result(c, "refusal")
             return
 
@@ -496,31 +498,19 @@ class Inspector:
 
         for match in c.matches:
             b_shape = GEOSGeometry(json.dumps(match["shape"]))
-            b_area = self.compute_shape_area(b_shape)
 
-            intersection = c.shape.intersection(b_shape)
-            intersection_area = self.compute_shape_area(intersection)
+            shape_match_result = self.match_shapes(c.shape, b_shape)
 
-            candidate_cover_ratio = intersection_area / c_area
-            bdg_cover_ratio = intersection_area / b_area
-
-            # The building does not intersect enough with the candidate to be considered as a match
-            if (
-                candidate_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
-                and bdg_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
-            ):
+            if shape_match_result == "match":
+                kept_matches.append(match)
                 continue
 
-            # The building intersects significantly with the candidate but not enough to be considered as a match
-            if (
-                candidate_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
-                or bdg_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
-            ):
-                self.set_inspect_result(c, "refusal")
-                # one conflict is enough to refuse the candidate
-                return
+            if shape_match_result == "no_match":
+                continue
 
-            kept_matches.append(match)
+            if shape_match_result == "conflict":
+                self.set_inspect_result(c, "refusal")
+                return
 
         # We transfer the kept matches ids to the candidate
         # We do not keep buildings shapes in memory to avoid memory issues
@@ -550,6 +540,52 @@ class Inspector:
             return self.match_point_poly(a, b)
 
         raise Exception(f"Unknown matching shape families case: {families}")
+
+    def match_polygons(
+        self, a: GEOSGeometry, b: GEOSGeometry
+    ) -> Literal["match", "no_match", "conflict"]:
+        a_area = self.compute_shape_area(a)
+        b_area = self.compute_shape_area(b)
+
+        intersection = a.intersection(b)
+        intersection_area = self.compute_shape_area(intersection)
+
+        a_cover_ratio = intersection_area / a_area
+        b_cover_ratio = intersection_area / b_area
+
+        # The building does not intersect enough with the candidate to be considered as a match
+        if (
+            a_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
+            and b_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
+        ):
+            return "no_match"
+
+        # The building intersects significantly with the candidate but not enough to be considered as a match
+        if (
+            a_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
+            or b_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
+        ):
+            return "conflict"
+
+        return "match"
+
+    def match_points(
+        self, a: GEOSGeometry, b: GEOSGeometry
+    ) -> Literal["match", "no_match", "conflict"]:
+        # NB : this intersection verification is already done in the sql query BUT we want to be sure this matching condition is always verified even the SQL query is modified
+        if a.intersects(b):
+            return "match"
+
+        return "no_match"
+
+    def match_point_poly(
+        self, a: GEOSGeometry, b: GEOSGeometry
+    ) -> Literal["match", "no_match", "conflict"]:
+        # NB : this intersection verification is already done in the sql query BUT we want to be sure this matching condition is always verified even the SQL query is modified
+        if a.intersects(b):
+            return "match"
+
+        return "no_match"
 
     @staticmethod
     def shape_family(shape: GEOSGeometry):
