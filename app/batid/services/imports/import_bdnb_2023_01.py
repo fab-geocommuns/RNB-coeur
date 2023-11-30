@@ -15,13 +15,13 @@ from batid.services.imports import building_import_history
 from batid.services.source import Source, BufferToCopy
 
 
-def import_bdnd_2023_01_bdgs(dpt):
+def import_bdnd_2023_01_bdgs(dpt, bulk_launch_uuid=None):
     print("## Import BDNB 2023_01 buildings")
 
     source_id = "bdnb_2023_01"
 
     building_import = building_import_history.insert_building_import(
-        source_id, None, dpt
+        source_id, bulk_launch_uuid, dpt
     )
 
     src = Source(source_id)
