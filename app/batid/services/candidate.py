@@ -557,9 +557,6 @@ class Inspector:
         a_cover_ratio = intersection_area / a_area
         b_cover_ratio = intersection_area / b_area
 
-        print("a_cover_ratio", a_cover_ratio)
-        print("b_cover_ratio", b_cover_ratio)
-
         # The building does not intersect enough with the candidate to be considered as a match
         if (
             a_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
@@ -580,7 +577,7 @@ class Inspector:
         self, a: GEOSGeometry, b: GEOSGeometry
     ) -> Literal["match", "no_match", "conflict"]:
         # NB : this intersection verification is already done in the sql query BUT we want to be sure this matching condition is always verified even the SQL query is modified
-        if a.intersects(b):
+        if a.equals_exact(b, tolerance=0.00000000000001):
             return "match"
 
         return "no_match"
