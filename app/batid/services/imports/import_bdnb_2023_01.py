@@ -36,6 +36,8 @@ def import_bdnd_2023_01_bdgs(dpt):
         for row in list(reader):
             geom = GEOSGeometry(row["geom_batiment_construction"])
             geom.srid = 4326
+            if row["reelle_geom_batiment_construction"] != "t":
+                geom = geom.point_on_surface
 
             # replace addresses keys with only one item = null
             add_keys = row["cle_interop_adr"]
@@ -47,7 +49,6 @@ def import_bdnd_2023_01_bdgs(dpt):
                 "source": "bdnb",
                 "source_version": "2023_01",
                 "is_light": False,
-                "is_shape_fictive": row["reelle_geom_batiment_construction"] != "t",
                 "source_id": row["batiment_construction_id"],
                 "address_keys": add_keys,
                 "created_at": datetime.now(timezone.utc),
