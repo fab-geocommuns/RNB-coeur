@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
 from django.db import connection
 from django.test import TestCase
 
@@ -282,17 +282,7 @@ class TestHalvishCover(InspectTest):
 
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
-        self.assertEqual(
-            candidate.inspection_details["reason"], "ambiguous_building_overlap"
-        )
-        self.assertTrue(
-            candidate.inspection_details["candidate_cover_ratio"] > 0.1
-            and candidate.inspection_details["candidate_cover_ratio"] < 0.85
-        )
-        self.assertTrue(
-            candidate.inspection_details["bdg_cover_ratio"] > 0.1
-            and candidate.inspection_details["bdg_cover_ratio"] < 0.85
-        )
+        self.assertEqual(candidate.inspection_details["reason"], "ambiguous_overlap")
 
 
 class OneSmallOneBig:
@@ -338,6 +328,12 @@ class OneSmallOneBig:
         },
     }
 
+    def test_result(self):
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 1)
+
 
 class TestOneSmallBdgThenOneBigCand(InspectTest):
     bdgs_data = [OneSmallOneBig.small]
@@ -351,9 +347,7 @@ class TestOneSmallBdgThenOneBigCand(InspectTest):
 
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
-        self.assertEqual(
-            candidate.inspection_details["reason"], "ambiguous_building_overlap"
-        )
+        self.assertEqual(candidate.inspection_details["reason"], "ambiguous_overlap")
 
 
 class TestOneBigBdgThenOneSmallCand(InspectTest):
@@ -368,9 +362,6 @@ class TestOneBigBdgThenOneSmallCand(InspectTest):
 
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
-        self.assertEqual(
-            candidate.inspection_details["reason"], "ambiguous_building_overlap"
-        )
 
 
 class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
@@ -447,15 +438,373 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
 
         candidate = Candidate.objects.all().order_by("inspected_at").first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
-        self.assertEqual(
-            candidate.inspection_details["reason"], "ambiguous_building_overlap"
-        )
+        self.assertEqual(candidate.inspection_details["reason"], "ambiguous_overlap")
 
         candidate_2 = Candidate.objects.all().order_by("inspected_at").last()
         self.assertEqual(candidate_2.inspection_details["decision"], "refusal")
-        self.assertEqual(
-            candidate_2.inspection_details["reason"], "ambiguous_building_overlap"
-        )
+        self.assertEqual(candidate_2.inspection_details["reason"], "ambiguous_overlap")
+
+
+class TestPointCandidateInsidePolyBdg(InspectTest):
+    bdgs_data = [
+        {
+            "id": "POLY_BDG",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.567884072259659, 44.83820534369249],
+                        [-0.567884072259659, 44.838091952624836],
+                        [-0.5676364726049883, 44.838091952624836],
+                        [-0.5676364726049883, 44.83820534369249],
+                        [-0.567884072259659, 44.83820534369249],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        }
+    ]
+
+    candidates_data = [
+        {
+            "id": "POINT_CANDIDATE",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.567752052053379, 44.83814660030956],
+                "type": "Point",
+            },
+        }
+    ]
+
+    def test_result(self):
+        # Before inspection we have only one building
+        self.assertEqual(Building.objects.all().count(), 1)
+        b = Building.objects.all().first()
+        shape = b.shape.clone()
+        point = b.point.clone()
+
+        i = Inspector()
+        i.inspect()
+
+        # After inspection we still have only one building
+        self.assertEqual(Building.objects.all().count(), 1)
+
+        b.refresh_from_db()
+        self.assertIsInstance(b.shape, Polygon)
+        self.assertEqual(shape.equals(b.shape), True)
+        self.assertEqual(point.equals(b.point), True)
+
+
+class TestPolyCandidateOnPointBdg(InspectTest):
+    bdgs_data = [
+        {
+            "id": "POINT_BDG",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.567752052053379, 44.83814660030956],
+                "type": "Point",
+            },
+        }
+    ]
+
+    candidates_data = [
+        {
+            "id": "POLY_CANDIDATE",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.567884072259659, 44.83820534369249],
+                        [-0.567884072259659, 44.838091952624836],
+                        [-0.5676364726049883, 44.838091952624836],
+                        [-0.5676364726049883, 44.83820534369249],
+                        [-0.567884072259659, 44.83820534369249],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        }
+    ]
+
+    def test_result(self):
+        # Before inspection we have only one building with a point shape
+        b = Building.objects.all().first()
+        self.assertIsInstance(b.shape, Point)
+
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 1)
+
+        # Check the building is now a polygon
+        b.refresh_from_db()
+        self.assertIsInstance(b.shape, Polygon)
+
+
+class TestPointCandidateOutsidePolyBdg(InspectTest):
+    bdgs_data = [
+        {
+            "id": "POLY_BDG",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.567884072259659, 44.83820534369249],
+                        [-0.567884072259659, 44.838091952624836],
+                        [-0.5676364726049883, 44.838091952624836],
+                        [-0.5676364726049883, 44.83820534369249],
+                        [-0.567884072259659, 44.83820534369249],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        }
+    ]
+
+    candidates_data = [
+        {
+            "id": "POINT_BDG",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.5677886432262085, 44.83825929581545],
+                "type": "Point",
+            },
+        }
+    ]
+
+    def test_result(self):
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 2)
+
+        b_poly = Building.objects.get(ext_ids__contains=[{"id": "POLY_BDG"}])
+        self.assertEqual(b_poly.shape.geom_type, "Polygon")
+
+        b_point = Building.objects.get(ext_ids__contains=[{"id": "POINT_BDG"}])
+        self.assertEqual(b_point.shape.geom_type, "Point")
+
+
+class TestOnePolyCandidatesOnTwoPointBdgs(InspectTest):
+    bdgs_data = [
+        {
+            "id": "FIRST_BDG",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.5739328733325522, 44.84786070152114],
+                "type": "Point",
+            },
+        },
+        {
+            "id": "SECOND_BDG",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.573884455423979, 44.847787256761166],
+                "type": "Point",
+            },
+        },
+    ]
+
+    candidates_data = [
+        {
+            "id": "POLY_BDG",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.5739986747433647, 44.847888277336494],
+                        [-0.573975794455265, 44.84774228183113],
+                        [-0.5738054634203138, 44.84775670115647],
+                        [-0.5738372415973458, 44.84790359783108],
+                        [-0.5739986747433647, 44.847888277336494],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        }
+    ]
+
+    def test_result(self):
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 2)
+
+        c = Candidate.objects.all().first()
+        self.assertEqual(c.inspection_details["decision"], "refusal")
+        self.assertEqual(c.inspection_details["reason"], "toomany_geomatches")
+
+
+class TestBdgAndCandidateWithSamePoint(InspectTest):
+    bdgs_data = [
+        {
+            "id": "POINT_BDG",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.5738844554153957, 44.847736563832484],
+                "type": "Point",
+            },
+        }
+    ]
+
+    candidates_data = [
+        {
+            "id": "POINT_CANDIDATE",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [-0.5738844554153957, 44.847736563832484],
+                "type": "Point",
+            },
+        }
+    ]
+
+    def test_result(self):
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 1)
+
+        c = Candidate.objects.all().first()
+        self.assertEqual(c.inspection_details["decision"], "update")
+
+
+class TestUpdatePointBdgAndTouchingPolyBdgsWithOnePolyCandidate(InspectTest):
+    bdgs_data = [
+        {
+            "id": "west",
+            "source": "dummy",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.5740296355767782, 44.8478672054716],
+                        [-0.5740268205823043, 44.8477602315628],
+                        [-0.5739733356839452, 44.847737878781004],
+                        [-0.5739097168035983, 44.84781331938575],
+                        [-0.5739547567185639, 44.84786800378342],
+                        [-0.5740296355767782, 44.8478672054716],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        },
+        {
+            "id": "east",
+            "source": "dummy",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.5737470101107363, 44.847866008003564],
+                        [-0.5737988060129169, 44.8478117227601],
+                        [-0.5737087261829572, 44.84771313104778],
+                        [-0.5736850802278184, 44.84782489491971],
+                        [-0.5736923992141101, 44.84788556664486],
+                        [-0.5737470101107363, 44.847866008003564],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        },
+        {
+            "id": "central",
+            "source": "dummy",
+            "geometry": {
+                "coordinates": [-0.5738567949043727, 44.84781252107311],
+                "type": "Point",
+            },
+        },
+    ]
+
+    candidates_data = [
+        {
+            "id": "MATCH_ON_POINT",
+            "source": "dummy2",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.5738719958749243, 44.8478699995637],
+                        [-0.57391703578989, 44.8478672054716],
+                        [-0.57391703578989, 44.847768214697396],
+                        [-0.573835400944489, 44.84772191250278],
+                        [-0.5737807900478913, 44.84773628215328],
+                        [-0.573795428019281, 44.84787598690309],
+                        [-0.5738719958749243, 44.8478699995637],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        }
+    ]
+
+    def test_result(self):
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 3)
+
+        c = Candidate.objects.all().first()
+        self.assertEqual(c.inspection_details["decision"], "update")
+
+        # Check the central building is now a polygon
+        b = Building.objects.get(ext_ids__contains=[{"id": "central"}])
+        self.assertEqual(b.shape.geom_type, "Polygon")
+
+
+class TestCandidateOnTwoMatchingBdgs(InspectTest):
+    bdgs_data = [
+        {
+            "id": "POLY_BDG",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.5739986747433647, 44.847888277336494],
+                        [-0.573975794455265, 44.84774228183113],
+                        [-0.5738054634203138, 44.84775670115647],
+                        [-0.5738372415973458, 44.84790359783108],
+                        [-0.5739986747433647, 44.847888277336494],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        },
+        {
+            "id": "POINT_BDG",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.5738844554153957, 44.847736563832484],
+                "type": "Point",
+            },
+        },
+    ]
+
+    candidates_data = [
+        {
+            "id": "bigger",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.5739981812005226, 44.84788784410253],
+                        [-0.5739717202509098, 44.84771301356989],
+                        [-0.5737983165781486, 44.847730177321466],
+                        [-0.5738360375068225, 44.8479038103348],
+                        [-0.5739981812005226, 44.84788784410253],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        }
+    ]
+
+    def test_result(self):
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 2)
+
+        c = Candidate.objects.all().first()
+        self.assertEqual(c.inspection_details["decision"], "refusal")
+        self.assertEqual(c.inspection_details["reason"], "ambiguous_overlap")
 
 
 def data_to_candidate(data):
@@ -494,6 +843,13 @@ def data_to_bdg(data):
             rnb_id=generate_rnb_id(),
             shape=shape,
             source=d["source"],
+            ext_ids=[
+                {
+                    "source": d["source"],
+                    "id": d["id"],
+                    "created_at": datetime.now().isoformat(),
+                }
+            ],
             point=shape.point_on_surface,
         )
 
