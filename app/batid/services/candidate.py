@@ -24,7 +24,7 @@ from django.contrib.gis.geos import GEOSGeometry
 
 
 class Inspector:
-    BATCH_SIZE = 1
+    BATCH_SIZE = 1000
 
     MATCH_UPDATE_MIN_COVER_RATIO = 0.85
     MATCH_EXCLUDE_MAX_COVER_RATIO = 0.10
@@ -551,6 +551,7 @@ class Inspector:
             "WHERE ((bs.type IN %(status)s AND bs.is_current) OR bs.id IS NULL) "
             "AND c.inspected_at IS NULL AND c.inspect_stamp = %(inspect_stamp)s "
             "GROUP BY c.id "
+            "ORDER BY RANDOM() "
             "LIMIT %(limit)s"
         )
 
