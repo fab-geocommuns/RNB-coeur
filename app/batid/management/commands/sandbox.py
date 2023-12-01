@@ -4,6 +4,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.management.base import BaseCommand
 from batid.list_bdg import list_bdgs
 from batid.services.building import add_default_status
+from batid.services.candidate_new import Inspector
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
 from batid.services.source import Source
@@ -21,5 +22,5 @@ class Command(BaseCommand):
         #
         # import_bdnd_2023_01_bdgs("08")
 
-        c = Candidate.objects.get(id=227)
-        print(c.address_keys)
+        i = Inspector()
+        i.inspect()
