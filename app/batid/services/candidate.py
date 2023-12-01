@@ -24,7 +24,7 @@ from django.contrib.gis.geos import GEOSGeometry
 
 
 class Inspector:
-    BATCH_SIZE = 10000
+    BATCH_SIZE = 1
 
     MATCH_UPDATE_MIN_COVER_RATIO = 0.85
     MATCH_EXCLUDE_MAX_COVER_RATIO = 0.10
