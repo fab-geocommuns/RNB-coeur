@@ -1,7 +1,11 @@
+import json
 from datetime import datetime, timezone
 
 import nanoid
+from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
+from shapely.geometry import shape
+
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.models import Candidate, Building, BuildingStatus
 
@@ -51,7 +55,12 @@ class Inspector:
             return
 
         # Check the shape is big enough
-        if
+        if shape_family(c.shape) == "poly":
+            shape_area = self.compute_shape_area(c.shape)
+            if shape_area < settings.MIN_BDG_AREA:
+                c.inspector_decision = "refusal"
+                decide_refusal_area_too_small(c, shape_area)
+                return
 
     def report(self):
         # todo : we can use the report to update BuildingImport data
@@ -112,6 +121,28 @@ class Inspector:
         alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
         self.stamp = nanoid.generate(size=12, alphabet=alphabet).lower()
         print(f"- stamp : {self.stamp}")
+
+
+def shape_family(shape: GEOSGeometry):
+    if shape.geom_type == "MultiPolygon":
+        return "poly"
+
+    if shape.geom_type == "Polygon":
+        return "poly"
+
+    if shape.geom_type == "Point":
+        return "point"
+
+    raise Exception(f"We do not know the family this shape type: {shape.geom_type}")
+
+
+def wgs84_metric_area(geom: GEOSGeometry) -> float:
+    return geom.area
+
+    if geom.srid != 4326:
+        geom = geom.transform(4326, clone=True)
+
+    return shape(json.loads(geom.json)).area
 
 
 def decide_refusal_is_light(candidate: Candidate) -> Candidate:
