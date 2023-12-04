@@ -305,9 +305,12 @@ def candidate_to_bdg(c: Candidate) -> Building:
     b.rnb_id = generate_rnb_id()
     b.shape = c.shape
     b.point = point
+    b.last_updated_by = c.created_by
+    b.ext_ids = {
+        "source": c.source,
+        "source_version": c.source_version,
+        "id": c.source_id,
+        "created_at": c.created_at.isoformat(),
+    }
 
-    b.address = candidate.address
-
-    b.is_light = candidate.is_light
-    b.save()
     return b
