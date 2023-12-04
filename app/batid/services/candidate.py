@@ -527,7 +527,7 @@ class Inspector:
 
         if len(c.matches) > 1:
             c.inspector_decision = "refusal"
-            decide_refusal_toomany_geomatches(c)
+            decide_refusal_too_many_geomatches(c)
 
     def match_shapes(
         self, a: GEOSGeometry, b: GEOSGeometry
@@ -704,10 +704,10 @@ def decide_refusal_ambiguous_overlap(
     return candidate
 
 
-def decide_refusal_toomany_geomatches(candidate: Candidate) -> Candidate:
+def decide_refusal_too_many_geomatches(candidate: Candidate) -> Candidate:
     candidate.inspection_details = {
         "decision": "refusal",
-        "reason": "toomany_geomatches",
+        "reason": "too_many_geomatches",
         "matches": [m["id"] for m in candidate.matches],
     }
     return candidate

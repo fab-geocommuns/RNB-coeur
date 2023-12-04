@@ -632,7 +632,7 @@ class TestOnePolyCandidatesOnTwoPointBdgs(InspectTest):
 
         c = Candidate.objects.all().first()
         self.assertEqual(c.inspection_details["decision"], "refusal")
-        self.assertEqual(c.inspection_details["reason"], "toomany_geomatches")
+        self.assertEqual(c.inspection_details["reason"], "too_many_geomatches")
 
 
 class TestBdgAndCandidateWithSamePoint(InspectTest):
