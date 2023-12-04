@@ -109,7 +109,7 @@ class Inspector:
             self.decide_creation(c)
 
         if len(c.matches) == 1:
-            decide_update(c)
+            self.decide_update(c)
 
         if len(c.matches) > 1:
             decide_refusal_toomany_geomatches(c)
@@ -167,6 +167,70 @@ class Inspector:
             "bdg_id": bdg.rnb_id,
         }
         candidate.save()
+
+    def decide_update(self, candidate: Candidate):
+        bdg = Building.objects.get(id=candidate.matches[0]["id"])
+        has_changed, added_address_keys, bdg = self.calc_bdg_update(candidate, bdg)
+
+        if has_changed:
+            bdg.save()
+
+        # We add the addresses
+        add_addresses_to_building(bdg, added_address_keys)
+
+        # Finally, we update the candidate
+        candidate.inspection_details = {
+            "decision": "update",
+            "bdg_id": bdg.rnb_id,
+        }
+
+    def calc_bdg_update(self, c: Candidate, bdg: Building):
+        has_changed = False
+        added_address_keys = []
+
+        # ##############################
+        # PROPERTIES
+        # A place to verify properties changes
+        # eg: ext_rnb_id, ext_bdnb_id, ...
+        # If any property has changed, we will set has_changed_props to True
+
+        # ##
+        # Prop : ext_ids
+        if not bdg.contains_ext_id(c.source, c.source_version, c.source_id):
+            bdg.add_ext_id(
+                c.source,
+                c.source_version,
+                c.source_id,
+                c.created_at.isoformat(),
+            )
+            has_changed = True
+
+        # ##
+        # Prop : shape
+        if shape_family(c.shape) == "poly" and shape_family(bdg.shape) == "point":
+            bdg.shape = c.shape.clone()
+            has_changed = True
+
+        # ##############################
+        # ADDRESSES
+        # Handle change in address
+        # We will return all the address keys that are not in the bdg
+
+        bdg_addresses_keys = [a.id for a in bdg.addresses.all()]
+
+        if c.address_keys:
+            for c_address_key in c.address_keys:
+                if c_address_key not in bdg_addresses_keys:
+                    added_address_keys.append(c_address_key)
+                    # for the moment we don't consider a change in address as a change in the building
+                    # because we don't historize the addresses
+                    # so we don't know what has changed afterwards.
+                    # has_changed = True
+
+        if has_changed:
+            bdg.last_updated_by = c.created_by
+
+        return has_changed, added_address_keys, bdg
 
 
 def add_addresses_to_building(bdg: Building, add_keys):
@@ -291,10 +355,6 @@ def decide_refusal_toomany_geomatches(candidate: Candidate) -> Candidate:
         "matches": [m["id"] for m in candidate.matches],
     }
     candidate.save()
-
-
-def decide_update(candidate: Candidate):
-    pass
 
 
 def new_bdg_from_candidate(c: Candidate) -> Building:
