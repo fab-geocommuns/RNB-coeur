@@ -44,10 +44,6 @@ class Inspector:
                     # We reset the candidate inspection to make it available again
                     self.handle_error_on_candidate(c)
 
-            # Here the transaction is committed and we know it went ok
-            # We can update BuildingImport data
-            self.add_to_report(c)
-
     def get_candidates(self):
         params = {
             "status": tuple(BuildingStatusService.REAL_BUILDINGS_STATUS),
@@ -61,8 +57,8 @@ class Inspector:
             f"LEFT JOIN {BuildingStatus._meta.db_table} bs on bs.building_id = b.id "
             "WHERE ((bs.type IN %(status)s AND bs.is_current) OR bs.id IS NULL) "
             "AND c.inspected_at IS NULL AND c.inspect_stamp = %(inspect_stamp)s "
-            "ORDER BY RANDOM() "
             "GROUP BY c.id "
+            "ORDER BY RANDOM() "
         )
 
         self.candidates = Candidate.objects.raw(q, params)
@@ -114,14 +110,6 @@ class Inspector:
         if len(c.matches) > 1:
             decide_refusal_toomany_geomatches(c)
 
-    def report(self):
-        # todo : we can use the report to update BuildingImport data
-        pass
-
-    def add_to_report(self, c: Candidate):
-        # Todo: count all add/update/delete for all BuildingImports
-        pass
-
     def handle_error_on_candidate(self, c: Candidate):
         print(f"Error on candidate {c.id}")
         self.reset_candidate_inspection(c)
@@ -146,13 +134,6 @@ class Inspector:
 
             Candidate.objects.filter(id__in=candidates).update(inspect_stamp=self.stamp)
 
-    def build_stamp(self):
-        # The stamp must be lowercase since pg seems to lowercase it anyway
-        # Postegresql uses the stamp to create a temporary table
-        alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
-        self.stamp = nanoid.generate(size=12, alphabet=alphabet).lower()
-        print(f"- stamp : {self.stamp}")
-
     def decide_creation(self, candidate: Candidate):
         # We build the new building
         bdg = new_bdg_from_candidate(candidate)
@@ -164,8 +145,9 @@ class Inspector:
         # Finally, we update the candidate
         candidate.inspection_details = {
             "decision": "creation",
-            "bdg_id": bdg.rnb_id,
+            "rnb_id": bdg.rnb_id,
         }
+
         candidate.save()
 
     def decide_update(self, candidate: Candidate):
@@ -181,8 +163,9 @@ class Inspector:
         # Finally, we update the candidate
         candidate.inspection_details = {
             "decision": "update",
-            "bdg_id": bdg.rnb_id,
+            "rnb_id": bdg.rnb_id,
         }
+        candidate.save()
 
     def calc_bdg_update(self, c: Candidate, bdg: Building):
         has_changed = False
@@ -234,13 +217,14 @@ class Inspector:
 
 
 def add_addresses_to_building(bdg: Building, add_keys):
-    rels = []
-    for address_key in add_keys:
-        rels.append(
-            Building.addresses.through(building_id=bdg.id, address_id=address_key)
-        )
-    if len(rels) > 0:
-        Building.addresses.through.objects.bulk_create(rels, ignore_conflicts=True)
+    if add_keys:
+        rels = []
+        for address_key in add_keys:
+            rels.append(
+                Building.addresses.through(building_id=bdg.id, address_id=address_key)
+            )
+        if len(rels) > 0:
+            Building.addresses.through.objects.bulk_create(rels, ignore_conflicts=True)
 
 
 def match_shapes(

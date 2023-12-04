@@ -1136,7 +1136,6 @@ def create_bdg(rnb_id, coords_list):
 
     return Building.objects.create(
         rnb_id=rnb_id,
-        source="dummy",
         shape=geom,
         point=geom.point_on_surface,
     )
