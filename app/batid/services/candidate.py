@@ -26,8 +26,8 @@ from django.contrib.gis.geos import GEOSGeometry
 class Inspector:
     BATCH_SIZE = 10000
 
-    MATCH_UPDATE_MIN_COVER_RATIO = 0.85
-    MATCH_EXCLUDE_MAX_COVER_RATIO = 0.10
+    MATCH_BIG_COVER_RATIO = 0.85
+    MATCH_SMALL_COVER_RATIO = 0.10
 
     def __init__(self):
         self.stamp = None
@@ -561,15 +561,15 @@ class Inspector:
 
         # The building does not intersect enough with the candidate to be considered as a match
         if (
-            a_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
-            and b_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
+            a_cover_ratio < self.MATCH_SMALL_COVER_RATIO
+            and b_cover_ratio < self.MATCH_SMALL_COVER_RATIO
         ):
             return "no_match"
 
         # The building intersects significantly with the candidate but not enough to be considered as a match
         if (
-            a_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
-            or b_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
+            a_cover_ratio < self.MATCH_BIG_COVER_RATIO
+            or b_cover_ratio < self.MATCH_BIG_COVER_RATIO
         ):
             return "conflict"
 
