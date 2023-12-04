@@ -1,158 +1,153 @@
 import json
 from datetime import datetime, timezone
 from typing import Literal
-
-import nanoid
 from django.conf import settings
-from django.contrib.gis.geos import GEOSGeometry, Point
+from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction, connection
+from psycopg2 import DatabaseError
 from shapely.geometry import shape
-
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
-from batid.models import Candidate, Building, BuildingStatus, Address
+from batid.models import Candidate, Building, BuildingStatus
 from batid.services.rnb_id import generate_rnb_id
 
 
 class Inspector:
-    BATCH_SIZE = 1000
-
     MATCH_UPDATE_MIN_COVER_RATIO = 0.85
     MATCH_EXCLUDE_MAX_COVER_RATIO = 0.10
 
     def __int__(self):
-        self.stamp = None
-        self.candidates = []
+        self.candidate = None
+        self.matching_bdgs = []
 
     def inspect(self):
-        self.build_stamp()
-        self.stamp_candidates()
-        self.get_candidates()
+        while True:
+            self.inspect_one()
 
-        self.inspect_candidates()
-        self.report()
+            if self.candidate is None:
+                break
 
-    def inspect_candidates(self):
-        for c in self.candidates:
-            print(f"Inspecting candidate {id}")
-            with transaction.atomic():
-                # We have a candidate to inspect
-                try:
-                    self.inspect_candidate(c)
-                except Exception as e:
-                    # We had an error while inspecting the candidate
-                    # The transaction is rolled back : https://docs.djangoproject.com/en/4.2/topics/db/transactions/#django.db.transaction.atomic
-                    # We reset the candidate inspection to make it available again
-                    self.handle_error_on_candidate(c)
+    def inspect_one(self):
+        self.reset()
 
-    def get_candidates(self):
-        params = {
-            "status": tuple(BuildingStatusService.REAL_BUILDINGS_STATUS),
-            "inspect_stamp": self.stamp,
-        }
+        with transaction.atomic():
+            self.get_candidate()
+            if isinstance(self.candidate, Candidate):
+                self.get_matching_bdgs()
+                self.inspect_candidate()
 
-        q = (
-            "SELECT c.id, ST_AsEWKB(c.shape) as shape, COALESCE(json_agg(json_build_object('id', b.id, 'shape', b.shape)) FILTER (WHERE b.id IS NOT NULL), '[]') as matches, c.address_keys "
-            f"FROM {Candidate._meta.db_table} c "
-            f"LEFT JOIN {Building._meta.db_table} b on ST_Intersects(c.shape, b.shape) "
-            f"LEFT JOIN {BuildingStatus._meta.db_table} bs on bs.building_id = b.id "
-            "WHERE ((bs.type IN %(status)s AND bs.is_current) OR bs.id IS NULL) "
-            "AND c.inspected_at IS NULL AND c.inspect_stamp = %(inspect_stamp)s "
-            "GROUP BY c.id "
-            "ORDER BY RANDOM() "
+    def reset(self):
+        self.candidate = None
+        self.matching_bdgs = []
+
+    def get_candidate(self):
+        self.candidate = (
+            Candidate.objects.select_for_update(skip_locked=True)
+            .filter(inspected_at__isnull=True)
+            .first()
         )
 
-        self.candidates = Candidate.objects.raw(q, params)
+    def get_matching_bdgs(self):
+        self.matching_bdgs = Building.objects.filter(
+            shape__intersects=self.candidate.shape,
+            status__type__in=BuildingStatusService.REAL_BUILDINGS_STATUS,
+            status__is_current=True,
+        )
 
-    def inspect_candidate(self, c: Candidate):
+    def inspect_candidate(self):
         # Record the inspection datetime
-        c.inspected_at = datetime.now(timezone.utc)
+        self.candidate.inspected_at = datetime.now(timezone.utc)
 
         # Light buildings do not match the RNB building definition
-        if c.is_light == True:
-            decide_refusal_is_light(c)
+        if self.candidate.is_light == True:
+            self.decide_refusal_is_light()
             return
 
         # Check the shape is big enough
-        if shape_family(c.shape) == "poly":
-            shape_area = compute_shape_area(c.shape)
+        if shape_family(self.candidate.shape) == "poly":
+            shape_area = compute_shape_area(self.candidate.shape)
             if shape_area < settings.MIN_BDG_AREA:
-                decide_refusal_area_too_small(c, shape_area)
+                self.decide_refusal_area_too_small(shape_area)
                 return
 
-        self.inspect_candidate_matches(c)
+        self.compare_matching_bdgs()
 
-    def inspect_candidate_matches(self, c: Candidate):
+    def compare_matching_bdgs(self):
         kept_matches = []
-        for match in c.matches:
-            b_shape = GEOSGeometry(json.dumps(match["shape"]))
-
-            shape_match_result = match_shapes(c.shape, b_shape)
+        for bdg in self.matching_bdgs:
+            shape_match_result = match_shapes(self.candidate.shape, bdg.shape)
 
             if shape_match_result == "match":
-                kept_matches.append(match)
+                kept_matches.append(bdg)
                 continue
 
             if shape_match_result == "no_match":
                 continue
 
             if shape_match_result == "conflict":
-                decide_refusal_ambiguous_overlap(c, match["id"])
+                self.decide_refusal_ambiguous_overlap(bdg.id)
                 return
 
-        c.matches = kept_matches
+        self.matching_bdgs = kept_matches
 
-        if len(c.matches) == 0:
-            self.decide_creation(c)
+        if len(self.matching_bdgs) == 0:
+            self.decide_creation()
 
-        if len(c.matches) == 1:
-            self.decide_update(c)
+        if len(self.matching_bdgs) == 1:
+            self.decide_update()
 
-        if len(c.matches) > 1:
-            decide_refusal_toomany_geomatches(c)
+        if len(self.matching_bdgs) > 1:
+            self.decide_refusal_toomany_geomatches()
 
-    def handle_error_on_candidate(self, c: Candidate):
-        print(f"Error on candidate {c.id}")
-        self.reset_candidate_inspection(c)
+    def decide_refusal_is_light(self):
+        self.candidate.inspection_details = {
+            "decision": "refusal",
+            "reason": "is_light",
+        }
+        self.candidate.save()
 
-    @staticmethod
-    def reset_candidate_inspection(c: Candidate):
-        c.inspection_details = None
-        c.inspected_at = None
-        c.inspect_stamp = None
-        c.save()
+    def decide_refusal_area_too_small(self, area: float):
+        self.candidate.inspection_details = {
+            "decision": "refusal",
+            "reason": "area_too_small",
+            "area": area,
+        }
+        self.candidate.save()
 
-    def stamp_candidates(self) -> int:
-        print("- reserve candidates")
-        with transaction.atomic():
-            # select_for_update() will lock the selected rows until the end of the transaction
-            # avoid that another inspector selects the same candidates between the select and the update of this one
-            candidates = (
-                Candidate.objects.select_for_update(skip_locked=True)
-                .filter(inspect_stamp__isnull=True)
-                .order_by("?")[: self.BATCH_SIZE]
-            )
+    def decide_refusal_ambiguous_overlap(self, conflict_with_bdg: int):
+        self.candidate.inspection_details = {
+            "decision": "refusal",
+            "reason": "ambiguous_overlap",
+            "conflict_with_bdg": conflict_with_bdg,
+        }
+        self.candidate.save()
 
-            Candidate.objects.filter(id__in=candidates).update(inspect_stamp=self.stamp)
+    def decide_refusal_toomany_geomatches(self):
+        self.candidate.inspection_details = {
+            "decision": "refusal",
+            "reason": "toomany_geomatches",
+            "matches": [bdg.id for bdg in self.matching_bdgs],
+        }
+        self.candidate.save()
 
-    def decide_creation(self, candidate: Candidate):
+    def decide_creation(self):
         # We build the new building
-        bdg = new_bdg_from_candidate(candidate)
+        bdg = new_bdg_from_candidate(self.candidate)
         bdg.save()
 
         # We add the addresses
-        add_addresses_to_building(bdg, candidate.address_keys)
+        add_addresses_to_building(bdg, self.candidate.address_keys)
 
         # Finally, we update the candidate
-        candidate.inspection_details = {
+        self.candidate.inspection_details = {
             "decision": "creation",
             "rnb_id": bdg.rnb_id,
         }
 
-        candidate.save()
+        self.candidate.save()
 
-    def decide_update(self, candidate: Candidate):
-        bdg = Building.objects.get(id=candidate.matches[0]["id"])
-        has_changed, added_address_keys, bdg = self.calc_bdg_update(candidate, bdg)
+    def decide_update(self):
+        bdg = Building.objects.get(id=self.matching_bdgs[0].id)
+        has_changed, added_address_keys, bdg = self.calc_bdg_update(bdg)
 
         if has_changed:
             bdg.save()
@@ -161,13 +156,13 @@ class Inspector:
         add_addresses_to_building(bdg, added_address_keys)
 
         # Finally, we update the candidate
-        candidate.inspection_details = {
+        self.candidate.inspection_details = {
             "decision": "update",
             "rnb_id": bdg.rnb_id,
         }
-        candidate.save()
+        self.candidate.save()
 
-    def calc_bdg_update(self, c: Candidate, bdg: Building):
+    def calc_bdg_update(self, bdg: Building):
         has_changed = False
         added_address_keys = []
 
@@ -179,19 +174,26 @@ class Inspector:
 
         # ##
         # Prop : ext_ids
-        if not bdg.contains_ext_id(c.source, c.source_version, c.source_id):
+        if not bdg.contains_ext_id(
+            self.candidate.source,
+            self.candidate.source_version,
+            self.candidate.source_id,
+        ):
             bdg.add_ext_id(
-                c.source,
-                c.source_version,
-                c.source_id,
-                c.created_at.isoformat(),
+                self.candidate.source,
+                self.candidate.source_version,
+                self.candidate.source_id,
+                self.candidate.created_at.isoformat(),
             )
             has_changed = True
 
         # ##
         # Prop : shape
-        if shape_family(c.shape) == "poly" and shape_family(bdg.shape) == "point":
-            bdg.shape = c.shape.clone()
+        if (
+            shape_family(self.candidate.shape) == "poly"
+            and shape_family(bdg.shape) == "point"
+        ):
+            bdg.shape = self.candidate.shape.clone()
             has_changed = True
 
         # ##############################
@@ -201,8 +203,8 @@ class Inspector:
 
         bdg_addresses_keys = [a.id for a in bdg.addresses.all()]
 
-        if c.address_keys:
-            for c_address_key in c.address_keys:
+        if self.candidate.address_keys:
+            for c_address_key in self.candidate.address_keys:
                 if c_address_key not in bdg_addresses_keys:
                     added_address_keys.append(c_address_key)
                     # for the moment we don't consider a change in address as a change in the building
@@ -211,7 +213,7 @@ class Inspector:
                     # has_changed = True
 
         if has_changed:
-            bdg.last_updated_by = c.created_by
+            bdg.last_updated_by = self.candidate.created_by
 
         return has_changed, added_address_keys, bdg
 
@@ -252,8 +254,6 @@ def match_polygons(
     a_cover_ratio = intersection.area / a.area
     b_cover_ratio = intersection.area / b.area
 
-    print(f"cover ratio : {a_cover_ratio} {b_cover_ratio}")
-
     # The building does not intersect enough with the candidate to be considered as a match
     if (
         a_cover_ratio < Inspector.MATCH_EXCLUDE_MAX_COVER_RATIO
@@ -271,8 +271,10 @@ def match_polygons(
     return "match"
 
 
-def match_points(a: Point, b: Point) -> Literal["match", "no_match", "conflict"]:
-    if a.equals_exact(b, tolerance=0.00000000000001):
+def match_points(
+    a: GEOSGeometry, b: GEOSGeometry
+) -> Literal["match", "no_match", "conflict"]:
+    if a.equals_exact(b, tolerance=0.001):
         return "match"
 
     return "no_match"
@@ -307,38 +309,6 @@ def compute_shape_area(shape):
         row = cursor.fetchone()
 
     return row[0]
-
-
-def decide_refusal_is_light(candidate: Candidate):
-    candidate.inspection_details = {"decision": "refusal", "reason": "is_light"}
-    candidate.save()
-
-
-def decide_refusal_area_too_small(candidate: Candidate, area: float):
-    candidate.inspection_details = {
-        "decision": "refusal",
-        "reason": "area_too_small",
-        "area": area,
-    }
-    candidate.save()
-
-
-def decide_refusal_ambiguous_overlap(candidate: Candidate, conflict_with_bdg: int):
-    candidate.inspection_details = {
-        "decision": "refusal",
-        "reason": "ambiguous_overlap",
-        "conflict_with_bdg": conflict_with_bdg,
-    }
-    candidate.save()
-
-
-def decide_refusal_toomany_geomatches(candidate: Candidate) -> Candidate:
-    candidate.inspection_details = {
-        "decision": "refusal",
-        "reason": "toomany_geomatches",
-        "matches": [m["id"] for m in candidate.matches],
-    }
-    candidate.save()
 
 
 def new_bdg_from_candidate(c: Candidate) -> Building:
