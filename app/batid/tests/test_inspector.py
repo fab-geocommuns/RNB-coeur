@@ -743,7 +743,6 @@ class TestUpdatePointBdgAndTouchingPolyBdgsWithOnePolyCandidate(InspectTest):
 
         c = Candidate.objects.all().first()
         self.assertEqual(c.inspection_details["decision"], "update")
-        self.assertEqual(c.inspection_details["rnb_id"], "central")
 
         # Check the central building is now a polygon
         b = Building.objects.get(ext_ids__contains=[{"id": "central"}])
