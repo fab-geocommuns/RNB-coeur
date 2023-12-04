@@ -835,7 +835,6 @@ def data_to_bdg(data):
         b = Building.objects.create(
             rnb_id=generate_rnb_id(),
             shape=shape,
-            source=d["source"],
             ext_ids=[
                 {
                     "source": d["source"],
