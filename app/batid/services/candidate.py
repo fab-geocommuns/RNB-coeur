@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass, field
 from pprint import pprint
 from time import perf_counter
-from typing import List
+from typing import List, Literal
 from psycopg2.extras import Json
 import nanoid
 import psycopg2
@@ -26,8 +26,8 @@ from django.contrib.gis.geos import GEOSGeometry
 class Inspector:
     BATCH_SIZE = 10000
 
-    MATCH_UPDATE_MIN_COVER_RATIO = 0.85
-    MATCH_EXCLUDE_MAX_COVER_RATIO = 0.10
+    MATCH_BIG_COVER_RATIO = 0.85
+    MATCH_SMALL_COVER_RATIO = 0.10
 
     def __init__(self):
         self.stamp = None
@@ -72,6 +72,9 @@ class Inspector:
         # A place to verify properties changes
         # eg: ext_rnb_id, ext_bdnb_id, ...
         # If any property has changed, we will set has_changed_props to True
+
+        # ##
+        # Prop : ext_ids
         if not bdg.contains_ext_id(c.source, c.source_version, c.source_id):
             bdg.add_ext_id(
                 c.source,
@@ -79,6 +82,15 @@ class Inspector:
                 c.source_id,
                 c.created_at.isoformat(),
             )
+            has_changed = True
+
+        # ##
+        # Prop : shape
+        if (
+            self.shape_family(c.shape) == "poly"
+            and self.shape_family(bdg.shape) == "point"
+        ):
+            bdg.shape = c.shape.clone()
             has_changed = True
 
         # ##############################
@@ -258,7 +270,7 @@ class Inspector:
         return data
 
     def __update_bdgs_from_tmp_update_table(self, cursor):
-        q = f"UPDATE {Building._meta.db_table} as b SET ext_ids = tmp.ext_ids, last_updated_by = tmp.last_updated_by FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
+        q = f"UPDATE {Building._meta.db_table} as b SET shape = tmp.shape, ext_ids = tmp.ext_ids, last_updated_by = tmp.last_updated_by FROM {self.__tmp_update_table} tmp WHERE b.id = tmp.id"
         cursor.execute(q)
 
     def __drop_tmp_update_table(self, cursor):
@@ -278,11 +290,11 @@ class Inspector:
                 f,
                 self.__tmp_update_table,
                 sep=";",
-                columns=["id", "ext_ids", "last_updated_by"],
+                columns=["id", "ext_ids", "shape", "last_updated_by"],
             )
 
     def __create_tmp_update_table(self, cursor):
-        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_ids jsonb, last_updated_by jsonb)"
+        q = f"CREATE TEMPORARY TABLE {self.__tmp_update_table} (id integer, ext_ids jsonb, shape public.geometry(geometry, 4326), last_updated_by jsonb)"
         cursor.execute(q)
 
     def __create_update_buffer_file(self) -> BufferToCopy:
@@ -292,6 +304,7 @@ class Inspector:
                 {
                     "id": bdg.id,
                     "ext_ids": json.dumps(bdg.ext_ids),
+                    "shape": bdg.shape.wkt,
                     "last_updated_by": json.dumps(bdg.last_updated_by),
                 }
             )
@@ -472,49 +485,35 @@ class Inspector:
             decide_refusal_is_light(c)
             return
 
-        shape_area = self.compute_shape_area(c.shape)
-        if shape_area < settings.MIN_BDG_AREA and shape_area > 0:
-            c.inspector_decision = "refusal"
-            decide_refusal_area_too_small(c, shape_area)
-            return
+        if self.shape_family(c.shape) == "poly":
+            shape_area = self.compute_shape_area(c.shape)
+            if shape_area < settings.MIN_BDG_AREA:
+                c.inspector_decision = "refusal"
+                decide_refusal_area_too_small(c, shape_area)
+                return
 
         # We inspect the matches
         self.inspect_candidate_matches(c)
 
     def inspect_candidate_matches(self, c: Candidate):
         kept_matches = []
-        c_area = self.compute_shape_area(c.shape)
 
         for match in c.matches:
             b_shape = GEOSGeometry(json.dumps(match["shape"]))
-            b_area = self.compute_shape_area(b_shape)
 
-            intersection = c.shape.intersection(b_shape)
-            intersection_area = self.compute_shape_area(intersection)
+            shape_match_result = self.match_shapes(c.shape, b_shape)
 
-            candidate_cover_ratio = intersection_area / c_area
-            bdg_cover_ratio = intersection_area / b_area
-
-            # The building does not intersect enough with the candidate to be considered as a match
-            if (
-                candidate_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
-                and bdg_cover_ratio < self.MATCH_EXCLUDE_MAX_COVER_RATIO
-            ):
+            if shape_match_result == "match":
+                kept_matches.append(match)
                 continue
 
-            # The building intersects significantly with the candidate but not enough to be considered as a match
-            if (
-                candidate_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
-                or bdg_cover_ratio < self.MATCH_UPDATE_MIN_COVER_RATIO
-            ):
-                c.inspector_decision = "refusal"
-                decide_refusal_ambiguous_building_overlap(
-                    c, candidate_cover_ratio, bdg_cover_ratio
-                )
-                # one conflict is enough to refuse the candidate
-                return
+            if shape_match_result == "no_match":
+                continue
 
-            kept_matches.append(match)
+            if shape_match_result == "conflict":
+                c.inspector_decision = "refusal"
+                decide_refusal_ambiguous_overlap(c, match["id"])
+                return
 
         # We transfer the kept matches ids to the candidate
         # We do not keep buildings shapes in memory to avoid memory issues
@@ -528,6 +527,86 @@ class Inspector:
 
         if len(c.matches) > 1:
             c.inspector_decision = "refusal"
+            decide_refusal_too_many_geomatches(c)
+
+    def match_shapes(
+        self, a: GEOSGeometry, b: GEOSGeometry
+    ) -> Literal["match", "no_match", "conflict"]:
+        families = (self.shape_family(a), self.shape_family(b))
+
+        if families == ("poly", "poly"):
+            return self.match_polygons(a, b)
+
+        if families == ("point", "point"):
+            return self.match_points(a, b)
+
+        if families == ("point", "poly") or families == ("poly", "point"):
+            return self.match_point_poly(a, b)
+
+        raise Exception(f"Unknown matching shape families case: {families}")
+
+    def match_polygons(
+        self, a: GEOSGeometry, b: GEOSGeometry
+    ) -> Literal["match", "no_match", "conflict"]:
+        a_area = self.compute_shape_area(a)
+        b_area = self.compute_shape_area(b)
+
+        intersection = a.intersection(b)
+        intersection_area = self.compute_shape_area(intersection)
+
+        a_cover_ratio = intersection_area / a_area
+        b_cover_ratio = intersection_area / b_area
+
+        print(f"cover ratio : {a_cover_ratio} {b_cover_ratio}")
+
+        # The building does not intersect enough with the candidate to be considered as a match
+        if (
+            a_cover_ratio < self.MATCH_SMALL_COVER_RATIO
+            and b_cover_ratio < self.MATCH_SMALL_COVER_RATIO
+        ):
+            return "no_match"
+
+        # The building intersects significantly with the candidate but not enough to be considered as a match
+        if (
+            a_cover_ratio < self.MATCH_BIG_COVER_RATIO
+            or b_cover_ratio < self.MATCH_BIG_COVER_RATIO
+        ):
+            return "conflict"
+
+        return "match"
+
+    def match_points(
+        self, a: GEOSGeometry, b: GEOSGeometry
+    ) -> Literal["match", "no_match", "conflict"]:
+        # NB : this intersection verification is already done in the sql query BUT we want to be sure this matching condition is always verified even if the SQL query is modified
+        if a.equals_exact(b, tolerance=0.00000000000001):
+            return "match"
+
+        return "no_match"
+
+    def match_point_poly(
+        self, a: GEOSGeometry, b: GEOSGeometry
+    ) -> Literal["match", "no_match", "conflict"]:
+        # NB : this intersection verification is already done in the sql query BUT we want to be sure this matching condition is always verified even if the SQL query is modified
+        if a.intersects(b):
+            return "match"
+
+        return "no_match"
+
+    @staticmethod
+    def shape_family(shape: GEOSGeometry):
+        if shape.geom_type == "MultiPolygon":
+            return "poly"
+
+        if shape.geom_type == "Polygon":
+            return "poly"
+
+        if shape.geom_type == "Point":
+            return "point"
+
+        raise Exception(
+            f"We do not handle this shape type: {shape.geom_type} in inspector"
+        )
 
     @show_duration
     def inspect_candidates(self):
@@ -611,6 +690,26 @@ def decide_update(candidate: Candidate, rnb_id) -> Candidate:
 
 def decide_refusal_is_light(candidate: Candidate) -> Candidate:
     candidate.inspection_details = {"decision": "refusal", "reason": "is_light"}
+    return candidate
+
+
+def decide_refusal_ambiguous_overlap(
+    candidate: Candidate, conflictual_bdg_id: int
+) -> Candidate:
+    candidate.inspection_details = {
+        "decision": "refusal",
+        "reason": "ambiguous_overlap",
+        "conflictual_bdg_id": conflictual_bdg_id,
+    }
+    return candidate
+
+
+def decide_refusal_too_many_geomatches(candidate: Candidate) -> Candidate:
+    candidate.inspection_details = {
+        "decision": "refusal",
+        "reason": "too_many_geomatches",
+        "matches": [m["id"] for m in candidate.matches],
+    }
     return candidate
 
 
