@@ -39,29 +39,37 @@ class Inspector:
 
     @show_duration
     def inspect(self) -> int:
-        print("\r")
-        print("-- Inspect batch")
+        try:
+            print("\r")
+            print("-- Inspect batch")
 
-        # Adapt DB session settings for this job
-        # self._adapt_db_settings()
+            # Adapt DB session settings for this job
+            # self._adapt_db_settings()
 
-        # Lock some candidates for this batch
-        self.build_stamp()
-        n = self.reserve_candidates()
+            # Lock some candidates for this batch
+            self.build_stamp()
+            n = self.reserve_candidates()
 
-        # Get candidates and inspect them
-        self.get_candidates()
+            # Get candidates and inspect them
+            self.get_candidates()
 
-        print(f"all candidate : {Candidate.objects.all().count()}")
-        print(f"candidates match: {len(self.candidates)}")
+            print(f"all candidate : {Candidate.objects.all().count()}")
+            print(f"candidates match: {len(self.candidates)}")
 
-        self.inspect_candidates()
+            self.inspect_candidates()
 
-        # Now, trigger the consequences of the inspections
-        self.handle_bdgs_creations()
-        self.handle_bdgs_updates()
-        self.handle_bdgs_refusals()
-        return n
+            # Now, trigger the consequences of the inspections
+            self.handle_bdgs_creations()
+            self.handle_bdgs_updates()
+            self.handle_bdgs_refusals()
+            return n
+        except Exception as e:
+            # something went wrong, remove the stamp from the reserved candidates
+            Candidate.objects.filter(inspect_stamp=self.stamp).update(
+                inspect_stamp=None
+            )
+            # and re-raise the exception
+            raise e
 
     def calc_bdg_update(self, c: Candidate, bdg: Building):
         has_changed = False
@@ -202,6 +210,8 @@ class Inspector:
 
                     # save the changes for the candidates inside the transaction
                     save_candidates(self.updates)
+                    # save the address <> building relations inside the transaction
+                    self.save_bdg_address_relations()
 
                     # update the BuildingImport entry
                     for import_id, count in import_id_stats.items():
@@ -211,11 +221,6 @@ class Inspector:
 
                 except (Exception, psycopg2.DatabaseError) as error:
                     raise error
-
-        # ############
-        # Building addresses relations
-        # ############
-        self.save_bdg_address_relations()
 
     def save_bdg_address_relations(self):
         print(
@@ -306,7 +311,6 @@ class Inspector:
         print(f"- creations")
         # Create the buildings
         self.create_buildings()
-        self.save_bdg_address_relations()
 
     @property
     def creations(self):
@@ -445,6 +449,7 @@ class Inspector:
                 print(f"---- create_buildings : copy_from: {end - start:.2f}s")
 
                 save_candidates(self.creations)
+                self.save_bdg_address_relations()
 
                 # update the number of created buildings for each import
                 for import_id, count in import_id_stats.items():
