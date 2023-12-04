@@ -657,7 +657,7 @@ class Inspector:
             candidates = (
                 Candidate.objects.select_for_update()
                 .filter(inspect_stamp__isnull=True)
-                .order_by("id")[: self.BATCH_SIZE]
+                .order_by("?")[: self.BATCH_SIZE]
             )
 
             return Candidate.objects.filter(id__in=candidates).update(
