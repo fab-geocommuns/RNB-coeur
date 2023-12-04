@@ -578,7 +578,7 @@ class Inspector:
     def match_points(
         self, a: GEOSGeometry, b: GEOSGeometry
     ) -> Literal["match", "no_match", "conflict"]:
-        # NB : this intersection verification is already done in the sql query BUT we want to be sure this matching condition is always verified even the SQL query is modified
+        # NB : this intersection verification is already done in the sql query BUT we want to be sure this matching condition is always verified even if the SQL query is modified
         if a.equals_exact(b, tolerance=0.00000000000001):
             return "match"
 
