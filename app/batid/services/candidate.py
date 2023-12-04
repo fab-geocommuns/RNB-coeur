@@ -39,7 +39,7 @@ class Inspector:
 
     @show_duration
     def inspect(self) -> int:
-        try:
+        with transaction.atomic():
             print("\r")
             print("-- Inspect batch")
 
@@ -63,13 +63,6 @@ class Inspector:
             self.handle_bdgs_updates()
             self.handle_bdgs_refusals()
             return n
-        except Exception as e:
-            # something went wrong, remove the stamp from the reserved candidates
-            Candidate.objects.filter(inspect_stamp=self.stamp).update(
-                inspect_stamp=None, inspected_at=None
-            )
-            # and re-raise the exception
-            raise e
 
     def calc_bdg_update(self, c: Candidate, bdg: Building):
         has_changed = False

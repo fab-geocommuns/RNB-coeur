@@ -575,3 +575,63 @@ class NonExistingAddress(TransactionTestCase):
         # check the inspect stamp is removed, to allow futur re-inspection
         self.assertFalse(candidate.inspect_stamp)
         self.assertFalse(candidate.inspected_at)
+
+    def testRevertAllTheBatch(self):
+        # we create 2 candidates, one for a creation, one for an update
+        # the second candidate inspection will fail, and the whole inspection batch should be reverted
+        
+        shape = coords_to_mp_geom(
+            [
+                [2.349804906833981, 48.85789205519228],
+                [2.349701279442314, 48.85786369735885],
+                [2.3496535925009994, 48.85777922711969],
+                [2.349861764341199, 48.85773095834841],
+                [2.3499452164882086, 48.857847406681174],
+                [2.349804906833981, 48.85789205519228],
+            ]
+        )
+
+        Building.objects.create(rnb_id=generate_rnb_id(), shape=shape)
+
+        candidate_for_creation = Candidate.objects.create(
+            shape=coords_to_mp_geom(
+                [
+                    [2.999804906833981, 48.85789205519228],
+                    [2.999701279442314, 48.85786369735885],
+                    [2.9996535925009994, 48.85777922711969],
+                    [2.999861764991199, 48.85773095899841],
+                    [2.9999452164882086, 48.857847406681174],
+                    [2.999804906833981, 48.85789205519228],
+                ]
+            ),
+            source="bdnb",
+            source_version="7.2",
+            source_id="bdnb_1",
+            address_keys=[],
+            is_light=False,
+        )
+
+        # this candidate has the same shape, it will yield an update
+        # but the address is does not exist => crash
+        candidate_for_update = Candidate.objects.create(
+            shape=shape,
+            source="bdnb",
+            source_version="7.2",
+            source_id="bdnb_2",
+            address_keys=["add_1"],
+            is_light=False,
+        )
+
+        i = Inspector()
+        # the update should fail
+        with self.assertRaises(IntegrityError) as exinfo:
+            i.inspect()
+            self.assertTrue("handle_bdgs_updates" in str(exinfo.value))
+
+        # we still have only one building
+        self.assertEqual(Building.objects.all().count(), 1)
+
+        # the 2 candidates have been reverted to their initial state
+        self.assertEqual(
+            Candidate.objects.filter(inspect_stamp__isnull=True).all().count(), 2
+        )
