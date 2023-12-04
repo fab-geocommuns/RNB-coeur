@@ -3,7 +3,8 @@ from datetime import datetime
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
-from django.test import TestCase
+from django.db.utils import IntegrityError
+from django.test import TestCase, TransactionTestCase
 
 from batid.models import BuildingStatus, Candidate, Address, Building, BuildingImport
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
@@ -498,3 +499,75 @@ def data_to_bdg(data):
         )
 
         BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+
+
+# we need to use TransactionTestCase because we are testing thez proper rollback of the transactions during the inspection
+class TestNonExistingAddress(TransactionTestCase):
+    def test_non_existing_address_raises(self):
+        """
+        When an address is not found in the database, an error is raised
+        """
+        coords = [
+            [2.349804906833981, 48.85789205519228],
+            [2.349701279442314, 48.85786369735885],
+            [2.3496535925009994, 48.85777922711969],
+            [2.349861764341199, 48.85773095834841],
+            [2.3499452164882086, 48.857847406681174],
+            [2.349804906833981, 48.85789205519228],
+        ]
+        candidate = Candidate.objects.create(
+            shape=coords_to_mp_geom(coords),
+            source="bdnb",
+            source_version="7.2",
+            source_id="bdnb_1",
+            address_keys=["add_1"],
+            is_light=False,
+        )
+
+        i = Inspector()
+        with self.assertRaises(IntegrityError):
+            i.inspect()
+
+        candidate.refresh_from_db()
+        # check the candidate inspection_details is properly reverted
+        self.assertFalse(candidate.inspection_details)
+        # check the inspect stamp is removed, to allow futur re-inspection
+        self.assertFalse(candidate.inspect_stamp)
+
+    def test_non_existing_address_raises_during_update(self):
+        shape = coords_to_mp_geom([
+            [2.349804906833981, 48.85789205519228],
+            [2.349701279442314, 48.85786369735885],
+            [2.3496535925009994, 48.85777922711969],
+            [2.349861764341199, 48.85773095834841],
+            [2.3499452164882086, 48.857847406681174],
+            [2.349804906833981, 48.85789205519228],
+        ])
+        
+        Building.objects.create(
+            rnb_id=generate_rnb_id(),
+            shape=shape
+        )
+
+        # this candidate has the same shape, it will yield an update
+        candidate = Candidate.objects.create(
+            shape=shape,
+            source="bdnb",
+            source_version="7.2",
+            source_id="bdnb_1",
+            address_keys=["add_1"],
+            is_light=False,
+        )
+
+        i = Inspector()
+        with self.assertRaises(IntegrityError) as exinfo:
+            i.inspect()
+            # check handle_bdgs_updates is in the stacktrace
+            # ie the candidate was supposed to update a building
+            self.assertTrue('handle_bdgs_updates' in str(exinfo.value))
+
+        candidate.refresh_from_db()
+        # check the candidate inspection_details is properly reverted
+        self.assertFalse(candidate.inspection_details)
+        # check the inspect stamp is removed, to allow futur re-inspection
+        self.assertFalse(candidate.inspect_stamp)
