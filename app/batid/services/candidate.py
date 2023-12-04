@@ -694,12 +694,12 @@ def decide_refusal_is_light(candidate: Candidate) -> Candidate:
 
 
 def decide_refusal_ambiguous_overlap(
-    candidate: Candidate, conflict_with_bdg: int
+    candidate: Candidate, conflictual_bdg_id: int
 ) -> Candidate:
     candidate.inspection_details = {
         "decision": "refusal",
         "reason": "ambiguous_overlap",
-        "conflict_with_bdg": conflict_with_bdg,
+        "conflictual_bdg_id": conflictual_bdg_id,
     }
     return candidate
 
