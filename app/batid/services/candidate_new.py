@@ -22,26 +22,19 @@ class Inspector:
     def __int__(self):
         self.stamp = None
         self.candidates = []
-        self.addresses = {}
 
     def inspect(self):
         self.build_stamp()
         self.stamp_candidates()
         self.get_candidates()
-        self.get_addresses()
+
         self.inspect_candidates()
         self.report()
 
     def inspect_candidates(self):
-        ids = Candidate.objects.filter(
-            inspect_stamp=self.stamp, inspected_at__isnull=True
-        ).values_list("id", flat=True)
-
-        for id in ids:
+        for c in self.candidates:
             print(f"Inspecting candidate {id}")
             with transaction.atomic():
-                c = self.pick_one_candidate(id)
-
                 # We have a candidate to inspect
                 try:
                     self.inspect_candidate(c)
@@ -68,22 +61,11 @@ class Inspector:
             f"LEFT JOIN {BuildingStatus._meta.db_table} bs on bs.building_id = b.id "
             "WHERE ((bs.type IN %(status)s AND bs.is_current) OR bs.id IS NULL) "
             "AND c.inspected_at IS NULL AND c.inspect_stamp = %(inspect_stamp)s "
+            "ORDER BY RANDOM() "
             "GROUP BY c.id "
         )
 
         self.candidates = Candidate.objects.raw(q, params)
-
-    def get_addresses(self):
-        address_keys = set()
-
-        for c in self.candidates:
-            for k in c.address_keys:
-                address_keys.add(k)
-
-        addresses = Address.objects.filter(id__in=address_keys)
-
-        for a in addresses:
-            self.addresses[a.id] = a
 
     def inspect_candidate(self, c: Candidate):
         # Record the inspection datetime
@@ -124,12 +106,10 @@ class Inspector:
         c.matches = kept_matches
 
         if len(c.matches) == 0:
-            b = self.create_bdg_from_candidate(c)
-            decide_creation(c, b)
+            self.decide_creation(c)
 
         if len(c.matches) == 1:
-            b = self.update_bdg_from_candidate(c)
-            decide_update(c, b)
+            decide_update(c)
 
         if len(c.matches) > 1:
             decide_refusal_toomany_geomatches(c)
@@ -172,6 +152,31 @@ class Inspector:
         alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
         self.stamp = nanoid.generate(size=12, alphabet=alphabet).lower()
         print(f"- stamp : {self.stamp}")
+
+    def decide_creation(self, candidate: Candidate):
+        # We build the new building
+        bdg = new_bdg_from_candidate(candidate)
+        bdg.save()
+
+        # We add the addresses
+        add_addresses_to_building(bdg, candidate.address_keys)
+
+        # Finally, we update the candidate
+        candidate.inspection_details = {
+            "decision": "creation",
+            "bdg_id": bdg.rnb_id,
+        }
+        candidate.save()
+
+
+def add_addresses_to_building(bdg: Building, add_keys):
+    rels = []
+    for address_key in add_keys:
+        rels.append(
+            Building.addresses.through(building_id=bdg.id, address_id=address_key)
+        )
+    if len(rels) > 0:
+        Building.addresses.through.objects.bulk_create(rels, ignore_conflicts=True)
 
 
 def match_shapes(
@@ -292,13 +297,7 @@ def decide_update(candidate: Candidate):
     pass
 
 
-def decide_creation(candidate: Candidate):
-    b = candidate_to_bdg(candidate)
-
-    pass
-
-
-def candidate_to_bdg(c: Candidate) -> Building:
+def new_bdg_from_candidate(c: Candidate) -> Building:
     point = c.shape if c.shape.geom_type == "Point" else c.shape.point_on_surface
 
     b = Building()
@@ -306,11 +305,13 @@ def candidate_to_bdg(c: Candidate) -> Building:
     b.shape = c.shape
     b.point = point
     b.last_updated_by = c.created_by
-    b.ext_ids = {
-        "source": c.source,
-        "source_version": c.source_version,
-        "id": c.source_id,
-        "created_at": c.created_at.isoformat(),
-    }
+    b.ext_ids = [
+        {
+            "source": c.source,
+            "source_version": c.source_version,
+            "id": c.source_id,
+            "created_at": c.created_at.isoformat(),
+        }
+    ]
 
     return b
