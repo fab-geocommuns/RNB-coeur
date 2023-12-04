@@ -655,9 +655,9 @@ class Inspector:
             # select_for_update() will lock the selected rows until the end of the transaction
             # avoid that another inspector selects the same candidates between the select and the update of this one
             candidates = (
-                Candidate.objects.select_for_update()
+                Candidate.objects.select_for_update(skip_locked=True)
                 .filter(inspect_stamp__isnull=True)
-                .order_by("?")[: self.BATCH_SIZE]
+                .order_by("id")[: self.BATCH_SIZE]
             )
 
             return Candidate.objects.filter(id__in=candidates).update(
