@@ -1,13 +1,16 @@
 import json
 from datetime import datetime, timezone
+from typing import Literal
 
 import nanoid
-from django.contrib.gis.geos import GEOSGeometry
-from django.db import transaction
+from django.conf import settings
+from django.contrib.gis.geos import GEOSGeometry, Point
+from django.db import transaction, connection
 from shapely.geometry import shape
 
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
-from batid.models import Candidate, Building, BuildingStatus
+from batid.models import Candidate, Building, BuildingStatus, Address
+from batid.services.rnb_id import generate_rnb_id
 
 
 class Inspector:
@@ -16,9 +19,16 @@ class Inspector:
     MATCH_UPDATE_MIN_COVER_RATIO = 0.85
     MATCH_EXCLUDE_MAX_COVER_RATIO = 0.10
 
+    def __int__(self):
+        self.stamp = None
+        self.candidates = []
+        self.addresses = {}
+
     def inspect(self):
         self.build_stamp()
         self.stamp_candidates()
+        self.get_candidates()
+        self.get_addresses()
         self.inspect_candidates()
         self.report()
 
@@ -45,6 +55,36 @@ class Inspector:
             # We can update BuildingImport data
             self.add_to_report(c)
 
+    def get_candidates(self):
+        params = {
+            "status": tuple(BuildingStatusService.REAL_BUILDINGS_STATUS),
+            "inspect_stamp": self.stamp,
+        }
+
+        q = (
+            "SELECT c.id, ST_AsEWKB(c.shape) as shape, COALESCE(json_agg(json_build_object('id', b.id, 'shape', b.shape)) FILTER (WHERE b.id IS NOT NULL), '[]') as matches, c.address_keys "
+            f"FROM {Candidate._meta.db_table} c "
+            f"LEFT JOIN {Building._meta.db_table} b on ST_Intersects(c.shape, b.shape) "
+            f"LEFT JOIN {BuildingStatus._meta.db_table} bs on bs.building_id = b.id "
+            "WHERE ((bs.type IN %(status)s AND bs.is_current) OR bs.id IS NULL) "
+            "AND c.inspected_at IS NULL AND c.inspect_stamp = %(inspect_stamp)s "
+            "GROUP BY c.id "
+        )
+
+        self.candidates = Candidate.objects.raw(q, params)
+
+    def get_addresses(self):
+        address_keys = set()
+
+        for c in self.candidates:
+            for k in c.address_keys:
+                address_keys.add(k)
+
+        addresses = Address.objects.filter(id__in=address_keys)
+
+        for a in addresses:
+            self.addresses[a.id] = a
+
     def inspect_candidate(self, c: Candidate):
         # Record the inspection datetime
         c.inspected_at = datetime.now(timezone.utc)
@@ -56,11 +96,43 @@ class Inspector:
 
         # Check the shape is big enough
         if shape_family(c.shape) == "poly":
-            shape_area = self.compute_shape_area(c.shape)
+            shape_area = compute_shape_area(c.shape)
             if shape_area < settings.MIN_BDG_AREA:
-                c.inspector_decision = "refusal"
                 decide_refusal_area_too_small(c, shape_area)
                 return
+
+        self.inspect_candidate_matches(c)
+
+    def inspect_candidate_matches(self, c: Candidate):
+        kept_matches = []
+        for match in c.matches:
+            b_shape = GEOSGeometry(json.dumps(match["shape"]))
+
+            shape_match_result = match_shapes(c.shape, b_shape)
+
+            if shape_match_result == "match":
+                kept_matches.append(match)
+                continue
+
+            if shape_match_result == "no_match":
+                continue
+
+            if shape_match_result == "conflict":
+                decide_refusal_ambiguous_overlap(c, match["id"])
+                return
+
+        c.matches = kept_matches
+
+        if len(c.matches) == 0:
+            b = self.create_bdg_from_candidate(c)
+            decide_creation(c, b)
+
+        if len(c.matches) == 1:
+            b = self.update_bdg_from_candidate(c)
+            decide_update(c, b)
+
+        if len(c.matches) > 1:
+            decide_refusal_toomany_geomatches(c)
 
     def report(self):
         # todo : we can use the report to update BuildingImport data
@@ -80,27 +152,6 @@ class Inspector:
         c.inspected_at = None
         c.inspect_stamp = None
         c.save()
-
-    def pick_one_candidate(self, id: int) -> Candidate:
-        params = {
-            "status": tuple(BuildingStatusService.REAL_BUILDINGS_STATUS),
-            "inspect_stamp": self.stamp,
-            "id": id,
-        }
-
-        q = (
-            "SELECT c.id, ST_AsEWKB(c.shape) as shape, COALESCE(json_agg(json_build_object('id', b.id, 'shape', b.shape)) FILTER (WHERE b.id IS NOT NULL), '[]') as matches "
-            f"FROM {Candidate._meta.db_table} c "
-            f"LEFT JOIN {Building._meta.db_table} b on ST_Intersects(c.shape, b.shape) "
-            f"LEFT JOIN {BuildingStatus._meta.db_table} bs on bs.building_id = b.id "
-            "WHERE ((bs.type IN %(status)s AND bs.is_current) OR bs.id IS NULL) "
-            "AND c.id = %(id)s "
-            "GROUP BY c.id "
-            "LIMIT 1"
-        )
-
-        qs = Candidate.objects.raw(q, params)
-        return qs[0] if len(qs) > 0 else None
 
     def stamp_candidates(self) -> int:
         print("- reserve candidates")
@@ -123,6 +174,67 @@ class Inspector:
         print(f"- stamp : {self.stamp}")
 
 
+def match_shapes(
+    a: GEOSGeometry, b: GEOSGeometry
+) -> Literal["match", "no_match", "conflict"]:
+    families = (shape_family(a), shape_family(b))
+
+    if families == ("poly", "poly"):
+        return match_polygons(a, b)
+
+    if families == ("point", "point"):
+        return match_points(a, b)
+
+    if families == ("point", "poly") or families == ("poly", "point"):
+        return match_point_poly(a, b)
+
+    raise Exception(f"Unknown matching shape families case: {families}")
+
+
+def match_polygons(
+    a: GEOSGeometry, b: GEOSGeometry
+) -> Literal["match", "no_match", "conflict"]:
+    intersection = a.intersection(b)
+
+    a_cover_ratio = intersection.area / a.area
+    b_cover_ratio = intersection.area / b.area
+
+    print(f"cover ratio : {a_cover_ratio} {b_cover_ratio}")
+
+    # The building does not intersect enough with the candidate to be considered as a match
+    if (
+        a_cover_ratio < Inspector.MATCH_EXCLUDE_MAX_COVER_RATIO
+        and b_cover_ratio < Inspector.MATCH_EXCLUDE_MAX_COVER_RATIO
+    ):
+        return "no_match"
+
+    # The building intersects significantly with the candidate but not enough to be considered as a match
+    if (
+        a_cover_ratio < Inspector.MATCH_UPDATE_MIN_COVER_RATIO
+        or b_cover_ratio < Inspector.MATCH_UPDATE_MIN_COVER_RATIO
+    ):
+        return "conflict"
+
+    return "match"
+
+
+def match_points(a: Point, b: Point) -> Literal["match", "no_match", "conflict"]:
+    if a.equals_exact(b, tolerance=0.00000000000001):
+        return "match"
+
+    return "no_match"
+
+
+def match_point_poly(
+    a: GEOSGeometry, b: GEOSGeometry
+) -> Literal["match", "no_match", "conflict"]:
+    # NB : this intersection verification is already done in the sql query BUT we want to be sure this matching condition is always verified even the SQL query is modified
+    if a.intersects(b):
+        return "match"
+
+    return "no_match"
+
+
 def shape_family(shape: GEOSGeometry):
     if shape.geom_type == "MultiPolygon":
         return "poly"
@@ -136,15 +248,66 @@ def shape_family(shape: GEOSGeometry):
     raise Exception(f"We do not know the family this shape type: {shape.geom_type}")
 
 
-def wgs84_metric_area(geom: GEOSGeometry) -> float:
-    return geom.area
+def compute_shape_area(shape):
+    with connection.cursor() as cursor:
+        cursor.execute("select ST_AREA(%s, true)", [shape.wkt])
+        row = cursor.fetchone()
 
-    if geom.srid != 4326:
-        geom = geom.transform(4326, clone=True)
-
-    return shape(json.loads(geom.json)).area
+    return row[0]
 
 
-def decide_refusal_is_light(candidate: Candidate) -> Candidate:
+def decide_refusal_is_light(candidate: Candidate):
     candidate.inspection_details = {"decision": "refusal", "reason": "is_light"}
     candidate.save()
+
+
+def decide_refusal_area_too_small(candidate: Candidate, area: float):
+    candidate.inspection_details = {
+        "decision": "refusal",
+        "reason": "area_too_small",
+        "area": area,
+    }
+    candidate.save()
+
+
+def decide_refusal_ambiguous_overlap(candidate: Candidate, conflict_with_bdg: int):
+    candidate.inspection_details = {
+        "decision": "refusal",
+        "reason": "ambiguous_overlap",
+        "conflict_with_bdg": conflict_with_bdg,
+    }
+    candidate.save()
+
+
+def decide_refusal_toomany_geomatches(candidate: Candidate) -> Candidate:
+    candidate.inspection_details = {
+        "decision": "refusal",
+        "reason": "toomany_geomatches",
+        "matches": [m["id"] for m in candidate.matches],
+    }
+    candidate.save()
+
+
+def decide_update(candidate: Candidate):
+    pass
+
+
+def decide_creation(candidate: Candidate):
+    b = candidate_to_bdg(candidate)
+
+    pass
+
+
+def candidate_to_bdg(c: Candidate) -> Building:
+    point = c.shape if c.shape.geom_type == "Point" else c.shape.point_on_surface
+
+    b = Building()
+    b.rnb_id = generate_rnb_id()
+    b.shape = c.shape
+    b.point = point
+
+    b.address = candidate.address
+
+    b.is_light = candidate.is_light
+    b.save()
+    return b

@@ -1,14 +1,9 @@
 import json
 from datetime import datetime
-
 from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
-from django.db import connection
 from django.test import TestCase
-
 from batid.models import BuildingStatus, Candidate, Address, Building, BuildingImport
-from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.services.candidate import Inspector
-from batid.services.candidate_new import wgs84_metric_area
 from batid.services.rnb_id import generate_rnb_id
 from batid.tests.helpers import (
     create_paris,
@@ -16,7 +11,6 @@ from batid.tests.helpers import (
     coords_to_mp_geom,
     coords_to_point_geom,
 )
-from batid.utils.db import dictfetchall
 
 
 class TestInspectorBdgCreate(TestCase):
@@ -838,8 +832,6 @@ def data_to_bdg(data):
         shape = GEOSGeometry(json.dumps(d["geometry"]))
         shape.srid = 4326
 
-        shape = shape.transform(2154, clone=True)
-
         b = Building.objects.create(
             rnb_id=generate_rnb_id(),
             shape=shape,
@@ -855,25 +847,3 @@ def data_to_bdg(data):
         )
 
         BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
-
-
-class TestLocalFunctions(TestCase):
-    def test_wgs84_metric_area(self):
-        geom = GEOSGeometry(
-            json.dumps(
-                {
-                    "coordinates": [
-                        [
-                            [5.721173186219147, 45.18449241134684],
-                            [5.721173186219147, 45.18444585797988],
-                            [5.721262369668409, 45.18444585797988],
-                            [5.721262369668409, 45.18449241134684],
-                            [5.721173186219147, 45.18449241134684],
-                        ]
-                    ],
-                    "type": "Polygon",
-                }
-            )
-        )
-
-        self.assertEqual(wgs84_metric_area(geom), 36.26)
