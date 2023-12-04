@@ -66,7 +66,7 @@ class Inspector:
         except Exception as e:
             # something went wrong, remove the stamp from the reserved candidates
             Candidate.objects.filter(inspect_stamp=self.stamp).update(
-                inspect_stamp=None
+                inspect_stamp=None, inspected_at=None
             )
             # and re-raise the exception
             raise e
