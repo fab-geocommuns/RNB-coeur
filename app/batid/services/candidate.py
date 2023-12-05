@@ -219,10 +219,10 @@ class Inspector:
                     self.save_bdg_address_relations()
 
                     # update the BuildingImport entry
-                    for import_id, count in import_id_stats.items():
-                        building_import = BuildingImport.objects.get(id=import_id)
-                        building_import.building_updated_count += count
-                        building_import.save()
+                    # for import_id, count in import_id_stats.items():
+                    #     building_import = BuildingImport.objects.get(id=import_id)
+                    #     building_import.building_updated_count += count
+                    #     building_import.save()
 
                 except (Exception, psycopg2.DatabaseError) as error:
                     raise error
@@ -355,11 +355,11 @@ class Inspector:
                 save_candidates(self.refusals)
 
                 # update the number of refused buildings for each import
-                for import_id, count in import_id_stats.items():
-                    if count > 0:
-                        building_import = BuildingImport.objects.get(id=import_id)
-                        building_import.building_refused_count += count
-                        building_import.save()
+                # for import_id, count in import_id_stats.items():
+                #     if count > 0:
+                #         building_import = BuildingImport.objects.get(id=import_id)
+                #         building_import.building_refused_count += count
+                #         building_import.save()
             except (Exception, psycopg2.DatabaseError) as error:
                 raise error
 
@@ -458,10 +458,10 @@ class Inspector:
                 self.save_bdg_address_relations()
 
                 # update the number of created buildings for each import
-                for import_id, count in import_id_stats.items():
-                    building_import = BuildingImport.objects.get(id=import_id)
-                    building_import.building_created_count += count
-                    building_import.save()
+                # for import_id, count in import_id_stats.items():
+                #     building_import = BuildingImport.objects.get(id=import_id)
+                #     building_import.building_created_count += count
+                #     building_import.save()
 
             except (Exception, psycopg2.DatabaseError) as error:
                 raise error
