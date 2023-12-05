@@ -1399,20 +1399,17 @@ class ADSEndpointsWithAuthTest(APITestCase):
         # Grenoble
         b = Building.objects.create(
             rnb_id="BDGSRNBBIDID",
-            source="dummy",
             shape=geom,
             point=geom.point_on_surface,
         )
 
         bdg_ads_one = Building.objects.create(
             rnb_id="BDGSADSSONE1",
-            source="dummy",
             shape=geom,
             point=geom.point_on_surface,
         )
         bdg_ads_two = Building.objects.create(
             rnb_id="BDGSADSSTWO2",
-            source="dummy",
             shape=geom,
             point=geom.point_on_surface,
         )
@@ -1436,7 +1433,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         to_guess_bdg = Building.objects.create(
             rnb_id="GUESSGUESSGO",
-            source="dummy",
             shape=geom,
             point=geom.point_on_surface,
         )
@@ -1459,7 +1455,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
         to_guess_bdg_two = Building.objects.create(
             rnb_id="GUESSGUESSG2",
-            source="dummy",
             shape=geom,
             point=geom.point_on_surface,
         )

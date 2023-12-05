@@ -109,7 +109,8 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
                 validated_data["point"] = f"{geometry.point_on_surface}"
 
             validated_data["rnb_id"] = generate_rnb_id()
-            validated_data["source"] = "ADS"
+            # we may need to add more info here
+            validated_data["last_updated_by"] = {"source": "ADS"}
             building = super().create(validated_data)
             return building
         elif validated_data.get("rnb_id") == BdgInADS.GUESS_STR:
@@ -126,7 +127,8 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
 
             if bdg is None:
                 validated_data["rnb_id"] = generate_rnb_id()
-                validated_data["source"] = "ADS"
+                # we may need to add more info here
+                validated_data["last_updated_by"] = {"source": "ADS"}
                 building = super().create(validated_data)
                 return building
 
