@@ -4,13 +4,13 @@ from batid.models import Building, BuildingWithHistory, BuildingHistoryOnly
 
 class TemporalTableCase(TestCase):
     def test_update_building(self):
-        building = Building.objects.create(rnb_id="XYZ", source="bdtopo")
+        building = Building.objects.create(rnb_id="XYZ")
         # We now update the building (and so create a new version of it)
-        building.source = "dgfip"
+        building.parent_buildings = [1]
         building.save()
 
         building.refresh_from_db()
-        self.assertEqual(building.source, "dgfip")
+        self.assertEqual(building.parent_buildings, [1])
 
         building_versions = BuildingWithHistory.objects.filter(rnb_id="XYZ")
         # the actual value is present, but also the previous one
@@ -21,19 +21,19 @@ class TemporalTableCase(TestCase):
             sys_period__endswith__isnull=False
         ).all()
         self.assertEqual(len(previous_building_version), 1)
-        self.assertEqual(previous_building_version[0].source, "bdtopo")
+        self.assertEqual(previous_building_version[0].parent_buildings, None)
 
         current_building_version = BuildingWithHistory.objects.filter(
             sys_period__endswith__isnull=True
         )
         self.assertEqual(len(current_building_version), 1)
-        self.assertEqual(current_building_version[0].source, "dgfip")
+        self.assertEqual(current_building_version[0].parent_buildings, [1])
 
         building_history_only = BuildingHistoryOnly.objects.all()
         self.assertEqual(len(building_history_only), 1)
 
     def test_delete_building(self):
-        building = Building.objects.create(rnb_id="XYZ", source="bdtopo")
+        building = Building.objects.create(rnb_id="XYZ")
         building.delete()
 
         buildings = Building.objects.all()
@@ -47,9 +47,5 @@ class TemporalTableCase(TestCase):
     def test_history_is_read_only(self):
         # trying to manually insert a new row in the history table should raise an exception
         # this table is not supposed to be written only with triggers
-        self.assertRaises(
-            Exception, BuildingWithHistory.objects.create, rnb_id="XYZ", source="bdtopo"
-        )
-        self.assertRaises(
-            Exception, BuildingHistoryOnly.objects.create, rnb_id="XYZ", source="bdtopo"
-        )
+        self.assertRaises(Exception, BuildingWithHistory.objects.create, rnb_id="XYZ")
+        self.assertRaises(Exception, BuildingHistoryOnly.objects.create, rnb_id="XYZ")

@@ -35,7 +35,6 @@ class TestInspectorBdgCreate(TestCase):
         ]
         Candidate.objects.create(
             shape=coords_to_mp_geom(coords),
-            source="bdnb",
             source_version="7.2",
             source_id="bdnb_1",
             address_keys=["add_1", "add_2"],
@@ -118,14 +117,12 @@ class TestInspectorBdgUpdate(TestCase):
         # Create a candidate for the merge
         Candidate.objects.create(
             shape=coords_to_mp_geom(coords),
-            source="bdnb",
             source_id="bdnb_1",
             address_keys=["add_1", "add_2"],
             is_light=False,
         )
         Candidate.objects.create(
             shape=coords_to_mp_geom(coords),
-            source="bdtopo",
             source_id="bdtopo_1",
             address_keys=["add_1", "add_3"],
             is_light=False,
@@ -236,7 +233,6 @@ class TestHalvishCover(InspectTest):
     bdgs_data = [
         {
             "id": "BX_SQUARE",
-            "source": "dummy",
             "geometry": {
                 "coordinates": [
                     [
@@ -257,7 +253,6 @@ class TestHalvishCover(InspectTest):
     candidates_data = [
         {
             "id": "SECOND_SQUARE",
-            "source": "dummy",
             "geometry": {
                 "coordinates": [
                     [
@@ -294,7 +289,6 @@ class OneSmallOneBig:
 
     small = {
         "id": "SMALL",
-        "source": "bdtopo",
         "geometry": {
             "coordinates": [
                 [
@@ -312,7 +306,6 @@ class OneSmallOneBig:
     }
     big = {
         "id": "BIG",
-        "source": "bdnb_7",
         "geometry": {
             "coordinates": [
                 [
@@ -374,7 +367,6 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
     bdgs_data = [
         {
             "id": "ONE_BIG",
-            "source": "bdtopo",
             "geometry": {
                 "coordinates": [
                     [
@@ -395,7 +387,6 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
     candidates_data = [
         {
             "id": "SMALL_FIRST",
-            "source": "bdnb_7",
             "geometry": {
                 "coordinates": [
                     [
@@ -413,7 +404,6 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
         },
         {
             "id": "SMALL_SECOND",
-            "source": "bdnb_7",
             "geometry": {
                 "coordinates": [
                     [
@@ -450,7 +440,6 @@ class TestPointCandidateInsidePolyBdg(InspectTest):
     bdgs_data = [
         {
             "id": "POLY_BDG",
-            "source": "bdtopo",
             "geometry": {
                 "coordinates": [
                     [
@@ -469,7 +458,6 @@ class TestPointCandidateInsidePolyBdg(InspectTest):
     candidates_data = [
         {
             "id": "POINT_CANDIDATE",
-            "source": "bdnb",
             "geometry": {
                 "coordinates": [-0.567752052053379, 44.83814660030956],
                 "type": "Point",
@@ -500,7 +488,6 @@ class TestPolyCandidateOnPointBdg(InspectTest):
     bdgs_data = [
         {
             "id": "POINT_BDG",
-            "source": "bdnb",
             "geometry": {
                 "coordinates": [-0.567752052053379, 44.83814660030956],
                 "type": "Point",
@@ -511,7 +498,6 @@ class TestPolyCandidateOnPointBdg(InspectTest):
     candidates_data = [
         {
             "id": "POLY_CANDIDATE",
-            "source": "bdtopo",
             "geometry": {
                 "coordinates": [
                     [
@@ -546,7 +532,6 @@ class TestPointCandidateOutsidePolyBdg(InspectTest):
     bdgs_data = [
         {
             "id": "POLY_BDG",
-            "source": "bdtopo",
             "geometry": {
                 "coordinates": [
                     [
@@ -565,7 +550,6 @@ class TestPointCandidateOutsidePolyBdg(InspectTest):
     candidates_data = [
         {
             "id": "POINT_BDG",
-            "source": "bdnb",
             "geometry": {
                 "coordinates": [-0.5677886432262085, 44.83825929581545],
                 "type": "Point",
@@ -590,7 +574,6 @@ class TestOnePolyCandidatesOnTwoPointBdgs(InspectTest):
     bdgs_data = [
         {
             "id": "FIRST_BDG",
-            "source": "bdnb",
             "geometry": {
                 "coordinates": [-0.5739328733325522, 44.84786070152114],
                 "type": "Point",
@@ -598,7 +581,6 @@ class TestOnePolyCandidatesOnTwoPointBdgs(InspectTest):
         },
         {
             "id": "SECOND_BDG",
-            "source": "bdnb",
             "geometry": {
                 "coordinates": [-0.573884455423979, 44.847787256761166],
                 "type": "Point",
@@ -609,7 +591,6 @@ class TestOnePolyCandidatesOnTwoPointBdgs(InspectTest):
     candidates_data = [
         {
             "id": "POLY_BDG",
-            "source": "bdtopo",
             "geometry": {
                 "coordinates": [
                     [
@@ -640,7 +621,6 @@ class TestBdgAndCandidateWithSamePoint(InspectTest):
     bdgs_data = [
         {
             "id": "POINT_BDG",
-            "source": "bdnb",
             "geometry": {
                 "coordinates": [-0.5738844554153957, 44.847736563832484],
                 "type": "Point",
@@ -651,7 +631,6 @@ class TestBdgAndCandidateWithSamePoint(InspectTest):
     candidates_data = [
         {
             "id": "POINT_CANDIDATE",
-            "source": "bdtopo",
             "geometry": {
                 "coordinates": [-0.5738844554153957, 44.847736563832484],
                 "type": "Point",
@@ -673,7 +652,6 @@ class TestUpdatePointBdgAndTouchingPolyBdgsWithOnePolyCandidate(InspectTest):
     bdgs_data = [
         {
             "id": "west",
-            "source": "dummy",
             "geometry": {
                 "coordinates": [
                     [
@@ -690,7 +668,6 @@ class TestUpdatePointBdgAndTouchingPolyBdgsWithOnePolyCandidate(InspectTest):
         },
         {
             "id": "east",
-            "source": "dummy",
             "geometry": {
                 "coordinates": [
                     [
@@ -707,7 +684,6 @@ class TestUpdatePointBdgAndTouchingPolyBdgsWithOnePolyCandidate(InspectTest):
         },
         {
             "id": "central",
-            "source": "dummy",
             "geometry": {
                 "coordinates": [-0.5738567949043727, 44.84781252107311],
                 "type": "Point",
@@ -718,7 +694,6 @@ class TestUpdatePointBdgAndTouchingPolyBdgsWithOnePolyCandidate(InspectTest):
     candidates_data = [
         {
             "id": "MATCH_ON_POINT",
-            "source": "dummy2",
             "geometry": {
                 "coordinates": [
                     [
@@ -754,7 +729,6 @@ class TestCandidateOnTwoMatchingBdgs(InspectTest):
     bdgs_data = [
         {
             "id": "POLY_BDG",
-            "source": "bdtopo",
             "geometry": {
                 "coordinates": [
                     [
@@ -770,7 +744,6 @@ class TestCandidateOnTwoMatchingBdgs(InspectTest):
         },
         {
             "id": "POINT_BDG",
-            "source": "bdnb",
             "geometry": {
                 "coordinates": [-0.5738844554153957, 44.847736563832484],
                 "type": "Point",
@@ -781,7 +754,6 @@ class TestCandidateOnTwoMatchingBdgs(InspectTest):
     candidates_data = [
         {
             "id": "bigger",
-            "source": "bdnb",
             "geometry": {
                 "coordinates": [
                     [
@@ -826,8 +798,6 @@ def data_to_candidate(data):
 
         Candidate.objects.create(
             shape=shape,
-            source=d["source"],
-            source_id=d["id"],
             is_light=False,
             created_by={"source": "import", "id": b_import.id},
         )
@@ -843,7 +813,6 @@ def data_to_bdg(data):
         b = Building.objects.create(
             rnb_id=generate_rnb_id(),
             shape=shape,
-            source=d["source"],
             ext_ids=[
                 {
                     "source": d["source"],
@@ -873,7 +842,6 @@ class NonExistingAddress(TransactionTestCase):
         ]
         candidate = Candidate.objects.create(
             shape=coords_to_mp_geom(coords),
-            source="bdnb",
             source_version="7.2",
             source_id="bdnb_1",
             address_keys=["add_1"],
@@ -911,7 +879,6 @@ class NonExistingAddress(TransactionTestCase):
         # this candidate has the same shape, it will yield an update
         candidate = Candidate.objects.create(
             shape=shape,
-            source="bdnb",
             source_version="7.2",
             source_id="bdnb_1",
             address_keys=["add_1"],
@@ -960,7 +927,6 @@ class NonExistingAddress(TransactionTestCase):
                     [2.999804906833981, 48.85789205519228],
                 ]
             ),
-            source="bdnb",
             source_version="7.2",
             source_id="bdnb_1",
             address_keys=[],
@@ -971,7 +937,6 @@ class NonExistingAddress(TransactionTestCase):
         # but the address is does not exist => crash
         candidate_for_update = Candidate.objects.create(
             shape=shape,
-            source="bdnb",
             source_version="7.2",
             source_id="bdnb_2",
             address_keys=["add_1"],
