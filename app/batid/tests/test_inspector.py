@@ -659,6 +659,10 @@ class TestBdgAndCandidateWithSamePoint(InspectTest):
         b_shape = Building.objects.all().first().shape
         c_shape = Candidate.objects.all().first().shape
 
+        print(b_shape)
+        print(c_shape)
+        print(b_shape.intersects(c_shape))
+
         i = Inspector()
         i.inspect()
 
@@ -820,8 +824,6 @@ def data_to_candidate(data):
     for d in data:
         shape = GEOSGeometry(json.dumps(d["geometry"]))
         shape.srid = 4326
-
-        shape = shape.transform(2154, clone=True)
 
         Candidate.objects.create(
             shape=shape,
