@@ -45,6 +45,7 @@ class Inspector:
         )
 
     def get_matching_bdgs(self):
+        # todo : prévoir de récupérer les batiments qui n'ont pas de statuts (en plus de ceux qui ont un current à true)
         self.matching_bdgs = Building.objects.filter(
             shape__intersects=self.candidate.shape,
             status__type__in=BuildingStatusService.REAL_BUILDINGS_STATUS,
