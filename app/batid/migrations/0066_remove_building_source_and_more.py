@@ -4,18 +4,17 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('batid', '0065_remove_candidate_inspect_result_and_more'),
+        ("batid", "0065_remove_candidate_inspect_result_and_more"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='building',
-            name='source',
+            model_name="building",
+            name="source",
         ),
         migrations.RemoveField(
-            model_name='buildinghistoryonly',
-            name='source',
+            model_name="buildinghistoryonly",
+            name="source",
         ),
     ]
