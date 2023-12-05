@@ -654,6 +654,11 @@ class TestBdgAndCandidateWithSamePoint(InspectTest):
     ]
 
     def test_result(self):
+        print("Building.objects.all().count()", Building.objects.all().count())
+
+        b_shape = Building.objects.all().first().shape
+        c_shape = Candidate.objects.all().first().shape
+
         i = Inspector()
         i.inspect()
 

@@ -1,13 +1,11 @@
-import json
 from datetime import datetime, timezone
 from typing import Literal
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction, connection
-from psycopg2 import DatabaseError
 from shapely.geometry import shape
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
-from batid.models import Candidate, Building, BuildingStatus
+from batid.models import Candidate, Building
 from batid.services.rnb_id import generate_rnb_id
 
 
@@ -73,6 +71,7 @@ class Inspector:
 
     def compare_matching_bdgs(self):
         kept_matches = []
+
         for bdg in self.matching_bdgs:
             shape_match_result = match_shapes(self.candidate.shape, bdg.shape)
 
@@ -274,7 +273,7 @@ def match_polygons(
 def match_points(
     a: GEOSGeometry, b: GEOSGeometry
 ) -> Literal["match", "no_match", "conflict"]:
-    if a.equals_exact(b, tolerance=0.001):
+    if a.equals_exact(b, tolerance=0.0000001):
         return "match"
 
     return "no_match"
