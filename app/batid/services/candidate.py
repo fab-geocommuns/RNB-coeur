@@ -11,8 +11,8 @@ from batid.services.rnb_id import generate_rnb_id
 
 
 class Inspector:
-    MATCH_UPDATE_MIN_COVER_RATIO = 0.85
-    MATCH_EXCLUDE_MAX_COVER_RATIO = 0.10
+    MATCH_BIG_COVER_RATIO = 0.85
+    MATCH_SMALL_COVER_RATIO = 0.10
 
     def __int__(self):
         self.candidate = None
@@ -42,13 +42,6 @@ class Inspector:
         q = f"SELECT id, ST_AsEWKB(shape) as shape, source, source_version, source_id, address_keys, is_light, inspected_at  FROM {Candidate._meta.db_table} WHERE inspected_at IS NULL LIMIT 1 FOR UPDATE SKIP LOCKED"
         qs = Candidate.objects.raw(q)
         self.candidate = qs[0] if len(qs) > 0 else None
-
-        # this is the slowest query. To make it faster we could remove the ordering with order_by() but the first() redo the ordering
-        # self.candidate = (
-        #     Candidate.objects.select_for_update(skip_locked=True)
-        #     .filter(inspected_at__isnull=True)
-        #     .order_by()
-        # ).first()
 
     def get_matching_bdgs(self):
         self.matching_bdgs = Building.objects.filter(
@@ -105,7 +98,7 @@ class Inspector:
             self.decide_update()
 
         if len(self.matching_bdgs) > 1:
-            self.decide_refusal_toomany_geomatches()
+            self.decide_refusal_too_many_geomatches()
 
     def decide_refusal_is_light(self):
         self.candidate.inspection_details = {
@@ -130,10 +123,10 @@ class Inspector:
         }
         self.candidate.save()
 
-    def decide_refusal_toomany_geomatches(self):
+    def decide_refusal_too_many_geomatches(self):
         self.candidate.inspection_details = {
             "decision": "refusal",
-            "reason": "toomany_geomatches",
+            "reason": "too_many_geomatches",
             "matches": [bdg.id for bdg in self.matching_bdgs],
         }
         self.candidate.save()
@@ -265,15 +258,15 @@ def match_polygons(
 
     # The building does not intersect enough with the candidate to be considered as a match
     if (
-        a_cover_ratio < Inspector.MATCH_EXCLUDE_MAX_COVER_RATIO
-        and b_cover_ratio < Inspector.MATCH_EXCLUDE_MAX_COVER_RATIO
+        a_cover_ratio < Inspector.MATCH_SMALL_COVER_RATIO
+        and b_cover_ratio < Inspector.MATCH_SMALL_COVER_RATIO
     ):
         return "no_match"
 
     # The building intersects significantly with the candidate but not enough to be considered as a match
     if (
-        a_cover_ratio < Inspector.MATCH_UPDATE_MIN_COVER_RATIO
-        or b_cover_ratio < Inspector.MATCH_UPDATE_MIN_COVER_RATIO
+        a_cover_ratio < Inspector.MATCH_BIG_COVER_RATIO
+        or b_cover_ratio < Inspector.MATCH_BIG_COVER_RATIO
     ):
         return "conflict"
 
