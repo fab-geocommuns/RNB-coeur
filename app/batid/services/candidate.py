@@ -628,7 +628,6 @@ class Inspector:
             "WHERE ((bs.type IN %(status)s AND bs.is_current) OR bs.id IS NULL) "
             "AND c.inspected_at IS NULL AND c.inspect_stamp = %(inspect_stamp)s "
             "GROUP BY c.id "
-            "ORDER BY RANDOM() "
             "LIMIT %(limit)s"
         )
 
@@ -655,11 +654,9 @@ class Inspector:
         with transaction.atomic():
             # select_for_update() will lock the selected rows until the end of the transaction
             # avoid that another inspector selects the same candidates between the select and the update of this one
-            candidates = (
-                Candidate.objects.select_for_update(skip_locked=True)
-                .filter(inspect_stamp__isnull=True)
-                .order_by("id")[: self.BATCH_SIZE]
-            )
+            candidates = Candidate.objects.select_for_update(skip_locked=True).filter(
+                inspect_stamp__isnull=True
+            )[: self.BATCH_SIZE]
 
             return Candidate.objects.filter(id__in=candidates).update(
                 inspect_stamp=self.stamp
