@@ -23,7 +23,7 @@ class Inspector:
             self.inspect_one()
 
             if self.candidate is None:
-                break
+                return
 
     def inspect_one(self):
         self.reset()
@@ -42,6 +42,7 @@ class Inspector:
         self.candidate = (
             Candidate.objects.select_for_update(skip_locked=True)
             .filter(inspected_at__isnull=True)
+            .order_by()
             .first()
         )
 
