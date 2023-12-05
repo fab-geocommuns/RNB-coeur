@@ -229,12 +229,6 @@ class Candidate(models.Model):
     inspection_details = models.JSONField(null=True)
     created_by = models.JSONField(null=True)
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        # this field is used to store the decision of the inspector
-        # but is not intended to be stored in the database
-        self.inspector_decision = ""
-
 
 class Plot(models.Model):
     id = models.CharField(max_length=40, primary_key=True, db_index=True)
