@@ -19,6 +19,7 @@ class BuildingAbstract(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
+    source = models.CharField(max_length=10, null=False, db_index=True)
     ext_ids = models.JSONField(null=True)
     last_updated_by = models.JSONField(null=True)
     # temporal table field
