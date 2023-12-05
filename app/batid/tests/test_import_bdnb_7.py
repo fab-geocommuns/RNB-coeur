@@ -187,9 +187,6 @@ class ImportBDNB7TestCase(TransactionTestCase):
         # self.assertEqual(last_building_import.building_updated_count, 1)
         # self.assertEqual(last_building_import.building_refused_count, 0)
 
-        for c in Candidate.objects.all():
-            print(c.inspection_details)
-
         self.assertEqual(
             Candidate.objects.filter(inspection_details__decision="update").count(), 1
         )
