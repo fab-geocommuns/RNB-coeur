@@ -4,13 +4,20 @@ from batid.models import Building, BuildingWithHistory, BuildingHistoryOnly
 
 class TemporalTableCase(TestCase):
     def test_update_building(self):
-        building = Building.objects.create(rnb_id="XYZ", source="bdtopo")
+        old_ext_ids = [
+            {"source": "bdtopo", "id": "17", "created_at": "2020-01-01T00:00:00Z"}
+        ]
+        new_ext_ids = [
+            {"source": "dgfip", "id": "21", "created_at": "2020-01-01T00:00:00Z"}
+        ]
+
+        building = Building.objects.create(rnb_id="XYZ", ext_ids=old_ext_ids)
         # We now update the building (and so create a new version of it)
-        building.source = "dgfip"
+        building.ext_ids = new_ext_ids
         building.save()
 
         building.refresh_from_db()
-        self.assertEqual(building.source, "dgfip")
+        self.assertListEqual(building.ext_ids, new_ext_ids)
 
         building_versions = BuildingWithHistory.objects.filter(rnb_id="XYZ")
         # the actual value is present, but also the previous one
@@ -21,13 +28,13 @@ class TemporalTableCase(TestCase):
             sys_period__endswith__isnull=False
         ).all()
         self.assertEqual(len(previous_building_version), 1)
-        self.assertEqual(previous_building_version[0].source, "bdtopo")
+        self.assertListEqual(previous_building_version[0].ext_ids, old_ext_ids)
 
         current_building_version = BuildingWithHistory.objects.filter(
             sys_period__endswith__isnull=True
         )
         self.assertEqual(len(current_building_version), 1)
-        self.assertEqual(current_building_version[0].source, "dgfip")
+        self.assertListEqual(current_building_version[0].ext_ids, new_ext_ids)
 
         building_history_only = BuildingHistoryOnly.objects.all()
         self.assertEqual(len(building_history_only), 1)

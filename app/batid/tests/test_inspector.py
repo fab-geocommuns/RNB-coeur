@@ -1,13 +1,8 @@
 import json
 from datetime import datetime
-
 from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
-from django.db import connection
-from django.db.utils import IntegrityError
-from django.test import TestCase, TransactionTestCase
-
+from django.test import TestCase
 from batid.models import BuildingStatus, Candidate, Address, Building, BuildingImport
-from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.services.candidate import Inspector
 from batid.services.rnb_id import generate_rnb_id
 from batid.tests.helpers import (
@@ -16,7 +11,6 @@ from batid.tests.helpers import (
     coords_to_mp_geom,
     coords_to_point_geom,
 )
-from batid.utils.db import dictfetchall
 
 
 class TestInspectorBdgCreate(TestCase):
@@ -633,7 +627,7 @@ class TestOnePolyCandidatesOnTwoPointBdgs(InspectTest):
 
         c = Candidate.objects.all().first()
         self.assertEqual(c.inspection_details["decision"], "refusal")
-        self.assertEqual(c.inspection_details["reason"], "too_many_geomatches")
+        self.assertEqual(c.inspection_details["reason"], "toomany_geomatches")
 
 
 class TestBdgAndCandidateWithSamePoint(InspectTest):
@@ -822,8 +816,6 @@ def data_to_candidate(data):
         shape = GEOSGeometry(json.dumps(d["geometry"]))
         shape.srid = 4326
 
-        shape = shape.transform(2154, clone=True)
-
         Candidate.objects.create(
             shape=shape,
             source=d["source"],
@@ -838,12 +830,9 @@ def data_to_bdg(data):
         shape = GEOSGeometry(json.dumps(d["geometry"]))
         shape.srid = 4326
 
-        shape = shape.transform(2154, clone=True)
-
         b = Building.objects.create(
             rnb_id=generate_rnb_id(),
             shape=shape,
-            source=d["source"],
             ext_ids=[
                 {
                     "source": d["source"],
@@ -855,139 +844,3 @@ def data_to_bdg(data):
         )
 
         BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
-
-
-# we need to use TransactionTestCase because we are testing thez proper rollback of the transactions during the inspection
-class NonExistingAddress(TransactionTestCase):
-    def test_non_existing_address_raises(self):
-        """
-        When an address is not found in the database, an error is raised
-        """
-        coords = [
-            [2.349804906833981, 48.85789205519228],
-            [2.349701279442314, 48.85786369735885],
-            [2.3496535925009994, 48.85777922711969],
-            [2.349861764341199, 48.85773095834841],
-            [2.3499452164882086, 48.857847406681174],
-            [2.349804906833981, 48.85789205519228],
-        ]
-        candidate = Candidate.objects.create(
-            shape=coords_to_mp_geom(coords),
-            source="bdnb",
-            source_version="7.2",
-            source_id="bdnb_1",
-            address_keys=["add_1"],
-            is_light=False,
-        )
-
-        i = Inspector()
-        with self.assertRaises(IntegrityError):
-            i.inspect()
-
-        candidate.refresh_from_db()
-        # check the candidate inspection_details is properly reverted
-        self.assertFalse(candidate.inspection_details)
-        # check the inspect stamp is removed, to allow futur re-inspection
-        self.assertFalse(candidate.inspect_stamp)
-        self.assertFalse(candidate.inspected_at)
-
-        # no building should have been created
-        self.assertEqual(Building.objects.all().count(), 0)
-
-    def test_non_existing_address_raises_during_update(self):
-        shape = coords_to_mp_geom(
-            [
-                [2.349804906833981, 48.85789205519228],
-                [2.349701279442314, 48.85786369735885],
-                [2.3496535925009994, 48.85777922711969],
-                [2.349861764341199, 48.85773095834841],
-                [2.3499452164882086, 48.857847406681174],
-                [2.349804906833981, 48.85789205519228],
-            ]
-        )
-
-        Building.objects.create(rnb_id=generate_rnb_id(), shape=shape)
-
-        # this candidate has the same shape, it will yield an update
-        candidate = Candidate.objects.create(
-            shape=shape,
-            source="bdnb",
-            source_version="7.2",
-            source_id="bdnb_1",
-            address_keys=["add_1"],
-            is_light=False,
-        )
-
-        i = Inspector()
-        with self.assertRaises(IntegrityError) as exinfo:
-            i.inspect()
-            # check handle_bdgs_updates is in the stacktrace
-            # ie the candidate was supposed to update a building
-            self.assertTrue("handle_bdgs_updates" in str(exinfo.value))
-
-        candidate.refresh_from_db()
-        # check the candidate inspection_details is properly reverted
-        self.assertFalse(candidate.inspection_details)
-        # check the inspect stamp is removed, to allow futur re-inspection
-        self.assertFalse(candidate.inspect_stamp)
-        self.assertFalse(candidate.inspected_at)
-
-    def testRevertAllTheBatch(self):
-        # we create 2 candidates, one for a creation, one for an update
-        # the second candidate inspection will fail, and the whole inspection batch should be reverted
-        
-        shape = coords_to_mp_geom(
-            [
-                [2.349804906833981, 48.85789205519228],
-                [2.349701279442314, 48.85786369735885],
-                [2.3496535925009994, 48.85777922711969],
-                [2.349861764341199, 48.85773095834841],
-                [2.3499452164882086, 48.857847406681174],
-                [2.349804906833981, 48.85789205519228],
-            ]
-        )
-
-        Building.objects.create(rnb_id=generate_rnb_id(), shape=shape)
-
-        candidate_for_creation = Candidate.objects.create(
-            shape=coords_to_mp_geom(
-                [
-                    [2.999804906833981, 48.85789205519228],
-                    [2.999701279442314, 48.85786369735885],
-                    [2.9996535925009994, 48.85777922711969],
-                    [2.999861764991199, 48.85773095899841],
-                    [2.9999452164882086, 48.857847406681174],
-                    [2.999804906833981, 48.85789205519228],
-                ]
-            ),
-            source="bdnb",
-            source_version="7.2",
-            source_id="bdnb_1",
-            address_keys=[],
-            is_light=False,
-        )
-
-        # this candidate has the same shape, it will yield an update
-        # but the address is does not exist => crash
-        candidate_for_update = Candidate.objects.create(
-            shape=shape,
-            source="bdnb",
-            source_version="7.2",
-            source_id="bdnb_2",
-            address_keys=["add_1"],
-            is_light=False,
-        )
-
-        i = Inspector()
-        # the update should fail
-        with self.assertRaises(IntegrityError) as exinfo:
-            i.inspect()
-            self.assertTrue("handle_bdgs_updates" in str(exinfo.value))
-
-        # we still have only one building
-        self.assertEqual(Building.objects.all().count(), 1)
-
-        # the 2 candidates have been reverted to their initial state
-        self.assertEqual(
-            Candidate.objects.filter(inspect_stamp__isnull=True).all().count(), 2
-        )

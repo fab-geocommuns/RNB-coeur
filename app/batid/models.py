@@ -14,11 +14,12 @@ from batid.utils.db import from_now_to_infinity
 
 class BuildingAbstract(models.Model):
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
-    source = models.CharField(max_length=10, null=False, db_index=True)
+
     point = models.PointField(null=True, spatial_index=True, srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
+    source = models.CharField(max_length=10, null=False, db_index=True)
     ext_ids = models.JSONField(null=True)
     last_updated_by = models.JSONField(null=True)
     # temporal table field
@@ -225,10 +226,6 @@ class Candidate(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    # The inspect_stamp is a DIY lock system to ensure a candidate is not inspected twice
-    # It MIGHT be replaced by systems closer to the db (eg : SELECT ... FOR UPDATE and postegresql LOCK system)
-    # but I do not know those enough to use them right now.
     inspect_stamp = models.CharField(max_length=20, null=True, db_index=True)
     inspected_at = models.DateTimeField(null=True, db_index=True)
     inspection_details = models.JSONField(null=True)
