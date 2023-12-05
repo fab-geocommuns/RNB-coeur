@@ -52,9 +52,6 @@ class Inspector:
 
             # Get candidates and inspect them
             self.get_candidates()
-
-            print(f"candidates match: {len(self.candidates)}")
-
             self.inspect_candidates()
 
             # Now, trigger the consequences of the inspections
