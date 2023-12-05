@@ -34,7 +34,7 @@ class TemporalTableCase(TestCase):
             sys_period__endswith__isnull=True
         )
         self.assertEqual(len(current_building_version), 1)
-        self.assertListEqual(current_building_version[0].source, new_ext_ids)
+        self.assertListEqual(current_building_version[0].ext_ids, new_ext_ids)
 
         building_history_only = BuildingHistoryOnly.objects.all()
         self.assertEqual(len(building_history_only), 1)

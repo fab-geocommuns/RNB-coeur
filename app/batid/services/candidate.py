@@ -3,6 +3,7 @@ from typing import Literal
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction, connection
+from django.db.models import Q
 from shapely.geometry import shape
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.models import Candidate, Building
@@ -47,9 +48,13 @@ class Inspector:
     def get_matching_bdgs(self):
         # todo : prévoir de récupérer les batiments qui n'ont pas de statuts (en plus de ceux qui ont un current à true)
         self.matching_bdgs = Building.objects.filter(
-            shape__intersects=self.candidate.shape,
-            status__type__in=BuildingStatusService.REAL_BUILDINGS_STATUS,
-            status__is_current=True,
+            shape__intersects=self.candidate.shape
+        ).filter(
+            Q(
+                status__type__in=BuildingStatusService.REAL_BUILDINGS_STATUS,
+                status__is_current=True,
+            )
+            | Q(status__isnull=True)
         )
 
     def inspect_candidate(self):

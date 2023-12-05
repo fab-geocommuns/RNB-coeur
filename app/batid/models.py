@@ -214,7 +214,7 @@ class BuildingADS(models.Model):
 
 class Candidate(models.Model):
     shape = models.GeometryField(null=True, srid=4326)
-    source = models.CharField(max_length=20, null=False)
+    source = models.CharField(max_length=20, null=True)
     source_version = models.CharField(max_length=20, null=True)
     source_id = models.CharField(max_length=40, null=False)
     address_keys = ArrayField(models.CharField(max_length=40), null=True)
