@@ -33,7 +33,6 @@ class BuildingsEndpointsTest(APITestCase):
 
         b = Building.objects.create(
             rnb_id="BDGSRNBBIDID",
-            source="dummy",
             shape=geom,
             point=geom.point_on_surface,
         )
@@ -57,7 +56,6 @@ class BuildingsEndpointsTest(APITestCase):
 
         b = Building.objects.create(
             rnb_id="BDGPROJ",
-            source="dummy",
             shape=geom,
             point=geom.point_on_surface,
         )
@@ -334,7 +332,6 @@ class BuildingsEndpointsSingleTest(APITestCase):
 
         b = Building.objects.create(
             rnb_id="SINGLEONE",
-            source="dummy",
             shape=geom,
             point=geom.point_on_surface,
         )

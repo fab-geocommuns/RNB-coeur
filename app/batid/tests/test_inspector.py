@@ -843,7 +843,6 @@ def data_to_bdg(data):
         b = Building.objects.create(
             rnb_id=generate_rnb_id(),
             shape=shape,
-            source=d["source"],
             ext_ids=[
                 {
                     "source": d["source"],
@@ -935,7 +934,7 @@ class NonExistingAddress(TransactionTestCase):
     def testRevertAllTheBatch(self):
         # we create 2 candidates, one for a creation, one for an update
         # the second candidate inspection will fail, and the whole inspection batch should be reverted
-        
+
         shape = coords_to_mp_geom(
             [
                 [2.349804906833981, 48.85789205519228],

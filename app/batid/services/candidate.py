@@ -402,7 +402,6 @@ class Inspector:
             values.append(
                 (
                     rnb_id,
-                    bdg_dict["source"],
                     ext_ids_str,
                     bdg_dict["point"].wkt,
                     bdg_dict["shape"].wkt,
@@ -441,7 +440,6 @@ class Inspector:
                         sep=";",
                         columns=(
                             "rnb_id",
-                            "source",
                             "ext_ids",
                             "point",
                             "shape",
