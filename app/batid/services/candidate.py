@@ -39,12 +39,16 @@ class Inspector:
         self.matching_bdgs = []
 
     def get_candidate(self):
-        self.candidate = (
-            Candidate.objects.select_for_update(skip_locked=True)
-            .filter(inspected_at__isnull=True)
-            .order_by()
-            .first()
-        )
+        q = f"SELECT id, ST_AsEWKB(shape) as shape, source, source_version, source_id, address_keys, is_light, inspected_at  FROM {Candidate._meta.db_table} WHERE inspected_at IS NULL LIMIT 1 FOR UPDATE SKIP LOCKED"
+        qs = Candidate.objects.raw(q)
+        self.candidate = qs[0] if len(qs) > 0 else None
+
+        # this is the slowest query. To make it faster we could remove the ordering with order_by() but the first() redo the ordering
+        # self.candidate = (
+        #     Candidate.objects.select_for_update(skip_locked=True)
+        #     .filter(inspected_at__isnull=True)
+        #     .order_by()
+        # ).first()
 
     def get_matching_bdgs(self):
         self.matching_bdgs = Building.objects.filter(
