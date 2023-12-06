@@ -85,15 +85,8 @@ def import_dpts():
 def inspect_candidates():
     print("---- Inspecting candidates ----")
 
-    inspected = 0
-
-    while True:
-        i = Inspector()
-        inspections_len = i.inspect()
-        inspected += inspections_len
-        print(f"Inspected {inspected} candidates so far")
-        if inspections_len <= 0:
-            break
+    i = Inspector()
+    i.inspect()
 
     return "done"
 

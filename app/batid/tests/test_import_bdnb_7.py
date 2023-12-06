@@ -102,10 +102,11 @@ class ImportBDNB7TestCase(TransactionTestCase):
         self.assertEqual(len(building_imports), 1)
         building_import = building_imports[0]
 
-        self.assertEqual(building_import.building_created_count, 0)
-        self.assertEqual(building_import.building_refused_count, 0)
-        self.assertEqual(building_import.building_updated_count, 0)
-        self.assertEqual(building_import.candidate_created_count, 4)
+        # The new candidate inspector does not handle creation, updates and refusal counts
+        # self.assertEqual(building_import.building_created_count, 0)
+        # self.assertEqual(building_import.building_refused_count, 0)
+        # self.assertEqual(building_import.building_updated_count, 0)
+        # self.assertEqual(building_import.candidate_created_count, 4)
         self.assertEqual(building_import.departement, "33")
         self.assertEqual(building_import.import_source, "bdnb_7")
         # assert the uuid passed to the import is the same as the one effectively recorded
@@ -135,18 +136,23 @@ class ImportBDNB7TestCase(TransactionTestCase):
 
         buildings = Building.objects.all().order_by("created_at")
         self.assertEqual(len(buildings), 3)
-        
+
         # candidates have not been deleted by the inspector
         self.assertEqual(len(Candidate.objects.all()), 4)
 
         building_import.refresh_from_db()
 
-        self.assertEqual(building_import.building_created_count, 3)
-        self.assertEqual(building_import.building_updated_count, 0)
+        # The new candidate inspector does not handle creation, updates and refusal counts
+        # self.assertEqual(building_import.building_created_count, 3)
+        # self.assertEqual(building_import.building_updated_count, 0)
         # One candidate is refused because its area is too small
-        self.assertEqual(building_import.building_refused_count, 1)
-        self.assertEqual(Candidate.objects.filter(inspection_details__decision="refusal").
-                         filter(inspection_details__reason="area_too_small").count(), 1)
+        # self.assertEqual(building_import.building_refused_count, 1)
+        self.assertEqual(
+            Candidate.objects.filter(inspection_details__decision="refusal")
+            .filter(inspection_details__reason="area_too_small")
+            .count(),
+            1,
+        )
 
         buildings[0].refresh_from_db()
         self.assertEqual(
@@ -162,9 +168,10 @@ class ImportBDNB7TestCase(TransactionTestCase):
         building_imports = BuildingImport.objects.all().order_by("-created_at")
         last_building_import = building_imports[0]
 
-        self.assertEqual(last_building_import.building_created_count, 0)
-        self.assertEqual(last_building_import.building_updated_count, 0)
-        self.assertEqual(last_building_import.building_refused_count, 0)
+        # The new candidate inspector does not handle creation, updates and refusal counts
+        # self.assertEqual(last_building_import.building_created_count, 0)
+        # self.assertEqual(last_building_import.building_updated_count, 0)
+        # self.assertEqual(last_building_import.building_refused_count, 0)
         # this time I didn't pass a uuid, a new one should be generated
         self.assertNotEqual(last_building_import.bulk_launch_uuid, my_uuid)
         self.assertTrue(type(last_building_import.bulk_launch_uuid.hex) is str)
@@ -175,11 +182,14 @@ class ImportBDNB7TestCase(TransactionTestCase):
 
         last_building_import.refresh_from_db()
 
-        self.assertEqual(last_building_import.building_created_count, 0)
-        self.assertEqual(last_building_import.building_updated_count, 1)
-        self.assertEqual(last_building_import.building_refused_count, 0)
+        # The new candidate inspector does not handle creation, updates and refusal counts
+        # self.assertEqual(last_building_import.building_created_count, 0)
+        # self.assertEqual(last_building_import.building_updated_count, 1)
+        # self.assertEqual(last_building_import.building_refused_count, 0)
 
-        self.assertEqual(Candidate.objects.filter(inspection_details__decision="update").count(), 1)
+        self.assertEqual(
+            Candidate.objects.filter(inspection_details__decision="update").count(), 1
+        )
 
         buildings = Building.objects.all().order_by("created_at")
 
