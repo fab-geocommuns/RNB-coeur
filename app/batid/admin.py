@@ -30,6 +30,13 @@ class AddressAdmin(admin.ModelAdmin):
 admin.site.register(Address, AddressAdmin)
 
 
+class ContributionAdmin(admin.ModelAdmin):
+    list_display = ("rnb_id", "text", "created_at")
+
+
+admin.site.register(Contribution, ContributionAdmin)
+
+
 def get_admin_urls(urls):
     def get_urls():
         my_urls = [path(r"worker/", admin.site.admin_view(worker))]
@@ -39,10 +46,3 @@ def get_admin_urls(urls):
 
 
 admin.site.get_urls = get_admin_urls(admin.site.get_urls())
-
-
-class ContributionAdmin(admin.ModelAdmin):
-    list_display = ("rnb_id", "text", "created_at")
-
-
-admin.site.register(Contribution, ContributionAdmin)
