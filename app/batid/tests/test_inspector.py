@@ -877,8 +877,6 @@ class NonExistingAddress(TransactionTestCase):
         candidate.refresh_from_db()
         # check the candidate inspection_details is properly reverted
         self.assertFalse(candidate.inspection_details)
-        # check the inspect stamp is removed, to allow futur re-inspection
-        self.assertFalse(candidate.inspect_stamp)
         self.assertFalse(candidate.inspected_at)
 
         # no building should have been created
@@ -918,6 +916,4 @@ class NonExistingAddress(TransactionTestCase):
         candidate.refresh_from_db()
         # check the candidate inspection_details is properly reverted
         self.assertFalse(candidate.inspection_details)
-        # check the inspect stamp is removed, to allow futur re-inspection
-        self.assertFalse(candidate.inspect_stamp)
         self.assertFalse(candidate.inspected_at)

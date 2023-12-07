@@ -4,7 +4,6 @@ from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction, connection
 from django.db.models import Q
-from shapely.geometry import shape
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.models import Candidate, Building
 from batid.services.rnb_id import generate_rnb_id
