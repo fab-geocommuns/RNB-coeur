@@ -12,6 +12,7 @@ import fiona
 from datetime import datetime, timezone
 import psycopg2
 from django.db import connection, transaction
+import random
 
 
 def import_bdtopo(dpt, bulk_launch_uuid=None):
@@ -86,6 +87,8 @@ def _transform_bdtopo_feature(feature) -> dict:
         "address_keys": f"{{{','.join(address_keys)}}}",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
+        # TODO: extract the function
+        "random": random.randint(0, 1000000000),
     }
 
     return candidate_dict
