@@ -211,7 +211,7 @@ class BuildingADS(models.Model):
 
 
 class Candidate(models.Model):
-    shape = models.GeometryField(null=True, srid=4326)
+    shape = models.GeometryField(null=True, srid=4326, spatial_index=False)
     source = models.CharField(max_length=20, null=False)
     source_version = models.CharField(max_length=20, null=True)
     source_id = models.CharField(max_length=40, null=False)
@@ -224,16 +224,10 @@ class Candidate(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    inspect_stamp = models.CharField(max_length=20, null=True, db_index=True)
+
     inspected_at = models.DateTimeField(null=True, db_index=True)
     inspection_details = models.JSONField(null=True)
     created_by = models.JSONField(null=True)
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        # this field is used to store the decision of the inspector
-        # but is not intended to be stored in the database
-        self.inspector_decision = ""
 
 
 class Plot(models.Model):
