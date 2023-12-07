@@ -14,7 +14,7 @@ from batid.utils.db import from_now_to_infinity
 
 class BuildingAbstract(models.Model):
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
-    point = models.PointField(null=True, spatial_index=False, srid=4326)
+    point = models.PointField(null=True, spatial_index=True, srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
@@ -222,6 +222,7 @@ class Candidate(models.Model):
     # bâtiment ou partie de bâtiment ouvert sur au moins un côté.
     is_light = models.BooleanField(null=True)
 
+    created_at = models.DateTimeField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
