@@ -2,7 +2,7 @@ from django.urls import path
 from django.contrib import admin
 from batid.views import worker
 
-from batid.models import Organization, Address
+from batid.models import Organization, Address, Contribution
 
 
 class OrganizationAdmin(admin.ModelAdmin):
@@ -39,3 +39,10 @@ def get_admin_urls(urls):
 
 
 admin.site.get_urls = get_admin_urls(admin.site.get_urls())
+
+
+class ContributionAdmin(admin.ModelAdmin):
+    list_display = ("rnb_id", "text", "created_at")
+
+
+admin.site.register(Contribution, ContributionAdmin)

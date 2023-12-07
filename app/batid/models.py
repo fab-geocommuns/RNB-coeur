@@ -219,3 +219,11 @@ class AsyncSignal(models.Model):
 
     class Meta:
         ordering = ["created_at"]
+
+
+class Contribution(models.Model):
+    id = models.AutoField(primary_key=True)
+    rnb_id = models.CharField(max_length=255, null=True)
+    text = models.TextField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
