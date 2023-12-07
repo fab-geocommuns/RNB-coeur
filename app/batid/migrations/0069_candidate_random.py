@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('batid', '0066_remove_building_source_and_more'),
+        ("batid", "0068_remove_candidate_inspect_stamp"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='candidate',
-            name='random',
+            model_name="candidate",
+            name="random",
             field=models.IntegerField(db_index=True, default=0),
         ),
     ]
