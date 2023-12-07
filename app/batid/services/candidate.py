@@ -4,7 +4,6 @@ from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction, connection
 from django.db.models import Q
-from shapely.geometry import shape
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.models import Candidate, Building
 from batid.services.rnb_id import generate_rnb_id
@@ -39,7 +38,7 @@ class Inspector:
         self.matching_bdgs = []
 
     def get_candidate(self):
-        q = f"SELECT id, ST_AsEWKB(shape) as shape, source, source_version, source_id, address_keys, is_light, inspected_at  FROM {Candidate._meta.db_table} WHERE inspected_at IS NULL LIMIT 1 FOR UPDATE SKIP LOCKED"
+        q = f"SELECT id, ST_AsEWKB(shape) as shape, source, source_version, source_id, address_keys, is_light, inspected_at  FROM {Candidate._meta.db_table} WHERE inspected_at IS NULL ORDER BY inspected_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED"
         qs = Candidate.objects.raw(q)
         self.candidate = qs[0] if len(qs) > 0 else None
 
