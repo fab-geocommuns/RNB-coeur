@@ -61,6 +61,8 @@ def import_bdnd_2023_01_bdgs(dpt, bulk_launch_uuid=None):
             }
             candidates.append(candidate)
 
+        candidates = sorted(candidates, key=lambda k: k["random"])
+
         buffer = BufferToCopy()
         print(f"- write buffer to {buffer.path}")
         buffer.write_data(candidates)
