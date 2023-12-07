@@ -187,17 +187,20 @@ class ImportBDNB7TestCase(TransactionTestCase):
         # self.assertEqual(last_building_import.building_updated_count, 1)
         # self.assertEqual(last_building_import.building_refused_count, 0)
 
-        self.assertEqual(
-            Candidate.objects.filter(inspection_details__decision="update").count(), 1
+        updated_candidates = Candidate.objects.filter(
+            inspection_details__decision="update"
         )
+        self.assertEqual(updated_candidates.count(), 1)
+        updated_building_id = updated_candidates[0].inspection_details["rnb_id"]
+        updated_building = Building.objects.filter(rnb_id=updated_building_id).first()
 
-        buildings = Building.objects.all().order_by("created_at")
-
-        self.assertEqual(buildings[0].ext_ids[0]["id"], "BATIMENT0000000008834985-1")
-        self.assertEqual(buildings[0].ext_ids[1]["id"], "NOUVEL_ID")
+        self.assertEqual(
+            updated_building.ext_ids[0]["id"], "BATIMENT0000000008834985-1"
+        )
+        self.assertEqual(updated_building.ext_ids[1]["id"], "NOUVEL_ID")
 
         # we expect the last_updated_by field to be updated with the second import id
         self.assertEqual(
-            buildings[0].last_updated_by,
+            updated_building.last_updated_by,
             {"source": "import", "id": last_building_import.id},
         )

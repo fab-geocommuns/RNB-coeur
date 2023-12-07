@@ -38,7 +38,7 @@ class Inspector:
         self.matching_bdgs = []
 
     def get_candidate(self):
-        q = f"SELECT id, ST_AsEWKB(shape) as shape, source, source_version, source_id, address_keys, is_light, inspected_at  FROM {Candidate._meta.db_table} WHERE inspected_at IS NULL ORDER BY inspected_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED"
+        q = f"SELECT id, ST_AsEWKB(shape) as shape, source, source_version, source_id, address_keys, is_light, inspected_at  FROM {Candidate._meta.db_table} WHERE inspected_at IS NULL ORDER BY random asc LIMIT 1 FOR UPDATE SKIP LOCKED"
         qs = Candidate.objects.raw(q)
         self.candidate = qs[0] if len(qs) > 0 else None
 

@@ -2,6 +2,7 @@ import csv
 import json
 import os
 from pprint import pprint
+import random
 
 import psycopg2
 from django.contrib.gis.geos import GEOSGeometry
@@ -56,6 +57,7 @@ def import_bdnd_2023_01_bdgs(dpt, bulk_launch_uuid=None):
                 "created_by": json.dumps(
                     {"source": "import", "id": building_import.id}
                 ),
+                "random": random.randint(0, 1000000000),
             }
             candidates.append(candidate)
 

@@ -228,6 +228,7 @@ class Candidate(models.Model):
     inspected_at = models.DateTimeField(null=True, db_index=True)
     inspection_details = models.JSONField(null=True)
     created_by = models.JSONField(null=True)
+    random = models.IntegerField(db_index=True, null=False, default=0)
 
 
 class Plot(models.Model):

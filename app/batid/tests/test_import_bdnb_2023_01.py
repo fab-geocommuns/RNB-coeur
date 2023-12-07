@@ -42,6 +42,7 @@ class ImportBDNB202301TestCase(TransactionTestCase):
         self.assertIsInstance(c.shape, MultiPolygon)
         self.assertIsInstance(c.created_at, datetime)
         self.assertIsInstance(c.created_at, datetime)
+        self.assertIsInstance(c.random, int)
 
         c = Candidate.objects.filter(source_id="bdnb-bc-111D-RG76-V7GK").first()
         self.assertEqual(c.source, "bdnb")

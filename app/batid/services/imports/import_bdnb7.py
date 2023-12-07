@@ -6,8 +6,9 @@ import psycopg2
 from django.db import connection, transaction
 from psycopg2.extras import execute_values
 from batid.services.imports import building_import_history
+import random
 
-from batid.models import Address, BuildingImport
+from batid.models import Address
 from batid.services.source import Source, BufferToCopy
 from datetime import datetime, timezone
 from django.contrib.gis.geos import GEOSGeometry
@@ -61,6 +62,7 @@ def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
                 "created_by": json.dumps(
                     {"source": "import", "id": building_import.id}
                 ),
+                "random": random.randint(0, 1000000000),
             }
             candidates.append(candidate)
 
