@@ -223,7 +223,6 @@ class Candidate(models.Model):
     is_light = models.BooleanField(null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
-    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     inspected_at = models.DateTimeField(null=True, db_index=True)
