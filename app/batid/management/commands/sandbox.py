@@ -15,7 +15,12 @@ from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        q = f"SELECT * FROM {Candidate._meta.db_table} LIMIT 1"
-        c = Candidate.objects.raw(q)
+        items = range(100)
 
-        print(c[0].id)
+        batches_count = 10
+        batches = [[] for _ in range(batches_count)]
+
+        for i, item in enumerate(items):
+            batches[i % batches_count].append(item)
+
+        print(batches)

@@ -225,6 +225,7 @@ class Candidate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    inspection_reserved = models.BooleanField(null=True, default=False)
     inspected_at = models.DateTimeField(null=True, db_index=True)
     inspection_details = models.JSONField(null=True)
     created_by = models.JSONField(null=True)

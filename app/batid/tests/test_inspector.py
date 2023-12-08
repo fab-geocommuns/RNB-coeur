@@ -281,6 +281,56 @@ class TestHalvishCover(InspectTest):
         self.assertEqual(candidate.inspection_details["reason"], "ambiguous_overlap")
 
 
+class TestConsecutiveSimilarCandidates(InspectTest):
+    bdgs_data = []
+
+    candidates_data = [
+        {
+            "id": "FIRST_SQUARE",
+            "source": "dummy",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [
+                            [-0.5675952590175939, 44.83808812964935],
+                            [-0.5675952590175939, 44.83824470718619],
+                            [-0.5678083418932829, 44.83824470718619],
+                            [-0.5678083418932829, 44.83808812964935],
+                            [-0.5675952590175939, 44.83808812964935],
+                        ]
+                    ]
+                ],
+                "type": "MultiPolygon",
+            },
+        },
+        {
+            "id": "SECOND_SQUARE",
+            "source": "dummy",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [
+                            [-0.5675952590175939, 44.83808812964935],
+                            [-0.5675952590175939, 44.83824470718619],
+                            [-0.5678083418932829, 44.83824470718619],
+                            [-0.5678083418932829, 44.83808812964935],
+                            [-0.5675952590175939, 44.83808812964935],
+                        ]
+                    ]
+                ],
+                "type": "MultiPolygon",
+            },
+        },
+    ]
+
+    def test_result(self):
+        i = Inspector()
+        i.inspect()
+
+        # We verify two candidates with similar shape and consecutive inspection are detected as one building
+        self.assertEqual(Building.objects.all().count(), 1)
+
+
 class OneSmallOneBig:
 
     """
