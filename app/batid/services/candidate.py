@@ -22,7 +22,10 @@ class Inspector:
 
     def __int__(self):
         self.batches = []
-        self.buildings = []
+
+        self.batch_bdgs_creations = []
+        self.batch_bdgs_updates = []
+        self.batch_bdgs_addresses = {}
 
     def inspect(self):
         while True:
@@ -36,19 +39,54 @@ class Inspector:
 
     def inspect_batches(self):
         for batch in self.batches:
+            self.reset_batch_infos()
+
             try:
                 with transaction.atomic():
                     for c in batch:
                         c.matching_bdgs = self.get_matching_bdgs(c)
                         self.inspect_candidate(c)
+
+                    self.create_batch_buildings()
+                    self.update_batch_buildings()
+                    self.update_candidates(batch)
+
             except DatabaseError as e:
                 self.release_candidates(batch)
 
-    def release_candidates(self, batch):
-        ids = [c.id for c in batch]
-        Candidate.objects.filter(id__in=ids).update(
-            inspection_reserved=False, inspected_at=None
+    def create_batch_buildings(self):
+        # We create the buildings
+        bdgs = Building.objects.bulk_create(self.batch_bdgs_creations)
+        # Then attach the addresses
+        self.save_bdgs_addresses(bdgs)
+
+    def update_batch_buildings(self):
+        # We update the buildings
+        Building.objects.bulk_update(
+            self.batch_bdgs_updates,
+            [
+                "shape",
+                "last_updated_by",
+                "ext_ids",
+            ],
         )
+        # Then attach the addresses
+        self.save_bdgs_addresses(self.batch_bdgs_updates)
+
+    def update_candidates(self, batch):
+        Candidate.objects.bulk_update(
+            batch,
+            [
+                "inspection_details",
+                "inspected_at",
+            ],
+        )
+
+    def reset_batch_infos(self):
+        # We reset the batch infos
+        self.batch_bdgs_creations = []
+        self.batch_bdgs_updates = []
+        self.batch_bdgs_addresses = {}
 
     def into_batches(self, candidates):
         self.build_empty_batches()
@@ -129,12 +167,27 @@ class Inspector:
         if len(c.matching_bdgs) > 1:
             self.decide_refusal_too_many_geomatches(c)
 
+    def save_bdgs_addresses(self, bdgs):
+        rels = []
+        for bdg in bdgs:
+            keys = self.batch_bdgs_addresses.get(bdg.rnb_id, [])
+
+            if len(keys) > 0:
+                for address_key in keys:
+                    rels.append(
+                        Building.addresses.through(
+                            building_id=bdg.id, address_id=address_key
+                        )
+                    )
+
+        if len(rels) > 0:
+            Building.addresses.through.objects.bulk_create(rels, ignore_conflicts=True)
+
     def decide_refusal_is_light(self, c: Candidate):
         c.inspection_details = {
             "decision": "refusal",
             "reason": "is_light",
         }
-        c.save()
 
     @staticmethod
     def decide_refusal_area_too_small(c: Candidate, area: float):
@@ -143,7 +196,6 @@ class Inspector:
             "reason": "area_too_small",
             "area": area,
         }
-        c.save()
 
     @staticmethod
     def decide_refusal_ambiguous_overlap(c: Candidate, conflict_with_bdg: int):
@@ -152,7 +204,6 @@ class Inspector:
             "reason": "ambiguous_overlap",
             "conflict_with_bdg": conflict_with_bdg,
         }
-        c.save()
 
     @staticmethod
     def decide_refusal_too_many_geomatches(c: Candidate):
@@ -161,16 +212,14 @@ class Inspector:
             "reason": "too_many_geomatches",
             "matches": [bdg.id for bdg in c.matching_bdgs],
         }
-        c.save()
 
-    @staticmethod
-    def decide_creation(c: Candidate):
+    def decide_creation(self, c: Candidate):
         # We build the new building
         bdg = new_bdg_from_candidate(c)
-        bdg.save()
+        self.batch_bdgs_creations.append(bdg)
 
         # We add the addresses
-        add_addresses_to_building(bdg, c.address_keys)
+        self.remember_building_addresses(bdg.rnb_id, c.address_keys)
 
         # Finally, we update the candidate
         c.inspection_details = {
@@ -178,24 +227,25 @@ class Inspector:
             "rnb_id": bdg.rnb_id,
         }
 
-        c.save()
+    def remember_building_addresses(self, rnb_id: str, address_keys):
+        if address_keys:
+            self.batch_bdgs_addresses[rnb_id] = address_keys
 
     def decide_update(self, c: Candidate):
         bdg = c.matching_bdgs[0]
         has_changed, added_address_keys, bdg = self.calc_bdg_update(c, bdg)
 
         if has_changed:
-            bdg.save()
+            self.batch_bdgs_updates.append(bdg)
 
         # We add the addresses
-        add_addresses_to_building(bdg, added_address_keys)
+        self.remember_building_addresses(bdg.rnb_id, added_address_keys)
 
         # Finally, we update the candidate
         c.inspection_details = {
             "decision": "update",
             "rnb_id": bdg.rnb_id,
         }
-        c.save()
 
     @staticmethod
     def calc_bdg_update(c: Candidate, bdg: Building):
@@ -250,16 +300,12 @@ class Inspector:
 
         return has_changed, added_address_keys, bdg
 
-
-def add_addresses_to_building(bdg: Building, add_keys):
-    if add_keys:
-        rels = []
-        for address_key in add_keys:
-            rels.append(
-                Building.addresses.through(building_id=bdg.id, address_id=address_key)
-            )
-        if len(rels) > 0:
-            Building.addresses.through.objects.bulk_create(rels, ignore_conflicts=True)
+    @staticmethod
+    def release_candidates(batch):
+        ids = [c.id for c in batch]
+        Candidate.objects.filter(id__in=ids).update(
+            inspection_reserved=False, inspected_at=None
+        )
 
 
 def match_shapes(
