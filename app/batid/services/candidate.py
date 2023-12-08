@@ -18,7 +18,7 @@ class Inspector:
     # Example : if we have CANDIDATES_PER_INSPECT = 1000 and BATCHES_COUNT = 100. We will have 10 candidates per batch.
     # Each batch is a transaction
     CANDIDATES_PER_INSPECT = 1000
-    BATCHES_COUNT = 100
+    BATCHES_COUNT = 10
 
     def __int__(self):
         self.batches = []
