@@ -246,7 +246,7 @@ class Address(models.Model):
     point = models.PointField(null=True, spatial_index=True, srid=4326)
 
     street_number = models.CharField(max_length=10, null=True)
-    street_rep = models.CharField(max_length=10, null=True)
+    street_rep = models.CharField(max_length=100, null=True)
     street_name = models.CharField(max_length=100, null=True)
     street_type = models.CharField(max_length=100, null=True)
     city_name = models.CharField(max_length=100, null=True)
