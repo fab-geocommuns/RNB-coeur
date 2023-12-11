@@ -37,7 +37,7 @@ services:
       context: .
       dockerfile: ./app/Dockerfile
       target: app_worker
-    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=INFO --concurrency=1
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=INFO --concurrency=6
     env_file:
       - ./.env.db_auth.dev
       - ./.env.app.dev
@@ -51,6 +51,25 @@ services:
       - rabbitmq
     restart: unless-stopped
     container_name: worker
+  worker_2:
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
+      target: app_worker
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=INFO --concurrency=6
+    env_file:
+      - ./.env.db_auth.dev
+      - ./.env.app.dev
+      - ./.env.worker.dev
+      - ./.env.rnb.dev
+    volumes:
+      - ./app:/app
+      - ./source_data:/data/downloads
+    depends_on:
+      - db
+      - rabbitmq
+    restart: unless-stopped
+    container_name: worker_2
   rabbitmq:
     restart: unless-stopped
     image: rabbitmq:3.9-alpine
