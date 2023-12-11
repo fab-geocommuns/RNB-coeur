@@ -1,6 +1,14 @@
 from typing import Optional
 from rest_framework import serializers
-from batid.models import Building, BuildingStatus, ADS, BuildingADS, City, Address
+from batid.models import (
+    Building,
+    BuildingStatus,
+    ADS,
+    BuildingADS,
+    City,
+    Address,
+    Contribution,
+)
 from batid.services.models_gears import ADSGear as ADSLogic
 from api_alpha.validators import (
     ads_validate_rnbid,
@@ -13,6 +21,12 @@ from batid.services.rnb_id import generate_rnb_id, clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 
 from batid.services.guess_bdg import BuildingGuess
+
+
+class ContributionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contribution
+        fields = ["rnb_id", "text"]
 
 
 class AddressSerializer(serializers.ModelSerializer):
