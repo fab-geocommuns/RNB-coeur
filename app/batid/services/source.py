@@ -40,9 +40,12 @@ class Source:
                 "filename": "buffer.csv",
             },
             # 2022 december
+            # "bdtopo": {
+            #     "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_224$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15.7z",
+            #     "filename": "BATIMENT.shp",
+            # },
             "bdtopo": {
-                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_224$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15.7z",
-                "filename": "BATIMENT.shp",
+                "url": f"https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15.7z"
             },
             # BDNB 7.2 is not used anymore
             # "bdnb_7": {
