@@ -42,8 +42,14 @@ def import_bdtopo(bdtopo_edition, dpt, bulk_launch_uuid=None):
         for feature in f:
             c += 1
             print(f"--- {c} ---")
+
+            # We skip the light buildings
+            if f["properties"]["LEGER"] == "Oui":
+                continue
+
             candidate = _transform_bdtopo_feature(feature, srid)
             candidate = _add_import_info(candidate, building_import)
+            candidate["source_version"] = bdtopo_edition
             candidates.append(candidate)
 
         buffer = BufferToCopy()
@@ -80,7 +86,7 @@ def _transform_bdtopo_feature(feature, from_srid) -> dict:
         "shape": geom_wkt,
         "is_light": True if feature["properties"]["LEGER"] == "Oui" else False,
         "source": "bdtopo",
-        "source_version": "2022-12-15",
+        "source_version": None,
         "source_id": feature["properties"]["ID"],
         "address_keys": f"{{{','.join(address_keys)}}}",
         "created_at": datetime.now(timezone.utc),
