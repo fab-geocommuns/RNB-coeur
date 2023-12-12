@@ -8,7 +8,7 @@ from fiona.crs import CRS
 from batid.models import Candidate, BuildingImport
 from batid.services.imports import building_import_history
 
-from batid.services.source import Source, bdtopo_source_switcher
+from batid.services.source import Source, bdtopo_source_switcher, BufferToCopy
 from shapely.geometry import shape, MultiPolygon
 from shapely.ops import transform
 import fiona
@@ -46,23 +46,12 @@ def import_bdtopo(bdtopo_edition, dpt, bulk_launch_uuid=None):
             candidate = _add_import_info(candidate, building_import)
             candidates.append(candidate)
 
-        buffer_src = Source(
-            "buffer",
-            {
-                "folder": "bdtopo",
-                "filename": "bdgs-{{dpt}}.csv",
-            },
-        )
-        buffer_src.set_param("dpt", dpt)
+        buffer = BufferToCopy()
+        buffer.write_data(candidates)
 
         cols = candidates[0].keys()
 
-        with open(buffer_src.path, "w") as f:
-            print("-- writing buffer file --")
-            writer = csv.DictWriter(f, delimiter=";", fieldnames=cols)
-            writer.writerows(candidates)
-
-        with open(buffer_src.path, "r") as f:
+        with open(buffer.path, "r") as f:
             with transaction.atomic():
                 print("-- transfer buffer to db --")
                 try:
@@ -79,7 +68,7 @@ def import_bdtopo(bdtopo_edition, dpt, bulk_launch_uuid=None):
                     raise error
 
         print("- remove buffer")
-        os.remove(buffer_src.path)
+        os.remove(buffer.path)
 
 
 def _transform_bdtopo_feature(feature, from_srid) -> dict:
@@ -117,4 +106,6 @@ def feature_to_wkt(feature, from_srid):
     writer = WKTWriter()
     writer.outdim = 2
 
-    return writer.write(geom)
+    wkt = writer.write(geom)
+
+    return GEOSGeometry(wkt).wkt
