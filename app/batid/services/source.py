@@ -48,6 +48,38 @@ class Source:
                 "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15.7z",
                 "filename": "BATIMENT.shp",
             },
+            "bdtopo_2023_09_971": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D971_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D971_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_972": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D972_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D972_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_973": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_UTM22RGFG95_D973_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_UTM22RGFG95_D973_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_974": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGR92UTM40S_D974_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGR92UTM40S_D974_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_975": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGSPM06U21_D975_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGSPM06U21_D975_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bodtopo_2023_09_976": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGM04UTM38S_D976_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGM04UTM38S_D976_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_977": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D977_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D977_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_978": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D978_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D978_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
             # BDNB 7.2 is not used anymore
             # "bdnb_7": {
             #     "url": "https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz",
