@@ -241,3 +241,10 @@ class BufferToCopy(Source):
         raise Exception(
             f"Can't write buffer, data rows must be a list or a dict, {type(data)} given"
         )
+
+
+def bdtopo_source_switcher(source_name: str, dpt: str):
+    if dpt in ["971", "972", "973", "974", "975", "976", "977", "978"]:
+        return f"{source_name}_{dpt}"
+
+    return source_name
