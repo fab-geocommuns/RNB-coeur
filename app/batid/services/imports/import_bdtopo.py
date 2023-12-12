@@ -8,7 +8,7 @@ from fiona.crs import CRS
 from batid.models import Candidate, BuildingImport
 from batid.services.imports import building_import_history
 
-from batid.services.source import Source
+from batid.services.source import Source, bdtopo_source_switcher
 from shapely.geometry import shape, MultiPolygon
 from shapely.ops import transform
 import fiona
@@ -18,16 +18,16 @@ from django.db import connection, transaction
 import random
 
 
-def import_bdtopo(dpt, bulk_launch_uuid=None):
+def import_bdtopo(bdtopo_edition, dpt, bulk_launch_uuid=None):
     dpt = dpt.zfill(3)
 
-    source_id = "bdtopo"
+    source_name = bdtopo_source_switcher(bdtopo_edition, dpt)
 
     building_import = building_import_history.insert_building_import(
-        source_id, bulk_launch_uuid, dpt
+        source_name, bulk_launch_uuid, dpt
     )
 
-    src = Source(source_id)
+    src = Source(source_name)
     src.set_param("dpt", dpt)
 
     with fiona.open(src.find(src.filename)) as f:
