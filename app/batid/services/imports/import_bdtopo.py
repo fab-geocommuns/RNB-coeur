@@ -44,7 +44,7 @@ def import_bdtopo(bdtopo_edition, dpt, bulk_launch_uuid=None):
             print(f"--- {c} ---")
 
             # We skip the light buildings
-            if f["properties"]["LEGER"] == "Oui":
+            if feature["properties"]["LEGER"] == "Oui":
                 continue
 
             candidate = _transform_bdtopo_feature(feature, srid)
