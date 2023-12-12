@@ -2,6 +2,9 @@ import csv
 import json
 import os
 
+from django.contrib.gis.geos import GEOSGeometry, WKTWriter
+from fiona.crs import CRS
+
 from batid.models import Candidate, BuildingImport
 from batid.services.imports import building_import_history
 
@@ -30,10 +33,16 @@ def import_bdtopo(dpt, bulk_launch_uuid=None):
     with fiona.open(src.find(src.filename)) as f:
         print("-- read bdtopo ")
 
+        # We extract the SRID from the crs attribute of the shapefile
+        srid = int(f.crs["init"].split(":")[1])
+
         candidates = []
 
+        c = 0
         for feature in f:
-            candidate = _transform_bdtopo_feature(feature)
+            c += 1
+            print(f"--- {c} ---")
+            candidate = _transform_bdtopo_feature(feature, srid)
             candidate = _add_import_info(candidate, building_import)
             candidates.append(candidate)
 
@@ -73,13 +82,13 @@ def import_bdtopo(dpt, bulk_launch_uuid=None):
         os.remove(buffer_src.path)
 
 
-def _transform_bdtopo_feature(feature) -> dict:
-    multipoly = feature_to_multipoly(feature)
+def _transform_bdtopo_feature(feature, from_srid) -> dict:
+    geom_wkt = feature_to_wkt(feature, from_srid)
 
     address_keys = []
 
     candidate_dict = {
-        "shape": multipoly.wkt,
+        "shape": geom_wkt,
         "is_light": True if feature["properties"]["LEGER"] == "Oui" else False,
         "source": "bdtopo",
         "source_version": "2022-12-15",
@@ -99,10 +108,13 @@ def _add_import_info(candidate, building_import: BuildingImport):
     return candidate
 
 
-def feature_to_multipoly(feature) -> MultiPolygon:
-    shape_3d = shape(feature["geometry"])  # BD Topo provides 3D shapes
-    shape_2d = transform(
-        lambda x, y, z=None: (x, y), shape_3d
-    )  # we convert them into 2d shapes
+def feature_to_wkt(feature, from_srid):
+    geom = GEOSGeometry(json.dumps(dict(feature["geometry"])))
+    geom.srid = from_srid
 
-    return MultiPolygon([shape_2d])
+    geom.transform(4326)
+
+    writer = WKTWriter()
+    writer.outdim = 2
+
+    return writer.write(geom)
