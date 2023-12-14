@@ -18,7 +18,7 @@ services:
       - ./app:/app
       - ./source_data:/home/app/source_data
     environment:
-      - VIRTUAL_HOST=sandbox.rn-api.beta.gouv.fr
+      - VIRTUAL_HOST=sandbox.rnb-api.beta.gouv.fr
       - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=sandbox.rnb-api.beta.gouv.fr
     container_name: web
