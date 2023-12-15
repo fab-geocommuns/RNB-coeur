@@ -80,7 +80,7 @@ def _transform_bdtopo_feature(feature, from_srid) -> dict:
 
     candidate_dict = {
         "shape": geom_wkt,
-        "is_light": True if feature["properties"]["LEGER"] == "Oui" else False,
+        "is_light": feature["properties"]["LEGER"] == "Oui",
         "source": "bdtopo",
         "source_version": None,
         "source_id": feature["properties"]["ID"],
