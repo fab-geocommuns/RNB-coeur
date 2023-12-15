@@ -38,11 +38,7 @@ def import_bdtopo(bdtopo_edition, dpt, bulk_launch_uuid=None):
 
         candidates = []
 
-        c = 0
         for feature in f:
-            c += 1
-            print(f"--- {c} ---")
-
             # We skip the light buildings
             if feature["properties"]["LEGER"] == "Oui":
                 continue
