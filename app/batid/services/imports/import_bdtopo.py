@@ -82,7 +82,6 @@ def _transform_bdtopo_feature(feature, from_srid) -> dict:
         "shape": geom_wkt,
         "is_light": feature["properties"]["LEGER"] == "Oui",
         "source": "bdtopo",
-        "source_version": None,
         "source_id": feature["properties"]["ID"],
         "address_keys": f"{{{','.join(address_keys)}}}",
         "created_at": datetime.now(timezone.utc),
