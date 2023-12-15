@@ -60,7 +60,7 @@ def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_bdtopo(dpt, bulk_launch_uuid=None):
-    import_bdtopo_job(dpt, bulk_launch_uuid)
+    import_bdtopo_job("bdtopo_2023_09", dpt, bulk_launch_uuid)
     return "done"
 
 
