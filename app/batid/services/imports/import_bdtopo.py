@@ -109,4 +109,9 @@ def feature_to_wkt(feature, from_srid):
 
     wkt = writer.write(geom)
 
-    return GEOSGeometry(wkt).wkt
+    geom = GEOSGeometry(wkt)
+
+    if not geom.valid:
+        geom = geom.buffer(0)
+
+    return geom.wkt
