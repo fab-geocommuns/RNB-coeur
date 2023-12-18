@@ -13,6 +13,7 @@ from batid.services.candidate import Inspector
 from batid.services.source import Source
 from batid.services.imports.import_bdtopo import import_bdtopo
 from batid.tasks import dl_source
+from batid.utils.geo import fix_nested_shells
 
 
 class Command(BaseCommand):
@@ -32,8 +33,8 @@ class Command(BaseCommand):
                 # if c >= 5000:
                 #     break
 
-                # if feature["properties"]["ID"] != "BATIMENT0000002334063641":
-                #     continue
+                if feature["properties"]["ID"] != "BATIMENT0000002334063641":
+                    continue
 
                 # geom = no_transform(feature, srid)
                 # print("no transform")
@@ -46,6 +47,8 @@ class Command(BaseCommand):
                 # print(new_geom.valid_reason)
                 # print(new_geom.json)
 
+                print(new_geom.json)
+
                 if not new_geom.valid:
                     errors.append(new_geom.json)
 
@@ -57,11 +60,7 @@ class Command(BaseCommand):
                 # print(old_geom.valid)
                 # print(old_geom.valid_reason)
 
-                # break
-
-            for e in errors:
-                print("---")
-                print(e)
+                break
 
             print(f"errors : {len(errors)}")
             print(f"features : {features_c}")
@@ -106,8 +105,8 @@ def new_convert(feature, from_srid):
 
     geom = GEOSGeometry(wkt)
 
-    if not geom.valid:
-        geom = geom.buffer(0)
+    if not geom.valid and "Nested shells" in geom.valid_reason:
+        geom = fix_nested_shells(geom)
 
     return geom
 
