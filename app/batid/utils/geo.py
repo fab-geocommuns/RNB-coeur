@@ -1,4 +1,4 @@
-from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon, LinearRing
 
 
 def fix_nested_shells(geom: MultiPolygon) -> GEOSGeometry:
@@ -27,8 +27,8 @@ def fix_nested_shells(geom: MultiPolygon) -> GEOSGeometry:
                 big_area = p.area
                 big_idx = idx
 
-        big_poly_ring = polys.pop(big_idx).coords[0]
-        small_polys_rings = [p.coords[0] for p in polys]
+        big_poly_ring = LinearRing(polys.pop(big_idx).coords[0])
+        small_polys_rings = [LinearRing(p.coords[0]) for p in polys]
 
         geom = Polygon(big_poly_ring, *small_polys_rings)
 
