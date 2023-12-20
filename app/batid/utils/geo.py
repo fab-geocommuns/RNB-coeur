@@ -4,7 +4,7 @@ from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
 def fix_nested_shells(geom: MultiPolygon) -> GEOSGeometry:
     if not isinstance(geom, MultiPolygon):
         raise ValueError(
-            f"Nested shells errors can only be fixed on MultyPolygon object. {type(geom)} given"
+            f"Nested shells errors can only be fixed on MultiPolygon object. {type(geom)} given"
         )
 
     if geom.valid:
