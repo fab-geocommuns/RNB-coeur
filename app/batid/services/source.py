@@ -50,6 +50,11 @@ class Source:
                 "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15.7z",
                 "filename": "BATIMENT.shp",
             },
+            # Special case for 03, download url is slightly different
+            "bdtopo_2023_09_003": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233-1$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
             "bdtopo_2023_09_971": {
                 "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D971_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D971_2023-09-15.7z",
                 "filename": "BATIMENT.shp",
@@ -279,6 +284,9 @@ class BufferToCopy(Source):
 
 def bdtopo_source_switcher(source_name: str, dpt: str) -> str:
     if dpt in ["971", "972", "973", "974", "975", "976", "977", "978"]:
+        return f"{source_name}_{dpt}"
+
+    if dpt == "003":
         return f"{source_name}_{dpt}"
 
     return source_name
