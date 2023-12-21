@@ -1,3 +1,5 @@
+from pprint import pprint
+
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
 
 
@@ -19,9 +21,14 @@ def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:
         big_area = 0
         for idx, p in enumerate(polys):
             if p.num_interior_rings > 0:
-                raise ValueError(
-                    "We have a sub-polygon with holes, we can't rebuild a clean polygon."
-                )
+                print(geom.wkt)
+                r = geom.buffer(0)
+                print(r.json)
+                return r
+
+                # raise ValueError(
+                #     "We have a sub-polygon with holes, we can't rebuild a clean polygon."
+                # )
 
             if p.area > big_area:
                 big_area = p.area
