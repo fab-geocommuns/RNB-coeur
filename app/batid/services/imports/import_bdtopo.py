@@ -1,21 +1,16 @@
-import csv
 import json
 import os
-
 from django.contrib.gis.geos import GEOSGeometry, WKTWriter
-from fiona.crs import CRS
-
 from batid.models import Candidate, BuildingImport
 from batid.services.imports import building_import_history
-
 from batid.services.source import Source, bdtopo_source_switcher, BufferToCopy
-from shapely.geometry import shape, MultiPolygon
-from shapely.ops import transform
 import fiona
 from datetime import datetime, timezone
 import psycopg2
 from django.db import connection, transaction
 import random
+
+from batid.utils.geo import fix_nested_shells
 
 
 def import_bdtopo(bdtopo_edition, dpt, bulk_launch_uuid=None):
@@ -99,14 +94,23 @@ def _add_import_info(candidate, building_import: BuildingImport):
 
 
 def feature_to_wkt(feature, from_srid):
+    # From shapefile feature to GEOS geometry
     geom = GEOSGeometry(json.dumps(dict(feature["geometry"])))
     geom.srid = from_srid
 
+    # From local SRID to WGS84
     geom.transform(4326)
 
+    # From 3D geom to 2D geom wkt
     writer = WKTWriter()
     writer.outdim = 2
-
     wkt = writer.write(geom)
 
-    return GEOSGeometry(wkt).wkt
+    # Back to geom
+    geom = GEOSGeometry(wkt)
+
+    # Eventually, fix nested shells
+    if not geom.valid and "Nested shells" in geom.valid_reason:
+        geom = fix_nested_shells(geom)
+
+    return geom.wkt
