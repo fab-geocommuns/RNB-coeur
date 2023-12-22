@@ -75,7 +75,7 @@ class Source:
                 "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGSPM06U21_D975_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGSPM06U21_D975_2023-09-15.7z",
                 "filename": "BATIMENT.shp",
             },
-            "bddtopo_2023_09_976": {
+            "bdtopo_2023_09_976": {
                 "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGM04UTM38S_D976_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGM04UTM38S_D976_2023-09-15.7z",
                 "filename": "BATIMENT.shp",
             },
