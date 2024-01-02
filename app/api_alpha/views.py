@@ -9,6 +9,7 @@ from api_alpha.serializers import (
     ADSSerializer,
     BuildingSerializer,
     GuessBuildingSerializer,
+    ContributionSerializer,
 )
 from api_alpha.services import get_city_from_request
 from batid.list_bdg import list_bdgs
@@ -16,7 +17,7 @@ from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
-from batid.models import ADS, Building
+from batid.models import ADS, Building, Contribution
 
 from rest_framework import viewsets, status
 from rest_framework.exceptions import ParseError
@@ -172,3 +173,9 @@ def get_tile(request, x, y, z):
         tile_file = cursor.fetchone()[0]
 
     return HttpResponse(tile_file, content_type="application/vnd.mapbox-vector-tile")
+
+
+class ContributionsViewSet(viewsets.ModelViewSet):
+    queryset = Contribution.objects.all()
+    http_method_names = ["post"]
+    serializer_class = ContributionSerializer
