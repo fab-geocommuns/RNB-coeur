@@ -285,6 +285,7 @@ class AsyncSignal(models.Model):
         ordering = ["created_at"]
 
 
+
 class BuildingImport(models.Model):
     id = models.AutoField(primary_key=True)
     import_source = models.CharField(max_length=20, null=False)
@@ -300,3 +301,11 @@ class BuildingImport(models.Model):
     building_created_count = models.IntegerField(null=True)
     building_updated_count = models.IntegerField(null=True)
     building_refused_count = models.IntegerField(null=True)
+
+class Contribution(models.Model):
+    id = models.AutoField(primary_key=True)
+    rnb_id = models.CharField(max_length=255, null=True)
+    text = models.TextField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
