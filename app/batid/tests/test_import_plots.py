@@ -23,7 +23,7 @@ class ImportPlotsTestCase(TestCase):
 
         plot_1 = Plot.objects.get(id="380010000A0507")
         self.assertEqual(plot_1.shape.geom_type, "MultiPolygon")
-        self.assertEqual(plot_1.shape.srid, 2154)
+        self.assertEqual(plot_1.shape.srid, 4326)
         # easiest way I found to test the geometry is coherent is to check there is one close to the middle of the plot
         self.assertEqual(
             Plot.objects.filter(

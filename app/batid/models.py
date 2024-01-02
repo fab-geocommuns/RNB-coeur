@@ -1,29 +1,76 @@
+from email.policy import default
 import json
+from typing import Any, Optional
 
 from django.contrib.auth.models import User
-from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import ArrayField, DateTimeRangeField
 from django.contrib.gis.db import models
 from django.conf import settings
 from django.db.models import F
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
+from batid.validators import validate_one_ext_id
+from batid.utils.db import from_now_to_infinity
 
 
-class Building(models.Model):
+class BuildingAbstract(models.Model):
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
-    source = models.CharField(max_length=10, null=False, db_index=True)
-
-    point = models.PointField(null=True, spatial_index=True, srid=settings.DEFAULT_SRID)
-    shape = models.GeometryField(
-        null=True, spatial_index=True, srid=settings.DEFAULT_SRID
-    )
-    shape_wgs84 = models.GeometryField(null=True, spatial_index=True, srid=4326)
-
-    addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
-
-    ext_bdnb_id = models.CharField(max_length=40, null=True, db_index=True)
-    ext_bdtopo_id = models.CharField(max_length=40, null=True, db_index=True)
+    point = models.PointField(null=True, spatial_index=True, srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
+    ext_ids = models.JSONField(null=True)
+    last_updated_by = models.JSONField(null=True)
+    # temporal table field
+    sys_period = DateTimeRangeField(null=False, default=from_now_to_infinity)
+    # in case of building merge, we want in the future to keep the list of the parent buildings
+    # not implemented for now
+    parent_buildings = models.JSONField(null=True)
+
+    class Meta:
+        abstract = True
+
+
+class Building(BuildingAbstract):
+    addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
+
+    def add_ext_id(
+        self, source: str, source_version: Optional[str], id: str, created_at: str
+    ):
+        # Get the format
+        ext_id = {
+            "source": source,
+            "source_version": source_version,
+            "id": id,
+            "created_at": created_at,
+        }
+        # Validate the content
+        validate_one_ext_id(ext_id)
+
+        # Init if necessary
+        if not self.ext_ids:
+            self.ext_ids = []
+
+        # Append
+        self.ext_ids.append(ext_id)
+
+        # Sort by created_at
+        self.ext_ids = sorted(self.ext_ids, key=lambda k: k["created_at"])
+
+    def contains_ext_id(
+        self, source: str, source_version: Optional[str], id: str
+    ) -> bool:
+        if not self.ext_ids:
+            return False
+
+        for ext_id in self.ext_ids:
+            if (
+                ext_id["source"] == source
+                and ext_id["source_version"] == source_version
+                and ext_id["id"] == id
+            ):
+                return True
+
+        return False
 
     def point_geojson(self):
         # todo : is there a better way to go from a PointField to geojson dict ?
@@ -45,6 +92,33 @@ class Building(models.Model):
 
     class Meta:
         ordering = ["rnb_id"]
+
+
+class BuildingWithHistory(BuildingAbstract):
+    # this read-only model is used to access the corresponding view
+    # it contains current AND previous versions of the buildings
+    class Meta:
+        managed = False
+        # We could add an default ordering based on the temporal field (https://docs.djangoproject.com/en/4.2/ref/models/options/#ordering). It almost sure we will have to present chronologically the history of a building
+        db_table = "batid_building_with_history"
+
+
+class BuildingHistoryOnly(BuildingAbstract):
+    # this model is probably not going to be used in the app
+    # use BuildingWithHistory instead
+    # it is created only so that any change in the Building model is reflected in the history table
+
+    # primary key for this table, because Django ORM wants one
+    bh_id = models.BigAutoField(
+        auto_created=True, primary_key=True, serialize=False, verbose_name="BH_ID"
+    )
+    # primary key coming from the Building table, but not unique here.
+    id = models.BigIntegerField()
+    rnb_id = models.CharField(max_length=12, null=False, unique=False, db_index=True)
+
+    class Meta:
+        managed = True
+        db_table = "batid_building_history"
 
 
 class BuildingStatus(models.Model):
@@ -81,9 +155,7 @@ class City(models.Model):
     id = models.AutoField(primary_key=True)
     code_insee = models.CharField(max_length=10, null=False, db_index=True, unique=True)
     name = models.CharField(max_length=200, null=False, db_index=True)
-    shape = models.MultiPolygonField(
-        null=True, spatial_index=True, srid=settings.DEFAULT_SRID
-    )
+    shape = models.MultiPolygonField(null=True, spatial_index=True, srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -92,9 +164,7 @@ class Department(models.Model):
     id = models.AutoField(primary_key=True)
     code = models.CharField(max_length=3, null=False, db_index=True, unique=True)
     name = models.CharField(max_length=200, null=False)
-    shape = models.MultiPolygonField(
-        null=True, spatial_index=True, srid=settings.DEFAULT_SRID
-    )
+    shape = models.MultiPolygonField(null=True, spatial_index=True, srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -141,8 +211,9 @@ class BuildingADS(models.Model):
 
 
 class Candidate(models.Model):
-    shape = models.MultiPolygonField(null=True, srid=settings.DEFAULT_SRID)
+    shape = models.GeometryField(null=True, srid=4326, spatial_index=False)
     source = models.CharField(max_length=20, null=False)
+    source_version = models.CharField(max_length=20, null=True)
     source_id = models.CharField(max_length=40, null=False)
     address_keys = ArrayField(models.CharField(max_length=40), null=True)
     # information coming from the BDTOPO
@@ -151,25 +222,18 @@ class Candidate(models.Model):
     # bâtiment ou partie de bâtiment ouvert sur au moins un côté.
     is_light = models.BooleanField(null=True)
 
-    # information coming from BDNB
-    # when the building is fictive its geometry is not known and is remplaces by an hexagon
-    # we don't want to import the shape of such buildings.
-    is_shape_fictive = models.BooleanField(null=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # The inspect_stamp is a DIY lock system to ensure a candidate is not inspected twice
-    # It MIGHT be replaced by systems closer to the db (eg : SELECT ... FOR UPDATE and postegresql LOCK system)
-    # but I do not know those enough to use them right now.
-    inspect_stamp = models.CharField(max_length=20, null=True, db_index=True)
-    inspected_at = models.DateTimeField(null=True)
-    inspect_result = models.CharField(max_length=20, null=True, db_index=True)
+    inspected_at = models.DateTimeField(null=True, db_index=True)
+    inspection_details = models.JSONField(null=True)
+    created_by = models.JSONField(null=True)
+    random = models.IntegerField(db_index=True, null=False, default=0)
 
 
 class Plot(models.Model):
     id = models.CharField(max_length=40, primary_key=True, db_index=True)
-    shape = models.MultiPolygonField(null=True, srid=settings.DEFAULT_SRID)
+    shape = models.MultiPolygonField(null=True, srid=4326)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -179,10 +243,10 @@ class Address(models.Model):
     id = models.CharField(max_length=40, primary_key=True, db_index=True)
     source = models.CharField(max_length=10, null=False)  # BAN or other origin
 
-    point = models.PointField(null=True, spatial_index=True, srid=settings.DEFAULT_SRID)
+    point = models.PointField(null=True, spatial_index=True, srid=4326)
 
     street_number = models.CharField(max_length=10, null=True)
-    street_rep = models.CharField(max_length=10, null=True)
+    street_rep = models.CharField(max_length=100, null=True)
     street_name = models.CharField(max_length=100, null=True)
     street_type = models.CharField(max_length=100, null=True)
     city_name = models.CharField(max_length=100, null=True)
@@ -220,6 +284,23 @@ class AsyncSignal(models.Model):
     class Meta:
         ordering = ["created_at"]
 
+
+
+class BuildingImport(models.Model):
+    id = models.AutoField(primary_key=True)
+    import_source = models.CharField(max_length=20, null=False)
+    # the id of the "bulk launch"
+    # a bulk launch will typically launch an import on the country and will generate an import for each department
+    bulk_launch_uuid = models.UUIDField(null=True)
+    departement = models.CharField(max_length=3, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    # number of candidates created by the import
+    candidate_created_count = models.IntegerField(null=True)
+    # what happened to the candidates
+    building_created_count = models.IntegerField(null=True)
+    building_updated_count = models.IntegerField(null=True)
+    building_refused_count = models.IntegerField(null=True)
 
 class Contribution(models.Model):
     id = models.AutoField(primary_key=True)

@@ -14,6 +14,7 @@ from batid.management.commands.import_bdnb_dpt import (
 from batid.management.commands.import_bdtopo_dpt import (
     create_tasks_list as create_tasks_list_bdtopo_dpt,
 )
+import uuid
 
 
 class Command(BaseCommand):
@@ -44,22 +45,36 @@ def task_method(task_name):
     return d[task_name]
 
 
+def task_dpt_list(task_name):
+    d = {
+        "cities": dpt_list_metropole(),
+        "plots": dpt_list_metropole(),
+        "bdnb": dpt_list_metropole(),
+        "bdtopo": dpts_list(),
+    }
+    return d[task_name]
+
+
 def create_tasks_list_france(start_dpt, end_dpt, task_name):
     tasks = []
-    dpts = dpts_list()
+    dpts = task_dpt_list(task_name)
     # find start_dpt index in dpts list. Return 0 if not found
     start_dpt_index = dpts.index(start_dpt) if start_dpt in dpts else 0
     end_dpt_index = dpts.index(end_dpt) + 1 if start_dpt in dpts else len(dpts)
     create_task_method = task_method(task_name)
+    bulk_launch_uuid = uuid.uuid4()
 
     for dpt in dpts[start_dpt_index:end_dpt_index]:
-        tasks.append(create_task_method(dpt))
+        if task_name in ["bdnb", "bdtopo"]:
+            tasks.append(create_task_method(dpt, bulk_launch_uuid))
+        else:
+            tasks.append(create_task_method(dpt))
     # flattern the list
     tasks = [item for sublist in tasks for item in sublist]
     return tasks
 
 
-def dpts_list():
+def dpt_list_metropole():
     return [
         "01",
         "02",
@@ -158,3 +173,11 @@ def dpts_list():
         "94",
         "95",
     ]
+
+
+def dpt_list_overseas():
+    return ["971", "972", "973", "974", "975", "976", "977", "978"]
+
+
+def dpts_list():
+    return dpt_list_metropole() + dpt_list_overseas()

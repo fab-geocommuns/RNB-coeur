@@ -2,10 +2,12 @@ from celery import shared_task
 from app.celery import app
 from batid.services.imports.import_dpt import import_etalab_dpts
 from batid.services.source import Source
-from batid.services.imports.import_bdnb7 import (
-    import_bdnb7_bdgs as import_bdnb7_bdgs_job,
-    import_bdnb7_addresses as import_bdnb7_addresses_job,
+
+from batid.services.imports.import_bdnb_2023_01 import (
+    import_bdnd_2023_01_bdgs,
+    import_bdnd_2023_01_addresses,
 )
+
 from batid.services.imports.import_bdtopo import import_bdtopo as import_bdtopo_job
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
@@ -45,20 +47,20 @@ def dl_source(src, dpt):
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdnb7_addresses(dpt):
-    import_bdnb7_addresses_job(dpt)
+def import_bdnb_addresses(dpt):
+    import_bdnd_2023_01_addresses(dpt)
     return "done"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdnb7_bdgs(dpt):
-    import_bdnb7_bdgs_job(dpt)
+def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
+    import_bdnd_2023_01_bdgs(dpt, bulk_launch_uuid)
     return "done"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdtopo(dpt):
-    import_bdtopo_job(dpt)
+def import_bdtopo(dpt, bdtopo_edition="bdtopo_2023_09", bulk_launch_uuid=None):
+    import_bdtopo_job(bdtopo_edition, dpt, bulk_launch_uuid)
     return "done"
 
 
@@ -83,30 +85,9 @@ def import_dpts():
 def inspect_candidates():
     print("---- Inspecting candidates ----")
 
-    inspected = 0
-
-    while True:
-        i = Inspector()
-        inspections_len = i.inspect()
-        inspected += inspections_len
-        print(f"Inspected {inspected} candidates so far")
-        if inspections_len <= 0:
-            break
-
-    return "done"
-
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def remove_inspected_candidates():
     i = Inspector()
-    i.remove_inspected()
-    return "done"
+    i.inspect()
 
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def remove_invalid_candidates():
-    i = Inspector()
-    i.remove_invalid_candidates()
     return "done"
 
 
@@ -158,25 +139,3 @@ def dispatch_signal(pk: int):
     d.dispatch(s)
 
     return "done"
-
-
-@shared_task
-def fill_shapewhs84_col():
-    from django.db import connection
-
-    updated_count = None
-    total = 0
-
-    while updated_count is None or updated_count > 0:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "UPDATE batid_building SET shape_wgs84 = ST_Transform(shape, 4326) WHERE id IN (SELECT id from batid_building WHERE shape_wgs84 IS NULL and shape IS NOT NULL LIMIT 50000);"
-            )
-            updated_count = cursor.rowcount
-            total += updated_count
-
-            print("--")
-            print(f"updated {updated_count} rows")
-            print(f"total {total} rows")
-
-    print("- Finished -")

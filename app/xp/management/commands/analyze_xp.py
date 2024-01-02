@@ -78,8 +78,8 @@ class Command(BaseCommand):
 def feature_w_geom(feature: dict) -> dict:
     geom = GEOSGeometry(json.dumps(feature["geometry"]))
 
-    if geom.srid != settings.DEFAULT_SRID:
-        geom.transform(settings.DEFAULT_SRID)
+    if geom.srid != 4326:
+        geom.transform(4326)
 
     feature["properties"]["geom"] = geom
     feature["properties"]["area"] = geom.area

@@ -2,6 +2,7 @@ from rest_framework.test import APITestCase
 
 from batid.models import BuildingStatus
 from batid.tests.helpers import create_bdg
+from django.contrib.gis.geos import Point
 
 
 class BdgGuessEndpointTest(APITestCase):
@@ -32,9 +33,9 @@ class BdgGuessEndpointTest(APITestCase):
             {
                 "addresses": [],
                 "score": 1.0,
-                "ext_bdtopo_id": None,
+                "ext_ids": None,
                 "point": {
-                    "coordinates": [5.7211808330356, 45.18433388648706],
+                    "coordinates": [5.721181338205954, 45.18433384981944],
                     "type": "Point",
                 },
                 "rnb_id": "DUMMYDUMMYGO",
@@ -50,3 +51,21 @@ class BdgGuessEndpointTest(APITestCase):
         ]
 
         self.assertListEqual(r.json(), expected)
+
+
+class DistanceComputation(APITestCase):
+    def test_distance_computation(self):
+        a = Point(873000, 6572000, srid=2154)
+        b = Point(873100, 6572000, srid=2154)
+
+        # real distance
+        self.assertEqual(a.distance(b), 100)
+
+        a = a.transform(4326, clone=True)
+        b = b.transform(4326, clone=True)
+
+        from batid.services.guess_bdg import compute_distance
+
+        dist = compute_distance(a, b)
+
+        self.assertAlmostEqual(dist, 100, delta=1)

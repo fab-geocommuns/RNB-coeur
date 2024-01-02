@@ -55,11 +55,11 @@ class BuildingSerializer(serializers.ModelSerializer):
     point = serializers.DictField(source="point_geojson", read_only=True)
     addresses = AddressSerializer(many=True, read_only=True)
     status = BuildingStatusSerializer(read_only=True, many=True)
-    ext_bdtopo_id = serializers.CharField(read_only=True)
+    ext_ids = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "status", "point", "addresses", "ext_bdtopo_id"]
+        fields = ["rnb_id", "status", "point", "addresses", "ext_ids"]
 
 
 class GuessBuildingSerializer(serializers.ModelSerializer):
@@ -67,11 +67,11 @@ class GuessBuildingSerializer(serializers.ModelSerializer):
     point = serializers.DictField(source="point_geojson", read_only=True)
     addresses = AddressSerializer(many=True, read_only=True)
     status = BuildingStatusSerializer(read_only=True, many=True)
-    ext_bdtopo_id = serializers.CharField(read_only=True)
+    ext_ids = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "score", "status", "point", "addresses", "ext_bdtopo_id"]
+        fields = ["rnb_id", "score", "status", "point", "addresses", "ext_ids"]
 
 
 class CityADSSerializer(serializers.ModelSerializer):
@@ -123,7 +123,8 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
                 validated_data["point"] = f"{geometry.point_on_surface}"
 
             validated_data["rnb_id"] = generate_rnb_id()
-            validated_data["source"] = "ADS"
+            # we may need to add more info here
+            validated_data["last_updated_by"] = {"source": "ADS"}
             building = super().create(validated_data)
             return building
         elif validated_data.get("rnb_id") == BdgInADS.GUESS_STR:
@@ -140,7 +141,8 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
 
             if bdg is None:
                 validated_data["rnb_id"] = generate_rnb_id()
-                validated_data["source"] = "ADS"
+                # we may need to add more info here
+                validated_data["last_updated_by"] = {"source": "ADS"}
                 building = super().create(validated_data)
                 return building
 

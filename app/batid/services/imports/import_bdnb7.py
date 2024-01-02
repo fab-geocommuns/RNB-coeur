@@ -3,20 +3,36 @@ import json
 import os
 
 import psycopg2
-from django.db import connection
+from django.db import connection, transaction
 from psycopg2.extras import execute_values
+from batid.services.imports import building_import_history
+import random
 
 from batid.models import Address
 from batid.services.source import Source, BufferToCopy
 from datetime import datetime, timezone
-
+from django.contrib.gis.geos import GEOSGeometry
+from batid.models import Candidate
 from batid.utils.db import list_to_pgarray
+import json
+from warnings import warn
 
 
-def import_bdnb7_bdgs(dpt):
+def import_bdnb7_bdgs(dpt, bulk_launch_uuid=None):
+    warn(
+        "BDNB 7 is not used anymore. We use a more recent version of BDNB.",
+        DeprecationWarning,
+    )
     print(f"## Import BDNB 7 buildings in dpt {dpt}")
 
-    src = Source("bdnb_7")
+    source_id = "bdnb_7"
+
+    # insert a record in the table BuildingImport
+    building_import = building_import_history.insert_building_import(
+        source_id, bulk_launch_uuid, dpt
+    )
+
+    src = Source(source_id)
     src.set_param("dpt", dpt)
 
     groups_addresses = _get_groups_addresses_from_files(dpt)
@@ -28,17 +44,25 @@ def import_bdnb7_bdgs(dpt):
         reader = csv.DictReader(f, delimiter=",")
 
         for row in list(reader):
+            geom = GEOSGeometry(row["WKT"], srid=2154).transform(4326, clone=True)
+            if row["fictive_geom_cstr"] == "1":
+                geom = geom.point_on_surface
+
             candidate = {
-                "shape": row["WKT"],
-                "source": "bdnb_7",
+                "shape": geom.wkt,
+                "source": "bdnb",
+                "source_version": "7.2",
                 "is_light": False,
-                "is_shape_fictive": row["fictive_geom_cstr"] == "1",
                 "source_id": row["batiment_construction_id"],
                 "address_keys": list_to_pgarray(
                     groups_addresses.get(row["batiment_groupe_id"], [])
                 ),
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc),
+                "created_by": json.dumps(
+                    {"source": "import", "id": building_import.id}
+                ),
+                "random": random.randint(0, 1000000000),
             }
             candidates.append(candidate)
 
@@ -49,14 +73,16 @@ def import_bdnb7_bdgs(dpt):
     cols = candidates[0].keys()
 
     with open(buffer.path, "r") as f:
-        with connection.cursor() as cursor:
+        with transaction.atomic():
             print("- import buffer")
             try:
-                cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
-                connection.commit()
+                with connection.cursor() as cursor:
+                    cursor.copy_from(f, Candidate._meta.db_table, sep=";", columns=cols)
+
+                building_import_history.increment_created_candidates(
+                    building_import, len(candidates)
+                )
             except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cursor.close()
                 raise error
 
     print("- remove buffer")
@@ -64,6 +90,11 @@ def import_bdnb7_bdgs(dpt):
 
 
 def import_bdnb7_addresses(dpt):
+    warn(
+        "BDNB 7 is not used anymore. We use a more recent version of BDNB.",
+        DeprecationWarning,
+    )
+
     print(f"## Import BDNB 7 addresses in dpt {dpt}")
 
     src = Source("bdnb_7")

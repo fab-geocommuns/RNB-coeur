@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('batid', '0059_alter_building_shape'),
+        ('batid', '0071_create_index_candidate'),
     ]
 
     operations = [
