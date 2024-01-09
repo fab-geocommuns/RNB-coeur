@@ -32,7 +32,8 @@ class BdgGuessEndpointTest(APITestCase):
         expected = [
             {
                 "addresses": [],
-                "score": 1.0,
+                "score": 5.0,
+                "sub_scores": {"point_distance": 5, "point_plot_cluster": 0},
                 "ext_ids": None,
                 "point": {
                     "coordinates": [5.721181338205954, 45.18433384981944],
