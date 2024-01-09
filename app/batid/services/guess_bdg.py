@@ -212,7 +212,7 @@ class BuildingGuess:
 
             # Subscores
             subscores_struct = ", ".join([f"'{k}', {k}" for k in self.scores.keys()])
-            subscores_obj = f", jsonb_build_object({subscores_struct}) as sub_scores "
+            subscores_obj = f", json_build_object({subscores_struct}) as sub_scores "
 
         # ######################
         # Assembling the queries
