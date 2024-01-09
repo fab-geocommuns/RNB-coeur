@@ -69,7 +69,7 @@ class BuildingGuess:
             # We want to keep buildings that are close to the point
             self.scores[
                 "osm_point_distance"
-            ] = f"CASE WHEN ST_DistanceSphere(shape, %(osm_point)s) > 0 THEN 2 / ST_DistanceSphere(shape, %(osm_point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape, %(osm_point)s) >= 1 THEN 2 / ST_DistanceSphere(shape, %(osm_point)s) WHEN ST_DistanceSphere(shape, %(osm_point)s) > 0 THEN 2 ELSE 3 END"
 
             # Add the point to the params
             params["osm_point"] = f"{self.params._osm_point}"
@@ -106,7 +106,7 @@ class BuildingGuess:
             # todo : does the double ST_Distance evaluation is a performance problem ?
             self.scores[
                 "ban_point_distance"
-            ] = f"CASE WHEN ST_DistanceSphere(shape, %(ban_point)s) > 0 THEN 2 / ST_DistanceSphere(shape, %(ban_point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape, %(ban_point)s) >= 1 THEN 2 / ST_DistanceSphere(shape, %(ban_point)s) WHEN ST_DistanceSphere(shape, %(ban_point)s) > 0 THEN 2 ELSE 3 END"
 
             # Add the point to the params
             params["ban_point"] = f"{self.params._ban_point}"
@@ -129,7 +129,7 @@ class BuildingGuess:
             # todo : does the double ST_Distance evaluation is a performance problem ?
             self.scores[
                 "point_distance"
-            ] = f"CASE WHEN ST_DistanceSphere(shape, %(point)s) > 0 THEN 1 / ST_DistanceSphere(shape, %(point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape, %(point)s) >= 1 THEN 1 / ST_DistanceSphere(shape, %(point)s) WHEN ST_DistanceSphere(shape, %(point)s) > 0 THEN 1 ELSE 5 END"
 
             # LIMIT THE DISTANCE TO THE POINT
             wheres.append(f"ST_DWithin(shape::geography, %(point)s::geography, 400)")
