@@ -204,10 +204,15 @@ class BuildingGuess:
 
         # SCORE SUM
         scores_sum = ", 0 as score"
+        subscores_obj = " "
         if len(self.scores):
+            # Total score
             subscore_sum_str = " + ".join(self.scores.keys())
+            scores_sum = f", {subscore_sum_str} as score "
 
-            scores_sum = f", ({subscore_sum_str}) / (sum({subscore_sum_str}) over()) as score, {subscore_sum_str} as abs_score "
+            # Subscores
+            subscores_struct = ", ".join([f"'{k}', {k}" for k in self.scores.keys()])
+            subscores_obj = f", jsonb_build_object({subscores_struct}) as sub_scores "
 
         # ######################
         # Assembling the queries
@@ -220,7 +225,7 @@ class BuildingGuess:
 
         global_query = (
             f"WITH scored_bdgs AS ({score_query}) "
-            f"SELECT *  {scores_sum} "
+            f"SELECT *  {scores_sum} {subscores_obj} "
             f"FROM scored_bdgs "
             "ORDER BY score DESC "
             f"{pagination_str}"
