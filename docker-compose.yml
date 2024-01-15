@@ -14,6 +14,7 @@ services:
       - ./.env.app.dev
       - ./.env.worker.dev
       - ./.env.rnb.dev
+      - ./.env.s3_backup.dev
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./app:/app
