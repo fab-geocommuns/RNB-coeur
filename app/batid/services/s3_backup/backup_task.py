@@ -57,7 +57,7 @@ def create_scaleway_db_backup():
         "expires_at": expires_at,
     }
 
-    # create a the scaleway backup
+    # create a scaleway backup
     r = requests.post(
         "https://api.scaleway.com/rdb/v1/regions/fr-par/backups",
         data=json.dumps(data),
