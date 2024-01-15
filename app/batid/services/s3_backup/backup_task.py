@@ -12,6 +12,21 @@ def backup_to_s3():
     (backup_id, backup_name) = create_scaleway_db_backup()
     download_url = create_backup_download_url(backup_id)
     upload_to_s3(backup_name, download_url)
+    notify_mattermost(backup_name)
+
+
+def notify_mattermost(backup_name):
+    MATTERMOST_WEBHOOK_URL = os.environ.get("MATTERMOST_WEBHOOK_URL")
+
+    data = {
+        "username": "backup-bot",
+        "text": f"Un nouveau backup de la base de production du RNB a été créé chez OVH : {backup_name}.",
+    }
+
+    r = requests.post(MATTERMOST_WEBHOOK_URL, data=json.dumps(data))
+
+    if r.status_code != 200:
+        raise Exception("Error while sending the mattermost notification")
 
 
 def scaleway_headers():

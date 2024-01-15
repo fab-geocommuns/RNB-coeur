@@ -14,6 +14,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 import os
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
+from celery.schedules import crontab
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -177,6 +178,14 @@ STATIC_URL = "/static/"
 
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
 CELERY_BACKEND_URL = os.environ.get("CELERY_RESULT_BACKEND")
+
+CELERY_BEAT_SCHEDULE = {
+    "backup_to_s3": {
+        "task": "batid.tasks.backup_to_s3",
+        # saturday at 7am
+        "schedule": crontab(hour=7, minute=0, day_of_week=6),
+    }
+}
 
 
 # Bat ID custom settings
