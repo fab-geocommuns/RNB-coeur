@@ -9,21 +9,39 @@ import time
 
 # main function to be called by the cron job
 def backup_to_s3():
-    (backup_id, backup_name) = create_scaleway_db_backup()
-    download_url = create_backup_download_url(backup_id)
-    upload_to_s3(backup_name, download_url)
-    notify_mattermost(backup_name)
+    try:
+        (backup_id, backup_name) = create_scaleway_db_backup()
+        download_url = create_backup_download_url(backup_id)
+        upload_to_s3(backup_name, download_url)
+        notify_mattermost(backup_name)
+    except Exception as e:
+        notify_mattermost_error(e)
+        raise e
+
+
+def notify_mattermost_error(error):
+    MATTERMOST_RNB_TECH_WEBHOOK_URL = os.environ.get("MATTERMOST_RNB_TECH_WEBHOOK_URL")
+
+    data = {
+        "username": "backup-bot",
+        "text": f"Une erreur est survenue lors de la création d'un backup de la base de production du RNB : {error}",
+    }
+
+    r = requests.post(MATTERMOST_RNB_TECH_WEBHOOK_URL, data=json.dumps(data))
+
+    if r.status_code != 200:
+        raise Exception("Error while sending the mattermost notification")
 
 
 def notify_mattermost(backup_name):
-    MATTERMOST_WEBHOOK_URL = os.environ.get("MATTERMOST_WEBHOOK_URL")
+    MATTERMOST_RNB_TECH_WEBHOOK_URL = os.environ.get("MATTERMOST_RNB_TECH_WEBHOOK_URL")
 
     data = {
         "username": "backup-bot",
         "text": f"Un nouveau backup de la base de production du RNB a été créé chez OVH : {backup_name}.",
     }
 
-    r = requests.post(MATTERMOST_WEBHOOK_URL, data=json.dumps(data))
+    r = requests.post(MATTERMOST_RNB_TECH_WEBHOOK_URL, data=json.dumps(data))
 
     if r.status_code != 200:
         raise Exception("Error while sending the mattermost notification")
@@ -37,29 +55,30 @@ def scaleway_headers():
 def upload_to_s3(backup_name, download_url):
     r = requests.get(download_url, headers=scaleway_headers(), stream=True)
 
-    S3_ACCESS_KEY_ID = os.environ.get("S3_ACCESS_KEY_ID")
-    S3_SECRET_ACCESS_KEY = os.environ.get("S3_SECRET_ACCESS_KEY")
-    S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL")
-    S3_REGION_NAME = os.environ.get("S3_REGION_NAME")
-    S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
+    S3_BACKUP_ACCESS_KEY_ID = os.environ.get("S3_BACKUP_ACCESS_KEY_ID")
+    S3_BACKUP_SECRET_ACCESS_KEY = os.environ.get("S3_BACKUP_SECRET_ACCESS_KEY")
+    S3_BACKUP_ENDPOINT_URL = os.environ.get("S3_BACKUP_ENDPOINT_URL")
+    S3_BACKUP_REGION_NAME = os.environ.get("S3_BACKUP_REGION_NAME")
+    S3_BACKUP_BUCKET_NAME = os.environ.get("S3_BACKUP_BUCKET_NAME")
 
     s3 = boto3.client(
         "s3",
-        aws_access_key_id=S3_ACCESS_KEY_ID,
-        aws_secret_access_key=S3_SECRET_ACCESS_KEY,
-        endpoint_url=S3_ENDPOINT_URL,
-        region_name=S3_REGION_NAME,
+        aws_access_key_id=S3_BACKUP_ACCESS_KEY_ID,
+        aws_secret_access_key=S3_BACKUP_SECRET_ACCESS_KEY,
+        endpoint_url=S3_BACKUP_ENDPOINT_URL,
+        region_name=S3_BACKUP_REGION_NAME,
     )
 
-    s3.upload_fileobj(r.raw, S3_BUCKET_NAME, backup_name)
+    s3.upload_fileobj(r.raw, S3_BACKUP_BUCKET_NAME, backup_name)
 
     object_exists = s3.get_waiter("object_exists")
-    object_exists.wait(Bucket=S3_BUCKET_NAME, Key=backup_name)
+    object_exists.wait(Bucket=S3_BACKUP_BUCKET_NAME, Key=backup_name)
 
 
 def create_scaleway_db_backup():
     SCALEWAY_DB_NAME = os.environ.get("SCALEWAY_DB_NAME")
     SCALEWAY_INSTANCE_ID = os.environ.get("SCALEWAY_INSTANCE_ID")
+    SCALEWAY_REGION = os.environ.get("SCALEWAY_REGION")
 
     backup_name = f"rnb_backup_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
 
@@ -74,7 +93,7 @@ def create_scaleway_db_backup():
 
     # create a scaleway backup
     r = requests.post(
-        "https://api.scaleway.com/rdb/v1/regions/fr-par/backups",
+        f"https://api.scaleway.com/rdb/v1/regions/{SCALEWAY_REGION}/backups",
         data=json.dumps(data),
         headers=scaleway_headers(),
     )
@@ -111,9 +130,9 @@ def wait_until_backup_is_ready(backup_id):
 
 def create_download_url(backup_id):
     print("Creating the download url")
-    SCALEWAY_AUTH_TOKEN = os.environ.get("SCALEWAY_AUTH_TOKEN")
+    SCALEWAY_REGION = os.environ.get("SCALEWAY_REGION")
     r = requests.post(
-        f"https://api.scaleway.com/rdb/v1/regions/fr-par/backups/{backup_id}/export",
+        f"https://api.scaleway.com/rdb/v1/regions/{SCALEWAY_REGION}/backups/{backup_id}/export",
         headers=scaleway_headers(),
     )
 
@@ -144,8 +163,9 @@ def wait_for_download_url(backup_id):
 
 
 def is_backup_ready(backup_id):
+    SCALEWAY_REGION = os.environ.get("SCALEWAY_REGION")
     r = requests.get(
-        f"https://api.scaleway.com/rdb/v1/regions/fr-par/backups/{backup_id}",
+        f"https://api.scaleway.com/rdb/v1/regions/{SCALEWAY_REGION}/backups/{backup_id}",
         headers=scaleway_headers(),
     )
 
@@ -156,8 +176,9 @@ def is_backup_ready(backup_id):
 
 
 def backup_download_url(backup_id):
+    SCALEWAY_REGION = os.environ.get("SCALEWAY_REGION")
     r = requests.get(
-        f"https://api.scaleway.com/rdb/v1/regions/fr-par/backups/{backup_id}",
+        f"https://api.scaleway.com/rdb/v1/regions/{SCALEWAY_REGION}/backups/{backup_id}",
         headers=scaleway_headers(),
     )
 
