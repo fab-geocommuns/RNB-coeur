@@ -360,3 +360,88 @@ class BuildingsEndpointsSingleTest(APITestCase):
         self.assertEqual(status[0]["type"], "constructionProject")
         self.assertEqual(status[1]["type"], "constructed")
         self.assertEqual(status[2]["type"], "demolished")
+
+
+class BuildingClosestViewTest(APITestCase):
+    def test_closest(self):
+        coords = {
+            "coordinates": [
+                [
+                    [
+                        [1.0654705955877262, 46.63423852982024],
+                        [1.065454930919401, 46.634105152847496],
+                        [1.0656648374661017, 46.63409009413692],
+                        [1.0656773692001593, 46.63422131990677],
+                        [1.0654705955877262, 46.63423852982024],
+                    ]
+                ]
+            ],
+            "type": "MultiPolygon",
+        }
+        geom = GEOSGeometry(json.dumps(coords), srid=4326)
+
+        b_1 = Building.objects.create(
+            rnb_id="building_1",
+            shape=geom,
+            point=geom.point_on_surface,
+        )
+
+        coords_2 = {
+            "coordinates": [
+                [
+                    [
+                        [1.1654705955877262, 46.63423852982024],
+                        [1.165454930919401, 46.634105152847496],
+                        [1.1656648374661017, 46.63409009413692],
+                        [1.1656773692001593, 46.63422131990677],
+                        [1.1654705955877262, 46.63423852982024],
+                    ]
+                ]
+            ],
+            "type": "MultiPolygon",
+        }
+        geom_2 = GEOSGeometry(json.dumps(coords_2), srid=4326)
+
+        b_2 = Building.objects.create(
+            rnb_id="building_2",
+            shape=geom_2,
+            point=geom_2.point_on_surface,
+        )
+
+        # request on the building
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=10"
+        )
+        self.assertEqual(r.status_code, 200)
+
+        data = r.json()
+        self.assertEqual(data["rnb_id"], "building_1")
+        self.assertEqual(data["distance"], 0.0)
+
+        # request next to the building, 1e-5 difference is about 1m
+        lat = 46.63423852982024 + 0.00001
+        r = self.client.get(
+            f"/api/alpha/buildings/closest/?point={lat},1.0654705955877262&radius=10"
+        )
+        data = r.json()
+        self.assertEqual(data["rnb_id"], "building_1")
+        
+        self.assertGreater(data["distance"], 1.0)
+        self.assertLess(data["distance"], 2.0)
+
+    def test_closest_invalid_query_params(self):
+        r = self.client.get("/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262")
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get("/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=foo")
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get("/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=-10")
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get("/api/alpha/buildings/closest/?radius=10")
+        self.assertEqual(r.status_code, 400)
+
+    def test_closest_no_building(self):
+        r = self.client.get("/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=10")
+        self.assertEqual(r.status_code, 404)
