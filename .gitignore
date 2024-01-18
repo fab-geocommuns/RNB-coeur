@@ -28,6 +28,11 @@
 .env.nginx-encrypt.staging
 .env.nginx-encrypt.import
 
+.env.s3_backup.dev
+.env.s3_backup.prod
+.env.s3_backup.staging
+.env.s3_backup.import
+
 # Remove files in data folder since they are used for importing default data
 source_data/
 
@@ -44,4 +49,6 @@ venv/
 
 # Jupyter Notebook temporary files
 *-checkpoint.ipynb
+
+.devcontainer/
 
