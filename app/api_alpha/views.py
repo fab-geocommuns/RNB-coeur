@@ -80,9 +80,13 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                 .order_by("distance")
             )
 
-            serializer = BuildingClosestSerializer(queryset[0])
+            buildings_n = queryset.count()
 
-            return Response(serializer.data)
+            if buildings_n == 0:
+                return Response({"error": "No buildings found"}, status=404)
+            else:
+                serializer = BuildingClosestSerializer(queryset[0])
+                return Response(serializer.data)
         else:
             # Invalid data, return validation errors
             return Response(serializer.errors, status=400)
