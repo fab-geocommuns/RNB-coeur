@@ -3,6 +3,7 @@ from api_alpha.views import (
     ADSBatchViewSet,
     BuildingViewSet,
     BuildingGuessView,
+    BuildingClosestView,
     get_tile,
     ContributionsViewSet,
 )
@@ -22,6 +23,7 @@ router.register(r"ads", ADSViewSet)
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
     path("buildings/guess/", BuildingGuessView.as_view()),
+    path("buildings/closest/", BuildingClosestView.as_view()),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile)

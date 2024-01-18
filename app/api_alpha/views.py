@@ -10,6 +10,8 @@ from api_alpha.serializers import (
     BuildingSerializer,
     GuessBuildingSerializer,
     ContributionSerializer,
+    BuildingClosestSerializer,
+    BuildingClosestQuerySerializer,
 )
 from api_alpha.services import get_city_from_request
 from batid.list_bdg import list_bdgs
@@ -27,6 +29,9 @@ from rest_framework.response import Response
 from django.http import HttpResponse, Http404
 from batid.services.vector_tiles import tile_sql, url_params_to_tile
 from rest_framework_tracking.mixins import LoggingMixin
+from django.contrib.gis.geos import Point
+from django.contrib.gis.measure import D
+from django.contrib.gis.db.models.functions import Distance
 
 
 class RNBLoggingMixin(LoggingMixin):
@@ -49,6 +54,38 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         serializer = GuessBuildingSerializer(qs, many=True)
 
         return Response(serializer.data)
+
+
+class BuildingClosestView(RNBLoggingMixin, APIView):
+    def get(self, request, *args, **kwargs):
+        serializer = BuildingClosestQuerySerializer(data=request.query_params)
+
+        if serializer.is_valid():
+            queryset = Building.objects.all()
+            point = request.query_params.get("point")
+            radius = request.query_params.get("radius")
+            lat, lng = point.split(",")
+            lat = float(lat)
+            lng = float(lng)
+            radius = int(radius)
+            point_geom = Point(lng, lat, srid=4326)
+
+            queryset = (
+                queryset.extra(
+                    where=[
+                        f"ST_DWITHIN(shape::geography, ST_MakePoint({lng}, {lat})::geography, {radius})"
+                    ]
+                )
+                .annotate(distance=Distance("shape", point_geom))
+                .order_by("distance")
+            )
+
+            serializer = BuildingClosestSerializer(queryset[0])
+
+            return Response(serializer.data)
+        else:
+            # Invalid data, return validation errors
+            return Response(serializer.errors, status=400)
 
 
 class BuildingCursorPagination(CursorPagination):
