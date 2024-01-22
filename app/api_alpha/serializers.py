@@ -112,6 +112,7 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
             raise serializers.ValidationError("Radius must be positive")
         return value
 
+    # todo : si ouverture à usage externe, utiliser une validation du point plus complète. Exemple dispo dans BuildingGuessParams.__validate_point_from_url()
     def validate_point(self, value):
         """
         we expect a 'lat,lng' format
