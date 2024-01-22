@@ -61,6 +61,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
         serializer = BuildingClosestQuerySerializer(data=request.query_params)
 
         if serializer.is_valid():
+            # todo : si ouverture du endpoint au public : ne permettre de voir que les bâtiments dont le statut est public et qui représente un bâtiment réel (cf `BuildingStatus.REAL_BUILDINGS_STATUS`)
             queryset = Building.objects.all()
             point = request.query_params.get("point")
             radius = request.query_params.get("radius")
