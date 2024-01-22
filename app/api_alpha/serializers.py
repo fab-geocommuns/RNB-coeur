@@ -83,6 +83,49 @@ class GuessBuildingSerializer(serializers.ModelSerializer):
         ]
 
 
+class BuildingClosestSerializer(serializers.ModelSerializer):
+    distance = serializers.SerializerMethodField()
+    point = serializers.DictField(source="point_geojson", read_only=True)
+    addresses = AddressSerializer(many=True, read_only=True)
+
+    def get_distance(self, obj):
+        return obj.distance.m
+
+    class Meta:
+        model = Building
+        fields = [
+            "rnb_id",
+            "distance",
+            "status",
+            "point",
+            "addresses",
+            "ext_ids",
+        ]
+
+
+class BuildingClosestQuerySerializer(serializers.Serializer):
+    radius = serializers.FloatField(required=True)
+    point = serializers.CharField(required=True)
+
+    def validate_radius(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Radius must be positive")
+        return value
+
+    # todo : si ouverture à usage externe, utiliser une validation du point plus complète. Exemple dispo dans BuildingGuessParams.__validate_point_from_url()
+    def validate_point(self, value):
+        """
+        we expect a 'lat,lng' format
+        """
+        try:
+            lat, lng = value.split(",")
+            lat = float(lat)
+            lng = float(lng)
+            return value
+        except:
+            raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+
+
 class CityADSSerializer(serializers.ModelSerializer):
     class Meta:
         model = City
