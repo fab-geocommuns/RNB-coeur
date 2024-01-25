@@ -15,6 +15,7 @@ from api_alpha.serializers import (
 )
 from api_alpha.services import get_city_from_request
 from batid.list_bdg import list_bdgs
+from batid.services.closest_bdg import get_closest
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.guess_bdg import BuildingGuess
@@ -62,31 +63,20 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
 
         if serializer.is_valid():
             # todo : si ouverture du endpoint au public : ne permettre de voir que les bâtiments dont le statut est public et qui représente un bâtiment réel (cf `BuildingStatus.REAL_BUILDINGS_STATUS`)
-            queryset = Building.objects.all()
+
             point = request.query_params.get("point")
             radius = request.query_params.get("radius")
             lat, lng = point.split(",")
             lat = float(lat)
             lng = float(lng)
             radius = int(radius)
-            point_geom = Point(lng, lat, srid=4326)
 
-            queryset = (
-                queryset.extra(
-                    where=[
-                        f"ST_DWITHIN(shape::geography, ST_MakePoint({lng}, {lat})::geography, {radius})"
-                    ]
-                )
-                .annotate(distance=Distance("shape", point_geom))
-                .order_by("distance")
-            )
+            qs = get_closest(lat, lng, radius)
 
-            buildings_n = queryset.count()
-
-            if buildings_n == 0:
+            if qs.count() == 0:
                 return Response({"error": "No buildings found"}, status=404)
             else:
-                serializer = BuildingClosestSerializer(queryset[0])
+                serializer = BuildingClosestSerializer(qs.first())
                 return Response(serializer.data)
         else:
             # Invalid data, return validation errors
