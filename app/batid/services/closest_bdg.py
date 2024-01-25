@@ -1,11 +1,13 @@
 from django.contrib.gis.geos import Point
-from django.contrib.gis.measure import Distance
+from django.contrib.gis.db.models.functions import Distance
 from batid.models import Building
 
 
 def get_closest(lat, lng, radius):
     __validate(lat, lng, radius)
-    return __get_qs(lat, lng, radius)
+    qs = __get_qs(lat, lng, radius)
+
+    return qs.first() if qs.count() > 0 else None
 
 
 def __get_qs(lat, lng, radius):
