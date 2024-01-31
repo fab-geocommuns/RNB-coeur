@@ -15,9 +15,8 @@ def scaleway(request, secret_token):
             return HttpResponse("Invalid token", status=401)
 
         mattermost_webhook = os.environ.get("MATTERMOST_RNB_TECH_WEBHOOK_URL")
-        payload = json.loads(request.body)
-        invoice_start_date = payload["invoice_start_date"]
-        threshold = payload["threshold"]
+        invoice_start_date = request.POST.get('invoice_start_date')
+        threshold = int(request.POST.get('threshold'))
 
         if (
             mattermost_webhook is None
@@ -33,6 +32,6 @@ def scaleway(request, secret_token):
             json={"text": message},
         )
         # return the response from the mattermost webhook
-        return HttpResponse(response)
+        return HttpResponse(response.content, status=response.status_code)
     else:
         return HttpResponse("This is not a POST request")
