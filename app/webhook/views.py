@@ -16,7 +16,7 @@ def scaleway(request, secret_token):
 
         mattermost_webhook = os.environ.get("MATTERMOST_RNB_TECH_WEBHOOK_URL")
         invoice_start_date = request.POST.get('invoice_start_date')
-        threshold = int(request.POST.get('threshold'))
+        threshold = request.POST.get('threshold')
 
         if (
             mattermost_webhook is None
@@ -25,6 +25,7 @@ def scaleway(request, secret_token):
         ):
             return HttpResponse("Bad Request", status=400)
 
+        threshold = int(threshold)
         message = f"Pour la période commençant le {invoice_start_date}, le seuil de consommation de {threshold}% du budget est dépassé."
         # forward the request to the mattermost webhook
         response = requests.post(
