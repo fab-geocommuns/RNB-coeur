@@ -4,10 +4,10 @@ import os
 def s3_client():
     return boto3.client(
         "s3",
-        aws_access_key_id=os.environ("SCALEWAY_AWS_ACCESS_KEY"),
-        aws_secret_access_key=os.environ("SCALEWAY_AWS_SECRET_KEY"),
-        endpoint_url=os.environ("SCALEWAY_AWS_ENDPOINT_URL"),
-        region_name=os.environ("SCALEWAY_AWS_REGION_NAME"),
+        aws_access_key_id=os.environ.get("SCALEWAY_AWS_ACCESS_KEY"),
+        aws_secret_access_key=os.environ.get("SCALEWAY_AWS_SECRET_KEY"),
+        endpoint_url=os.environ.get("SCALEWAY_AWS_ENDPOINT_URL"),
+        region_name=os.environ.get("SCALEWAY_AWS_REGION_NAME"),
     )
 
 def download_from_s3(s3_path, local_path):
