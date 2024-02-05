@@ -59,9 +59,9 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
 
 class BuildingClosestView(RNBLoggingMixin, APIView):
     def get(self, request, *args, **kwargs):
-        serializer = BuildingClosestQuerySerializer(data=request.query_params)
+        query_serializer = BuildingClosestQuerySerializer(data=request.query_params)
 
-        if serializer.is_valid():
+        if query_serializer.is_valid():
             # todo : si ouverture du endpoint au public : ne permettre de voir que les bâtiments dont le statut est public et qui représente un bâtiment réel (cf `BuildingStatus.REAL_BUILDINGS_STATUS`)
 
             point = request.query_params.get("point")
@@ -71,16 +71,19 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
             lng = float(lng)
             radius = int(radius)
 
-            qs = get_closest(lat, lng, radius)
+            bdg = get_closest(lat, lng, radius)
 
-            if qs.count() == 0:
-                return Response({"error": "No buildings found"}, status=404)
+            if bdg is None:
+                # On peut envisager de transformer le résultat de ce endpoint en liste de bâtiments plutot qu'en bâtiment unique.
+                return Response(
+                    {"message": "No building found in the area"}, status=200
+                )
             else:
-                serializer = BuildingClosestSerializer(qs.first())
+                serializer = BuildingClosestSerializer(bdg)
                 return Response(serializer.data)
         else:
             # Invalid data, return validation errors
-            return Response(serializer.errors, status=400)
+            return Response(query_serializer.errors, status=400)
 
 
 class BuildingCursorPagination(CursorPagination):

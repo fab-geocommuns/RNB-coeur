@@ -425,23 +425,33 @@ class BuildingClosestViewTest(APITestCase):
         )
         data = r.json()
         self.assertEqual(data["rnb_id"], "building_1")
-        
+
         self.assertGreater(data["distance"], 1.0)
         self.assertLess(data["distance"], 2.0)
 
     def test_closest_invalid_query_params(self):
-        r = self.client.get("/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262")
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262"
+        )
         self.assertEqual(r.status_code, 400)
 
-        r = self.client.get("/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=foo")
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=foo"
+        )
         self.assertEqual(r.status_code, 400)
 
-        r = self.client.get("/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=-10")
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=-10"
+        )
         self.assertEqual(r.status_code, 400)
 
         r = self.client.get("/api/alpha/buildings/closest/?radius=10")
         self.assertEqual(r.status_code, 400)
 
     def test_closest_no_building(self):
-        r = self.client.get("/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=10")
-        self.assertEqual(r.status_code, 404)
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=10"
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(r.json(), {"message": "No building found in the area"})

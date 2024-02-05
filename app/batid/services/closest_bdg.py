@@ -1,9 +1,10 @@
+from typing import Optional
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
 from batid.models import Building
 
 
-def get_closest(lat, lng, radius):
+def get_closest(lat, lng, radius) -> Optional[Building]:
     __validate(lat, lng, radius)
     qs = __get_qs(lat, lng, radius)
 
