@@ -66,6 +66,7 @@ services:
       - ./.env.worker.prod
       - ./.env.rnb.prod
       - ./.env.sentry.prod
+      - ./.env.s3_backup.prod
     depends_on:
       - rabbitmq
       - redis
@@ -85,11 +86,28 @@ services:
       - ./.env.worker.prod
       - ./.env.rnb.prod
       - ./.env.sentry.prod
+      - ./.env.s3_backup.prod
     depends_on:
       - rabbitmq
       - redis
     container_name: worker_2
-
+  celery_beat:
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
+      target: app_worker
+    command: celery -A app beat --loglevel=INFO
+    volumes:
+      - ./app:/app
+    env_file:
+      - ./.env.db_auth.prod
+      - ./.env.app.prod
+      - ./.env.worker.prod
+      - ./.env.rnb.prod
+    depends_on:
+      - rabbitmq
+      - redis
+    container_name: celery_beat
   rabbitmq:
     image: rabbitmq:3.9-alpine
     volumes:

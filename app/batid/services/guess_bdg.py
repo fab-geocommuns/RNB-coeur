@@ -69,7 +69,7 @@ class BuildingGuess:
             # We want to keep buildings that are close to the point
             self.scores[
                 "osm_point_distance"
-            ] = f"CASE WHEN ST_DistanceSphere(shape, %(osm_point)s) > 0 THEN 2 / ST_DistanceSphere(shape, %(osm_point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape, %(osm_point)s) >= 1 THEN 2 / ST_DistanceSphere(shape, %(osm_point)s) WHEN ST_DistanceSphere(shape, %(osm_point)s) > 0 THEN 2 ELSE 3 END"
 
             # Add the point to the params
             params["osm_point"] = f"{self.params._osm_point}"
@@ -106,7 +106,7 @@ class BuildingGuess:
             # todo : does the double ST_Distance evaluation is a performance problem ?
             self.scores[
                 "ban_point_distance"
-            ] = f"CASE WHEN ST_DistanceSphere(shape, %(ban_point)s) > 0 THEN 2 / ST_DistanceSphere(shape, %(ban_point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape, %(ban_point)s) >= 1 THEN 2 / ST_DistanceSphere(shape, %(ban_point)s) WHEN ST_DistanceSphere(shape, %(ban_point)s) > 0 THEN 2 ELSE 3 END"
 
             # Add the point to the params
             params["ban_point"] = f"{self.params._ban_point}"
@@ -129,7 +129,7 @@ class BuildingGuess:
             # todo : does the double ST_Distance evaluation is a performance problem ?
             self.scores[
                 "point_distance"
-            ] = f"CASE WHEN ST_DistanceSphere(shape, %(point)s) > 0 THEN 1 / ST_DistanceSphere(shape, %(point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape, %(point)s) >= 1 THEN 1 / ST_DistanceSphere(shape, %(point)s) WHEN ST_DistanceSphere(shape, %(point)s) > 0 THEN 1 ELSE 5 END"
 
             # LIMIT THE DISTANCE TO THE POINT
             wheres.append(f"ST_DWithin(shape::geography, %(point)s::geography, 400)")
@@ -204,10 +204,15 @@ class BuildingGuess:
 
         # SCORE SUM
         scores_sum = ", 0 as score"
+        subscores_obj = " "
         if len(self.scores):
+            # Total score
             subscore_sum_str = " + ".join(self.scores.keys())
+            scores_sum = f", {subscore_sum_str} as score "
 
-            scores_sum = f", ({subscore_sum_str}) / (sum({subscore_sum_str}) over()) as score, {subscore_sum_str} as abs_score "
+            # Subscores
+            subscores_struct = ", ".join([f"'{k}', {k}" for k in self.scores.keys()])
+            subscores_obj = f", json_build_object({subscores_struct}) as sub_scores "
 
         # ######################
         # Assembling the queries
@@ -220,7 +225,7 @@ class BuildingGuess:
 
         global_query = (
             f"WITH scored_bdgs AS ({score_query}) "
-            f"SELECT *  {scores_sum} "
+            f"SELECT *  {scores_sum} {subscores_obj} "
             f"FROM scored_bdgs "
             "ORDER BY score DESC "
             f"{pagination_str}"

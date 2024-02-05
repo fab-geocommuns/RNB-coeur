@@ -43,6 +43,7 @@ services:
       - ./.env.app.dev
       - ./.env.worker.dev
       - ./.env.rnb.dev
+      - ./.env.s3_backup.dev
     volumes:
       - ./app:/app
       - ./source_data:/data/downloads
@@ -51,6 +52,24 @@ services:
       - rabbitmq
     restart: unless-stopped
     container_name: worker
+  celery_beat:
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
+      target: app_worker
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app beat --loglevel=INFO
+    env_file:
+      - ./.env.db_auth.dev
+      - ./.env.app.dev
+      - ./.env.worker.dev
+      - ./.env.rnb.dev
+    volumes:
+      - ./app:/app
+    depends_on:
+      - redis
+      - rabbitmq
+    restart: unless-stopped
+    container_name: celery_beat
   rabbitmq:
     restart: unless-stopped
     image: rabbitmq:3.9-alpine
