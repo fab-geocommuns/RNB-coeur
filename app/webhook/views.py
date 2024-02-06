@@ -26,7 +26,7 @@ def scaleway(request, secret_token):
             return HttpResponse("Bad Request", status=400)
 
         threshold = int(threshold)
-        message = f"Pour la période commençant le {invoice_start_date}, le seuil de consommation de {threshold}% du budget est dépassé."
+        message = f"Attention : notre consommation Scaleway a dépassé {threshold}% du budget attendu pour la période commençant le {invoice_start_date}."
         # forward the request to the mattermost webhook
         response = requests.post(
             mattermost_webhook,
