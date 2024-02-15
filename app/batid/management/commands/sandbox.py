@@ -12,8 +12,8 @@ class Command(BaseCommand):
     work_file_path = "notebooks/rapprochements/dataES/results/results.json"
 
     def handle(self, *args, **options):
-        # self.report()
-        self.do_pairing()
+        self.report()
+        # self.do_pairing()
 
     def do_pairing(self):
         with open("notebooks/rapprochements/dataES/data/data-es.csv") as f:
@@ -35,8 +35,14 @@ class Command(BaseCommand):
             data = list(data.values())
             df = pd.json_normalize(data, sep="_")
 
-        # show 10 items with a match_subscores_osm_point_on_bdg = 10
-        print(df[df["match_subscores_osm_point_on_bdg"] == 10].head(10))
+        # Count the number of rows
+        total = len(df)
+        print(f"Number of rows: {total}")
+
+        # Number and percentage of rows with a match (where match is not null)
+        match_count = len(df[df["match_rnb_id"].notnull()])
+        match_percentage = match_count / total * 100
+        print(f"Number of rows with a match: {match_count} ({match_percentage:.2f}%)")
 
 
 def rowToParams(row) -> dict:
