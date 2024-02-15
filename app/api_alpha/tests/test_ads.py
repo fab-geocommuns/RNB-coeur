@@ -130,8 +130,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
             ],
         }
 
-        print(r_data)
-
         self.assertDictEqual(r_data, expected)
 
     def test_create_simple_ads(self):
