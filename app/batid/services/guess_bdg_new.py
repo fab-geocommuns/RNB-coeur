@@ -1,190 +1,138 @@
-import json
-from pprint import pprint
+import concurrent
+import time
 from typing import Optional
-
-from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
-
-from batid.models import Building
+from batid.services.closest_bdg import get_closest
 from batid.services.geocoders import PhotonGeocoder
-from geopy import distance
 
 
-class BuildingGuess:
+def guess_all(rows):
+    _validate_rows(rows)
+    guesses = _rows_to_guesses(rows)
 
-    """
-    On créé un nouveau système de guess plus simple que le guess précédent
-    Fonctionnement :
-    - On regarde les paramètres dans l'ordre suivant :
-        - le point
-        - le nom
-        - l'adresse
+    found_w_closest, not_found_so_far = _do_many_closest_building(guesses)
+    found_w_geocode, not_found_so_far = _do_many_geocode_name_and_point(
+        not_found_so_far
+    )
 
-    """
+    all = found_w_closest + found_w_geocode + not_found_so_far
 
-    MIN_CONFIDENCE_SCORE = 10
+    return all
 
-    def __init__(self):
-        self.params = self.BuildingGuessParams()
 
-        self.bdgs = {}
+def _do_many_geocode_name_and_point(guesses: list) -> (list, list):
+    found = []
+    not_found = []
 
-    def __set_params(self, **kwargs):
-        self.params.set_filters(**kwargs)
+    for guess in guesses:
+        time.sleep(0.800)  # we have to throttle the requests to the geocoding service
+        guess = _do_one_geocode_name_and_point(guess)
 
-    def guess(self, params):
-        self.__set_params(**params)
+        if guess["match"]:
+            found.append(guess)
+        else:
+            not_found.append(guess)
 
-        # ##################################
-        # First we can check with point only
-        if self.params.point:
-            self.__handle_point()
+    return found, not_found
 
-            # We are confident enough, we can stop here
-            if self.confident_guess:
-                return self.results
 
-        # ##################################
-        # Then we can check with name and point
-        if self.params.name and self.params.point:
-            self.__handle_name_and_point()
+def _do_one_geocode_name_and_point(guess):
+    lat = guess["row"].get("lat", None)
+    lng = guess["row"].get("lng", None)
+    name = guess["row"].get("name", None)
 
-            # We are confident enough, we can stop here
-            if self.confident_guess:
-                return self.results
+    if not lat or not lng or not name:
+        return guess
 
-    def __handle_name_and_point(self):
-        osm_bdg_point = _geocode_name_and_point(self.params.name, self.params.point)
+    osm_bdg_point = _geocode_name_and_point(name, lat, lng)
 
-        if osm_bdg_point:
-            # We already fetched bdgs around the point params, we don't need to fetch them again
-            self.__rate_results_w_osm_point(osm_bdg_point)
+    if osm_bdg_point:
+        closest_bdg = get_closest(osm_bdg_point[1], osm_bdg_point[0], 1)[:1]
 
-    def __rate_results_w_osm_point(self, osm_bdg_point: Point):
-        for rnb_id, bdg in self.bdgs.items():
-            if bdg.shape.contains(osm_bdg_point):
-                self.bdgs[rnb_id].subscores["osm_point_on_bdg"] = 10
+        if closest_bdg:
+            guess["match"] = closest_bdg[0]
+            guess["matched_on_step"] = "geocode_name_and_point"
+            return guess
 
-    @property
-    def results(self):
-        results = [bdg for bdg in list(self.bdgs.values()) if bdg.score > 0]
-        return results[:5]
+    return guess
 
-    @property
-    def confident_guess(self):
-        self._calc_scores()
-        self._sort_bdgs()
-        return self._eval_confidence()
 
-    def __handle_point(self):
-        self.__fetch_bdgs_around_point()
-        self.__rate_results_w_point()
+# todo : à tester
+def _do_many_closest_building(guesses: list) -> (list, list):
+    found = []
+    not_found = []
 
-    def __add_bdgs(self, bdgs):
-        for bdg in bdgs:
-            rnb_id = bdg.rnb_id
-
-            if rnb_id not in self.bdgs:
-                self.bdgs[rnb_id] = bdg
-                self.bdgs[rnb_id].subscores = {}
-
-    def __add_rated_bdgs(self, bdgs):
-        for bdg in bdgs:
-            rnb_id = bdg.rnb_id
-
-            if rnb_id not in self.bdgs:
-                self.bdgs[rnb_id] = bdg
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        tasks = [executor.submit(_do_one_closest_building, guess) for guess in guesses]
+        for future in concurrent.futures.as_completed(tasks):
+            guess = future.result()
+            if guess["match"]:
+                found.append(guess)
             else:
-                # Merge subscores
-                self.bdgs[rnb_id].subscores = (
-                    self.bdgs[rnb_id].subscores | bdg.subscores
-                )
+                not_found.append(guess)
 
-    def _calc_scores(self):
-        for bdg in self.bdgs.values():
-            bdg.score = sum(bdg.subscores.values())
+    return found, not_found
 
-    def _sort_bdgs(self):
-        self.bdgs = dict(
-            sorted(self.bdgs.items(), key=lambda item: item[1].score, reverse=True)
-        )
 
-    def _eval_confidence(self):
-        # No results : no confidence
-        if len(self.bdgs) == 0:
-            return False
+def _do_one_closest_building(guess):
+    lat = guess["row"].get("lat", None)
+    lng = guess["row"].get("lng", None)
 
-        # First result has a score too low : no confidence
-        first_score = list(self.bdgs.values())[0].score
-        if first_score < self.MIN_CONFIDENCE_SCORE:
-            return False
+    if not lat or not lng:
+        return guess
 
-        # First result has the same score as the second one : no confidence
-        if len(self.bdgs) > 1:
-            second_score = list(self.bdgs.values())[1].score
-            if second_score == first_score:
-                return False
+    # Get the two closest buildings
+    closest_bdgs = get_closest(lat, lng, 20)[:2]
 
-        return True
+    if not closest_bdgs:
+        return guess
 
-    def __fetch_bdgs_around_point(self):
-        qs = Building.objects.all()
-        qs = (
-            qs.extra(
-                where=[
-                    f"ST_DWITHIN(shape::geography, ST_MakePoint({self.params.point[0]}, {self.params.point[1]})::geography, 100)"
-                ]
-            )
-            .annotate(distance=Distance("shape", self.params.point))
-            .order_by("distance")
-        )
+    first_bdg = closest_bdgs[0]
+    # Is the first building within 1 meter ?
+    if first_bdg.distance.m <= 1:
+        guess["match"] = first_bdg
+        guess["matched_on_step"] = "point_on_bdg"
+        return guess
 
-        self.__add_bdgs(list(qs))
+    # Is the first building within 5 meters and the second building is far enough ?
+    if first_bdg.distance.m <= 5 and len(closest_bdgs) > 1:
+        second_bdg = closest_bdgs[1]
+        min_second_bdg_distance = _min_second_bdg_distance(first_bdg.distance.m)
+        if second_bdg.distance.m >= min_second_bdg_distance:
+            guess["match"] = first_bdg
+            guess["matched_on_step"] = "point_close_enough"
+            return guess
 
-    def __rate_results_w_point(self):
-        distances = []
+    # We did not find anything. We return guess as it was sent.
+    return guess
 
-        for rnb_id, bdg in self.bdgs.items():
-            # check if we have a distance attribute
-            if hasattr(bdg, "distance"):
-                distances.append((rnb_id, bdg.distance.m))
 
-        # We sort the distances
-        distances = sorted(distances, key=lambda x: x[1])
+def _rows_to_guesses(rows):
+    guesses = []
+    for row in rows:
+        guesses.append({"row": row, "match": None, "matched_on_step": None})
 
-        # loop on all distance
-        for idx, (rnb_id, distance) in enumerate(distances):
-            # Far building
-            if distance >= 20:
-                self.bdgs[rnb_id].subscores["point_distance"] = 0
+    return guesses
 
-            # Close building but not that close
-            if distance <= 5 and distance > 1:
-                self.bdgs[rnb_id].subscores["point_distance"] = 5
 
-            # Point on the building ! This is the one.
-            if distance <= 1:
-                self.bdgs[rnb_id].subscores["point_distance"] = 15
+def _validate_rows(rows):
+    _validate_types(rows)
+    _validate_ext_ids(rows)
 
-            # We add extra point to the first building if the second one is far enough
-            if idx == 0 and len(self.bdgs) > 1:
-                if distance > 1:
-                    second_bdg_distance = distances[1][1]
-                    min_second_bdg_distance = _min_second_bdg_distance(distance)
-                    if second_bdg_distance > min_second_bdg_distance:
-                        self.bdgs[rnb_id].subscores["point_second_bdg_far_enough"] = 5
 
-    class BuildingGuessParams:
-        def __init__(self):
-            self.point = None
-            self.name = None
-            self.address = None
+def _validate_types(rows):
+    for row in rows:
+        if not isinstance(row, dict):
+            raise Exception("data must be a list of dicts")
 
-        def set_filters(self, **kwargs):
-            for key, value in kwargs.items():
-                setattr(self, key, value)
+        if "ext_id" not in row:
+            raise Exception("ext_id is required for each row")
 
-            return self
+
+def _validate_ext_ids(rows):
+    ext_ids = [d["ext_id"] for d in rows]
+    if len(ext_ids) != len(set(ext_ids)):
+        raise Exception("ext_ids are not unique")
 
 
 def _min_second_bdg_distance(first_bdg_distance: float) -> float:
@@ -193,19 +141,24 @@ def _min_second_bdg_distance(first_bdg_distance: float) -> float:
     return first_bdg_distance * ratio
 
 
-def _geocode_name_and_point(name: str, point: Point) -> Optional[Point]:
+def _geocode_name_and_point(name: str, lat: float, lng: float) -> Optional[Point]:
     geocode_params = {
         "q": name,
-        "lat": point[1],
-        "lon": point[0],
+        "lat": lat,
+        "lon": lng,
         "lang": "fr",
         "limit": 1,
     }
 
     geocoder = PhotonGeocoder()
-    geo_result = geocoder.geocode(geocode_params)
 
-    if geo_result["features"] and geo_result["features"][0]["properties"]["type"] in [
+    response = geocoder.geocode(geocode_params)
+
+    geo_result = response.json()
+
+    if geo_result.get("features", None) and geo_result["features"][0]["properties"][
+        "type"
+    ] in [
         "building",
         "house",
         "construction",

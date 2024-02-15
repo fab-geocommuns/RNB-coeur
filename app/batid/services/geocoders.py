@@ -31,7 +31,7 @@ class PhotonGeocoder:
 
         response = requests.get(self.GEOCODE_URL, params=params)
 
-        return response.json()
+        return response
 
 
 class NominatimGeocoder:
