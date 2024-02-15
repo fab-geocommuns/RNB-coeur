@@ -1,0 +1,19 @@
+Commandes utiliser pour exporter les données de la base de production sur data.gouv.fr
+(A packager en script bash par la suite)
+
+Se connecter à la base de production avec psql :
+psql -h <ip_address_db> -p <port> -U <username> -W -d <db_name>
+
+Exporter les données de la base de production, sur sa machine locale, en csv :
+
+building :
+\COPY (select "id","rnb_id",ST_AsText("point") as point,"created_at","updated_at",ST_AsText("shape") as shape,"ext_ids" from batid_building) TO '<local_path>/rnb_building.csv' CSV HEADER
+
+address :
+\COPY (select "id","source","street_number","street_rep","street_name","street_type","city_name","city_zipcode","created_at","updated_at","point","city_insee_code" from batid_address ba) TO '<local_path>/rnb_address.csv' CSV HEADER
+
+building_address :
+\COPY (select "building_id", "address_id" from batid_building_addresses bba) TO '<local_path>/rnb_building_address.csv' CSV HEADER
+
+Création du zip :
+zip RNB_20210209.zip rnb_*
