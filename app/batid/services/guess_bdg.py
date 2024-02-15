@@ -617,7 +617,10 @@ class BANGeocodingHandler:
         self.geocoder = BanGeocoder()
 
     def geocode(self, search_params):
-        results = self.geocoder.geocode(search_params.address)
+        address = search_params.address
+
+        geocode_response = self.geocoder.geocode({"q": address})
+        results = geocode_response.json()
 
         # If there is any result coming from the geocoder
         if "features" in results and results["features"]:
