@@ -26,7 +26,7 @@ class WebhookTestCase(TestCase):
 
             mock_requests.post.assert_called_once_with(
                 os.environ.get("MATTERMOST_RNB_TECH_WEBHOOK_URL"),
-                json={"text": f"Pour la période commençant le {invoice_start_date}, le seuil de consommation de {threshold}% du budget est dépassé."},
+                json={"text": f"Attention : notre consommation Scaleway a dépassé {threshold}% du budget attendu pour la période commençant le {invoice_start_date}."},
             )
     def test_webhook_401(self):
         with self.env:
