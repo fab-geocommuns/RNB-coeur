@@ -6,10 +6,13 @@ from batid.services.closest_bdg import get_closest
 from batid.services.geocoders import PhotonGeocoder, BanGeocoder
 
 
-def guess_all(rows):
+def guess_all(rows, steps=None):
     _validate_rows(rows)
+    _validate_steps(steps)
+
     guesses = _rows_to_guesses(rows)
 
+    if ""
     found_w_closest, not_found_so_far = _do_many_closest_building(guesses)
     found_w_address, not_found_so_far = _do_many_bdg_w_address_and_point(
         not_found_so_far
@@ -21,6 +24,23 @@ def guess_all(rows):
     all = found_w_closest + found_w_address + found_w_geocode + not_found_so_far
 
     return all
+
+
+def _all_guess_steps():
+    return [
+        "match_reason",
+        "point_close_enough",
+        "geocode_name_and_point",
+        "address_and_point",
+    ]
+
+
+def _validate_steps(steps):
+    all_steps = _all_guess_steps()
+    invalid_steps = [step for step in steps if step not in all_steps]
+
+    if invalid_steps:
+        raise Exception(f"Invalid guess steps: {invalid_steps}. Available steps are: {all_steps}
 
 
 def _do_many_bdg_w_address_and_point(guesses: list) -> (list, list):
@@ -54,7 +74,7 @@ def _do_one_bdg_w_address_and_point(guess):
 
         if close_bdg_w_ban_id.count() == 1:
             guess["match"] = close_bdg_w_ban_id.first()
-            guess["matched_on_step"] = "address_and_point"
+            guess["match_reason"] = "address_and_point"
 
     return guess
 
@@ -91,7 +111,7 @@ def _do_one_geocode_name_and_point(guess):
         for close_bdg in closest_bdgs:
             if close_bdg.shape.contains(osm_bdg_point):
                 guess["match"] = close_bdg
-                guess["matched_on_step"] = "geocode_name_and_point"
+                guess["match_reason"] = "geocode_name_and_point"
                 return guess
 
     return guess
@@ -131,22 +151,24 @@ def _do_one_closest_building(guess):
     # Is the first building within 1 meter ?
     if first_bdg.distance.m <= 1:
         guess["match"] = first_bdg
-        guess["matched_on_step"] = "point_on_bdg"
+        guess["match_reason"] = "point_on_bdg"
         return guess
 
     # Is the first building within 10 meters and the second building is far enough ?
     if first_bdg.distance.m <= 10:
         if len(closest_bdgs) == 1:
+            # There is only one building close enough. No need to compare to the second one.
             guess["match"] = first_bdg
-            guess["matched_on_step"] = "point_close_enough"
+            guess["match_reason"] = "point_close_enough"
             return guess
 
         if len(closest_bdgs) > 1:
+            # There is at least one other close building. We compare the two closest buildings distance to the point.
             second_bdg = closest_bdgs[1]
             min_second_bdg_distance = _min_second_bdg_distance(first_bdg.distance.m)
             if second_bdg.distance.m >= min_second_bdg_distance:
                 guess["match"] = first_bdg
-                guess["matched_on_step"] = "point_close_enough"
+                guess["match_reason"] = "point_close_enough"
                 return guess
 
     # We did not find anything. We return guess as it was sent.
@@ -156,7 +178,7 @@ def _do_one_closest_building(guess):
 def _rows_to_guesses(rows):
     guesses = []
     for row in rows:
-        guesses.append({"row": row, "match": None, "matched_on_step": None})
+        guesses.append({"row": row, "match": None, "match_reason": None})
 
     return guesses
 

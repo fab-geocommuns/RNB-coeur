@@ -34,8 +34,8 @@ class Command(BaseCommand):
         matched_total = len(matched)
         print(f"Total number of rows with a match: {matched_total}")
 
-        # List all possible values of matched_on_step and count rows for each
-        print(df["matched_on_step"].value_counts())
+        # List all possible values of match_reason and count rows for each
+        print(df["match_reason"].value_counts())
 
         # To read the rows, we only need somes columns : row_ext_id, row_name, row_lat, row_lng, match_rnb_id
         extract = matched[
@@ -45,14 +45,14 @@ class Command(BaseCommand):
                 "row_lat",
                 "row_lng",
                 "match_rnb_id",
-                "matched_on_step",
+                "match_reason",
             ]
         ]
 
-        # Get an extract of rows with matched_on_step = "geocode_name_and_point" and display 25 rows
-        print("-- Extract of rows with matched_on_step = 'geocode_name_and_point' --")
+        # Get an extract of rows with match_reason = "geocode_name_and_point" and display 25 rows
+        print("-- Extract of rows with match_reason = 'geocode_name_and_point' --")
         extract_geocode_name_and_point = extract[
-            extract["matched_on_step"] == "geocode_name_and_point"
+            extract["match_reason"] == "geocode_name_and_point"
         ]
         extract_geocode_name_and_point.head(25)
         # save this extract to a csv file
@@ -61,10 +61,10 @@ class Command(BaseCommand):
             index=False,
         )
 
-        # Get an extract of rows with matched_on_step = "address_and_point" and display 25 rows
-        print("-- Extract of rows with matched_on_step = 'address_and_point' --")
+        # Get an extract of rows with match_reason = "address_and_point" and display 25 rows
+        print("-- Extract of rows with match_reason = 'address_and_point' --")
         extract_address_and_point = extract[
-            extract["matched_on_step"] == "address_and_point"
+            extract["match_reason"] == "address_and_point"
         ]
         extract_address_and_point.head(25)
         # save this extract to a csv file
