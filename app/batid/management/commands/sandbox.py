@@ -62,9 +62,9 @@ class Command(BaseCommand):
         )
 
         # Get an extract of rows with match_reason = "address_and_point" and display 25 rows
-        print("-- Extract of rows with match_reason = 'address_and_point' --")
+        print("-- Extract of rows with match_reason = 'precise_address_match' --")
         extract_address_and_point = extract[
-            extract["match_reason"] == "address_and_point"
+            extract["match_reason"] == "precise_address_match"
         ]
         extract_address_and_point.head(25)
         # save this extract to a csv file
