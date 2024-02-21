@@ -1,6 +1,5 @@
 import concurrent
 import time
-from pprint import pprint
 from typing import Optional
 from django.contrib.gis.geos import Point
 from batid.services.closest_bdg import get_closest
@@ -123,7 +122,7 @@ def _do_one_closest_building(guess):
         return guess
 
     # Get the two closest buildings
-    closest_bdgs = get_closest(lat, lng, 20)[:2]
+    closest_bdgs = get_closest(lat, lng, 30)[:2]
 
     if not closest_bdgs:
         return guess
@@ -135,14 +134,20 @@ def _do_one_closest_building(guess):
         guess["matched_on_step"] = "point_on_bdg"
         return guess
 
-    # Is the first building within 5 meters and the second building is far enough ?
-    if first_bdg.distance.m <= 5 and len(closest_bdgs) > 1:
-        second_bdg = closest_bdgs[1]
-        min_second_bdg_distance = _min_second_bdg_distance(first_bdg.distance.m)
-        if second_bdg.distance.m >= min_second_bdg_distance:
+    # Is the first building within 10 meters and the second building is far enough ?
+    if first_bdg.distance.m <= 10:
+        if len(closest_bdgs) == 1:
             guess["match"] = first_bdg
             guess["matched_on_step"] = "point_close_enough"
             return guess
+
+        if len(closest_bdgs) > 1:
+            second_bdg = closest_bdgs[1]
+            min_second_bdg_distance = _min_second_bdg_distance(first_bdg.distance.m)
+            if second_bdg.distance.m >= min_second_bdg_distance:
+                guess["match"] = first_bdg
+                guess["matched_on_step"] = "point_close_enough"
+                return guess
 
     # We did not find anything. We return guess as it was sent.
     return guess
