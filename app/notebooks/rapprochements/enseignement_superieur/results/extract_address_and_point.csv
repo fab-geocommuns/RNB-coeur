@@ -1,42 +1,34 @@
-row_ext_id,row_name,row_lat,row_lng,match_rnb_id,matched_on_step
-"67FaBFy52D743.299552,5.370533",EHESS - École des hautes études en sciences sociales APPARTEMENT CHERCHEURS,43.299552,5.370533,CMW3492ZA5EZ,address_and_point
-"C7B2938j5s249.8372970363346,3.3001807278",Université d'Amiens – Picardie Jules Verne POLE UNIVERSITAIRE DE SAINT-QUENTIN - PUSQ - BAT PRINCIPAL,49.8372970363346,3.3001807278,44FDY128TDFJ,address_and_point
-"A8Fb6c8j5s249.8364994744319,3.30044945043",Université d'Amiens – Picardie Jules Verne POLE UNIVERSI DE SAINT-QUENTIN - PUSQ - PLATEFORME TECHNIQUE,49.8364994744319,3.30044945043,44FDY128TDFJ,address_and_point
-"6bd5cC90I5444.837567,-0.576191",Université Bordeaux Bibliothèque  pluridisciplinaire,44.837567,-0.576191,1JA4NJAKCQBE,address_and_point
-"D02D8490I5444.662928,-1.163335",Université Bordeaux J5 Ponts et chausssées,44.662928,-1.163335,HP47GBC24RR1,address_and_point
-"874841FvH4k45.76475,3.083848",Université Clermont Auvergne UCA_PONCILLON,45.76475,3.083848,TQ5GN8RMBMHM,address_and_point
-"874841K4lR345.76475,3.083848",Université Clermont Auvergne UCA_PONCILLON,45.76475,3.083848,TQ5GN8RMBMHM,address_and_point
-"faF8F2RdQr748.850962,2.591069",IPG - Institut de physique du globe de Paris IPGP - Immeuble Prométhée,48.850962,2.591069,HVCY1TYWPP3H,address_and_point
-"7c2585vb71K48.776815,2.376381",Université Paris Est Créteil Val-de-Marne BÂTIMENT RT,48.776815,2.376381,ECQQWZVGK3VR,address_and_point
-"299cD1vb71K48.776996,2.375997",Université Paris Est Créteil Val-de-Marne BÂTIMENT - CHIMIE,48.776996,2.375997,ECQQWZVGK3VR,address_and_point
-"D5ffd7vb71K48.795263,2.454249","Université Paris Est Créteil Val-de-Marne, CROUS de l'Académie de Créteil (CROUS Créteil) UFR MEDECINE",48.795263,2.454249,ZDY29B56VX3D,address_and_point
-"Ff54bBLr94O46.806725,4.413986",Université Bourgogne Franche Comté IUT CREUSOT TC,46.806725,4.413986,MYHABNGDKBK7,address_and_point
-"dBB9B1Lr94O46.806725,4.413986",Université Bourgogne Franche Comté IUT CREUSOT HALL TECH,46.806725,4.413986,MYHABNGDKBK7,address_and_point
-"93b160Lr94O46.806725,4.413986",Université Bourgogne Franche Comté IUT CREUSOT MP,46.806725,4.413986,MYHABNGDKBK7,address_and_point
-"dA813bLr94O46.806725,4.413986",Université Bourgogne Franche Comté IUT CREUSOT LOGEMENT,46.806725,4.413986,MYHABNGDKBK7,address_and_point
-"43B38F2ALYK45.19329671,5.768417179",IPG - Institut polytechnique Grenoble ENSIMAG BAT D,45.19329671,5.768417179,MRGY2796TMX1,address_and_point
-"BafCdDF2yh245.19258386,5.762013566",Université Grenoble Alpes PHITEM A - MICHEL SOUTIF,45.19258386,5.762013566,9P3ME54A5AXY,address_and_point
-"BafCdDY7ch745.19258386,5.762013566",Université Grenoble Alpes PHITEM A - MICHEL SOUTIF,45.19258386,5.762013566,9P3ME54A5AXY,address_and_point
-"938B4aSzqy550.605963,3.04068",Université de Lille Service Commun de la Formation Permanente - Bâtiment B,50.605963,3.04068,WV1HKH8H2C6K,address_and_point
-"B5CDadSzqy550.605963,3.04068",Université de Lille Service Commun de la Formation Permanente - Bâtiment A,50.605963,3.04068,WV1HKH8H2C6K,address_and_point
-"B5CDadU8a0v50.605963,3.04068",Université de Lille Service Commun de la Formation Permanente - Bâtiment A,50.605963,3.04068,WV1HKH8H2C6K,address_and_point
-"938B4aU8a0v50.605963,3.04068",Université de Lille Service Commun de la Formation Permanente - Bâtiment B,50.605963,3.04068,WV1HKH8H2C6K,address_and_point
-"D74dfbyH19Y50.7262800878867,1.6050812305",Université du Littoral CENTRE UNIVERSITAIRE SAINT LOUIS BATIMENT 2,50.7262800878867,1.6050812305,ZMGSFXQHGA6F,address_and_point
-"C1BCd68k41p45.7836,4.88015",INSA-Lyon - Institut national des sciences appliquées de Lyon 201- ARCHIMEDE,45.7836,4.88015,C3EG5DM7QW8T,address_and_point
-"88DF8Dt6Cq548.66792058,6.156113595",Université de Lorraine FACULTE DU SPORT - BATIMENT B,48.66792058,6.156113595,DRFYG1BQ3MDY,address_and_point
-"fb2Bf8t6Cq548.66773104,6.156540066",Université de Lorraine FACULTE DU SPORT - BATIMENT A,48.66773104,6.156540066,DRFYG1BQ3MDY,address_and_point
-"a3df1aTeXD349.385324,1.073325",INSA-Rouen - Institut national des sciences appliquées de Rouen GYMNASE ET LOGEMENT FONCTION,49.385324,1.073325,VM44A9KM3K9M,address_and_point
-"1ab05dTeXD349.39393,1.073248",INSA-Rouen - Institut national des sciences appliquées de Rouen RESIDENCE WALLON,49.39393,1.073248,GJFYQEK1GSGD,address_and_point
-"Cd100BTeXD349.398447,1.07138",INSA-Rouen - Institut national des sciences appliquées de Rouen RESIDENCE ROBESPIERRE,49.398447,1.07138,CHV84ZS7Z9NA,address_and_point
-"F9c1bATeXD349.38784,1.082148",INSA-Rouen - Institut national des sciences appliquées de Rouen RESIDENCE LES CATELIERS,49.38784,1.082148,5RJ9G5MM263Y,address_and_point
-"a4a77AQYw7j47.583642,1.324739",INSA-CVL - Institut national des sciences appliquées du Centre Val de Loire LA CHOCOLATERIE,47.583642,1.324739,AQCKQBNAYJ7N,address_and_point
-"C2aCcbHCBvW46.81973859,1.678625774",Université Orléans INSPE Châteauroux bâtiment principal,46.81973859,1.678625774,4XHMSTZ8PZDS,address_and_point
-"fCf63ahlX1r46.585508,0.346684",Université Poitiers E04-BATIMENT A EX MED,46.585508,0.346684,PPYVZKS3VE75,address_and_point
-"8Bd18AhlX1r46.585508,0.346684",Université Poitiers E04-BATIMENT REPRO,46.585508,0.346684,PPYVZKS3VE75,address_and_point
-"7d37AbhlX1r46.5713983,0.380891",Université Poitiers A00-PYRAMIDE,46.5713983,0.380891,1H65GS98VJMN,address_and_point
-"919CBD57OsX48.299343,4.083659","Reims ""Université Champagne-Ardenne"" Cube et Gymnase",48.299343,4.083659,4HVPNT5ES74V,address_and_point
-"ccDba106SE748.5164436,-2.77668319999998",Université de Bretagne occidentale – Brest ANTENNE ESPE SAINT-BRIEUC,48.5164436,-2.77668319999998,XDE49T6ASMTF,address_and_point
-"c7CdAAgap5Q43.606757,1.436106",Université Toulouse Capitole Arsenal Halls et Amphis sur AE 215,43.606757,1.436106,DXQY89JG1K1T,address_and_point
-"c7CdAA542Id43.606757,1.436106",Université Toulouse I - Capitole Arsenal Halls et Amphis sur AE 215,43.606757,1.436106,DXQY89JG1K1T,address_and_point
-"450B56W6CUQ48.90056,2.070321",CY Cergy Paris Université TERRAIN NU (AW 66),48.90056,2.070321,79TV17PQSHG4,address_and_point
-"450B56RS4WF48.90056,2.070321",CY Cergy Paris Université TERRAIN NU (AW 66),48.90056,2.070321,79TV17PQSHG4,address_and_point
+row_ext_id,row_name,row_lat,row_lng,match_rnb_id,match_reason,match_distance
+"67FaBFy52D743.299552,5.370533",EHESS - École des hautes études en sciences sociales APPARTEMENT CHERCHEURS,43.299552,5.370533,CMW3492ZA5EZ,precise_address_match,2.94759139
+"C7B2938j5s249.8372970363346,3.3001807278",Université d'Amiens – Picardie Jules Verne POLE UNIVERSITAIRE DE SAINT-QUENTIN - PUSQ - BAT PRINCIPAL,49.8372970363346,3.3001807278,44FDY128TDFJ,precise_address_match,3.1364647
+"A8Fb6c8j5s249.8364994744319,3.30044945043",Université d'Amiens – Picardie Jules Verne POLE UNIVERSI DE SAINT-QUENTIN - PUSQ - PLATEFORME TECHNIQUE,49.8364994744319,3.30044945043,44FDY128TDFJ,precise_address_match,5.79736315
+"6bd5cC90I5444.837567,-0.576191",Université Bordeaux Bibliothèque  pluridisciplinaire,44.837567,-0.576191,1JA4NJAKCQBE,precise_address_match,19.90450091
+"D02D8490I5444.662928,-1.163335",Université Bordeaux J5 Ponts et chausssées,44.662928,-1.163335,HP47GBC24RR1,precise_address_match,18.48117377
+"874841FvH4k45.76475,3.083848",Université Clermont Auvergne UCA_PONCILLON,45.76475,3.083848,TQ5GN8RMBMHM,precise_address_match,7.121837
+"874841K4lR345.76475,3.083848",Université Clermont Auvergne UCA_PONCILLON,45.76475,3.083848,TQ5GN8RMBMHM,precise_address_match,7.121837
+"faF8F2RdQr748.850962,2.591069",IPG - Institut de physique du globe de Paris IPGP - Immeuble Prométhée,48.850962,2.591069,HVCY1TYWPP3H,precise_address_match,9.34222225
+"A8Ca173Z5e648.836705,2.585834",UGE - Université Gustave Eiffel Cafétéria IUT occupée par le CROUS,48.836705,2.585834,EGPNTN4V8KXQ,precise_address_match,9.61295131
+"A8Ca179Y8CD48.836705,2.585834",UGE - Université Gustave Eiffel Cafétéria IUT occupée par le CROUS,48.836705,2.585834,EGPNTN4V8KXQ,precise_address_match,9.61295131
+"7c2585vb71K48.776815,2.376381",Université Paris Est Créteil Val-de-Marne BÂTIMENT RT,48.776815,2.376381,ECQQWZVGK3VR,precise_address_match,12.13401377
+"299cD1vb71K48.776996,2.375997",Université Paris Est Créteil Val-de-Marne BÂTIMENT - CHIMIE,48.776996,2.375997,ECQQWZVGK3VR,precise_address_match,14.68491968
+"Ff54bBLr94O46.806725,4.413986",Université Bourgogne Franche Comté IUT CREUSOT TC,46.806725,4.413986,MYHABNGDKBK7,precise_address_match,14.85401931
+"93b160Lr94O46.806725,4.413986",Université Bourgogne Franche Comté IUT CREUSOT MP,46.806725,4.413986,MYHABNGDKBK7,precise_address_match,14.85401931
+"dBB9B1Lr94O46.806725,4.413986",Université Bourgogne Franche Comté IUT CREUSOT HALL TECH,46.806725,4.413986,MYHABNGDKBK7,precise_address_match,14.85401931
+"dA813bLr94O46.806725,4.413986",Université Bourgogne Franche Comté IUT CREUSOT LOGEMENT,46.806725,4.413986,MYHABNGDKBK7,precise_address_match,14.85401931
+"533b25F2yh245.19319087,5.762837277",Université Grenoble Alpes PHITEM E (LIPHY),45.19319087,5.762837277,JPXCNW582Z3S,precise_address_match,9.11310947
+"533b25Y7ch745.19319087,5.762837277",Université Grenoble Alpes PHITEM E (LIPHY),45.19319087,5.762837277,JPXCNW582Z3S,precise_address_match,9.11310947
+"D74dfbyH19Y50.7262800878867,1.6050812305",Université du Littoral CENTRE UNIVERSITAIRE SAINT LOUIS BATIMENT 2,50.7262800878867,1.6050812305,ZMGSFXQHGA6F,precise_address_match,16.07636342
+"aD37a91I7hJ43.61044,3.86618","Montpellier-III ""Université Paul Valery"" CENTRE SAINT LOUIS",43.61044,3.86618,Y5M5H39BFBBZ,precise_address_match,7.07983638
+"Cd100BTeXD349.398447,1.07138",INSA-Rouen - Institut national des sciences appliquées de Rouen RESIDENCE ROBESPIERRE,49.398447,1.07138,CHV84ZS7Z9NA,precise_address_match,12.12445772
+"F9c1bATeXD349.38784,1.082148",INSA-Rouen - Institut national des sciences appliquées de Rouen RESIDENCE LES CATELIERS,49.38784,1.082148,5RJ9G5MM263Y,precise_address_match,8.139457
+"a3df1aTeXD349.385324,1.073325",INSA-Rouen - Institut national des sciences appliquées de Rouen GYMNASE ET LOGEMENT FONCTION,49.385324,1.073325,VM44A9KM3K9M,precise_address_match,9.25373535
+"a4a77AQYw7j47.583642,1.324739",INSA-CVL - Institut national des sciences appliquées du Centre Val de Loire LA CHOCOLATERIE,47.583642,1.324739,AQCKQBNAYJ7N,precise_address_match,5.30092117
+"F331AaHCBvW48.43600137,1.486864639",Université Orléans PUEL (Pole Universitaire Eure-et-Loir),48.43600137,1.486864639,F7EBZZQ8CBTY,precise_address_match,3.76194646
+"C2aCcbHCBvW46.81973859,1.678625774",Université Orléans INSPE Châteauroux bâtiment principal,46.81973859,1.678625774,4XHMSTZ8PZDS,precise_address_match,14.79823654
+"fCf63ahlX1r46.585508,0.346684",Université Poitiers E04-BATIMENT A EX MED,46.585508,0.346684,PPYVZKS3VE75,precise_address_match,18.30721016
+"8Bd18AhlX1r46.585508,0.346684",Université Poitiers E04-BATIMENT REPRO,46.585508,0.346684,PPYVZKS3VE75,precise_address_match,18.30721016
+"7d37AbhlX1r46.5713983,0.380891",Université Poitiers A00-PYRAMIDE,46.5713983,0.380891,1H65GS98VJMN,precise_address_match,8.47012819
+"919CBD57OsX48.299343,4.083659","Reims ""Université Champagne-Ardenne"" Cube et Gymnase",48.299343,4.083659,4HVPNT5ES74V,precise_address_match,16.27745394
+"ccDba106SE748.5164436,-2.77668319999998",Université de Bretagne occidentale – Brest ANTENNE ESPE SAINT-BRIEUC,48.5164436,-2.77668319999998,XDE49T6ASMTF,precise_address_match,17.79351642
+"450B56RS4WF48.90056,2.070321",CY Cergy Paris Université TERRAIN NU (AW 66),48.90056,2.070321,79TV17PQSHG4,precise_address_match,6.84603002
+"450B56W6CUQ48.90056,2.070321",CY Cergy Paris Université TERRAIN NU (AW 66),48.90056,2.070321,79TV17PQSHG4,precise_address_match,6.84603002

@@ -1,205 +1,238 @@
 import concurrent
+import json
 import time
 from typing import Optional
 from django.contrib.gis.geos import Point
+import pandas as pd
+
+from batid.models import Building
 from batid.services.closest_bdg import get_closest
 from batid.services.geocoders import PhotonGeocoder, BanGeocoder
 
 
-def guess_all(rows, steps=None):
-    _validate_rows(rows)
-    _validate_steps(steps)
+class Guesser:
+    STEP_CLOSEST_FROM_POINT = "closest_from_point"
+    STEP_GEOCODE_ADDRESS = "geocode_address"
+    STEP_GEOCODE_NAME = "geocode_name"
 
-    # If no steps are provided, we use the default steps
-    if not steps:
-        steps = _all_guess_steps()
+    def __init__(self):
+        self.guesses = {}
 
-    # Format the rows into a list of guesses
-    guesses = _rows_to_guesses(rows)
+    def create_work_file(self, rows, file_path):
+        self.guesses_from_rows(rows)
+        self.save_work_file(file_path)
 
-    # Results
-    all = []
-    not_found_so_far = guesses
+    def load_work_file(self, file_path):
+        with open(file_path, "r") as f:
+            self.guesses = json.load(f)
 
-    if "closest_from_point" in steps:
-        found_w_closest, not_found_so_far = _do_many_closest_building(not_found_so_far)
-        all += found_w_closest
+    def guesses_from_rows(self, rows: list):
+        self._validate_rows(rows)
+        self.guesses = self._rows_to_guesses(rows)
 
-    if "geocode_address" in steps:
-        found_w_address, not_found_so_far = _do_many_bdg_w_address_and_point(not_found_so_far)
-        all += found_w_address
+    def guess_work_file(self, file_path):
+        self.load_work_file(file_path)
 
-    if "geocode_name" in steps:
-        found_w_geocode, not_found_so_far = _do_many_geocode_name_and_point(not_found_so_far)
-        all += found_w_geocode
+        batch_size = 300
+        batch = {}
 
+        c = 0
+        for ext_id, guess in self.guesses.items():
+            c += 1
+            print(c)
+            batch[ext_id] = guess
 
-    all += not_found_so_far
+            if len(batch) == batch_size or ext_id == list(self.guesses.keys())[-1]:
+                batch = self.guess_batch(batch)
+                print("- save batch -")
+                self.guesses.update(batch)
+                self.save_work_file(file_path)
+                batch = {}
 
-    return all
+    def report(self):
+        print("-- Report --")
+        df = pd.json_normalize(self.guesses, sep="_")
 
+    def save_work_file(self, file_path):
+        self.convert_matches()
 
-def _all_guess_steps():
-    return [
-        "closest_from_point",
-        "geocode_address",
-        "geocode_name"
-    ]
+        with open(file_path, "w") as f:
+            json.dump(self.guesses, f, indent=4)
 
+    def convert_matches(self):
+        for ext_id, guess in self.guesses.items():
+            if guess["match"] and isinstance(guess["match"], Building):
+                guess["match"] = {
+                    "rnb_id": guess["match"].rnb_id,
+                    "lat_lng": f"{guess['match'].point[1]}, {guess['match'].point[0]}",
+                    "distance": guess["match"].distance.m,
+                }
 
-def _validate_steps(steps):
+    @classmethod
+    def guess_batch(cls, guesses: dict) -> dict:
+        # First try : closest building from point
+        guesses = cls._do_many_closest_building(guesses)
+        guesses = cls._add_finished_step(cls.STEP_CLOSEST_FROM_POINT, guesses)
 
-    if not isinstance(steps, list):
-        raise Exception("Guess steps must be a list")
+        # Second try : geocode address with BAN
+        guesses = cls._do_many_bdg_w_address_and_point(guesses)
+        guesses = cls._add_finished_step(cls.STEP_GEOCODE_ADDRESS, guesses)
 
-    if not steps:
-        raise Exception("Guess steps must not be empty")
+        # Third try : geocode name with OSM
+        guesses = cls._do_many_geocode_name_and_point(guesses)
+        guesses = cls._add_finished_step(cls.STEP_GEOCODE_NAME, guesses)
 
-    all_steps = _all_guess_steps()
-    invalid_steps = [step for step in steps if step not in all_steps]
+        return guesses
 
-    if invalid_steps:
-        raise Exception(f"Invalid guess steps: {invalid_steps}. Available steps are: {all_steps}
+    @staticmethod
+    def _add_finished_step(step: str, guesses: dict) -> dict:
+        for guess in guesses.values():
+            if step not in guess["finished_steps"]:
+                guess["finished_steps"].append(step)
+        return guesses
 
+    @classmethod
+    def _do_many_geocode_name_and_point(cls, guesses: dict) -> dict:
+        for guess in guesses.values():
+            if cls._need_to_do_step(cls.STEP_GEOCODE_NAME, guess):
+                time.sleep(0.800)  # throttle the requests
+                guess = cls._do_one_geocode_name_and_point(guess)
 
-def _do_many_bdg_w_address_and_point(guesses: list) -> (list, list):
-    found = []
-    not_found = []
+                guesses[guess["row"]["ext_id"]] = guess
 
-    for guess in guesses:
-        time.sleep(0.800)
-        guess = _do_one_bdg_w_address_and_point(guess)
+        return guesses
 
-        if guess["match"]:
-            found.append(guess)
-        else:
-            not_found.append(guess)
+    @classmethod
+    def _do_many_bdg_w_address_and_point(cls, guesses: dict) -> dict:
+        for guess in guesses.values():
+            if cls._need_to_do_step(cls.STEP_GEOCODE_ADDRESS, guess):
+                time.sleep(0.800)
+                guess = cls._do_one_bdg_w_address_and_point(guess)
+                guesses[guess["row"]["ext_id"]] = guess
 
-    return found, not_found
+        return guesses
 
+    @staticmethod
+    def _do_one_bdg_w_address_and_point(guess):
+        lat = guess["row"].get("lat", None)
+        lng = guess["row"].get("lng", None)
+        address = guess["row"].get("address", None)
 
-def _do_one_bdg_w_address_and_point(guess):
-    lat = guess["row"].get("lat", None)
-    lng = guess["row"].get("lng", None)
-    address = guess["row"].get("address", None)
-
-    if not address or not lat or not lng:
-        return guess
-
-    ban_id = _address_to_ban_id(address, lat, lng)
-
-    if ban_id:
-        close_bdg_w_ban_id = get_closest(lat, lng, 20).filter(addresses__id=ban_id)
-
-        if close_bdg_w_ban_id.count() == 1:
-            guess["match"] = close_bdg_w_ban_id.first()
-            guess["match_reason"] = "precise_address_match"
-
-    return guess
-
-
-def _do_many_geocode_name_and_point(guesses: list) -> (list, list):
-    found = []
-    not_found = []
-
-    for guess in guesses:
-        time.sleep(0.800)  # we have to throttle the requests to the geocoding service
-        guess = _do_one_geocode_name_and_point(guess)
-
-        if guess["match"]:
-            found.append(guess)
-        else:
-            not_found.append(guess)
-
-    return found, not_found
-
-
-def _do_one_geocode_name_and_point(guess):
-    lat = guess["row"].get("lat", None)
-    lng = guess["row"].get("lng", None)
-    name = guess["row"].get("name", None)
-
-    if not lat or not lng or not name:
-        return guess
-
-    osm_bdg_point = _geocode_name_and_point(name, lat, lng)
-
-    if osm_bdg_point:
-        closest_bdgs = get_closest(lat, lng, 20)
-
-        for close_bdg in closest_bdgs:
-            if close_bdg.shape.contains(osm_bdg_point):
-                guess["match"] = close_bdg
-                guess["match_reason"] = "found_name_in_osm"
-                return guess
-
-    return guess
-
-
-# todo : à tester
-def _do_many_closest_building(guesses: list) -> (list, list):
-    found = []
-    not_found = []
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        tasks = [executor.submit(_do_one_closest_building, guess) for guess in guesses]
-        for future in concurrent.futures.as_completed(tasks):
-            guess = future.result()
-            if guess["match"]:
-                found.append(guess)
-            else:
-                not_found.append(guess)
-
-    return found, not_found
-
-
-def _do_one_closest_building(guess):
-    lat = guess["row"].get("lat", None)
-    lng = guess["row"].get("lng", None)
-
-    if not lat or not lng:
-        return guess
-
-    # Get the two closest buildings
-    closest_bdgs = get_closest(lat, lng, 30)[:2]
-
-    if not closest_bdgs:
-        return guess
-
-    first_bdg = closest_bdgs[0]
-    # Is the first building within 1 meter ?
-    if first_bdg.distance.m <= 1:
-        guess["match"] = first_bdg
-        guess["match_reason"] = "point_on_bdg"
-        return guess
-
-    # Is the first building within 10 meters and the second building is far enough ?
-    if first_bdg.distance.m <= 10:
-        if len(closest_bdgs) == 1:
-            # There is only one building close enough. No need to compare to the second one.
-            guess["match"] = first_bdg
-            guess["match_reason"] = "isolated_closest_bdg"
+        if not address or not lat or not lng:
             return guess
 
-        if len(closest_bdgs) > 1:
-            # There is at least one other close building. We compare the two closest buildings distance to the point.
-            second_bdg = closest_bdgs[1]
-            min_second_bdg_distance = _min_second_bdg_distance(first_bdg.distance.m)
-            if second_bdg.distance.m >= min_second_bdg_distance:
+        ban_id = _address_to_ban_id(address, lat, lng)
+
+        if ban_id:
+            close_bdg_w_ban_id = get_closest(lat, lng, 100).filter(addresses__id=ban_id)
+
+            if close_bdg_w_ban_id.count() == 1:
+                guess["match"] = close_bdg_w_ban_id.first()
+                guess["match_reason"] = "precise_address_match"
+
+        return guess
+
+    @classmethod
+    def _do_one_geocode_name_and_point(cls, guess):
+        lat = guess["row"].get("lat", None)
+        lng = guess["row"].get("lng", None)
+        name = guess["row"].get("name", None)
+
+        if not lat or not lng or not name:
+            return guess
+
+        osm_bdg_point = _geocode_name_and_point(name, lat, lng)
+
+        if osm_bdg_point:
+            closest_bdgs = get_closest(lat, lng, 20)
+
+            for close_bdg in closest_bdgs:
+                if close_bdg.shape.contains(osm_bdg_point):
+                    guess["match"] = close_bdg
+                    guess["match_reason"] = "found_name_in_osm"
+                    return guess
+
+        return guess
+
+    @classmethod
+    def _do_many_closest_building(cls, guesses: dict) -> dict:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            tasks = [
+                executor.submit(cls._do_one_closest_building, guess)
+                for guess in guesses.values()
+            ]
+
+            for future in concurrent.futures.as_completed(tasks):
+                guess = future.result()
+                guesses[guess["row"]["ext_id"]] = guess
+
+        return guesses
+
+    @staticmethod
+    def _need_to_do_step(step: str, guess: dict) -> bool:
+        return step not in guess["finished_steps"] and guess["match"] is None
+
+    @classmethod
+    def _do_one_closest_building(cls, guess: dict):
+        if not cls._need_to_do_step(cls.STEP_CLOSEST_FROM_POINT, guess):
+            return guess
+
+        lat = guess["row"].get("lat", None)
+        lng = guess["row"].get("lng", None)
+
+        if not lat or not lng:
+            return guess
+
+        # Get the two closest buildings
+        closest_bdgs = get_closest(lat, lng, 30)[:2]
+
+        if not closest_bdgs:
+            return guess
+
+        first_bdg = closest_bdgs[0]
+        # Is the first building within 1 meter ?
+        if first_bdg.distance.m <= 1:
+            guess["match"] = first_bdg
+            guess["match_reason"] = "point_on_bdg"
+            return guess
+
+        # Is the first building within 8 meters and the second building is far enough ?
+        if first_bdg.distance.m <= 8:
+            if len(closest_bdgs) == 1:
+                # There is only one building close enough. No need to compare to the second one.
                 guess["match"] = first_bdg
                 guess["match_reason"] = "isolated_closest_bdg"
                 return guess
 
-    # We did not find anything. We return guess as it was sent.
-    return guess
+            if len(closest_bdgs) > 1:
+                # There is at least one other close building. We compare the two closest buildings distance to the point.
+                second_bdg = closest_bdgs[1]
+                min_second_bdg_distance = _min_second_bdg_distance(first_bdg.distance.m)
+                if second_bdg.distance.m >= min_second_bdg_distance:
+                    guess["match"] = first_bdg
+                    guess["match_reason"] = "isolated_closest_bdg"
+                    return guess
 
+        # We did not find anything. We return guess as it was sent.
+        return guess
 
-def _rows_to_guesses(rows):
-    guesses = []
-    for row in rows:
-        guesses.append({"row": row, "match": None, "match_reason": None})
+    @staticmethod
+    def _rows_to_guesses(rows) -> dict:
+        guesses = {}
+        for row in rows:
+            ext_id = row["ext_id"]
+            guesses[ext_id] = {
+                "row": row,
+                "match": None,
+                "match_reason": None,
+                "finished_steps": [],
+            }
 
-    return guesses
+        return guesses
+
+    @staticmethod
+    def _validate_rows(rows):
+        _validate_rows(rows)
 
 
 def _validate_rows(rows):
@@ -223,9 +256,14 @@ def _validate_ext_ids(rows):
 
 
 def _min_second_bdg_distance(first_bdg_distance: float) -> float:
-    # The formula has been built here : https://chat.openai.com/share/116eeabc-9ba0-4b2e-902f-2291277ef879
-    ratio = 1.82 ** (-0.202 * first_bdg_distance) + 1.3
-    return first_bdg_distance * ratio
+    # The second building must be at least 10 meters away from the point
+    min_distance_floor = 10.0
+
+    # The second building must be at least 3 times the distance of the first building
+    ratio = 3
+    min_distance_w_ratio = first_bdg_distance * ratio
+
+    return max(min_distance_floor, min_distance_w_ratio)
 
 
 def _geocode_name_and_point(name: str, lat: float, lng: float) -> Optional[Point]:
