@@ -8,23 +8,23 @@ import time
 
 
 # main function to be called by the cron job
-def backup_to_s3():
+def backup_to_s3(task_id=None):
     try:
         (backup_id, backup_name) = create_scaleway_db_backup()
         download_url = create_backup_download_url(backup_id)
         upload_to_s3(backup_name, download_url)
         notify_mattermost(backup_name)
     except Exception as e:
-        notify_mattermost_error(e)
+        notify_mattermost_error(e, task_id)
         raise e
 
 
-def notify_mattermost_error(error):
+def notify_mattermost_error(error, task_id):
     MATTERMOST_RNB_TECH_WEBHOOK_URL = os.environ.get("MATTERMOST_RNB_TECH_WEBHOOK_URL")
 
     data = {
         "username": "backup-bot",
-        "text": f"Une erreur est survenue lors de la création d'un backup de la base de production du RNB : {error}",
+        "text": f"Une erreur est survenue lors de la création d'un backup de la base de production du RNB : {error}. Task ID : {task_id}",
     }
 
     r = requests.post(MATTERMOST_RNB_TECH_WEBHOOK_URL, data=json.dumps(data))

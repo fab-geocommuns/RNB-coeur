@@ -142,8 +142,8 @@ def dispatch_signal(pk: int):
     return "done"
 
 
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
-def backup_to_s3():
+@shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def backup_to_s3(self):
     # Backing up the database on a separate S3 service
-    backup_to_s3_job()
+    backup_to_s3_job(task_id=self.request.id)
     return "done"
