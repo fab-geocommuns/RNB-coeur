@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "batid",
     "website",
     "api_alpha",
+    "webhook",
     "xp",
     "django_extensions",
     "revproxy",
