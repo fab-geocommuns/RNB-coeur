@@ -23,4 +23,5 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     FlowerProxyView.as_url(),
     path("__debug__/", include("debug_toolbar.urls")),
+    path("webhook/", include("webhook.urls")),
 ]
