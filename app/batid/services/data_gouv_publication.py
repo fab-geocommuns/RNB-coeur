@@ -113,15 +113,19 @@ def upload_to_s3(archive_path):
     # extract file name from archive path
     archive_name = os.path.basename(archive_path)
     folder_on_bucket = "data.gouv.fr"
+    path_on_bucket = f"{folder_on_bucket}/{archive_name}"
 
     s3.upload_file(
-        archive_path, folder_on_bucket, archive_name, ExtraArgs={"ACL": "public-read"}
+        archive_path,
+        S3_SCALEWAY_BUCKET_NAME,
+        path_on_bucket,
+        ExtraArgs={"ACL": "public-read"},
     )
 
     object_exists = s3.get_waiter("object_exists")
-    object_exists.wait(Bucket=folder_on_bucket, Key=archive_name)
+    object_exists.wait(Bucket=S3_SCALEWAY_BUCKET_NAME, Key=path_on_bucket)
 
-    public_url = f"https://{S3_SCALEWAY_BUCKET_NAME}.s3.{S3_SCALEWAY_REGION_NAME}.scw.cloud/{folder_on_bucket}/{archive_name}"
+    public_url = f"https://{S3_SCALEWAY_BUCKET_NAME}.s3.{S3_SCALEWAY_REGION_NAME}.scw.cloud/{path_on_bucket}"
 
     return public_url
 
