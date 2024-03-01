@@ -8,11 +8,14 @@ from batid.services.data_gouv_publication import (
     create_rnb_csv_files,
     create_archive,
     cleanup_directory,
-    upload_to_s3
+    upload_to_s3,
+    data_gouv_resource_id,
+    update_resource_metadata,
 )
 import os
 from moto import mock_aws
 import boto3
+
 
 def get_geom():
     coords = {
@@ -108,7 +111,10 @@ class TestDataGouvPublication(TestCase):
     # with the default AWS s3 values (could not make it work with custom values)
     @mock.patch.dict(
         os.environ,
-        {"S3_SCALEWAY_REGION_NAME": 'us-east-1', "S3_SCALEWAY_ENDPOINT_URL": "https://s3.us-east-1.amazonaws.com"},
+        {
+            "S3_SCALEWAY_REGION_NAME": "us-east-1",
+            "S3_SCALEWAY_ENDPOINT_URL": "https://s3.us-east-1.amazonaws.com",
+        },
     )
     def test_upload_to_s3(self):
         # create the zip file to upload
@@ -121,7 +127,7 @@ class TestDataGouvPublication(TestCase):
         )
         directory_name = create_rnb_csv_files()
         (archive_path, archive_size, archive_sha1) = create_archive(directory_name)
-        
+
         # create the mock s3 bucket
         conn = boto3.resource("s3")
         conn.create_bucket(Bucket="rnb-open")
@@ -131,6 +137,43 @@ class TestDataGouvPublication(TestCase):
 
         # check the file exists in data.gouv.fr folder and has the correct size
         archive_name = os.path.basename(archive_path)
-        self.assertEqual(conn.Object("rnb-open", f"data.gouv.fr/{archive_name}").content_length, archive_size)
+        self.assertEqual(
+            conn.Object("rnb-open", f"data.gouv.fr/{archive_name}").content_length,
+            archive_size,
+        )
 
         cleanup_directory(directory_name)
+
+    @mock.patch("batid.services.data_gouv_publication.requests.get")
+    def test_get_resource_id_on_data_gouv(self, get_mock):
+        get_mock.return_value.status_code = 200
+        get_mock.return_value.json.return_value = {
+            "resources": [{"id": "1", "format": "csv"}, {"id": "2", "format": "zip"}]
+        }
+
+        resource_id = data_gouv_resource_id("some-dataset-id")
+        self.assertEqual(resource_id, "2")
+
+    @mock.patch("batid.services.data_gouv_publication.requests.put")
+    @mock.patch.dict(
+        os.environ,
+        {
+            "DATA_GOUV_API_KEY": "DATA_GOUV_API_KEY",
+        },
+    )
+    def test_update_resource_on_data_gouv(self, put_mock):
+        put_mock.return_value.status_code = 200
+        archive_sha1 = "some-sha1"
+        update_resource_metadata(
+            "some-dataset-id", "some-resource-id", "some-url", 1234, archive_sha1
+        )
+
+        put_mock.assert_called_with(
+            f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/some-resource-id/",
+            headers={"X-API-KEY": os.environ.get("DATA_GOUV_API_KEY")},
+            json={
+                "url": "some-url",
+                "filesize": 1234,
+                "checksum": {"type": "sha1", "value": archive_sha1},
+            },
+        )
