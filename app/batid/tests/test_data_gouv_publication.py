@@ -114,6 +114,7 @@ class TestDataGouvPublication(TestCase):
         {
             "S3_SCALEWAY_REGION_NAME": "us-east-1",
             "S3_SCALEWAY_ENDPOINT_URL": "https://s3.us-east-1.amazonaws.com",
+            "S3_SCALEWAY_BUCKET_NAME": "rnb-open",
         },
     )
     def test_upload_to_s3(self):
