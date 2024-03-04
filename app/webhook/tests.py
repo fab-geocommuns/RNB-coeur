@@ -50,7 +50,7 @@ class WebhookTestCase(TestCase):
     def test_webhook_400(self):
         with self.env:
             response = self.client.post(
-                "/webhook/scaleway/secret_token_xyz", {"key": "value"}
+                "/webhook/scaleway/secret_token_xyz", {"key": "value"}, content_type="application/json"
             )
             self.assertEqual(response.status_code, 400)
             self.assertEqual(response.content, b"Bad Request")
@@ -63,7 +63,8 @@ class WebhookTestCase(TestCase):
             treshold = "75"
             response = self.client.post(
                 "/webhook/scaleway/secret_token_xyz",
-                {"invoice_start_date": invoice_start_date, "threshold": treshold},
+                data={"invoice_start_date": invoice_start_date, "threshold": treshold},
+                content_type="application/json"
             )
             self.assertEqual(response.status_code, 400)
             self.assertEqual(response.content, b"Bad Request")
