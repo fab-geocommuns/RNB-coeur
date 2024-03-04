@@ -27,8 +27,10 @@ class WebhookTestCase(TestCase):
 
             response = self.client.post(
                 "/webhook/scaleway/secret_token_xyz",
-                {"invoice_start_date": invoice_start_date, "threshold": threshold},
+                data={"invoice_start_date": invoice_start_date, "threshold": threshold},
+                content_type="application/json",
             )
+
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, b"ok")
 
