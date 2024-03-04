@@ -50,8 +50,29 @@ class Guesser:
                 batch = {}
 
     def report(self):
+        data = list(self.guesses.values())
+
         print("-- Report --")
-        df = pd.json_normalize(self.guesses, sep="_")
+
+        df = pd.json_normalize(data, sep="_")
+
+        # Count number of rows
+        total = len(df)
+        print(f"Number of rows: {total}")
+
+        # Number and percetange of rows where match_rnb_id is not null
+        match_count = df["match_rnb_id"].notnull().sum()
+        match_percentage = match_count / total * 100
+        print(f"Number of match: {match_count} ({match_percentage:.2f}%)")
+
+        # Display table of all march_reason values with their absolute count and their percentage
+
+        match_reason_count = df["match_reason"].value_counts()
+        match_reason_percentage = match_reason_count / total * 100
+        print("\n-- match_reasons : absolute --")
+        print(match_reason_count)
+        print("\n-- match_reasons : % --")
+        print(match_reason_percentage)
 
     def save_work_file(self, file_path):
         self.convert_matches()
@@ -67,6 +88,12 @@ class Guesser:
                     "lat_lng": f"{guess['match'].point[1]}, {guess['match'].point[0]}",
                     "distance": guess["match"].distance.m,
                 }
+
+    def guess_all(self):
+        # todo : split guesses in batches
+        # todo : guess each batch
+
+        raise NotImplementedError
 
     @classmethod
     def guess_batch(cls, guesses: dict) -> dict:

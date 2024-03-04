@@ -25,9 +25,11 @@ class Command(BaseCommand):
                 guesser = Guesser()
                 guesser.create_work_file(data, self.work_file)
 
-        # guess
         guesser = Guesser()
-        guesser.guess_work_file(self.work_file)
+
+        # report
+        guesser.load_work_file(self.work_file)
+        guesser.report()
 
 
 def _row_to_guess_params(row):
