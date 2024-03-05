@@ -12,24 +12,30 @@ import shutil
 
 def publish():
     # Publish the RNB on data.gouv.fr
-    directory_name = create_rnb_csv_files()
-    (archive_path, archive_size, archive_sha1) = create_archive(directory_name)
-    public_url = upload_to_s3(archive_path)
-    publish_on_data_gouv(public_url, archive_size, archive_sha1)
-    cleanup_directory(directory_name)
-    return True
 
-
-def create_rnb_csv_files():
     # create a directory with the timestamp
     directory_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     os.mkdir(directory_name)
 
+    try:
+        create_rnb_csv_files(directory_name)
+        (archive_path, archive_size, archive_sha1) = create_archive(directory_name)
+        public_url = upload_to_s3(archive_path)
+        publish_on_data_gouv(public_url, archive_size, archive_sha1)
+        return True
+    except Exception as e:
+        return False
+    finally:
+        # we always cleanup the directory, no matter what happens
+        cleanup_directory(directory_name)
+
+
+def create_rnb_csv_files(directory_name):
     create_building_csv(directory_name)
     create_building_address_csv(directory_name)
     create_address_csv(directory_name)
 
-    return directory_name
+    return True
 
 
 def create_building_csv(directory_name):
