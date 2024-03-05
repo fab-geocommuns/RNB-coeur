@@ -1,5 +1,5 @@
 from batid.utils.misc import is_float
-from batid.models import Building, BuildingStatus, Plot
+from batid.models import Building, Plot
 from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
 from batid.services.geocoders import BanGeocoder, PhotonGeocoder
 from django.conf import settings
@@ -44,12 +44,7 @@ class BuildingGuess:
 
         # Status
         if self.params.status:
-            joins.append(
-                f"LEFT JOIN {BuildingStatus._meta.db_table} as s ON s.building_id = b.id"
-            )
-            group_by = "b.id"
-
-            wheres.append("s.type IN %(status)s AND s.is_current = TRUE")
+            wheres.append("physical_status IN %(status)s")
             params["status"] = tuple(self.params.status)
 
         # #########################################
