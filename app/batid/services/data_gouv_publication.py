@@ -123,11 +123,19 @@ def upload_to_s3(archive_path):
     folder_on_bucket = "data.gouv.fr"
     path_on_bucket = f"{folder_on_bucket}/{archive_name}"
 
+    # Scaleway S3's maximum number of parts for multipart upload
+    MAX_PARTS = 1000
+    # compute the corresponding part size
+    archive_size = os.path.getsize(archive_path)
+    part_size = int(archive_size * 1.2 / MAX_PARTS) + 1
+    config = boto3.s3.transfer.TransferConfig(multipart_chunksize=part_size)
+
     s3.upload_file(
         archive_path,
         S3_SCALEWAY_BUCKET_NAME,
         path_on_bucket,
         ExtraArgs={"ACL": "public-read"},
+        Config=config,
     )
 
     object_exists = s3.get_waiter("object_exists")
