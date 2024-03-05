@@ -5,6 +5,7 @@ from batid.models import Building, Address
 from django.contrib.gis.geos import GEOSGeometry
 import json
 from batid.services.data_gouv_publication import (
+    create_directory,
     create_rnb_csv_files,
     create_archive,
     cleanup_directory,
@@ -54,7 +55,8 @@ class TestDataGouvPublication(TestCase):
         building.addresses.add(address)
         building.save()
 
-        directory_name = create_rnb_csv_files()
+        directory_name = create_directory()
+        create_rnb_csv_files(directory_name)
 
         # Check if the directory exists
         self.assertTrue(os.path.exists(directory_name))
@@ -126,7 +128,9 @@ class TestDataGouvPublication(TestCase):
             point=geom.point_on_surface,
             ext_ids={"some_source": "1234"},
         )
-        directory_name = create_rnb_csv_files()
+        directory_name = create_directory()
+        create_rnb_csv_files(directory_name)
+        
         (archive_path, archive_size, archive_sha1) = create_archive(directory_name)
 
         # create the mock s3 bucket

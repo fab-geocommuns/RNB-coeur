@@ -13,10 +13,7 @@ import logging
 
 def publish():
     # Publish the RNB on data.gouv.fr
-
-    # create a directory with the timestamp
-    directory_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    os.mkdir(directory_name)
+    directory_name = create_directory()
 
     try:
         create_rnb_csv_files(directory_name)
@@ -31,6 +28,11 @@ def publish():
         # we always cleanup the directory, no matter what happens
         cleanup_directory(directory_name)
 
+
+def create_directory():
+    directory_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    os.mkdir(directory_name)
+    return directory_name
 
 def create_rnb_csv_files(directory_name):
     create_building_csv(directory_name)
