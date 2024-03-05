@@ -31,6 +31,7 @@ class BuildingAbstract(models.Model):
         null=True,
         db_index=True,
         max_length=30,
+        default=BuildingStatusModel.DEFAULT_STATUS,
     )
 
     class Meta:

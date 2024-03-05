@@ -24,6 +24,7 @@ class BuildingStatus:
     PUBLIC_TYPES_KEYS = [s["key"] for s in TYPES if s["public"]]
     PRIVATE_TYPES_KEYS = [s["key"] for s in TYPES if not s["public"]]
     ALL_TYPES_KEYS = [s["key"] for s in TYPES]
+    DEFAULT_STATUS = "constructed"
 
     # ####### REAL_BUILDINGS_STATUS #######
     # Those are the status for buildings having a real physical presence in the world
