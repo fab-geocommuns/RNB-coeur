@@ -8,6 +8,7 @@ import boto3
 import requests
 import hashlib
 import shutil
+import logging
 
 
 def publish():
@@ -24,6 +25,7 @@ def publish():
         publish_on_data_gouv(public_url, archive_size, archive_sha1)
         return True
     except Exception as e:
+        logging.error(f"Error while publishing the RNB on data.gouv.fr: {e}")
         return False
     finally:
         # we always cleanup the directory, no matter what happens
