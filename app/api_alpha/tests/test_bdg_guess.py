@@ -1,13 +1,12 @@
 from rest_framework.test import APITestCase
 
-from batid.models import BuildingStatus
-from batid.tests.helpers import create_bdg
+from batid.tests.helpers import create_constructed_bdg
 from django.contrib.gis.geos import Point
 
 
 class BdgGuessEndpointTest(APITestCase):
     def setUp(self):
-        b = create_bdg(
+        b = create_constructed_bdg(
             "DUMMYDUMMYGO",
             [
                 [5.721187072129851, 45.18439363812283],
@@ -19,8 +18,6 @@ class BdgGuessEndpointTest(APITestCase):
                 [5.721187072129851, 45.18439363812283],
             ],
         )
-
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 
     def test_point_param(self):
         r = self.client.get(

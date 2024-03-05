@@ -5,7 +5,7 @@ from pprint import pprint
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.test import APITestCase
-from batid.models import Building, BuildingStatus, User, Organization
+from batid.models import Building, User, Organization
 from rest_framework.authtoken.models import Token
 
 from batid.tests.helpers import create_grenoble, create_bdg
@@ -35,8 +35,8 @@ class BuildingsEndpointsTest(APITestCase):
             rnb_id="BDGSRNBBIDID",
             shape=geom,
             point=geom.point_on_surface,
+            physical_status="constructed",
         )
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 
         coords = {
             "coordinates": [
@@ -58,17 +58,12 @@ class BuildingsEndpointsTest(APITestCase):
             rnb_id="BDGPROJ",
             shape=geom,
             point=geom.point_on_surface,
-        )
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructionProject",
-            is_current=True,
-            happened_at=datetime.datetime(2020, 2, 1),
+            physical_status="constructionProject",
         )
 
         # Check buildings in a city
         create_grenoble()
-        bdg = create_bdg(
+        bdg = create_constructed_bdg(
             "INGRENOBLEGO",
             [
                 [5.721187072129851, 45.18439363812283],
@@ -79,12 +74,6 @@ class BuildingsEndpointsTest(APITestCase):
                 [5.7212697459849835, 45.18433718825423],
                 [5.721187072129851, 45.18439363812283],
             ],
-        )
-        BuildingStatus.objects.create(
-            building=bdg,
-            type="constructed",
-            is_current=True,
-            happened_at=datetime.datetime(2023, 2, 1),
         )
 
     def test_bdg_in_bbox(self):
@@ -334,32 +323,15 @@ class BuildingsEndpointsSingleTest(APITestCase):
             rnb_id="SINGLEONE",
             shape=geom,
             point=geom.point_on_surface,
-        )
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructed",
-            happened_at=datetime.datetime(2020, 2, 1),
-        )
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructionProject",
-        )
-        BuildingStatus.objects.create(
-            building=b,
-            type="demolished",
-            is_current=True,
-            happened_at=datetime.datetime(2022, 2, 1),
+            physical_status="constructionProject",
         )
 
     def test_status_order(self):
         r = self.client.get("/api/alpha/buildings/SINGLEONE/")
         self.assertEqual(r.status_code, 200)
 
-        status = r.json()["status"]
-
-        self.assertEqual(status[0]["type"], "constructionProject")
-        self.assertEqual(status[1]["type"], "constructed")
-        self.assertEqual(status[2]["type"], "demolished")
+        status = r.json()["physical_status"]
+        self.assertEqual(status, "constructionProject")
 
 
 class BuildingClosestViewTest(APITestCase):

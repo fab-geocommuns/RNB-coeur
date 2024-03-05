@@ -4,11 +4,11 @@ import json
 from django.test import TestCase
 
 from batid.list_bdg import list_bdgs
-from batid.models import Building, BuildingStatus
+from batid.models import Building
 from django.contrib.gis.geos import GEOSGeometry
 from django.conf import settings
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
-from batid.tests.helpers import create_bdg, create_grenoble, create_paris
+from batid.tests.helpers import create_constructed_bdg, create_grenoble, create_paris
 
 
 class SearchStatusTestCase(TestCase):
@@ -56,14 +56,10 @@ class SearchStatusTestCase(TestCase):
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
 
         b = Building.objects.create(
-            rnb_id="BDG-CONSTR", shape=geom, point=geom.point_on_surface
-        )
-
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructed",
-            is_current=True,
-            happened_at=datetime.datetime(2019, 1, 1),
+            rnb_id="BDG-CONSTR",
+            shape=geom,
+            point=geom.point_on_surface,
+            physical_status="constructed",
         )
 
         return b
@@ -86,21 +82,10 @@ class SearchStatusTestCase(TestCase):
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
 
         b = Building.objects.create(
-            rnb_id="OUT-DEMO", shape=geom, point=geom.point_on_surface
-        )
-
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructed",
-            is_current=False,
-            happened_at=datetime.datetime(2001, 1, 1),
-        )
-
-        BuildingStatus.objects.create(
-            building=b,
-            type="demolished",
-            is_current=True,
-            happened_at=datetime.datetime(2021, 1, 1),
+            rnb_id="OUT-DEMO",
+            shape=geom,
+            point=geom.point_on_surface,
+            physical_status="demolished",
         )
 
         return b
@@ -123,14 +108,10 @@ class SearchStatusTestCase(TestCase):
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
 
         b = Building.objects.create(
-            rnb_id="BDG-PROJ", shape=geom, point=geom.point_on_surface
-        )
-
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructionProject",
-            is_current=True,
-            happened_at=datetime.datetime(2001, 1, 1),
+            rnb_id="BDG-PROJ",
+            shape=geom,
+            point=geom.point_on_surface,
+            physical_status="constructionProject",
         )
 
         return b
@@ -173,9 +154,8 @@ class SearchBBoxTestCase(TestCase):
             rnb_id="IN-BBOX",
             shape=geom,
             point=geom.point_on_surface,
+            physical_status="constructed",
         )
-
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 
         return b
 
@@ -203,8 +183,8 @@ class SearchBBoxTestCase(TestCase):
             rnb_id="OUT-BBOX",
             shape=geom,
             point=geom.point_on_surface,
+            physical_status="constructed",
         )
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 
         return b
 
@@ -222,8 +202,7 @@ class SearchCityTestCase(TestCase):
             [5.727891393506468, 45.18620181594525],
             [5.727677616548021, 45.18650547532101],
         ]
-        b = create_bdg("GRENOBLE-1", coords)
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+        b = create_constructed_bdg("GRENOBLE-1", coords)
 
         # Grenoble 2
         coords = [
@@ -233,8 +212,7 @@ class SearchCityTestCase(TestCase):
             [5.727891393506468, 45.18620181594525],
             [5.727677616548021, 45.18650547532101],
         ]
-        b = create_bdg("GRENOBLE-2", coords)
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+        b = create_constructed_bdg("GRENOBLE-2", coords)
 
         # Paris, to be sure it is not returned
         coords = [
@@ -244,8 +222,7 @@ class SearchCityTestCase(TestCase):
             [2.3533851616483332, 48.85690559355845],
             [2.3523348950355967, 48.8571274784089],
         ]
-        b = create_bdg("PARIS-1", coords)
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
+        b = create_constructed_bdg("PARIS-1", coords")
 
     def test_grenoble(self):
         qs = list_bdgs({"insee_code": "38185"})
