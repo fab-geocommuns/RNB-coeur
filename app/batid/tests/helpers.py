@@ -5,7 +5,7 @@ from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from contextlib import ContextDecorator
 from django.db import connection
-from batid.models import City, Building, AsyncSignal, ADS, BuildingStatus
+from batid.models import City, Building, AsyncSignal, ADS
 from batid.services.signal import AsyncSignalDispatcher
 import os
 
@@ -1103,12 +1103,7 @@ def create_grenoble():
 
 def create_constructed_bdg(rnb_id, coords_list):
     b = create_bdg(rnb_id, coords_list)
-    BuildingStatus.objects.create(
-        building=b,
-        type="constructed",
-        happened_at=datetime(2020, 1, 1),
-        is_current=True,
-    )
+    b.physical_status = "constructed"
 
     return b
 
