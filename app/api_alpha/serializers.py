@@ -2,7 +2,6 @@ from typing import Optional
 from rest_framework import serializers
 from batid.models import (
     Building,
-    BuildingStatus,
     ADS,
     BuildingADS,
     City,
@@ -45,21 +44,14 @@ class AddressSerializer(serializers.ModelSerializer):
         ]
 
 
-class BuildingStatusSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = BuildingStatus
-        fields = ["type", "happened_at", "label", "is_current"]
-
-
 class BuildingSerializer(serializers.ModelSerializer):
     point = serializers.DictField(source="point_geojson", read_only=True)
     addresses = AddressSerializer(many=True, read_only=True)
-    status = BuildingStatusSerializer(read_only=True, many=True)
     ext_ids = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "status", "point", "addresses", "ext_ids"]
+        fields = ["rnb_id", "physical_status", "point", "addresses", "ext_ids"]
 
 
 class GuessBuildingSerializer(serializers.ModelSerializer):
@@ -67,7 +59,6 @@ class GuessBuildingSerializer(serializers.ModelSerializer):
     sub_scores = serializers.JSONField(read_only=True)
     point = serializers.DictField(source="point_geojson", read_only=True)
     addresses = AddressSerializer(many=True, read_only=True)
-    status = BuildingStatusSerializer(read_only=True, many=True)
     ext_ids = serializers.JSONField(read_only=True)
 
     class Meta:
@@ -76,7 +67,7 @@ class GuessBuildingSerializer(serializers.ModelSerializer):
             "rnb_id",
             "score",
             "sub_scores",
-            "status",
+            "physical_status",
             "point",
             "addresses",
             "ext_ids",
