@@ -128,36 +128,6 @@ class BuildingHistoryOnly(BuildingAbstract):
         db_table = "batid_building_history"
 
 
-class BuildingStatus(models.Model):
-    id = models.AutoField(primary_key=True)
-    type = models.CharField(
-        choices=BuildingStatusModel.TYPES_CHOICES,
-        null=False,
-        db_index=True,
-        max_length=30,
-    )
-    happened_at = models.DateField(null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    is_current = models.BooleanField(null=False, default=False)
-    building = models.ForeignKey(
-        Building, related_name="status", on_delete=models.CASCADE
-    )
-
-    class Meta:
-        ordering = [F("happened_at").asc(nulls_first=True)]
-
-    @property
-    def label(self):
-        return BuildingStatusModel.get_label(self.type)
-
-    def save(self, *args, **kwargs):
-        # If the status is current, we make sure that the previous current status is not current anymore
-        if self.is_current:
-            self.building.status.filter(is_current=True).update(is_current=False)
-        super().save(*args, **kwargs)
-
-
 class City(models.Model):
     id = models.AutoField(primary_key=True)
     code_insee = models.CharField(max_length=10, null=False, db_index=True, unique=True)
