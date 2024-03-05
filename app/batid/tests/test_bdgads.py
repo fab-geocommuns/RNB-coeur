@@ -127,8 +127,7 @@ class TestBdgAdsToBdgStatus(TestCase):
         dispatch_signals()
         bdg.refresh_from_db()
 
-        self.assertEqual(len(bdg.status.all()), 1)
-        self.assertEqual(bdg.current_status.type, "constructionProject")
+        self.assertEqual(bdg.physical_status, "constructionProject")
 
     # willBeBuilt > willBeModified > willBeBuilt
     def test_multiOperationChange(self):
@@ -152,7 +151,7 @@ class TestBdgAdsToBdgStatus(TestCase):
 
         # We check the status
         self.assertEqual(len(bdg.status.all()), 1)
-        self.assertEqual(bdg.current_status.type, "constructionProject")
+        self.assertEqual(bdg.physical_status, "constructionProject")
 
     # willBeBuilt > achieved_at
     def test_builtAchieved(self):

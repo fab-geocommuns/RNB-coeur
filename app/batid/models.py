@@ -94,10 +94,6 @@ class Building(BuildingAbstract):
     def point_lng(self):
         return self.point_geojson()["coordinates"][0]
 
-    @property
-    def current_status(self):
-        return self.status.filter(is_current=True).first()
-
     class Meta:
         ordering = ["rnb_id"]
 

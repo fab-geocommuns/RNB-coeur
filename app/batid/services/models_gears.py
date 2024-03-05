@@ -10,7 +10,6 @@ from batid.models import (
     AsyncSignal as SignalModel,
     ADS as ADSModel,
     BuildingADS as BuildingADSModel,
-    BuildingStatus as BuildingStatusModel,
 )
 from batid.services.model_code import code_to_model, code_to_cls_name, is_model_code
 from batid.services.bdg_status import BuildingStatus
