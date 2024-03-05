@@ -3,7 +3,7 @@ from datetime import datetime
 from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
 from django.db.utils import IntegrityError
 from django.test import TestCase, TransactionTestCase
-from batid.models import BuildingStatus, Candidate, Address, Building, BuildingImport
+from batid.models import Candidate, Address, Building, BuildingImport
 from batid.services.candidate import Inspector
 from batid.services.rnb_id import generate_rnb_id
 from batid.tests.helpers import (
@@ -222,7 +222,6 @@ class InspectTest(TestCase):
 
 
 class TestHalvishCover(InspectTest):
-
     """
     We the the case where the candidate partially cover an existing building. Not enough to consider it as the same building but enought to be ambiguous.
     It should result with the rejection of the candidate.
@@ -282,7 +281,6 @@ class TestHalvishCover(InspectTest):
 
 
 class OneSmallOneBig:
-
     """
     It should be the same building
     """
@@ -361,7 +359,6 @@ class TestOneBigBdgThenOneSmallCand(InspectTest):
 
 
 class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
-
     """
     We build one large building, then two small candidates (half of the big building) in it.
     """
@@ -842,9 +839,8 @@ def data_to_bdg(data):
                 }
             ],
             point=shape.point_on_surface,
+            physical_status="constructed",
         )
-
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 
 
 # we need to use TransactionTestCase because we are testing thez proper rollback of the transactions during the inspection
