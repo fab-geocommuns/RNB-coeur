@@ -97,8 +97,9 @@ def create_archive(directory_name):
     archive_size = os.path.getsize(archive_path)
 
     archive_sha1 = sha1sum(archive_path)
-    print(archive_size, archive_sha1)
-
+    logging.info(
+        f"zip archive for data.gouv.fr created: {archive_path} ({archive_size} bytes, sha1: {archive_sha1})"
+    )
     return (archive_path, archive_size, archive_sha1)
 
 
