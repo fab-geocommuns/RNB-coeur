@@ -19,7 +19,6 @@ from batid.services.closest_bdg import get_closest
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.guess_bdg import BuildingGuess
-from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.models import ADS, Building, Contribution
 
 from rest_framework import viewsets, status
