@@ -16,7 +16,6 @@ from batid.services.candidate import Inspector
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.building import export_city as export_city_job
-from batid.services.building import add_default_status as add_default_status_job
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 
 from batid.models import AsyncSignal
@@ -107,23 +106,6 @@ def remove_light_bdgs(dpt):
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def export_city(insee_code):
     export_city_job(insee_code)
-    return "done"
-
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def add_default_status():
-    print("---- Adding default status ----")
-
-    added = 0
-    after_id = 0
-
-    while True:
-        count, after_id = add_default_status_job(after_id)
-        added += count
-        print(f"Added {added} default status so far")
-        if count <= 0:
-            break
-
     return "done"
 
 

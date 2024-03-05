@@ -229,7 +229,6 @@ class BuildingGuess:
         qs = (
             Building.objects.raw(global_query, params)
             .prefetch_related("addresses")
-            .prefetch_related("status")
         )
 
         # print("---- QUERY ---")

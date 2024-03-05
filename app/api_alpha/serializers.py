@@ -87,7 +87,7 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
         fields = [
             "rnb_id",
             "distance",
-            "status",
+            "physical_status",
             "point",
             "addresses",
             "ext_ids",

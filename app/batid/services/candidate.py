@@ -47,7 +47,7 @@ class Inspector:
             shape__intersects=self.candidate.shape
         ).filter(
             Q(
-                physical_status__type__in=BuildingStatusService.REAL_BUILDINGS_STATUS,
+                physical_status__in=BuildingStatusService.REAL_BUILDINGS_STATUS,
             )
         )
 

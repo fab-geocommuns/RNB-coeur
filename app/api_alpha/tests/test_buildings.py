@@ -8,7 +8,7 @@ from rest_framework.test import APITestCase
 from batid.models import Building, User, Organization
 from rest_framework.authtoken.models import Token
 
-from batid.tests.helpers import create_grenoble, create_bdg
+from batid.tests.helpers import create_grenoble, create_constructed_bdg
 
 
 class BuildingsEndpointsTest(APITestCase):
@@ -89,19 +89,12 @@ class BuildingsEndpointsTest(APITestCase):
                 {
                     "addresses": [],
                     "ext_ids": None,
+                    "physical_status": "constructed",
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
                 }
             ],
         }
@@ -122,20 +115,12 @@ class BuildingsEndpointsTest(APITestCase):
                 {
                     "addresses": [],
                     "ext_ids": None,
+                    "physical_status": "constructed",
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
-                    "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
-                }
+                    "rnb_id": "INGRENOBLEGO",                }
             ],
         }
 
@@ -154,15 +139,8 @@ class BuildingsEndpointsTest(APITestCase):
             "results": [
                 {
                     "ext_ids": None,
+                    "physical_status": "constructed",
                     "rnb_id": "BDGSRNBBIDID",
-                    "status": [
-                        {
-                            "type": "constructed",
-                            "label": "Construit",
-                            "happened_at": None,
-                            "is_current": True,
-                        }
-                    ],
                     "point": {
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
@@ -172,19 +150,12 @@ class BuildingsEndpointsTest(APITestCase):
                 {
                     "addresses": [],
                     "ext_ids": None,
+                    "physical_status": "constructed",
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
                 },
             ],
         }
@@ -199,18 +170,11 @@ class BuildingsEndpointsTest(APITestCase):
         expected = {
             "ext_ids": None,
             "rnb_id": "BDGSRNBBIDID",
+            "physical_status": "constructed",
             "point": {
                 "type": "Point",
                 "coordinates": [1.065566787499344, 46.634163236377134],
             },
-            "status": [
-                {
-                    "type": "constructed",
-                    "label": "Construit",
-                    "happened_at": None,
-                    "is_current": True,
-                }
-            ],
             "addresses": [],
         }
 
@@ -246,53 +210,32 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                 {
                     "ext_ids": None,
                     "rnb_id": "BDGSRNBBIDID",
+                    "physical_status": "constructed",
                     "point": {
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
                     },
-                    "status": [
-                        {
-                            "type": "constructed",
-                            "label": "Construit",
-                            "happened_at": None,
-                            "is_current": True,
-                        }
-                    ],
                     "addresses": [],
                 },
                 {
                     "ext_ids": None,
                     "rnb_id": "BDGPROJ",
+                    "physical_status": "constructionProject",
                     "point": {
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
                     },
-                    "status": [
-                        {
-                            "type": "constructionProject",
-                            "label": "En projet",
-                            "is_current": True,
-                            "happened_at": "2020-02-01",
-                        }
-                    ],
                     "addresses": [],
                 },
                 {
                     "addresses": [],
                     "ext_ids": None,
+                    "physical_status": "constructed",
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
-                    "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
+                    "rnb_id": "INGRENOBLEGO"
                 },
             ],
         }
@@ -323,7 +266,7 @@ class BuildingsEndpointsSingleTest(APITestCase):
             rnb_id="SINGLEONE",
             shape=geom,
             point=geom.point_on_surface,
-            physical_status="constructionProject",
+            physical_status="ongoingConstruction",
         )
 
     def test_status_order(self):
@@ -331,7 +274,7 @@ class BuildingsEndpointsSingleTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         status = r.json()["physical_status"]
-        self.assertEqual(status, "constructionProject")
+        self.assertEqual(status, "ongoingConstruction")
 
 
 class BuildingClosestViewTest(APITestCase):
