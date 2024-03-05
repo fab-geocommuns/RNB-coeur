@@ -1,9 +1,11 @@
 import concurrent
 import json
 import time
+from pprint import pprint
 from typing import Optional
 from django.contrib.gis.geos import Point
 import pandas as pd
+from django.db import connections
 
 from batid.models import Building
 from batid.services.closest_bdg import get_closest
@@ -19,35 +21,48 @@ class Guesser:
         self.guesses = {}
 
     def create_work_file(self, rows, file_path):
-        self.guesses_from_rows(rows)
+        self.load_rows(rows)
         self.save_work_file(file_path)
 
     def load_work_file(self, file_path):
         with open(file_path, "r") as f:
             self.guesses = json.load(f)
 
-    def guesses_from_rows(self, rows: list):
+    def load_rows(self, rows: list):
         self._validate_rows(rows)
         self.guesses = self._rows_to_guesses(rows)
 
     def guess_work_file(self, file_path):
         self.load_work_file(file_path)
 
-        batch_size = 300
+        batches = self._guesses_to_batches()
+
+        for batch in batches:
+            batch = self.guess_batch(batch)
+            self.guesses.update(batch)
+            self.save_work_file(file_path)
+
+    def guess_all(self):
+        batches = self._guesses_to_batches()
+
+        for batch in batches:
+            batch = self.guess_batch(batch)
+            self.guesses.update(batch)
+
+    def _guesses_to_batches(self, batch_size: int = 300):
+        batches = []
         batch = {}
 
         c = 0
         for ext_id, guess in self.guesses.items():
             c += 1
-            print(c)
             batch[ext_id] = guess
 
             if len(batch) == batch_size or ext_id == list(self.guesses.keys())[-1]:
-                batch = self.guess_batch(batch)
-                print("- save batch -")
-                self.guesses.update(batch)
-                self.save_work_file(file_path)
+                batches.append(batch)
                 batch = {}
+
+        return batches
 
     def report(self):
         data = list(self.guesses.values())
@@ -88,12 +103,6 @@ class Guesser:
                     "lat_lng": f"{guess['match'].point[1]}, {guess['match'].point[0]}",
                     "distance": guess["match"].distance.m,
                 }
-
-    def guess_all(self):
-        # todo : split guesses in batches
-        # todo : guess each batch
-
-        raise NotImplementedError
 
     @classmethod
     def guess_batch(cls, guesses: dict) -> dict:
@@ -183,11 +192,13 @@ class Guesser:
 
     @classmethod
     def _do_many_closest_building(cls, guesses: dict) -> dict:
+        tasks = []
+
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            tasks = [
-                executor.submit(cls._do_one_closest_building, guess)
-                for guess in guesses.values()
-            ]
+            for guess in guesses.values():
+                future = executor.submit(cls._do_one_closest_building, guess)
+                future.add_done_callback(_on_one_closest_done)
+                tasks.append(future)
 
             for future in concurrent.futures.as_completed(tasks):
                 guess = future.result()
@@ -362,3 +373,7 @@ def report_format(guesses):
         report.append(report_row)
 
     return report
+
+
+def _on_one_closest_done(future):
+    connections.close_all()

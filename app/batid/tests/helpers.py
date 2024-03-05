@@ -1101,6 +1101,24 @@ def create_grenoble():
     return City.objects.create(name="Grenoble", shape=geom, code_insee="38185")
 
 
+def create_from_geojson(geojson_data):
+    for feature in geojson_data["features"]:
+        geom = GEOSGeometry(json.dumps(feature["geometry"]), srid=4326)
+
+        b = Building.objects.create(
+            rnb_id=feature["properties"]["rnb_id"],
+            shape=geom,
+            point=geom.point_on_surface,
+        )
+
+        BuildingStatus.objects.create(
+            building=b,
+            type="constructed",
+            happened_at=datetime(2020, 1, 1),
+            is_current=True,
+        )
+
+
 def create_constructed_bdg(rnb_id, coords_list):
     b = create_bdg(rnb_id, coords_list)
     BuildingStatus.objects.create(
