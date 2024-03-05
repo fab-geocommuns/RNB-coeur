@@ -25,6 +25,13 @@ class BuildingAbstract(models.Model):
     # in case of building merge, we want in the future to keep the list of the parent buildings
     # not implemented for now
     parent_buildings = models.JSONField(null=True)
+    # enum field for the building status
+    physical_status = models.CharField(
+        choices=BuildingStatusModel.TYPES_CHOICES,
+        null=True,
+        db_index=True,
+        max_length=30,
+    )
 
     class Meta:
         abstract = True
@@ -285,7 +292,6 @@ class AsyncSignal(models.Model):
         ordering = ["created_at"]
 
 
-
 class BuildingImport(models.Model):
     id = models.AutoField(primary_key=True)
     import_source = models.CharField(max_length=20, null=False)
@@ -301,6 +307,7 @@ class BuildingImport(models.Model):
     building_created_count = models.IntegerField(null=True)
     building_updated_count = models.IntegerField(null=True)
     building_refused_count = models.IntegerField(null=True)
+
 
 class Contribution(models.Model):
     id = models.AutoField(primary_key=True)
