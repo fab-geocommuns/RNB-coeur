@@ -131,7 +131,7 @@
 #         dispatch_signals()
 #         bdg.refresh_from_db()
 
-#         self.assertEqual(bdg.physical_status, "constructionProject")
+#         self.assertEqual(bdg.status, "constructionProject")
 
 #     # willBeBuilt > willBeModified > willBeBuilt
 #     def test_multiOperationChange(self):
@@ -155,7 +155,7 @@
 
 #         # We check the status
 #         self.assertEqual(len(bdg.status.all()), 1)
-#         self.assertEqual(bdg.physical_status, "constructionProject")
+#         self.assertEqual(bdg.status, "constructionProject")
 
 #     # willBeBuilt > achieved_at
 #     def test_builtAchieved(self):

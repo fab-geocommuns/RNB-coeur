@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="building",
-            name="physical_status",
+            name="status",
             field=models.CharField(
                 choices=[
                     ("constructionProject", "En projet"),
@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="buildinghistoryonly",
-            name="physical_status",
+            name="status",
             field=models.CharField(
                 choices=[
                     ("constructionProject", "En projet"),

@@ -44,7 +44,7 @@ class BuildingGuess:
 
         # Status
         if self.params.status:
-            wheres.append("physical_status IN %(status)s")
+            wheres.append("status IN %(status)s")
             params["status"] = tuple(self.params.status)
 
         # #########################################
@@ -226,10 +226,7 @@ class BuildingGuess:
             f"{pagination_str}"
         )
 
-        qs = (
-            Building.objects.raw(global_query, params)
-            .prefetch_related("addresses")
-        )
+        qs = Building.objects.raw(global_query, params).prefetch_related("addresses")
 
         # print("---- QUERY ---")
         # print(qs.query)

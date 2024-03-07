@@ -51,7 +51,7 @@ class BuildingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "physical_status", "point", "addresses", "ext_ids"]
+        fields = ["rnb_id", "status", "point", "addresses", "ext_ids"]
 
 
 class GuessBuildingSerializer(serializers.ModelSerializer):
@@ -67,7 +67,7 @@ class GuessBuildingSerializer(serializers.ModelSerializer):
             "rnb_id",
             "score",
             "sub_scores",
-            "physical_status",
+            "status",
             "point",
             "addresses",
             "ext_ids",
@@ -87,7 +87,7 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
         fields = [
             "rnb_id",
             "distance",
-            "physical_status",
+            "status",
             "point",
             "addresses",
             "ext_ids",

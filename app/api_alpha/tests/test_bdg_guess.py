@@ -32,7 +32,7 @@ class BdgGuessEndpointTest(APITestCase):
                 "score": 5.0,
                 "sub_scores": {"point_distance": 5, "point_plot_cluster": 0},
                 "ext_ids": None,
-                'physical_status': 'constructed',
+                "status": "constructed",
                 "point": {
                     "coordinates": [5.721181338205954, 45.18433384981944],
                     "type": "Point",

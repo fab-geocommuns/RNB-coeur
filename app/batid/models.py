@@ -26,7 +26,7 @@ class BuildingAbstract(models.Model):
     # not implemented for now
     parent_buildings = models.JSONField(null=True)
     # enum field for the building status
-    physical_status = models.CharField(
+    status = models.CharField(
         choices=BuildingStatusModel.TYPES_CHOICES,
         null=False,
         db_index=True,

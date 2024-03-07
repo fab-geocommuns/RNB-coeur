@@ -35,7 +35,7 @@ class BuildingsEndpointsTest(APITestCase):
             rnb_id="BDGSRNBBIDID",
             shape=geom,
             point=geom.point_on_surface,
-            physical_status="constructed",
+            status="constructed",
         )
 
         coords = {
@@ -58,7 +58,7 @@ class BuildingsEndpointsTest(APITestCase):
             rnb_id="BDGPROJ",
             shape=geom,
             point=geom.point_on_surface,
-            physical_status="constructionProject",
+            status="constructionProject",
         )
 
         # Check buildings in a city
@@ -89,7 +89,7 @@ class BuildingsEndpointsTest(APITestCase):
                 {
                     "addresses": [],
                     "ext_ids": None,
-                    "physical_status": "constructed",
+                    "status": "constructed",
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
@@ -115,12 +115,13 @@ class BuildingsEndpointsTest(APITestCase):
                 {
                     "addresses": [],
                     "ext_ids": None,
-                    "physical_status": "constructed",
+                    "status": "constructed",
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
-                    "rnb_id": "INGRENOBLEGO",                }
+                    "rnb_id": "INGRENOBLEGO",
+                }
             ],
         }
 
@@ -139,7 +140,7 @@ class BuildingsEndpointsTest(APITestCase):
             "results": [
                 {
                     "ext_ids": None,
-                    "physical_status": "constructed",
+                    "status": "constructed",
                     "rnb_id": "BDGSRNBBIDID",
                     "point": {
                         "type": "Point",
@@ -150,7 +151,7 @@ class BuildingsEndpointsTest(APITestCase):
                 {
                     "addresses": [],
                     "ext_ids": None,
-                    "physical_status": "constructed",
+                    "status": "constructed",
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
@@ -170,7 +171,7 @@ class BuildingsEndpointsTest(APITestCase):
         expected = {
             "ext_ids": None,
             "rnb_id": "BDGSRNBBIDID",
-            "physical_status": "constructed",
+            "status": "constructed",
             "point": {
                 "type": "Point",
                 "coordinates": [1.065566787499344, 46.634163236377134],
@@ -210,7 +211,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                 {
                     "ext_ids": None,
                     "rnb_id": "BDGSRNBBIDID",
-                    "physical_status": "constructed",
+                    "status": "constructed",
                     "point": {
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
@@ -220,7 +221,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                 {
                     "ext_ids": None,
                     "rnb_id": "BDGPROJ",
-                    "physical_status": "constructionProject",
+                    "status": "constructionProject",
                     "point": {
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
@@ -230,12 +231,12 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                 {
                     "addresses": [],
                     "ext_ids": None,
-                    "physical_status": "constructed",
+                    "status": "constructed",
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
-                    "rnb_id": "INGRENOBLEGO"
+                    "rnb_id": "INGRENOBLEGO",
                 },
             ],
         }
@@ -266,14 +267,14 @@ class BuildingsEndpointsSingleTest(APITestCase):
             rnb_id="SINGLEONE",
             shape=geom,
             point=geom.point_on_surface,
-            physical_status="ongoingConstruction",
+            status="ongoingConstruction",
         )
 
     def test_status_order(self):
         r = self.client.get("/api/alpha/buildings/SINGLEONE/")
         self.assertEqual(r.status_code, 200)
 
-        status = r.json()["physical_status"]
+        status = r.json()["status"]
         self.assertEqual(status, "ongoingConstruction")
 
 

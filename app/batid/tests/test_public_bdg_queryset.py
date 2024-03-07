@@ -59,7 +59,7 @@ class SearchStatusTestCase(TestCase):
             rnb_id="BDG-CONSTR",
             shape=geom,
             point=geom.point_on_surface,
-            physical_status="constructed",
+            status="constructed",
         )
 
         return b
@@ -85,7 +85,7 @@ class SearchStatusTestCase(TestCase):
             rnb_id="OUT-DEMO",
             shape=geom,
             point=geom.point_on_surface,
-            physical_status="demolished",
+            status="demolished",
         )
 
         return b
@@ -111,7 +111,7 @@ class SearchStatusTestCase(TestCase):
             rnb_id="BDG-PROJ",
             shape=geom,
             point=geom.point_on_surface,
-            physical_status="constructionProject",
+            status="constructionProject",
         )
 
         return b
@@ -154,7 +154,7 @@ class SearchBBoxTestCase(TestCase):
             rnb_id="IN-BBOX",
             shape=geom,
             point=geom.point_on_surface,
-            physical_status="constructed",
+            status="constructed",
         )
 
         return b
@@ -183,7 +183,7 @@ class SearchBBoxTestCase(TestCase):
             rnb_id="OUT-BBOX",
             shape=geom,
             point=geom.point_on_surface,
-            physical_status="constructed",
+            status="constructed",
         )
 
         return b

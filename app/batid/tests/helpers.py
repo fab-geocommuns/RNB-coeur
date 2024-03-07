@@ -1103,7 +1103,7 @@ def create_grenoble():
 
 def create_constructed_bdg(rnb_id, coords_list):
     b = create_bdg(rnb_id, coords_list)
-    b.physical_status = "constructed"
+    b.status = "constructed"
 
     return b
 

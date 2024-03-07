@@ -839,7 +839,7 @@ def data_to_bdg(data):
                 }
             ],
             point=shape.point_on_surface,
-            physical_status="constructed",
+            status="constructed",
         )
 
 

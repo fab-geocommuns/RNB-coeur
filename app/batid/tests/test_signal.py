@@ -71,7 +71,7 @@ class TestSignal(TestCase):
     #     s.refresh_from_db()
 
     #     # After the dispatch, the building inside the signal must have a "constructionProject" status
-    #     self.assertEqual(s.building.physical_status, "constructionProject")
+    #     self.assertEqual(s.building.status, "constructionProject")
 
     #     # We also verify the signal has been handled correctly
     #     self.assertIsNotNone(s.handled_at)
@@ -79,7 +79,7 @@ class TestSignal(TestCase):
     #     expected_result = {
     #         "handler": "CalcBdgStatusFromADSHandler",
     #         "action": "create",
-    #         "target": model_to_code(self.building.physical_status),
+    #         "target": model_to_code(self.building.status),
     #     }
     #     ads_result = next(
     #         r for r in s.handle_result if r["handler"] == "CalcBdgStatusFromADSHandler"
