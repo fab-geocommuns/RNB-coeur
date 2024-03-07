@@ -28,7 +28,7 @@ class BuildingAbstract(models.Model):
     # enum field for the building status
     physical_status = models.CharField(
         choices=BuildingStatusModel.TYPES_CHOICES,
-        null=True,
+        null=False,
         db_index=True,
         max_length=30,
         default=BuildingStatusModel.DEFAULT_STATUS,
