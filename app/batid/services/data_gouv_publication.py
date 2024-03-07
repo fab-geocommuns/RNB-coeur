@@ -8,28 +8,41 @@ import boto3
 import requests
 import hashlib
 import shutil
+import logging
 
 
 def publish():
     # Publish the RNB on data.gouv.fr
-    directory_name = create_rnb_csv_files()
-    (archive_path, archive_size, archive_sha1) = create_archive(directory_name)
-    public_url = upload_to_s3(archive_path)
-    publish_on_data_gouv(public_url, archive_size, archive_sha1)
-    cleanup_directory(directory_name)
-    return True
+    directory_name = create_directory()
+
+    try:
+        create_rnb_csv_files(directory_name)
+        (archive_path, archive_size, archive_sha1) = create_archive(directory_name)
+        public_url = upload_to_s3(archive_path)
+        publish_on_data_gouv(public_url, archive_size, archive_sha1)
+        return True
+    except Exception as e:
+        logging.error(f"Error while publishing the RNB on data.gouv.fr: {e}")
+        return False
+    finally:
+        # we always cleanup the directory, no matter what happens
+        cleanup_directory(directory_name)
 
 
-def create_rnb_csv_files():
-    # create a directory with the timestamp
-    directory_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+def create_directory():
+    directory_name = (
+        f'datagouvfr_publication_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
+    )
     os.mkdir(directory_name)
+    return directory_name
 
+
+def create_rnb_csv_files(directory_name):
     create_building_csv(directory_name)
     create_building_address_csv(directory_name)
     create_address_csv(directory_name)
 
-    return directory_name
+    return True
 
 
 def create_building_csv(directory_name):
@@ -89,8 +102,9 @@ def create_archive(directory_name):
     archive_size = os.path.getsize(archive_path)
 
     archive_sha1 = sha1sum(archive_path)
-    print(archive_size, archive_sha1)
-
+    logging.info(
+        f"zip archive for data.gouv.fr created: {archive_path} ({archive_size} bytes, sha1: {archive_sha1})"
+    )
     return (archive_path, archive_size, archive_sha1)
 
 
@@ -115,11 +129,19 @@ def upload_to_s3(archive_path):
     folder_on_bucket = "data.gouv.fr"
     path_on_bucket = f"{folder_on_bucket}/{archive_name}"
 
+    # Scaleway S3's maximum number of parts for multipart upload
+    MAX_PARTS = 1000
+    # compute the corresponding part size
+    archive_size = os.path.getsize(archive_path)
+    part_size = int(archive_size * 1.2 / MAX_PARTS)
+    config = boto3.s3.transfer.TransferConfig(multipart_chunksize=part_size)
+
     s3.upload_file(
         archive_path,
         S3_SCALEWAY_BUCKET_NAME,
         path_on_bucket,
         ExtraArgs={"ACL": "public-read"},
+        Config=config,
     )
 
     object_exists = s3.get_waiter("object_exists")
