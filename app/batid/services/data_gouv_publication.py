@@ -30,7 +30,7 @@ def publish():
 
 
 def create_directory():
-    directory_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    directory_name = f"datagouvfr_publication_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
     os.mkdir(directory_name)
     return directory_name
 
@@ -130,7 +130,7 @@ def upload_to_s3(archive_path):
     MAX_PARTS = 1000
     # compute the corresponding part size
     archive_size = os.path.getsize(archive_path)
-    part_size = int(archive_size * 1.2 / MAX_PARTS) + 1
+    part_size = int(archive_size * 1.2 / MAX_PARTS)
     config = boto3.s3.transfer.TransferConfig(multipart_chunksize=part_size)
 
     s3.upload_file(
