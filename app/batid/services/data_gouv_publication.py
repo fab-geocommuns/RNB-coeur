@@ -30,9 +30,12 @@ def publish():
 
 
 def create_directory():
-    directory_name = f"datagouvfr_publication_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
+    directory_name = (
+        f'datagouvfr_publication_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
+    )
     os.mkdir(directory_name)
     return directory_name
+
 
 def create_rnb_csv_files(directory_name):
     create_building_csv(directory_name)
