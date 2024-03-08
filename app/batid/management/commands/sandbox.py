@@ -5,8 +5,6 @@ from pprint import pprint
 import fiona
 from django.contrib.gis.geos import GEOSGeometry, WKTWriter
 from django.core.management.base import BaseCommand
-from shapely.ops import transform
-from shapely.geometry import shape
 
 from batid.models import Building, Candidate
 from batid.services.candidate import Inspector
