@@ -270,27 +270,23 @@ class Guesser:
 
     @staticmethod
     def _validate_rows(rows):
-        _validate_rows(rows)
+        Guesser._validate_types(rows)
+        Guesser._validate_ext_ids(rows)
 
+    @staticmethod
+    def _validate_types(rows):
+        for row in rows:
+            if not isinstance(row, dict):
+                raise Exception("data must be a list of dicts")
 
-def _validate_rows(rows):
-    _validate_types(rows)
-    _validate_ext_ids(rows)
+            if "ext_id" not in row:
+                raise Exception("ext_id is required for each row")
 
-
-def _validate_types(rows):
-    for row in rows:
-        if not isinstance(row, dict):
-            raise Exception("data must be a list of dicts")
-
-        if "ext_id" not in row:
-            raise Exception("ext_id is required for each row")
-
-
-def _validate_ext_ids(rows):
-    ext_ids = [d["ext_id"] for d in rows]
-    if len(ext_ids) != len(set(ext_ids)):
-        raise Exception("ext_ids are not unique")
+    @staticmethod
+    def _validate_ext_ids(rows):
+        ext_ids = [d["ext_id"] for d in rows]
+        if len(ext_ids) != len(set(ext_ids)):
+            raise Exception("ext_ids are not unique")
 
 
 def _min_second_bdg_distance(first_bdg_distance: float) -> float:
