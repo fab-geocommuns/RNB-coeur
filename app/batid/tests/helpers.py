@@ -5,6 +5,8 @@ from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from contextlib import ContextDecorator
 from django.db import connection
+from requests import Response
+
 from batid.models import City, Building, AsyncSignal, ADS, BuildingStatus
 from batid.services.signal import AsyncSignalDispatcher
 import os
@@ -1178,27 +1180,37 @@ def create_default_ads(city: City, file_number="PC1234"):
     )
 
 
-def mock_ban_geocoder_result(id: str, lng: float, lat: float, score=0.99):
-    return {
-        "features": [
-            {
-                "geometry": {"coordinates": [lng, lat], "type": "Point"},
-                "properties": {
-                    "id": id,
-                    "score": score,
-                    "type": "housenumber",
-                    "x": lng,
-                    "y": lat,
-                },
-                "type": "Feature",
-            }
-        ],
-        "type": "FeatureCollection",
-    }
+def mock_ban_geocoder_result(id: str, lng: float, lat: float, score=0.99) -> Response:
+    r = Response()
+    r.status_code = 200
+    r._content = json.dumps(
+        {
+            "features": [
+                {
+                    "geometry": {"coordinates": [lng, lat], "type": "Point"},
+                    "properties": {
+                        "id": id,
+                        "score": score,
+                        "type": "housenumber",
+                        "x": lng,
+                        "y": lat,
+                    },
+                    "type": "Feature",
+                }
+            ],
+            "type": "FeatureCollection",
+        }
+    ).encode()
+
+    return r
 
 
-def mock_photon_geocoder_empty_result():
-    return {"features": [], "type": "FeatureCollection"}
+def mock_photon_geocoder_empty_result() -> Response:
+    r = Response()
+    r.status_code = 200
+    r._content = json.dumps({"features": [], "type": "FeatureCollection"}).encode()
+
+    return r
 
 
 # loads the village fixture in the database
