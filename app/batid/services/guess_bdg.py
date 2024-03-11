@@ -602,7 +602,8 @@ class PhotonGeocodingHandler:
         params = self.geocode_params(search_params)
 
         if isinstance(params["q"], str):
-            results = self.geocoder.geocode(params)
+            geocode_response = self.geocoder.geocode(params)
+            results = geocode_response.json()
 
             if results["features"]:
                 best = results["features"][0]
