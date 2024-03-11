@@ -197,7 +197,7 @@ class Guesser:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for guess in guesses.values():
                 future = executor.submit(cls._do_one_closest_building, guess)
-                future.add_done_callback(_on_one_closest_done)
+                future.add_done_callback(lambda future: connections.close_all())
                 tasks.append(future)
 
             for future in concurrent.futures.as_completed(tasks):
@@ -373,7 +373,3 @@ def report_format(guesses):
         report.append(report_row)
 
     return report
-
-
-def _on_one_closest_done(future):
-    connections.close_all()
