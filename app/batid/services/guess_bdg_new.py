@@ -148,8 +148,8 @@ class Guesser:
 
         return guesses
 
-    @staticmethod
-    def _do_one_bdg_w_address_and_point(guess):
+    @classmethod
+    def _do_one_bdg_w_address_and_point(cls, guess):
         lat = guess["row"].get("lat", None)
         lng = guess["row"].get("lng", None)
         address = guess["row"].get("address", None)
@@ -157,7 +157,7 @@ class Guesser:
         if not address or not lat or not lng:
             return guess
 
-        ban_id = _address_to_ban_id(address, lat, lng)
+        ban_id = cls._address_to_ban_id(address, lat, lng)
 
         if ban_id:
             close_bdg_w_ban_id = get_closest(lat, lng, 100).filter(addresses__id=ban_id)
@@ -177,7 +177,7 @@ class Guesser:
         if not lat or not lng or not name:
             return guess
 
-        osm_bdg_point = _geocode_name_and_point(name, lat, lng)
+        osm_bdg_point = cls._geocode_name_and_point(name, lat, lng)
 
         if osm_bdg_point:
             closest_bdgs = get_closest(lat, lng, 20)
@@ -245,7 +245,9 @@ class Guesser:
             if len(closest_bdgs) > 1:
                 # There is at least one other close building. We compare the two closest buildings distance to the point.
                 second_bdg = closest_bdgs[1]
-                min_second_bdg_distance = _min_second_bdg_distance(first_bdg.distance.m)
+                min_second_bdg_distance = cls._min_second_bdg_distance(
+                    first_bdg.distance.m
+                )
                 if second_bdg.distance.m >= min_second_bdg_distance:
                     guess["match"] = first_bdg
                     guess["match_reason"] = "isolated_closest_bdg"
@@ -288,65 +290,65 @@ class Guesser:
         if len(ext_ids) != len(set(ext_ids)):
             raise Exception("ext_ids are not unique")
 
+    @staticmethod
+    def _min_second_bdg_distance(first_bdg_distance: float) -> float:
+        # The second building must be at least 10 meters away from the point
+        min_distance_floor = 10.0
 
-def _min_second_bdg_distance(first_bdg_distance: float) -> float:
-    # The second building must be at least 10 meters away from the point
-    min_distance_floor = 10.0
+        # The second building must be at least 3 times the distance of the first building
+        ratio = 3
+        min_distance_w_ratio = first_bdg_distance * ratio
 
-    # The second building must be at least 3 times the distance of the first building
-    ratio = 3
-    min_distance_w_ratio = first_bdg_distance * ratio
+        return max(min_distance_floor, min_distance_w_ratio)
 
-    return max(min_distance_floor, min_distance_w_ratio)
-
-
-def _geocode_name_and_point(name: str, lat: float, lng: float) -> Optional[Point]:
-    geocode_params = {
-        "q": name,
-        "lat": lat,
-        "lon": lng,
-        "lang": "fr",
-        "limit": 1,
-    }
-
-    geocoder = PhotonGeocoder()
-
-    response = geocoder.geocode(geocode_params)
-
-    geo_result = response.json()
-
-    if geo_result.get("features", None) and geo_result["features"][0]["properties"][
-        "type"
-    ] in [
-        "building",
-        "house",
-        "construction",
-    ]:
-        lat = geo_result["features"][0]["geometry"]["coordinates"][1]
-        lng = geo_result["features"][0]["geometry"]["coordinates"][0]
-        return Point(lng, lat, srid=4326)
-    else:
-        return
-
-
-def _address_to_ban_id(address: str, lat: float, lng: float) -> Optional[str]:
-    geocoder = BanGeocoder()
-    geocode_response = geocoder.geocode(
-        {
-            "q": address,
+    @staticmethod
+    def _geocode_name_and_point(name: str, lat: float, lng: float) -> Optional[Point]:
+        geocode_params = {
+            "q": name,
             "lat": lat,
             "lon": lng,
-            "type": "housenumber",
+            "lang": "fr",
+            "limit": 1,
         }
-    )
 
-    if geocode_response.status_code != 200:
-        return
+        geocoder = PhotonGeocoder()
 
-    geo_results = geocode_response.json()
+        response = geocoder.geocode(geocode_params)
 
-    if "features" in geo_results and geo_results["features"]:
-        best = geo_results["features"][0]
+        geo_result = response.json()
 
-        if best["properties"]["score"] >= 0.8:
-            return best["properties"]["id"]
+        if geo_result.get("features", None) and geo_result["features"][0]["properties"][
+            "type"
+        ] in [
+            "building",
+            "house",
+            "construction",
+        ]:
+            lat = geo_result["features"][0]["geometry"]["coordinates"][1]
+            lng = geo_result["features"][0]["geometry"]["coordinates"][0]
+            return Point(lng, lat, srid=4326)
+        else:
+            return
+
+    @staticmethod
+    def _address_to_ban_id(address: str, lat: float, lng: float) -> Optional[str]:
+        geocoder = BanGeocoder()
+        geocode_response = geocoder.geocode(
+            {
+                "q": address,
+                "lat": lat,
+                "lon": lng,
+                "type": "housenumber",
+            }
+        )
+
+        if geocode_response.status_code != 200:
+            return
+
+        geo_results = geocode_response.json()
+
+        if "features" in geo_results and geo_results["features"]:
+            best = geo_results["features"][0]
+
+            if best["properties"]["score"] >= 0.8:
+                return best["properties"]["id"]
