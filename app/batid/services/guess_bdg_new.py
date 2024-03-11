@@ -354,22 +354,3 @@ def _address_to_ban_id(address: str, lat: float, lng: float) -> Optional[str]:
 
         if best["properties"]["score"] >= 0.8:
             return best["properties"]["id"]
-
-
-def report_format(guesses):
-    report = []
-
-    for guess in guesses:
-        report_row = guess
-        if guess["match"]:
-            match_report = {
-                "rnb_id": guess["match"].rnb_id,
-                "lat_lng": f"{guess['match'].point[1]}, {guess['match'].point[0]}",
-                "distance": guess["match"].distance.m,
-            }
-
-            report_row["match"] = match_report
-
-        report.append(report_row)
-
-    return report
