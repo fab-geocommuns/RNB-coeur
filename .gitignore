@@ -62,3 +62,4 @@ venv/
 
 .devcontainer/
 
+/app/.Trash-*
