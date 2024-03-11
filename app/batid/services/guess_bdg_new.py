@@ -168,8 +168,8 @@ class Guesser:
 
         return guess
 
-    @classmethod
-    def _do_one_geocode_name_and_point(cls, guess):
+    @staticmethod
+    def _do_one_geocode_name_and_point(guess):
         lat = guess["row"].get("lat", None)
         lng = guess["row"].get("lng", None)
         name = guess["row"].get("name", None)
@@ -177,7 +177,7 @@ class Guesser:
         if not lat or not lng or not name:
             return guess
 
-        osm_bdg_point = cls._geocode_name_and_point(name, lat, lng)
+        osm_bdg_point = Guesser._geocode_name_and_point(name, lat, lng)
 
         if osm_bdg_point:
             closest_bdgs = get_closest(lat, lng, 20)
