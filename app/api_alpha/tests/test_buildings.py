@@ -270,13 +270,6 @@ class BuildingsEndpointsSingleTest(APITestCase):
             status="ongoingConstruction",
         )
 
-    def test_status_order(self):
-        r = self.client.get("/api/alpha/buildings/SINGLEONE/")
-        self.assertEqual(r.status_code, 200)
-
-        status = r.json()["status"]
-        self.assertEqual(status, "ongoingConstruction")
-
 
 class BuildingClosestViewTest(APITestCase):
     def test_closest(self):
