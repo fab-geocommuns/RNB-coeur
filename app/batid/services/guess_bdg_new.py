@@ -20,7 +20,7 @@ class Guesser:
 
     def __init__(self):
         self.guesses = {}
-        self.steps = []
+        self.steps_cls = [ClosestFromPointHandler]
 
     def create_work_file(self, rows, file_path):
         self.load_rows(rows)
@@ -106,12 +106,15 @@ class Guesser:
                     "distance": guess["match"].distance.m,
                 }
 
-
     def guess_batch(self, guesses: dict) -> dict:
+        for step_cls in self.steps_cls:
+            handler = step_cls()
+            if not isinstance(handler, AbstractHandler):
+                raise ValueError("Handler must be an instance of AbstractHandler")
 
+            guesses = handler.handle(guesses)
 
-        for handlers_cls in
-
+        return guesses
 
         # First try : closest building from point
         guesses = cls._do_many_closest_building(guesses)
@@ -376,13 +379,9 @@ class AbstractHandler(ABC):
 
 
 class ClosestFromPointHandler(AbstractHandler):
-
     _name = "closest_from_point"
 
     def handle(self, guesses: dict) -> dict:
         # do things on guesses
 
         return guesses
-
-
-
