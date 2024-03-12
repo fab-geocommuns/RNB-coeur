@@ -20,17 +20,17 @@ class Guesser:
     def __init__(self):
         self.guesses = {}
 
-    def create_work_file(self, rows, file_path):
-        self.load_rows(rows)
+    def create_work_file(self, inputs, file_path):
+        self.load_inputs(inputs)
         self.save_work_file(file_path)
 
     def load_work_file(self, file_path):
         with open(file_path, "r") as f:
             self.guesses = json.load(f)
 
-    def load_rows(self, rows: list):
-        self._validate_rows(rows)
-        self.guesses = self._rows_to_guesses(rows)
+    def load_inputs(self, inputs: list):
+        self._validate_inputs(inputs)
+        self.guesses = self._inputs_to_guesses(inputs)
 
     def guess_work_file(self, file_path):
         self.load_work_file(file_path)
@@ -134,7 +134,7 @@ class Guesser:
                 time.sleep(0.800)  # throttle the requests
                 guess = cls._do_one_geocode_name_and_point(guess)
 
-                guesses[guess["row"]["ext_id"]] = guess
+                guesses[guess["input"]["ext_id"]] = guess
 
         return guesses
 
@@ -144,15 +144,15 @@ class Guesser:
             if cls._need_to_do_step(cls.STEP_GEOCODE_ADDRESS, guess):
                 time.sleep(0.800)
                 guess = cls._do_one_bdg_w_address_and_point(guess)
-                guesses[guess["row"]["ext_id"]] = guess
+                guesses[guess["input"]["ext_id"]] = guess
 
         return guesses
 
     @classmethod
     def _do_one_bdg_w_address_and_point(cls, guess):
-        lat = guess["row"].get("lat", None)
-        lng = guess["row"].get("lng", None)
-        address = guess["row"].get("address", None)
+        lat = guess["input"].get("lat", None)
+        lng = guess["input"].get("lng", None)
+        address = guess["input"].get("address", None)
 
         if not address or not lat or not lng:
             return guess
@@ -170,9 +170,9 @@ class Guesser:
 
     @staticmethod
     def _do_one_geocode_name_and_point(guess):
-        lat = guess["row"].get("lat", None)
-        lng = guess["row"].get("lng", None)
-        name = guess["row"].get("name", None)
+        lat = guess["input"].get("lat", None)
+        lng = guess["input"].get("lng", None)
+        name = guess["input"].get("name", None)
 
         if not lat or not lng or not name:
             return guess
@@ -202,7 +202,7 @@ class Guesser:
 
             for future in concurrent.futures.as_completed(tasks):
                 guess = future.result()
-                guesses[guess["row"]["ext_id"]] = guess
+                guesses[guess["input"]["ext_id"]] = guess
 
         return guesses
 
@@ -215,8 +215,8 @@ class Guesser:
         if not cls._need_to_do_step(cls.STEP_CLOSEST_FROM_POINT, guess):
             return guess
 
-        lat = guess["row"].get("lat", None)
-        lng = guess["row"].get("lng", None)
+        lat = guess["input"].get("lat", None)
+        lng = guess["input"].get("lng", None)
 
         if not lat or not lng:
             return guess
@@ -257,12 +257,12 @@ class Guesser:
         return guess
 
     @staticmethod
-    def _rows_to_guesses(rows) -> dict:
+    def _inputs_to_guesses(inputs) -> dict:
         guesses = {}
-        for row in rows:
-            ext_id = row["ext_id"]
+        for input in inputs:
+            ext_id = input["ext_id"]
             guesses[ext_id] = {
-                "row": row,
+                "input": input,
                 "match": None,
                 "match_reason": None,
                 "finished_steps": [],
@@ -271,22 +271,22 @@ class Guesser:
         return guesses
 
     @staticmethod
-    def _validate_rows(rows):
-        Guesser._validate_types(rows)
-        Guesser._validate_ext_ids(rows)
+    def _validate_inputs(inputs):
+        Guesser._validate_types(inputs)
+        Guesser._validate_ext_ids(inputs)
 
     @staticmethod
-    def _validate_types(rows):
-        for row in rows:
-            if not isinstance(row, dict):
+    def _validate_types(inputs):
+        for input in inputs:
+            if not isinstance(input, dict):
                 raise Exception("data must be a list of dicts")
 
-            if "ext_id" not in row:
-                raise Exception("ext_id is required for each row")
+            if "ext_id" not in input:
+                raise Exception("ext_id is required for each input")
 
     @staticmethod
-    def _validate_ext_ids(rows):
-        ext_ids = [d["ext_id"] for d in rows]
+    def _validate_ext_ids(inputs):
+        ext_ids = [d["ext_id"] for d in inputs]
         if len(ext_ids) != len(set(ext_ids)):
             raise Exception("ext_ids are not unique")
 
