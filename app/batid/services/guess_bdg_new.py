@@ -20,7 +20,9 @@ class Guesser:
 
     def __init__(self):
         self.guesses = {}
-        self.steps_cls = [ClosestFromPointHandler]
+        self.handlers = [
+            ClosestFromPointHandler(),
+        ]
 
     def create_work_file(self, inputs, file_path):
         self.load_inputs(inputs)
@@ -119,15 +121,15 @@ class Guesser:
 
         # First try : closest building from point
         guesses = cls._do_many_closest_building(guesses)
-        guesses = cls._add_finished_step(cls.STEP_CLOSEST_FROM_POINT, guesses)
+        # guesses = cls._add_finished_step(cls.STEP_CLOSEST_FROM_POINT, guesses)
 
         # Second try : geocode address with BAN
         guesses = cls._do_many_bdg_w_address_and_point(guesses)
-        guesses = cls._add_finished_step(cls.STEP_GEOCODE_ADDRESS, guesses)
+        # guesses = cls._add_finished_step(cls.STEP_GEOCODE_ADDRESS, guesses)
 
         # Third try : geocode name with OSM
         guesses = cls._do_many_geocode_name_and_point(guesses)
-        guesses = cls._add_finished_step(cls.STEP_GEOCODE_NAME, guesses)
+        # guesses = cls._add_finished_step(cls.STEP_GEOCODE_NAME, guesses)
 
         return guesses
 
@@ -362,13 +364,29 @@ class AbstractHandler(ABC):
     _name = None
 
     def handle(self, guesses: dict) -> dict:
-        guesses = self._guess_batch(guesses)
+        to_guess, to_not_guess = self._split_guesses(guesses)
+        to_guess = self._guess_batch(guesses)
+
+        guesses = to_guess | to_not_guess
         guesses = self._add_finished_step(guesses)
 
         return guesses
 
+    def _split_guesses(self, guesses: dict) -> tuple:
+        to_handle = {}
+        not_to_handle = {}
+
+        for ext_id, guess in guesses.items():
+            if self.name not in guess["finished_steps"] and guess["match"] is None:
+                to_handle[ext_id] = guess
+            else:
+                not_to_handle[ext_id] = guess
+
+        return to_handle, not_to_handle
+
     @abstractmethod
     def _guess_batch(self, guesses: dict) -> dict:
+        # This function is the one doing all the guess work. It must be implemented in each handler.
         raise NotImplementedError
 
     @property
@@ -386,6 +404,24 @@ class AbstractHandler(ABC):
 
 class ClosestFromPointHandler(AbstractHandler):
     _name = "closest_from_point"
+
+    def _guess_batch(self, guesses: dict) -> dict:
+        tasks = conc
+
+        return guesses
+
+
+class GeocodeAddressHandler(AbstractHandler):
+    _name = "geocode_address"
+
+    def _guess_batch(self, guesses: dict) -> dict:
+        # do things on guesses
+
+        return guesses
+
+
+class GeocodeNameHandler(AbstractHandler):
+    _name = "geocode_name"
 
     def _guess_batch(self, guesses: dict) -> dict:
         # do things on guesses
