@@ -108,7 +108,7 @@ class TestGuesser(TransactionTestCase):
             os.remove(self.WORK_FILE)
 
         # Then create the Guesser work file
-        rows = [
+        inputs = [
             {
                 "ext_id": "1",
                 "lat": 44.82584611733995,
@@ -126,7 +126,7 @@ class TestGuesser(TransactionTestCase):
         ]
 
         guesser = Guesser()
-        guesser.create_work_file(rows, self.WORK_FILE)
+        guesser.create_work_file(inputs, self.WORK_FILE)
 
     def test_work_file_creation(self):
         # Verify the file has been created during the setup
@@ -138,7 +138,7 @@ class TestGuesser(TransactionTestCase):
 
             expected = {
                 "1": {
-                    "row": {
+                    "input": {
                         "ext_id": "1",
                         "lat": 44.82584611733995,
                         "lng": -0.5628137581613334,
@@ -150,7 +150,7 @@ class TestGuesser(TransactionTestCase):
                     "finished_steps": [],
                 },
                 "2": {
-                    "row": {
+                    "input": {
                         "ext_id": "2",
                         "lat": 49.20900576719936,
                         "lng": 3.4187047589154926,
@@ -168,13 +168,10 @@ class TestGuesser(TransactionTestCase):
             # remove the work file
             os.remove(self.WORK_FILE)
 
-    def test_guess_all_from_file(self):
-        pass
-
     def test_ambiguous_point(self):
         # The point is almost equidistant from two buildings. It should not be matched.
 
-        rows = [
+        inputs = [
             {
                 "ext_id": "AMBIGUOUS_POINT",
                 "lat": 44.825661934374295,
@@ -183,7 +180,7 @@ class TestGuesser(TransactionTestCase):
         ]
 
         guesser = Guesser()
-        guesser.load_rows(rows)
+        guesser.load_inputs(inputs)
         guesser.guess_all()
 
         # We verify we found the right building
@@ -193,7 +190,7 @@ class TestGuesser(TransactionTestCase):
     def test_point_on_building(self):
         guesser = Guesser()
 
-        rows = [
+        inputs = [
             {
                 "ext_id": "UNIQUE_ROW",
                 "lat": 44.8257,
@@ -203,7 +200,7 @@ class TestGuesser(TransactionTestCase):
             }
         ]
 
-        guesser.load_rows(rows)
+        guesser.load_inputs(inputs)
         guesser.guess_all()
 
         # We verify we found the right building
@@ -222,7 +219,7 @@ class TestGuesser(TransactionTestCase):
         geocode_name_and_point_mock.return_value = None
         address_to_ban_id_mock.return_value = "BAN_ID_ONE"
 
-        rows = [
+        inputs = [
             {
                 "ext_id": "UNIQUE_ROW",
                 "lat": 44.8252,
@@ -233,7 +230,7 @@ class TestGuesser(TransactionTestCase):
         ]
 
         guesser = Guesser()
-        guesser.load_rows(rows)
+        guesser.load_inputs(inputs)
         guesser.guess_all()
 
         # We verify we found the right building
@@ -252,7 +249,7 @@ class TestGuesser(TransactionTestCase):
         geocode_name_and_point_mock.return_value = None
         address_to_ban_id_mock.return_value = "AMBIGUOUS_ADDRESS"
 
-        rows = [
+        inputs = [
             {
                 "ext_id": "UNIQUE_ROW",
                 "lat": 44.8252,
@@ -263,7 +260,7 @@ class TestGuesser(TransactionTestCase):
         ]
 
         guesser = Guesser()
-        guesser.load_rows(rows)
+        guesser.load_inputs(inputs)
         guesser.guess_all()
 
         # We verify we found the right building
@@ -280,7 +277,7 @@ class TestGuesser(TransactionTestCase):
             -0.5627717611330638, 44.825522167102605, srid=4326
         )
 
-        rows = [
+        inputs = [
             {
                 "ext_id": "UNIQUE_ROW",
                 "lat": 44.8254,
@@ -290,7 +287,7 @@ class TestGuesser(TransactionTestCase):
         ]
 
         guesser = Guesser()
-        guesser.load_rows(rows)
+        guesser.load_inputs(inputs)
         guesser.guess_all()
 
         # We verify we found the right building
@@ -300,3 +297,7 @@ class TestGuesser(TransactionTestCase):
         # Check the reason
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "found_name_in_osm")
+
+    def tearDown(self):
+        if os.path.exists(self.WORK_FILE):
+            os.remove(self.WORK_FILE)
