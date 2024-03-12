@@ -351,7 +351,7 @@ class Command(BaseCommand):
 
         g = BanGeocoder()
 
-        r = g.geocode(address)
+        r = g.geocode({"q": address})
 
         if r["features"]:
             point = GEOSGeometry(json.dumps(r["features"][0]["geometry"]))

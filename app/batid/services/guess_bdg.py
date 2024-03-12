@@ -602,7 +602,8 @@ class PhotonGeocodingHandler:
         params = self.geocode_params(search_params)
 
         if isinstance(params["q"], str):
-            results = self.geocoder.geocode(params)
+            geocode_response = self.geocoder.geocode(params)
+            results = geocode_response.json()
 
             if results["features"]:
                 best = results["features"][0]
@@ -617,7 +618,10 @@ class BANGeocodingHandler:
         self.geocoder = BanGeocoder()
 
     def geocode(self, search_params):
-        results = self.geocoder.geocode(search_params.address)
+        address = search_params.address
+
+        geocode_response = self.geocoder.geocode({"q": address})
+        results = geocode_response.json()
 
         # If there is any result coming from the geocoder
         if "features" in results and results["features"]:
