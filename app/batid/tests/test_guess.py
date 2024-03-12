@@ -17,6 +17,10 @@ class TestGuesser(TransactionTestCase):
         self._create_rnb_bdgs()
         self._create_guess_work_file()
 
+    def tearDown(self):
+        if os.path.exists(self.WORK_FILE):
+            os.remove(self.WORK_FILE)
+
     def _create_rnb_bdgs(self):
         rnb_bdgs = {
             "type": "FeatureCollection",
@@ -186,7 +190,10 @@ class TestGuesser(TransactionTestCase):
         # We verify we found the right building
         matching_bdg = guesser.guesses.get("AMBIGUOUS_POINT")["match"]
         self.assertIsNone(matching_bdg)
-        self.assertEqual(guesser.guesses.get("AMBIGUOUS_POINT")["finished_steps"], ["closest_from_point", "geocode_address", "geocode_name"])
+        self.assertEqual(
+            guesser.guesses.get("AMBIGUOUS_POINT")["finished_steps"],
+            ["closest_from_point", "geocode_address", "geocode_name"],
+        )
 
     def test_point_on_building(self):
         guesser = Guesser()
@@ -267,7 +274,10 @@ class TestGuesser(TransactionTestCase):
         # We verify we found the right building
         matching_bdg = guesser.guesses.get("UNIQUE_ROW")["match"]
         self.assertIsNone(matching_bdg)
-        self.assertEqual(guesser.guesses.get("UNIQUE_ROW")["finished_steps"], ["closest_from_point", "geocode_address", "geocode_name"])
+        self.assertEqual(
+            guesser.guesses.get("UNIQUE_ROW")["finished_steps"],
+            ["closest_from_point", "geocode_address", "geocode_name"],
+        )
 
         # We check the match reason is empty
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
@@ -299,7 +309,3 @@ class TestGuesser(TransactionTestCase):
         # Check the reason
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "found_name_in_osm")
-
-    def tearDown(self):
-        if os.path.exists(self.WORK_FILE):
-            os.remove(self.WORK_FILE)
