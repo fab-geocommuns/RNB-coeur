@@ -168,9 +168,6 @@ class TestGuesser(TransactionTestCase):
             # remove the work file
             os.remove(self.WORK_FILE)
 
-    def test_guess_all_from_file(self):
-        pass
-
     def test_ambiguous_point(self):
         # The point is almost equidistant from two buildings. It should not be matched.
 
@@ -300,3 +297,7 @@ class TestGuesser(TransactionTestCase):
         # Check the reason
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "found_name_in_osm")
+
+    def tearDown(self):
+        if os.path.exists(self.WORK_FILE):
+            os.remove(self.WORK_FILE)
