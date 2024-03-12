@@ -113,6 +113,7 @@ class Guesser:
                 raise ValueError("Handler must be an instance of AbstractHandler")
 
             guesses = handler.handle(guesses)
+            guesses = self._add_finished_step(handler.name, guesses)
 
         return guesses
 
@@ -128,13 +129,6 @@ class Guesser:
         guesses = cls._do_many_geocode_name_and_point(guesses)
         guesses = cls._add_finished_step(cls.STEP_GEOCODE_NAME, guesses)
 
-        return guesses
-
-    @staticmethod
-    def _add_finished_step(step: str, guesses: dict) -> dict:
-        for guess in guesses.values():
-            if step not in guess["finished_steps"]:
-                guess["finished_steps"].append(step)
         return guesses
 
     @classmethod
@@ -367,8 +361,14 @@ class Guesser:
 class AbstractHandler(ABC):
     _name = None
 
-    @abstractmethod
     def handle(self, guesses: dict) -> dict:
+        guesses = self._guess_batch(guesses)
+        guesses = self._add_finished_step(guesses)
+
+        return guesses
+
+    @abstractmethod
+    def _guess_batch(self, guesses: dict) -> dict:
         raise NotImplementedError
 
     @property
@@ -377,11 +377,17 @@ class AbstractHandler(ABC):
             raise ValueError("_name must be set")
         return self._name
 
+    def _add_finished_step(self, guesses: dict) -> dict:
+        for guess in guesses.values():
+            if self.name not in guess["finished_steps"]:
+                guess["finished_steps"].append(self.name)
+        return guesses
+
 
 class ClosestFromPointHandler(AbstractHandler):
     _name = "closest_from_point"
 
-    def handle(self, guesses: dict) -> dict:
+    def _guess_batch(self, guesses: dict) -> dict:
         # do things on guesses
 
         return guesses
