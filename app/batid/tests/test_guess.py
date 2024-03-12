@@ -186,6 +186,7 @@ class TestGuesser(TransactionTestCase):
         # We verify we found the right building
         matching_bdg = guesser.guesses.get("AMBIGUOUS_POINT")["match"]
         self.assertIsNone(matching_bdg)
+        self.assertEqual(guesser.guesses.get("AMBIGUOUS_POINT")["finished_steps"], ["closest_from_point", "geocode_address", "geocode_name"])
 
     def test_point_on_building(self):
         guesser = Guesser()
@@ -266,6 +267,7 @@ class TestGuesser(TransactionTestCase):
         # We verify we found the right building
         matching_bdg = guesser.guesses.get("UNIQUE_ROW")["match"]
         self.assertIsNone(matching_bdg)
+        self.assertEqual(guesser.guesses.get("UNIQUE_ROW")["finished_steps"], ["closest_from_point", "geocode_address", "geocode_name"])
 
         # We check the match reason is empty
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
