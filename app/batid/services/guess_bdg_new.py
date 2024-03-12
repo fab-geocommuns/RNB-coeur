@@ -228,8 +228,8 @@ class Guesser:
             return guess
 
         first_bdg = closest_bdgs[0]
-        # Is the first building within 1 meter ?
-        if first_bdg.distance.m <= 1:
+        # Is the the point is in the first building ?
+        if first_bdg.distance.m <= 0:
             guess["match"] = first_bdg
             guess["match_reason"] = "point_on_bdg"
             return guess
