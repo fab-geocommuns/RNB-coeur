@@ -44,11 +44,7 @@ class Inspector:
 
     def get_matching_bdgs(self):
         self.matching_bdgs = Building.objects.filter(
-            shape__intersects=self.candidate.shape
-        ).filter(
-            Q(
-                status__in=BuildingStatusService.REAL_BUILDINGS_STATUS,
-            )
+            shape__intersects=self.candidate.shape  and status__in=BuildingStatusService.REAL_BUILDINGS_STATUS
         )
 
     def inspect_candidate(self):
