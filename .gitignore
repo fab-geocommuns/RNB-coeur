@@ -40,6 +40,9 @@
 .env.s3_backup.import
 .env.s3_backup.sandbox
 
+# Jupyter notebooks trash
+app/.Trash-0/*
+
 # Remove files in data folder since they are used for importing default data
 source_data/
 
