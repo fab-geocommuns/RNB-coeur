@@ -1,4 +1,5 @@
 class BuildingStatus:
+    # if a new status is added to the list, the front-end code should be updated accordingly
     TYPES = [
         {"key": "constructionProject", "label": "En projet", "public": False},
         {
