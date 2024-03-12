@@ -1,7 +1,8 @@
 import concurrent
 import json
 import time
-from pprint import pprint
+from abc import ABC
+from abc import abstractmethod
 from typing import Optional
 from django.contrib.gis.geos import Point
 import pandas as pd
@@ -19,6 +20,7 @@ class Guesser:
 
     def __init__(self):
         self.guesses = {}
+        self.steps = []
 
     def create_work_file(self, rows, file_path):
         self.load_rows(rows)
@@ -104,8 +106,13 @@ class Guesser:
                     "distance": guess["match"].distance.m,
                 }
 
-    @classmethod
-    def guess_batch(cls, guesses: dict) -> dict:
+
+    def guess_batch(self, guesses: dict) -> dict:
+
+
+        for handlers_cls in
+
+
         # First try : closest building from point
         guesses = cls._do_many_closest_building(guesses)
         guesses = cls._add_finished_step(cls.STEP_CLOSEST_FROM_POINT, guesses)
@@ -352,3 +359,30 @@ class Guesser:
 
             if best["properties"]["score"] >= 0.8:
                 return best["properties"]["id"]
+
+
+class AbstractHandler(ABC):
+    _name = None
+
+    @abstractmethod
+    def handle(self, guesses: dict) -> dict:
+        raise NotImplementedError
+
+    @property
+    def name(self):
+        if self._name is None:
+            raise ValueError("_name must be set")
+        return self._name
+
+
+class ClosestFromPointHandler(AbstractHandler):
+
+    _name = "closest_from_point"
+
+    def handle(self, guesses: dict) -> dict:
+        # do things on guesses
+
+        return guesses
+
+
+
