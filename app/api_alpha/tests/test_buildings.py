@@ -8,7 +8,7 @@ from rest_framework.test import APITestCase
 from batid.models import Building, User, Organization
 from rest_framework.authtoken.models import Token
 
-from batid.tests.helpers import create_grenoble, create_constructed_bdg
+from batid.tests.helpers import create_grenoble, create_bdg
 
 
 class BuildingsEndpointsTest(APITestCase):
@@ -63,7 +63,7 @@ class BuildingsEndpointsTest(APITestCase):
 
         # Check buildings in a city
         create_grenoble()
-        bdg = create_constructed_bdg(
+        bdg = create_bdg(
             "INGRENOBLEGO",
             [
                 [5.721187072129851, 45.18439363812283],

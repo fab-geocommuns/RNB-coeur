@@ -1,12 +1,12 @@
 from rest_framework.test import APITestCase
 
-from batid.tests.helpers import create_constructed_bdg
+from batid.tests.helpers import create_bdg
 from django.contrib.gis.geos import Point
 
 
 class BdgGuessEndpointTest(APITestCase):
     def setUp(self):
-        b = create_constructed_bdg(
+        b = create_bdg(
             "DUMMYDUMMYGO",
             [
                 [5.721187072129851, 45.18439363812283],

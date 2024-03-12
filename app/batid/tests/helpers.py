@@ -1101,13 +1101,6 @@ def create_grenoble():
     return City.objects.create(name="Grenoble", shape=geom, code_insee="38185")
 
 
-def create_constructed_bdg(rnb_id, coords_list):
-    b = create_bdg(rnb_id, coords_list)
-    b.status = "constructed"
-
-    return b
-
-
 def coords_to_mp_geom(coords_list):
     coords = {
         "coordinates": [[coords_list]],

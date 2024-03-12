@@ -8,7 +8,7 @@ from batid.models import Building
 from django.contrib.gis.geos import GEOSGeometry
 from django.conf import settings
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
-from batid.tests.helpers import create_constructed_bdg, create_grenoble, create_paris
+from batid.tests.helpers import create_bdg, create_grenoble, create_paris
 
 
 class SearchStatusTestCase(TestCase):
@@ -202,7 +202,7 @@ class SearchCityTestCase(TestCase):
             [5.727891393506468, 45.18620181594525],
             [5.727677616548021, 45.18650547532101],
         ]
-        create_constructed_bdg("GRENOBLE-1", coords)
+        create_bdg("GRENOBLE-1", coords)
 
         # Grenoble 2
         coords = [
@@ -212,7 +212,7 @@ class SearchCityTestCase(TestCase):
             [5.727891393506468, 45.18620181594525],
             [5.727677616548021, 45.18650547532101],
         ]
-        create_constructed_bdg("GRENOBLE-2", coords)
+        create_bdg("GRENOBLE-2", coords)
 
         # Paris, to be sure it is not returned
         coords = [
@@ -222,7 +222,7 @@ class SearchCityTestCase(TestCase):
             [2.3533851616483332, 48.85690559355845],
             [2.3523348950355967, 48.8571274784089],
         ]
-        create_constructed_bdg("PARIS-1", coords)
+        create_bdg("PARIS-1", coords)
 
     def test_grenoble(self):
         qs = list_bdgs({"insee_code": "38185"})
