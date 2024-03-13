@@ -1,7 +1,5 @@
 import requests
 
-from batid.utils.decorators import show_duration
-
 
 class BanGeocoder:
     GEOCODE_URL = "https://api-adresse.data.gouv.fr/search/"

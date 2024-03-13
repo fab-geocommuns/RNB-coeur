@@ -1,8 +1,10 @@
-from django.urls import path
 from django.contrib import admin
-from batid.views import worker
+from django.urls import path
 
-from batid.models import Organization, Address, Contribution
+from batid.models import Address
+from batid.models import Contribution
+from batid.models import Organization
+from batid.views import worker
 
 
 class OrganizationAdmin(admin.ModelAdmin):

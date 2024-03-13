@@ -1,19 +1,16 @@
-import concurrent.futures
+import csv
 import json
 from datetime import datetime
+from io import StringIO
 
 import ijson
-
-from django.conf import settings
-from django.contrib.gis.geos import Polygon, GEOSGeometry, MultiPolygon
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import MultiPolygon
 from django.db import connection
 from django.utils import timezone
-from psycopg2.extras import execute_values
 
 from batid.models import Plot
 from batid.services.source import Source
-from io import StringIO
-import csv
 
 
 def import_etalab_plots(dpt: str):

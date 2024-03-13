@@ -6,7 +6,7 @@ Le coeur du RNB est en charge des éléments suivants :
 
 - le modèle de données et la logique métier
 - les outils d'import des bâtiments
-- les API bâtiments 
+- les API bâtiments
 - les API Autorisations du Droit des Sols (ADS)
 
 ## Documentation
@@ -20,7 +20,7 @@ Le coeur du RNB est en charge des éléments suivants :
 
 La mission du RNB est de référencer l’intégralité des bâtiments du territoire français au sein d’un géocommun
 
-Il s'agit d'un projet porté et financé par : 
+Il s'agit d'un projet porté et financé par :
 - l'Institut national de l’information géographique et forestière (IGN)
 - l'Agence de l'environnement et de la maîtrise de l'énergie (Ademe)
 - le Centre scientifique et technique du bâtiment (CSTB)

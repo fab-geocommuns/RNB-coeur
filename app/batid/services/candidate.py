@@ -1,11 +1,15 @@
-from datetime import datetime, timezone
+from datetime import datetime
+from datetime import timezone
 from typing import Literal
+
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
-from django.db import transaction, connection
-from django.db.models import Q
+from django.db import connection
+from django.db import transaction
+
+from batid.models import Building
+from batid.models import Candidate
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
-from batid.models import Candidate, Building
 from batid.services.rnb_id import generate_rnb_id
 
 

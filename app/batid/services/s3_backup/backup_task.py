@@ -1,10 +1,12 @@
-from turtle import down
-import boto3
 import json
-from datetime import datetime, timedelta, timezone
 import os
-import requests
 import time
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
+
+import boto3
+import requests
 
 
 # main function to be called by the cron job

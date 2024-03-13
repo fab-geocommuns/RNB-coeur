@@ -1,37 +1,33 @@
 from django.db import connection
-from rest_framework.decorators import api_view
-from rest_framework.generics import ListCreateAPIView, ListAPIView
+from django.http import Http404
+from django.http import HttpResponse
+from rest_framework import status
+from rest_framework import viewsets
+from rest_framework.exceptions import ParseError
+from rest_framework.pagination import CursorPagination
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_tracking.mixins import LoggingMixin
 
-from api_alpha.pagination import PagedNumberNoCount
 from api_alpha.permissions import ADSPermission
-from api_alpha.serializers import (
-    ADSSerializer,
-    BuildingSerializer,
-    GuessBuildingSerializer,
-    ContributionSerializer,
-    BuildingClosestSerializer,
-    BuildingClosestQuerySerializer,
-)
+from api_alpha.serializers import ADSSerializer
+from api_alpha.serializers import BuildingClosestQuerySerializer
+from api_alpha.serializers import BuildingClosestSerializer
+from api_alpha.serializers import BuildingSerializer
+from api_alpha.serializers import ContributionSerializer
+from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.services import get_city_from_request
 from batid.list_bdg import list_bdgs
+from batid.models import ADS
+from batid.models import Building
+from batid.models import Contribution
 from batid.services.closest_bdg import get_closest
+from batid.services.guess_bdg import BuildingGuess
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.guess_bdg import BuildingGuess
-from batid.models import ADS, Building, Contribution
-
-from rest_framework import viewsets, status
-from rest_framework.exceptions import ParseError
-from rest_framework.pagination import PageNumberPagination, CursorPagination
-from rest_framework.response import Response
-
-from django.http import HttpResponse, Http404
-from batid.services.vector_tiles import tile_sql, url_params_to_tile
-from rest_framework_tracking.mixins import LoggingMixin
-from django.contrib.gis.geos import Point
-from django.contrib.gis.measure import D
-from django.contrib.gis.db.models.functions import Distance
+from batid.services.vector_tiles import tile_sql
+from batid.services.vector_tiles import url_params_to_tile
 
 
 class RNBLoggingMixin(LoggingMixin):
@@ -180,7 +176,6 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
         if not search.is_valid():
             raise ParseError({"errors": search.errors})
-            pass
 
         return search.get_queryset()
 

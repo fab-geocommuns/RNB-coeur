@@ -1,18 +1,18 @@
 # abstract class, which will be extend by a specific class foreach django model
 from abc import ABC
-from datetime import datetime, date
-from typing import Type, Optional, List, Set
+from datetime import datetime
+from typing import List
+from typing import Optional
+from typing import Type
 
 from django.contrib.auth.models import User as UserModel
 from django.db.models import Model
-from batid.models import (
-    Building as BuildingModel,
-    AsyncSignal as SignalModel,
-    ADS as ADSModel,
-    BuildingADS as BuildingADSModel,
-)
-from batid.services.model_code import code_to_model, code_to_cls_name, is_model_code
-from batid.services.bdg_status import BuildingStatus
+
+from batid.models import ADS as ADSModel
+from batid.models import AsyncSignal as SignalModel
+from batid.services.model_code import code_to_cls_name
+from batid.services.model_code import code_to_model
+from batid.services.model_code import is_model_code
 
 
 class ModelGear(ABC):

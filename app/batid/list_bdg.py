@@ -1,7 +1,8 @@
 from django.contrib.gis.geos import Polygon
-from django.db.models import QuerySet
+
+from batid.models import Building
+from batid.models import City
 from batid.services.bdg_status import BuildingStatus
-from batid.models import Building, City
 
 
 def list_bdgs(params):

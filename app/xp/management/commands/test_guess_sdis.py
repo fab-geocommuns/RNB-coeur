@@ -1,14 +1,13 @@
 import time
 
+import fiona
+import pandas as pd
 from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand
+from pandas import read_excel
 
-from batid.models import Building
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.source import Source
-from pandas import read_excel
-import pandas as pd
-import fiona
 
 
 class Command(BaseCommand):

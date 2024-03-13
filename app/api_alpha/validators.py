@@ -1,8 +1,9 @@
-from batid.models import Building
-from api_alpha.services import BdgInADS
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos.error import GEOSException
 from rest_framework import serializers
+
+from api_alpha.services import BdgInADS
+from batid.models import Building
 from batid.services.rnb_id import clean_rnb_id
 
 

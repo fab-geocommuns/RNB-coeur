@@ -1,9 +1,11 @@
 import json
 
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import MultiPolygon
+
 from batid.models import Department
-from batid.services.france import fetch_dpt_cities_geojson, fetch_departments_refs
-from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
-from django.conf import settings
+from batid.services.france import fetch_departments_refs
+from batid.services.france import fetch_dpt_cities_geojson
 
 
 def import_etalab_dpts() -> None:

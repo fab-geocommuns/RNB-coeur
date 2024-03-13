@@ -1,9 +1,9 @@
-from math import exp
+import json
+import os
+
+import requests
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-import requests
-import os
-import json
 
 
 @csrf_exempt
@@ -16,8 +16,8 @@ def scaleway(request, secret_token):
 
         mattermost_webhook = os.environ.get("MATTERMOST_RNB_TECH_WEBHOOK_URL")
         json_data = json.loads(request.body)
-        invoice_start_date = json_data.get('invoice_start_date')
-        threshold = json_data.get('threshold')
+        invoice_start_date = json_data.get("invoice_start_date")
+        threshold = json_data.get("threshold")
 
         if (
             mattermost_webhook is None

@@ -3,10 +3,15 @@ from typing import Optional
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from batid.models import BuildingADS, ADSAchievement, ADS, AsyncSignal, Building
+
+from batid.models import ADS
+from batid.models import ADSAchievement
+from batid.models import AsyncSignal
+from batid.models import Building
+from batid.models import BuildingADS
+from batid.services.signal import create_async_signal
 
 # from batid.services.models_gears import BuildingGear
-from batid.services.signal import create_async_signal
 
 
 # @receiver(post_save, sender=Building)

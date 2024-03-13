@@ -1,17 +1,23 @@
 import json
 from datetime import datetime
-from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
+
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import Polygon
 from django.db.utils import IntegrityError
-from django.test import TestCase, TransactionTestCase
-from batid.models import Candidate, Address, Building, BuildingImport
+from django.test import TestCase
+from django.test import TransactionTestCase
+
+from batid.models import Address
+from batid.models import Building
+from batid.models import BuildingImport
+from batid.models import Candidate
 from batid.services.candidate import Inspector
 from batid.services.rnb_id import generate_rnb_id
-from batid.tests.helpers import (
-    create_paris,
-    create_bdg,
-    coords_to_mp_geom,
-    coords_to_point_geom,
-)
+from batid.tests.helpers import coords_to_mp_geom
+from batid.tests.helpers import coords_to_point_geom
+from batid.tests.helpers import create_bdg
+from batid.tests.helpers import create_paris
 
 
 class TestInspectorBdgCreate(TestCase):
