@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 
 from django.core.serializers import serialize
@@ -66,26 +67,22 @@ def _remove(ids, conn):
             conn.commit()
 
 
-def export_city(insee_code: str):
+def export_city(insee_code: str) -> str:
     src = Source("export")
     src.set_param("city", insee_code)
     src.set_param("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
     city = City.objects.get(code_insee=insee_code)
-    bdgs = (
-        Building.objects.filter(shape__intersects=city.shape)
-        .prefetch_related("addresses")
-        .prefetch_related("status")
-    )
+    bdgs = Building.objects.filter(shape__intersects=city.shape)
 
     geojson = serialize(
         "geojson",
         bdgs,
         geometry_field="shape",
-        fields=("rnb_id",),
+        fields=("rnb_id", "status", "ext_ids"),
     )
 
-    print(geojson)
+    with open(src.path, "w") as f:
+        f.write(geojson)
 
-    # with open(src.path, "w") as f:
-    #     json.dump(geojson, f)
+    return src.path
