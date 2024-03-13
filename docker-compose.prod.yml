@@ -59,7 +59,7 @@ services:
     command: celery -A app worker --concurrency=6 --loglevel=INFO
     volumes:
       - ./app:/app
-      - ./source_data:/data/downloads
+      - ./source_data:/home/app/source_data
     env_file:
       - ./.env.db_auth.prod
       - ./.env.app.prod
