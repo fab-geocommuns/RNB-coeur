@@ -101,8 +101,7 @@ def remove_light_bdgs(dpt):
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def export_city(insee_code):
-    export_city_job(insee_code)
-    return "done"
+    return export_city_job(insee_code)
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
