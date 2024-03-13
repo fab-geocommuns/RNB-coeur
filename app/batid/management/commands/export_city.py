@@ -8,4 +8,5 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         for code in options["insee_codes"].split(","):
-            app.send_task("batid.tasks.export_city", args=[code])
+            t = app.send_task("batid.tasks.export_city", args=[code])
+            print(t)
