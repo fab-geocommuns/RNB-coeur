@@ -1,12 +1,7 @@
-import json
-import os
 from datetime import datetime, timezone
-from time import perf_counter
 
 from django.core.serializers import serialize
-
-from batid.services.france import fetch_city_geojson
-from batid.services.source import Source, BufferToCopy
+from batid.services.source import Source
 from batid.models import Building, Department, City
 from django.db import connection
 from psycopg2.extras import RealDictCursor
@@ -76,9 +71,7 @@ def export_city(insee_code: str):
     src.set_param("city", insee_code)
     src.set_param("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
-    cities_geojson = fetch_city_geojson(insee_code)
-
-    city = City.objects.get(insee_code=insee_code)
+    city = City.objects.get(code_insee=insee_code)
     bdgs = (
         Building.objects.filter(shape__intersects=city.shape)
         .prefetch_related("addresses")
@@ -86,31 +79,13 @@ def export_city(insee_code: str):
     )
 
     geojson = serialize(
-        "geojson", bdgs, geometry_field="shape", fields=("rnb_id", "status")
+        "geojson",
+        bdgs,
+        geometry_field="shape",
+        fields=("rnb_id",),
     )
 
-    q = (
-        "SELECT rnb_id, ST_AsGeoJSON(ST_Transform(shape, 4326)) as shape "
-        f"FROM {Building._meta.db_table} "
-        "WHERE ST_Intersects(shape, ST_SetSRID(ST_GeomFromGeoJSON(%(geom)s), 4326), %(db_srid)s) "
-    )
+    print(geojson)
 
-    with connection.cursor() as cursor:
-        params = {"geom": json.dumps(cities_geojson["features"][0]["geometry"])}
-        cursor.execute(q, params)
-
-        # export the result to a geojson featurecollection
-        # with rnb_id and bdtopo_id as properties
-
-        feature_collection = {"type": "FeatureCollection", "features": []}
-
-        for rnb_id, bdtopo_id, shape in cursor:
-            feature = {
-                "type": "Feature",
-                "properties": {"rnb_id": rnb_id},
-                "geometry": json.loads(shape),
-            }
-            feature_collection["features"].append(feature)
-
-        with open(src.path, "w") as f:
-            json.dump(feature_collection, f)
+    # with open(src.path, "w") as f:
+    #     json.dump(geojson, f)
