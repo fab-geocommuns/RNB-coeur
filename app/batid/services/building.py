@@ -78,14 +78,11 @@ def export_city(insee_code: str):
     q = (
         "SELECT rnb_id, ST_AsGeoJSON(ST_Transform(shape, 4326)) as shape "
         f"FROM {Building._meta.db_table} "
-        "WHERE ST_Intersects(shape, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(geom)s), 4326), %(db_srid)s)) "
+        "WHERE ST_Intersects(shape, ST_SetSRID(ST_GeomFromGeoJSON(%(geom)s), 4326), %(db_srid)s) "
     )
 
     with connection.cursor() as cursor:
-        params = {
-            "geom": json.dumps(cities_geojson["features"][0]["geometry"]),
-            "db_srid": 4326,
-        }
+        params = {"geom": json.dumps(cities_geojson["features"][0]["geometry"])}
         cursor.execute(q, params)
 
         # export the result to a geojson featurecollection
