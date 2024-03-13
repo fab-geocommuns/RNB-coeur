@@ -1,8 +1,7 @@
 import csv
-import json
+import gzip
 import os
 import tarfile
-import gzip
 import zipfile
 
 import nanoid

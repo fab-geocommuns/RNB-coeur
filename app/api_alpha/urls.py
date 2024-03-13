@@ -1,15 +1,15 @@
-from api_alpha.views import (
-    ADSViewSet,
-    ADSBatchViewSet,
-    BuildingViewSet,
-    BuildingGuessView,
-    BuildingClosestView,
-    get_tile,
-    ContributionsViewSet,
-)
-from django.urls import include, path
+from django.urls import include
+from django.urls import path
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
+
+from api_alpha.views import ADSBatchViewSet
+from api_alpha.views import ADSViewSet
+from api_alpha.views import BuildingClosestView
+from api_alpha.views import BuildingGuessView
+from api_alpha.views import BuildingViewSet
+from api_alpha.views import ContributionsViewSet
+from api_alpha.views import get_tile
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()

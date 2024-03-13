@@ -1,7 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext_lazy as _
-import datetime
 
 
 def validate_many_ext_ids(ext_ids):

@@ -1,12 +1,10 @@
-import time
-
-from django.test import TestCase
 from django.contrib.auth.models import User
-from batid.models import Organization, ADS, BuildingADS, AsyncSignal
+from django.test import TestCase
+
+from batid.models import Organization
+from batid.services.signal import create_async_signal
 from batid.tests.helpers import create_default_bdg
-from batid.services.signal import create_async_signal, AsyncSignalDispatcher
 from batid.tests.helpers import create_grenoble
-from batid.services.model_code import model_to_code
 
 
 class TestSignal(TestCase):

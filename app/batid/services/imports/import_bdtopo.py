@@ -1,15 +1,22 @@
 import json
 import os
-from django.contrib.gis.geos import GEOSGeometry, WKTWriter
-from batid.models import Candidate, BuildingImport
-from batid.services.imports import building_import_history
-from batid.services.source import Source, bdtopo_source_switcher, BufferToCopy
-import fiona
-from datetime import datetime, timezone
-import psycopg2
-from django.db import connection, transaction
 import random
+from datetime import datetime
+from datetime import timezone
 
+import fiona
+import psycopg2
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import WKTWriter
+from django.db import connection
+from django.db import transaction
+
+from batid.models import BuildingImport
+from batid.models import Candidate
+from batid.services.imports import building_import_history
+from batid.services.source import bdtopo_source_switcher
+from batid.services.source import BufferToCopy
+from batid.services.source import Source
 from batid.utils.geo import fix_nested_shells
 
 

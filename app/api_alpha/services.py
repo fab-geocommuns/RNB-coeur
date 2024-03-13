@@ -1,11 +1,10 @@
 import json
 
-from rest_framework import exceptions, serializers
+from rest_framework import exceptions
+from rest_framework import serializers
 
 from api_alpha.permissions import ADSCityPermission
 from batid.models import City
-from django.conf import settings
-from django.db import connection
 from batid.services.rnb_id import clean_rnb_id
 
 
@@ -51,7 +50,7 @@ def calc_ads_cities(data):
             rnb_ids.append(clean_rnb_id(op["building"]["rnb_id"]))
 
     """
-        Toutes les villes qui soit : 
+        Toutes les villes qui soit :
         - contiennent un batiment dont le rnb_id est dans la liste des rnb_id
         - soit contiennent un point dans la liste des points
         - soit contiennent un multipolygone dans la liste des multipolygones

@@ -1,20 +1,21 @@
 # empty django command
+import uuid
+
 from celery import chain
 from django.core.management.base import BaseCommand
 
-from batid.management.commands.import_cities_dpt import (
-    create_tasks_list as create_tasks_list_cities_dpt,
-)
-from batid.management.commands.import_plots_dpt import (
-    create_tasks_list as create_tasks_list_plots_dpt,
-)
 from batid.management.commands.import_bdnb_dpt import (
     create_tasks_list as create_tasks_list_bdnb_dpt,
 )
 from batid.management.commands.import_bdtopo_dpt import (
     create_tasks_list as create_tasks_list_bdtopo_dpt,
 )
-import uuid
+from batid.management.commands.import_cities_dpt import (
+    create_tasks_list as create_tasks_list_cities_dpt,
+)
+from batid.management.commands.import_plots_dpt import (
+    create_tasks_list as create_tasks_list_plots_dpt,
+)
 
 
 class Command(BaseCommand):

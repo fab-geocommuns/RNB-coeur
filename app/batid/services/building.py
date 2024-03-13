@@ -1,13 +1,15 @@
 import json
-import os
-from datetime import datetime, timezone
-from time import perf_counter
-from batid.services.france import fetch_city_geojson
-from batid.services.source import Source, BufferToCopy
-from batid.models import Building, Department
+from datetime import datetime
+from datetime import timezone
+
+from django.conf import settings
 from django.db import connection
 from psycopg2.extras import RealDictCursor
-from django.conf import settings
+
+from batid.models import Building
+from batid.models import Department
+from batid.services.france import fetch_city_geojson
+from batid.services.source import Source
 
 
 def remove_dpt_bdgs(dpt_code: str):

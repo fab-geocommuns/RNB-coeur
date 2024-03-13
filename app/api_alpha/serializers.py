@@ -1,25 +1,25 @@
 from typing import Optional
-from rest_framework import serializers
-from batid.models import (
-    Building,
-    ADS,
-    BuildingADS,
-    City,
-    Address,
-    Contribution,
-)
-from batid.services.models_gears import ADSGear as ADSLogic
-from api_alpha.validators import (
-    ads_validate_rnbid,
-    BdgInADSValidator,
-    ADSValidator,
-)
-from api_alpha.services import BuildingADS as BuildingADSLogic, BdgInADS
-from rest_framework.validators import UniqueValidator
-from batid.services.rnb_id import generate_rnb_id, clean_rnb_id
-from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import MultiPolygon
+from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
+
+from api_alpha.services import BdgInADS
+from api_alpha.services import BuildingADS as BuildingADSLogic
+from api_alpha.validators import ads_validate_rnbid
+from api_alpha.validators import ADSValidator
+from api_alpha.validators import BdgInADSValidator
+from batid.models import Address
+from batid.models import ADS
+from batid.models import Building
+from batid.models import BuildingADS
+from batid.models import City
+from batid.models import Contribution
 from batid.services.guess_bdg import BuildingGuess
+from batid.services.models_gears import ADSGear as ADSLogic
+from batid.services.rnb_id import clean_rnb_id
+from batid.services.rnb_id import generate_rnb_id
 
 
 class ContributionSerializer(serializers.ModelSerializer):

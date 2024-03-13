@@ -1,15 +1,14 @@
-from email.policy import default
 import json
-from typing import Any, Optional
+from typing import Optional
 
 from django.contrib.auth.models import User
-from django.contrib.postgres.fields import ArrayField, DateTimeRangeField
 from django.contrib.gis.db import models
-from django.conf import settings
-from django.db.models import F
+from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import DateTimeRangeField
+
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
-from batid.validators import validate_one_ext_id
 from batid.utils.db import from_now_to_infinity
+from batid.validators import validate_one_ext_id
 
 
 class BuildingAbstract(models.Model):

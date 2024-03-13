@@ -1,14 +1,14 @@
-import datetime
 import json
-from pprint import pprint
 
-from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
-from rest_framework.test import APITestCase
-from batid.models import Building, User, Organization
 from rest_framework.authtoken.models import Token
+from rest_framework.test import APITestCase
 
-from batid.tests.helpers import create_grenoble, create_bdg
+from batid.models import Building
+from batid.models import Organization
+from batid.models import User
+from batid.tests.helpers import create_bdg
+from batid.tests.helpers import create_grenoble
 
 
 class BuildingsEndpointsTest(APITestCase):

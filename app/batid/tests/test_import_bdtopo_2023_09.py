@@ -1,10 +1,12 @@
 from datetime import datetime
 from unittest.mock import patch
 
-from django.contrib.gis.geos import Polygon, GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import Polygon
 from django.test import TransactionTestCase
 
-from batid.models import Building, Candidate
+from batid.models import Building
+from batid.models import Candidate
 from batid.services.candidate import Inspector
 from batid.services.imports.import_bdtopo import import_bdtopo
 from batid.tests import helpers

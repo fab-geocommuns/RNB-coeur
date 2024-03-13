@@ -1,11 +1,17 @@
 import json
-from django.conf import settings
+
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
-from batid.models import Building, ADS, BuildingADS, Organization, City
-from batid.tests.helpers import create_grenoble, create_cenac, create_paris
+
+from batid.models import ADS
+from batid.models import Building
+from batid.models import BuildingADS
+from batid.models import Organization
+from batid.tests.helpers import create_cenac
+from batid.tests.helpers import create_grenoble
+from batid.tests.helpers import create_paris
 
 
 class ADSEnpointsWithBadAuthTest(APITestCase):

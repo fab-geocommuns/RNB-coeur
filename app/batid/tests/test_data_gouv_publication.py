@@ -1,21 +1,21 @@
-from audioop import add
-from django.test import TestCase
-from unittest import mock
-from batid.models import Building, Address
-from django.contrib.gis.geos import GEOSGeometry
 import json
-from batid.services.data_gouv_publication import (
-    create_directory,
-    create_rnb_csv_files,
-    create_archive,
-    cleanup_directory,
-    upload_to_s3,
-    data_gouv_resource_id,
-    update_resource_metadata,
-)
 import os
-from moto import mock_aws
+from unittest import mock
+
 import boto3
+from django.contrib.gis.geos import GEOSGeometry
+from django.test import TestCase
+from moto import mock_aws
+
+from batid.models import Address
+from batid.models import Building
+from batid.services.data_gouv_publication import cleanup_directory
+from batid.services.data_gouv_publication import create_archive
+from batid.services.data_gouv_publication import create_directory
+from batid.services.data_gouv_publication import create_rnb_csv_files
+from batid.services.data_gouv_publication import data_gouv_resource_id
+from batid.services.data_gouv_publication import update_resource_metadata
+from batid.services.data_gouv_publication import upload_to_s3
 
 
 def get_geom():
@@ -130,7 +130,7 @@ class TestDataGouvPublication(TestCase):
         )
         directory_name = create_directory()
         create_rnb_csv_files(directory_name)
-        
+
         (archive_path, archive_size, archive_sha1) = create_archive(directory_name)
 
         # create the mock s3 bucket

@@ -1,5 +1,8 @@
 from django.test import TestCase
-from batid.models import Building, BuildingWithHistory, BuildingHistoryOnly
+
+from batid.models import Building
+from batid.models import BuildingHistoryOnly
+from batid.models import BuildingWithHistory
 
 
 class TemporalTableCase(TestCase):

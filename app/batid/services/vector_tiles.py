@@ -1,4 +1,3 @@
-from django.conf import settings
 from batid.models import Building
 
 TABLE = {
@@ -68,17 +67,17 @@ def envelopeToSQL(env):
     # Select the relevant geometry and clip to MVT bounds
     # Convert to MVT format
     sql_tmpl = """
-        WITH 
+        WITH
         bounds AS (
-            SELECT {env} AS geom, 
+            SELECT {env} AS geom,
                    {env}::box2d AS b2d
         ),
         mvtgeom AS (
-            SELECT ST_AsMVTGeom(ST_Transform(t.{geomColumn}, 3857), bounds.b2d) AS geom, 
+            SELECT ST_AsMVTGeom(ST_Transform(t.{geomColumn}, 3857), bounds.b2d) AS geom,
                    {attrColumns}
             FROM {table} t, bounds
             WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
-        ) 
+        )
         SELECT ST_AsMVT(mvtgeom.*) FROM mvtgeom
     """
     return sql_tmpl.format(**tbl)
