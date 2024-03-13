@@ -160,7 +160,7 @@ class ImportBDNB7TestCase(TransactionTestCase):
 
         buildings[0].refresh_from_db()
         self.assertEqual(
-            buildings[0].last_updated_by, {"source": "import", "id": building_import.id}
+            buildings[0].event_origin, {"source": "import", "id": building_import.id}
         )
 
         # launch a second import to test some building updates
@@ -203,8 +203,8 @@ class ImportBDNB7TestCase(TransactionTestCase):
         )
         self.assertEqual(updated_building.ext_ids[1]["id"], "NOUVEL_ID")
 
-        # we expect the last_updated_by field to be updated with the second import id
+        # we expect the event_origin field to be updated with the second import id
         self.assertEqual(
-            updated_building.last_updated_by,
+            updated_building.event_origin,
             {"source": "import", "id": last_building_import.id},
         )
