@@ -7,7 +7,7 @@ from django.core.serializers import serialize
 
 from batid.services.france import fetch_city_geojson
 from batid.services.source import Source, BufferToCopy
-from batid.models import Building, BuildingStatus, Department, City
+from batid.models import Building, Department, City
 from django.db import connection
 from psycopg2.extras import RealDictCursor
 from django.conf import settings
@@ -114,62 +114,3 @@ def export_city(insee_code: str):
 
         with open(src.path, "w") as f:
             json.dump(feature_collection, f)
-
-
-def add_default_status(after_id=0) -> int:
-    count = 0
-
-    last_id = None
-
-    # query all buildings without status
-    select_q = (
-        "SELECT b.id "
-        f"FROM {Building._meta.db_table} b "
-        "LEFT JOIN batid_buildingstatus as s ON b.id = s.building_id "
-        "WHERE s.id IS NULL and b.id > %(after_id)s "
-        "ORDER BY b.id ASC "
-        "LIMIT 300000"
-    )
-
-    buffer = BufferToCopy()
-
-    with connection.cursor() as cursor:
-        start = perf_counter()
-        cursor.execute(select_q, {"after_id": after_id})
-        rows = cursor.fetchall()
-        end = perf_counter()
-        print(f"fetch done in {end - start:0.4f} seconds. Found {len(rows)} rows")
-
-        values = [
-            (row[0], "constructed", datetime.now(), datetime.now(), True)
-            for row in rows
-        ]
-
-        if values:
-            print("-- writing buffer")
-            buffer.write_data(values)
-            count += len(values)
-
-            start = perf_counter()
-            with open(buffer.path, "r") as f:
-                print("-- copy buffer to db")
-                cursor.copy_from(
-                    f,
-                    BuildingStatus._meta.db_table,
-                    sep=";",
-                    columns=(
-                        "building_id",
-                        "type",
-                        "created_at",
-                        "updated_at",
-                        "is_current",
-                    ),
-                )
-            end = perf_counter()
-            print(f"insert done in {end - start:0.4f} seconds)")
-
-            os.remove(buffer.path)
-
-            last_id = rows[-1][0]
-
-    return count, last_id

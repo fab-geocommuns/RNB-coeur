@@ -1,11 +1,13 @@
 import json
 from datetime import datetime
+import stat
 
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from contextlib import ContextDecorator
 from django.db import connection
-from batid.models import City, Building, AsyncSignal, ADS, BuildingStatus
+from requests import Response
+from batid.models import City, Building, AsyncSignal, ADS
 from batid.services.signal import AsyncSignalDispatcher
 import os
 
@@ -1101,16 +1103,16 @@ def create_grenoble():
     return City.objects.create(name="Grenoble", shape=geom, code_insee="38185")
 
 
-def create_constructed_bdg(rnb_id, coords_list):
-    b = create_bdg(rnb_id, coords_list)
-    BuildingStatus.objects.create(
-        building=b,
-        type="constructed",
-        happened_at=datetime(2020, 1, 1),
-        is_current=True,
-    )
+def create_from_geojson(geojson_data):
+    for feature in geojson_data["features"]:
+        geom = GEOSGeometry(json.dumps(feature["geometry"]), srid=4326)
 
-    return b
+        b = Building.objects.create(
+            rnb_id=feature["properties"]["rnb_id"],
+            shape=geom,
+            point=geom.point_on_surface,
+            status="constructed",
+        )
 
 
 def coords_to_mp_geom(coords_list):
@@ -1160,27 +1162,37 @@ def create_default_ads(city: City, file_number="PC1234"):
     )
 
 
-def mock_ban_geocoder_result(id: str, lng: float, lat: float, score=0.99):
-    return {
-        "features": [
-            {
-                "geometry": {"coordinates": [lng, lat], "type": "Point"},
-                "properties": {
-                    "id": id,
-                    "score": score,
-                    "type": "housenumber",
-                    "x": lng,
-                    "y": lat,
-                },
-                "type": "Feature",
-            }
-        ],
-        "type": "FeatureCollection",
-    }
+def mock_ban_geocoder_result(id: str, lng: float, lat: float, score=0.99) -> Response:
+    r = Response()
+    r.status_code = 200
+    r._content = json.dumps(
+        {
+            "features": [
+                {
+                    "geometry": {"coordinates": [lng, lat], "type": "Point"},
+                    "properties": {
+                        "id": id,
+                        "score": score,
+                        "type": "housenumber",
+                        "x": lng,
+                        "y": lat,
+                    },
+                    "type": "Feature",
+                }
+            ],
+            "type": "FeatureCollection",
+        }
+    ).encode()
+
+    return r
 
 
-def mock_photon_geocoder_empty_result():
-    return {"features": [], "type": "FeatureCollection"}
+def mock_photon_geocoder_empty_result() -> Response:
+    r = Response()
+    r.status_code = 200
+    r._content = json.dumps({"features": [], "type": "FeatureCollection"}).encode()
+
+    return r
 
 
 # loads the village fixture in the database

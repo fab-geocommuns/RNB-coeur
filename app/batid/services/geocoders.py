@@ -4,34 +4,33 @@ from batid.utils.decorators import show_duration
 
 
 class BanGeocoder:
-    GEOCODE_URL = "https://api-adresse.data.gouv.fr/search/?q={address}"
+    GEOCODE_URL = "https://api-adresse.data.gouv.fr/search/"
     REVERSE_URL = "https://api-adresse.data.gouv.fr/reverse/?lon={lng}&lat={lat}"
 
-    def geocode(self, address):
-        url = self.GEOCODE_URL.format(address=address)
-        response = requests.get(url)
-        geocode_result = response.json()
+    def geocode(self, params: dict) -> requests.Response:
+        # available params are documented here : https://adresse.data.gouv.fr/api-doc/adresse
 
-        return geocode_result
+        response = requests.get(self.GEOCODE_URL, params=params)
 
-    def reverse(self, lat: float, lng: float):
+        return response
+
+    def reverse(self, lat: float, lng: float) -> requests.Response:
         url = self.REVERSE_URL.format(lat=lat, lng=lng)
         response = requests.get(url)
-        reverse_result = response.json()
 
-        return reverse_result
+        return response
 
 
 class PhotonGeocoder:
     GEOCODE_URL = "https://photon.komoot.io/api/"
 
-    def geocode(self, params):
+    def geocode(self, params) -> requests.Response:
         if "q" not in params:
             raise Exception("Missing 'q' parameter for Photon geocoding")
 
         response = requests.get(self.GEOCODE_URL, params=params)
 
-        return response.json()
+        return response
 
 
 class NominatimGeocoder:

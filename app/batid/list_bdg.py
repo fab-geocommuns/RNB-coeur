@@ -25,7 +25,7 @@ def list_bdgs(params):
 
     status = [s for s in status_list if s in allowed_status]
 
-    qs = qs.filter(status__type__in=status, status__is_current=True)
+    qs = qs.filter(status__in=status)
 
     # #######################
     # Bounding box filter

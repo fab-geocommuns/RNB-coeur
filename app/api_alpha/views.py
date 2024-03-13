@@ -19,7 +19,6 @@ from batid.services.closest_bdg import get_closest
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.guess_bdg import BuildingGuess
-from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.models import ADS, Building, Contribution
 
 from rest_framework import viewsets, status
@@ -71,16 +70,17 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
             lng = float(lng)
             radius = int(radius)
 
-            bdg = get_closest(lat, lng, radius)
+            qs = get_closest(lat, lng, radius)
+            bdg = qs.first()
 
-            if bdg is None:
-                # On peut envisager de transformer le résultat de ce endpoint en liste de bâtiments plutot qu'en bâtiment unique.
+            if isinstance(bdg, Building):
+                serializer = BuildingClosestSerializer(bdg)
+                return Response(serializer.data)
+            else:
                 return Response(
                     {"message": "No building found in the area"}, status=200
                 )
-            else:
-                serializer = BuildingClosestSerializer(bdg)
-                return Response(serializer.data)
+
         else:
             # Invalid data, return validation errors
             return Response(query_serializer.errors, status=400)

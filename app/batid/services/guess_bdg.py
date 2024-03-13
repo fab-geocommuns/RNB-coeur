@@ -1,5 +1,5 @@
 from batid.utils.misc import is_float
-from batid.models import Building, BuildingStatus, Plot
+from batid.models import Building, Plot
 from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
 from batid.services.geocoders import BanGeocoder, PhotonGeocoder
 from django.conf import settings
@@ -44,12 +44,7 @@ class BuildingGuess:
 
         # Status
         if self.params.status:
-            joins.append(
-                f"LEFT JOIN {BuildingStatus._meta.db_table} as s ON s.building_id = b.id"
-            )
-            group_by = "b.id"
-
-            wheres.append("s.type IN %(status)s AND s.is_current = TRUE")
+            wheres.append("status IN %(status)s")
             params["status"] = tuple(self.params.status)
 
         # #########################################
@@ -61,15 +56,15 @@ class BuildingGuess:
             # We give more score (2 points) when point comes from OSM than from query
             # todo : if we have both point and address, we should use the same cluster for both
             cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(osm_point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(osm_point)s) ASC LIMIT 1"
-            self.scores[
-                "osm_point_plot_cluster"
-            ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
+            self.scores["osm_point_plot_cluster"] = (
+                f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
+            )
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
-            self.scores[
-                "osm_point_distance"
-            ] = f"CASE WHEN ST_DistanceSphere(shape, %(osm_point)s) >= 1 THEN 2 / ST_DistanceSphere(shape, %(osm_point)s) WHEN ST_DistanceSphere(shape, %(osm_point)s) > 0 THEN 2 ELSE 3 END"
+            self.scores["osm_point_distance"] = (
+                f"CASE WHEN ST_DistanceSphere(shape, %(osm_point)s) >= 1 THEN 2 / ST_DistanceSphere(shape, %(osm_point)s) WHEN ST_DistanceSphere(shape, %(osm_point)s) > 0 THEN 2 ELSE 3 END"
+            )
 
             # Add the point to the params
             params["osm_point"] = f"{self.params._osm_point}"
@@ -83,9 +78,9 @@ class BuildingGuess:
 
             group_by = "b.id"
 
-            self.scores[
-                "ban_id_shared"
-            ] = f"CASE WHEN %(ban_id)s = ANY(array_agg(b_rel_a.address_id)) THEN 1 ELSE 0 END"
+            self.scores["ban_id_shared"] = (
+                f"CASE WHEN %(ban_id)s = ANY(array_agg(b_rel_a.address_id)) THEN 1 ELSE 0 END"
+            )
             params["ban_id"] = self.params._ban_id
 
         # #########################################
@@ -97,16 +92,16 @@ class BuildingGuess:
             # We give more score (2 points) when point comes from BAN than from query
             # todo : if we have both point and address, we should use the same cluster for both
             cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(ban_point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(ban_point)s) ASC LIMIT 1"
-            self.scores[
-                "ban_point_plot_cluster"
-            ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
+            self.scores["ban_point_plot_cluster"] = (
+                f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
+            )
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
             # todo : does the double ST_Distance evaluation is a performance problem ?
-            self.scores[
-                "ban_point_distance"
-            ] = f"CASE WHEN ST_DistanceSphere(shape, %(ban_point)s) >= 1 THEN 2 / ST_DistanceSphere(shape, %(ban_point)s) WHEN ST_DistanceSphere(shape, %(ban_point)s) > 0 THEN 2 ELSE 3 END"
+            self.scores["ban_point_distance"] = (
+                f"CASE WHEN ST_DistanceSphere(shape, %(ban_point)s) >= 1 THEN 2 / ST_DistanceSphere(shape, %(ban_point)s) WHEN ST_DistanceSphere(shape, %(ban_point)s) > 0 THEN 2 ELSE 3 END"
+            )
 
             # Add the point to the params
             params["ban_point"] = f"{self.params._ban_point}"
@@ -120,16 +115,16 @@ class BuildingGuess:
             # Public roads are not in cadastre plots. By grouping contiguous plots we can recreate simili-roads and keep only buildings intersecting this plot group.
             # todo : it might be interesting to pre-calculate cluster and store them in DB. It would be faster.
             cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(point)s) ASC LIMIT 1"
-            self.scores[
-                "point_plot_cluster"
-            ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 1 ELSE 0 END"
+            self.scores["point_plot_cluster"] = (
+                f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 1 ELSE 0 END"
+            )
 
             # DISTANCE TO THE POINT SCORE
             # We want to keep buildings that are close to the point
             # todo : does the double ST_Distance evaluation is a performance problem ?
-            self.scores[
-                "point_distance"
-            ] = f"CASE WHEN ST_DistanceSphere(shape, %(point)s) >= 1 THEN 1 / ST_DistanceSphere(shape, %(point)s) WHEN ST_DistanceSphere(shape, %(point)s) > 0 THEN 1 ELSE 5 END"
+            self.scores["point_distance"] = (
+                f"CASE WHEN ST_DistanceSphere(shape, %(point)s) >= 1 THEN 1 / ST_DistanceSphere(shape, %(point)s) WHEN ST_DistanceSphere(shape, %(point)s) > 0 THEN 1 ELSE 5 END"
+            )
 
             # LIMIT THE DISTANCE TO THE POINT
             wheres.append(f"ST_DWithin(shape::geography, %(point)s::geography, 400)")
@@ -231,11 +226,7 @@ class BuildingGuess:
             f"{pagination_str}"
         )
 
-        qs = (
-            Building.objects.raw(global_query, params)
-            .prefetch_related("addresses")
-            .prefetch_related("status")
-        )
+        qs = Building.objects.raw(global_query, params).prefetch_related("addresses")
 
         # print("---- QUERY ---")
         # print(qs.query)
@@ -602,7 +593,8 @@ class PhotonGeocodingHandler:
         params = self.geocode_params(search_params)
 
         if isinstance(params["q"], str):
-            results = self.geocoder.geocode(params)
+            geocode_response = self.geocoder.geocode(params)
+            results = geocode_response.json()
 
             if results["features"]:
                 best = results["features"][0]
@@ -617,7 +609,10 @@ class BANGeocodingHandler:
         self.geocoder = BanGeocoder()
 
     def geocode(self, search_params):
-        results = self.geocoder.geocode(search_params.address)
+        address = search_params.address
+
+        geocode_response = self.geocoder.geocode({"q": address})
+        results = geocode_response.json()
 
         # If there is any result coming from the geocoder
         if "features" in results and results["features"]:
