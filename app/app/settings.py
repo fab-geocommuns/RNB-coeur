@@ -115,6 +115,10 @@ WSGI_APPLICATION = "app.wsgi.application"
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 
+SERIALIZATION_MODULES = {
+    "geojson": "django.contrib.gis.serializers.geojson",
+}
+
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
