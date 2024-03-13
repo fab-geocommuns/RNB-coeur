@@ -211,8 +211,8 @@ class TestGuesser(TransactionTestCase):
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "point_on_bdg")
 
-    @patch("batid.services.guess_bdg_new.Guesser._address_to_ban_id")
-    @patch("batid.services.guess_bdg_new.Guesser._geocode_name_and_point")
+    @patch("batid.services.guess_bdg_new.GeocodeAddressHandler._address_to_ban_id")
+    @patch("batid.services.guess_bdg_new.GeocodeNameHandler._geocode_name_and_point")
     def test_guess_from_address(
         self, geocode_name_and_point_mock, address_to_ban_id_mock
     ):
@@ -241,8 +241,8 @@ class TestGuesser(TransactionTestCase):
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "precise_address_match")
 
-    @patch("batid.services.guess_bdg_new.Guesser._address_to_ban_id")
-    @patch("batid.services.guess_bdg_new.Guesser._geocode_name_and_point")
+    @patch("batid.services.guess_bdg_new.GeocodeAddressHandler._address_to_ban_id")
+    @patch("batid.services.guess_bdg_new.GeocodeNameHandler._geocode_name_and_point")
     def test_ambiguous_address(
         self, geocode_name_and_point_mock, address_to_ban_id_mock
     ):
@@ -271,7 +271,7 @@ class TestGuesser(TransactionTestCase):
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertIsNone(reason)
 
-    @patch("batid.services.guess_bdg_new.Guesser._geocode_name_and_point")
+    @patch("batid.services.guess_bdg_new.GeocodeNameHandler._geocode_name_and_point")
     def test_guess_from_name(self, geocode_name_and_point_mock):
         geocode_name_and_point_mock.return_value = Point(
             -0.5627717611330638, 44.825522167102605, srid=4326

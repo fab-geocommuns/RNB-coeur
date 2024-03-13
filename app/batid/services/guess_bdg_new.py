@@ -337,9 +337,8 @@ class GeocodeAddressHandler(AbstractHandler):
 class GeocodeNameHandler(AbstractHandler):
     _name = "geocode_name"
 
-    def __init__(self, sleep_time=0.8, closest_radius=3):
+    def __init__(self, sleep_time=0.8):
         self.sleep_time = sleep_time
-        self.closest_radius = closest_radius
 
     def _guess_batch(self, guesses: dict) -> dict:
         for guess in guesses.values():
@@ -362,13 +361,14 @@ class GeocodeNameHandler(AbstractHandler):
         osm_bdg_point = self._geocode_name_and_point(name, lat, lng)
 
         if osm_bdg_point:
-            closest_bdgs = get_closest(lat, lng, self.closest_radius)
+            # todo : on devrait filtrer pour n'avoir que les bâtiments qui ont un statut de bâtiment réel
+            print(osm_bdg_point)
+            bdg = Building.objects.filter(shape__intersects=osm_bdg_point)
 
-            for close_bdg in closest_bdgs:
-                if close_bdg.shape.contains(osm_bdg_point):
-                    guess["match"] = close_bdg
-                    guess["match_reason"] = "found_name_in_osm"
-                    return guess
+            if isinstance(bdg, Building):
+                guess["match"] = bdg
+                guess["match_reason"] = "found_name_in_osm"
+                return guess
 
         return guess
 
