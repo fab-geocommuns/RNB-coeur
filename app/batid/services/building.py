@@ -2,9 +2,12 @@ import json
 import os
 from datetime import datetime, timezone
 from time import perf_counter
+
+from django.core.serializers import serialize
+
 from batid.services.france import fetch_city_geojson
 from batid.services.source import Source, BufferToCopy
-from batid.models import Building, BuildingStatus, Department
+from batid.models import Building, BuildingStatus, Department, City
 from django.db import connection
 from psycopg2.extras import RealDictCursor
 from django.conf import settings
@@ -74,6 +77,17 @@ def export_city(insee_code: str):
     src.set_param("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
     cities_geojson = fetch_city_geojson(insee_code)
+
+    city = City.objects.get(insee_code=insee_code)
+    bdgs = (
+        Building.objects.filter(shape__intersects=city.shape)
+        .prefetch_related("addresses")
+        .prefetch_related("status")
+    )
+
+    geojson = serialize(
+        "geojson", bdgs, geometry_field="shape", fields=("rnb_id", "status")
+    )
 
     q = (
         "SELECT rnb_id, ST_AsGeoJSON(ST_Transform(shape, 4326)) as shape "
