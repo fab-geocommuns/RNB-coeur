@@ -1,15 +1,16 @@
 import json
-from datetime import datetime
-
-from django.conf import settings
-from django.contrib.gis.geos import GEOSGeometry
+import os
 from contextlib import ContextDecorator
+
+from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from requests import Response
 
-from batid.models import City, Building, AsyncSignal, ADS, BuildingStatus
+from batid.models import ADS
+from batid.models import AsyncSignal
+from batid.models import Building
+from batid.models import City
 from batid.services.signal import AsyncSignalDispatcher
-import os
 
 
 def dispatch_signals():
@@ -1111,26 +1112,8 @@ def create_from_geojson(geojson_data):
             rnb_id=feature["properties"]["rnb_id"],
             shape=geom,
             point=geom.point_on_surface,
+            status="constructed",
         )
-
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructed",
-            happened_at=datetime(2020, 1, 1),
-            is_current=True,
-        )
-
-
-def create_constructed_bdg(rnb_id, coords_list):
-    b = create_bdg(rnb_id, coords_list)
-    BuildingStatus.objects.create(
-        building=b,
-        type="constructed",
-        happened_at=datetime(2020, 1, 1),
-        is_current=True,
-    )
-
-    return b
 
 
 def coords_to_mp_geom(coords_list):

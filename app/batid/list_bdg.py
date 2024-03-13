@@ -1,7 +1,8 @@
 from django.contrib.gis.geos import Polygon
-from django.db.models import QuerySet
+
+from batid.models import Building
+from batid.models import City
 from batid.services.bdg_status import BuildingStatus
-from batid.models import Building, City
 
 
 def list_bdgs(params):
@@ -25,7 +26,7 @@ def list_bdgs(params):
 
     status = [s for s in status_list if s in allowed_status]
 
-    qs = qs.filter(status__type__in=status, status__is_current=True)
+    qs = qs.filter(status__in=status)
 
     # #######################
     # Bounding box filter

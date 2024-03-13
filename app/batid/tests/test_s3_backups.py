@@ -1,7 +1,9 @@
-from django.test import TestCase
-from batid.tasks import backup_to_s3
-from unittest.mock import patch
 import json
+from unittest.mock import patch
+
+from django.test import TestCase
+
+from batid.tasks import backup_to_s3
 
 
 class TestS3Backups(TestCase):
@@ -15,14 +17,17 @@ class TestS3Backups(TestCase):
         # assert the exception message
         with self.assertRaises(Exception) as e:
             backup_to_s3()
-            self.assertEqual(str(e.exception), "Error while creating the scaleway backup")
-            
-        
+            self.assertEqual(
+                str(e.exception), "Error while creating the scaleway backup"
+            )
+
         # assert the mock was called twice (once for the backup creation and once for the mattermost notification)
         self.assertEqual(post_mock.call_count, 2)
 
         # get the data sent to mattermost
         data = json.loads(post_mock.call_args[1]["data"])
         self.assertEqual(data["username"], "backup-bot")
-        self.assertEqual(data["text"], "Une erreur est survenue lors de la création d'un backup de la base de production du RNB : Error while creating the scaleway backup. Task ID : some-task_id")
-        
+        self.assertEqual(
+            data["text"],
+            "Une erreur est survenue lors de la création d'un backup de la base de production du RNB : Error while creating the scaleway backup. Task ID : some-task_id",
+        )

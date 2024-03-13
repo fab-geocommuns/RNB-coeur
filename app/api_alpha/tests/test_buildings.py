@@ -1,14 +1,14 @@
-import datetime
 import json
-from pprint import pprint
 
-from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
-from rest_framework.test import APITestCase
-from batid.models import Building, BuildingStatus, User, Organization
 from rest_framework.authtoken.models import Token
+from rest_framework.test import APITestCase
 
-from batid.tests.helpers import create_grenoble, create_bdg
+from batid.models import Building
+from batid.models import Organization
+from batid.models import User
+from batid.tests.helpers import create_bdg
+from batid.tests.helpers import create_grenoble
 
 
 class BuildingsEndpointsTest(APITestCase):
@@ -35,8 +35,8 @@ class BuildingsEndpointsTest(APITestCase):
             rnb_id="BDGSRNBBIDID",
             shape=geom,
             point=geom.point_on_surface,
+            status="constructed",
         )
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 
         coords = {
             "coordinates": [
@@ -58,12 +58,7 @@ class BuildingsEndpointsTest(APITestCase):
             rnb_id="BDGPROJ",
             shape=geom,
             point=geom.point_on_surface,
-        )
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructionProject",
-            is_current=True,
-            happened_at=datetime.datetime(2020, 2, 1),
+            status="constructionProject",
         )
 
         # Check buildings in a city
@@ -80,12 +75,6 @@ class BuildingsEndpointsTest(APITestCase):
                 [5.721187072129851, 45.18439363812283],
             ],
         )
-        BuildingStatus.objects.create(
-            building=bdg,
-            type="constructed",
-            is_current=True,
-            happened_at=datetime.datetime(2023, 2, 1),
-        )
 
     def test_bdg_in_bbox(self):
         r = self.client.get(
@@ -100,19 +89,12 @@ class BuildingsEndpointsTest(APITestCase):
                 {
                     "addresses": [],
                     "ext_ids": None,
+                    "status": "constructed",
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
                 }
             ],
         }
@@ -133,19 +115,12 @@ class BuildingsEndpointsTest(APITestCase):
                 {
                     "addresses": [],
                     "ext_ids": None,
+                    "status": "constructed",
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
                 }
             ],
         }
@@ -165,15 +140,8 @@ class BuildingsEndpointsTest(APITestCase):
             "results": [
                 {
                     "ext_ids": None,
+                    "status": "constructed",
                     "rnb_id": "BDGSRNBBIDID",
-                    "status": [
-                        {
-                            "type": "constructed",
-                            "label": "Construit",
-                            "happened_at": None,
-                            "is_current": True,
-                        }
-                    ],
                     "point": {
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
@@ -183,19 +151,12 @@ class BuildingsEndpointsTest(APITestCase):
                 {
                     "addresses": [],
                     "ext_ids": None,
+                    "status": "constructed",
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
                 },
             ],
         }
@@ -210,18 +171,11 @@ class BuildingsEndpointsTest(APITestCase):
         expected = {
             "ext_ids": None,
             "rnb_id": "BDGSRNBBIDID",
+            "status": "constructed",
             "point": {
                 "type": "Point",
                 "coordinates": [1.065566787499344, 46.634163236377134],
             },
-            "status": [
-                {
-                    "type": "constructed",
-                    "label": "Construit",
-                    "happened_at": None,
-                    "is_current": True,
-                }
-            ],
             "addresses": [],
         }
 
@@ -257,53 +211,32 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                 {
                     "ext_ids": None,
                     "rnb_id": "BDGSRNBBIDID",
+                    "status": "constructed",
                     "point": {
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
                     },
-                    "status": [
-                        {
-                            "type": "constructed",
-                            "label": "Construit",
-                            "happened_at": None,
-                            "is_current": True,
-                        }
-                    ],
                     "addresses": [],
                 },
                 {
                     "ext_ids": None,
                     "rnb_id": "BDGPROJ",
+                    "status": "constructionProject",
                     "point": {
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
                     },
-                    "status": [
-                        {
-                            "type": "constructionProject",
-                            "label": "En projet",
-                            "is_current": True,
-                            "happened_at": "2020-02-01",
-                        }
-                    ],
                     "addresses": [],
                 },
                 {
                     "addresses": [],
                     "ext_ids": None,
+                    "status": "constructed",
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
                 },
             ],
         }
@@ -334,32 +267,8 @@ class BuildingsEndpointsSingleTest(APITestCase):
             rnb_id="SINGLEONE",
             shape=geom,
             point=geom.point_on_surface,
+            status="ongoingConstruction",
         )
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructed",
-            happened_at=datetime.datetime(2020, 2, 1),
-        )
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructionProject",
-        )
-        BuildingStatus.objects.create(
-            building=b,
-            type="demolished",
-            is_current=True,
-            happened_at=datetime.datetime(2022, 2, 1),
-        )
-
-    def test_status_order(self):
-        r = self.client.get("/api/alpha/buildings/SINGLEONE/")
-        self.assertEqual(r.status_code, 200)
-
-        status = r.json()["status"]
-
-        self.assertEqual(status[0]["type"], "constructionProject")
-        self.assertEqual(status[1]["type"], "constructed")
-        self.assertEqual(status[2]["type"], "demolished")
 
 
 class BuildingClosestViewTest(APITestCase):

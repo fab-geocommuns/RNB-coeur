@@ -1,6 +1,7 @@
-from django.test import TestCase
-from batid.utils.geo import fix_nested_shells
 from django.contrib.gis.geos import GEOSGeometry
+from django.test import TestCase
+
+from batid.utils.geo import fix_nested_shells
 
 
 class TestGeo(TestCase):

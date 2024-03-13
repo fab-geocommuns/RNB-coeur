@@ -4,13 +4,15 @@ import time
 from abc import ABC
 from abc import abstractmethod
 from typing import Optional
-from django.contrib.gis.geos import Point
+
 import pandas as pd
+from django.contrib.gis.geos import Point
 from django.db import connections
 
 from batid.models import Building
 from batid.services.closest_bdg import get_closest
-from batid.services.geocoders import PhotonGeocoder, BanGeocoder
+from batid.services.geocoders import BanGeocoder
+from batid.services.geocoders import PhotonGeocoder
 
 
 class Guesser:

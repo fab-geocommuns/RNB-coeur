@@ -1,11 +1,14 @@
 from datetime import datetime
-
-from django.contrib.gis.geos import Point, MultiPolygon
-from django.test import TransactionTestCase
 from unittest.mock import patch
 
+from django.contrib.gis.geos import MultiPolygon
+from django.contrib.gis.geos import Point
+from django.test import TransactionTestCase
+
 import batid.services.imports.import_bdnb_2023_01 as import_bdnb_2023_01
-from batid.models import Candidate, Building, Address
+from batid.models import Address
+from batid.models import Building
+from batid.models import Candidate
 from batid.services.candidate import Inspector
 from batid.tests import helpers
 

@@ -1,15 +1,14 @@
-from email.policy import default
 import json
-from typing import Any, Optional
+from typing import Optional
 
 from django.contrib.auth.models import User
-from django.contrib.postgres.fields import ArrayField, DateTimeRangeField
 from django.contrib.gis.db import models
-from django.conf import settings
-from django.db.models import F
+from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import DateTimeRangeField
+
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
-from batid.validators import validate_one_ext_id
 from batid.utils.db import from_now_to_infinity
+from batid.validators import validate_one_ext_id
 
 
 class BuildingAbstract(models.Model):
@@ -25,6 +24,14 @@ class BuildingAbstract(models.Model):
     # in case of building merge, we want in the future to keep the list of the parent buildings
     # not implemented for now
     parent_buildings = models.JSONField(null=True)
+    # enum field for the building status
+    status = models.CharField(
+        choices=BuildingStatusModel.TYPES_CHOICES,
+        null=False,
+        db_index=True,
+        max_length=30,
+        default=BuildingStatusModel.DEFAULT_STATUS,
+    )
 
     class Meta:
         abstract = True
@@ -86,10 +93,6 @@ class Building(BuildingAbstract):
     def point_lng(self):
         return self.point_geojson()["coordinates"][0]
 
-    @property
-    def current_status(self):
-        return self.status.filter(is_current=True).first()
-
     class Meta:
         ordering = ["rnb_id"]
 
@@ -119,36 +122,6 @@ class BuildingHistoryOnly(BuildingAbstract):
     class Meta:
         managed = True
         db_table = "batid_building_history"
-
-
-class BuildingStatus(models.Model):
-    id = models.AutoField(primary_key=True)
-    type = models.CharField(
-        choices=BuildingStatusModel.TYPES_CHOICES,
-        null=False,
-        db_index=True,
-        max_length=30,
-    )
-    happened_at = models.DateField(null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    is_current = models.BooleanField(null=False, default=False)
-    building = models.ForeignKey(
-        Building, related_name="status", on_delete=models.CASCADE
-    )
-
-    class Meta:
-        ordering = [F("happened_at").asc(nulls_first=True)]
-
-    @property
-    def label(self):
-        return BuildingStatusModel.get_label(self.type)
-
-    def save(self, *args, **kwargs):
-        # If the status is current, we make sure that the previous current status is not current anymore
-        if self.is_current:
-            self.building.status.filter(is_current=True).update(is_current=False)
-        super().save(*args, **kwargs)
 
 
 class City(models.Model):
@@ -285,7 +258,6 @@ class AsyncSignal(models.Model):
         ordering = ["created_at"]
 
 
-
 class BuildingImport(models.Model):
     id = models.AutoField(primary_key=True)
     import_source = models.CharField(max_length=20, null=False)
@@ -301,6 +273,7 @@ class BuildingImport(models.Model):
     building_created_count = models.IntegerField(null=True)
     building_updated_count = models.IntegerField(null=True)
     building_refused_count = models.IntegerField(null=True)
+
 
 class Contribution(models.Model):
     id = models.AutoField(primary_key=True)

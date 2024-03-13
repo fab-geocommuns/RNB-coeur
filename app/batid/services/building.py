@@ -1,13 +1,15 @@
-import json
-import os
-from datetime import datetime, timezone
-from time import perf_counter
-from batid.services.france import fetch_city_geojson
-from batid.services.source import Source, BufferToCopy
-from batid.models import Building, BuildingStatus, Department
+from datetime import datetime
+from datetime import timezone
+
+from django.conf import settings
+from django.core.serializers import serialize
 from django.db import connection
 from psycopg2.extras import RealDictCursor
-from django.conf import settings
+
+from batid.models import Building
+from batid.models import City
+from batid.models import Department
+from batid.services.source import Source
 
 
 def remove_dpt_bdgs(dpt_code: str):
@@ -68,97 +70,24 @@ def _remove(ids, conn):
             conn.commit()
 
 
-def export_city(insee_code: str):
+def export_city(insee_code: str) -> str:
     src = Source("export")
     src.set_param("city", insee_code)
     src.set_param("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
-    cities_geojson = fetch_city_geojson(insee_code)
+    city = City.objects.get(code_insee=insee_code)
 
-    q = (
-        "SELECT rnb_id, ST_AsGeoJSON(ST_Transform(shape, 4326)) as shape "
-        f"FROM {Building._meta.db_table} "
-        "WHERE ST_Intersects(shape, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(geom)s), 4326), %(db_srid)s)) "
+    # NB : filtrer pour ne conserver que les bâtiments réels
+    bdgs = Building.objects.filter(shape__intersects=city.shape)
+
+    geojson = serialize(
+        "geojson",
+        bdgs,
+        geometry_field="shape",
+        fields=("rnb_id", "status", "ext_ids"),
     )
 
-    with connection.cursor() as cursor:
-        params = {
-            "geom": json.dumps(cities_geojson["features"][0]["geometry"]),
-            "db_srid": 4326,
-        }
-        cursor.execute(q, params)
+    with open(src.path, "w") as f:
+        f.write(geojson)
 
-        # export the result to a geojson featurecollection
-        # with rnb_id and bdtopo_id as properties
-
-        feature_collection = {"type": "FeatureCollection", "features": []}
-
-        for rnb_id, bdtopo_id, shape in cursor:
-            feature = {
-                "type": "Feature",
-                "properties": {"rnb_id": rnb_id},
-                "geometry": json.loads(shape),
-            }
-            feature_collection["features"].append(feature)
-
-        with open(src.path, "w") as f:
-            json.dump(feature_collection, f)
-
-
-def add_default_status(after_id=0) -> int:
-    count = 0
-
-    last_id = None
-
-    # query all buildings without status
-    select_q = (
-        "SELECT b.id "
-        f"FROM {Building._meta.db_table} b "
-        "LEFT JOIN batid_buildingstatus as s ON b.id = s.building_id "
-        "WHERE s.id IS NULL and b.id > %(after_id)s "
-        "ORDER BY b.id ASC "
-        "LIMIT 300000"
-    )
-
-    buffer = BufferToCopy()
-
-    with connection.cursor() as cursor:
-        start = perf_counter()
-        cursor.execute(select_q, {"after_id": after_id})
-        rows = cursor.fetchall()
-        end = perf_counter()
-        print(f"fetch done in {end - start:0.4f} seconds. Found {len(rows)} rows")
-
-        values = [
-            (row[0], "constructed", datetime.now(), datetime.now(), True)
-            for row in rows
-        ]
-
-        if values:
-            print("-- writing buffer")
-            buffer.write_data(values)
-            count += len(values)
-
-            start = perf_counter()
-            with open(buffer.path, "r") as f:
-                print("-- copy buffer to db")
-                cursor.copy_from(
-                    f,
-                    BuildingStatus._meta.db_table,
-                    sep=";",
-                    columns=(
-                        "building_id",
-                        "type",
-                        "created_at",
-                        "updated_at",
-                        "is_current",
-                    ),
-                )
-            end = perf_counter()
-            print(f"insert done in {end - start:0.4f} seconds)")
-
-            os.remove(buffer.path)
-
-            last_id = rows[-1][0]
-
-    return count, last_id
+    return src.path

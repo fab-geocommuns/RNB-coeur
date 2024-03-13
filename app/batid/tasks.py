@@ -1,29 +1,24 @@
 from celery import shared_task
-from batid.services.imports.import_dpt import import_etalab_dpts
-from batid.services.source import Source
-
-from batid.services.imports.import_bdnb_2023_01 import (
-    import_bdnd_2023_01_bdgs,
-    import_bdnd_2023_01_addresses,
-)
-
-from batid.services.imports.import_bdtopo import import_bdtopo as import_bdtopo_job
-from batid.services.imports.import_plots import (
-    import_etalab_plots as import_etalab_plots_job,
-)
-from batid.services.imports.import_cities import import_etalab_cities
-from batid.services.candidate import Inspector
-from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
-from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
-from batid.services.building import export_city as export_city_job
-from batid.services.building import add_default_status as add_default_status_job
-from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 
 from batid.models import AsyncSignal
-from batid.services.signal import AsyncSignalDispatcher
+from batid.services.building import export_city as export_city_job
+from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
+from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
+from batid.services.candidate import Inspector
+from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
+from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
+from batid.services.imports.import_bdtopo import import_bdtopo as import_bdtopo_job
+from batid.services.imports.import_cities import import_etalab_cities
 from batid.services.imports.import_dgfip_ads import (
     import_dgfip_ads_achievements as import_dgfip_ads_achievements_job,
 )
+from batid.services.imports.import_dpt import import_etalab_dpts
+from batid.services.imports.import_plots import (
+    import_etalab_plots as import_etalab_plots_job,
+)
+from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
+from batid.services.signal import AsyncSignalDispatcher
+from batid.services.source import Source
 
 
 @shared_task
@@ -106,25 +101,7 @@ def remove_light_bdgs(dpt):
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def export_city(insee_code):
-    export_city_job(insee_code)
-    return "done"
-
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def add_default_status():
-    print("---- Adding default status ----")
-
-    added = 0
-    after_id = 0
-
-    while True:
-        count, after_id = add_default_status_job(after_id)
-        added += count
-        print(f"Added {added} default status so far")
-        if count <= 0:
-            break
-
-    return "done"
+    return export_city_job(insee_code)
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})

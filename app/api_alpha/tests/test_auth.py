@@ -1,5 +1,4 @@
 from django.contrib.auth.models import User
-from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 

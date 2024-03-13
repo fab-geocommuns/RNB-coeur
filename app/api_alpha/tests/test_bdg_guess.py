@@ -1,8 +1,7 @@
+from django.contrib.gis.geos import Point
 from rest_framework.test import APITestCase
 
-from batid.models import BuildingStatus
 from batid.tests.helpers import create_bdg
-from django.contrib.gis.geos import Point
 
 
 class BdgGuessEndpointTest(APITestCase):
@@ -20,8 +19,6 @@ class BdgGuessEndpointTest(APITestCase):
             ],
         )
 
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
-
     def test_point_param(self):
         r = self.client.get(
             "/api/alpha/buildings/guess/?point=45.184327114924656,5.721176133001023"
@@ -35,19 +32,12 @@ class BdgGuessEndpointTest(APITestCase):
                 "score": 5.0,
                 "sub_scores": {"point_distance": 5, "point_plot_cluster": 0},
                 "ext_ids": None,
+                "status": "constructed",
                 "point": {
                     "coordinates": [5.721181338205954, 45.18433384981944],
                     "type": "Point",
                 },
                 "rnb_id": "DUMMYDUMMYGO",
-                "status": [
-                    {
-                        "happened_at": None,
-                        "is_current": True,
-                        "label": "Construit",
-                        "type": "constructed",
-                    }
-                ],
             }
         ]
 

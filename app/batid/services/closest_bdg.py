@@ -1,7 +1,9 @@
 from typing import Optional
-from django.contrib.gis.geos import Point
+
 from django.contrib.gis.db.models.functions import Distance
+from django.contrib.gis.geos import Point
 from django.db.models import QuerySet
+
 from batid.models import Building
 
 

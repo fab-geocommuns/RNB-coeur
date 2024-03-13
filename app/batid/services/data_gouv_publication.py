@@ -1,14 +1,14 @@
-import re
-from wsgiref import headers
-from django.db import connection
-from datetime import datetime
+import hashlib
+import logging
 import os
-from zipfile import ZipFile, ZIP_DEFLATED
+import shutil
+from datetime import datetime
+from zipfile import ZIP_DEFLATED
+from zipfile import ZipFile
+
 import boto3
 import requests
-import hashlib
-import shutil
-import logging
+from django.db import connection
 
 
 def publish():

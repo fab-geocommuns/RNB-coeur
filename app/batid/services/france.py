@@ -1,8 +1,4 @@
 import requests
-from django.db import connection
-
-from batid.models import Department
-from batid.utils.db import dictfetchone
 
 
 def fetch_city_geojson(insee_code: int) -> dict:

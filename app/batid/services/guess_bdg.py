@@ -1,11 +1,14 @@
-from batid.utils.misc import is_float
-from batid.models import Building, BuildingStatus, Plot
-from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
-from batid.services.geocoders import BanGeocoder, PhotonGeocoder
-from django.conf import settings
-from django.contrib.gis.geos import Polygon, MultiPolygon, Point
+from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import Polygon
 from django.db.models import QuerySet
 from geopy import distance
+
+from batid.models import Building
+from batid.models import Plot
+from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
+from batid.services.geocoders import BanGeocoder
+from batid.services.geocoders import PhotonGeocoder
+from batid.utils.misc import is_float
 
 
 class BuildingGuess:
@@ -44,12 +47,7 @@ class BuildingGuess:
 
         # Status
         if self.params.status:
-            joins.append(
-                f"LEFT JOIN {BuildingStatus._meta.db_table} as s ON s.building_id = b.id"
-            )
-            group_by = "b.id"
-
-            wheres.append("s.type IN %(status)s AND s.is_current = TRUE")
+            wheres.append("status IN %(status)s")
             params["status"] = tuple(self.params.status)
 
         # #########################################
@@ -231,11 +229,7 @@ class BuildingGuess:
             f"{pagination_str}"
         )
 
-        qs = (
-            Building.objects.raw(global_query, params)
-            .prefetch_related("addresses")
-            .prefetch_related("status")
-        )
+        qs = Building.objects.raw(global_query, params).prefetch_related("addresses")
 
         # print("---- QUERY ---")
         # print(qs.query)
@@ -565,8 +559,6 @@ class BuildingGuess:
                 self.__errors.append(
                     "You must provide at least one of the following parameters: address, name, point, poly"
                 )
-
-            pass
 
 
 class PhotonGeocodingHandler:

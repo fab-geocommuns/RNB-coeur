@@ -3,26 +3,20 @@ from typing import Optional
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from batid.models import (
-    BuildingADS,
-    ADSAchievement,
-    ADS,
-    AsyncSignal,
-    Building,
-    BuildingStatus,
-)
-from batid.services.models_gears import BuildingGear
+
+from batid.models import ADS
+from batid.models import ADSAchievement
+from batid.models import AsyncSignal
+from batid.models import Building
+from batid.models import BuildingADS
 from batid.services.signal import create_async_signal
 
-
-@receiver(post_save, sender=BuildingStatus)
-def signal_bdgstatus(sender, instance, created, **kwargs):
-    _sync_calc_missing_status(instance.building)
+# from batid.services.models_gears import BuildingGear
 
 
-@receiver(post_save, sender=Building)
-def signal_bdg(sender, instance, created, **kwargs):
-    _sync_calc_missing_status(instance)
+# @receiver(post_save, sender=Building)
+# def signal_bdg(sender, instance, created, **kwargs):
+#     _sync_calc_missing_status(instance)
 
 
 @receiver(post_save, sender=BuildingADS)
@@ -48,12 +42,12 @@ def signal_ads(sender, instance, created, **kwargs):
         _async_calc_bdg_status_from_ads(instance, op.building)
 
 
-def _sync_calc_missing_status(bdg_model: Building):
-    bdg = BuildingGear(bdg_model)
-    missing_status = bdg.calc_missing_status()
+# def _sync_calc_missing_status(bdg_model: Building):
+#     bdg = BuildingGear(bdg_model)
+#     missing_status = bdg.calc_missing_status()
 
-    for s in missing_status:
-        s.save()
+#     for s in missing_status:
+#         s.save()
 
 
 def _async_calc_bdg_status_from_ads(ads: ADS, bdg: Building) -> str:
