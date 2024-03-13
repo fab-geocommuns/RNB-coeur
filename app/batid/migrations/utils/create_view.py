@@ -1,4 +1,4 @@
-from django.db import migrations, models
+from django.db import migrations
 
 
 def sql_migration_building_with_history():

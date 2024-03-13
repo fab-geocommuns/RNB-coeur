@@ -1,6 +1,8 @@
-from django.test import TestCase
-from unittest.mock import Mock, patch
 import os
+from unittest.mock import Mock
+from unittest.mock import patch
+
+from django.test import TestCase
 
 
 # test the webhook view
@@ -50,7 +52,9 @@ class WebhookTestCase(TestCase):
     def test_webhook_400(self):
         with self.env:
             response = self.client.post(
-                "/webhook/scaleway/secret_token_xyz", {"key": "value"}, content_type="application/json"
+                "/webhook/scaleway/secret_token_xyz",
+                {"key": "value"},
+                content_type="application/json",
             )
             self.assertEqual(response.status_code, 400)
             self.assertEqual(response.content, b"Bad Request")
@@ -64,7 +68,7 @@ class WebhookTestCase(TestCase):
             response = self.client.post(
                 "/webhook/scaleway/secret_token_xyz",
                 data={"invoice_start_date": invoice_start_date, "threshold": treshold},
-                content_type="application/json"
+                content_type="application/json",
             )
             self.assertEqual(response.status_code, 400)
             self.assertEqual(response.content, b"Bad Request")

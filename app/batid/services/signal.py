@@ -1,21 +1,20 @@
 import inspect
 import sys
-from typing import Protocol, runtime_checkable, Optional, Set, List
-from batid.models import (
-    Building,
-    Organization,
-    AsyncSignal as SignalModel,
-    ADS,
-    # BuildingStatus,
-    ADSAchievement,
-    BuildingADS,
-)
-from dateutil.utils import today
+from typing import Optional
+from typing import Protocol
+from typing import runtime_checkable
+
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
-from app.celery import app
-from batid.services.model_code import model_to_code, code_to_model, code_to_pk
 from django.utils.timezone import now
+
+from app.celery import app
+from batid.models import ADS
+from batid.models import ADSAchievement
+from batid.models import AsyncSignal as SignalModel
+from batid.models import Building
+from batid.models import Organization
+from batid.services.model_code import model_to_code
 from batid.services.models_gears import SignalGear  # , BuildingADSGear
 
 
@@ -67,11 +66,14 @@ def _convert_user_to_org(user: User) -> Optional[Organization]:
 
 @runtime_checkable
 class AsyncSignalHandlerProtocol(Protocol):
-    def handle(self, signal: SignalGear) -> None: ...
+    def handle(self, signal: SignalGear) -> None:
+        ...
 
-    def should_handle(self, signal: SignalGear) -> bool: ...
+    def should_handle(self, signal: SignalGear) -> bool:
+        ...
 
-    def get_name(self) -> str: ...
+    def get_name(self) -> str:
+        ...
 
 
 class AsyncSignalDispatcher:

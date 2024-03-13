@@ -1,5 +1,6 @@
-from batid.models import Building
 from django.core.management.base import BaseCommand
+
+from batid.models import Building
 
 
 class Command(BaseCommand):

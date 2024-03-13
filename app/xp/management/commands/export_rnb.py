@@ -1,8 +1,10 @@
 # empty django command
 import json
-from batid.services.source import Source
+
 from django.core.management import BaseCommand
 from django.db import connections
+
+from batid.services.source import Source
 
 
 class Command(BaseCommand):
@@ -36,5 +38,3 @@ class Command(BaseCommand):
 
             with open(src.path, "w") as f:
                 json.dump(feature_collection, f)
-
-        pass

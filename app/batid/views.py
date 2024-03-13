@@ -1,9 +1,12 @@
-from django.shortcuts import render
-from app.celery import app as celery_app
-from django.contrib.auth.mixins import UserPassesTestMixin
-from revproxy.views import ProxyView
-from django.urls import re_path
 import os
+
+from django.contrib.auth.mixins import UserPassesTestMixin
+from django.shortcuts import render
+from django.urls import re_path
+from revproxy.views import ProxyView
+
+from app.celery import app as celery_app
+
 
 def worker(request):
     i = celery_app.control.inspect()
@@ -20,7 +23,7 @@ def worker(request):
 
 class FlowerProxyView(UserPassesTestMixin, ProxyView):
     # `flower` is Docker container, you can use `localhost` instead
-    
+
     upstream = "http://flower:{}".format(os.environ.get("FLOWER_PORT", "5555"))
 
     url_prefix = "flower"

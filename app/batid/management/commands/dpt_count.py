@@ -1,6 +1,8 @@
 from django.core.management.base import BaseCommand
+
+from batid.models import Building
+from batid.models import Department
 from batid.services.france import dpt_codes
-from batid.models import Department, Building
 
 
 class Command(BaseCommand):

@@ -1,5 +1,5 @@
-from psycopg2.extras import DateTimeTZRange
 from django.utils import timezone
+from psycopg2.extras import DateTimeTZRange
 
 
 def dictfetchall(cursor, query, params=None):

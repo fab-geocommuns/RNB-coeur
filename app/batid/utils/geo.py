@@ -1,6 +1,6 @@
-from pprint import pprint
-
-from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import MultiPolygon
+from django.contrib.gis.geos import Polygon
 
 
 def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:

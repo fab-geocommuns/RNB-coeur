@@ -1,7 +1,7 @@
+from django.contrib.gis.geos import Point
 from rest_framework.test import APITestCase
 
 from batid.tests.helpers import create_bdg
-from django.contrib.gis.geos import Point
 
 
 class BdgGuessEndpointTest(APITestCase):
