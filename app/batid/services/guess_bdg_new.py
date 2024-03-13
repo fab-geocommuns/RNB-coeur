@@ -401,3 +401,28 @@ class GeocodeNameHandler(AbstractHandler):
             return Point(lng, lat, srid=4326)
         else:
             return
+
+
+class PartialRoofHandler(AbstractHandler):
+    _name = "partial_roof"
+
+    def _guess_batch(self, guesses: dict) -> dict:
+        for guess in guesses.values():
+            guess = self._guess_one(guess)
+            guesses[guess["input"]["ext_id"]] = guess
+
+        return guesses
+
+    def _guess_one(self, guess: dict) -> dict:
+        poly = guess["input"].get("polygon", None)
+
+        if not poly:
+            return guess
+
+        bdg = Building.objects.filter(shape__contains=poly).first()
+
+        if isinstance(bdg, Building):
+            guess["match"] = bdg
+            guess["match_reason"] = "partial_roof"
+
+        return guess
