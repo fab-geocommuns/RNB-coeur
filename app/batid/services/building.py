@@ -1,12 +1,15 @@
-import json
-from datetime import datetime, timezone
+from datetime import datetime
+from datetime import timezone
 
+from django.conf import settings
 from django.core.serializers import serialize
-from batid.services.source import Source
-from batid.models import Building, Department, City
 from django.db import connection
 from psycopg2.extras import RealDictCursor
-from django.conf import settings
+
+from batid.models import Building
+from batid.models import City
+from batid.models import Department
+from batid.services.source import Source
 
 
 def remove_dpt_bdgs(dpt_code: str):
