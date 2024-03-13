@@ -1,14 +1,14 @@
-import json
 from datetime import datetime
 from datetime import timezone
 
 from django.conf import settings
+from django.core.serializers import serialize
 from django.db import connection
 from psycopg2.extras import RealDictCursor
 
 from batid.models import Building
+from batid.models import City
 from batid.models import Department
-from batid.services.france import fetch_city_geojson
 from batid.services.source import Source
 
 
@@ -70,38 +70,24 @@ def _remove(ids, conn):
             conn.commit()
 
 
-def export_city(insee_code: str):
+def export_city(insee_code: str) -> str:
     src = Source("export")
     src.set_param("city", insee_code)
     src.set_param("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
-    cities_geojson = fetch_city_geojson(insee_code)
+    city = City.objects.get(code_insee=insee_code)
 
-    q = (
-        "SELECT rnb_id, ST_AsGeoJSON(ST_Transform(shape, 4326)) as shape "
-        f"FROM {Building._meta.db_table} "
-        "WHERE ST_Intersects(shape, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(geom)s), 4326), %(db_srid)s)) "
+    # NB : filtrer pour ne conserver que les bâtiments réels
+    bdgs = Building.objects.filter(shape__intersects=city.shape)
+
+    geojson = serialize(
+        "geojson",
+        bdgs,
+        geometry_field="shape",
+        fields=("rnb_id", "status", "ext_ids"),
     )
 
-    with connection.cursor() as cursor:
-        params = {
-            "geom": json.dumps(cities_geojson["features"][0]["geometry"]),
-            "db_srid": 4326,
-        }
-        cursor.execute(q, params)
+    with open(src.path, "w") as f:
+        f.write(geojson)
 
-        # export the result to a geojson featurecollection
-        # with rnb_id and bdtopo_id as properties
-
-        feature_collection = {"type": "FeatureCollection", "features": []}
-
-        for rnb_id, bdtopo_id, shape in cursor:
-            feature = {
-                "type": "Feature",
-                "properties": {"rnb_id": rnb_id},
-                "geometry": json.loads(shape),
-            }
-            feature_collection["features"].append(feature)
-
-        with open(src.path, "w") as f:
-            json.dump(feature_collection, f)
+    return src.path
