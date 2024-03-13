@@ -13,7 +13,6 @@ from batid.models import ADS
 from batid.models import ADSAchievement
 from batid.models import AsyncSignal as SignalModel
 from batid.models import Building
-from batid.models import BuildingADS
 from batid.models import Organization
 from batid.services.model_code import model_to_code
 from batid.services.models_gears import SignalGear  # , BuildingADSGear
