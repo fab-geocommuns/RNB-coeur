@@ -17,8 +17,7 @@ from batid.utils.geo import fix_nested_shells
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        lat, lng = 44.777823375105186, -0.4532151396778606
-        radius = 20
-        qs = get_closest(lat, lng, radius)
 
-        pprint(qs.first().rnb_id)
+
+
+
