@@ -6,7 +6,7 @@ from batid.models import (
     Organization,
     AsyncSignal as SignalModel,
     ADS,
-    BuildingStatus,
+    # BuildingStatus,
     ADSAchievement,
     BuildingADS,
 )
@@ -16,7 +16,7 @@ from django.contrib.gis.db import models
 from app.celery import app
 from batid.services.model_code import model_to_code, code_to_model, code_to_pk
 from django.utils.timezone import now
-from batid.services.models_gears import SignalGear, BuildingADSGear
+from batid.services.models_gears import SignalGear  # , BuildingADSGear
 
 
 def create_async_signal(
@@ -67,14 +67,11 @@ def _convert_user_to_org(user: User) -> Optional[Organization]:
 
 @runtime_checkable
 class AsyncSignalHandlerProtocol(Protocol):
-    def handle(self, signal: SignalGear) -> None:
-        ...
+    def handle(self, signal: SignalGear) -> None: ...
 
-    def should_handle(self, signal: SignalGear) -> bool:
-        ...
+    def should_handle(self, signal: SignalGear) -> bool: ...
 
-    def get_name(self) -> str:
-        ...
+    def get_name(self) -> str: ...
 
 
 class AsyncSignalDispatcher:
@@ -166,98 +163,98 @@ class AsyncSignalHandler:
         self.results.append(result)
 
 
-class CalcBdgStatusFromADSHandler(AsyncSignalHandler):
-    def handle(self) -> None:
-        ads = self.signal.get_origin()
-        op = BuildingADS.objects.filter(
-            ads=ads, building=self.signal.model.building
-        ).first()
-        opGear = BuildingADSGear(op)
+# class CalcBdgStatusFromADSHandler(AsyncSignalHandler):
+#     def handle(self) -> None:
+#         ads = self.signal.get_origin()
+#         op = BuildingADS.objects.filter(
+#             ads=ads, building=self.signal.model.building
+#         ).first()
+#         opGear = BuildingADSGear(op)
 
-        previous_status = self.get_previous_status()
-        expected_status = opGear.get_expected_bdg_status()
+#         previous_status = self.get_previous_status()
+#         expected_status = opGear.get_expected_bdg_status()
 
-        self.install_status(previous_status, expected_status)
+#         self.install_status(previous_status, expected_status)
 
-    def install_status(
-        self, previous: List[BuildingStatus], expected: List[BuildingStatus]
-    ) -> None:
-        # All status are linked to the same building and the same ADS
+#     def install_status(
+#         self, previous: List[BuildingStatus], expected: List[BuildingStatus]
+#     ) -> None:
+#         # All status are linked to the same building and the same ADS
 
-        # ###################
-        # Create missing expected status
-        for exp_status in expected:
-            exp_found = False
+#         # ###################
+#         # Create missing expected status
+#         for exp_status in expected:
+#             exp_found = False
 
-            # We search
-            for prev_status in previous:
-                if exp_status.type == prev_status.type:
-                    exp_found = True
-                    break
+#             # We search
+#             for prev_status in previous:
+#                 if exp_status.type == prev_status.type:
+#                     exp_found = True
+#                     break
 
-            # If not found, we create
-            if not exp_found:
-                exp_status.save()
-                self.add_result(action="create", target=exp_status)
+#             # If not found, we create
+#             if not exp_found:
+#                 exp_status.save()
+#                 self.add_result(action="create", target=exp_status)
 
-        # #################
-        # Delete unexpected status
-        for prev_status in previous:
-            prev_found = False
+#         # #################
+#         # Delete unexpected status
+#         for prev_status in previous:
+#             prev_found = False
 
-            # We search
-            for exp_status in expected:
-                if exp_status.type == prev_status.type:
-                    prev_found = True
-                    break
+#             # We search
+#             for exp_status in expected:
+#                 if exp_status.type == prev_status.type:
+#                     prev_found = True
+#                     break
 
-            # If not found, we create
-            if not prev_found:
-                self.add_result(action="delete", target=prev_status)
-                prev_status.delete()
+#             # If not found, we create
+#             if not prev_found:
+#                 self.add_result(action="delete", target=prev_status)
+#                 prev_status.delete()
 
-        pass
+#         pass
 
-    def get_previous_status(self) -> List[BuildingStatus]:
-        # all signals with same bdg and same origin, not this one
-        # get all results for status creation
-        # fetch those status
-        # return them
+#     def get_previous_status(self) -> List[BuildingStatus]:
+#         # all signals with same bdg and same origin, not this one
+#         # get all results for status creation
+#         # fetch those status
+#         # return them
 
-        # Get all similar signals
-        same_signals = SignalModel.objects.filter(
-            building=self.signal.model.building,
-            origin=self.signal.model.origin,
-        ).exclude(id=self.signal.model.id)
+#         # Get all similar signals
+#         same_signals = SignalModel.objects.filter(
+#             building=self.signal.model.building,
+#             origin=self.signal.model.origin,
+#         ).exclude(id=self.signal.model.id)
 
-        # Get all BuildingStatus created by those signals
-        prev_results = []
-        for s_gear in [SignalGear(s) for s in same_signals]:
-            prev_results.extend(
-                s_gear.get_results(
-                    {
-                        "handler": self.get_name(),
-                        "action": "create",
-                        "target_class": "BuildingStatus",
-                    }
-                )
-            )
+#         # Get all BuildingStatus created by those signals
+#         prev_results = []
+#         for s_gear in [SignalGear(s) for s in same_signals]:
+#             prev_results.extend(
+#                 s_gear.get_results(
+#                     {
+#                         "handler": self.get_name(),
+#                         "action": "create",
+#                         "target_class": "BuildingStatus",
+#                     }
+#                 )
+#             )
 
-        # Get all BuildingStatus objects
-        prev_status_ids = set()
-        for result in prev_results:
-            prev_status_ids.add(code_to_pk(result["target"]))
+#         # Get all BuildingStatus objects
+#         prev_status_ids = set()
+#         for result in prev_results:
+#             prev_status_ids.add(code_to_pk(result["target"]))
 
-        prev_status = BuildingStatus.objects.filter(id__in=prev_status_ids)
+#         prev_status = BuildingStatus.objects.filter(id__in=prev_status_ids)
 
-        return list(prev_status)
+#         return list(prev_status)
 
-    def should_handle(self) -> bool:
-        return (
-            self.signal.model.type == "calcStatusFromADS"
-            and self.signal.origin_is_model()
-            and self.signal.get_origin_cls_name() == "ADS"
-        )
+#     def should_handle(self) -> bool:
+#         return (
+#             self.signal.model.type == "calcStatusFromADS"
+#             and self.signal.origin_is_model()
+#             and self.signal.get_origin_cls_name() == "ADS"
+#         )
 
 
 class ADSAchievementClueHandlerAsync(AsyncSignalHandler):

@@ -16,7 +16,6 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(f"Building found: {b[0].rnb_id}")
-        # self.stdout.write(f"Current status: {b[0].current_status.status}")
 
         confirm = input(f"Type 'REMOVEBDG' to confirm: ")
 
