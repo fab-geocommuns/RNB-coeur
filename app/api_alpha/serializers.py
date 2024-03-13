@@ -167,7 +167,7 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
 
             validated_data["rnb_id"] = generate_rnb_id()
             # we may need to add more info here
-            validated_data["last_updated_by"] = {"source": "ADS"}
+            validated_data["event_origin"] = {"source": "ADS"}
             building = super().create(validated_data)
             return building
         elif validated_data.get("rnb_id") == BdgInADS.GUESS_STR:
@@ -185,7 +185,7 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
             if bdg is None:
                 validated_data["rnb_id"] = generate_rnb_id()
                 # we may need to add more info here
-                validated_data["last_updated_by"] = {"source": "ADS"}
+                validated_data["event_origin"] = {"source": "ADS"}
                 building = super().create(validated_data)
                 return building
 
