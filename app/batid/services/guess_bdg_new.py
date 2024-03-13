@@ -364,8 +364,7 @@ class GeocodeNameHandler(AbstractHandler):
 
         if osm_bdg_point:
             # todo : on devrait filtrer pour n'avoir que les bâtiments qui ont un statut de bâtiment réel
-            print(osm_bdg_point)
-            bdg = Building.objects.filter(shape__intersects=osm_bdg_point)
+            bdg = Building.objects.filter(shape__contains=osm_bdg_point).first()
 
             if isinstance(bdg, Building):
                 guess["match"] = bdg
