@@ -407,6 +407,10 @@ class GeocodeNameHandler(AbstractHandler):
 
 
 class PartialRoofHandler(AbstractHandler):
+    """
+    This handler is used to match a building based on a roof section.
+    """
+
     _name = "partial_roof"
 
     def _guess_batch(self, guesses: dict) -> dict:
@@ -425,16 +429,31 @@ class PartialRoofHandler(AbstractHandler):
         return guesses
 
     def _guess_one(self, guess: dict) -> dict:
-        poly_geojson = guess["input"].get("polygon", None)
+        roof_geojson = guess["input"].get("polygon", None)
 
-        if not poly_geojson:
+        if not roof_geojson:
             return guess
 
-        poly = GEOSGeometry(json.dumps(poly_geojson))
-        bdg = Building.objects.filter(shape__contains=poly).first()
+        roof_poly = GEOSGeometry(json.dumps(roof_geojson))
+        bdgs = Building.objects.filter(shape__intersects=roof_poly)
 
-        if isinstance(bdg, Building):
-            guess["match"] = bdg
+        matching = []
+
+        if bdgs.count() > 0:
+            for bdg in bdgs:
+                # Fully contained roof section
+                if bdg.shape.contains(roof_poly):
+                    matching.append(bdg)
+                    continue
+
+                # Partially contained roof section
+                intersection = bdg.shape.intersection(roof_poly)
+                if intersection.area / roof_poly.area > 0.8:
+                    matching.append(bdg)
+                    continue
+
+        if len(matching) == 1:
+            guess["match"] = matching[0]
             guess["match_reason"] = "partial_roof"
 
         return guess

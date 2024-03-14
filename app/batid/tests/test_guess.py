@@ -464,7 +464,7 @@ class PartialRoofTest(TransactionTestCase):
         )
 
 
-class TestAlmostSimilar(PartialRoofTest):
+class TestContainedAlmostSimilar(PartialRoofTest):
     input_poly_geojson = {
         "coordinates": [
             [
@@ -485,3 +485,26 @@ class TestAlmostSimilar(PartialRoofTest):
         guesser = self._trigger_guesser()
 
         self.assertEqual(guesser.guesses["the_ext_id"]["match"].rnb_id, "LONGMIDDROOF")
+
+
+class TestAlmostContainedAlmostSimilar(PartialRoofTest):
+    input_poly_geojson = {
+        "coordinates": [
+            [
+                [5.728410143118737, 45.17513858575376],
+                [5.7283314047799365, 45.17498674164739],
+                [5.728466255497636, 45.17496058358833],
+                [5.728543183759285, 45.17511242776379],
+                [5.728410143118737, 45.17513858575376],
+            ]
+        ],
+        "type": "Polygon",
+    }
+
+    def setUp(self):
+        self._create_neighbourhood()
+
+    def test_result(self):
+        guesser = self._trigger_guesser()
+
+        self.assertEqual(guesser.guesses["the_ext_id"]["match"].rnb_id, "LONGTOPPROOF")
