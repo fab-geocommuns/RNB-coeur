@@ -7,6 +7,7 @@ from django.test import TransactionTestCase
 
 from batid.models import Address
 from batid.models import Building
+from batid.services.guess_bdg_new import ClosestFromPointHandler
 from batid.services.guess_bdg_new import Guesser
 from batid.tests.helpers import create_from_geojson
 
@@ -310,3 +311,27 @@ class TestGuesser(TransactionTestCase):
         # Check the reason
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "found_name_in_osm")
+
+    def test_custom_handlers(self):
+        # we define a custom list of handlers and check it is used
+        inputs = [
+            {
+                "ext_id": "SOME_POINT",
+                "lat": 44.82595445471543,
+                "lng": -0.5628922920153343,
+            }
+        ]
+
+        guesser = Guesser()
+        # we only set only one handler
+        guesser.handlers = [ClosestFromPointHandler()]
+        guesser.load_inputs(inputs)
+        guesser.guess_all()
+
+        # We verify we found the right building
+        matching_bdg = guesser.guesses.get("SOME_POINT")["match"]
+        self.assertEqual(matching_bdg.rnb_id, "BigLong")
+        # only one handler has been called
+        self.assertEqual(
+            guesser.guesses.get("SOME_POINT")["finished_steps"], ["closest_from_point"]
+        )
