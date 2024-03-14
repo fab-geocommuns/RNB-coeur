@@ -149,8 +149,8 @@ class Guesser:
             if "ext_id" not in input:
                 raise Exception("ext_id is required for each input")
 
-            if "polygon" in input and not isinstance(input["polygon"], str):
-                raise Exception("polygon must be a geojson geometry string")
+            if "polygon" in input and not isinstance(input["polygon"], dict):
+                raise Exception("polygon must be a geojson geometry formatted dict")
 
     @staticmethod
     def _validate_ext_ids(inputs):
@@ -410,8 +410,6 @@ class PartialRoofHandler(AbstractHandler):
     _name = "partial_roof"
 
     def _guess_batch(self, guesses: dict) -> dict:
-        print("partialRoof")
-
         tasks = []
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -432,10 +430,8 @@ class PartialRoofHandler(AbstractHandler):
         if not poly_geojson:
             return guess
 
-        poly = GEOSGeometry(poly_geojson)
+        poly = GEOSGeometry(json.dumps(poly_geojson))
         bdg = Building.objects.filter(shape__contains=poly).first()
-
-        print(bdg)
 
         if isinstance(bdg, Building):
             guess["match"] = bdg
