@@ -3,11 +3,11 @@ import os
 from unittest.mock import patch
 
 from django.contrib.gis.geos import Point
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, TestCase
 
 from batid.models import Address
 from batid.models import Building
-from batid.services.guess_bdg_new import Guesser
+from batid.services.guess_bdg_new import Guesser, PartialRoofHandler
 from batid.tests.helpers import create_from_geojson
 
 
@@ -310,3 +310,177 @@ class TestGuesser(TransactionTestCase):
         # Check the reason
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "found_name_in_osm")
+
+
+class PartialRoofTest(TestCase):
+    input_poly_geojson = None
+
+    def setUp(self):
+        self._create_neighbourhood()
+
+    def _trigger_guesser(self) -> Guesser:
+        guesser = Guesser()
+        guesser.handlers = [PartialRoofHandler()]
+
+        inputs = [{"ext_id": "the_ext_id", "polygon": self.input_poly_geojson}]
+        guesser.load_inputs(inputs)
+
+        return guesser
+
+    def _create_neighbourhood(self):
+        create_from_geojson(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"rnb_id": "CORNERBDGBDG"},
+                        "geometry": {
+                            "coordinates": [
+                                [
+                                    [5.728104105388297, 45.174788212790816],
+                                    [5.7280665503610635, 45.174714899351756],
+                                    [5.728307769189996, 45.17464973177127],
+                                    [5.7283828792445775, 45.174788212790816],
+                                    [5.728260103193975, 45.17481570530629],
+                                    [5.728232659135443, 45.17476784795633],
+                                    [5.728104105388297, 45.174788212790816],
+                                ]
+                            ],
+                            "type": "Polygon",
+                        },
+                        "id": 0,
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"rnb_id": "LONGMIDDROOF"},
+                        "geometry": {
+                            "coordinates": [
+                                [
+                                    [5.728254197073937, 45.17481850255783],
+                                    [5.728384091173496, 45.174788108021346],
+                                    [5.728469777617846, 45.174953931181165],
+                                    [5.728333880009558, 45.17498394088963],
+                                    [5.728254197073937, 45.17481850255783],
+                                ]
+                            ],
+                            "type": "Polygon",
+                        },
+                        "id": 1,
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"rnb_id": "LONGTOPPROOF"},
+                        "geometry": {
+                            "coordinates": [
+                                [
+                                    [5.728419334143354, 45.175141338271914],
+                                    [5.728335115532474, 45.17498281606996],
+                                    [5.728469691662923, 45.17495466150129],
+                                    [5.7285495691088215, 45.175114407890504],
+                                    [5.728482715159487, 45.175130321299264],
+                                    [5.728419334143354, 45.175141338271914],
+                                ]
+                            ],
+                            "type": "Polygon",
+                        },
+                        "id": 2,
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"rnb_id": "ALONESQUAREE"},
+                        "geometry": {
+                            "coordinates": [
+                                [
+                                    [5.728031233946098, 45.17502321173117],
+                                    [5.727996504621501, 45.174934463650175],
+                                    [5.728138894850929, 45.174908757283674],
+                                    [5.728171887708982, 45.17499872951552],
+                                    [5.728105901992933, 45.17501280679065],
+                                    [5.728031233946098, 45.17502321173117],
+                                ]
+                            ],
+                            "type": "Polygon",
+                        },
+                        "id": 3,
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"rnb_id": "WWEIRDSHAPEE"},
+                        "geometry": {
+                            "coordinates": [
+                                [
+                                    [5.7278219897474685, 45.17508013300099],
+                                    [5.727776841625456, 45.174997505564676],
+                                    [5.727834145010689, 45.17498159211877],
+                                    [5.727845432040596, 45.174995669398186],
+                                    [5.727911417756644, 45.174982816229885],
+                                    [5.727932255351476, 45.175012194895686],
+                                    [5.727939201216401, 45.17505136642592],
+                                    [5.7278219897474685, 45.17508013300099],
+                                ]
+                            ],
+                            "type": "Polygon",
+                        },
+                        "id": 4,
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"rnb_id": "TOMERGELEFTT"},
+                        "geometry": {
+                            "coordinates": [
+                                [
+                                    [5.727848036740539, 45.1749112056701],
+                                    [5.72777597339288, 45.17477900132201],
+                                    [5.7278654014020844, 45.174755131059584],
+                                    [5.7279357282839385, 45.1748946801433],
+                                    [5.727848036740539, 45.1749112056701],
+                                ]
+                            ],
+                            "type": "Polygon",
+                        },
+                        "id": 5,
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"rnb_id": "TOMERGERIGHT"},
+                        "geometry": {
+                            "coordinates": [
+                                [
+                                    [5.727936596517225, 45.17489406808653],
+                                    [5.7278654014020844, 45.174755131059584],
+                                    [5.727946147081298, 45.17472942461214],
+                                    [5.728017342195642, 45.17487387021396],
+                                    [5.727936596517225, 45.17489406808653],
+                                ]
+                            ],
+                            "type": "Polygon",
+                        },
+                        "id": 6,
+                    },
+                ],
+            }
+        )
+
+
+class TestAlmostSimilar(PartialRoofTest):
+    input_poly_geojson = {
+        "coordinates": [
+            [
+                [5.7283368358221765, 45.17497972302533],
+                [5.72826081259916, 45.174820222457896],
+                [5.728382992779842, 45.174792150312015],
+                [5.72846444623363, 45.17495101295626],
+                [5.7283368358221765, 45.17497972302533],
+            ]
+        ],
+        "type": "Polygon",
+    }
+
+    def setUp(self):
+        self._create_neighbourhood()
+
+    def test_result(self):
+        guesser = self._trigger_guesser()
+
+        self.assertEqual(guesser.guesses["the_ext_id"]["match"].rnb_id, "LONGMIDDROOF")
