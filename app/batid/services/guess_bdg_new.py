@@ -6,7 +6,7 @@ from abc import abstractmethod
 from typing import Optional
 
 import pandas as pd
-from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import Point, GEOSGeometry
 from django.db import connections
 
 from batid.models import Building
@@ -148,6 +148,9 @@ class Guesser:
 
             if "ext_id" not in input:
                 raise Exception("ext_id is required for each input")
+
+            if "polygon" in input and not isinstance(input["polygon"], str):
+                raise Exception("polygon must be a geojson geometry string")
 
     @staticmethod
     def _validate_ext_ids(inputs):
@@ -407,19 +410,32 @@ class PartialRoofHandler(AbstractHandler):
     _name = "partial_roof"
 
     def _guess_batch(self, guesses: dict) -> dict:
-        for guess in guesses.values():
-            guess = self._guess_one(guess)
-            guesses[guess["input"]["ext_id"]] = guess
+        print("partialRoof")
+
+        tasks = []
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for guess in guesses.values():
+                future = executor.submit(self._guess_one, guess)
+                future.add_done_callback(lambda future: connections.close_all())
+                tasks.append(future)
+
+            for future in concurrent.futures.as_completed(tasks):
+                guess = future.result()
+                guesses[guess["input"]["ext_id"]] = guess
 
         return guesses
 
     def _guess_one(self, guess: dict) -> dict:
-        poly = guess["input"].get("polygon", None)
+        poly_geojson = guess["input"].get("polygon", None)
 
-        if not poly:
+        if not poly_geojson:
             return guess
 
+        poly = GEOSGeometry(poly_geojson)
         bdg = Building.objects.filter(shape__contains=poly).first()
+
+        print(bdg)
 
         if isinstance(bdg, Building):
             guess["match"] = bdg

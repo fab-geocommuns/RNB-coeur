@@ -312,7 +312,7 @@ class TestGuesser(TransactionTestCase):
         self.assertEqual(reason, "found_name_in_osm")
 
 
-class PartialRoofTest(TestCase):
+class PartialRoofTest(TransactionTestCase):
     input_poly_geojson = None
 
     def setUp(self):
@@ -324,6 +324,7 @@ class PartialRoofTest(TestCase):
 
         inputs = [{"ext_id": "the_ext_id", "polygon": self.input_poly_geojson}]
         guesser.load_inputs(inputs)
+        guesser.guess_all()
 
         return guesser
 
