@@ -212,7 +212,7 @@ class Inspector:
                     # has_changed = True
 
         if has_changed:
-            bdg.last_updated_by = self.candidate.created_by
+            bdg.event_origin = self.candidate.created_by
 
         return has_changed, added_address_keys, bdg
 
@@ -317,7 +317,7 @@ def new_bdg_from_candidate(c: Candidate) -> Building:
     b.rnb_id = generate_rnb_id()
     b.shape = c.shape
     b.point = point
-    b.last_updated_by = c.created_by
+    b.event_origin = c.created_by
     b.ext_ids = [
         {
             "source": c.source,
