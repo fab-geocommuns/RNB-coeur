@@ -13,6 +13,7 @@ def get_closest(lat, lng, radius) -> Optional[QuerySet]:
 
 
 def __get_qs(lat, lng, radius):
+    # todo : on devrait filtrer pour n'avoir que les bâtiments qui ont un statut de bâtiment réel
     qs = Building.objects.all()
 
     point_geom = Point(lng, lat, srid=4326)
