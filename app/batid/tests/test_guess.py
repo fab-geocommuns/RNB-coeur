@@ -7,6 +7,7 @@ from django.test import TransactionTestCase
 
 from batid.models import Address
 from batid.models import Building
+from batid.services.guess_bdg_new import ClosestFromPointHandler
 from batid.services.guess_bdg_new import Guesser
 from batid.tests.helpers import create_from_geojson
 
@@ -220,8 +221,8 @@ class TestGuesser(TransactionTestCase):
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "point_on_bdg")
 
-    @patch("batid.services.guess_bdg_new.Guesser._address_to_ban_id")
-    @patch("batid.services.guess_bdg_new.Guesser._geocode_name_and_point")
+    @patch("batid.services.guess_bdg_new.GeocodeAddressHandler._address_to_ban_id")
+    @patch("batid.services.guess_bdg_new.GeocodeNameHandler._geocode_name_and_point")
     def test_guess_from_address(
         self, geocode_name_and_point_mock, address_to_ban_id_mock
     ):
@@ -250,8 +251,8 @@ class TestGuesser(TransactionTestCase):
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "precise_address_match")
 
-    @patch("batid.services.guess_bdg_new.Guesser._address_to_ban_id")
-    @patch("batid.services.guess_bdg_new.Guesser._geocode_name_and_point")
+    @patch("batid.services.guess_bdg_new.GeocodeAddressHandler._address_to_ban_id")
+    @patch("batid.services.guess_bdg_new.GeocodeNameHandler._geocode_name_and_point")
     def test_ambiguous_address(
         self, geocode_name_and_point_mock, address_to_ban_id_mock
     ):
@@ -284,7 +285,7 @@ class TestGuesser(TransactionTestCase):
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertIsNone(reason)
 
-    @patch("batid.services.guess_bdg_new.Guesser._geocode_name_and_point")
+    @patch("batid.services.guess_bdg_new.GeocodeNameHandler._geocode_name_and_point")
     def test_guess_from_name(self, geocode_name_and_point_mock):
         geocode_name_and_point_mock.return_value = Point(
             -0.5627717611330638, 44.825522167102605, srid=4326
@@ -310,3 +311,27 @@ class TestGuesser(TransactionTestCase):
         # Check the reason
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "found_name_in_osm")
+
+    def test_custom_handlers(self):
+        # we define a custom list of handlers and check it is used
+        inputs = [
+            {
+                "ext_id": "SOME_POINT",
+                "lat": 44.82595445471543,
+                "lng": -0.5628922920153343,
+            }
+        ]
+
+        guesser = Guesser()
+        # we only set only one handler
+        guesser.handlers = [ClosestFromPointHandler()]
+        guesser.load_inputs(inputs)
+        guesser.guess_all()
+
+        # We verify we found the right building
+        matching_bdg = guesser.guesses.get("SOME_POINT")["match"]
+        self.assertEqual(matching_bdg.rnb_id, "BigLong")
+        # only one handler has been called
+        self.assertEqual(
+            guesser.guesses.get("SOME_POINT")["finished_steps"], ["closest_from_point"]
+        )
