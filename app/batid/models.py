@@ -33,7 +33,16 @@ class BuildingAbstract(models.Model):
         max_length=30,
         default=BuildingStatusModel.DEFAULT_STATUS,
     )
+    # an event can modify several buildings at once
+    # all the buildings modified by the same event will have the same event_id
     event_id = models.UUIDField(null=True, db_index=True)
+    # the possible event types
+    # creation: the building is created for the first time
+    # update: some fields of an existing building are modified
+    # deletion: the building is deleted, because it had no reason to be in the RNB in the first place
+    # WARNING : a deletion is different from a real building demolition, which would be a change of the status (a thus an event_type: update).
+    # merge: two or more buildings are merged into one
+    # split: one building is split into two or more
     event_type = models.CharField(
         choices=[
             ("creation", "creation"),
@@ -46,8 +55,10 @@ class BuildingAbstract(models.Model):
         null=True,
         db_index=True,
     )
+    # the user at the origin of the event
+    event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
+    # only currently active buildings are considered part of the RNB
     is_active = models.BooleanField(db_index=True, default=True)
-    user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
 
     class Meta:
         abstract = True
@@ -308,5 +319,6 @@ class Contribution(models.Model):
         max_length=10,
         null=False,
         default="pending",
+        db_index=True,
     )
     status_changed_at = models.DateTimeField(null=True)
