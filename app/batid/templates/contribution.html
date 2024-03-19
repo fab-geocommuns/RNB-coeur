@@ -1,0 +1,14 @@
+<h3>Bâtiment {{ rnb_id }}</h3>
+{{ text }}
+
+<h3>Actions</h3>
+<form method="post" action="/contribution/fix/delete">
+    {% csrf_token %}
+    <input type="hidden" name="rnb_id" value="{{ rnb_id }}">
+    <input type="hidden" name="contribution_id" value="{{ contribution_id }}">
+    <input type="submit" value="Supprimer le bâtiment">
+</form>
+
+{% if delete_success %}
+<p>Le bâtiment {{ rnb_id }} a été supprimé.</p>
+{% endif %}
