@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import DateTimeRangeField
+from django.contrib.postgres.indexes import GinIndex
 
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.utils.db import from_now_to_infinity
@@ -32,6 +33,21 @@ class BuildingAbstract(models.Model):
         max_length=30,
         default=BuildingStatusModel.DEFAULT_STATUS,
     )
+    event_id = models.UUIDField(null=True, db_index=True)
+    event_type = models.CharField(
+        choices=[
+            ("creation", "creation"),
+            ("update", "update"),
+            ("deletion", "deletion"),
+            ("merge", "merge"),
+            ("split", "split"),
+        ],
+        max_length=10,
+        null=True,
+        db_index=True,
+    )
+    is_active = models.BooleanField(db_index=True, default=True)
+    user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
 
     class Meta:
         abstract = True
@@ -95,6 +111,9 @@ class Building(BuildingAbstract):
 
     class Meta:
         ordering = ["rnb_id"]
+        indexes = [
+            GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
+        ]
 
 
 class BuildingWithHistory(BuildingAbstract):
@@ -122,6 +141,9 @@ class BuildingHistoryOnly(BuildingAbstract):
     class Meta:
         managed = True
         db_table = "batid_building_history"
+        indexes = [
+            GinIndex(fields=["event_origin"], name="bdg_history_event_origin_idx"),
+        ]
 
 
 class City(models.Model):
@@ -281,3 +303,10 @@ class Contribution(models.Model):
     text = models.TextField(null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
+    status = models.CharField(
+        choices=[("pending", "pending"), ("fixed", "fixed"), ("refused", "refused")],
+        max_length=10,
+        null=False,
+        default="pending",
+    )
+    status_changed_at = models.DateTimeField(null=True)
