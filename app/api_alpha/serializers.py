@@ -51,7 +51,7 @@ class BuildingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "status", "point", "addresses", "ext_ids"]
+        fields = ["rnb_id", "status", "point", "addresses", "ext_ids", "is_active"]
 
 
 class GuessBuildingSerializer(serializers.ModelSerializer):
