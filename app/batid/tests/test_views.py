@@ -6,6 +6,13 @@ from batid.models import Building
 from batid.models import Contribution
 
 
+def create_superuser_and_login(self):
+    self.superuser = User.objects.create_superuser(
+        username="superuser", email="superuser@test.com", password="password"
+    )
+    self.client.login(username="superuser", password="password")
+
+
 class TestContributionsViews(TestCase):
     def test_delete_building_403(self):
         # create a building
@@ -23,11 +30,7 @@ class TestContributionsViews(TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_delete_building(self):
-        self.superuser = User.objects.create_superuser(
-            username="superuser", email="superuser@test.com", password="password"
-        )
-
-        self.client.login(username="superuser", password="password")
+        create_superuser_and_login(self)
 
         # create a building
         rnb_id = "1234"
@@ -39,7 +42,11 @@ class TestContributionsViews(TestCase):
         )
 
         url = reverse("delete_building")
-        data = {"rnb_id": rnb_id, "contribution_id": contribution.id}
+        data = {
+            "rnb_id": rnb_id,
+            "contribution_id": contribution.id,
+            "review_comment": "OK",
+        }
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 200)
 
@@ -57,3 +64,50 @@ class TestContributionsViews(TestCase):
         contribution.refresh_from_db()
         self.assertEqual(contribution.status, "fixed")
         self.assertIsNotNone(contribution.status_changed_at)
+        self.assertEqual(contribution.review_comment, "OK")
+
+    def test_delete_building_400_inactive_building(self):
+        create_superuser_and_login(self)
+
+        # create a inactive building
+        rnb_id = "1234"
+        Building.objects.create(rnb_id=rnb_id, is_active=False)
+
+        # create a contribution about this building
+        contribution = Contribution.objects.create(
+            rnb_id=rnb_id, text="Ce bâtiment n'existe pas"
+        )
+
+        url = reverse("delete_building")
+        data = {
+            "rnb_id": rnb_id,
+            "contribution_id": contribution.id,
+            "review_comment": "OK",
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.content.decode(), "Cannot delete an inactive building."
+        )
+
+    def test_delete_building_400_fixed_contrib(self):
+        create_superuser_and_login(self)
+
+        # create a inactive building
+        rnb_id = "1234"
+        Building.objects.create(rnb_id=rnb_id)
+
+        # create a contribution about this building
+        contribution = Contribution.objects.create(
+            rnb_id=rnb_id, text="Ce bâtiment n'existe pas", status="rejected"
+        )
+
+        url = reverse("delete_building")
+        data = {
+            "rnb_id": rnb_id,
+            "contribution_id": contribution.id,
+            "review_comment": "OK",
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content.decode(), "Contribution is not pending.")
