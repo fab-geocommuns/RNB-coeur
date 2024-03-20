@@ -4,6 +4,7 @@ from datetime import datetime
 
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
+from django.http import HttpResponseBadRequest
 from django.http import HttpResponseForbidden
 from django.shortcuts import render
 from django.urls import re_path
@@ -55,6 +56,7 @@ def contribution(request, contribution_id):
                 "contribution_id": contribution_id,
                 "rnb_id": contribution.rnb_id,
                 "text": contribution.text,
+                "review_comment": contribution.review_comment,
             },
         )
 
@@ -68,9 +70,14 @@ def delete_building(request):
             # get the rnb_id from the request
             rnb_id = request.POST.get("rnb_id")
             contribution_id = request.POST.get("contribution_id")
+            review_comment = request.POST.get("review_comment")
             contribution = Contribution.objects.get(id=contribution_id)
+            if contribution.status != "pending":
+                return HttpResponseBadRequest("Contribution is not pending.")
             # get the building with the rnb_id
             building = Building.objects.get(rnb_id=rnb_id)
+            if not building.is_active:
+                return HttpResponseBadRequest("Cannot delete an inactive building.")
             # start a transaction
             with transaction.atomic():
                 building.event_type = "delete"
@@ -85,6 +92,7 @@ def delete_building(request):
 
                 contribution.status = "fixed"
                 contribution.status_changed_at = datetime.now()
+                contribution.review_comment = review_comment
                 contribution.save()
 
             return render(
