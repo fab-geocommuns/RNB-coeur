@@ -1,0 +1,59 @@
+from django.contrib.auth.models import User
+from django.test import TestCase
+from django.urls import reverse
+
+from batid.models import Building
+from batid.models import Contribution
+
+
+class TestContributionsViews(TestCase):
+    def test_delete_building_403(self):
+        # create a building
+        rnb_id = "1234"
+        Building.objects.create(rnb_id=rnb_id)
+
+        # create a contribution about this building
+        contribution = Contribution.objects.create(
+            rnb_id=rnb_id, text="Ce bâtiment n'existe pas"
+        )
+
+        url = reverse("delete_building")
+        data = {"rnb_id": rnb_id, "contribution_id": contribution.id}
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 403)
+
+    def test_delete_building(self):
+        self.superuser = User.objects.create_superuser(
+            username="superuser", email="superuser@test.com", password="password"
+        )
+
+        self.client.login(username="superuser", password="password")
+
+        # create a building
+        rnb_id = "1234"
+        building = Building.objects.create(rnb_id=rnb_id)
+
+        # create a contribution about this building
+        contribution = Contribution.objects.create(
+            rnb_id=rnb_id, text="Ce bâtiment n'existe pas"
+        )
+
+        url = reverse("delete_building")
+        data = {"rnb_id": rnb_id, "contribution_id": contribution.id}
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+
+        # Check the html content of the response
+        self.assertIn(f"Le bâtiment {rnb_id} a été supprimé", response.content.decode())
+
+        # Check that the building has been deleted
+        building.refresh_from_db()
+        self.assertEqual(building.event_type, "delete")
+        self.assertIsNotNone(building.event_id)
+        self.assertFalse(building.is_active)
+        self.assertEqual(building.event_user, self.superuser)
+
+        # Check that the contribution has been fixed
+        contribution.refresh_from_db()
+        self.assertEqual(contribution.status, "fixed")
+        self.assertIsNotNone(contribution.status_changed_at)
