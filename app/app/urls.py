@@ -27,7 +27,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     FlowerProxyView.as_url(),
     path("contribution/fix/<int:contribution_id>", contribution),
-    path("contribution/fix/delete", delete_building),
+    path("contribution/fix/delete", delete_building, name="delete_building"),
     path("__debug__/", include("debug_toolbar.urls")),
     path("webhook/", include("webhook.urls")),
 ]
