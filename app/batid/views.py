@@ -4,6 +4,7 @@ from datetime import datetime
 
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
+from django.http import HttpResponseForbidden
 from django.shortcuts import render
 from django.urls import re_path
 from revproxy.views import ProxyView
@@ -44,7 +45,7 @@ class FlowerProxyView(UserPassesTestMixin, ProxyView):
 
 def contribution(request, contribution_id):
     if not request.user.is_superuser:
-        return render(request, "403.html", status=403)
+        return HttpResponseForbidden()
     else:
         contribution = Contribution.objects.get(id=contribution_id)
         return render(
@@ -60,7 +61,7 @@ def contribution(request, contribution_id):
 
 def delete_building(request):
     if not request.user.is_superuser:
-        return render(request, "403.html", status=403)
+        return HttpResponseForbidden()
     else:
         # check if the request is a POST request
         if request.method == "POST":
@@ -86,4 +87,13 @@ def delete_building(request):
                 contribution.status_changed_at = datetime.now()
                 contribution.save()
 
-            return render(request, "contribution.html", {"delete_success": True})
+            return render(
+                request,
+                "contribution.html",
+                {
+                    "contribution_id": contribution_id,
+                    "rnb_id": contribution.rnb_id,
+                    "text": contribution.text,
+                    "delete_success": True,
+                },
+            )
