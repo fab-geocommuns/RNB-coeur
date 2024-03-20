@@ -321,4 +321,5 @@ class Contribution(models.Model):
         default="pending",
         db_index=True,
     )
-    status_changed_at = models.DateTimeField(null=True)
+    status_changed_at = models.DateTimeField(null=True, blank=True)
+    review_comment = models.TextField(null=True, blank=True)
