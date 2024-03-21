@@ -34,7 +34,15 @@ admin.site.register(Address, AddressAdmin)
 
 
 class ContributionAdmin(admin.ModelAdmin):
-    list_display = ("rnb_id", "text", "created_at", "status", "fix_issue")
+    list_display = (
+        "rnb_id",
+        "text",
+        "created_at",
+        "status",
+        "fix_issue",
+        "review_user",
+        "review_comment",
+    )
 
     def fix_issue(self, obj):
         if obj.status == "pending":

@@ -93,6 +93,7 @@ def delete_building(request):
                 contribution.status = "fixed"
                 contribution.status_changed_at = datetime.now()
                 contribution.review_comment = review_comment
+                contribution.review_user = request.user
                 contribution.save()
 
             return render(
