@@ -312,6 +312,7 @@ class Contribution(models.Model):
     id = models.AutoField(primary_key=True)
     rnb_id = models.CharField(max_length=255, null=True)
     text = models.TextField(null=True)
+    email = models.EmailField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(
@@ -323,3 +324,6 @@ class Contribution(models.Model):
     )
     status_changed_at = models.DateTimeField(null=True, blank=True)
     review_comment = models.TextField(null=True, blank=True)
+    review_user = models.ForeignKey(
+        User, on_delete=models.PROTECT, null=True, blank=True
+    )
