@@ -65,6 +65,7 @@ class TestContributionsViews(TestCase):
         self.assertEqual(contribution.status, "fixed")
         self.assertIsNotNone(contribution.status_changed_at)
         self.assertEqual(contribution.review_comment, "OK")
+        self.assertEqual(contribution.review_user, self.superuser)
 
     def test_delete_building_400_inactive_building(self):
         create_superuser_and_login(self)
