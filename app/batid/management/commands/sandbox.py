@@ -30,7 +30,9 @@ class Command(BaseCommand):
         guesser.load_inputs(inputs)
         guesser.guess_all()
         pprint(guesser.guesses)
-        print(guesser.guesses[target_id]["match"].rnb_id)
+
+        guesser.convert_matches()
+        pprint(guesser.guesses)
 
 
 def to_input(row, srid):

@@ -128,11 +128,13 @@ class Guesser:
         for ext_id, guess in self.guesses.items():
             if guess["match"] and isinstance(guess["match"], Building):
                 distance = getattr(guess["match"], "distance", None)
+                match_details = getattr(guess["match"], "match_details", None)
 
                 guess["match"] = {
                     "rnb_id": guess["match"].rnb_id,
                     "lat_lng": f"{guess['match'].point[1]}, {guess['match'].point[0]}",
-                    "distance": distance.m if distance else None,
+                    "distance": distance.m if distance is not None else None,
+                    "match_details": match_details,
                 }
 
     def guess_batch(self, guesses: dict) -> dict:
@@ -506,8 +508,8 @@ class PartialRoofHandler(AbstractHandler):
                 bdg.shape.intersection(roof_poly).area / roof_poly.area
             )
 
-            intersection = bdg.shape.intersection(roof_poly)
-            if intersection.area / roof_poly.area >= 0.5:
+            if intersection_percentage >= 0.25:
+                bdg.match_details = {"intersection_percentage": intersection_percentage}
                 matches.append(bdg)
 
         if len(matches) == 1:
