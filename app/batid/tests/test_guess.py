@@ -336,6 +336,7 @@ class TestGuesser(TransactionTestCase):
             guesser.guesses.get("SOME_POINT")["finished_steps"], ["closest_from_point"]
         )
 
+
 class PartialRoofTest(TransactionTestCase):
     input_poly_geojson = None
 
@@ -509,6 +510,7 @@ class TestContainedAlmostSimilar(PartialRoofTest):
         guesser = self._trigger_guesser()
 
         self.assertEqual(guesser.guesses["the_ext_id"]["match"].rnb_id, "LONGMIDDROOF")
+        self.assertEqual(guesser.guesses["the_ext_id"]["match"].distance.m, 0)
 
 
 class TestAlmostContainedAlmostSimilar(PartialRoofTest):
@@ -532,3 +534,4 @@ class TestAlmostContainedAlmostSimilar(PartialRoofTest):
         guesser = self._trigger_guesser()
 
         self.assertEqual(guesser.guesses["the_ext_id"]["match"].rnb_id, "LONGTOPPROOF")
+        self.assertEqual(guesser.guesses["the_ext_id"]["match"].distance.m, 0)
