@@ -6,6 +6,7 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
 from django.http import HttpResponseBadRequest
 from django.http import HttpResponseForbidden
+from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 from django.urls import re_path
 from revproxy.views import ProxyView
@@ -71,11 +72,13 @@ def delete_building(request):
             rnb_id = request.POST.get("rnb_id")
             contribution_id = request.POST.get("contribution_id")
             review_comment = request.POST.get("review_comment")
-            contribution = Contribution.objects.get(id=contribution_id)
+            contribution = get_object_or_404(Contribution, id=contribution_id)
+
             if contribution.status != "pending":
                 return HttpResponseBadRequest("Contribution is not pending.")
             # get the building with the rnb_id
-            building = Building.objects.get(rnb_id=rnb_id)
+            building = get_object_or_404(Building, rnb_id=rnb_id)
+
             if not building.is_active:
                 return HttpResponseBadRequest("Cannot delete an inactive building.")
             # start a transaction

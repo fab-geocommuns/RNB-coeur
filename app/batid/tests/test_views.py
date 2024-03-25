@@ -27,6 +27,7 @@ class TestContributionsViews(TestCase):
         url = reverse("delete_building")
         data = {"rnb_id": rnb_id, "contribution_id": contribution.id}
         response = self.client.post(url, data)
+        # we expect a 403: for the moment only superuser can contribute
         self.assertEqual(response.status_code, 403)
 
     def test_delete_building(self):
@@ -112,3 +113,22 @@ class TestContributionsViews(TestCase):
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.content.decode(), "Contribution is not pending.")
+
+    def test_contribution_404(self):
+        create_superuser_and_login(self)
+
+        url = reverse("delete_building")
+
+        # we post a request with non existing contribution and building ids
+        data = {
+            "rnb_id": "rnb_id",
+            "contribution_id": 1,
+            "review_comment": "OK",
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 404)
+
+        self.assertIn(
+            "The requested resource was not found on this server",
+            response.content.decode(),
+        )
