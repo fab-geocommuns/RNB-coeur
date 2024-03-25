@@ -95,6 +95,7 @@ class BuildingsEndpointsTest(APITestCase):
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
+                    "is_active": True,
                 }
             ],
         }
@@ -121,6 +122,7 @@ class BuildingsEndpointsTest(APITestCase):
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
+                    "is_active": True,
                 }
             ],
         }
@@ -147,6 +149,7 @@ class BuildingsEndpointsTest(APITestCase):
                         "coordinates": [1.065566787499344, 46.634163236377134],
                     },
                     "addresses": [],
+                    "is_active": True,
                 },
                 {
                     "addresses": [],
@@ -157,6 +160,7 @@ class BuildingsEndpointsTest(APITestCase):
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
+                    "is_active": True,
                 },
             ],
         }
@@ -177,6 +181,7 @@ class BuildingsEndpointsTest(APITestCase):
                 "coordinates": [1.065566787499344, 46.634163236377134],
             },
             "addresses": [],
+            "is_active": True,
         }
 
         self.assertEqual(r.json(), expected)
@@ -217,6 +222,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                         "coordinates": [1.065566787499344, 46.634163236377134],
                     },
                     "addresses": [],
+                    "is_active": True,
                 },
                 {
                     "ext_ids": None,
@@ -227,6 +233,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                         "coordinates": [1.065566787499344, 46.634163236377134],
                     },
                     "addresses": [],
+                    "is_active": True,
                 },
                 {
                     "addresses": [],
@@ -237,6 +244,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
+                    "is_active": True,
                 },
             ],
         }

@@ -17,6 +17,8 @@ from django.contrib import admin
 from django.urls import include
 from django.urls import path
 
+from batid.views import contribution
+from batid.views import delete_building
 from batid.views import FlowerProxyView
 
 urlpatterns = [
@@ -24,6 +26,8 @@ urlpatterns = [
     path("api/alpha/", include("api_alpha.urls")),
     path("admin/", admin.site.urls),
     FlowerProxyView.as_url(),
+    path("contribution/fix/<int:contribution_id>", contribution),
+    path("contribution/fix/delete", delete_building, name="delete_building"),
     path("__debug__/", include("debug_toolbar.urls")),
     path("webhook/", include("webhook.urls")),
 ]
