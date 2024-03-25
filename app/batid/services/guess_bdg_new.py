@@ -98,13 +98,18 @@ class Guesser:
         print("\n-- match_reasons : % --")
         print(match_reason_percentage)
 
-    def display_reason(self, reason: str, count: int = 10):
+    def display_reason(
+        self,
+        reason: str,
+        count: int = 10,
+        cols: list = ("input_ext_id", "match_rnb_id", "match_reason"),
+    ):
         data = list(self.guesses.values())
 
         df = pd.json_normalize(data, sep="_")
 
         reasons = df[df["match_reason"] == reason]
-        reasons = reasons[["input_ext_id", "match_rnb_id", "match_reason"]]
+        reasons = reasons[cols]
 
         print(reasons.sample(count))
 
@@ -475,22 +480,50 @@ class PartialRoofHandler(AbstractHandler):
             return guess
 
         # Est-ce qu'il y a un seul batiment qui couvre à plus de X% le pan de toit ?
-        sole_bdg_intersecting_enough = self._one_bdg_intersects_roof_enough(
+        sole_bdg_intersecting_enough = self._roof_interesected_enough_by_one_bdg(
             roof_poly, closest_bdgs
         )
         if isinstance(sole_bdg_intersecting_enough, Building):
             guess["match"] = sole_bdg_intersecting_enough
-            guess["match_reason"] = "one_bdg_intersects_roof_enough"
+            guess["match_reason"] = "sole_bdg_intersects_roof_enough"
             return guess
 
         # Est-ce qu'il yn seul bâtiment qui intersects et le second bâtiment le plus proche est assez loin ?
-        if self._isolated_closest_bdg(roof_poly, closest_bdgs):
+        if self._isolated_bdg_intersecting(roof_poly, closest_bdgs):
             guess["match"] = closest_bdgs[0]
-            guess["match_reason"] = "isolated_closest_bdg_intersects_roof"
+            guess["match_reason"] = "isolated_bdg_intersects_roof"
+            return guess
+
+        bdgs_covered_enough = self._many_bdgs_covered_enough(roof_poly, closest_bdgs)
+        if bdgs_covered_enough:
+            guess["match"] = bdgs_covered_enough[0]
+            guess["match_reason"] = "many_bdgs_covered_enough_by_roof"
             return guess
 
         # No match :(
         return guess
+
+    def _many_bdgs_covered_enough(self, roof_poly: Polygon, closest_bdgs: list) -> list:
+        matches = []
+
+        ids = []
+
+        for bdg in closest_bdgs:
+            bdg_area = bdg.shape.area
+            if bdg_area <= 0:
+                continue
+
+            intersection_percentage = bdg.shape.intersection(roof_poly).area / bdg_area
+
+            if intersection_percentage >= 0.80:
+                bdg.match_details = {"intersection_percentage": intersection_percentage}
+                matches.append(bdg)
+                ids.append(bdg.rnb_id)
+
+        if len(ids):
+            matches[0].match_details["rnb_ids"] = ",".join(ids)
+
+        return matches
 
     def _closest_bdg_contains_roof(
         self, roof_poly: GEOSGeometry, closest_bdgs: list
@@ -498,7 +531,7 @@ class PartialRoofHandler(AbstractHandler):
         first_bdg = closest_bdgs[0]
         return first_bdg.shape.contains(roof_poly)
 
-    def _one_bdg_intersects_roof_enough(
+    def _roof_interesected_enough_by_one_bdg(
         self, roof_poly: GEOSGeometry, closest_bdgs: list
     ) -> bool:
         matches = []
@@ -515,7 +548,7 @@ class PartialRoofHandler(AbstractHandler):
         if len(matches) == 1:
             return matches[0]
 
-    def _isolated_closest_bdg(
+    def _isolated_bdg_intersecting(
         self, roof_poly: GEOSGeometry, closest_bdgs: list
     ) -> bool:
         # If first building does not intersect the roof, we return False
