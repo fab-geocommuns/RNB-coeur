@@ -547,3 +547,91 @@ class TestAlmostContainedAlmostSimilar(PartialRoofTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].rnb_id, "LONGTOPPROOF")
         self.assertEqual(matches[0].distance.m, 0)
+
+
+class TestRoofCoveringManyBdgs(PartialRoofTest):
+    input_poly_geojson = {
+        "coordinates": [
+            [
+                [5.728418873838081, 45.1751438810538],
+                [5.728236115185354, 45.17480653775482],
+                [5.728376190073732, 45.17476585300025],
+                [5.728557145188262, 45.175114215265694],
+                [5.728418873838081, 45.1751438810538],
+            ]
+        ],
+        "type": "Polygon",
+    }
+
+    def setUp(self):
+        self._create_neighbourhood()
+
+    def test_result(self):
+        guesser = self._trigger_guesser()
+
+        rnb_ids = [bdg.rnb_id for bdg in guesser.guesses["the_ext_id"]["matches"]]
+
+        self.assertEqual(len(rnb_ids), 2)
+        self.assertIn("LONGTOPPROOF", rnb_ids)
+        self.assertIn("LONGMIDDROOF", rnb_ids)
+        self.assertEqual(
+            guesser.guesses["the_ext_id"]["match_reason"],
+            "many_bdgs_covered_enough_by_roof",
+        )
+
+
+class TestAmbiguousRoofAttribution(PartialRoofTest):
+    input_poly_geojson = {
+        "coordinates": [
+            [
+                [5.727934924083456, 45.17488960238438],
+                [5.728014279814005, 45.17486586964901],
+                [5.728034118747701, 45.17492901565453],
+                [5.727960173633761, 45.17493918681677],
+                [5.727934924083456, 45.17488960238438],
+            ]
+        ],
+        "type": "Polygon",
+    }
+
+    def setUp(self):
+        self._create_neighbourhood()
+
+    def test_result(self):
+        guesser = self._trigger_guesser()
+
+        matches = guesser.guesses["the_ext_id"]["matches"]
+
+        self.assertEqual(len(matches), 0)
+        self.assertIn(
+            "partial_roof",
+            guesser.guesses["the_ext_id"]["finished_steps"],
+        )
+
+
+class TestIsolatedMatching(PartialRoofTest):
+    input_poly_geojson = {
+        "coordinates": [
+            [
+                [5.727809551942045, 45.175076186174834],
+                [5.727825225381423, 45.17507291243297],
+                [5.727836545086944, 45.175096442448336],
+                [5.727800263977912, 45.175102376102956],
+                [5.727791556511136, 45.175079050699054],
+                [5.727809551942045, 45.175076186174834],
+            ]
+        ],
+        "type": "Polygon",
+    }
+
+    def setUp(self):
+        self._create_neighbourhood()
+
+    def test_result(self):
+        guesser = self._trigger_guesser()
+
+        matches = guesser.guesses["the_ext_id"]["matches"]
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].rnb_id, "WWEIRDSHAPEE")
+        self.assertEqual(matches[0].distance.m, 0)

@@ -494,7 +494,7 @@ class PartialRoofHandler(AbstractHandler):
 
         bdgs_covered_enough = self._many_bdgs_covered_enough(roof_poly, closest_bdgs)
         if bdgs_covered_enough:
-            guess["matches"].append(bdgs_covered_enough[0])
+            guess["matches"] = bdgs_covered_enough
             guess["match_reason"] = "many_bdgs_covered_enough_by_roof"
             return guess
 
@@ -503,8 +503,6 @@ class PartialRoofHandler(AbstractHandler):
 
     def _many_bdgs_covered_enough(self, roof_poly: Polygon, closest_bdgs: list) -> list:
         matches = []
-
-        ids = []
 
         for bdg in closest_bdgs:
             bdg_area = bdg.shape.area
@@ -516,10 +514,6 @@ class PartialRoofHandler(AbstractHandler):
             if intersection_percentage >= 0.80:
                 bdg.match_details = {"intersection_percentage": intersection_percentage}
                 matches.append(bdg)
-                ids.append(bdg.rnb_id)
-
-        if len(ids):
-            matches[0].match_details["rnb_ids"] = ",".join(ids)
 
         return matches
 
