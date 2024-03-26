@@ -17,10 +17,6 @@ from batid.services.geocoders import PhotonGeocoder
 
 
 class Guesser:
-    STEP_CLOSEST_FROM_POINT = "closest_from_point"
-    STEP_GEOCODE_ADDRESS = "geocode_address"
-    STEP_GEOCODE_NAME = "geocode_name"
-
     def __init__(self):
         self.guesses = {}
         self.handlers = [
