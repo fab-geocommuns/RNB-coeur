@@ -157,8 +157,9 @@ class Guesser:
 
             guesses[ext_id] = {
                 "input": input,
-                "match": None,
-                "match_reason": None,
+                "matches": [],
+                # "match": None,
+                # "match_reason": None,
                 "finished_steps": [],
             }
 
