@@ -151,7 +151,7 @@ class TestGuesser(TransactionTestCase):
                         "name": "Random urban place",
                         "address": "75 Rue Malbec, 33800 Bordeaux",
                     },
-                    "match": None,
+                    "matches": [],
                     "match_reason": None,
                     "finished_steps": [],
                 },
@@ -163,7 +163,7 @@ class TestGuesser(TransactionTestCase):
                         "name": "Random rural place",
                         "address": "5 Rue des Deux Fermés, 02210 Beugneux",
                     },
-                    "match": None,
+                    "matches": [],
                     "match_reason": None,
                     "finished_steps": [],
                 },
@@ -189,9 +189,8 @@ class TestGuesser(TransactionTestCase):
         guesser.load_inputs(inputs)
         guesser.guess_all()
 
-        # We verify we found the right building
-        matching_bdg = guesser.guesses.get("AMBIGUOUS_POINT")["match"]
-        self.assertIsNone(matching_bdg)
+        # We verify we found no building
+        self.assertEqual(len(guesser.guesses.get("AMBIGUOUS_POINT")["matches"]), 0)
         self.assertEqual(
             guesser.guesses.get("AMBIGUOUS_POINT")["finished_steps"],
             ["closest_from_point", "geocode_address", "geocode_name"],
@@ -214,8 +213,10 @@ class TestGuesser(TransactionTestCase):
         guesser.guess_all()
 
         # We verify we found the right building
-        matching_bdg = guesser.guesses.get("UNIQUE_ROW")["match"]
-        self.assertEqual(matching_bdg.rnb_id, "BigLong")
+        self.assertEqual(len(guesser.guesses.get("UNIQUE_ROW")["matches"]), 1)
+        self.assertEqual(
+            guesser.guesses.get("UNIQUE_ROW")["matches"][0].rnb_id, "BigLong"
+        )
 
         # We check the reason
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
@@ -244,8 +245,10 @@ class TestGuesser(TransactionTestCase):
         guesser.guess_all()
 
         # We verify we found the right building
-        matching_bdg = guesser.guesses.get("UNIQUE_ROW")["match"]
-        self.assertEqual(matching_bdg.rnb_id, "SouthOne")
+        self.assertEqual(
+            guesser.guesses.get("UNIQUE_ROW")["matches"][0].rnb_id, "SouthOne"
+        )
+        self.assertEqual(len(guesser.guesses.get("UNIQUE_ROW")["matches"]), 1)
 
         # We check the reason
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
@@ -274,8 +277,7 @@ class TestGuesser(TransactionTestCase):
         guesser.guess_all()
 
         # We verify we found the right building
-        matching_bdg = guesser.guesses.get("UNIQUE_ROW")["match"]
-        self.assertIsNone(matching_bdg)
+        self.assertEqual(len(guesser.guesses.get("UNIQUE_ROW")["matches"]), 0)
         self.assertEqual(
             guesser.guesses.get("UNIQUE_ROW")["finished_steps"],
             ["closest_from_point", "geocode_address", "geocode_name"],
@@ -305,8 +307,10 @@ class TestGuesser(TransactionTestCase):
         guesser.guess_all()
 
         # We verify we found the right building
-        matching_bdg = guesser.guesses.get("UNIQUE_ROW")["match"]
-        self.assertEqual(matching_bdg.rnb_id, "BizarreShape")
+        self.assertEqual(
+            guesser.guesses.get("UNIQUE_ROW")["matches"][0].rnb_id, "BizarreShape"
+        )
+        self.assertEqual(len(guesser.guesses.get("UNIQUE_ROW")["matches"]), 1)
 
         # Check the reason
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
@@ -329,8 +333,10 @@ class TestGuesser(TransactionTestCase):
         guesser.guess_all()
 
         # We verify we found the right building
-        matching_bdg = guesser.guesses.get("SOME_POINT")["match"]
-        self.assertEqual(matching_bdg.rnb_id, "BigLong")
+        self.assertEqual(len(guesser.guesses.get("SOME_POINT")["matches"]), 1)
+        self.assertEqual(
+            guesser.guesses.get("SOME_POINT")["matches"][0].rnb_id, "BigLong"
+        )
         # only one handler has been called
         self.assertEqual(
             guesser.guesses.get("SOME_POINT")["finished_steps"], ["closest_from_point"]
@@ -509,8 +515,11 @@ class TestContainedAlmostSimilar(PartialRoofTest):
     def test_result(self):
         guesser = self._trigger_guesser()
 
-        self.assertEqual(guesser.guesses["the_ext_id"]["match"].rnb_id, "LONGMIDDROOF")
-        self.assertEqual(guesser.guesses["the_ext_id"]["match"].distance.m, 0)
+        matches = guesser.guesses["the_ext_id"]["matches"]
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].rnb_id, "LONGMIDDROOF")
+        self.assertEqual(matches[0].distance.m, 0)
 
 
 class TestAlmostContainedAlmostSimilar(PartialRoofTest):
@@ -533,5 +542,8 @@ class TestAlmostContainedAlmostSimilar(PartialRoofTest):
     def test_result(self):
         guesser = self._trigger_guesser()
 
-        self.assertEqual(guesser.guesses["the_ext_id"]["match"].rnb_id, "LONGTOPPROOF")
-        self.assertEqual(guesser.guesses["the_ext_id"]["match"].distance.m, 0)
+        matches = guesser.guesses["the_ext_id"]["matches"]
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].rnb_id, "LONGTOPPROOF")
+        self.assertEqual(matches[0].distance.m, 0)

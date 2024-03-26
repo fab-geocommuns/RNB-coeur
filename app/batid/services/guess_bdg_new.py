@@ -127,16 +127,16 @@ class Guesser:
 
     def convert_matches(self):
         for ext_id, guess in self.guesses.items():
-            if guess["match"] and isinstance(guess["match"], Building):
-                distance = getattr(guess["match"], "distance", None)
-                match_details = getattr(guess["match"], "match_details", None)
+            for idx, match in enumerate(guess["matches"]):
+                if isinstance(match, Building):
+                    match = {
+                        "rnb_id": match.rnb_id,
+                        "lat_lng": f"{match.point[1]}, {match.point[0]}",
+                        "distance": match.distance.m,
+                        "match_details": getattr(match, "match_details", None),
+                    }
 
-                guess["match"] = {
-                    "rnb_id": guess["match"].rnb_id,
-                    "lat_lng": f"{guess['match'].point[1]}, {guess['match'].point[0]}",
-                    "distance": distance.m if distance is not None else None,
-                    "match_details": match_details,
-                }
+                    guess["matches"][idx] = match
 
     def guess_batch(self, guesses: dict) -> dict:
         for handler in self.handlers:
@@ -159,7 +159,7 @@ class Guesser:
                 "input": input,
                 "matches": [],
                 # "match": None,
-                # "match_reason": None,
+                "match_reason": None,
                 "finished_steps": [],
             }
 
@@ -206,7 +206,7 @@ class AbstractHandler(ABC):
         not_to_handle = {}
 
         for ext_id, guess in guesses.items():
-            if self.name not in guess["finished_steps"] and guess["match"] is None:
+            if self.name not in guess["finished_steps"] and len(guess["matches"]) == 0:
                 to_handle[ext_id] = guess
             else:
                 not_to_handle[ext_id] = guess
@@ -269,7 +269,7 @@ class ClosestFromPointHandler(AbstractHandler):
         first_bdg = closest_bdgs[0]
         # Is the the point is in the first building ?
         if first_bdg.distance.m <= 0:
-            guess["match"] = first_bdg
+            guess["matches"].append(first_bdg)
             guess["match_reason"] = "point_on_bdg"
             return guess
 
@@ -277,7 +277,7 @@ class ClosestFromPointHandler(AbstractHandler):
         if first_bdg.distance.m <= self.isolated_bdg_max_distance:
             if len(closest_bdgs) == 1:
                 # There is only one building close enough. No need to compare to the second one.
-                guess["match"] = first_bdg
+                guess["matches"].append(first_bdg)
                 guess["match_reason"] = "isolated_closest_bdg"
                 return guess
 
@@ -288,7 +288,7 @@ class ClosestFromPointHandler(AbstractHandler):
                     first_bdg.distance.m
                 )
                 if second_bdg.distance.m >= min_second_bdg_distance:
-                    guess["match"] = first_bdg
+                    guess["matches"].append(first_bdg)
                     guess["match_reason"] = "isolated_closest_bdg"
                     return guess
 
@@ -340,7 +340,7 @@ class GeocodeAddressHandler(AbstractHandler):
             ).filter(addresses__id=ban_id)
 
             if close_bdg_w_ban_id.count() == 1:
-                guess["match"] = close_bdg_w_ban_id.first()
+                guess["matches"].append(close_bdg_w_ban_id.first())
                 guess["match_reason"] = "precise_address_match"
 
         return guess
@@ -400,7 +400,7 @@ class GeocodeNameHandler(AbstractHandler):
             bdg = Building.objects.filter(shape__contains=osm_bdg_point).first()
 
             if isinstance(bdg, Building):
-                guess["match"] = bdg
+                guess["matches"].append(bdg)
                 guess["match_reason"] = "found_name_in_osm"
                 return guess
 
@@ -481,19 +481,20 @@ class PartialRoofHandler(AbstractHandler):
             roof_poly, closest_bdgs
         )
         if isinstance(sole_bdg_intersecting_enough, Building):
-            guess["match"] = sole_bdg_intersecting_enough
+            guess["matches"].append(sole_bdg_intersecting_enough)
             guess["match_reason"] = "sole_bdg_intersects_roof_enough"
+
             return guess
 
         # Est-ce qu'il yn seul bâtiment qui intersects et le second bâtiment le plus proche est assez loin ?
         if self._isolated_bdg_intersecting(roof_poly, closest_bdgs):
-            guess["match"] = closest_bdgs[0]
+            guess["matches"].append(closest_bdgs[0])
             guess["match_reason"] = "isolated_bdg_intersects_roof"
             return guess
 
         bdgs_covered_enough = self._many_bdgs_covered_enough(roof_poly, closest_bdgs)
         if bdgs_covered_enough:
-            guess["match"] = bdgs_covered_enough[0]
+            guess["matches"].append(bdgs_covered_enough[0])
             guess["match_reason"] = "many_bdgs_covered_enough_by_roof"
             return guess
 
