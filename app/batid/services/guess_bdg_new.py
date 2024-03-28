@@ -6,12 +6,14 @@ from abc import abstractmethod
 from typing import Optional
 
 import pandas as pd
-from django.contrib.gis.geos import Point, GEOSGeometry, Polygon
-from django.core.serializers import serialize
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import Polygon
 from django.db import connections
 
 from batid.models import Building
-from batid.services.closest_bdg import get_closest_from_point, get_closest_from_poly
+from batid.services.closest_bdg import get_closest_from_point
+from batid.services.closest_bdg import get_closest_from_poly
 from batid.services.geocoders import BanGeocoder
 from batid.services.geocoders import PhotonGeocoder
 

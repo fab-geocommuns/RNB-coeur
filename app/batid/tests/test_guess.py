@@ -3,12 +3,13 @@ import os
 from unittest.mock import patch
 
 from django.contrib.gis.geos import Point
-from django.test import TransactionTestCase, TestCase
+from django.test import TransactionTestCase
 
 from batid.models import Address
 from batid.models import Building
 from batid.services.guess_bdg_new import ClosestFromPointHandler
-from batid.services.guess_bdg_new import Guesser, PartialRoofHandler
+from batid.services.guess_bdg_new import Guesser
+from batid.services.guess_bdg_new import PartialRoofHandler
 from batid.tests.helpers import create_from_geojson
 
 
