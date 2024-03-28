@@ -80,7 +80,7 @@ class Guesser:
         total = len(df)
         print(f"Number of rows: {total}")
 
-        # Number and percetange of rows where match_rnb_id is not null
+        # Number and percetange of rows where we found a match
         match_count = df["match_reason"].notnull().sum()
         match_percentage = match_count / total * 100
         print(f"Number of match: {match_count} ({match_percentage:.2f}%)")
