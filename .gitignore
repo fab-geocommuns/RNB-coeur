@@ -40,6 +40,17 @@
 .env.s3_backup.import
 .env.s3_backup.sandbox
 
+
+# Ignore any .json, .csv, .shp files in the folder /notebooks and its subfolders
+/app/notebooks/**/*.json
+/app/notebooks/**/*.csv
+# Shapefiles formats
+/app/notebooks/**/*.shp
+/app/notebooks/**/*.cst
+/app/notebooks/**/*.dbf
+/app/notebooks/**/*.prj
+/app/notebooks/**/*.shx
+
 # Jupyter notebooks trash
 app/.Trash-0/*
 
