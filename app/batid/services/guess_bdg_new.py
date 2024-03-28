@@ -81,7 +81,7 @@ class Guesser:
         print(f"Number of rows: {total}")
 
         # Number and percetange of rows where match_rnb_id is not null
-        match_count = df["match_rnb_id"].notnull().sum()
+        match_count = df["match_reason"].notnull().sum()
         match_percentage = match_count / total * 100
         print(f"Number of match: {match_count} ({match_percentage:.2f}%)")
 
@@ -127,16 +127,13 @@ class Guesser:
 
     def convert_matches(self):
         for ext_id, guess in self.guesses.items():
-            for idx, match in enumerate(guess["matches"]):
-                if isinstance(match, Building):
-                    match = {
-                        "rnb_id": match.rnb_id,
-                        "lat_lng": f"{match.point[1]}, {match.point[0]}",
-                        "distance": match.distance.m,
-                        "match_details": getattr(match, "match_details", None),
-                    }
+            if guess["matches"] and not isinstance(guess["matches"], str):
+                rnb_ids = []
 
-                    guess["matches"][idx] = match
+                for idx, match in enumerate(guess["matches"]):
+                    rnb_ids.append(match.rnb_id)
+
+                guess["matches"] = ",".join(rnb_ids)
 
     def guess_batch(self, guesses: dict) -> dict:
         for handler in self.handlers:
@@ -483,7 +480,6 @@ class PartialRoofHandler(AbstractHandler):
         if isinstance(sole_bdg_intersecting_enough, Building):
             guess["matches"].append(sole_bdg_intersecting_enough)
             guess["match_reason"] = "sole_bdg_intersects_roof_enough"
-
             return guess
 
         # Est-ce qu'il yn seul bâtiment qui intersects et le second bâtiment le plus proche est assez loin ?
