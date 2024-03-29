@@ -295,6 +295,7 @@ class Guess(models.Model):
     match_reason = models.CharField(max_length=255, null=True, db_index=True)
     inputs = models.JSONField(null=True)
     finished_steps = models.CharField(null=True, db_index=True, max_length=255)
+    finished = models.BooleanField(default=False)
 
     # constraint : together source_name and ext_id must be unique
     class Meta:

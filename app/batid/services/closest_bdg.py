@@ -1,13 +1,13 @@
 from typing import Optional
 
 from django.contrib.gis.db.models.functions import Distance
-from django.contrib.gis.geos import Point, Polygon
+from django.contrib.gis.geos import Point, Polygon, GEOSGeometry
 from django.db.models import QuerySet
 
 from batid.models import Building
 
 
-def get_closest_from_poly(poly: Polygon, radius) -> Optional[QuerySet]:
+def get_closest_from_poly(poly: GEOSGeometry, radius) -> Optional[QuerySet]:
     __validate_poly(poly)
     __validate_radius(radius)
 

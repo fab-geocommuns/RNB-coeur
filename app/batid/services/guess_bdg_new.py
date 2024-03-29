@@ -4,13 +4,10 @@ import time
 from abc import ABC
 from abc import abstractmethod
 from typing import Optional
-
 import pandas as pd
 from django.contrib.gis.geos import Point, GEOSGeometry, Polygon
-from django.core.serializers import serialize
 from django.db import connections
-
-from batid.models import Building
+from batid.models import Building, Guess
 from batid.services.closest_bdg import get_closest_from_point, get_closest_from_poly
 from batid.services.geocoders import BanGeocoder
 from batid.services.geocoders import PhotonGeocoder
@@ -18,82 +15,62 @@ from batid.services.geocoders import PhotonGeocoder
 
 class Guesser:
     def __init__(self):
-        self.guesses = {}
-        self.persister = None
+        self.persister = GuessInMemoryPersister()
         self.handlers = [
             ClosestFromPointHandler(),
             GeocodeAddressHandler(),
             GeocodeNameHandler(),
         ]
+        self.batch_size = 500
 
-    def create_work_file(self, inputs, file_path):
-        self.load_inputs(inputs)
-        self.save_work_file(file_path)
-
-    def load_work_file(self, file_path):
-        with open(file_path, "r") as f:
-            self.guesses = json.load(f)
+    @property
+    def guesses(self):
+        return self.persister.all_guesses()
 
     def load_inputs(self, inputs: list):
         self._validate_inputs(inputs)
-        self.guesses = self._inputs_to_guesses(inputs)
 
-    def guess_work_file(self, file_path):
-        self.load_work_file(file_path)
-
-        batches = self._guesses_to_batches()
-
-        for batch in batches:
-            batch = self.guess_batch(batch)
-            self.guesses.update(batch)
-            self.save_work_file(file_path)
+        guesses = self._inputs_to_guesses(inputs)
+        self.persister.save(guesses)
 
     def guess_all(self):
-        batches = self._guesses_to_batches()
+        while True:
+            unfinished_guesses = self.persister.get_unfinished_guesses(self.batch_size)
 
-        for batch in batches:
-            batch = self.guess_batch(batch)
-            self.guesses.update(batch)
+            if not unfinished_guesses:
+                break
 
-    def _guesses_to_batches(self, batch_size: int = 300):
-        batches = []
-        batch = {}
-
-        c = 0
-        for ext_id, guess in self.guesses.items():
-            c += 1
-            batch[ext_id] = guess
-
-            if len(batch) == batch_size or ext_id == list(self.guesses.keys())[-1]:
-                batches.append(batch)
-                batch = {}
-
-        return batches
+            finished_guesses = self._guess_batch(unfinished_guesses)
+            self.persister.save(finished_guesses)
 
     def report(self):
-        data = list(self.guesses.values())
+        raise NotImplementedError(
+            "TODO : corriger cette methode pour qu'elle fonctionne avec le nouveau format de guess"
+        )
 
-        print("-- Report --")
-
-        df = pd.json_normalize(data, sep="_")
-
-        # Count number of rows
-        total = len(df)
-        print(f"Number of rows: {total}")
-
-        # Number and percetange of rows where match_rnb_id is not null
-        match_count = df["match_reason"].notnull().sum()
-        match_percentage = match_count / total * 100
-        print(f"Number of match: {match_count} ({match_percentage:.2f}%)")
-
-        # Display table of all march_reason values with their absolute count and their percentage
-
-        match_reason_count = df["match_reason"].value_counts()
-        match_reason_percentage = match_reason_count / total * 100
-        print("\n-- match_reasons : absolute --")
-        print(match_reason_count)
-        print("\n-- match_reasons : % --")
-        print(match_reason_percentage)
+        # data = list(self.guesses.values())
+        #
+        # print("-- Report --")
+        #
+        # df = pd.json_normalize(data, sep="_")
+        #
+        # # Count number of rows
+        # total = len(df)
+        # print(f"Number of rows: {total}")
+        #
+        # # Number and percetange of rows where match_rnb_id is not null
+        # match_count = df["match_reason"].notnull().sum()
+        # match_percentage = match_count / total * 100
+        # print(f"Number of match: {match_count} ({match_percentage:.2f}%)")
+        #
+        # # Display table of all march_reason values with their absolute count and their percentage
+        #
+        # match_reason_count = df["match_reason"].value_counts()
+        # match_reason_percentage = match_reason_count / total * 100
+        # print("\n-- match_reasons : absolute --")
+        # print(match_reason_count)
+        # print("\n-- match_reasons : % --")
+        # print(match_reason_percentage)
 
     def display_reason(
         self,
@@ -101,30 +78,32 @@ class Guesser:
         count: int = 10,
         cols: list = ("input_ext_id", "match_rnb_id", "match_reason"),
     ):
-        data = list(self.guesses.values())
+        raise NotImplementedError(
+            "TODO : corriger cette methode pour qu'elle fonctionne avec le nouveau format de guess"
+        )
 
-        df = pd.json_normalize(data, sep="_")
-
-        reasons = df[df["match_reason"] == reason]
-        reasons = reasons[cols]
-
-        print(reasons.sample(count))
+        # data = list(self.guesses.values())
+        #
+        # df = pd.json_normalize(data, sep="_")
+        #
+        # reasons = df[df["match_reason"] == reason]
+        # reasons = reasons[cols]
+        #
+        # print(reasons.sample(count))
 
     def display_nomatches(self, count: int = 10):
-        data = list(self.guesses.values())
+        raise NotImplementedError(
+            "TODO : corriger cette methode pour qu'elle fonctionne avec le nouveau format de guess"
+        )
 
-        df = pd.json_normalize(data, sep="_")
-
-        nomatches = df[df["match_rnb_id"].isnull()]
-        nomatches = nomatches[["input_ext_id"]]
-
-        print(nomatches.sample(count))
-
-    def save(self, guesses):
-        if self.persister is None:
-            raise Exception("No persister set")
-
-        self.persister.save(guesses)
+        # data = list(self.guesses.values())
+        #
+        # df = pd.json_normalize(data, sep="_")
+        #
+        # nomatches = df[df["match_rnb_id"].isnull()]
+        # nomatches = nomatches[["input_ext_id"]]
+        #
+        # print(nomatches.sample(count))
 
     def save_work_file(self, file_path):
         self.convert_matches()
@@ -142,30 +121,36 @@ class Guesser:
 
                 guess["matches"] = ",".join(rnb_ids)
 
-    def guess_batch(self, guesses: dict) -> dict:
+    def _guess_batch(self, guesses: list) -> list:
         for handler in self.handlers:
             if not isinstance(handler, AbstractHandler):
                 raise ValueError("Handler must be an instance of AbstractHandler")
 
             guesses = handler.handle(guesses)
 
+        # Set guess to finished
+        for guess in guesses:
+            guess.finished = True
+
         return guesses
 
     @staticmethod
-    def _inputs_to_guesses(inputs) -> dict:
-        guesses = {}
+    def _inputs_to_guesses(inputs) -> list:
+        guesses = []
         for input in inputs:
             # Always transform ext_id to string
             ext_id = str(input["ext_id"])
-            input["ext_id"] = ext_id
+            # We don't need ext_id in the input anymore
+            del input["ext_id"]
 
-            guesses[ext_id] = {
-                "input": input,
-                "matches": [],
-                # "match": None,
-                "match_reason": None,
-                "finished_steps": [],
-            }
+            guesses.append(
+                Guess(
+                    matches=[],
+                    finished_steps=[],
+                    inputs=input,
+                    ext_id=ext_id,
+                )
+            )
 
         return guesses
 
@@ -196,29 +181,29 @@ class Guesser:
 class AbstractHandler(ABC):
     _name = None
 
-    def handle(self, guesses: dict) -> dict:
+    def handle(self, guesses: list) -> list:
         to_guess, to_not_guess = self._split_guesses(guesses)
         to_guess = self._guess_batch(guesses)
 
-        guesses = to_guess | to_not_guess
+        guesses = to_guess + to_not_guess
         guesses = self._add_finished_step(guesses)
 
         return guesses
 
-    def _split_guesses(self, guesses: dict) -> tuple:
-        to_handle = {}
-        not_to_handle = {}
+    def _split_guesses(self, guesses: list) -> tuple:
+        to_handle = []
+        not_to_handle = []
 
-        for ext_id, guess in guesses.items():
-            if self.name not in guess["finished_steps"] and len(guess["matches"]) == 0:
-                to_handle[ext_id] = guess
+        for guess in guesses:
+            if self.name not in guess.finished_steps and len(guess.matches) == 0:
+                to_handle.append(guess)
             else:
-                not_to_handle[ext_id] = guess
+                not_to_handle.append(guess)
 
         return to_handle, not_to_handle
 
     @abstractmethod
-    def _guess_batch(self, guesses: dict) -> dict:
+    def _guess_batch(self, guesses: list) -> list:
         # This function is the one doing all the guess work. It must be implemented in each handler.
         raise NotImplementedError
 
@@ -228,10 +213,10 @@ class AbstractHandler(ABC):
             raise ValueError("_name must be set")
         return self._name
 
-    def _add_finished_step(self, guesses: dict) -> dict:
-        for guess in guesses.values():
-            if self.name not in guess["finished_steps"]:
-                guess["finished_steps"].append(self.name)
+    def _add_finished_step(self, guesses: list) -> list:
+        for guess in guesses:
+            if self.name not in guess.finished_steps:
+                guess.finished_steps.append(self.name)
         return guesses
 
 
@@ -242,24 +227,24 @@ class ClosestFromPointHandler(AbstractHandler):
         self.closest_radius = closest_radius
         self.isolated_bdg_max_distance = isolated_bdg_max_distance
 
-    def _guess_batch(self, guesses: dict) -> dict:
+    def _guess_batch(self, guesses: list) -> list:
         tasks = []
+        result = []
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            for guess in guesses.values():
+            for guess in guesses:
                 future = executor.submit(self._guess_one, guess)
                 future.add_done_callback(lambda future: connections.close_all())
                 tasks.append(future)
 
             for future in concurrent.futures.as_completed(tasks):
-                guess = future.result()
-                guesses[guess["input"]["ext_id"]] = guess
+                result.append(future.result())
 
-        return guesses
+        return result
 
-    def _guess_one(self, guess: dict) -> dict:
-        lat = guess["input"].get("lat", None)
-        lng = guess["input"].get("lng", None)
+    def _guess_one(self, guess: Guess) -> Guess:
+        lat = guess.inputs.get("lat", None)
+        lng = guess.inputs.get("lng", None)
 
         if not lat or not lng:
             return guess
@@ -273,16 +258,16 @@ class ClosestFromPointHandler(AbstractHandler):
         first_bdg = closest_bdgs[0]
         # Is the the point is in the first building ?
         if first_bdg.distance.m <= 0:
-            guess["matches"].append(first_bdg)
-            guess["match_reason"] = "point_on_bdg"
+            guess.matches.append(first_bdg.rnb_id)
+            guess.match_reason = "point_on_bdg"
             return guess
 
         # Is the first building within 8 meters and the second building is far enough ?
         if first_bdg.distance.m <= self.isolated_bdg_max_distance:
             if len(closest_bdgs) == 1:
                 # There is only one building close enough. No need to compare to the second one.
-                guess["matches"].append(first_bdg)
-                guess["match_reason"] = "isolated_closest_bdg"
+                guess.matches.append(first_bdg.rnb_id)
+                guess.match_reason = "isolated_closest_bdg"
                 return guess
 
             if len(closest_bdgs) > 1:
@@ -292,8 +277,8 @@ class ClosestFromPointHandler(AbstractHandler):
                     first_bdg.distance.m
                 )
                 if second_bdg.distance.m >= min_second_bdg_distance:
-                    guess["matches"].append(first_bdg)
-                    guess["match_reason"] = "isolated_closest_bdg"
+                    guess.matches.append(first_bdg.rnb_id)
+                    guess.match_reason = "isolated_closest_bdg"
                     return guess
 
         # We did not find anything. We return guess as it was sent.
@@ -318,17 +303,13 @@ class GeocodeAddressHandler(AbstractHandler):
         self.sleep_time = sleep_time
         self.closest_radius = closest_radius
 
-    def _guess_batch(self, guesses: dict) -> dict:
-        for guess in guesses.values():
-            guess = self._guess_one(guess)
-            guesses[guess["input"]["ext_id"]] = guess
+    def _guess_batch(self, guesses: list) -> list:
+        return [self._guess_one(guess) for guess in guesses]
 
-        return guesses
-
-    def _guess_one(self, guess: dict) -> dict:
-        lat = guess["input"].get("lat", None)
-        lng = guess["input"].get("lng", None)
-        address = guess["input"].get("address", None)
+    def _guess_one(self, guess: Guess) -> Guess:
+        lat = guess.inputs.get("lat", None)
+        lng = guess.inputs.get("lng", None)
+        address = guess.inputs.get("address", None)
 
         if not address or not lat or not lng:
             return guess
@@ -344,8 +325,8 @@ class GeocodeAddressHandler(AbstractHandler):
             ).filter(addresses__id=ban_id)
 
             if close_bdg_w_ban_id.count() == 1:
-                guess["matches"].append(close_bdg_w_ban_id.first())
-                guess["match_reason"] = "precise_address_match"
+                guess.matches.append(close_bdg_w_ban_id.first().rnb_id)
+                guess.match_reason = "precise_address_match"
 
         return guess
 
@@ -379,17 +360,13 @@ class GeocodeNameHandler(AbstractHandler):
     def __init__(self, sleep_time=0.8):
         self.sleep_time = sleep_time
 
-    def _guess_batch(self, guesses: dict) -> dict:
-        for guess in guesses.values():
-            guess = self._guess_one(guess)
-            guesses[guess["input"]["ext_id"]] = guess
+    def _guess_batch(self, guesses: list) -> list:
+        return [self._guess_one(guess) for guess in guesses]
 
-        return guesses
-
-    def _guess_one(self, guess: dict) -> dict:
-        lat = guess["input"].get("lat", None)
-        lng = guess["input"].get("lng", None)
-        name = guess["input"].get("name", None)
+    def _guess_one(self, guess: Guess) -> Guess:
+        lat = guess.inputs.get("lat", None)
+        lng = guess.inputs.get("lng", None)
+        name = guess.inputs.get("name", None)
 
         if not lat or not lng or not name:
             return guess
@@ -404,8 +381,8 @@ class GeocodeNameHandler(AbstractHandler):
             bdg = Building.objects.filter(shape__contains=osm_bdg_point).first()
 
             if isinstance(bdg, Building):
-                guess["matches"].append(bdg)
-                guess["match_reason"] = "found_name_in_osm"
+                guess.matches.append(bdg.rnb_id)
+                guess.match_reason = "found_name_in_osm"
                 return guess
 
         return guess
@@ -451,23 +428,23 @@ class PartialRoofHandler(AbstractHandler):
         self.isolated_section_max_distance = isolated_section_max_distance
         self.min_second_bdg_distance = min_second_bdg_distance
 
-    def _guess_batch(self, guesses: dict) -> dict:
+    def _guess_batch(self, guesses: list) -> list:
         tasks = []
+        result = []
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            for guess in guesses.values():
+            for guess in guesses:
                 future = executor.submit(self._guess_one, guess)
                 future.add_done_callback(lambda future: connections.close_all())
                 tasks.append(future)
 
             for future in concurrent.futures.as_completed(tasks):
-                guess = future.result()
-                guesses[guess["input"]["ext_id"]] = guess
+                result.append(future.result())
 
-        return guesses
+        return result
 
-    def _guess_one(self, guess: dict) -> dict:
-        roof_geojson = guess["input"].get("polygon", None)
+    def _guess_one(self, guess: Guess) -> Guess:
+        roof_geojson = guess.inputs.get("polygon", None)
 
         if not roof_geojson:
             return guess
@@ -485,20 +462,21 @@ class PartialRoofHandler(AbstractHandler):
             roof_poly, closest_bdgs
         )
         if isinstance(sole_bdg_intersecting_enough, Building):
-            guess["matches"].append(sole_bdg_intersecting_enough)
-            guess["match_reason"] = "sole_bdg_intersects_roof_enough"
+            guess.matches.append(sole_bdg_intersecting_enough.rnb_id)
+            guess.match_reason = "sole_bdg_intersects_roof_enough"
             return guess
 
         # Est-ce qu'il yn seul bâtiment qui intersects et le second bâtiment le plus proche est assez loin ?
         if self._isolated_bdg_intersecting(roof_poly, closest_bdgs):
-            guess["matches"].append(closest_bdgs[0])
-            guess["match_reason"] = "isolated_bdg_intersects_roof"
+            guess.matches.append(closest_bdgs[0].rnb_id)
+            guess.match_reason = "isolated_bdg_intersects_roof"
             return guess
 
         bdgs_covered_enough = self._many_bdgs_covered_enough(roof_poly, closest_bdgs)
         if bdgs_covered_enough:
-            guess["matches"] = bdgs_covered_enough
-            guess["match_reason"] = "many_bdgs_covered_enough_by_roof"
+            rnb_ids = [bdg.rnb_id for bdg in bdgs_covered_enough]
+            guess.matches = rnb_ids
+            guess.match_reason = "many_bdgs_covered_enough_by_roof"
             return guess
 
         # No match :(
@@ -558,12 +536,64 @@ class PartialRoofHandler(AbstractHandler):
         return second_bdg.distance.m >= self.min_second_bdg_distance
 
 
-class GuessSqlitePersister:
+class AbstractPersister(ABC):
+    @abstractmethod
+    def save(self, guesses: list):
+        pass
+
+    @abstractmethod
+    def get_unfinished_guesses(self, limit: int) -> list:
+        pass
+
+    @abstractmethod
+    def all_guesses(self) -> list:
+        pass
+
+
+class GuessInMemoryPersister(AbstractPersister):
+    def __init__(self):
+        self._guesses = {}
+
+    def all_guesses(self) -> list:
+        return list(self._guesses.values())
+
+    def save(self, guesses: list):
+        for guess in guesses:
+            self._guesses[guess.ext_id] = guess
+
+    def get_unfinished_guesses(self, limit: int) -> list:
+        unfinished_guesses = [
+            guess for guess in self._guesses.values() if not guess.finished
+        ]
+        return unfinished_guesses[:limit]
+
+
+class GuessSqlitePersister(AbstractPersister):
     def __init__(self, source_name):
         self.source_name = source_name
 
-    def load(self, limit=1000):
-        pass
+    def all_guesses(self) -> list:
+        qs = Guess.objects.filter(source_name=self.source_name)
+        return list(qs)
+
+    def get_unfinished_guesses(self, limit: int) -> list:
+        qs = Guess.objects.filter(
+            source_name=self.source_name, finished=False
+        ).order_by("id")[:limit]
+
+        return list(qs)
 
     def save(self, guesses):
-        pass
+        for guess in guesses:
+            Guess.objects.update_or_create(
+                ext_id=guess.ext_id,
+                source_name=self.source_name,
+                defaults={
+                    "ext_id": guess.ext_id,
+                    "source_name": self.source_name,
+                    "inputs": guess.inputs,
+                    "matches": guess.matches,
+                    "match_reason": guess.match_reason,
+                    "finished_steps": guess.finished_steps,
+                },
+            )
