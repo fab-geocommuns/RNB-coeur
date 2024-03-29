@@ -7,7 +7,6 @@ from typing import Optional
 
 import pandas as pd
 from django.contrib.gis.geos import Point, GEOSGeometry, Polygon
-from django.core.serializers import serialize
 from django.db import connections
 
 from batid.models import Building
