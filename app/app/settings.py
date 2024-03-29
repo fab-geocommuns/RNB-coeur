@@ -132,7 +132,7 @@ DATABASES = {
     },
     "guess": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "rnb_guesses.sqlite3",
+        "NAME": "guesses/rnb_guesses.sqlite3",
     },
 }
 
