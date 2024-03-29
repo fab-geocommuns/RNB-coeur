@@ -285,7 +285,13 @@ class Contribution(models.Model):
 
 class Guess(models.Model):
     id = models.AutoField(primary_key=True)
+    ext_id = models.CharField(max_length=255, null=False, db_index=True)
     source_name = models.CharField(max_length=255, null=False, db_index=True)
     matches = models.JSONField(null=True)
     match_reason = models.CharField(max_length=255, null=True, db_index=True)
     inputs = models.JSONField(null=True)
+
+    # constraint : together source_name and ext_id must be unique
+    class Meta:
+        unique_together = ["ext_id", "source_name"]
+        ordering = ["source_name", "ext_id"]
