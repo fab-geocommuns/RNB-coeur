@@ -19,6 +19,7 @@ from batid.services.geocoders import PhotonGeocoder
 class Guesser:
     def __init__(self):
         self.guesses = {}
+        self.persister = None
         self.handlers = [
             ClosestFromPointHandler(),
             GeocodeAddressHandler(),
@@ -118,6 +119,12 @@ class Guesser:
         nomatches = nomatches[["input_ext_id"]]
 
         print(nomatches.sample(count))
+
+    def save(self, guesses):
+        if self.persister is None:
+            raise Exception("No persister set")
+
+        self.persister.save(guesses)
 
     def save_work_file(self, file_path):
         self.convert_matches()
@@ -549,3 +556,14 @@ class PartialRoofHandler(AbstractHandler):
         second_bdg = closest_bdgs[1]
 
         return second_bdg.distance.m >= self.min_second_bdg_distance
+
+
+class GuessSqlitePersister:
+    def __init__(self, source_name):
+        self.source_name = source_name
+
+    def load(self, limit=1000):
+        pass
+
+    def save(self, guesses):
+        pass

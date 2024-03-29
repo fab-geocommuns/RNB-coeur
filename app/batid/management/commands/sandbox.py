@@ -13,32 +13,19 @@ from batid.services.guess_bdg_new import Guesser, PartialRoofHandler
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        gdf = gpd.read_file(
-            "notebooks/rapprochements/lyon/export_rnb.gpkg", layer="toit"
-        )
-        srid = gdf.crs.to_epsg()
 
-        target_id = str(138328)
+       inputs = []
 
-        inputs = []
-        for idx, row in gdf.iterrows():
-            if str(row["id"]) == target_id:
-                inputs.append(to_input(row, srid))
 
+        # Persists the inputs
         guesser = Guesser()
-        guesser.handlers = [PartialRoofHandler()]
+        guesser.persister = GuessSqlitePersister('lyon_complete')
         guesser.load_inputs(inputs)
+        guesser.save()
+
+       # Resume guess work
+        guesser = Guesser()
+        guesser.persister = GuessSqlitePersister('lyon_complete')
+        guesser.handlers = [PartialRoofHandler()]
         guesser.guess_all()
-        pprint(guesser.guesses)
 
-        guesser.convert_matches()
-        pprint(guesser.guesses)
-
-
-def to_input(row, srid):
-    geom_geojson = mapping(row["geometry"])
-    geom = GEOSGeometry(json.dumps(geom_geojson))
-    geom.srid = srid
-    geom.transform(4326)
-
-    return {"ext_id": row["id"], "polygon": json.loads(geom.json)}

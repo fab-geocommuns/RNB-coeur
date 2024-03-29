@@ -284,12 +284,17 @@ class Contribution(models.Model):
 
 
 class Guess(models.Model):
+    """
+    Any change on this model needs to be set on the db via the command: python manage.py migrate --database=guess
+    """
+
     id = models.AutoField(primary_key=True)
     ext_id = models.CharField(max_length=255, null=False, db_index=True)
     source_name = models.CharField(max_length=255, null=False, db_index=True)
     matches = models.JSONField(null=True)
     match_reason = models.CharField(max_length=255, null=True, db_index=True)
     inputs = models.JSONField(null=True)
+    finished_steps = models.CharField(null=True, db_index=True, max_length=255)
 
     # constraint : together source_name and ext_id must be unique
     class Meta:
