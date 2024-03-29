@@ -132,6 +132,14 @@ class BuildingsEndpointsTest(APITestCase):
         self.assertEqual(len(data["results"]), 1)
         self.assertDictEqual(data, expected)
 
+        building = Building.objects.get(rnb_id="INGRENOBLEGO")
+        building.is_active = False
+        building.save()
+
+        r = self.client.get("/api/alpha/buildings/?insee_code=38185")
+        # No building should be returned
+        self.assertEqual(len(r.json()["results"]), 0)
+
     def test_buildings_root(self):
         r = self.client.get("/api/alpha/buildings/")
         self.assertEqual(r.status_code, 200)
@@ -185,6 +193,20 @@ class BuildingsEndpointsTest(APITestCase):
         }
 
         self.assertEqual(r.json(), expected)
+
+    def test_non_active_buildings_are_excluded(self):
+        building = Building.objects.get(rnb_id="BDGSRNBBIDID")
+
+        r = self.client.get("/api/alpha/buildings/")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.json()["results"]), 2)
+
+        building.is_active = False
+        building.save()
+
+        r = self.client.get("/api/alpha/buildings/")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.json()["results"]), 1)
 
 
 class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
@@ -251,32 +273,6 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
 
         self.assertEqual(len(data["results"]), 3)
         self.assertDictEqual(data, expected)
-
-
-class BuildingsEndpointsSingleTest(APITestCase):
-    def setUp(self) -> None:
-        coords = {
-            "coordinates": [
-                [
-                    [
-                        [1.0654705955877262, 46.63423852982024],
-                        [1.065454930919401, 46.634105152847496],
-                        [1.0656648374661017, 46.63409009413692],
-                        [1.0656773692001593, 46.63422131990677],
-                        [1.0654705955877262, 46.63423852982024],
-                    ]
-                ]
-            ],
-            "type": "MultiPolygon",
-        }
-        geom = GEOSGeometry(json.dumps(coords), srid=4326)
-
-        b = Building.objects.create(
-            rnb_id="SINGLEONE",
-            shape=geom,
-            point=geom.point_on_surface,
-            status="ongoingConstruction",
-        )
 
 
 class BuildingClosestViewTest(APITestCase):

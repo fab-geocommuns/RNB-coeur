@@ -88,7 +88,7 @@ class BuildingCursorPagination(CursorPagination):
 
 
 class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
-    queryset = Building.objects.all()
+    queryset = Building.objects.all().filter(is_active=True)
     serializer_class = BuildingSerializer
     http_method_names = ["get"]
     lookup_field = "rnb_id"

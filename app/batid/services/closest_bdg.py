@@ -5,6 +5,7 @@ from django.contrib.gis.geos import Point
 from django.db.models import QuerySet
 
 from batid.models import Building
+from batid.services.bdg_status import BuildingStatus
 
 
 def get_closest(lat, lng, radius) -> Optional[QuerySet]:
@@ -13,8 +14,11 @@ def get_closest(lat, lng, radius) -> Optional[QuerySet]:
 
 
 def __get_qs(lat, lng, radius):
-    # todo : on devrait filtrer pour n'avoir que les bâtiments qui ont un statut de bâtiment réel
-    qs = Building.objects.all()
+    qs = (
+        Building.objects.all()
+        .filter(is_active=True)
+        .filter(status__in=BuildingStatus.REAL_BUILDINGS_STATUS)
+    )
 
     point_geom = Point(lng, lat, srid=4326)
 

@@ -39,7 +39,7 @@ class BuildingGuess:
         # ###################
 
         selects = ["b.id", "b.rnb_id"]
-        wheres = []
+        wheres = ["is_active = TRUE"]
         joins = []
         group_by = None
         params = {}
