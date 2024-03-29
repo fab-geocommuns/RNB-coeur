@@ -281,3 +281,11 @@ class Contribution(models.Model):
     text = models.TextField(null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class Guess(models.Model):
+    id = models.AutoField(primary_key=True)
+    source_name = models.CharField(max_length=255, null=False, db_index=True)
+    matches = models.JSONField(null=True)
+    match_reason = models.CharField(max_length=255, null=True, db_index=True)
+    inputs = models.JSONField(null=True)
