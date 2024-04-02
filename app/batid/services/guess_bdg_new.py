@@ -34,6 +34,8 @@ class Guesser:
         self.persister.save(guesses)
 
     def guess_all(self):
+        total = 0
+
         while True:
             unfinished_guesses = self.persister.get_unfinished_guesses(self.batch_size)
 
@@ -42,6 +44,11 @@ class Guesser:
 
             finished_guesses = self._guess_batch(unfinished_guesses)
             self.persister.save(finished_guesses)
+
+            total += len(finished_guesses)
+
+            if total % 1000 == 0:
+                print(f"Done {total} guesses")
 
     def report(self):
         raise NotImplementedError(
@@ -146,6 +153,7 @@ class Guesser:
             guesses.append(
                 Guess(
                     matches=[],
+                    finished=False,
                     finished_steps=[],
                     inputs=input,
                     ext_id=ext_id,
@@ -584,6 +592,9 @@ class GuessSqlitePersister(AbstractPersister):
         return list(qs)
 
     def save(self, guesses):
+        done = 0
+        total = len(guesses)
+
         for guess in guesses:
             Guess.objects.update_or_create(
                 ext_id=guess.ext_id,
@@ -597,3 +608,8 @@ class GuessSqlitePersister(AbstractPersister):
                     "finished_steps": guess.finished_steps,
                 },
             )
+
+            done += 1
+
+            if done % 1000 == 0:
+                print(f"Done {done}/{total}")
