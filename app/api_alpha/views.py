@@ -175,17 +175,36 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                     ),
                 ],
             ),
-        ]
+            OpenApiParameter(
+                "insee_code",
+                str,
+                OpenApiParameter.QUERY,
+                description="""
+                    Filtre les bâtiments grâce au code INSEE d'une commune.
+                     """,
+                examples=[
+                    OpenApiExample(
+                        "Liste les bâtiments de la commune de Talence", value="33522"
+                    )
+                ],
+            ),
+        ],
+        examples=[
+            OpenApiExample(
+                "Exemple 1",
+                summary="Liste les bâtiments de la commune de Talence",
+                value="GET https://rnb-api.beta.gouv.fr/api/alpha/buildings/?insee_code=33522",
+            ),
+            OpenApiExample(
+                "Exemple 2",
+                summary="Liste les bâtiments construits ou démolis",
+                value="GET https://rnb-api.beta.gouv.fr/api/alpha/buildings/?status=constructed,demolished",
+            ),
+        ],
     )
     def list(self, request, *args, **kwargs):
         """
-        Ce endpoint permet de récupérer une liste paginée de bâtiments. Des filtres, notamment par code INSEE de la commune sont disponibles.
-        Les filtres de recherche sont à transmettre sous forme de paramètres d’url.
-        Exemple :
-
-        ```
-        GET https://rnb-api.beta.gouv.fr/api/alpha/buildings/?insee_code=83071
-        ```
+        Renvoie une liste paginée de bâtiments. Des filtres (notamment par code INSEE de la commune) sont disponibles.
         """
         return super().list(request, *args, **kwargs)
 
