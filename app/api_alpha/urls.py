@@ -26,6 +26,6 @@ urlpatterns = [
     path("buildings/closest/", BuildingClosestView.as_view()),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
-    path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile)
+    path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile),
     # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
