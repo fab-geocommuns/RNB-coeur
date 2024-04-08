@@ -54,7 +54,7 @@ services:
     container_name: worker
   rabbitmq:
     restart: unless-stopped
-    image: rabbitmq:3.9-alpine
+    image: rabbitmq:3.13-alpine
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
