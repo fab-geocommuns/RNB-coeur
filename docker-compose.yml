@@ -32,12 +32,12 @@ services:
       - ./.env.db_auth.dev
     ports:
       - "5432:5432"
-    # healthcheck:
-    #   test: pg_isready -U postgres
-    #   interval: 10s
-    #   retries: 5
-    #   start_period: 20s
-    #   timeout: 2s
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 10s
+      retries: 5
+      start_period: 20s
+      timeout: 2s
   worker:
     build:
       context: .
