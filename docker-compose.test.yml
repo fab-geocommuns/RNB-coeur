@@ -35,7 +35,7 @@ services:
       db:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_started
     container_name: web
@@ -64,6 +64,12 @@ services:
     image: rabbitmq:3.9-alpine
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 15s
+      retries: 5
+      start_period: 30s
+      timeout: 5s
   redis:
     image: redis:latest
     ports:
