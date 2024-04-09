@@ -58,6 +58,12 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 15s
+      retries: 5
+      start_period: 30s
+      timeout: 5s
   redis:
     image: redis:latest
     ports:
@@ -76,6 +82,9 @@ services:
       - ./.env.worker.dev
     ports:
       - 5555:5555 # docker will expose this ports for flower
+    depends_on:
+      - worker
+      - rabbitmq
 volumes:
   postgres_data:
   rabbitmq_data:
