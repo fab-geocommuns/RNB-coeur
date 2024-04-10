@@ -76,7 +76,7 @@ def envelopeToSQL(env):
             SELECT ST_AsMVTGeom(ST_Transform(t.{geomColumn}, 3857), bounds.b2d) AS geom,
                    {attrColumns}
             FROM {table} t, bounds
-            WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
+            WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid})) and t.is_active = true
         )
         SELECT ST_AsMVT(mvtgeom.*) FROM mvtgeom
     """

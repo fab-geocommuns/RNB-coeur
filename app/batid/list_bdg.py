@@ -6,7 +6,7 @@ from batid.services.bdg_status import BuildingStatus
 
 
 def list_bdgs(params):
-    qs = Building.objects.all()
+    qs = Building.objects.all().filter(is_active=True)
 
     # #######################
     # Status filter

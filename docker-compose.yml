@@ -1,4 +1,4 @@
-version: "3.9"
+name: rnb-coeur
 
 services:
   web:
@@ -8,7 +8,7 @@ services:
       target: app_web
     ports:
       - '8000:8000'
-      - '8888:8888'
+      - '8888:8888' # Used by Jupyter notebook
     env_file:
       - ./.env.db_auth.dev
       - ./.env.app.dev
@@ -54,7 +54,7 @@ services:
     container_name: worker
   rabbitmq:
     restart: unless-stopped
-    image: rabbitmq:3.9-alpine
+    image: rabbitmq:3.13-alpine
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
