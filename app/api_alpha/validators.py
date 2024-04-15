@@ -78,7 +78,7 @@ class ADSValidator:
         rnb_ids = [
             op["rnb_id"]
             for op in data["buildings_operations"]
-
+            if "rnb_id" in op and op["rnb_id"] is not None
         ]
         if len(rnb_ids) != len(set(rnb_ids)):
             raise serializers.ValidationError(

@@ -236,9 +236,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "building": {
-                        "rnb_id": "new",
                         "custom_id": "OUR-BDG",
-                        "geometry": {
+                        "shape": {
                             "type": "Point",
                             "coordinates": [5.724331358994107, 45.18157371019683],
                         },
@@ -254,6 +253,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
+        print(r_data)
+
         self.assertEqual(r.status_code, 200)
 
         expected = {
@@ -266,11 +267,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "building": {
-                        "rnb_id": r_data["buildings_operations"][0]["building"][
-                            "rnb_id"
-                        ],
+
                         "custom_id": "OUR-BDG",
-                        "geometry": {
+                        "shape": {
                             "type": "Point",
                             "coordinates": [5.724331358994107, 45.18157371019683],
                         },

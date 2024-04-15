@@ -209,7 +209,7 @@ class CityADSSerializer(serializers.ModelSerializer):
 
 class BuildingsADSSerializer(serializers.ModelSerializer):
     # building = BdgInAdsSerializer()
-    rnb_id = serializers.CharField(validators=[ads_validate_rnbid])
+    rnb_id = serializers.CharField(validators=[ads_validate_rnbid], required=False)
     shape = serializers.DictField(required=False)
     operation = serializers.ChoiceField(
         required=True,
