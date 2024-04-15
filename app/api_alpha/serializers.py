@@ -225,10 +225,10 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
         model = BuildingADS
         fields = ["rnb_id", "shape", "operation", "creator"]
 
-    # def create(self, validated_data):
-    #     bdg_data = validated_data.pop("building")
-    #     bdg = BdgInAdsSerializer().create(bdg_data)
-    #     return BuildingADS(building=bdg, **validated_data)
+    def create(self, validated_data):
+        # bdg_data = validated_data.pop("building")
+        # bdg = BdgInAdsSerializer().create(bdg_data)
+        return BuildingADS(**validated_data)
     #
     # def update(self, bdg_ads, validated_data):
     #     validated_data.pop("building")
@@ -247,7 +247,7 @@ class ADSSerializer(serializers.ModelSerializer):
         ],
     )
     decided_at = serializers.DateField(required=True, format="%Y-%m-%d")
-    buildings_operations = BuildingsADSSerializer(many=True, required=False)
+    buildings_operations = BuildingsADSSerializer(many=True, required=True)
     city = CityADSSerializer(required=False, read_only=True)
     creator = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
@@ -279,34 +279,34 @@ class ADSSerializer(serializers.ModelSerializer):
             bdg_op.save()
 
         return ads
-
-    def update(self, ads, validated_data):
-        data_bdg_ops = []
-        if "buildings_operations" in validated_data:
-            data_bdg_ops = validated_data.pop("buildings_operations")
-
-        for attr, value in validated_data.items():
-            setattr(ads, attr, value)
-
-        ads.save()
-
-        if data_bdg_ops:
-            # First, we remove operations which are in the ADS but not in sent data (matching on RNB ID)
-            data_rnb_ids = [b["building"]["rnb_id"] for b in data_bdg_ops]
-            for model_bdg_op in ads.buildings_operations.all():
-                if model_bdg_op.building.rnb_id not in data_rnb_ids:
-                    model_bdg_op.delete()
-
-            # Then we add the new operations
-            for data_bdg_op in data_bdg_ops:
-                # First we check if the building is already in the ADS
-                adslogic = ADSLogic(ads)
-                if adslogic.concerns_rnb_id(data_bdg_op["building"]["rnb_id"]):
-                    bdg_op = adslogic.get_op_by_rnbid(data_bdg_op["building"]["rnb_id"])
-                    bdg_op = BuildingsADSSerializer().update(bdg_op, data_bdg_op.copy())
-                else:
-                    bdg_op = BuildingsADSSerializer().create(data_bdg_op.copy())
-                    bdg_op.ads = ads
-                bdg_op.save()
-
-        return ads
+    #
+    # def update(self, ads, validated_data):
+    #     data_bdg_ops = []
+    #     if "buildings_operations" in validated_data:
+    #         data_bdg_ops = validated_data.pop("buildings_operations")
+    #
+    #     for attr, value in validated_data.items():
+    #         setattr(ads, attr, value)
+    #
+    #     ads.save()
+    #
+    #     if data_bdg_ops:
+    #         # First, we remove operations which are in the ADS but not in sent data (matching on RNB ID)
+    #         data_rnb_ids = [b["building"]["rnb_id"] for b in data_bdg_ops]
+    #         for model_bdg_op in ads.buildings_operations.all():
+    #             if model_bdg_op.building.rnb_id not in data_rnb_ids:
+    #                 model_bdg_op.delete()
+    #
+    #         # Then we add the new operations
+    #         for data_bdg_op in data_bdg_ops:
+    #             # First we check if the building is already in the ADS
+    #             adslogic = ADSLogic(ads)
+    #             if adslogic.concerns_rnb_id(data_bdg_op["building"]["rnb_id"]):
+    #                 bdg_op = adslogic.get_op_by_rnbid(data_bdg_op["building"]["rnb_id"])
+    #                 bdg_op = BuildingsADSSerializer().update(bdg_op, data_bdg_op.copy())
+    #             else:
+    #                 bdg_op = BuildingsADSSerializer().create(data_bdg_op.copy())
+    #                 bdg_op.ads = ads
+    #             bdg_op.save()
+    #
+    #     return ads
