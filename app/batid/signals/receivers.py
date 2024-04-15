@@ -11,16 +11,6 @@ from batid.models import Building
 from batid.models import BuildingADS
 from batid.services.signal import create_async_signal
 
-# from batid.services.models_gears import BuildingGear
-
-
-# @receiver(post_save, sender=Building)
-# def signal_bdg(sender, instance, created, **kwargs):
-#     _sync_calc_missing_status(instance)
-
-
-
-
 
 @receiver(post_save, sender=ADSAchievement)
 def signal_ads_achievement(sender, instance, created, **kwargs):

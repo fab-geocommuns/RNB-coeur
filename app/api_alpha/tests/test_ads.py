@@ -1511,10 +1511,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
             city=grenoble,
         )
         BuildingADS.objects.create(
-            building=bdg_ads_one, ads=many_bdg_ads, operation="build"
+            rnb_id="BDGSADSSONE1", ads=many_bdg_ads, operation="build"
         )
         BuildingADS.objects.create(
-            building=bdg_ads_two, ads=many_bdg_ads, operation="demolish"
+            rnb_id="BDGSADSSTWO2", ads=many_bdg_ads, operation="demolish"
         )
 
         # User, Org & Token
