@@ -202,7 +202,7 @@ class ADS(models.Model):
 
 class BuildingADS(models.Model):
     # building = models.ForeignKey(Building, on_delete=models.CASCADE)
-    rnb_id = models.CharField(max_length=12, null=False)
+    rnb_id = models.CharField(max_length=12, null=True)
     shape = models.GeometryField(null=True, srid=4326)
 
 
