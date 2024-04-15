@@ -210,6 +210,7 @@ class CityADSSerializer(serializers.ModelSerializer):
 class BuildingsADSSerializer(serializers.ModelSerializer):
     # building = BdgInAdsSerializer()
     rnb_id = serializers.CharField(validators=[ads_validate_rnbid])
+    shape = serializers.DictField(source="shape", required=False)
     operation = serializers.ChoiceField(
         required=True,
         choices=BuildingADSLogic.OPERATIONS,
@@ -222,7 +223,7 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BuildingADS
-        fields = ["building", "operation", "creator"]
+        fields = ["rnb_id", "shape", "operation", "creator"]
 
     def create(self, validated_data):
         bdg_data = validated_data.pop("building")
