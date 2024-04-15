@@ -161,6 +161,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
+        print(r_data)
+
         self.assertEqual(r.status_code, 200)
 
         expected = {
@@ -1381,40 +1383,40 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         # ############
         # Building
-        # coords = {
-        #     "coordinates": [
-        #         [
-        #             [
-        #                 [5.717918517856731, 45.178820091145724],
-        #                 [5.718008279271032, 45.17865980057857],
-        #                 [5.7184092135875915, 45.17866401875747],
-        #                 [5.7184451181529425, 45.17884961830637],
-        #                 [5.717924501950705, 45.17893819969589],
-        #                 [5.717918517856731, 45.178820091145724],
-        #             ]
-        #         ]
-        #     ],
-        #     "type": "MultiPolygon",
-        # }
-        # geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        #
+        coords = {
+            "coordinates": [
+                [
+                    [
+                        [5.717918517856731, 45.178820091145724],
+                        [5.718008279271032, 45.17865980057857],
+                        [5.7184092135875915, 45.17866401875747],
+                        [5.7184451181529425, 45.17884961830637],
+                        [5.717924501950705, 45.17893819969589],
+                        [5.717918517856731, 45.178820091145724],
+                    ]
+                ]
+            ],
+            "type": "MultiPolygon",
+        }
+        geom = GEOSGeometry(json.dumps(coords), srid=4326)
+
         # # Grenoble
-        # b = Building.objects.create(
-        #     rnb_id="BDGSRNBBIDID",
-        #     shape=geom,
-        #     point=geom.point_on_surface,
-        # )
-        #
-        # bdg_ads_one = Building.objects.create(
-        #     rnb_id="BDGSADSSONE1",
-        #     shape=geom,
-        #     point=geom.point_on_surface,
-        # )
-        # bdg_ads_two = Building.objects.create(
-        #     rnb_id="BDGSADSSTWO2",
-        #     shape=geom,
-        #     point=geom.point_on_surface,
-        # )
+        b = Building.objects.create(
+            rnb_id="BDGSRNBBIDID",
+            shape=geom,
+            point=geom.point_on_surface,
+        )
+
+        bdg_ads_one = Building.objects.create(
+            rnb_id="BDGSADSSONE1",
+            shape=geom,
+            point=geom.point_on_surface,
+        )
+        bdg_ads_two = Building.objects.create(
+            rnb_id="BDGSADSSTWO2",
+            shape=geom,
+            point=geom.point_on_surface,
+        )
         #
         # # Building for the guess option
         # coords = {
