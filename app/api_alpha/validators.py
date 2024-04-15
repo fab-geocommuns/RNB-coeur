@@ -76,9 +76,9 @@ class ADSValidator:
             return
 
         rnb_ids = [
-            op["building"]["rnb_id"]
+            op["rnb_id"]
             for op in data["buildings_operations"]
-            if op["building"]["rnb_id"] != BdgInADS.NEW_STR
+
         ]
         if len(rnb_ids) != len(set(rnb_ids)):
             raise serializers.ValidationError(
