@@ -203,7 +203,7 @@ class ADS(models.Model):
 class BuildingADS(models.Model):
     # building = models.ForeignKey(Building, on_delete=models.CASCADE)
     rnb_id = models.CharField(max_length=12, null=False)
-
+    shape = models.GeometryField(null=True, srid=4326)
 
 
     ads = models.ForeignKey(
@@ -216,8 +216,7 @@ class BuildingADS(models.Model):
 
     creator = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
 
-    class Meta:
-        unique_together = ("building", "ads")
+
 
 
 class Candidate(models.Model):
