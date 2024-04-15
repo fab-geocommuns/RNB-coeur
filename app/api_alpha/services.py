@@ -29,25 +29,22 @@ def calc_ads_cities(data):
     }
 
     for op in data["buildings_operations"]:
-        if op["building"]["rnb_id"] == BdgInADS.GUESS_STR:
-            if op["building"]["geometry"]["type"] == "MultiPolygon":
+
+        # Check the rnb_id
+        rnb_id = op.get('rnb_id', None)
+        if rnb_id:
+            rnb_ids.append(clean_rnb_id(rnb_id))
+
+        # Check the geometry
+        geometry = op.get('geometry', None)
+        if geometry:
+
+            if geometry['type'] == "Point":
+                multipoints["coordinates"].append(geometry["coordinates"])
+
+            elif geometry['type'] == "MultiPolygon":
                 for poly in op["building"]["geometry"]["coordinates"]:
                     multipolygons["coordinates"].append(poly)
-
-        if op["building"]["rnb_id"] == BdgInADS.NEW_STR:
-            if op["building"]["geometry"]["type"] == "Point":
-                # Add the op point to the multipoints
-                multipoints["coordinates"].append(
-                    op["building"]["geometry"]["coordinates"]
-                )
-
-            elif op["building"]["geometry"]["type"] == "MultiPolygon":
-                # Add each polygon of each op multipolygon to the multipolygon
-                for poly in op["building"]["geometry"]["coordinates"]:
-                    multipolygons["coordinates"].append(poly)
-
-        else:
-            rnb_ids.append(clean_rnb_id(op["building"]["rnb_id"]))
 
     """
         Toutes les villes qui soit :
