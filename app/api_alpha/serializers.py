@@ -123,26 +123,26 @@ class CityADSSerializer(serializers.ModelSerializer):
         fields = ["code_insee", "name"]
 
 
-class BdgInAdsSerializer(serializers.ModelSerializer):
-    geometry = serializers.DictField(source="ads_geojson", required=False)
-    rnb_id = serializers.CharField(validators=[ads_validate_rnbid])
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.custom_id = None
-
-    class Meta:
-        model = Building
-        fields = ["rnb_id", "geometry"]
-        validators = [BdgInADSValidator()]
-
-    def to_internal_value(self, data):
-        # Keep the custom id
-        custom_id = data.get("custom_id", None)
-        if custom_id:
-            self.custom_id = custom_id
-
-        return super().to_internal_value(data)
+# class BdgInAdsSerializer(serializers.ModelSerializer):
+#     geometry = serializers.DictField(source="ads_geojson", required=False)
+#     rnb_id = serializers.CharField(validators=[ads_validate_rnbid])
+#
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.custom_id = None
+#
+#     class Meta:
+#         model = Building
+#         fields = ["rnb_id", "geometry"]
+#         validators = [BdgInADSValidator()]
+#
+#     def to_internal_value(self, data):
+#         # Keep the custom id
+#         custom_id = data.get("custom_id", None)
+#         if custom_id:
+#             self.custom_id = custom_id
+#
+#         return super().to_internal_value(data)
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -208,7 +208,8 @@ class BdgInAdsSerializer(serializers.ModelSerializer):
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):
-    building = BdgInAdsSerializer()
+    # building = BdgInAdsSerializer()
+    rnb_id = serializers.CharField(validators=[ads_validate_rnbid])
     operation = serializers.ChoiceField(
         required=True,
         choices=BuildingADSLogic.OPERATIONS,
