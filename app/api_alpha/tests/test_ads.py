@@ -1379,26 +1379,104 @@ class ADSEndpointsWithAuthTest(APITestCase):
         create_paris()
         cenac = create_cenac()
 
-
-
-
+        # ############
+        # Building
+        # coords = {
+        #     "coordinates": [
+        #         [
+        #             [
+        #                 [5.717918517856731, 45.178820091145724],
+        #                 [5.718008279271032, 45.17865980057857],
+        #                 [5.7184092135875915, 45.17866401875747],
+        #                 [5.7184451181529425, 45.17884961830637],
+        #                 [5.717924501950705, 45.17893819969589],
+        #                 [5.717918517856731, 45.178820091145724],
+        #             ]
+        #         ]
+        #     ],
+        #     "type": "MultiPolygon",
+        # }
+        # geom = GEOSGeometry(json.dumps(coords), srid=4326)
+        #
+        # # Grenoble
+        # b = Building.objects.create(
+        #     rnb_id="BDGSRNBBIDID",
+        #     shape=geom,
+        #     point=geom.point_on_surface,
+        # )
+        #
+        # bdg_ads_one = Building.objects.create(
+        #     rnb_id="BDGSADSSONE1",
+        #     shape=geom,
+        #     point=geom.point_on_surface,
+        # )
+        # bdg_ads_two = Building.objects.create(
+        #     rnb_id="BDGSADSSTWO2",
+        #     shape=geom,
+        #     point=geom.point_on_surface,
+        # )
+        #
+        # # Building for the guess option
+        # coords = {
+        #     "coordinates": [
+        #         [
+        #             [
+        #                 [5.727677616548021, 45.18650547532101],
+        #                 [5.726661353775256, 45.18614386549888],
+        #                 [5.726875130733703, 45.18586106647285],
+        #                 [5.727891393506468, 45.18620181594525],
+        #                 [5.727677616548021, 45.18650547532101],
+        #             ]
+        #         ]
+        #     ],
+        #     "type": "MultiPolygon",
+        # }
+        # geom = GEOSGeometry(json.dumps(coords), srid=4326)
+        #
+        # to_guess_bdg = Building.objects.create(
+        #     rnb_id="GUESSGUESSGO",
+        #     shape=geom,
+        #     point=geom.point_on_surface,
+        # )
+        #
+        # coords = {
+        #     "coordinates": [
+        #         [
+        #             [
+        #                 [5.727481544742659, 45.18703215564693],
+        #                 [5.726913971918663, 45.18682335805852],
+        #                 [5.727180892471154, 45.186454342625154],
+        #                 [5.727817395327776, 45.18666934350475],
+        #                 [5.727836461081949, 45.18671068973464],
+        #                 [5.727481544742659, 45.18703215564693],
+        #             ]
+        #         ]
+        #     ],
+        #     "type": "MultiPolygon",
+        # }
+        # geom = GEOSGeometry(json.dumps(coords), srid=4326)
+        # to_guess_bdg_two = Building.objects.create(
+        #     rnb_id="GUESSGUESSG2",
+        #     shape=geom,
+        #     point=geom.point_on_surface,
+        # )
 
         # ############
         # ADS
         ads = ADS.objects.create(
             city=grenoble, file_number="BATCH-UPDATE", decided_at="2019-01-01"
         )
-        BuildingADS.objects.create(building=b, ads=ads, operation="build")
+        BuildingADS.objects.create(rnb_id="BDGSRNBBIDID", ads=ads, operation="build")
 
         ads = ADS.objects.create(
             city=grenoble, file_number="MODIFY-GUESS", decided_at="2019-01-01"
         )
-        BuildingADS.objects.create(building=b, ads=ads, operation="build")
+        BuildingADS.objects.create(rnb_id="BDGSRNBBIDID", ads=ads, operation="build")
 
         ads = ADS.objects.create(
             city=grenoble, file_number="ADS-TEST", decided_at="2019-01-01"
         )
-        BuildingADS.objects.create(building=b, ads=ads, operation="build")
+        BuildingADS.objects.create(rnb_id="BDGSRNBBIDID", ads=ads, operation="build")
 
         ADS.objects.create(
             file_number="ADS-TEST-FUTURE", decided_at="2035-01-02", city=grenoble
