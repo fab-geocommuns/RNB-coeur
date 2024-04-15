@@ -1,4 +1,5 @@
 import json
+from pprint import pprint
 
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
@@ -161,7 +162,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        print(r_data)
+        print('-- response --')
+        pprint(r_data)
 
         self.assertEqual(r.status_code, 200)
 
@@ -172,7 +174,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "rnb_id": "BDGSRNBBIDID",
-
+                    "shape": None
                 }
             ],
             "city": {
