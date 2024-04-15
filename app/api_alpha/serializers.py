@@ -225,16 +225,16 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
         model = BuildingADS
         fields = ["rnb_id", "shape", "operation", "creator"]
 
-    def create(self, validated_data):
-        bdg_data = validated_data.pop("building")
-        bdg = BdgInAdsSerializer().create(bdg_data)
-        return BuildingADS(building=bdg, **validated_data)
-
-    def update(self, bdg_ads, validated_data):
-        validated_data.pop("building")
-        for attr, value in validated_data.items():
-            setattr(bdg_ads, attr, value)
-        return bdg_ads
+    # def create(self, validated_data):
+    #     bdg_data = validated_data.pop("building")
+    #     bdg = BdgInAdsSerializer().create(bdg_data)
+    #     return BuildingADS(building=bdg, **validated_data)
+    #
+    # def update(self, bdg_ads, validated_data):
+    #     validated_data.pop("building")
+    #     for attr, value in validated_data.items():
+    #         setattr(bdg_ads, attr, value)
+    #     return bdg_ads
 
 
 class ADSSerializer(serializers.ModelSerializer):
