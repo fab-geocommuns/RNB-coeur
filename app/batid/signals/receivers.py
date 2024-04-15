@@ -19,9 +19,7 @@ from batid.services.signal import create_async_signal
 #     _sync_calc_missing_status(instance)
 
 
-@receiver(post_save, sender=BuildingADS)
-def signal_bdg_ads(sender, instance, created, **kwargs):
-    _async_calc_bdg_status_from_ads(instance.ads, instance.building)
+
 
 
 @receiver(post_save, sender=ADSAchievement)
