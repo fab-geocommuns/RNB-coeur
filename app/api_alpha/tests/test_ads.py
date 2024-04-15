@@ -139,6 +139,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertDictEqual(r_data, expected)
 
     def test_create_simple_ads(self):
+        # This endpoint should not link the building to the ADS
+
         data = {
             "file_number": "ADS-TEST-2",
             "decided_at": "2019-01-01",
