@@ -176,11 +176,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                     "rnb_id": "BDGSRNBBIDID",
                     "shape": None
                 }
-            ],
-            "city": {
-                "name": "Grenoble",
-                "code_insee": "38185",
-            },
+            ]
         }
         self.assertDictEqual(r_data, expected)
 

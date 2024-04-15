@@ -248,7 +248,7 @@ class ADSSerializer(serializers.ModelSerializer):
     )
     decided_at = serializers.DateField(required=True, format="%Y-%m-%d")
     buildings_operations = BuildingsADSSerializer(many=True, required=True)
-    city = CityADSSerializer(required=False, read_only=True)
+
     creator = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     def __init__(self, *args, **kwargs):
@@ -260,7 +260,6 @@ class ADSSerializer(serializers.ModelSerializer):
         fields = [
             "file_number",
             "decided_at",
-            "city",
             "buildings_operations",
             "creator",
         ]
