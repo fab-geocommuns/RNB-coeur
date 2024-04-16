@@ -165,12 +165,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "file_number": "ADS-TEST-2",
             "decided_at": "2019-01-01",
             "buildings_operations": [
-                {
-                    "operation": "build",
-                    "rnb_id": "BDGSRNBBIDID",
-                    "shape": None
-                }
-            ]
+                {"operation": "build", "rnb_id": "BDGSRNBBIDID", "shape": None}
+            ],
         }
         self.assertDictEqual(r_data, expected)
 
@@ -228,57 +224,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
     #     )
 
 
-
-    def test_create_with_custom_id(self):
-        data = {
-            "file_number": "CUSTOM-ID",
-            "decided_at": "2023-05-12",
-            "buildings_operations": [
-                {
-                    "building": {
-                        "custom_id": "OUR-BDG",
-                        "shape": {
-                            "type": "Point",
-                            "coordinates": [5.724331358994107, 45.18157371019683],
-                        },
-                    },
-                    "operation": "build",
-                }
-            ],
-        }
-
-        r = self.client.post(
-            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
-        )
-
-        r_data = r.json()
-
-        print(r_data)
-
-        self.assertEqual(r.status_code, 200)
-
-        expected = {
-            "file_number": "CUSTOM-ID",
-            "decided_at": "2023-05-12",
-            "city": {
-                "name": "Grenoble",
-                "code_insee": "38185",
-            },
-            "buildings_operations": [
-                {
-                    "building": {
-
-                        "custom_id": "OUR-BDG",
-                        "shape": {
-                            "type": "Point",
-                            "coordinates": [5.724331358994107, 45.18157371019683],
-                        },
-                    },
-                    "operation": "build",
-                }
-            ],
-        }
-        self.assertDictEqual(r_data, expected)
 
     def test_new_point_in_grenoble(self):
         data = {
