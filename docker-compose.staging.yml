@@ -32,7 +32,7 @@ services:
       - VIRTUAL_HOST=staging.rnb-api.beta.gouv.fr
       - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=staging.rnb-api.beta.gouv.fr
-  
+
   worker:
     extends:
       file: common-services.yml
@@ -68,7 +68,7 @@ services:
       service: flower
     env_file:
       - ./.env.worker.staging
-      
+
 volumes:
   certs:
   vhost:

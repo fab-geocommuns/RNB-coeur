@@ -41,7 +41,7 @@ services:
       rabbitmq:
         condition: service_healthy
     container_name: web
-  
+
   db:
     image: postgis/postgis:14-master
     platform: linux/amd64
@@ -54,7 +54,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-  
+
   worker:
     build:
       context: .
@@ -84,7 +84,7 @@ services:
       redis:
         condition: service_healthy
     container_name: celery_beat
-  
+
   rabbitmq:
     restart: unless-stopped
     image: rabbitmq:3.9-alpine
@@ -94,7 +94,7 @@ services:
       retries: 5
       start_period: 20s
       timeout: 5s
-  
+
   redis:
     image: redis:latest
     ports:
@@ -105,7 +105,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-  
+
   flower:
     image: mher/flower
     container_name: flower

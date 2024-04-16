@@ -32,7 +32,7 @@ services:
       - VIRTUAL_HOST=rnb-api.beta.gouv.fr
       - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=rnb-api.beta.gouv.fr
-  
+
   worker:
     extends:
       file: common-services.yml
@@ -79,7 +79,7 @@ services:
       service: flower
     env_file:
       - ./.env.worker.prod
-      
+
 volumes:
   certs:
   vhost:

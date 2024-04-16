@@ -28,7 +28,7 @@ services:
       - ./.env.db_auth.dev
     ports:
       - "5442:5432"
-  
+
   worker:
     extends:
       file: common-services.yml
