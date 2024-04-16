@@ -76,7 +76,5 @@ class ADSValidator:
         ]
         if len(rnb_ids) != len(set(rnb_ids)):
             raise serializers.ValidationError(
-                {
-                    "buildings_operations": "A building can only be present once in an ADS."
-                }
+                {"buildings_operations": "A RNB id can only be present once in an ADS."}
             )

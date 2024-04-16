@@ -509,11 +509,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {"rnb_id": "BDGSRNBBIDID"},
+                    "rnb_id": "BDGSRNBBIDID",
                 },
                 {
                     "operation": "build",
-                    "building": {"rnb_id": "BDGSRNBBIDID"},
+                    "rnb_id": "BDGSRNBBIDID",
                 },
             ],
         }
@@ -524,12 +524,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = {
-            "buildings_operations": "A building can only be present once in an ADS."
-        }
-
-        for key, msg in r_data.items():
-            self.assertIn(msg_to_check[key], r_data[key])
+        self.assertIn(
+            "A RNB id can only be present once in an ADS.",
+            r_data["buildings_operations"],
+        )
 
     def test_ads_wrong_file_number(self):
         data = {
