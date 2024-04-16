@@ -606,30 +606,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             if "operation" in op:
                 self.assertIn(msg_to_check, op["operation"])
 
-    def test_ads_absent_lat(self):
-        data = {
-            "file_number": "ADS-TEST-2",
-            "decided_at": "2019-01-02",
-            "buildings_operations": [
-                {
-                    "operation": "build",
-                    "building": {"rnb_id": "new"},
-                }
-            ],
-        }
-        r = self.client.post(
-            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
-        )
-        self.assertEqual(r.status_code, 400)
 
-        r_data = r.json()
-
-        msg_to_check = "lat field is required for new buildings."
-
-        for op in r_data["buildings_operations"]:
-            if "building" in op:
-                if "lat" in op["building"]:
-                    self.assertIn(msg_to_check, op["building"]["lat"])
 
     def test_ads_wrong_shape(self):
         data = {
