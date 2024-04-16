@@ -442,12 +442,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {
-                        "rnb_id": "new",
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [5.720861502527286, 45.18380982645842],
-                        },
+                    "rnb_id": "BDGSADSSONE1",
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.720861502527286, 45.18380982645842],
                     },
                 }
             ],
@@ -460,22 +458,17 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
         self.assertEqual(r.status_code, 200)
 
-        r_data = r.json()
-        new_rnb_id = r_data["buildings_operations"][0]["building"]["rnb_id"]
-
+        # Now, verify that the data has been updated
         expected = {
             "file_number": "ADS-TEST-UPDATE",
             "decided_at": "2025-01-02",
-            "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {
-                        "rnb_id": new_rnb_id,
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [5.720861502527286, 45.18380982645842],
-                        },
+                    "rnb_id": "BDGSADSSONE1",
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.720861502527286, 45.18380982645842],
                     },
                 }
             ],
@@ -874,8 +867,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
-
-        print(r.json())
 
         self.assertEqual(r.status_code, 200)
 

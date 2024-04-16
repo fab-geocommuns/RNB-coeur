@@ -288,6 +288,31 @@ class ADSSerializer(serializers.ModelSerializer):
 
         return ads
 
+    def update(self, ads, validated_data):
+
+        print("-- validated data")
+        print(validated_data)
+
+        # Remove all previous operations
+        ads.buildings_operations.all().delete()
+
+        # Add new operations
+        bdg_ops = []
+        if "buildings_operations" in validated_data:
+            bdg_ops = validated_data.pop("buildings_operations")
+
+        for bdg_op_data in bdg_ops:
+            bdg_op = BuildingsADSSerializer().create(bdg_op_data)
+            bdg_op.ads = ads
+            bdg_op.save()
+
+        # Update other fields
+        for attr, value in validated_data.items():
+            setattr(ads, attr, value)
+        ads.save()
+
+        return ads
+
     #
     # def update(self, ads, validated_data):
     #     data_bdg_ops = []
