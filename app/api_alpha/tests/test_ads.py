@@ -544,10 +544,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = {"file_number": "This issue number already exists"}
-
-        for key, msg in r_data.items():
-            self.assertIn(msg_to_check[key], r_data[key])
+        self.assertIn("This file number already exists", r_data["file_number"])
 
     def test_ads_wrong_decided_at(self):
         data = {

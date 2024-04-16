@@ -251,7 +251,7 @@ class ADSSerializer(serializers.ModelSerializer):
         required=True,
         validators=[
             UniqueValidator(
-                queryset=ADS.objects.all(), message="This issue number already exists"
+                queryset=ADS.objects.all(), message="This file number already exists"
             )
         ],
     )
