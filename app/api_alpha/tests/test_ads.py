@@ -77,10 +77,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "file_number": "ADS-TEST-FUTURE",
                     "decided_at": "2035-01-02",
-                    "city": {
-                        "code_insee": "38185",
-                        "name": "Grenoble",
-                    },
                     "buildings_operations": [],
                 }
             ],
@@ -119,20 +115,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
         expected = {
             "file_number": "ADS-TEST",
             "decided_at": "2019-01-01",
-            "city": {
-                "name": "Grenoble",
-                "code_insee": "38185",
-            },
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {
-                        "rnb_id": "BDGSRNBBIDID",
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [5.718193263660067, 45.1787420549516],
-                        },
-                    },
+                    "rnb_id": "BDGSRNBBIDID",
+                    "shape": None,
                 }
             ],
         }
@@ -858,12 +845,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 "buildings_operations": [
                     {
                         "operation": "build",
-                        "building": {
-                            "rnb_id": "new",
-                            "geometry": {
-                                "type": "Point",
-                                "coordinates": [5.718634111400531, 45.183134802624544],
-                            },
+                        "rnb_id": None,
+                        "shape": {
+                            "type": "Point",
+                            "coordinates": [5.718634111400531, 45.183134802624544],
                         },
                     }
                 ],
@@ -874,12 +859,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 "buildings_operations": [
                     {
                         "operation": "build",
-                        "building": {
-                            "rnb_id": "new",
-                            "geometry": {
-                                "type": "Point",
-                                "coordinates": [5.718254905289841, 45.18335144905792],
-                            },
+                        "rnb_id": None,
+                        "shape": {
+                            "type": "Point",
+                            "coordinates": [5.718254905289841, 45.18335144905792],
                         },
                     }
                 ],
@@ -891,6 +874,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
+
+        print(r.json())
 
         self.assertEqual(r.status_code, 200)
 
