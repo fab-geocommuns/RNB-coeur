@@ -31,19 +31,19 @@ def calc_ads_cities(data):
     for op in data["buildings_operations"]:
 
         # Check the rnb_id
-        rnb_id = op.get('rnb_id', None)
+        rnb_id = op.get("rnb_id", None)
         if rnb_id:
             rnb_ids.append(clean_rnb_id(rnb_id))
 
         # Check the geometry
-        shape = op.get('shape', None)
+        shape = op.get("shape", None)
         if shape:
 
-            if shape['type'] == "Point":
+            if shape["type"] == "Point":
                 multipoints["coordinates"].append(shape["coordinates"])
 
-            elif shape['type'] == "MultiPolygon":
-                for poly in op["building"]["geometry"]["coordinates"]:
+            elif shape["type"] == "MultiPolygon":
+                for poly in op["shape"]["coordinates"]:
                     multipolygons["coordinates"].append(poly)
 
     """

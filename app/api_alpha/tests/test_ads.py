@@ -302,29 +302,26 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
         self.assertDictEqual(r_data, expected)
 
-    def test_ads_create_with_new_bdg_mp(self):
+    def test_ads_create_with_multipolygon(self):
         data = {
             "file_number": "ADS-TEST-NEW-BDG-MP",
             "decided_at": "2019-03-18",
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {
-                        "rnb_id": "new",
-                        "geometry": {
-                            "coordinates": [
+                    "shape": {
+                        "coordinates": [
+                            [
                                 [
-                                    [
-                                        [5.736498177543439, 45.18740370893255],
-                                        [5.736455101954846, 45.18732521910442],
-                                        [5.736581176848205, 45.187335585691784],
-                                        [5.736620049940626, 45.187404449402266],
-                                        [5.736498177543439, 45.18740370893255],
-                                    ]
+                                    [5.736498177543439, 45.18740370893255],
+                                    [5.736455101954846, 45.18732521910442],
+                                    [5.736581176848205, 45.187335585691784],
+                                    [5.736620049940626, 45.187404449402266],
+                                    [5.736498177543439, 45.18740370893255],
                                 ]
-                            ],
-                            "type": "MultiPolygon",
-                        },
+                            ]
+                        ],
+                        "type": "MultiPolygon",
                     },
                 }
             ],
@@ -338,21 +335,26 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r = self.client.get("/api/alpha/ads/ADS-TEST-NEW-BDG-MP/")
         r_data = r.json()
 
-        new_rnb_id = r_data["buildings_operations"][0]["building"]["rnb_id"]
-
         expected = {
             "file_number": "ADS-TEST-NEW-BDG-MP",
             "decided_at": "2019-03-18",
-            "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {
-                        "rnb_id": new_rnb_id,
-                        "geometry": {
-                            "coordinates": [5.736539944382292, 45.18736964731217],
-                            "type": "Point",
-                        },
+                    "rnb_id": None,
+                    "shape": {
+                        "coordinates": [
+                            [
+                                [
+                                    [5.736498177543439, 45.18740370893255],
+                                    [5.736455101954846, 45.18732521910442],
+                                    [5.736581176848205, 45.187335585691784],
+                                    [5.736620049940626, 45.187404449402266],
+                                    [5.736498177543439, 45.18740370893255],
+                                ]
+                            ]
+                        ],
+                        "type": "MultiPolygon",
                     },
                 }
             ],
