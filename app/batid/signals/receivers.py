@@ -25,18 +25,6 @@ def signal_ads(sender, instance, created, **kwargs):
             instance.file_number, instance.creator
         )
 
-    # The ADS has been change, we might have to update the status of the buildings
-    for op in instance.buildings_operations.all():
-        _async_calc_bdg_status_from_ads(instance, op.building)
-
-
-# def _sync_calc_missing_status(bdg_model: Building):
-#     bdg = BuildingGear(bdg_model)
-#     missing_status = bdg.calc_missing_status()
-
-#     for s in missing_status:
-#         s.save()
-
 
 def _async_calc_bdg_status_from_ads(ads: ADS, bdg: Building) -> str:
     create_async_signal(

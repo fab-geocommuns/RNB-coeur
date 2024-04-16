@@ -290,9 +290,6 @@ class ADSSerializer(serializers.ModelSerializer):
 
     def update(self, ads, validated_data):
 
-        print("-- validated data")
-        print(validated_data)
-
         # Remove all previous operations
         ads.buildings_operations.all().delete()
 
