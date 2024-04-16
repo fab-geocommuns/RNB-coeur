@@ -8,14 +8,8 @@ from batid.services.rnb_id import clean_rnb_id
 
 
 def ads_validate_rnbid(rnb_id):
-    if rnb_id == BdgInADS.NEW_STR:
-        return
 
-    if rnb_id == BdgInADS.GUESS_STR:
-        return
-
-    clean_id = clean_rnb_id(rnb_id)
-    if not Building.objects.filter(rnb_id=clean_id).exists():
+    if not Building.objects.filter(rnb_id=rnb_id).exists():
         raise serializers.ValidationError(f'Building "{rnb_id}" does not exist.')
 
 

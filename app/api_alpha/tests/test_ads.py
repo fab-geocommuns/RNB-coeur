@@ -585,7 +585,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {"rnb_id": "BDG-DOES-NOT-EXIST"},
+                    "rnb_id": "BDG-DOES-NOT-EXIST",
                 }
             ],
         }
@@ -596,12 +596,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = 'Building "BDG-DOES-NOT-EXIST" does not exist.'
+        msg_to_check = 'Building "BDGDOESNOTEXIST" does not exist.'
 
         for op in r_data["buildings_operations"]:
-            if "building" in op:
-                if "rnb_id" in op["building"]:
-                    self.assertIn(msg_to_check, op["building"]["rnb_id"])
+            if "rnb_id" in op:
+                self.assertIn(msg_to_check, op["rnb_id"])
 
     def test_ads_wrong_operation(self):
         data = {
