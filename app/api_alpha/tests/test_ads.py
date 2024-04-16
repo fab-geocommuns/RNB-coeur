@@ -360,19 +360,16 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         self.assertDictEqual(r_data, expected)
 
-    def test_ads_create_with_new_bdg_point(self):
+    def test_ads_create_with_point(self):
         data = {
             "file_number": "ADS-TEST-NEW-BDG",
             "decided_at": "2019-03-18",
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {
-                        "rnb_id": "new",
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [5.717771597834023, 45.17739684209898],
-                        },
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.717771597834023, 45.17739684209898],
                     },
                 }
             ],
@@ -383,39 +380,22 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         r_data = r.json()
-        new_rnb_id = r_data["buildings_operations"][0]["building"]["rnb_id"]
-
-        # We need to round because there is a precision difference between the local env and the github CI
-        rounded_lng = round(
-            r_data["buildings_operations"][0]["building"]["geometry"]["coordinates"][0],
-            15,
-        )
-        rounded_lat = round(
-            r_data["buildings_operations"][0]["building"]["geometry"]["coordinates"][1],
-            15,
-        )
 
         expected = {
             "file_number": "ADS-TEST-NEW-BDG",
             "decided_at": "2019-03-18",
-            "city": {
-                "name": "Grenoble",
-                "code_insee": "38185",
-            },
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {
-                        "rnb_id": new_rnb_id,
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [rounded_lng, rounded_lat],
-                        },
+                    "rnb_id": None,
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.717771597834023, 45.17739684209898],
                     },
                 }
             ],
         }
-        self.maxDiff = None
+
         # Assert that the response is correct
         self.assertDictEqual(r_data, expected)
         self.assertEqual(r.status_code, 200)
@@ -707,21 +687,19 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {
-                        "rnb_id": "new",
-                        "geometry": {
-                            "type": "MultiPolygon",
-                            "coordinates": [
+                    "rnb_id": "new",
+                    "shape": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
                                 [
-                                    [
-                                        [5.736498177543439, 45.18740370893255],
-                                        [5.736455101954846, 45.18732521910442],
-                                        [5.736581176848205, 45.187335585691784],
-                                        [5.736620049940626, 45.187404449402266],
-                                    ]
+                                    [5.736498177543439, 45.18740370893255],
+                                    [5.736455101954846, 45.18732521910442],
+                                    [5.736581176848205, 45.187335585691784],
+                                    [5.736620049940626, 45.187404449402266],
                                 ]
-                            ],
-                        },
+                            ]
+                        ],
                     },
                 }
             ],
