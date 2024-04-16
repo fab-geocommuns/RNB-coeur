@@ -657,14 +657,15 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 if "lat" in op["building"]:
                     self.assertIn(msg_to_check, op["building"]["lat"])
 
-    def test_ads_wrong_geometry(self):
+    def test_ads_wrong_shape(self):
         data = {
             "file_number": "ADS-TEST-2",
             "decided_at": "2019-01-02",
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {"rnb_id": "new", "geometry": "wrong"},
+                    "rnb_id": "new",
+                    "shape": "wrong",
                 }
             ],
         }
@@ -819,9 +820,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 "buildings_operations": [
                     {
                         "operation": "build",
-                        "building": {
-                            "rnb_id": "BDGSRNBBIDID",
-                        },
+                        "rnb_id": "BDGSRNBBIDID",
                     }
                 ],
             },
@@ -831,9 +830,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 "buildings_operations": [
                     {
                         "operation": "build",
-                        "building": {
-                            "rnb_id": "BDGSADSSONE1",
-                        },
+                        "rnb_id": "BDGSADSSONE1",
                     }
                 ],
             },
