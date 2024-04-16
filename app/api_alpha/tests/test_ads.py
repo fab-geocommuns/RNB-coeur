@@ -559,12 +559,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = {
-            "decided_at": "Date has wrong format. Use one of these formats instead: YYYY-MM-DD."
-        }
-
-        for key, msg in r_data.items():
-            self.assertIn(msg_to_check[key], r_data[key])
+        self.assertIn(
+            "Date has wrong format. Use one of these formats instead: YYYY-MM-DD.",
+            r_data["decided_at"],
+        )
 
     def test_ads_absent_decided_at(self):
         data = {"file_number": "ADS-TEST-DATE", "insee_code": "4242"}
