@@ -223,20 +223,15 @@ class ADSEndpointsWithAuthTest(APITestCase):
     #         ["A building can only be present once in an ADS."],
     #     )
 
-
-
     def test_new_point_in_grenoble(self):
         data = {
             "file_number": "zef",
             "decided_at": "2023-05-12",
             "buildings_operations": [
                 {
-                    "building": {
-                        "rnb_id": "new",
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [5.724331358994107, 45.18157371019683],
-                        },
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.724331358994107, 45.18157371019683],
                     },
                     "operation": "build",
                 }
@@ -257,10 +252,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "file_number": "ADS-TEST-DASH",
             "decided_at": "2019-01-02",
             "buildings_operations": [
-                {
-                    "operation": "build",
-                    "building": {"rnb_id": "BDGS-RNBB-IDID"},
-                }
+                {"operation": "build", "rnb_id": "BDGS-RNBB-IDID"}
             ],
         }
         r = self.client.post(
@@ -272,17 +264,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
         expected = {
             "file_number": "ADS-TEST-DASH",
             "decided_at": "2019-01-02",
-            "city": {"name": "Grenoble", "code_insee": "38185"},
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {
-                        "rnb_id": "BDGSRNBBIDID",
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [5.718193263660067, 45.1787420549516],
-                        },
-                    },
+                    "rnb_id": "BDGSRNBBIDID",
+                    "shape": None,
                 }
             ],
         }

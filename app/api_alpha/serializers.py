@@ -22,6 +22,11 @@ from batid.services.rnb_id import clean_rnb_id
 from batid.services.rnb_id import generate_rnb_id
 
 
+class RNBIdField(serializers.CharField):
+    def to_internal_value(self, data):
+        return clean_rnb_id(data)
+
+
 class ContributionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contribution
@@ -144,72 +149,72 @@ class CityADSSerializer(serializers.ModelSerializer):
 #
 #         return super().to_internal_value(data)
 
-    # def to_representation(self, instance):
-    #     ret = super().to_representation(instance)
-    #
-    #     if self.custom_id:
-    #         ret["custom_id"] = self.custom_id
-    #
-    #     return ret
-    #
-    # def create(self, validated_data):
-    #     if validated_data.get("rnb_id") == BdgInADS.NEW_STR:
-    #         geojson = validated_data.pop("ads_geojson")
-    #
-    #         geometry = GEOSGeometry(str(geojson))
-    #
-    #         if geometry.geom_type == "Point":
-    #             validated_data["point"] = f"{geometry}"
-    #
-    #         if geometry.geom_type == "MultiPolygon":
-    #             validated_data["shape"] = f"{geometry}"
-    #             validated_data["point"] = f"{geometry.point_on_surface}"
-    #
-    #         validated_data["rnb_id"] = generate_rnb_id()
-    #         # we may need to add more info here
-    #         validated_data["event_origin"] = {"source": "ADS"}
-    #         building = super().create(validated_data)
-    #         return building
-    #     elif validated_data.get("rnb_id") == BdgInADS.GUESS_STR:
-    #         geojson = validated_data.pop("ads_geojson")
-    #         geometry = GEOSGeometry(str(geojson))
-    #
-    #         if geometry.geom_type == "MultiPolygon":
-    #             validated_data["shape"] = f"{geometry}"
-    #             validated_data["point"] = f"{geometry.point_on_surface}"
-    #
-    #         bdg = self.guess_bdg(geometry)
-    #         if isinstance(bdg, Building):
-    #             return bdg
-    #
-    #         if bdg is None:
-    #             validated_data["rnb_id"] = generate_rnb_id()
-    #             # we may need to add more info here
-    #             validated_data["event_origin"] = {"source": "ADS"}
-    #             building = super().create(validated_data)
-    #             return building
-    #
-    #     else:
-    #         clean_id = clean_rnb_id(validated_data["rnb_id"])
-    #         bdg = Building.objects.get(rnb_id=clean_id)
-    #
-    #         return bdg
-    #
-    # def guess_bdg(self, mp: MultiPolygon) -> Optional[Building]:
-    #     """Try to guess the building from the MultiPolygon"""
-    #
-    #     search = BuildingGuess()
-    #     search.set_params(**{"poly": mp[0]})
-    #     qs = search.get_queryset()
-    #     if len(qs) == 1:
-    #         return qs[0]
-    #
-    #     return None
+# def to_representation(self, instance):
+#     ret = super().to_representation(instance)
+#
+#     if self.custom_id:
+#         ret["custom_id"] = self.custom_id
+#
+#     return ret
+#
+# def create(self, validated_data):
+#     if validated_data.get("rnb_id") == BdgInADS.NEW_STR:
+#         geojson = validated_data.pop("ads_geojson")
+#
+#         geometry = GEOSGeometry(str(geojson))
+#
+#         if geometry.geom_type == "Point":
+#             validated_data["point"] = f"{geometry}"
+#
+#         if geometry.geom_type == "MultiPolygon":
+#             validated_data["shape"] = f"{geometry}"
+#             validated_data["point"] = f"{geometry.point_on_surface}"
+#
+#         validated_data["rnb_id"] = generate_rnb_id()
+#         # we may need to add more info here
+#         validated_data["event_origin"] = {"source": "ADS"}
+#         building = super().create(validated_data)
+#         return building
+#     elif validated_data.get("rnb_id") == BdgInADS.GUESS_STR:
+#         geojson = validated_data.pop("ads_geojson")
+#         geometry = GEOSGeometry(str(geojson))
+#
+#         if geometry.geom_type == "MultiPolygon":
+#             validated_data["shape"] = f"{geometry}"
+#             validated_data["point"] = f"{geometry.point_on_surface}"
+#
+#         bdg = self.guess_bdg(geometry)
+#         if isinstance(bdg, Building):
+#             return bdg
+#
+#         if bdg is None:
+#             validated_data["rnb_id"] = generate_rnb_id()
+#             # we may need to add more info here
+#             validated_data["event_origin"] = {"source": "ADS"}
+#             building = super().create(validated_data)
+#             return building
+#
+#     else:
+#         clean_id = clean_rnb_id(validated_data["rnb_id"])
+#         bdg = Building.objects.get(rnb_id=clean_id)
+#
+#         return bdg
+#
+# def guess_bdg(self, mp: MultiPolygon) -> Optional[Building]:
+#     """Try to guess the building from the MultiPolygon"""
+#
+#     search = BuildingGuess()
+#     search.set_params(**{"poly": mp[0]})
+#     qs = search.get_queryset()
+#     if len(qs) == 1:
+#         return qs[0]
+#
+#     return None
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):
     # building = BdgInAdsSerializer()
-    rnb_id = serializers.CharField(validators=[ads_validate_rnbid], required=False)
+    rnb_id = RNBIdField(validators=[ads_validate_rnbid], required=False)
 
     operation = serializers.ChoiceField(
         required=True,
@@ -230,6 +235,7 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
         # bdg_data = validated_data.pop("building")
         # bdg = BdgInAdsSerializer().create(bdg_data)
         return BuildingADS(**validated_data)
+
     #
     # def update(self, bdg_ads, validated_data):
     #     validated_data.pop("building")
@@ -279,6 +285,7 @@ class ADSSerializer(serializers.ModelSerializer):
             bdg_op.save()
 
         return ads
+
     #
     # def update(self, ads, validated_data):
     #     data_bdg_ops = []
