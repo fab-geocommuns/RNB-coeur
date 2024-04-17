@@ -17,7 +17,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_NAME=postgres
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=34e6daf423a79ada371a01c5f367bb27
+      - POSTGRES_PASSWORD=postgres
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - DOWNLOAD_DIR=/data/downloads
@@ -42,7 +42,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_NAME=postgres
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=34e6daf423a79ada371a01c5f367bb27
+      - POSTGRES_PASSWORD=postgres
     restart: always
 
   rabbitmq:
