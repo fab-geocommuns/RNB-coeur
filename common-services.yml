@@ -40,6 +40,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     container_name: web
 
   db:
@@ -66,6 +68,8 @@ services:
       - ./source_data:/data/downloads
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     container_name: worker
@@ -114,6 +118,8 @@ services:
       - 5555:5555
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 volumes:
