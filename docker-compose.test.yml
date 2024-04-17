@@ -37,8 +37,6 @@ services:
     extends:
       file: common-services.yml
       service: db
-    # ports:
-    #   - "5434:5432"
     environment:
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
