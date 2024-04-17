@@ -1,3 +1,4 @@
+import requests
 from django.db import connection
 from django.http import Http404
 from django.http import HttpResponse
@@ -9,9 +10,11 @@ from rest_framework import viewsets
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import CursorPagination
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
+from rest_framework_tracking.models import APIRequestLog
 
 from api_alpha.permissions import ADSPermission
 from api_alpha.serializers import ADSSerializer
@@ -90,7 +93,7 @@ class BuildingCursorPagination(CursorPagination):
     ordering = "id"
 
 
-class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet
+class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     queryset = Building.objects.all().filter(is_active=True)
     serializer_class = BuildingSerializer
     http_method_names = ["get"]
@@ -299,6 +302,45 @@ def get_tile(request, x, y, z):
         tile_file = cursor.fetchone()[0]
 
     return HttpResponse(tile_file, content_type="application/vnd.mapbox-vector-tile")
+
+
+def get_data_gouv_publication_count():
+    # call data.gouv.fr API to get the number of datasets
+    req = requests.get("https://www.data.gouv.fr/api/1/datasets/?tag=rnb")
+    if req.status_code != 200:
+        return None
+    else:
+        # remove the dataset that is the RNB
+        return req.json()["total"] - 1
+
+
+def get_stats(request):
+    def get_building_count_estimate():
+        cursor = connection.cursor()
+        # fast way to get an estimate
+        cursor.execute(
+            "SELECT reltuples::bigint FROM pg_class WHERE relname='batid_building'"
+        )
+        return cursor.fetchone()[0]
+
+    building_counts = get_building_count_estimate()
+    api_calls_since_2024_count = APIRequestLog.objects.filter(
+        requested_at__gte="2024-01-01T00:00:00Z"
+    ).count()
+    contributions_count = Contribution.objects.count()
+    data_gouv_publication_count = get_data_gouv_publication_count()
+
+    data = {
+        "building_counts": building_counts,
+        "api_calls_since_2024_count": api_calls_since_2024_count,
+        "contributions_count": contributions_count,
+        "data_gouv_publication_count": data_gouv_publication_count,
+    }
+
+    renderer = JSONRenderer()
+    response = HttpResponse(renderer.render(data), content_type="application/json")
+
+    return response
 
 
 class ContributionsViewSet(viewsets.ModelViewSet):

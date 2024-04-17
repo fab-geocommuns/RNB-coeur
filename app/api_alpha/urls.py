@@ -11,6 +11,7 @@ from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
 from api_alpha.views import BuildingViewSet
 from api_alpha.views import ContributionsViewSet
+from api_alpha.views import get_stats
 from api_alpha.views import get_tile
 
 # Routers provide an easy way of automatically determining the URL conf.
@@ -29,6 +30,7 @@ urlpatterns = [
     path(
         "schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"
     ),
+    path("stats", get_stats),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
     path("", include(router.urls)),
