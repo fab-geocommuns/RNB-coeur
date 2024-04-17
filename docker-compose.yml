@@ -17,8 +17,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
 
   db:
     extends:

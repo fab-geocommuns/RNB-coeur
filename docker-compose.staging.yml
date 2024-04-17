@@ -46,8 +46,6 @@ services:
       - ./.env.worker.staging
       - ./.env.rnb.staging
       - ./.env.sentry.staging
-    depends_on:
-      - redis
 
   rabbitmq:
     extends:

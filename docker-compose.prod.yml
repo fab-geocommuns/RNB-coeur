@@ -47,8 +47,6 @@ services:
       - ./.env.rnb.prod
       - ./.env.sentry.prod
       - ./.env.s3_backup.prod
-    depends_on:
-      - redis
 
   celery_beat:
     extends:

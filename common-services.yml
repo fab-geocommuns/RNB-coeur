@@ -40,6 +40,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     container_name: web
 
   db:
@@ -114,6 +116,8 @@ services:
       - 5555:5555
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 volumes:
