@@ -294,14 +294,20 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
 
 def get_tile(request, x, y, z):
-    tile_dict = url_params_to_tile(x, y, z)
-    sql = tile_sql(tile_dict)
+    # Check the request zoom level
+    if int(z) >= 16:
+        tile_dict = url_params_to_tile(x, y, z)
+        sql = tile_sql(tile_dict)
 
-    with connection.cursor() as cursor:
-        cursor.execute(sql)
-        tile_file = cursor.fetchone()[0]
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            tile_file = cursor.fetchone()[0]
 
-    return HttpResponse(tile_file, content_type="application/vnd.mapbox-vector-tile")
+        return HttpResponse(
+            tile_file, content_type="application/vnd.mapbox-vector-tile"
+        )
+    else:
+        return HttpResponse(status=204)
 
 
 def get_data_gouv_publication_count():
