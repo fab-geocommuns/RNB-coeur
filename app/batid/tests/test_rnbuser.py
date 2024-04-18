@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from batid.models import Organization
+from batid.services.ads import get_managed_insee_codes
 
 
 class TestRNBUser(TestCase):
@@ -22,8 +23,7 @@ class TestRNBUser(TestCase):
     def test_user_can_manage_ads(self):
         u = User.objects.get(username="johndoe")
 
-        rnbuser = UserGear(u)
-        managed_codes = rnbuser.get_managed_insee_codes()
+        managed_codes = get_managed_insee_codes(u)
 
         managed_codes.sort()
 
