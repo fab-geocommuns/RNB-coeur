@@ -1,10 +1,9 @@
 from django.contrib.auth.models import User
 from rest_framework import permissions
 
-from api_alpha.services import calc_ads_cities
+from api_alpha.services import calc_ads_request_cities
 from batid.models import ADS
 from batid.services.ads import manage_ads_in_cities
-from batid.services.models_gears import UserGear
 
 
 # We have to create a specific permission class for city validation
@@ -33,44 +32,55 @@ class ADSPermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
 
-        print("######### has_permission #########")
-        print("--- request")
-        print(request)
-        print("--- view")
-        print(view)
-
-        # You must best authenticated to do anything with an ADS
-        if request.user.is_authenticated:
-
-
-            if view.action == "create":
-
-                cities = calc_ads_cities(request.data)
-                return manage_ads_in_cities(request.user, cities)
-
-            else:
-
-                return True
-
-        else:
+        # Not authenticated users -> no permission
+        if not request.user.is_authenticated:
             return False
+
+        # Super user -> all permissions
+        if request.user.is_authenticated and request.user.is_superuser:
+            return True
+
+        if view.action == "create":
+
+            cities = calc_ads_request_cities(request.data)
+            return manage_ads_in_cities(request.user, cities)
+
+        raise NotImplementedError(f"Not implemented case")
 
     def has_object_permission(self, request, view, obj):
 
-        print("######### has_object_permission #########")
-        print("--- request")
-        print(request)
-        print("--- view")
-        print(view)
-        print("--- obj")
-        print(obj)
+        # print("######### has_object_permission #########")
+        # print("--- request")
+        # print(request)
+        # print("--- view")
+        # print(view)
+        # print("--- obj")
+        # print(obj)
 
-        if view.action in ["create", "update", "destroy"]:
-            if not request.user.is_authenticated:
+        # Not authenticated users -> no permission
+        if not request.user.is_authenticated:
+            return False
+
+        # Super user -> all permissions
+        if request.user.is_authenticated and request.user.is_superuser:
+            return True
+
+        if view.action == "update":
+
+            # ##
+            # We both have to check the right on the ADS before update and on the sent data
+
+            # On the ADS
+            if not user_can_manage_ads(request.user, obj):
                 return False
 
-            if request.user.is_authenticated and request.user.is_superuser:
-                return True
+            # On the data
+            cities = calc_ads_request_cities(request.data)
+            sent_data_are_ok = manage_ads_in_cities(request.user, cities)
+            if not sent_data_are_ok:
+                return False
+
+        if view.action in ["update", "destroy"]:
 
             return user_can_manage_ads(request.user, obj)
 
@@ -81,12 +91,28 @@ class ADSPermission(permissions.BasePermission):
         raise NotImplementedError(f"Unknown action {view.action}")
 
 
-def user_can_manage_ads(user: User, ads: ADS) -> bool:
-    return user_can_manage_insee_code(user, ads.city.code_insee)
-
-
-def user_can_manage_insee_code(user: User, insee_code: str) -> bool:
-    user = UserGear(user)
-    return insee_code in user.get_managed_insee_codes()
-
-def user_can_manage_city()
+# def get_city_from_request(data, user, view):
+#     cities = calc_ads_cities(data)
+#
+#     # First we validate we have only one city
+#
+#     if len(cities) == 0:
+#         raise serializers.ValidationError(
+#             {"buildings_operations": ["Buildings are in an unknown city"]}
+#         )
+#
+#     if len(cities) > 1:
+#         raise serializers.ValidationError(
+#             {"buildings_operations": ["Buildings must be in only one city"]}
+#         )
+#
+#     city = cities[0]
+#
+#     # Then we do permission
+#
+#     perm = ADSCityPermission()
+#
+#     if not perm.user_has_permission(city, user, view):
+#         raise exceptions.PermissionDenied(detail="You can not edit ADS in this city.")
+#
+#     return city

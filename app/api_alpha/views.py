@@ -17,7 +17,6 @@ from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
-from api_alpha.services import get_city_from_request
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
@@ -122,36 +121,36 @@ class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
     max_batch_size = 30
 
-    def create(self, request, *args, **kwargs):
-        to_save = []
-        errors = {}
-
-        self.validate_length(request.data)
-
-        for ads in request.data:
-            try:
-                instance = ADS.objects.get(file_number=ads["file_number"])
-                serializer = self.get_serializer(instance, data=ads)
-            except ADS.DoesNotExist:
-                serializer = self.get_serializer(data=ads)
-
-            if serializer.is_valid():
-                city = get_city_from_request(ads, request.user, self)
-
-                to_save.append({"city": city, "serializer": serializer})
-
-            else:
-                errors[ads["file_number"]] = serializer.errors
-
-        if len(errors) > 0:
-            return Response(errors, status=400)
-        else:
-            to_show = []
-            for item in to_save:
-                item["serializer"].save(city=item["city"])
-                to_show.append(item["serializer"].data)
-
-            return Response(to_show)
+    # def create(self, request, *args, **kwargs):
+    #     to_save = []
+    #     errors = {}
+    #
+    #     self.validate_length(request.data)
+    #
+    #     for ads in request.data:
+    #         try:
+    #             instance = ADS.objects.get(file_number=ads["file_number"])
+    #             serializer = self.get_serializer(instance, data=ads)
+    #         except ADS.DoesNotExist:
+    #             serializer = self.get_serializer(data=ads)
+    #
+    #         if serializer.is_valid():
+    #             city = get_city_from_request(ads, request.user, self)
+    #
+    #             to_save.append({"city": city, "serializer": serializer})
+    #
+    #         else:
+    #             errors[ads["file_number"]] = serializer.errors
+    #
+    #     if len(errors) > 0:
+    #         return Response(errors, status=400)
+    #     else:
+    #         to_show = []
+    #         for item in to_save:
+    #             item["serializer"].save(city=item["city"])
+    #             to_show.append(item["serializer"].data)
+    #
+    #         return Response(to_show)
 
     def validate_length(self, data):
         if len(data) > self.max_batch_size:

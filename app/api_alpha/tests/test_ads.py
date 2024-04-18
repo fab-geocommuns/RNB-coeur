@@ -10,7 +10,7 @@ from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Organization
-from batid.tests.helpers import create_cenac
+from batid.tests.helpers import create_cenac, create_bdg, create_from_geojson_feature
 from batid.tests.helpers import create_grenoble
 from batid.tests.helpers import create_paris
 
@@ -18,19 +18,50 @@ from batid.tests.helpers import create_paris
 class ADSEnpointsWithBadAuthTest(APITestCase):
     def setUp(self):
         create_paris()
+        create_grenoble()
 
-        u = User.objects.create_user(
-            first_name="Marcel", last_name="Paris", username="paris"
+        # Marcel has rights on Grenoble but not on Paris
+        user = User.objects.create_user(
+            first_name="Marcel", last_name="Grenoble", username="grenoble_master"
         )
-
-        token = Token.objects.create(user=u)
+        token = Token.objects.create(user=user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+
+        org = Organization.objects.create(name="Test Org", managed_cities=["38185"])
+        org.users.add(user)
+
+        # Create an ADS set in Paris
+        paris_ads = ADS.objects.create(
+            file_number="ADS-TEST-PARIS",
+            decided_at="2020-01-01",
+        )
+        paris_ads.save()
+
+        # Create a building in Paris
+        create_from_geojson_feature(
+            {
+                "type": "Feature",
+                "properties": {"rnb_id": "GOPARISPARIS"},
+                "geometry": {
+                    "coordinates": [
+                        [
+                            [2.337174593125127, 48.855123481710905],
+                            [2.337174593125127, 48.85417864062413],
+                            [2.338546762256243, 48.85417864062413],
+                            [2.338546762256243, 48.855123481710905],
+                            [2.337174593125127, 48.855123481710905],
+                        ]
+                    ],
+                    "type": "Polygon",
+                },
+            }
+        )
 
     def test_create_ads_point_in_forbidden_city(self):
         # Building is in Paris
         data = {
             "file_number": "ADS-TEST-NEW-BDG",
-            "decided_at": "2019-03-18",
+            "decided_at": "2020-01-01",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -47,6 +78,54 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 403)
+
+    def test_create_ads_rnbid_in_forbidden_city(self):
+
+        data = {
+            "file_number": "ADS-TEST-NEW-BDG",
+            "decided_at": "2019-03-18",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "rnb_id": "GOPARISPARIS",
+                }
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(r.status_code, 403)
+
+    def test_update_date_on_ads_forbidden_city(self):
+
+        data = {
+            "file_number": "ADS-TEST-PARIS",
+            "decided_at": "2022-02-02",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "rnb_id": "GOPARISPARIS",
+                }
+            ],
+        }
+
+        r = self.client.put(
+            "/api/alpha/ads/ADS-TEST-PARIS/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 403)
+
+    # update an ADS which already have building in forbidden city
+    ## with point
+    ## with rnb_id
+
+    # update an managed ADS, trying to add building in forbidden city
+    ## with point
+    ## with rnb_id
 
 
 class ADSEndpointsWithAuthTest(APITestCase):

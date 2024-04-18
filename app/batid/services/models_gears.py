@@ -149,9 +149,3 @@ class ADSGear(ModelGear):
     @property
     def rnb_ids(self) -> List[str]:
         return [op.building.rnb_id for op in self.model.buildings_operations.all()]
-
-
-
-
-
-

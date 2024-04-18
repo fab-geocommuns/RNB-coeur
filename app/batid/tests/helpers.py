@@ -1106,14 +1106,21 @@ def create_grenoble():
 
 def create_from_geojson(geojson_data):
     for feature in geojson_data["features"]:
-        geom = GEOSGeometry(json.dumps(feature["geometry"]), srid=4326)
+        create_from_geojson_feature(feature)
 
-        b = Building.objects.create(
-            rnb_id=feature["properties"]["rnb_id"],
-            shape=geom,
-            point=geom.point_on_surface,
-            status="constructed",
-        )
+
+def create_from_geojson_feature(feature) -> Building:
+
+    geom = GEOSGeometry(json.dumps(feature["geometry"]), srid=4326)
+
+    b = Building.objects.create(
+        rnb_id=feature["properties"]["rnb_id"],
+        shape=geom,
+        point=geom.point_on_surface,
+        status="constructed",
+    )
+
+    return b
 
 
 def coords_to_mp_geom(coords_list):
