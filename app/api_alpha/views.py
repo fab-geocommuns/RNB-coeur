@@ -207,7 +207,9 @@ def get_tile(request, x, y, z):
             cursor.execute(sql)
             tile_file = cursor.fetchone()[0]
 
-        return HttpResponse(tile_file, content_type="application/vnd.mapbox-vector-tile")
+        return HttpResponse(
+            tile_file, content_type="application/vnd.mapbox-vector-tile"
+        )
     else:
         return HttpResponse(status=204)
 
