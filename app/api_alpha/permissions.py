@@ -23,14 +23,6 @@ class ADSPermission(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
 
-        # print("######### has_object_permission #########")
-        # print("--- request")
-        # print(request)
-        # print("--- view")
-        # print(view)
-        # print("--- obj")
-        # print(obj)
-
         # Not authenticated users -> no permission
         if not request.user.is_authenticated:
             return False
@@ -51,15 +43,15 @@ class ADSPermission(permissions.BasePermission):
                 return False
 
             # On the request data
-            # if not can_manage_ads_in_request(request.user, request.data):
-            #     return False
+            if not can_manage_ads_in_request(request.user, request.data):
+                return False
 
             return True
 
         # ########
         # DESTROY
         if view.action == "destroy":
-            return can_manage_ads_in_request(request.user, request.data)
+            return can_manage_ads(request.user, obj)
 
         # ########
         # READ

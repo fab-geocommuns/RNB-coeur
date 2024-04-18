@@ -920,51 +920,26 @@ class ADSEndpointsWithAuthTest(APITestCase):
             shape=geom,
             point=geom.point_on_surface,
         )
-        #
-        # # Building for the guess option
-        # coords = {
-        #     "coordinates": [
-        #         [
-        #             [
-        #                 [5.727677616548021, 45.18650547532101],
-        #                 [5.726661353775256, 45.18614386549888],
-        #                 [5.726875130733703, 45.18586106647285],
-        #                 [5.727891393506468, 45.18620181594525],
-        #                 [5.727677616548021, 45.18650547532101],
-        #             ]
-        #         ]
-        #     ],
-        #     "type": "MultiPolygon",
-        # }
-        # geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        #
-        # to_guess_bdg = Building.objects.create(
-        #     rnb_id="GUESSGUESSGO",
-        #     shape=geom,
-        #     point=geom.point_on_surface,
-        # )
-        #
-        # coords = {
-        #     "coordinates": [
-        #         [
-        #             [
-        #                 [5.727481544742659, 45.18703215564693],
-        #                 [5.726913971918663, 45.18682335805852],
-        #                 [5.727180892471154, 45.186454342625154],
-        #                 [5.727817395327776, 45.18666934350475],
-        #                 [5.727836461081949, 45.18671068973464],
-        #                 [5.727481544742659, 45.18703215564693],
-        #             ]
-        #         ]
-        #     ],
-        #     "type": "MultiPolygon",
-        # }
-        # geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        # to_guess_bdg_two = Building.objects.create(
-        #     rnb_id="GUESSGUESSG2",
-        #     shape=geom,
-        #     point=geom.point_on_surface,
-        # )
+
+        # Create a building in Paris
+        create_from_geojson_feature(
+            {
+                "type": "Feature",
+                "properties": {"rnb_id": "GOPARISPARIS"},
+                "geometry": {
+                    "coordinates": [
+                        [
+                            [2.337174593125127, 48.855123481710905],
+                            [2.337174593125127, 48.85417864062413],
+                            [2.338546762256243, 48.85417864062413],
+                            [2.338546762256243, 48.855123481710905],
+                            [2.337174593125127, 48.855123481710905],
+                        ]
+                    ],
+                    "type": "Polygon",
+                },
+            }
+        )
 
         # ############
         # ADS
@@ -990,30 +965,27 @@ class ADSEndpointsWithAuthTest(APITestCase):
         ADS.objects.create(
             file_number="ADS-TEST-UPDATE",
             decided_at="2025-01-01",
-            city=grenoble,
         )
         ADS.objects.create(
             file_number="ADS-TEST-UPDATE-BDG",
             decided_at="2025-01-01",
-            city=grenoble,
         )
 
         ADS.objects.create(
             file_number="ADS-TEST-DELETE-YES",
             decided_at="2025-01-01",
-            city=grenoble,
         )
-        ADS.objects.create(
-            file_number="ADS-TEST-DELETE-NO",
-            decided_at="2025-01-01",
-            city=cenac,
+
+        ads_in_paris = ADS.objects.create(
+            file_number="ADS-TEST-DELETE-NO", decided_at="2025-01-01"
+        )
+        BuildingADS.objects.create(
+            rnb_id="GOPARISPARIS", ads=ads_in_paris, operation="build"
         )
 
         # For many buildings in one ADS (for update and delete test)
         many_bdg_ads = ADS.objects.create(
-            file_number="ADS-TEST-UPDATE-MANY-BDG",
-            decided_at="2025-01-01",
-            city=grenoble,
+            file_number="ADS-TEST-UPDATE-MANY-BDG", decided_at="2025-01-01"
         )
         BuildingADS.objects.create(
             rnb_id="BDGSADSSONE1", ads=many_bdg_ads, operation="build"
