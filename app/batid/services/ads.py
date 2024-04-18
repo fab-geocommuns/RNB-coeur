@@ -13,7 +13,7 @@ def get_managed_insee_codes(user: User) -> list:
     return list(set(codes))
 
 
-def manage_ads_in_cities(user: User, cities: list) -> bool:
+def can_manage_ads_in_cities(user: User, cities: list) -> bool:
 
     managed_insee_codes = get_managed_insee_codes(user)
 
@@ -27,7 +27,7 @@ def manage_ads_in_cities(user: User, cities: list) -> bool:
     return True
 
 
-def manage_ads(user: User, ads: ADS) -> bool:
+def can_manage_ads(user: User, ads: ADS) -> bool:
 
     pass
 

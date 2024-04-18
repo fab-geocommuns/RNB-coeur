@@ -3,28 +3,7 @@ from rest_framework import permissions
 
 from api_alpha.services import calc_ads_request_cities
 from batid.models import ADS
-from batid.services.ads import manage_ads_in_cities
-
-
-# We have to create a specific permission class for city validation
-# It is executed after the ADSPermission class AND after the verification of the ADSSerializer.is_valid()
-# We do so because we need some field of the request to calculate the permission.
-# We prefer those fields to be validated before we use them.
-
-
-class ADSCityPermission:
-    def user_has_permission(self, city, user, view):
-        if user.is_superuser:
-            return True
-
-        # We verify cities only in create and update views
-        if view.action not in ["create", "update"]:
-            return True
-
-        if not user_can_manage_insee_code(user, city.code_insee):
-            return False
-
-        return True
+from batid.services.ads import can_manage_ads_in_cities
 
 
 class ADSPermission(permissions.BasePermission):
@@ -43,9 +22,9 @@ class ADSPermission(permissions.BasePermission):
         if view.action == "create":
 
             cities = calc_ads_request_cities(request.data)
-            return manage_ads_in_cities(request.user, cities)
+            return can_manage_ads_in_cities(request.user, cities)
 
-        raise NotImplementedError(f"Not implemented case")
+        return True
 
     def has_object_permission(self, request, view, obj):
 
@@ -76,7 +55,7 @@ class ADSPermission(permissions.BasePermission):
 
             # On the data
             cities = calc_ads_request_cities(request.data)
-            sent_data_are_ok = manage_ads_in_cities(request.user, cities)
+            sent_data_are_ok = can_manage_ads_in_cities(request.user, cities)
             if not sent_data_are_ok:
                 return False
 
