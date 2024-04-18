@@ -146,6 +146,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
+        print(r_data)
+
         expected = {
             "count": 1,
             "next": None,
