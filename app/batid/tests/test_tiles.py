@@ -20,7 +20,6 @@ class TestVectorTiles(TestCase):
             is_active=False,
         )
 
-
     def test_tiles_endpoint(self):
         response = self.client.get("/api/alpha/tiles/8166/5902/16.pbf")
         self.assertEqual(response.status_code, 200)
