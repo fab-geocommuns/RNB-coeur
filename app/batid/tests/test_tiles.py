@@ -4,7 +4,8 @@ from batid.models import Building
 
 
 class TestVectorTiles(TestCase):
-    def test_tiles_endpoint(self):
+    def setUp(self):
+
         Building.objects.create(
             rnb_id="BDG-1",
             status="constructed",
@@ -19,5 +20,11 @@ class TestVectorTiles(TestCase):
             is_active=False,
         )
 
-        response = self.client.get("/api/alpha/tiles/8166/5902/14.pbf")
+
+    def test_tiles_endpoint(self):
+        response = self.client.get("/api/alpha/tiles/8166/5902/16.pbf")
         self.assertEqual(response.status_code, 200)
+
+    def test_tiles_endpoint_zoomout(self):
+        response = self.client.get("/api/alpha/tiles/8166/5902/12.pbf")
+        self.assertEqual(response.status_code, 204)
