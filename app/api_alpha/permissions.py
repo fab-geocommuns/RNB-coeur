@@ -1,9 +1,6 @@
-from django.contrib.auth.models import User
 from rest_framework import permissions
-
-from api_alpha.services import calc_ads_request_cities
-from batid.models import ADS
-from batid.services.ads import can_manage_ads_in_cities
+from api_alpha.services import calc_ads_request_cities, can_manage_ads_in_request
+from batid.services.ads import can_manage_ads_in_cities, can_manage_ads
 
 
 class ADSPermission(permissions.BasePermission):
@@ -20,9 +17,7 @@ class ADSPermission(permissions.BasePermission):
             return True
 
         if view.action == "create":
-
-            cities = calc_ads_request_cities(request.data)
-            return can_manage_ads_in_cities(request.user, cities)
+            return can_manage_ads_in_request(request.user, request.data)
 
         return True
 
@@ -44,27 +39,31 @@ class ADSPermission(permissions.BasePermission):
         if request.user.is_authenticated and request.user.is_superuser:
             return True
 
+        # ########
+        # UPDATE
         if view.action == "update":
 
             # ##
             # We both have to check the right on the ADS before update and on the sent data
 
             # On the ADS
-            if not user_can_manage_ads(request.user, obj):
+            if not can_manage_ads(request.user, obj):
                 return False
 
-            # On the data
-            cities = calc_ads_request_cities(request.data)
-            sent_data_are_ok = can_manage_ads_in_cities(request.user, cities)
-            if not sent_data_are_ok:
+            # On the request data
+            if not can_manage_ads_in_request(request.user, request.data):
                 return False
 
-        if view.action in ["update", "destroy"]:
+        # ########
+        # DESTROY
+        if view.action == "destroy":
+            if not can_manage_ads_in_request(request.user, request.data):
+                return False
 
-            return user_can_manage_ads(request.user, obj)
-
-        # Anybody can read ADS
-        if view.action in ["retrieve"]:
+        # ########
+        # READ
+        if view.action == "retrieve":
+            # Anybody authenticated user can read ADS
             return True
 
         raise NotImplementedError(f"Unknown action {view.action}")
