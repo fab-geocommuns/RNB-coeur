@@ -22,40 +22,6 @@ class BdgInADSValidator:
         if rnb_id is None and shape is None:
             raise serializers.ValidationError("Either rnb_id or shape is required.")
 
-        # if value["rnb_id"] in [BdgInADS.NEW_STR, BdgInADS.GUESS_STR]:
-        #     geojson = value.get("ads_geojson")
-        #     if not geojson:
-        #         raise serializers.ValidationError(
-        #             {
-        #                 "geometry": "GeoJSON Point or MultiPolygon is required for new buildings."
-        #             }
-        #         )
-        #
-        #     if value["rnb_id"] == BdgInADS.NEW_STR:
-        #         if geojson["type"] not in ("Point", "MultiPolygon"):
-        #             raise serializers.ValidationError(
-        #                 {"geometry": "GeoJSON must be a Point or a MultiPolygon."}
-        #             )
-        #     if value["rnb_id"] == BdgInADS.GUESS_STR:
-        #         if geojson["type"] not in ("MultiPolygon",):
-        #             raise serializers.ValidationError(
-        #                 {
-        #                     "geometry": "GeoJSON must be a MultiPolygon if you set 'guess' as rnb_id."
-        #                 }
-        #             )
-        #
-        #     try:
-        #         geometry = GEOSGeometry(str(geojson))
-        #     except GEOSException:
-        #         raise serializers.ValidationError({"geometry": "GeoJSON is invalid."})
-        #
-        #     if not geometry.valid:
-        #         raise serializers.ValidationError(
-        #             {"geometry": f"GeoJSON is invalid: {geometry.valid_reason}"}
-        #         )
-        #
-        #     return
-
 
 class ADSValidator:
     def __call__(self, data):

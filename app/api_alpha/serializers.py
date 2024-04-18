@@ -232,6 +232,7 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
         model = BuildingADS
         geo_field = "shape"
         fields = ["rnb_id", "shape", "operation", "creator"]
+        validators = [BdgInADSValidator()]
 
     def create(self, validated_data):
         # bdg_data = validated_data.pop("building")
