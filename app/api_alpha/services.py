@@ -13,11 +13,6 @@ class BuildingADS:
     OPERATIONS = ["build", "modify", "demolish"]
 
 
-class BdgInADS:
-    NEW_STR = "new"
-    GUESS_STR = "guess"
-
-
 def can_manage_ads_in_request(user: User, request_data) -> bool:
     cities = calc_ads_request_cities(request_data)
     return can_manage_ads_in_cities(user, cities)
