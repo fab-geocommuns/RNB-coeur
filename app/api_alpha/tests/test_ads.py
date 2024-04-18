@@ -1,5 +1,4 @@
 import json
-from pprint import pprint
 
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
@@ -10,7 +9,7 @@ from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Organization
-from batid.tests.helpers import create_cenac, create_bdg, create_from_geojson_feature
+from batid.tests.helpers import create_cenac, create_from_geojson_feature
 from batid.tests.helpers import create_grenoble
 from batid.tests.helpers import create_paris
 
@@ -30,12 +29,33 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
         org = Organization.objects.create(name="Test Org", managed_cities=["38185"])
         org.users.add(user)
 
-        # Create an ADS set in Paris
-        paris_ads = ADS.objects.create(
-            file_number="ADS-TEST-PARIS",
-            decided_at="2020-01-01",
+        # Create an ADS set in Grenoble (managed)
+        create_from_geojson_feature(
+            {
+                "type": "Feature",
+                "properties": {"rnb_id": "GRENOBLEGOGO"},
+                "geometry": {
+                    "coordinates": [
+                        [
+                            [5.72657595080662, 45.18656079765091],
+                            [5.72657595080662, 45.18627000138551],
+                            [5.727143678224422, 45.18627000138551],
+                            [5.727143678224422, 45.18656079765091],
+                            [5.72657595080662, 45.18656079765091],
+                        ]
+                    ],
+                    "type": "Polygon",
+                },
+                "id": 0,
+            }
         )
-        paris_ads.save()
+
+        # ADS in Grenoble
+        grenoble_ads = ADS.objects.create(
+            file_number="ADS-GRENOBLE",
+            decided_at="2019-01-01",
+        )
+        BuildingADS.objects.create(ads=grenoble_ads, rnb_id="GRENOBLEGOGO")
 
         # Create a building in Paris
         create_from_geojson_feature(
@@ -56,6 +76,13 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
                 },
             }
         )
+
+        # Create an ADS set in Parisn (unmanaged)
+        paris_ads = ADS.objects.create(
+            file_number="ADS-TEST-PARIS",
+            decided_at="2020-01-01",
+        )
+        BuildingADS.objects.create(ads=paris_ads, rnb_id="GOPARISPARIS")
 
     def test_create_ads_point_in_forbidden_city(self):
         # Building is in Paris
@@ -82,8 +109,8 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
     def test_create_ads_rnbid_in_forbidden_city(self):
 
         data = {
-            "file_number": "ADS-TEST-NEW-BDG",
-            "decided_at": "2019-03-18",
+            "file_number": "NEW-ADS-TEST",
+            "decided_at": "2020-01-01",
             "buildings_operations": [
                 {
                     "operation": "build",
@@ -119,9 +146,30 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
 
         self.assertEqual(r.status_code, 403)
 
-    # update an ADS which already have building in forbidden city
-    ## with point
-    ## with rnb_id
+    def test_update_managed_ads_with_forbidden_city_in_request(self):
+
+        data = {
+            "file_number": "ADS-GRENOBLE",
+            "decided_at": "2019-01-01",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "rnb_id": "GRENOBLEGOGO",
+                },
+                {
+                    "operation": "build",
+                    "rnb_id": "GOPARISPARIS",
+                },
+            ],
+        }
+
+        r = self.client.put(
+            "/api/alpha/ads/ADS-GRENOBLE/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 403)
 
     # update an managed ADS, trying to add building in forbidden city
     ## with point
@@ -145,8 +193,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         r_data = r.json()
-
-        print(r_data)
 
         expected = {
             "count": 1,
@@ -699,8 +745,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(r.status_code, 400)
 
         r_data = r.json()
-
-        print(r_data)
 
         msg_to_check = "Invalid GeoJSON geometry"
 
