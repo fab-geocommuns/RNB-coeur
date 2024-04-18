@@ -19,20 +19,27 @@ def can_manage_ads_in_request(user: User, request_data) -> bool:
 
 
 def calc_ads_request_cities(data):
-    rnb_ids = []
-    geojson_geometries = []
 
-    for op in data["buildings_operations"]:
+    cities = []
 
-        # Check the rnb_id
-        rnb_id = op.get("rnb_id", None)
-        if rnb_id:
-            rnb_ids.append(clean_rnb_id(rnb_id))
+    if "buildings_operations" in data:
 
-        # Check the geometry
-        shape = op.get("shape", None)
-        if shape:
+        rnb_ids = []
+        geojson_geometries = []
 
-            geojson_geometries.append(shape)
+        for op in data["buildings_operations"]:
 
-    return get_cities(rnb_ids, geojson_geometries)
+            # Check the rnb_id
+            rnb_id = op.get("rnb_id", None)
+            if rnb_id:
+                rnb_ids.append(clean_rnb_id(rnb_id))
+
+            # Check the geometry
+            shape = op.get("shape", None)
+            if shape:
+
+                geojson_geometries.append(shape)
+
+        cities = get_cities(rnb_ids, geojson_geometries)
+
+    return cities

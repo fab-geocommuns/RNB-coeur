@@ -54,11 +54,12 @@ class ADSPermission(permissions.BasePermission):
             if not can_manage_ads_in_request(request.user, request.data):
                 return False
 
+            return True
+
         # ########
         # DESTROY
         if view.action == "destroy":
-            if not can_manage_ads_in_request(request.user, request.data):
-                return False
+            return can_manage_ads_in_request(request.user, request.data)
 
         # ########
         # READ

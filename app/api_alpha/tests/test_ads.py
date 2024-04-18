@@ -629,10 +629,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = {"decided_at": "This field is required."}
-
-        for key, msg in r_data.items():
-            self.assertIn(msg_to_check[key], r_data[key])
+        self.assertIn("This field is required.", r_data["decided_at"])
 
     def test_ads_wrong_bdg_rnbid(self):
         data = {
