@@ -29,7 +29,21 @@ def can_manage_ads_in_cities(user: User, cities: list) -> bool:
 
 def can_manage_ads(user: User, ads: ADS) -> bool:
 
-    pass
+    rnb_ids = []
+    geojson_geometries = []
+
+    for op in ads.buildings_operations.all():
+        rnb_id = op.rnb_id
+        if rnb_id:
+            rnb_ids.append(rnb_id)
+
+        shape = op.shape
+        if shape:
+            geojson_geometries.append(shape)
+
+    cities = get_cities(rnb_ids, geojson_geometries)
+
+    return can_manage_ads_in_cities(user, cities)
 
 
 def get_cities(rnb_ids: list, geojson_geometries: list) -> list:
