@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
+
 from api_alpha.services import BuildingADS as BuildingADSLogic
 from api_alpha.validators import ads_validate_rnbid
 from api_alpha.validators import ADSValidator

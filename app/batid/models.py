@@ -205,7 +205,6 @@ class BuildingADS(models.Model):
     rnb_id = models.CharField(max_length=12, null=True)
     shape = models.GeometryField(null=True, srid=4326)
 
-
     ads = models.ForeignKey(
         ADS, related_name="buildings_operations", on_delete=models.CASCADE
     )
@@ -215,8 +214,6 @@ class BuildingADS(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     creator = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
-
-
 
 
 class Candidate(models.Model):
