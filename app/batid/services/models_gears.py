@@ -151,38 +151,7 @@ class ADSGear(ModelGear):
         return [op.building.rnb_id for op in self.model.buildings_operations.all()]
 
 
-class UserGear(ModelGear):
-    model_cls = UserModel
-
-    def get_managed_insee_codes(self) -> list:
-        codes = []
-        for org in self.model.organizations.all():
-            codes += org.managed_cities
-
-        return list(set(codes))
 
 
-# class BuildingGear(ModelGear):
-#     model_cls = BuildingModel
 
-#     def calc_missing_status(self) -> List[BuildingStatusModel]:
-#         results = []
 
-#         has_constructed_status = False
-#         has_post_constructed_status = False
-#         for status in self.model.status.all():
-#             if status.type == "constructed":
-#                 has_constructed_status = True
-#             if status.type in BuildingStatus.POST_CONSTRUCTED_KEYS:
-#                 has_post_constructed_status = True
-
-#         if not has_constructed_status and has_post_constructed_status:
-#             results.append(
-#                 BuildingStatusModel(
-#                     type="constructed",
-#                     building=self.model,
-#                     is_current=False,
-#                 )
-#             )
-
-#         return results
