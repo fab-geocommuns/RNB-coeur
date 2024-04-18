@@ -218,7 +218,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 201)
 
         expected = {
             "file_number": "ADS-TEST-2",
@@ -300,7 +300,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 201)
 
     def test_read_unknown_ads(self):
         r = self.client.get("/api/alpha/ads/ABSENT-ADS/")
@@ -334,7 +334,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         # Assert that the response is correct
         self.assertDictEqual(r_data, expected)
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 201)
 
         # Assert that the data is correctly saved
         r = self.client.get("/api/alpha/ads/ADS-TEST-DASH/")
@@ -406,7 +406,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 201)
 
         r = self.client.get("/api/alpha/ads/ADS-TEST-NEW-BDG-MP/")
         r_data = r.json()
@@ -455,7 +455,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
-        self.assertEqual(r.status_code, 200)
 
         r_data = r.json()
 
@@ -476,7 +475,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         # Assert that the response is correct
         self.assertDictEqual(r_data, expected)
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 201)
 
         # Assert that the data is correctly saved
         r = self.client.get("/api/alpha/ads/ADS-TEST-NEW-BDG/")
@@ -817,7 +816,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 201)
 
         r = self.client.get("/api/alpha/ads/ADS-TEST-BATCH-1/")
         self.assertEqual(r.status_code, 200)
