@@ -295,7 +295,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         }
         # Assert that the response is correct
         self.assertDictEqual(r_data, expected)
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 201)
 
         # Assert that the data is correctly saved
         r = self.client.get("/api/alpha/ads/ADS-TEST-2/")
@@ -606,8 +606,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
             if "operation" in op:
                 self.assertIn(msg_to_check, op["operation"])
 
-
-
     def test_ads_wrong_shape(self):
         data = {
             "file_number": "ADS-TEST-2",
@@ -633,16 +631,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
             if "building" in op:
                 self.assertIn(msg_to_check, op["building"]["geometry"])
 
-    def test_ads_absent_geometry(self):
+    def test_ads_absent_shape_and_rnb_id(self):
         data = {
             "file_number": "ADS-TEST-2",
             "decided_at": "2019-01-02",
-            "buildings_operations": [
-                {
-                    "operation": "build",
-                    "building": {"rnb_id": "new"},
-                }
-            ],
+            "buildings_operations": [{"operation": "build"}],
         }
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
@@ -651,7 +644,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = "GeoJSON Point or MultiPolygon is required for new buildings."
+        msg_to_check = "You must set a RNB ID or a shape for each building operation."
 
         for op in r_data["buildings_operations"]:
             if "building" in op:

@@ -179,17 +179,6 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
         return search.get_queryset()
 
-    def create(self, request):
-        serializer = self.get_serializer(data=request.data)
-
-        if serializer.is_valid():
-            city = get_city_from_request(request.data, request.user, self)
-            serializer.save(city=city)
-
-            return Response(serializer.data)
-
-        return Response(serializer.errors, status=400)
-
     def retrieve(self, request, file_number=None):
         return super().retrieve(request, file_number)
 
