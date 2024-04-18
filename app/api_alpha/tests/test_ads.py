@@ -26,7 +26,7 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
         token = Token.objects.create(user=u)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
-    def test_create_ads(self):
+    def test_create_ads_point_in_forbidden_city(self):
         # Building is in Paris
         data = {
             "file_number": "ADS-TEST-NEW-BDG",
@@ -34,12 +34,9 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {
-                        "rnb_id": "new",
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [2.3552747458487002, 48.86958288638419],
-                        },
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [2.3552747458487002, 48.86958288638419],
                     },
                 }
             ],

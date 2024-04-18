@@ -1,7 +1,9 @@
 from django.contrib.auth.models import User
 from rest_framework import permissions
 
+from api_alpha.services import calc_ads_cities
 from batid.models import ADS
+from batid.services.ads import manage_ads_in_cities
 from batid.services.models_gears import UserGear
 
 
@@ -30,13 +32,39 @@ class ADSPermission(permissions.BasePermission):
     """Custom permission class to allow access to ADS API."""
 
     def has_permission(self, request, view):
+
+        print("######### has_permission #########")
+        print("--- request")
+        print(request)
+        print("--- view")
+        print(view)
+
         # You must best authenticated to do anything with an ADS
         if request.user.is_authenticated:
-            return True
+
+
+            if view.action == "create":
+
+                cities = calc_ads_cities(request.data)
+                return manage_ads_in_cities(request.user, cities)
+
+            else:
+
+                return True
+
         else:
             return False
 
     def has_object_permission(self, request, view, obj):
+
+        print("######### has_object_permission #########")
+        print("--- request")
+        print(request)
+        print("--- view")
+        print(view)
+        print("--- obj")
+        print(obj)
+
         if view.action in ["create", "update", "destroy"]:
             if not request.user.is_authenticated:
                 return False
@@ -60,3 +88,5 @@ def user_can_manage_ads(user: User, ads: ADS) -> bool:
 def user_can_manage_insee_code(user: User, insee_code: str) -> bool:
     user = UserGear(user)
     return insee_code in user.get_managed_insee_codes()
+
+def user_can_manage_city()
