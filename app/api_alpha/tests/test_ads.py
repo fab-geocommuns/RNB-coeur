@@ -755,8 +755,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
+        r_data = r.json()
 
         self.assertEqual(r.status_code, 400)
+        self.assertIn("Invalid GeoJSON geometry", r_data["buildings_operations"])
 
         # ###############
         # Data setup

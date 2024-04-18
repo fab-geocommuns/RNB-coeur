@@ -49,11 +49,10 @@ def calc_ads_request_cities(data):
                 try:
                     GEOSGeometry(json.dumps(shape))
                     geojson_geometries.append(shape)
-                except ValueError:
+                except (ValueError, GEOSException):
                     raise ValidationError(
                         {"buildings_operations": ["Invalid GeoJSON geometry"]}
                     )
-                    pass
 
         cities = get_cities(rnb_ids, geojson_geometries)
 
