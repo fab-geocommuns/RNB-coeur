@@ -62,7 +62,7 @@ def get_cities(rnb_ids: list, geojson_geometries: list) -> list:
 
     for geojson_geom in geojson_geometries:
         wheres.append(
-            "ST_Intersects(ST_SetSRID(ST_GeomFromGeoJSON(%(multipoints)s), 4326)), c.shape)"
+            "ST_Intersects(ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326), c.shape)"
         )
         params.append(json.dumps(geojson_geom))
 

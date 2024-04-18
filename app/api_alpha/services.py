@@ -1,3 +1,8 @@
+import json
+
+from django.contrib.gis.geos import GEOSGeometry, GEOSException
+from rest_framework.exceptions import ValidationError
+
 from batid.services.ads import get_cities
 from batid.services.rnb_id import clean_rnb_id
 from django.contrib.auth.models import User
@@ -36,9 +41,19 @@ def calc_ads_request_cities(data):
 
             # Check the geometry
             shape = op.get("shape", None)
+
             if shape:
 
-                geojson_geometries.append(shape)
+                # We have to check if the shape is a valid geojson.
+                # It is hacky but the DRF structure dont let us validate data before permission check
+                try:
+                    GEOSGeometry(json.dumps(shape))
+                    geojson_geometries.append(shape)
+                except ValueError:
+                    raise ValidationError(
+                        {"buildings_operations": ["Invalid GeoJSON geometry"]}
+                    )
+                    pass
 
         cities = get_cities(rnb_ids, geojson_geometries)
 

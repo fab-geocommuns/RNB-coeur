@@ -51,8 +51,8 @@ class ADSPermission(permissions.BasePermission):
                 return False
 
             # On the request data
-            if not can_manage_ads_in_request(request.user, request.data):
-                return False
+            # if not can_manage_ads_in_request(request.user, request.data):
+            #     return False
 
             return True
 

@@ -145,6 +145,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         r_data = r.json()
+
         expected = {
             "count": 1,
             "next": None,
@@ -697,11 +698,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = 'Expected a dictionary of items but got type "str".'
+        print(r_data)
 
-        for op in r_data["buildings_operations"]:
-            if "building" in op:
-                self.assertIn(msg_to_check, op["building"]["geometry"])
+        msg_to_check = "Invalid GeoJSON geometry"
+
+        self.assertIn(msg_to_check, r_data["buildings_operations"])
 
     def test_ads_absent_shape_and_rnb_id(self):
         data = {
