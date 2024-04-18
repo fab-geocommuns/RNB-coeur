@@ -171,17 +171,6 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     permission_classes = [ADSPermission]
     http_method_names = ["get", "post", "put", "delete"]
 
-    def get_queryset(self):
-        search = ADSSearch(**self.request.query_params.dict())
-
-        if not search.is_valid():
-            raise ParseError({"errors": search.errors})
-
-        return search.get_queryset()
-
-    def retrieve(self, request, file_number=None):
-        return super().retrieve(request, file_number)
-
 
 def get_tile(request, x, y, z):
     tile_dict = url_params_to_tile(x, y, z)
