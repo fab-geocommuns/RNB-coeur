@@ -1,5 +1,7 @@
 from django.urls import include
 from django.urls import path
+from drf_spectacular.views import SpectacularAPIView
+from drf_spectacular.views import SpectacularRedocView
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
 
@@ -23,6 +25,11 @@ router.register(r"ads", ADSViewSet)
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
+    # YOUR PATTERNS
+    path("schema/", SpectacularAPIView.as_view(), name="schema"),
+    path(
+        "schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"
+    ),
     path("stats", get_stats),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
