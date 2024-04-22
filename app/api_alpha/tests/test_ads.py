@@ -104,7 +104,31 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
 
-        self.assertEqual(r.status_code, 403)
+        self.assertEqual(r.status_code, 400)
+
+    def test_create_ads_in_no_city(self):
+        data = {
+            "file_number": "ADS-TEST-NEW-BDG-LONDON",
+            "decided_at": "2020-01-01",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [
+                            -0.1141407918343872,
+                            51.51309174920018,
+                        ],  # Londres
+                    },
+                }
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(r.status_code, 400)
 
     def test_create_ads_rnbid_in_forbidden_city(self):
 
@@ -123,7 +147,7 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
 
-        self.assertEqual(r.status_code, 403)
+        self.assertEqual(r.status_code, 400)
 
     def test_update_date_on_ads_forbidden_city(self):
 
@@ -169,11 +193,7 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 403)
-
-    # update an managed ADS, trying to add building in forbidden city
-    ## with point
-    ## with rnb_id
+        self.assertEqual(r.status_code, 400)
 
 
 class ADSEndpointsWithAuthTest(APITestCase):
@@ -282,54 +302,65 @@ class ADSEndpointsWithAuthTest(APITestCase):
         ads = ADS.objects.get(file_number="ADS-TEST-2")
         self.assertEqual(ads.creator, self.user)
 
-    # This test needs a refacto of the BuildingsADSSerializer to pass
-    # We can follow what the double step validation done in the ADSSerializer with the cities
-    # issue :https://github.com/fab-geocommuns/BatID-core/issues/168
-    # def test_twice_same_bdg_one_guess(self):
-    #     data = {
-    #         "file_number": "ADS-TEST-GUESS-NEW-BDG",
-    #         "decided_at": "2023-07-19",
-    #         "buildings_operations": [
-    #             {
-    #                 "operation": "build",
-    #                 "building": {
-    #                     "rnb_id": "guess",
-    #                     "geometry": {
-    #                         "type": "MultiPolygon",
-    #                         "coordinates": [
-    #                             [
-    #                                 [
-    #                                     [5.727481544742659, 45.18703215564693],
-    #                                     [5.726913971918663, 45.18682335805852],
-    #                                     [5.727180892471154, 45.186454342625154],
-    #                                     [5.727817395327776, 45.18666934350475],
-    #                                     [5.727836461081949, 45.18671068973464],
-    #                                     [5.727481544742659, 45.18703215564693],
-    #                                 ]
-    #                             ]
-    #                         ],
-    #                     },
-    #                 },
-    #             },
-    #             {
-    #                 "operation": "build",
-    #                 "building": {
-    #                     "rnb_id": "GUESSGUESSG2",
-    #                 },
-    #             },
-    #         ],
-    #     }
-    #
-    #     r = self.client.post(
-    #         "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
-    #     )
-    #     data = r.json()
-    #
-    #     self.assertEqual(r.status_code, 400)
-    #     self.assertEqual(
-    #         data["buildings_operations"],
-    #         ["A building can only be present once in an ADS."],
-    #     )
+    def test_create_simple_ads_w_two_null_rnb_id(self):
+        # This endpoint should not link the building to the ADS
+
+        data = {
+            "file_number": "ADS-TEST-3",
+            "decided_at": "2019-01-01",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.724331358994107, 45.18157371019683],
+                    },
+                },
+                {
+                    "operation": "build",
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.824331358994107, 45.28157371019683],
+                    },
+                },
+            ],
+        }
+
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        r_data = r.json()
+
+        self.assertEqual(r.status_code, 201)
+
+        expected = {
+            "file_number": "ADS-TEST-3",
+            "decided_at": "2019-01-01",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "rnb_id": None,
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.724331358994107, 45.18157371019683],
+                    },
+                },
+                {
+                    "operation": "build",
+                    "rnb_id": None,
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.824331358994107, 45.28157371019683],
+                    },
+                },
+            ],
+        }
+        self.assertDictEqual(r_data, expected)
+
+        # Verify the creator
+        ads = ADS.objects.get(file_number="ADS-TEST-3")
+        self.assertEqual(ads.creator, self.user)
 
     def test_new_point_in_grenoble(self):
         data = {
@@ -639,7 +670,12 @@ class ADSEndpointsWithAuthTest(APITestCase):
         data = {
             "file_number": "ADS-TEST",
             "decided_at": "2019-01-02",
-            "insee_code": "4242",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "rnb_id": "BDGSRNBBIDID",
+                },
+            ],
         }
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
@@ -654,7 +690,12 @@ class ADSEndpointsWithAuthTest(APITestCase):
         data = {
             "file_number": "ADS-TEST-DATE",
             "decided_at": "2019-13-01",
-            "insee_code": "4242",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "rnb_id": "BDGSRNBBIDID",
+                },
+            ],
         }
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
@@ -669,10 +710,19 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
 
     def test_ads_absent_decided_at(self):
-        data = {"file_number": "ADS-TEST-DATE", "insee_code": "4242"}
+        data = {
+            "file_number": "ADS-TEST-DATE",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "rnb_id": "BDGSRNBBIDID",
+                },
+            ],
+        }
         r = self.client.post(
             "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
         )
+
         self.assertEqual(r.status_code, 400)
 
         r_data = r.json()
@@ -710,8 +760,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "destroy",
-                    "building": {"rnb_id": "BDGSRNBBIDID"},
-                }
+                    "rnb_id": "BDGSRNBBIDID",
+                },
             ],
         }
         r = self.client.post(
@@ -734,7 +784,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "rnb_id": "new",
                     "shape": "wrong",
                 }
             ],
@@ -746,9 +795,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = "Invalid GeoJSON geometry"
+        msg_to_check = "Unable to convert to python object: String input unrecognized as WKT EWKT, and HEXEWKB."
 
-        self.assertIn(msg_to_check, r_data["buildings_operations"])
+        self.assertIn(msg_to_check, r_data["buildings_operations"][0]["shape"])
 
     def test_ads_absent_shape_and_rnb_id(self):
         data = {
@@ -802,7 +851,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
 
         self.assertEqual(r.status_code, 400)
-        self.assertIn("Invalid GeoJSON geometry", r_data["buildings_operations"])
+        self.assertIn(
+            "Invalid format: string or unicode input unrecognized as GeoJSON, WKT EWKT or HEXEWKB.",
+            r_data["buildings_operations"][0]["shape"],
+        )
 
         # ###############
         # Data setup
@@ -827,103 +879,103 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r = self.client.get("/api/alpha/ads/ADS-TEST-DELETE-NO/")
         self.assertEqual(r.status_code, 200)
 
-    def test_batch_create(self):
-        data = [
-            {
-                "file_number": "ADS-TEST-BATCH-1",
-                "decided_at": "2019-01-02",
-                "buildings_operations": [
-                    {
-                        "operation": "build",
-                        "rnb_id": None,
-                        "shape": {
-                            "type": "Point",
-                            "coordinates": [5.718634111400531, 45.183134802624544],
-                        },
-                    }
-                ],
-            },
-            {
-                "file_number": "ADS-TEST-BATCH-2",
-                "decided_at": "2019-01-02",
-                "buildings_operations": [
-                    {
-                        "operation": "build",
-                        "rnb_id": None,
-                        "shape": {
-                            "type": "Point",
-                            "coordinates": [5.718254905289841, 45.18335144905792],
-                        },
-                    }
-                ],
-            },
-        ]
+    # def test_batch_create(self):
+    #     data = [
+    #         {
+    #             "file_number": "ADS-TEST-BATCH-1",
+    #             "decided_at": "2019-01-02",
+    #             "buildings_operations": [
+    #                 {
+    #                     "operation": "build",
+    #                     "rnb_id": None,
+    #                     "shape": {
+    #                         "type": "Point",
+    #                         "coordinates": [5.718634111400531, 45.183134802624544],
+    #                     },
+    #                 }
+    #             ],
+    #         },
+    #         {
+    #             "file_number": "ADS-TEST-BATCH-2",
+    #             "decided_at": "2019-01-02",
+    #             "buildings_operations": [
+    #                 {
+    #                     "operation": "build",
+    #                     "rnb_id": None,
+    #                     "shape": {
+    #                         "type": "Point",
+    #                         "coordinates": [5.718254905289841, 45.18335144905792],
+    #                     },
+    #                 }
+    #             ],
+    #         },
+    #     ]
+    #
+    #     r = self.client.post(
+    #         "/api/alpha/ads/batch/",
+    #         data=json.dumps(data),
+    #         content_type="application/json",
+    #     )
+    #
+    #     self.assertEqual(r.status_code, 201)
+    #
+    #     r = self.client.get("/api/alpha/ads/ADS-TEST-BATCH-1/")
+    #     self.assertEqual(r.status_code, 200)
+    #
+    #     r = self.client.get("/api/alpha/ads/ADS-TEST-BATCH-2/")
+    #     self.assertEqual(r.status_code, 200)
 
-        r = self.client.post(
-            "/api/alpha/ads/batch/",
-            data=json.dumps(data),
-            content_type="application/json",
-        )
+    # def test_batch_update(self):
+    #     existing = ADS.objects.get(file_number="BATCH-UPDATE").id
+    #
+    #     data = [
+    #         {
+    #             "file_number": "BATCH-UPDATE",
+    #             "decided_at": "2019-01-02",
+    #             "buildings_operations": [
+    #                 {
+    #                     "operation": "build",
+    #                     "rnb_id": "BDGSRNBBIDID",
+    #                 }
+    #             ],
+    #         },
+    #         {
+    #             "file_number": "BATCH-UP-NEW",
+    #             "decided_at": "2019-01-02",
+    #             "buildings_operations": [
+    #                 {
+    #                     "operation": "build",
+    #                     "rnb_id": "BDGSADSSONE1",
+    #                 }
+    #             ],
+    #         },
+    #     ]
+    #
+    #     r = self.client.post(
+    #         "/api/alpha/ads/batch/",
+    #         data=json.dumps(data),
+    #         content_type="application/json",
+    #     )
+    #
+    #     # We check there is still the same id
+    #     kept_id = ADS.objects.get(file_number="BATCH-UPDATE").id
+    #
+    #     r = self.client.get("/api/alpha/ads/BATCH-UPDATE/")
+    #     self.assertEqual(r.status_code, 200)
+    #     data = r.json()
+    #     self.assertEqual("2019-01-02", data["decided_at"])
+    #
+    #     self.assertEqual(existing, kept_id)
 
-        self.assertEqual(r.status_code, 201)
-
-        r = self.client.get("/api/alpha/ads/ADS-TEST-BATCH-1/")
-        self.assertEqual(r.status_code, 200)
-
-        r = self.client.get("/api/alpha/ads/ADS-TEST-BATCH-2/")
-        self.assertEqual(r.status_code, 200)
-
-    def test_batch_update(self):
-        existing = ADS.objects.get(file_number="BATCH-UPDATE").id
-
-        data = [
-            {
-                "file_number": "BATCH-UPDATE",
-                "decided_at": "2019-01-02",
-                "buildings_operations": [
-                    {
-                        "operation": "build",
-                        "rnb_id": "BDGSRNBBIDID",
-                    }
-                ],
-            },
-            {
-                "file_number": "BATCH-UP-NEW",
-                "decided_at": "2019-01-02",
-                "buildings_operations": [
-                    {
-                        "operation": "build",
-                        "rnb_id": "BDGSADSSONE1",
-                    }
-                ],
-            },
-        ]
-
-        r = self.client.post(
-            "/api/alpha/ads/batch/",
-            data=json.dumps(data),
-            content_type="application/json",
-        )
-
-        # We check there is still the same id
-        kept_id = ADS.objects.get(file_number="BATCH-UPDATE").id
-
-        r = self.client.get("/api/alpha/ads/BATCH-UPDATE/")
-        self.assertEqual(r.status_code, 200)
-        data = r.json()
-        self.assertEqual("2019-01-02", data["decided_at"])
-
-        self.assertEqual(existing, kept_id)
-
-    def test_empty_batch(self):
-        data = []
-        r = self.client.post(
-            "/api/alpha/ads/batch/",
-            data=json.dumps(data),
-            content_type="application/json",
-        )
-
-        self.assertEqual(r.status_code, 400)
+    # def test_empty_batch(self):
+    #     data = []
+    #     r = self.client.post(
+    #         "/api/alpha/ads/batch/",
+    #         data=json.dumps(data),
+    #         content_type="application/json",
+    #     )
+    #
+    #     self.assertEqual(r.status_code, 400)
 
     def __insert_data(self):
         # ############
@@ -991,38 +1043,33 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         # ############
         # ADS
-        ads = ADS.objects.create(
-            city=grenoble, file_number="BATCH-UPDATE", decided_at="2019-01-01"
-        )
+        ads = ADS.objects.create(file_number="BATCH-UPDATE", decided_at="2019-01-01")
         BuildingADS.objects.create(rnb_id="BDGSRNBBIDID", ads=ads, operation="build")
 
-        ads = ADS.objects.create(
-            city=grenoble, file_number="MODIFY-GUESS", decided_at="2019-01-01"
-        )
+        ads = ADS.objects.create(file_number="MODIFY-GUESS", decided_at="2019-01-01")
         BuildingADS.objects.create(rnb_id="BDGSRNBBIDID", ads=ads, operation="build")
 
-        ads = ADS.objects.create(
-            city=grenoble, file_number="ADS-TEST", decided_at="2019-01-01"
-        )
+        ads = ADS.objects.create(file_number="ADS-TEST", decided_at="2019-01-01")
         BuildingADS.objects.create(rnb_id="BDGSRNBBIDID", ads=ads, operation="build")
 
-        ADS.objects.create(
-            file_number="ADS-TEST-FUTURE", decided_at="2035-01-02", city=grenoble
-        )
+        ADS.objects.create(file_number="ADS-TEST-FUTURE", decided_at="2035-01-02")
 
-        ADS.objects.create(
+        ads = ADS.objects.create(
             file_number="ADS-TEST-UPDATE",
             decided_at="2025-01-01",
         )
+        BuildingADS.objects.create(rnb_id="BDGSRNBBIDID", ads=ads, operation="build")
+
         ADS.objects.create(
             file_number="ADS-TEST-UPDATE-BDG",
             decided_at="2025-01-01",
         )
 
-        ADS.objects.create(
+        ads = ADS.objects.create(
             file_number="ADS-TEST-DELETE-YES",
             decided_at="2025-01-01",
         )
+        BuildingADS.objects.create(rnb_id="BDGSRNBBIDID", ads=ads, operation="build")
 
         ads_in_paris = ADS.objects.create(
             file_number="ADS-TEST-DELETE-NO", decided_at="2025-01-01"
@@ -1057,13 +1104,9 @@ class ADSEnpointsNoAuthTest(APITestCase):
     def setUp(self) -> None:
         grenoble = create_grenoble()
 
-        ADS.objects.create(
-            file_number="ADS-TEST-UPDATE-BDG", decided_at="2025-01-01", city=grenoble
-        )
+        ADS.objects.create(file_number="ADS-TEST-UPDATE-BDG", decided_at="2025-01-01")
 
-        ADS.objects.create(
-            file_number="ADS-TEST-DELETE", decided_at="2025-01-01", city=grenoble
-        )
+        ADS.objects.create(file_number="ADS-TEST-DELETE", decided_at="2025-01-01")
 
     def test_ads_root(self):
         r = self.client.get("/api/alpha/ads/")

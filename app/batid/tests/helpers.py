@@ -1164,12 +1164,6 @@ def create_default_bdg(rnb_id="DEFAULT"):
     return create_bdg(rnb_id, coords)
 
 
-def create_default_ads(city: City, file_number="PC1234"):
-    return ADS.objects.create(
-        file_number=file_number, decided_at="2023-01-01", city=city
-    )
-
-
 def mock_ban_geocoder_result(id: str, lng: float, lat: float, score=0.99) -> Response:
     r = Response()
     r.status_code = 200

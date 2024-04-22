@@ -189,12 +189,11 @@ class ADS(models.Model):
         max_length=40, null=False, unique=True, db_index=True
     )
     decided_at = models.DateField(null=True)
-    city = models.ForeignKey(City, on_delete=models.CASCADE, null=True)
     achieved_at = models.DateField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    creator = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
 
     class Meta:
         ordering = ["decided_at"]
@@ -205,7 +204,6 @@ class BuildingADS(models.Model):
     rnb_id = models.CharField(max_length=12, null=True)
     shape = models.GeometryField(null=True, srid=4326)
 
-
     ads = models.ForeignKey(
         ADS, related_name="buildings_operations", on_delete=models.CASCADE
     )
@@ -214,9 +212,8 @@ class BuildingADS(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
-
-
+    class Meta:
+        unique_together = ("rnb_id", "ads")
 
 
 class Candidate(models.Model):

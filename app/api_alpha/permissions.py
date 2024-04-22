@@ -8,18 +8,7 @@ class ADSPermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
 
-        # Not authenticated users -> no permission
-        if not request.user.is_authenticated:
-            return False
-
-        # Super user -> all permissions
-        if request.user.is_authenticated and request.user.is_superuser:
-            return True
-
-        if view.action == "create":
-            return can_manage_ads_in_request(request.user, request.data)
-
-        return True
+        return request.user.is_authenticated
 
     def has_object_permission(self, request, view, obj):
 
@@ -43,8 +32,8 @@ class ADSPermission(permissions.BasePermission):
                 return False
 
             # On the request data
-            if not can_manage_ads_in_request(request.user, request.data):
-                return False
+            # if not can_manage_ads_in_request(request.user, request.data):
+            #     return False
 
             return True
 

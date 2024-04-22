@@ -19,11 +19,13 @@ class BdgInADSValidator:
         if rnb_id is None and shape is None:
             raise serializers.ValidationError("Either rnb_id or shape is required.")
 
-        if shape is not None:
-            try:
-                GEOSGeometry(shape)
-            except GEOSException:
-                raise serializers.ValidationError("Invalid GeoJSON geometry.")
+        # if shape is not None:
+        #     try:
+        #         print("-- transform !!")
+        #         GEOSGeometry(shape)
+        #
+        #     except GEOSException as e:
+        #         raise serializers.ValidationError("Invalid GeoJSON geometry.")
 
 
 class ADSValidator:

@@ -1,6 +1,10 @@
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
-from api_alpha.services import BuildingADS as BuildingADSLogic
+from api_alpha.services import (
+    BuildingADS as BuildingADSLogic,
+    can_manage_ads_in_request,
+)
 from api_alpha.validators import ads_validate_rnbid
 from api_alpha.validators import ADSValidator
 from api_alpha.validators import BdgInADSValidator
@@ -10,6 +14,7 @@ from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Contribution
 from batid.services.rnb_id import clean_rnb_id
+from rest_framework_gis.fields import GeometryField
 
 
 class RNBIdField(serializers.CharField):
@@ -126,25 +131,15 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
             + f"{BuildingADSLogic.OPERATIONS}."
         },
     )
-    creator = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
         model = BuildingADS
         geo_field = "shape"
-        fields = ["rnb_id", "shape", "operation", "creator"]
+        fields = ["rnb_id", "shape", "operation"]
         validators = [BdgInADSValidator()]
 
     def create(self, validated_data):
-        # bdg_data = validated_data.pop("building")
-        # bdg = BdgInAdsSerializer().create(bdg_data)
         return BuildingADS(**validated_data)
-
-    #
-    # def update(self, bdg_ads, validated_data):
-    #     validated_data.pop("building")
-    #     for attr, value in validated_data.items():
-    #         setattr(bdg_ads, attr, value)
-    #     return bdg_ads
 
 
 class ADSSerializer(serializers.ModelSerializer):
@@ -160,6 +155,20 @@ class ADSSerializer(serializers.ModelSerializer):
     buildings_operations = BuildingsADSSerializer(many=True, required=True)
 
     creator = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    def is_valid(self, *, raise_exception=False):
+
+        # We have to override the DRF is_valid method to add an extra layer of validation using the request user
+        valid = super().is_valid(raise_exception=raise_exception)
+
+        # The extra layer to check if the user can apply the request data
+        user = self.context.get("request").user
+        if not can_manage_ads_in_request(user, self.initial_data):
+            raise serializers.ValidationError(
+                {
+                    "buildings_operations": "You are not allowed to manage ADS in this city."
+                }
+            )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

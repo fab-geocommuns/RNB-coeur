@@ -15,6 +15,9 @@ def get_managed_insee_codes(user: User) -> list:
 
 def can_manage_ads_in_cities(user: User, cities: list) -> bool:
 
+    if len(cities) == 0:
+        return False
+
     managed_insee_codes = get_managed_insee_codes(user)
 
     if len(managed_insee_codes) == 0:

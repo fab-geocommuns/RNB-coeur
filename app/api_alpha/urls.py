@@ -16,7 +16,7 @@ router = routers.DefaultRouter()
 # router.register(r"buildings/guess", BuildingGuessView, basename="guess")
 router.register(r"contributions", ContributionsViewSet)
 router.register(r"buildings", BuildingViewSet)
-router.register(r"ads/batch", ADSBatchViewSet)
+# router.register(r"ads/batch", ADSBatchViewSet)
 router.register(r"ads", ADSViewSet)
 
 # Wire up our API using automatic URL routing.
@@ -26,6 +26,6 @@ urlpatterns = [
     path("buildings/closest/", BuildingClosestView.as_view()),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
-    path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile)
+    path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile),
     # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]

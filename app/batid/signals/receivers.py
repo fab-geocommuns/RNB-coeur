@@ -14,22 +14,18 @@ from batid.services.signal import create_async_signal
 
 @receiver(post_save, sender=ADSAchievement)
 def signal_ads_achievement(sender, instance, created, **kwargs):
-    _async_create_ads_achievement_clue_signal(instance.file_number)
+    # _async_create_ads_achievement_clue_signal(instance.file_number)
+    pass
 
 
 @receiver(post_save, sender=ADS)
 def signal_ads(sender, instance, created, **kwargs):
     # The current ADS has no achievement date. We signal so we might attach it.
-    if instance.achieved_at is None:
-        _async_create_ads_achievement_clue_signal(
-            instance.file_number, instance.creator
-        )
-
-
-def _async_calc_bdg_status_from_ads(ads: ADS, bdg: Building) -> str:
-    create_async_signal(
-        type="calcStatusFromADS", building=bdg, origin=ads, creator=ads.creator
-    )
+    # if instance.achieved_at is None:
+    #     _async_create_ads_achievement_clue_signal(
+    #         instance.file_number, instance.creator
+    #     )
+    pass
 
 
 def _async_create_ads_achievement_clue_signal(
