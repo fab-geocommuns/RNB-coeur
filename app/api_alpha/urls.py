@@ -5,7 +5,6 @@ from drf_spectacular.views import SpectacularRedocView
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
 
-from api_alpha.views import ADSBatchViewSet
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
@@ -19,7 +18,7 @@ router = routers.DefaultRouter()
 # router.register(r"buildings/guess", BuildingGuessView, basename="guess")
 router.register(r"contributions", ContributionsViewSet)
 router.register(r"buildings", BuildingViewSet)
-router.register(r"ads/batch", ADSBatchViewSet)
+# router.register(r"ads/batch", ADSBatchViewSet)
 router.register(r"ads", ADSViewSet)
 
 # Wire up our API using automatic URL routing.

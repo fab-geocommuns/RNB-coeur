@@ -23,7 +23,6 @@ from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
-from api_alpha.services import get_city_from_request
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
@@ -235,9 +234,7 @@ class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                 serializer = self.get_serializer(data=ads)
 
             if serializer.is_valid():
-                city = get_city_from_request(ads, request.user, self)
-
-                to_save.append({"city": city, "serializer": serializer})
+                to_save.append({"serializer": serializer})
 
             else:
                 errors[ads["file_number"]] = serializer.errors
@@ -247,10 +244,10 @@ class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         else:
             to_show = []
             for item in to_save:
-                item["serializer"].save(city=item["city"])
+                item["serializer"].save()
                 to_show.append(item["serializer"].data)
 
-            return Response(to_show)
+            return Response(to_show, status=201)
 
     def validate_length(self, data):
         if len(data) > self.max_batch_size:
@@ -277,20 +274,6 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
             raise ParseError({"errors": search.errors})
 
         return search.get_queryset()
-
-    def create(self, request):
-        serializer = self.get_serializer(data=request.data)
-
-        if serializer.is_valid():
-            city = get_city_from_request(request.data, request.user, self)
-            serializer.save(city=city)
-
-            return Response(serializer.data)
-
-        return Response(serializer.errors, status=400)
-
-    def retrieve(self, request, file_number=None):
-        return super().retrieve(request, file_number)
 
 
 def get_tile(request, x, y, z):
