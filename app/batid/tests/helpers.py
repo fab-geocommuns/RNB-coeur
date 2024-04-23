@@ -6,7 +6,6 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from requests import Response
 
-from batid.models import ADS
 from batid.models import AsyncSignal
 from batid.models import Building
 from batid.models import City

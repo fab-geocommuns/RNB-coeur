@@ -1,11 +1,8 @@
-from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from api_alpha.services import (
-    BuildingADS as BuildingADSLogic,
-    can_manage_ads_in_request,
-)
+from api_alpha.services import BuildingADS as BuildingADSLogic
+from api_alpha.services import can_manage_ads_in_request
 from api_alpha.validators import ads_validate_rnbid
 from api_alpha.validators import ADSValidator
 from api_alpha.validators import BdgInADSValidator
@@ -15,7 +12,6 @@ from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Contribution
 from batid.services.rnb_id import clean_rnb_id
-from rest_framework_gis.fields import GeometryField
 
 
 class RNBIdField(serializers.CharField):

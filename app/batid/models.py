@@ -214,6 +214,7 @@ class BuildingADS(models.Model):
     class Meta:
         unique_together = ("rnb_id", "ads")
 
+
 class Candidate(models.Model):
     shape = models.GeometryField(null=True, srid=4326, spatial_index=False)
     source = models.CharField(max_length=20, null=False)

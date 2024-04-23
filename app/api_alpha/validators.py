@@ -1,5 +1,3 @@
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos.error import GEOSException
 from rest_framework import serializers
 
 from batid.models import Building
