@@ -4,7 +4,9 @@ from datetime import datetime
 from typing import List
 from typing import Optional
 from typing import Type
+
 from django.db.models import Model
+
 from batid.models import ADS as ADSModel
 from batid.models import AsyncSignal as SignalModel
 from batid.services.model_code import code_to_cls_name

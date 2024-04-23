@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     "xp",
     "django_extensions",
     "revproxy",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -158,6 +159,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 30,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

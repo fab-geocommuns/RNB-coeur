@@ -9,7 +9,8 @@ from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Organization
-from batid.tests.helpers import create_cenac, create_from_geojson_feature
+from batid.tests.helpers import create_cenac
+from batid.tests.helpers import create_from_geojson_feature
 from batid.tests.helpers import create_grenoble
 from batid.tests.helpers import create_paris
 

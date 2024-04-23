@@ -2,7 +2,8 @@ import json
 
 from django.contrib.auth.models import User
 
-from batid.models import ADS, City
+from batid.models import ADS
+from batid.models import City
 
 
 def get_managed_insee_codes(user: User) -> list:

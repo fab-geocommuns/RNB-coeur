@@ -1,12 +1,13 @@
 import json
 
-from django.contrib.gis.geos import GEOSGeometry, GEOSException
+from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSException
+from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.exceptions import ValidationError
 
+from batid.services.ads import can_manage_ads_in_cities
 from batid.services.ads import get_cities
 from batid.services.rnb_id import clean_rnb_id
-from django.contrib.auth.models import User
-from batid.services.ads import can_manage_ads_in_cities
 
 
 class BuildingADS:

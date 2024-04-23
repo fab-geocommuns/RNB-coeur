@@ -1,6 +1,7 @@
 from rest_framework import permissions
-from api_alpha.services import calc_ads_request_cities, can_manage_ads_in_request
-from batid.services.ads import can_manage_ads_in_cities, can_manage_ads
+
+from api_alpha.services import can_manage_ads_in_request
+from batid.services.ads import can_manage_ads
 
 
 class ADSPermission(permissions.BasePermission):

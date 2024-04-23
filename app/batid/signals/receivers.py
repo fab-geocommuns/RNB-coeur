@@ -8,7 +8,6 @@ from batid.models import ADS
 from batid.models import ADSAchievement
 from batid.models import AsyncSignal
 from batid.models import Building
-from batid.models import BuildingADS
 from batid.services.signal import create_async_signal
 
 

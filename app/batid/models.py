@@ -203,7 +203,6 @@ class BuildingADS(models.Model):
     # building = models.ForeignKey(Building, on_delete=models.CASCADE)
     rnb_id = models.CharField(max_length=12, null=True)
     shape = models.GeometryField(null=True, srid=4326)
-
     ads = models.ForeignKey(
         ADS, related_name="buildings_operations", on_delete=models.CASCADE
     )
@@ -214,7 +213,6 @@ class BuildingADS(models.Model):
 
     class Meta:
         unique_together = ("rnb_id", "ads")
-
 
 class Candidate(models.Model):
     shape = models.GeometryField(null=True, srid=4326, spatial_index=False)

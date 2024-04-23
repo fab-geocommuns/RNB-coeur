@@ -1,6 +1,7 @@
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
+
 from api_alpha.services import (
     BuildingADS as BuildingADSLogic,
     can_manage_ads_in_request,
