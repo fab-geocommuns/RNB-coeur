@@ -59,9 +59,11 @@ class Command(BaseCommand):
         print(
             confident_df["guess_matches"]
             .apply(
-                lambda x: x[0]["sub_scores"].get("point_distance", 0) >= 5
-                if len(x) > 0
-                else False
+                lambda x: (
+                    x[0]["sub_scores"].get("point_distance", 0) >= 5
+                    if len(x) > 0
+                    else False
+                )
             )
             .value_counts()
             .sort_index()
@@ -82,9 +84,11 @@ class Command(BaseCommand):
         print(
             unconfident_df["guess_matches"]
             .apply(
-                lambda x: round(x[0]["abs_score"], 0)
-                if len(x) > 0 and x[0]["abs_score"] is not None
-                else None
+                lambda x: (
+                    round(x[0]["abs_score"], 0)
+                    if len(x) > 0 and x[0]["abs_score"] is not None
+                    else None
+                )
             )
             .value_counts()
             .sort_index()
@@ -96,9 +100,9 @@ class Command(BaseCommand):
         print(
             with_point_df["guess_matches"]
             .apply(
-                lambda x: "point_distance" in x[0]["sub_scores"]
-                if len(x) > 0
-                else False
+                lambda x: (
+                    "point_distance" in x[0]["sub_scores"] if len(x) > 0 else False
+                )
             )
             .value_counts()
             .sort_index()
