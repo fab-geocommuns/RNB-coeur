@@ -3,6 +3,7 @@ import gzip
 import os
 import tarfile
 import zipfile
+from datetime import datetime
 
 import nanoid
 import py7zr
@@ -45,6 +46,10 @@ class Source:
             # },
             # ######
             # For BD TOPO we use the edition name (eg: bdtopo_2023_09) as the source name for continental data. DROM COM source names are suffixed with _{dpt}
+            "french_cadastre": {
+                "url": "https://cadastre.data.gouv.fr/data/etalab-cadastre/{{release_date}}/geojson/departements/{{dpt}}/cadastre-{{dpt}}-batiments.json.gz",
+                "filename": "cadastre-{{dpt}}-batiments.json",
+            },
             "bdtopo_2023_09": {
                 "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15.7z",
                 "filename": "BATIMENT.shp",
@@ -289,3 +294,42 @@ def bdtopo_source_switcher(source_name: str, dpt: str) -> str:
         return f"{source_name}_{dpt}"
 
     return source_name
+
+
+def french_cadastre_realease_dates() -> list:
+
+    return [
+        #
+        "2024-01-01",
+        "2024-04-01",
+        "2024-07-01",
+        "2024-10-01",
+        #
+        "2025-01-01",
+        "2025-04-01",
+        "2025-07-01",
+        "2025-10-01",
+        #
+        "2026-01-01",
+        "2026-04-01",
+        "2026-07-01",
+        "2026-10-01",
+        #
+        "2027-01-01",
+        "2027-04-01",
+        "2027-07-01",
+        "2027-10-01",
+    ]
+
+
+def french_cadastre_most_recent_release_date(before: datetime.date) -> datetime.date:
+
+    realease_dates = [
+        datetime.strptime(date, "%Y-%m-%d").date()
+        for date in french_cadastre_realease_dates()
+    ]
+    ordered_dates = sorted(realease_dates)
+
+    for idx, date in enumerate(ordered_dates):
+        if date > before:
+            return ordered_dates[idx - 1]
