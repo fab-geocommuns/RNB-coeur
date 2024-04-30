@@ -214,8 +214,13 @@ class ClosestFromPointHandler(AbstractHandler):
                 future.add_done_callback(lambda future: connections.close_all())
                 tasks.append(future)
 
+            c = 0
             for future in concurrent.futures.as_completed(tasks):
                 guess = future.result()
+
+                c += 1
+                print(c)
+
                 guesses[guess["input"]["ext_id"]] = guess
 
         return guesses
