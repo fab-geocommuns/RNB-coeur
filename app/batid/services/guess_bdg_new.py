@@ -54,10 +54,11 @@ class Guesser:
         batches = self._guesses_to_batches()
 
         for batch in batches:
+
             batch = self.guess_batch(batch)
             self.guesses.update(batch)
 
-    def _guesses_to_batches(self, batch_size: int = 300):
+    def _guesses_to_batches(self, batch_size: int = 3000):
         batches = []
         batch = {}
 
@@ -96,6 +97,26 @@ class Guesser:
         print(match_reason_count)
         print("\n-- match_reasons : % --")
         print(match_reason_percentage)
+
+    def display_matches(
+        self,
+        reason: str,
+        count: int = 10,
+        cols: list = ["input_ext_id", "match_rnb_id", "match_reason"],
+    ):
+        data = list(self.guesses.values())
+
+        df = pd.json_normalize(data, sep="_")
+
+        # show keys
+        print(df.keys())
+
+        reasons = df[df["match_reason"] == reason]
+
+        # keep only some cols
+        reasons = reasons[cols]
+
+        print(reasons.sample(count))
 
     def save_work_file(self, file_path):
         self.convert_matches()
@@ -161,7 +182,7 @@ class AbstractHandler(ABC):
 
     def handle(self, guesses: dict) -> dict:
         to_guess, to_not_guess = self._split_guesses(guesses)
-        to_guess = self._guess_batch(guesses)
+        to_guess = self._guess_batch(to_guess)
 
         guesses = to_guess | to_not_guess
         guesses = self._add_finished_step(guesses)
@@ -173,6 +194,7 @@ class AbstractHandler(ABC):
         not_to_handle = {}
 
         for ext_id, guess in guesses.items():
+
             if self.name not in guess["finished_steps"] and guess["match"] is None:
                 to_handle[ext_id] = guess
             else:
@@ -214,13 +236,8 @@ class ClosestFromPointHandler(AbstractHandler):
                 future.add_done_callback(lambda future: connections.close_all())
                 tasks.append(future)
 
-            c = 0
             for future in concurrent.futures.as_completed(tasks):
                 guess = future.result()
-
-                c += 1
-                print(c)
-
                 guesses[guess["input"]["ext_id"]] = guess
 
         return guesses
@@ -287,6 +304,7 @@ class GeocodeAddressHandler(AbstractHandler):
         self.closest_radius = closest_radius
 
     def _guess_batch(self, guesses: dict) -> dict:
+
         for guess in guesses.values():
             guess = self._guess_one(guess)
             guesses[guess["input"]["ext_id"]] = guess
@@ -304,9 +322,12 @@ class GeocodeAddressHandler(AbstractHandler):
         # We sleep a little bit to avoid being throttled by the geocoder
         time.sleep(self.sleep_time)
 
-        ban_id = self._address_to_ban_id(address, lat, lng)
+        if not guess["input"].get("ban_id", None):
+            ban_id = self._address_to_ban_id(address, lat, lng)
+            if ban_id:
+                guess["input"]["ban_id"] = ban_id
 
-        if ban_id:
+        if guess["input"].get("ban_id", None):
             close_bdg_w_ban_id = get_closest(lat, lng, self.closest_radius).filter(
                 addresses__id=ban_id
             )
@@ -319,6 +340,9 @@ class GeocodeAddressHandler(AbstractHandler):
 
     @staticmethod
     def _address_to_ban_id(address: str, lat: float, lng: float) -> Optional[str]:
+
+        print(f"geocode : {address}")
+
         geocoder = BanGeocoder()
         geocode_response = geocoder.geocode(
             {
