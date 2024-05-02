@@ -1,4 +1,5 @@
 import concurrent
+import csv
 import json
 import time
 from abc import ABC
@@ -58,7 +59,7 @@ class Guesser:
             batch = self.guess_batch(batch)
             self.guesses.update(batch)
 
-    def _guesses_to_batches(self, batch_size: int = 3000):
+    def _guesses_to_batches(self, batch_size: int = 100):
         batches = []
         batch = {}
 
@@ -141,6 +142,36 @@ class Guesser:
             guesses = handler.handle(guesses)
 
         return guesses
+
+    def to_csv(self, file_path, ext_id_col_name="ext_id"):
+
+        self.convert_matches()
+
+        rows = []
+        for ext_id, guess in self.guesses.items():
+
+            rnb_id = None
+            reason = None
+
+            match = guess.get("match", None)
+            if match:
+                rnb_id = match.get("rnb_id", None)
+                reason = guess.get("match_reason", None)
+
+            rows.append(
+                {
+                    ext_id_col_name: ext_id,
+                    "rnb_id": rnb_id,
+                    "match_reason": reason,
+                }
+            )
+
+        with open(file_path, "w") as f:
+            writer = csv.DictWriter(
+                f, fieldnames=[ext_id_col_name, "rnb_id", "match_reason"]
+            )
+            writer.writeheader()
+            writer.writerows(rows)
 
     @staticmethod
     def _inputs_to_guesses(inputs) -> dict:
@@ -322,6 +353,7 @@ class GeocodeAddressHandler(AbstractHandler):
         # We sleep a little bit to avoid being throttled by the geocoder
         time.sleep(self.sleep_time)
 
+        # If we laready have a ban_id, we don't need to geocode again
         if not guess["input"].get("ban_id", None):
             ban_id = self._address_to_ban_id(address, lat, lng)
             if ban_id:
@@ -340,8 +372,6 @@ class GeocodeAddressHandler(AbstractHandler):
 
     @staticmethod
     def _address_to_ban_id(address: str, lat: float, lng: float) -> Optional[str]:
-
-        print(f"geocode : {address}")
 
         geocoder = BanGeocoder()
         geocode_response = geocoder.geocode(
