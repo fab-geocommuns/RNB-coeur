@@ -64,8 +64,24 @@ class BuildingAbstract(models.Model):
         abstract = True
 
 
+class BuildingAddressesReadOnly(models.Model):
+    building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
+    address = models.ForeignKey("Address", on_delete=models.CASCADE, db_index=True)
+
+    class Meta:
+        unique_together = ("building", "address")
+
+
 class Building(BuildingAbstract):
     addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
+
+    addresses_id = ArrayField(models.CharField(max_length=40), null=True)
+    addresses_read_only = models.ManyToManyField(
+        "Address",
+        blank=True,
+        related_name="buildings_read_only",
+        through="BuildingAddressesReadOnly",
+    )
 
     def add_ext_id(
         self, source: str, source_version: Optional[str], id: str, created_at: str
@@ -124,6 +140,7 @@ class Building(BuildingAbstract):
         ordering = ["rnb_id"]
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
+            GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
         ]
 
 
