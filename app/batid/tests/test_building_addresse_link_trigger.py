@@ -94,6 +94,7 @@ class AddressDeletionTrigger(TestCase):
         b3 = Building.objects.get(rnb_id="3")
         self.assertEqual(b3.addresses_id, [a2.id])
 
+        # the update of the buildings should have triggered the deletion of the links
         links = BuildingAddressesReadOnly.objects.all().order_by("building_id")
         self.assertEqual(links.count(), 2)
         self.assertEqual(links[0].building_id, b1.id)
