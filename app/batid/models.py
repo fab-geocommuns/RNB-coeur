@@ -59,6 +59,9 @@ class BuildingAbstract(models.Model):
     event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
     # only currently active buildings are considered part of the RNB
     is_active = models.BooleanField(db_index=True, default=True)
+    # this field is the source of truth for the building <> address link
+    # it contains BAN ids (clé d'interopérabilité)
+    addresses_id = ArrayField(models.CharField(max_length=40), null=True)
 
     class Meta:
         abstract = True
@@ -76,9 +79,6 @@ class Building(BuildingAbstract):
     # will be deleted soon
     addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
 
-    # this field is the source of truth for the building <> address link
-    # it contains BAN ids (clé d'interopérabilité)
-    addresses_id = ArrayField(models.CharField(max_length=40), null=True)
     # this only exists to make it possible for the Django ORM to access the associated addresses
     # but this field is read-only : you should not attempt to save a building/address association through this field
     # use addresses_id instead.
