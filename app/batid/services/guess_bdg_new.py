@@ -353,7 +353,7 @@ class GeocodeAddressHandler(AbstractHandler):
         # We sleep a little bit to avoid being throttled by the geocoder
         time.sleep(self.sleep_time)
 
-        # If we laready have a ban_id, we don't need to geocode again
+        # If we already have a ban_id, we don't need to geocode again
         if not guess["input"].get("ban_id", None):
             ban_id = self._address_to_ban_id(address, lat, lng)
             if ban_id:
