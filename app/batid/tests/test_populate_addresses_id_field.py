@@ -3,6 +3,7 @@ from django.test import TransactionTestCase
 from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingAddressesReadOnly
+from batid.models import BuildingHistoryOnly
 from batid.services.populate_addresses_id_field import launch_procedure
 
 
@@ -78,3 +79,7 @@ class TestPopulateAddressesIdField(TransactionTestCase):
             (read_only_links[5].building_id, read_only_links[5].address_id),
             (b3.id, a3.id),
         )
+
+        # check the versionning trigger has been disabled during the migration
+        building_history = BuildingHistoryOnly.objects.all()
+        self.assertEqual(building_history.count(), 0)

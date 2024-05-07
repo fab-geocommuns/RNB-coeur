@@ -13,6 +13,8 @@ def launch_procedure():
             DECLARE
                 min_id bigint; max_id bigint;
             BEGIN
+                ALTER TABLE public.batid_building DISABLE TRIGGER building_versioning_trigger;
+
                 SELECT min(id), max(id) INTO min_id, max_id FROM batid_building;
                 FOR j IN min_id..max_id LOOP
                     update batid_building bb set addresses_id = coalesce((select array_agg(address_id) from batid_building_addresses bba where building_id = bb.id group by building_id), '{}')
@@ -22,6 +24,7 @@ def launch_procedure():
 	                end if;
                     COMMIT;
                 END LOOP;
+               ALTER TABLE public.batid_building ENABLE TRIGGER building_versioning_trigger;
             END;
             $$;
         """
