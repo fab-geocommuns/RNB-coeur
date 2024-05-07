@@ -301,7 +301,7 @@ def french_cadastre_realease_dates() -> list:
     return [
         #
         "2024-01-01",
-        "2024-04-01",
+        # "2024-04-01",
         "2024-07-01",
         "2024-10-01",
         #
@@ -322,7 +322,7 @@ def french_cadastre_realease_dates() -> list:
     ]
 
 
-def french_cadastre_most_recent_release_date(before: datetime.date) -> datetime.date:
+def french_cadastre_most_recent_release_date(before: datetime.date) -> str:
 
     realease_dates = [
         datetime.strptime(date, "%Y-%m-%d").date()
@@ -332,4 +332,8 @@ def french_cadastre_most_recent_release_date(before: datetime.date) -> datetime.
 
     for idx, date in enumerate(ordered_dates):
         if date > before:
-            return ordered_dates[idx - 1]
+            return french_cadastre_date_format(ordered_dates[idx - 1])
+
+
+def french_cadastre_date_format(dt: datetime.date) -> str:
+    return dt.strftime("%Y-%m-%d")

@@ -28,11 +28,14 @@ class Inspector:
             if self.candidate is None:
                 return
 
-    def inspect_one(self):
+    def inspect_one(self, candidate: Candidate = None):
         self.reset()
 
         with transaction.atomic():
-            self.get_candidate()
+
+            if candidate is None:
+                self.get_candidate()
+
             if isinstance(self.candidate, Candidate):
                 self.get_matching_bdgs()
                 self.inspect_candidate()
