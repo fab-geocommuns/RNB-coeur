@@ -23,6 +23,9 @@ class TestPopulateAddressesIdField(TransactionTestCase):
         b3 = Building.objects.create(rnb_id="3")
         b3.addresses.set([a2, a3])
 
+        # building withtout address
+        b4 = Building.objects.create(rnb_id="4")
+
         # BuildingAddressesReadOnly is empty before the data migration
         read_only_links = BuildingAddressesReadOnly.objects.all()
         self.assertEqual(read_only_links.count(), 0)
@@ -40,6 +43,9 @@ class TestPopulateAddressesIdField(TransactionTestCase):
         b3 = Building.objects.get(rnb_id="3")
         b3.addresses_id.sort()
         self.assertEqual(b3.addresses_id, [a2.id, a3.id])
+
+        b4 = Building.objects.get(rnb_id="4")
+        self.assertEqual(b4.addresses_id, [])
 
         # BuildingAddressesReadOnly is populated (through the trigger)
         read_only_links = BuildingAddressesReadOnly.objects.all().order_by(
