@@ -1,11 +1,12 @@
 from django.test import TestCase
+from django.test import TransactionTestCase
 
 from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingAddressesReadOnly
 
 
-class BuildingAddressLinkCase(TestCase):
+class BuildingAddressLinkCase(TransactionTestCase):
     def test_create_building(self):
         links_n = BuildingAddressesReadOnly.objects.count()
         self.assertEqual(links_n, 0)
@@ -67,6 +68,16 @@ class BuildingAddressLinkCase(TestCase):
         # deletion of the building triggers the deletion of the links
         links_n = BuildingAddressesReadOnly.objects.count()
         self.assertEqual(links_n, 0)
+
+    def test_create_building_with_non_existing_address(self):
+        from django.db.utils import IntegrityError
+
+        a1 = Address.objects.create(id="address_1")
+
+        with self.assertRaises(IntegrityError):
+            Building.objects.create(
+                rnb_id="1", addresses_id=[a1.id, "salut je suis un hacker ahahah"]
+            )
 
 
 class AddressDeletionTrigger(TestCase):
