@@ -13,7 +13,7 @@ def launch_procedure():
             DECLARE
                 min_id bigint; max_id bigint;
             BEGIN
-                SELECT min(id), max(id) INTO min_id, max_id FROM batid_building;
+                SELECT min(id), max(id) INTO min_id, max_id FROM batid_building where addresses_id IS NULL;
                 FOR j IN min_id..max_id LOOP
                     update batid_building bb set addresses_id = (select array_agg(address_id) from batid_building_addresses bba where building_id = bb.id group by building_id)
                     where bb.id = j;
