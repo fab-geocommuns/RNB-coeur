@@ -1,10 +1,10 @@
 from rest_framework.test import APITestCase
 
-from batid.tests.helpers import create_default_bdg, create_grenoble
+from batid.tests.helpers import create_default_bdg
+from batid.tests.helpers import create_grenoble
 
 
 class EndpointTest(APITestCase):
-
     def setUp(self):
 
         create_grenoble()

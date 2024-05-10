@@ -1,4 +1,4 @@
-from base64 import b64decode, b64encode
+from base64 import b64encode
 
 import requests
 from django.db import connection
@@ -10,7 +10,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.exceptions import ParseError
-from rest_framework.pagination import CursorPagination, BasePagination
+from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
