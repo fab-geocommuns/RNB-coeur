@@ -97,7 +97,7 @@ class BuildingCursorPagination(BasePagination):
 
     def __init__(self):
         self.base_url = None
-        self.current_page = 1
+        self.current_page = None
 
         self.has_next = False
         self.has_previous = False
@@ -158,6 +158,7 @@ class BuildingCursorPagination(BasePagination):
 
     def paginate_queryset(self, queryset, request, view=None):
 
+        # Get the current URL with all parameters
         self.base_url = request.build_absolute_uri()
 
         self.current_page = self.get_page(request)
