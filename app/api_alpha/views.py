@@ -178,6 +178,8 @@ class BuildingCursorPagination(BasePagination):
         if self.current_page > 1:
             self.has_previous = True
 
+        print(queryset.query)
+
         return results[: self.page_size]
 
     def get_page(self, request):
