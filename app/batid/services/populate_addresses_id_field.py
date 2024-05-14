@@ -19,12 +19,13 @@ def launch_procedure():
                 FOR j IN min_id..max_id LOOP
                     update batid_building bb set addresses_id = coalesce((select array_agg(address_id) from batid_building_addresses bba where building_id = bb.id group by building_id), '{}')
                     where bb.id = j;
-	                if (j % 1000 = 0) then
-	                    RAISE INFO 'committing data from % to % at %', j - 1000,j,now();
-	                end if;
-                    COMMIT;
+                    if (j % 10000 = 0) then
+                        COMMIT;
+                        RAISE INFO 'committing data from % to % at %', j - 10000,j,now();
+                    end if;
                 END LOOP;
-               ALTER TABLE public.batid_building ENABLE TRIGGER building_versioning_trigger;
+                COMMIT;
+                ALTER TABLE public.batid_building ENABLE TRIGGER building_versioning_trigger;
             END;
             $$;
         """
