@@ -129,38 +129,34 @@ class Inspector:
         self.candidate.save()
 
     def decide_creation(self):
-        # wrap in a transaction, because we want to create the building and update the candidate in the same transaction
-        with transaction.atomic():
-            # We build the new building
-            bdg = new_bdg_from_candidate(self.candidate)
-            bdg.save()
+        # We build the new building
+        bdg = new_bdg_from_candidate(self.candidate)
+        bdg.save()
 
-            # Finally, we update the candidate
-            self.candidate.inspection_details = {
-                "decision": "creation",
-                "rnb_id": bdg.rnb_id,
-            }
+        # Finally, we update the candidate
+        self.candidate.inspection_details = {
+            "decision": "creation",
+            "rnb_id": bdg.rnb_id,
+        }
 
-            self.candidate.save()
+        self.candidate.save()
 
     def decide_update(self):
-        with transaction.atomic():
-            bdg = Building.objects.get(id=self.matching_bdgs[0].id)
-            has_changed, bdg = self.calc_bdg_update(bdg)
+        bdg = Building.objects.get(id=self.matching_bdgs[0].id)
+        has_changed, bdg = self.calc_bdg_update(bdg)
 
-            if has_changed:
-                bdg.save()
+        if has_changed:
+            bdg.save()
 
-            # Finally, we update the candidate
-            self.candidate.inspection_details = {
-                "decision": "update",
-                "rnb_id": bdg.rnb_id,
-            }
-            self.candidate.save()
+        # Finally, we update the candidate
+        self.candidate.inspection_details = {
+            "decision": "update",
+            "rnb_id": bdg.rnb_id,
+        }
+        self.candidate.save()
 
     def calc_bdg_update(self, bdg: Building):
         has_changed = False
-        added_address_keys = []
 
         # ##############################
         # PROPERTIES
@@ -195,9 +191,15 @@ class Inspector:
         # ##############################
         # ADDRESSES
         # Handle change in addresses
-        if bdg.addresses_id.sort() != self.candidate.address_keys.sort():
+        def sort_handle_null(lst):
+            return sorted(lst) if lst else []
+
+        bdg_addresses = sort_handle_null(bdg.addresses_id)
+        candidate_addresses = sort_handle_null(self.candidate.address_keys)
+        if bdg_addresses != candidate_addresses:
             has_changed = True
-            bdg.addresses_id = self.candidate.address_keys
+            # concatenate the two lists and remove duplicates
+            bdg.addresses_id = list(set(bdg_addresses + candidate_addresses))
 
         if has_changed:
             bdg.event_origin = self.candidate.created_by
