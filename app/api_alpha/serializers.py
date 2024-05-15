@@ -43,19 +43,26 @@ class AddressSerializer(serializers.ModelSerializer):
 
 class BuildingSerializer(serializers.ModelSerializer):
     point = serializers.DictField(source="point_geojson", read_only=True)
-    addresses = AddressSerializer(many=True, read_only=True)
+    addresses_read_only = AddressSerializer(many=True, read_only=True)
     ext_ids = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Building
-        fields = ["rnb_id", "status", "point", "addresses", "ext_ids", "is_active"]
+        fields = [
+            "rnb_id",
+            "status",
+            "point",
+            "addresses_read_only",
+            "ext_ids",
+            "is_active",
+        ]
 
 
 class GuessBuildingSerializer(serializers.ModelSerializer):
     score = serializers.FloatField(read_only=True)
     sub_scores = serializers.JSONField(read_only=True)
     point = serializers.DictField(source="point_geojson", read_only=True)
-    addresses = AddressSerializer(many=True, read_only=True)
+    addresses_read_only = AddressSerializer(many=True, read_only=True)
     ext_ids = serializers.JSONField(read_only=True)
 
     class Meta:
@@ -66,7 +73,7 @@ class GuessBuildingSerializer(serializers.ModelSerializer):
             "sub_scores",
             "status",
             "point",
-            "addresses",
+            "addresses_read_only",
             "ext_ids",
         ]
 
@@ -74,7 +81,7 @@ class GuessBuildingSerializer(serializers.ModelSerializer):
 class BuildingClosestSerializer(serializers.ModelSerializer):
     distance = serializers.SerializerMethodField()
     point = serializers.DictField(source="point_geojson", read_only=True)
-    addresses = AddressSerializer(many=True, read_only=True)
+    addresses_read_only = AddressSerializer(many=True, read_only=True)
 
     def get_distance(self, obj):
         return obj.distance.m
@@ -86,7 +93,7 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
             "distance",
             "status",
             "point",
-            "addresses",
+            "addresses_read_only",
             "ext_ids",
         ]
 

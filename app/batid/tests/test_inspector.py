@@ -82,8 +82,8 @@ class TestInspectorBdgCreate(TestCase):
 
         # Check the building has two adresses
         b = Building.objects.all().first()
-        self.assertEqual(b.addresses.count(), 2)
-        addresses_ids = [a.id for a in b.addresses.all()]
+        self.assertEqual(b.addresses_id.count(), 2)
+        addresses_ids = b.addresses_id
         self.assertIn("add_1", addresses_ids)
         self.assertIn("add_2", addresses_ids)
 
@@ -182,9 +182,9 @@ class TestInspectorBdgUpdate(TestCase):
 
         # Check the building has three adresses
         b = Building.objects.get(rnb_id="EXISTING")
-        self.assertEqual(b.addresses.count(), 3)
+        self.assertEqual(b.addresses_id.count(), 3)
 
-        addresses_ids = [a.id for a in b.addresses.all()]
+        addresses_ids = b.addresses_id
         self.assertIn("add_1", addresses_ids)
         self.assertIn("add_2", addresses_ids)
         self.assertIn("add_3", addresses_ids)
