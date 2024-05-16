@@ -47,7 +47,12 @@ def create_directory():
 def create_csv(directory_name, code_area):
     with connection.cursor() as cursor:
         if code_area == "nat":
-            sql = "COPY (SELECT rnb_id, geom, bati, external_ids FROM opendata.rnb_compact) TO STDOUT WITH CSV HEADER DELIMITER ';'"
+            #sql = "COPY (SELECT rnb_id, geom, bati, external_ids, code_dept FROM opendata.rnb_compact) TO STDOUT WITH CSV HEADER DELIMITER ';'"
+            #sql = "COPY (SELECT *, st_astext(point) , st_astext(shape) FROM batid_building) TO STDOUT WITH CSV HEADER DELIMITER ';'"
+            sql = "COPY (SELECT *, st_astext(shape) FROM batid_department) TO STDOUT WITH CSV HEADER DELIMITER ';'"
+            #batid_building_addresses
+            #batid_address
+            #batid_department
         else:
             sql = "COPY (SELECT rnb_id, geom, bati, external_ids FROM opendata.rnb_compact WHERE code_dept = '" + code_area + "') TO STDOUT WITH CSV HEADER DELIMITER ';'"
 

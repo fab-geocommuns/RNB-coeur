@@ -40,15 +40,20 @@ def get_geom():
 def get_department_geom():
     coords = {
         "coordinates": [
-            [2.238184771496691, 48.90857365031127],
-            [2.238184771496691, 48.812797283252735],
-            [2.425226858137023, 48.812797283252735],
-            [2.425226858137023, 48.90857365031127],
-            [2.238184771496691, 48.90857365031127]
-          ],
+            [
+                [2.238184771496691, 48.90857365031127],
+                [2.238184771496691, 48.812797283252735],
+                [2.425226858137023, 48.812797283252735],
+                [2.425226858137023, 48.90857365031127],
+                [2.238184771496691, 48.90857365031127]
+            ]
+        ],
         "type": "MultiPolygon",
     }
-
+    print("DEBUG-1: ")
+    print(json.dumps(coords))
+    print("DEBUG-2: ")
+    print(GEOSGeometry(json.dumps(coords), srid=4326))
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
 
@@ -60,6 +65,8 @@ class TestDataGouvPublication(TestCase):
             name="Paris",
             shape=get_department_geom()
         )
+        print("DEBUG-3: ")
+        print(get_department_geom())
         address = Address.objects.create(
             source="BAN",
             point=geom.point_on_surface,
@@ -77,7 +84,7 @@ class TestDataGouvPublication(TestCase):
         building.save()
 
         directory_name = create_directory()
-        area = "75"
+        area = "nat"
         create_csv(directory_name, area)
 
         # Check if the directory exists
@@ -107,7 +114,7 @@ class TestDataGouvPublication(TestCase):
         # assert sha is not empty
         self.assertTrue(archive_sha1)
 
-        cleanup_directory(directory_name)
+        #cleanup_directory(directory_name)
 
         # check the directory has been removed
         self.assertFalse(os.path.exists(directory_name))
@@ -188,7 +195,7 @@ class TestDataGouvPublication(TestCase):
             },
         )
 
-    @mock.patch("batid.services.data_gouv_publication.requests.put")
+    @mock.patch("batid.services.data_gouv_publication.requests.post")
     @mock.patch.dict(
         os.environ,
         {
@@ -196,8 +203,8 @@ class TestDataGouvPublication(TestCase):
             "DATA_GOUV_BASE_URL": "https://data.gouv.fr"
         },
     )
-    def test_create_resource_on_data_gouv(self, put_mock):
-        put_mock.return_value.status_code = 200
+    def test_create_resource_on_data_gouv(self, post_mock):
+        post_mock.return_value.status_code = 200
         title = "Export du RNB"
         description = "Export du RNB au format csv pour un territoire français."
         public_url = "some-url"
@@ -205,7 +212,7 @@ class TestDataGouvPublication(TestCase):
             "some-dataset-id", title, description, public_url, "csv"
         )
 
-        put_mock.assert_called_with(
+        post_mock.assert_called_with(
             f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/",
             headers={
                 "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
@@ -233,7 +240,7 @@ class TestDataGouvPublication(TestCase):
         put_mock.return_value.status_code = 200
         archive_sha1 = "some-sha1"
         publish_on_data_gouv(
-            "75", "some-url", 1234, archive_sha1
+            "nat", "some-url", 1234, archive_sha1
         )
 
         put_mock.assert_called_with(
