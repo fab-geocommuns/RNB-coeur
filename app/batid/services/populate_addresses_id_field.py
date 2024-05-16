@@ -14,7 +14,7 @@ def launch_procedure():
                 min_id bigint; max_id bigint;
             BEGIN
                 ALTER TABLE public.batid_building DISABLE TRIGGER building_versioning_trigger;
-                SELECT max(building_id) INTO min_id FROM batid_buildingaddressesreadonly bb ;
+                SELECT COALESCE(max(building_id), 0) INTO min_id FROM batid_buildingaddressesreadonly bb ;
                 SELECT max(id) INTO max_id FROM batid_building where addresses_id IS NULL;
 
                 RAISE INFO 'working from % to %', min_id, max_id;
