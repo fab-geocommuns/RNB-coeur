@@ -1,7 +1,6 @@
 import hashlib
 import logging
 import os
-import shutil
 from datetime import datetime
 from zipfile import ZIP_DEFLATED
 from zipfile import ZipFile
@@ -10,21 +9,22 @@ import boto3
 import requests
 from django.db import connection
 
-def publish(areas_list):
+def publish(depts, format):
     # Publish the RNB on data.gouv.fr
     directory_name = create_directory()
-    print(str(len(areas_list)) + ' area(s) to process...')
+    print(str(len(depts)) + ' departments to process...')
 
     try:
-        for area in areas_list:
-            print('Processing area: ' + area)
-            create_csv(directory_name, area)
-            (archive_path, archive_size, archive_sha1) = create_archive(directory_name, area)
+        for dept in depts:
+            print('Processing dept: ' + dept)
+            create_rnb_files(directory_name, dept, format)
+            (archive_path, archive_size, archive_sha1) = create_archive(directory_name, dept, format)
             # Delete file after archiving
-            drop_file(directory_name + "/rnb_" + area + ".csv")
+            drop_file(directory_name + "/rnb_building_" + dept + "." + format)
+            drop_file(directory_name + "/rnb_address_" + dept + "." + format)
             
             # public_url = upload_to_s3(archive_path)
-            # publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
+            # publish_on_data_gouv(public_url, archive_size, archive_sha1)
             # Delete archive after pushed on S3
             drop_file(archive_path)
     except Exception as e:
@@ -44,14 +44,31 @@ def create_directory():
     return directory_name
 
 
-def create_csv(directory_name, code_area):
-    with connection.cursor() as cursor:
-        if code_area == "nat":
-            sql = "COPY (SELECT rnb_id, geom, bati, external_ids FROM opendata.rnb_compact) TO STDOUT WITH CSV HEADER DELIMITER ';'"
-        else:
-            sql = "COPY (SELECT rnb_id, geom, bati, external_ids FROM opendata.rnb_compact WHERE code_dept = '" + code_area + "') TO STDOUT WITH CSV HEADER DELIMITER ';'"
+def create_rnb_files(directory_name, code_dept, format):
+    if format == "csv":
+        create_rnb_csv_files(directory_name, code_dept)
+    
 
-        with open(f"{directory_name}/rnb_{code_area}.csv", "w") as fp:
+def create_rnb_csv_files(directory_name, code_dept):
+    create_building_csv(directory_name, code_dept)
+    create_address_csv(directory_name, code_dept)
+
+    return True
+
+
+def create_building_csv(directory_name, code_dept):
+    with connection.cursor() as cursor:
+        sql = "COPY (SELECT rnb_id, geom, bati, external_ids FROM opendata.rnb_compact WHERE code_dept = '" + code_dept + "') TO STDOUT WITH CSV HEADER DELIMITER ';'"
+
+        with open(f"{directory_name}/rnb_building_{code_dept}.csv", "w") as fp:
+            cursor.copy_expert(sql, fp)
+
+
+def create_address_csv(directory_name, code_dept):
+    with connection.cursor() as cursor:
+        sql = "COPY (SELECT rnb_id, address_code, address_source, street_number, street_rep, street_type, street_name, city_zipcode, city_code, city_name FROM opendata.rnb_addr WHERE city_code LIKE '" + code_dept + "%') TO STDOUT WITH CSV HEADER DELIMITER ';'"
+
+        with open(f"{directory_name}/rnb_address_{code_dept}.csv", "w") as fp:
             cursor.copy_expert(sql, fp)
 
 
@@ -65,12 +82,13 @@ def sha1sum(filename):
     return h.hexdigest()
 
 
-def create_archive(directory_name, code):
+def create_archive(directory_name, code_dept, format):
     files = os.listdir(directory_name)
-    archive_path = f"{directory_name}/RNB_{code}.csv.zip"
+    archive_path = f"{directory_name}/RNB_{code_dept}.{format}.zip"
 
     with ZipFile(archive_path, "w", ZIP_DEFLATED) as zip:
-        zip.write(f"{directory_name}/rnb_{code}.csv")
+        zip.write(f"{directory_name}/rnb_building_{code_dept}.{format}")
+        zip.write(f"{directory_name}/rnb_address_{code_dept}.{format}")
 
     archive_size = os.path.getsize(archive_path)
 
@@ -89,7 +107,6 @@ def upload_to_s3(archive_path):
     S3_SCALEWAY_ENDPOINT_URL = os.environ.get("S3_SCALEWAY_ENDPOINT_URL")
     S3_SCALEWAY_REGION_NAME = os.environ.get("S3_SCALEWAY_REGION_NAME")
     S3_SCALEWAY_BUCKET_NAME = os.environ.get("S3_SCALEWAY_BUCKET_NAME")
-    S3_SCALEWAY_OPENDATA_DIRECTORY = os.environ.get("S3_SCALEWAY_OPENDATA_DIRECTORY")
 
     s3 = boto3.client(
         "s3",
@@ -100,7 +117,7 @@ def upload_to_s3(archive_path):
     )
     # extract file name from archive path
     archive_name = os.path.basename(archive_path)
-    folder_on_bucket = S3_SCALEWAY_OPENDATA_DIRECTORY
+    folder_on_bucket = "data.gouv.fr"
     path_on_bucket = f"{folder_on_bucket}/{archive_name}"
 
     # Scaleway S3's maximum number of parts for multipart upload
@@ -108,6 +125,7 @@ def upload_to_s3(archive_path):
     # compute the corresponding part size
     archive_size = os.path.getsize(archive_path)
     part_size = max(1,int(archive_size * 1.2 / MAX_PARTS))
+    print(part_size)
     config = boto3.s3.transfer.TransferConfig(multipart_chunksize=part_size)
 
     s3.upload_file(
@@ -126,57 +144,17 @@ def upload_to_s3(archive_path):
     return public_url
 
 
-def publish_on_data_gouv(area, public_url, archive_size, archive_sha1):
+def publish_on_data_gouv(public_url, archive_size, archive_sha1):
     # publish the archive on data.gouv.fr
     dataset_id = os.environ.get("DATA_GOUV_DATASET_ID")
-    resource_id = data_gouv_resource_id(dataset_id, area)
-    # ressource already exists
-    if resource_id is not None:
-        update_resource_metadata(
-            dataset_id, resource_id, public_url, archive_size, archive_sha1
-        )
-    # ressource don't exist
-    else:
-        if area == 'nat':
-            title = "Export National"
-            description = "Export du RNB au format csv pour l’ensemble du territoire français."
-        else:
-            title = "Export Départemental " + area
-            description = "Export du RNB au format csv pour le département " + area + "."
-        data_gouv_create_resource(dataset_id, title, description, public_url, 'zip')
-
-    return True
-
-
-def data_gouv_create_resource(dataset_id, title, description, public_url, format=zip):
-    # get the resource id from data.gouv.fr
-    DATA_GOUV_BASE_URL = os.environ.get("DATA_GOUV_BASE_URL")
-    dataset_url = f"{DATA_GOUV_BASE_URL}/api/1/datasets/{dataset_id}/resources/"
-    headers = {
-        "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"), 
-        "Content-Type": "application/json"
-        }
-
-    response = requests.post(
-        dataset_url,
-        headers=headers,
-        json={
-            "title": title,
-            "description": description,
-            "type": "main",
-            "url": public_url,
-            "filetype": "remote",
-            "format": "csv",
-        },
+    resource_id = data_gouv_resource_id(dataset_id)
+    update_resource_metadata(
+        dataset_id, resource_id, public_url, archive_size, archive_sha1
     )
-
-    if response.status_code != 200:
-        raise Exception("Error while creating the resource")
-
     return True
 
 
-def data_gouv_resource_id(dataset_id, area):
+def data_gouv_resource_id(dataset_id):
     # get the resource id from data.gouv.fr
     DATA_GOUV_BASE_URL = os.environ.get("DATA_GOUV_BASE_URL")
     dataset_url = f"{DATA_GOUV_BASE_URL}/api/1/datasets/{dataset_id}/"
@@ -189,12 +167,14 @@ def data_gouv_resource_id(dataset_id, area):
         res = response.json()
         resources = res["resources"]
         for resource in resources:
-            if resource["format"] == "zip" and resource["title"] == area:
+            if resource["format"] == "zip":
                 return resource["id"]
         raise Exception("No zip resource found on the dataset")
 
 
-def update_resource_metadata(dataset_id, resource_id, public_url, archive_size, archive_sha1):
+def update_resource_metadata(
+    dataset_id, resource_id, public_url, archive_size, archive_sha1
+):
     # update the resource url on data.gouv.fr
     DATA_GOUV_BASE_URL = os.environ.get("DATA_GOUV_BASE_URL")
     update_url = (
@@ -219,7 +199,7 @@ def update_resource_metadata(dataset_id, resource_id, public_url, archive_size, 
 
 
 def cleanup_directory(directory_name):
-    shutil.rmtree(directory_name)
+    os.removedirs(directory_name)
 
 
 def drop_file(path):
