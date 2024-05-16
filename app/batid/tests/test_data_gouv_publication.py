@@ -11,41 +11,44 @@ from batid.models import Address
 from batid.models import Building
 from batid.models import Department
 from batid.services.data_gouv_publication import cleanup_directory
-from batid.services.data_gouv_publication import create_directory
-from batid.services.data_gouv_publication import create_csv
 from batid.services.data_gouv_publication import create_archive
-from batid.services.data_gouv_publication import upload_to_s3
-from batid.services.data_gouv_publication import data_gouv_resource_id
-from batid.services.data_gouv_publication import update_resource_metadata
-from batid.services.data_gouv_publication import publish_on_data_gouv
+from batid.services.data_gouv_publication import create_csv
+from batid.services.data_gouv_publication import create_directory
 from batid.services.data_gouv_publication import data_gouv_create_resource
+from batid.services.data_gouv_publication import data_gouv_resource_id
+from batid.services.data_gouv_publication import publish_on_data_gouv
+from batid.services.data_gouv_publication import update_resource_metadata
+from batid.services.data_gouv_publication import upload_to_s3
 
 
 def get_geom():
     coords = {
         "coordinates": [
             [
-            [2.3355675064573234, 48.86527682329017],
-            [2.3337371881478646, 48.863794276245784],
-            [2.335572829422773, 48.862958671187045],
-            [2.334026055739656, 48.862126337971404],
-            [2.3355675064573234, 48.86527682329017]
+                [2.335567506457323, 48.86527682329017],
+                [2.333737188147865, 48.863794276245784],
+                [2.335572829422773, 48.862958671187045],
+                [2.334026055739656, 48.862126337971404],
+                [2.335567506457323, 48.86527682329017],
             ]
         ],
-        "type": "MultiPolygon",
+        "type": "Polygon",
     }
 
     return GEOSGeometry(json.dumps(coords), srid=4326)
+
 
 def get_department_geom():
     coords = {
         "coordinates": [
             [
-                [2.238184771496691, 48.90857365031127],
-                [2.238184771496691, 48.812797283252735],
-                [2.425226858137023, 48.812797283252735],
-                [2.425226858137023, 48.90857365031127],
-                [2.238184771496691, 48.90857365031127]
+                [
+                    [2.238184771496691, 48.90857365031127],
+                    [2.238184771496691, 48.812797283252735],
+                    [2.425226858137023, 48.812797283252735],
+                    [2.425226858137023, 48.90857365031127],
+                    [2.238184771496691, 48.90857365031127],
+                ]
             ]
         ],
         "type": "MultiPolygon",
@@ -61,9 +64,7 @@ class TestDataGouvPublication(TestCase):
     def test_archive_creation_deletion(self):
         geom = get_geom()
         department = Department.objects.create(
-            code="75",
-            name="Paris",
-            shape=get_department_geom()
+            code="75", name="Paris", shape=get_department_geom()
         )
         print("DEBUG-3: ")
         print(get_department_geom())
@@ -98,15 +99,18 @@ class TestDataGouvPublication(TestCase):
         with open(f"{directory_name}/rnb_{area}.csv", "r") as f:
             content = f.read()
             self.assertIn(
-                #"id,rnb_id,point,created_at,updated_at,shape,ext_ids", content
-                "rnb_id;geom;bati;external_ids", content
+                # "id,rnb_id,point,created_at,updated_at,shape,ext_ids", content
+                "rnb_id;geom;bati;external_ids",
+                content,
             )
             self.assertIn("BDG-CONSTR", content)
             self.assertIn("MULTIPOLYGON", content)
             self.assertIn("POINT", content)
             self.assertIn("some_source", content)
 
-        (archive_path, archive_size, archive_sha1) = create_archive(directory_name, area)
+        (archive_path, archive_size, archive_sha1) = create_archive(
+            directory_name, area
+        )
 
         # check the archive exists
         self.assertTrue(os.path.exists(archive_path))
@@ -114,7 +118,7 @@ class TestDataGouvPublication(TestCase):
         # assert sha is not empty
         self.assertTrue(archive_sha1)
 
-        #cleanup_directory(directory_name)
+        # cleanup_directory(directory_name)
 
         # check the directory has been removed
         self.assertFalse(os.path.exists(directory_name))
@@ -140,10 +144,12 @@ class TestDataGouvPublication(TestCase):
             ext_ids={"some_source": "1234"},
         )
         directory_name = create_directory()
-        area = 'nat'
+        area = "nat"
         create_csv(directory_name, area)
 
-        (archive_path, archive_size, archive_sha1) = create_archive(directory_name, area)
+        (archive_path, archive_size, archive_sha1) = create_archive(
+            directory_name, area
+        )
 
         # create the mock s3 bucket
         conn = boto3.resource("s3")
@@ -165,7 +171,10 @@ class TestDataGouvPublication(TestCase):
     def test_get_resource_id_on_data_gouv(self, get_mock):
         get_mock.return_value.status_code = 200
         get_mock.return_value.json.return_value = {
-            "resources": [{"id": "1", "title": "33", "format": "csv"}, {"id": "2", "title": "33", "format": "zip"}]
+            "resources": [
+                {"id": "1", "title": "33", "format": "csv"},
+                {"id": "2", "title": "33", "format": "zip"},
+            ]
         }
 
         resource_id = data_gouv_resource_id("some-dataset-id", "33")
@@ -200,7 +209,7 @@ class TestDataGouvPublication(TestCase):
         os.environ,
         {
             "DATA_GOUV_API_KEY": "DATA_GOUV_API_KEY",
-            "DATA_GOUV_BASE_URL": "https://data.gouv.fr"
+            "DATA_GOUV_BASE_URL": "https://data.gouv.fr",
         },
     )
     def test_create_resource_on_data_gouv(self, post_mock):
@@ -216,8 +225,8 @@ class TestDataGouvPublication(TestCase):
             f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/",
             headers={
                 "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
-                "Content-Type": "application/json"
-                },
+                "Content-Type": "application/json",
+            },
             json={
                 "title": title,
                 "description": description,
@@ -239,9 +248,7 @@ class TestDataGouvPublication(TestCase):
     def test_publishing_non_existing_resource_on_data_gouv(self, put_mock):
         put_mock.return_value.status_code = 200
         archive_sha1 = "some-sha1"
-        publish_on_data_gouv(
-            "nat", "some-url", 1234, archive_sha1
-        )
+        publish_on_data_gouv("nat", "some-url", 1234, archive_sha1)
 
         put_mock.assert_called_with(
             f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/",
