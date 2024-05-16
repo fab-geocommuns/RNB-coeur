@@ -14,8 +14,11 @@ def launch_procedure():
                 min_id bigint; max_id bigint;
             BEGIN
                 ALTER TABLE public.batid_building DISABLE TRIGGER building_versioning_trigger;
+                SELECT max(building_id) INTO min_id FROM batid_buildingaddressesreadonly bb ;
+                SELECT max(id) INTO max_id FROM batid_building where addresses_id IS NULL;
 
-                SELECT min(id), max(id) INTO min_id, max_id FROM batid_building where addresses_id IS NULL;
+                RAISE INFO 'working from % to %', min_id, max_id;
+
                 FOR j IN min_id..max_id LOOP
                     update batid_building bb set addresses_id = coalesce((select array_agg(address_id) from batid_building_addresses bba where building_id = bb.id group by building_id), '{}')
                     where bb.id = j;
