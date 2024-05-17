@@ -5,7 +5,6 @@ from typing import List
 from typing import Optional
 from typing import Type
 
-from django.contrib.auth.models import User as UserModel
 from django.db.models import Model
 
 from batid.models import ADS as ADSModel
@@ -76,64 +75,6 @@ class SignalGear(ModelGear):
         return results
 
 
-# class BuildingADSGear(ModelGear):
-#     model_cls = BuildingADSModel
-
-#     def get_expected_bdg_status(self) -> List[BuildingStatusModel]:
-#         results = []
-
-#         if self.model.operation == "build":
-#             return self._get_expected_build_status()
-#         if self.model.operation == "modify":
-#             return self._get_expected_modify_status()
-#         if self.model.operation == "demolish":
-#             return self._get_expected_demolish_status()
-
-#         return results
-
-# def _get_expected_modify_status(self) -> List[BuildingStatusModel]:
-#     return []
-
-# def _get_expected_demolish_status(self) -> List[BuildingStatusModel]:
-#     results = []
-
-#     if isinstance(self.model.ads.achieved_at, date):
-#         results.append(
-#             BuildingStatusModel(
-#                 type="demolished",
-#                 building=self.model.building,
-#                 happened_at=self.model.ads.achieved_at,
-#                 is_current=True,
-#             )
-#         )
-
-#     return results
-
-# def _get_expected_build_status(self) -> List[BuildingStatusModel]:
-#     results = []
-
-#     results.append(
-#         BuildingStatusModel(
-#             type="constructionProject",
-#             building=self.model.building,
-#             happened_at=self.model.ads.decided_at,
-#             is_current=True,
-#         )
-#     )
-
-#     if isinstance(self.model.ads.achieved_at, date):
-#         results.append(
-#             BuildingStatusModel(
-#                 type="constructed",
-#                 building=self.model.building,
-#                 happened_at=self.model.ads.achieved_at,
-#                 is_current=True,
-#             )
-#         )
-
-#     return results
-
-
 class ADSGear(ModelGear):
     model_cls = ADSModel
 
@@ -149,40 +90,3 @@ class ADSGear(ModelGear):
     @property
     def rnb_ids(self) -> List[str]:
         return [op.building.rnb_id for op in self.model.buildings_operations.all()]
-
-
-class UserGear(ModelGear):
-    model_cls = UserModel
-
-    def get_managed_insee_codes(self) -> list:
-        codes = []
-        for org in self.model.organizations.all():
-            codes += org.managed_cities
-
-        return list(set(codes))
-
-
-# class BuildingGear(ModelGear):
-#     model_cls = BuildingModel
-
-#     def calc_missing_status(self) -> List[BuildingStatusModel]:
-#         results = []
-
-#         has_constructed_status = False
-#         has_post_constructed_status = False
-#         for status in self.model.status.all():
-#             if status.type == "constructed":
-#                 has_constructed_status = True
-#             if status.type in BuildingStatus.POST_CONSTRUCTED_KEYS:
-#                 has_post_constructed_status = True
-
-#         if not has_constructed_status and has_post_constructed_status:
-#             results.append(
-#                 BuildingStatusModel(
-#                     type="constructed",
-#                     building=self.model,
-#                     is_current=False,
-#                 )
-#             )
-
-#         return results

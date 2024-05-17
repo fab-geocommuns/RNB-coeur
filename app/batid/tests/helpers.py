@@ -6,7 +6,6 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from requests import Response
 
-from batid.models import ADS
 from batid.models import AsyncSignal
 from batid.models import Building
 from batid.models import City
@@ -1106,14 +1105,21 @@ def create_grenoble():
 
 def create_from_geojson(geojson_data):
     for feature in geojson_data["features"]:
-        geom = GEOSGeometry(json.dumps(feature["geometry"]), srid=4326)
+        create_from_geojson_feature(feature)
 
-        b = Building.objects.create(
-            rnb_id=feature["properties"]["rnb_id"],
-            shape=geom,
-            point=geom.point_on_surface,
-            status="constructed",
-        )
+
+def create_from_geojson_feature(feature) -> Building:
+
+    geom = GEOSGeometry(json.dumps(feature["geometry"]), srid=4326)
+
+    b = Building.objects.create(
+        rnb_id=feature["properties"]["rnb_id"],
+        shape=geom,
+        point=geom.point_on_surface,
+        status="constructed",
+    )
+
+    return b
 
 
 def coords_to_mp_geom(coords_list):
@@ -1155,12 +1161,6 @@ def create_default_bdg(rnb_id="DEFAULT"):
         [5.717918517856731, 45.178820091145724],
     ]
     return create_bdg(rnb_id, coords)
-
-
-def create_default_ads(city: City, file_number="PC1234"):
-    return ADS.objects.create(
-        file_number=file_number, decided_at="2023-01-01", city=city
-    )
 
 
 def mock_ban_geocoder_result(id: str, lng: float, lat: float, score=0.99) -> Response:

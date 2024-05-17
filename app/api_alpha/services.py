@@ -1,10 +1,12 @@
 import json
 
-from rest_framework import exceptions
-from rest_framework import serializers
+from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSException
+from django.contrib.gis.geos import GEOSGeometry
+from rest_framework.exceptions import ValidationError
 
-from api_alpha.permissions import ADSCityPermission
-from batid.models import City
+from batid.services.ads import can_manage_ads_in_cities
+from batid.services.ads import get_cities
 from batid.services.rnb_id import clean_rnb_id
 
 
@@ -12,106 +14,42 @@ class BuildingADS:
     OPERATIONS = ["build", "modify", "demolish"]
 
 
-class BdgInADS:
-    NEW_STR = "new"
-    GUESS_STR = "guess"
+def can_manage_ads_in_request(user: User, request_data) -> bool:
+    cities = calc_ads_request_cities(request_data)
+    return can_manage_ads_in_cities(user, cities)
 
 
-def calc_ads_cities(data):
-    rnb_ids = []
-    multipoints = {
-        "type": "MultiPoint",
-        "coordinates": [],
-    }
-    multipolygons = {
-        "type": "MultiPolygon",
-        "coordinates": [],
-    }
+def calc_ads_request_cities(data):
 
-    for op in data["buildings_operations"]:
-        if op["building"]["rnb_id"] == BdgInADS.GUESS_STR:
-            if op["building"]["geometry"]["type"] == "MultiPolygon":
-                for poly in op["building"]["geometry"]["coordinates"]:
-                    multipolygons["coordinates"].append(poly)
+    cities = []
 
-        if op["building"]["rnb_id"] == BdgInADS.NEW_STR:
-            if op["building"]["geometry"]["type"] == "Point":
-                # Add the op point to the multipoints
-                multipoints["coordinates"].append(
-                    op["building"]["geometry"]["coordinates"]
-                )
+    if "buildings_operations" in data:
 
-            elif op["building"]["geometry"]["type"] == "MultiPolygon":
-                # Add each polygon of each op multipolygon to the multipolygon
-                for poly in op["building"]["geometry"]["coordinates"]:
-                    multipolygons["coordinates"].append(poly)
+        rnb_ids = []
+        geojson_geometries = []
 
-        else:
-            rnb_ids.append(clean_rnb_id(op["building"]["rnb_id"]))
+        for op in data["buildings_operations"]:
 
-    """
-        Toutes les villes qui soit :
-        - contiennent un batiment dont le rnb_id est dans la liste des rnb_id
-        - soit contiennent un point dans la liste des points
-        - soit contiennent un multipolygone dans la liste des multipolygones
-    """
-    wheres = []
+            # Check the rnb_id
+            rnb_id = op.get("rnb_id", None)
+            if rnb_id:
+                rnb_ids.append(clean_rnb_id(rnb_id))
 
-    if rnb_ids:
-        wheres.append(
-            "EXISTS (SELECT 1 FROM batid_building as b WHERE b.rnb_id IN %(rnb_ids)s AND ST_Intersects(b.point, c.shape))"
-        )
+            # Check the geometry
+            shape = op.get("shape", None)
 
-    if multipoints["coordinates"]:
-        wheres.append(
-            "ST_Intersects(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(multipoints)s), 4326), %(db_srid)s), c.shape)"
-        )
+            if shape:
 
-    if multipolygons["coordinates"]:
-        wheres.append(
-            "ST_Intersects(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(%(multipolygons)s), 4326), %(db_srid)s), c.shape)"
-        )
+                # We have to check if the shape is a valid geojson.
+                # It is hacky but the DRF structure dont let us validate data before permission check
+                try:
+                    GEOSGeometry(json.dumps(shape))
+                    geojson_geometries.append(shape)
+                except (ValueError, GEOSException):
+                    raise ValidationError(
+                        {"buildings_operations": ["Invalid GeoJSON geometry"]}
+                    )
 
-    wheres_str = " OR ".join(wheres)
+        cities = get_cities(rnb_ids, geojson_geometries)
 
-    q = (
-        "SELECT c.id, c.code_insee, c.name FROM batid_city as c "
-        f"WHERE {wheres_str} "
-        "ORDER BY c.code_insee"
-    )
-    params = {
-        "rnb_ids": tuple(rnb_ids),
-        "multipoints": json.dumps(multipoints),
-        "multipolygons": json.dumps(multipolygons),
-        "db_srid": 4326,
-    }
-    cities = City.objects.raw(q, params)
-
-    return [c for c in cities]
-
-
-def get_city_from_request(data, user, view):
-    cities = calc_ads_cities(data)
-
-    # First we validate we have only one city
-
-    if len(cities) == 0:
-        raise serializers.ValidationError(
-            {"buildings_operations": ["Buildings are in an unknown city"]}
-        )
-
-    if len(cities) > 1:
-        raise serializers.ValidationError(
-            {"buildings_operations": ["Buildings must be in only one city"]}
-        )
-
-    city = cities[0]
-
-    # Then we do permission
-
-    perm = ADSCityPermission()
-
-    if not perm.user_has_permission(city, user, view):
-        raise exceptions.PermissionDenied(detail="You can not edit ADS in this city.")
-
-    return city
+    return cities

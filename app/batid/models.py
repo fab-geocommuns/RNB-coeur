@@ -59,13 +59,35 @@ class BuildingAbstract(models.Model):
     event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
     # only currently active buildings are considered part of the RNB
     is_active = models.BooleanField(db_index=True, default=True)
+    # this field is the source of truth for the building <> address link
+    # it contains BAN ids (clé d'interopérabilité)
+    addresses_id = ArrayField(models.CharField(max_length=40), null=True)
 
     class Meta:
         abstract = True
 
 
+class BuildingAddressesReadOnly(models.Model):
+    building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
+    address = models.ForeignKey("Address", on_delete=models.CASCADE, db_index=True)
+
+    class Meta:
+        unique_together = ("building", "address")
+
+
 class Building(BuildingAbstract):
+    # will be deleted soon
     addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
+
+    # this only exists to make it possible for the Django ORM to access the associated addresses
+    # but this field is read-only : you should not attempt to save a building/address association through this field
+    # use addresses_id instead.
+    addresses_read_only = models.ManyToManyField(
+        "Address",
+        blank=True,
+        related_name="buildings_read_only",
+        through="BuildingAddressesReadOnly",
+    )
 
     def add_ext_id(
         self, source: str, source_version: Optional[str], id: str, created_at: str
@@ -124,6 +146,7 @@ class Building(BuildingAbstract):
         ordering = ["rnb_id"]
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
+            GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
         ]
 
 
@@ -189,19 +212,20 @@ class ADS(models.Model):
         max_length=40, null=False, unique=True, db_index=True
     )
     decided_at = models.DateField(null=True)
-    city = models.ForeignKey(City, on_delete=models.CASCADE, null=True)
     achieved_at = models.DateField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    creator = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
 
     class Meta:
         ordering = ["decided_at"]
 
 
 class BuildingADS(models.Model):
-    building = models.ForeignKey(Building, on_delete=models.CASCADE)
+    # building = models.ForeignKey(Building, on_delete=models.CASCADE)
+    rnb_id = models.CharField(max_length=12, null=True)
+    shape = models.GeometryField(null=True, srid=4326)
     ads = models.ForeignKey(
         ADS, related_name="buildings_operations", on_delete=models.CASCADE
     )
@@ -210,10 +234,8 @@ class BuildingADS(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
-
     class Meta:
-        unique_together = ("building", "ads")
+        unique_together = ("rnb_id", "ads")
 
 
 class Candidate(models.Model):
@@ -312,6 +334,7 @@ class Contribution(models.Model):
     id = models.AutoField(primary_key=True)
     rnb_id = models.CharField(max_length=255, null=True)
     text = models.TextField(null=True)
+    email = models.EmailField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(
@@ -321,4 +344,8 @@ class Contribution(models.Model):
         default="pending",
         db_index=True,
     )
-    status_changed_at = models.DateTimeField(null=True)
+    status_changed_at = models.DateTimeField(null=True, blank=True)
+    review_comment = models.TextField(null=True, blank=True)
+    review_user = models.ForeignKey(
+        User, on_delete=models.PROTECT, null=True, blank=True
+    )

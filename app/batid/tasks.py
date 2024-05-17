@@ -124,3 +124,11 @@ def backup_to_s3(self):
     # Backing up the database on a separate S3 service
     backup_to_s3_job(task_id=self.request.id)
     return "done"
+
+
+@shared_task()
+def populate_addresses_id_field():
+    from batid.services.populate_addresses_id_field import launch_procedure
+
+    launch_procedure()
+    return "done"
