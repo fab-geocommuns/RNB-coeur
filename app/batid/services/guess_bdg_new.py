@@ -4,6 +4,7 @@ import json
 import time
 from abc import ABC
 from abc import abstractmethod
+from io import StringIO
 from typing import Optional
 
 import pandas as pd
@@ -12,7 +13,7 @@ from django.db import connections
 
 from batid.models import Building
 from batid.services.closest_bdg import get_closest
-from batid.services.geocoders import BanGeocoder
+from batid.services.geocoders import BanGeocoder, BanBatchGeocoder
 from batid.services.geocoders import PhotonGeocoder
 
 
@@ -347,36 +348,59 @@ class GeocodeAddressHandler(AbstractHandler):
     def _guess_one(self, guess: dict) -> dict:
         lat = guess["input"].get("lat", None)
         lng = guess["input"].get("lng", None)
-        address = guess["input"].get("address", None)
+        ban_id = guess["input"].get("ban_id", None)
 
-        if not address or not lat or not lng:
+        if not ban_id:
             return guess
 
-        # We sleep a little bit to avoid being throttled by the geocoder
-        time.sleep(self.sleep_time)
+        if lat and lng:
+            qs = get_closest(lat, lng, self.closest_radius)
+        else:
+            qs = Building.objects.all()
 
-        # If we already have a ban_id, we don't need to geocode again
-        if not guess["input"].get("ban_id", None):
-            ban_id = self._address_to_ban_id(address, lat, lng)
-            if ban_id:
-                guess["input"]["ban_id"] = ban_id
+        bdgs = qs.filter(addresses__id=ban_id)
 
-        if guess["input"].get("ban_id", None):
-            close_bdg_w_ban_id = get_closest(lat, lng, self.closest_radius).filter(
-                addresses__id=ban_id
-            )
-
-            if close_bdg_w_ban_id.count() == 1:
-                guess["match"] = close_bdg_w_ban_id.first()
-                guess["match_reason"] = "precise_address_match"
+        if bdgs.count() == 1:
+            guess["match"] = bdgs.first()
+            guess["match_reason"] = "precise_address_match"
 
         return guess
 
     def _geocode_batch(self, guesses: dict) -> dict:
 
-        addresses = [
-            (ext_id, guess["input"]["address"]) for ext_id, guess in guesses.items()
-        ]
+        # Format addresses for geocoding
+        addresses = []
+        for ext_id, guess in guesses.items():
+            address = guess["input"].get("address", None)
+            if address:
+                addresses.append(
+                    {
+                        "ext_id": ext_id,
+                        "address": address,
+                    }
+                )
+
+        # Geocode addresses in batch
+        geocoder = BanBatchGeocoder()
+        response = geocoder.geocode(
+            addresses, result_columns=["result_type", "result_id", "result_score"]
+        )
+        if response.status_code != 200:
+            raise Exception(f"Error while geocoding addresses : {response.text}")
+
+        # Parse the response
+        csv_file = StringIO(response.text)
+        reader = csv.DictReader(csv_file)
+
+        for row in reader:
+
+            if (
+                row["result_type"] == "housenumber"
+                and float(row["result_score"]) >= 0.8
+            ):
+                guesses[row["ext_id"]]["input"]["ban_id"] = row["result_id"]
+
+        return guesses
 
     @staticmethod
     def _address_to_ban_id(address: str, lat: float, lng: float) -> Optional[str]:
