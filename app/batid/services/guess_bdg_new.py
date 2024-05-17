@@ -331,8 +331,7 @@ class ClosestFromPointHandler(AbstractHandler):
 class GeocodeAddressHandler(AbstractHandler):
     _name = "geocode_address"
 
-    def __init__(self, sleep_time=0.8, closest_radius=100):
-        self.sleep_time = sleep_time
+    def __init__(self, closest_radius=100):
         self.closest_radius = closest_radius
 
     def _guess_batch(self, guesses: dict) -> dict:
