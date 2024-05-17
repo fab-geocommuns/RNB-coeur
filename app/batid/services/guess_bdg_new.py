@@ -96,30 +96,30 @@ class Guesser:
         print("\n-- match_reasons : % --")
         print(match_reason_percentage)
 
-    def display_reason(
+    def matched_sample(
         self,
-        reason: str,
-        count: int = 10,
-        cols: list = ("input_ext_id", "match_rnb_id", "match_reason"),
+        match_reason: str,
+        sample_size: int = 10,
+        sample_cols: list = ("input_ext_id", "match_rnb_id", "match_reason"),
     ):
         data = list(self.guesses.values())
 
         df = pd.json_normalize(data, sep="_")
 
-        reasons = df[df["match_reason"] == reason]
-        reasons = reasons[cols]
+        reasons = df[df["match_reason"] == match_reason]
+        reasons = reasons[sample_cols]
 
-        print(reasons.sample(count))
+        print(reasons.sample(sample_size))
 
-    def display_nomatches(self, count: int = 10):
+    def unmatched_sample(self, sample_size: int = 10):
         data = list(self.guesses.values())
 
         df = pd.json_normalize(data, sep="_")
 
-        nomatches = df[df["match_rnb_id"].isnull()]
-        nomatches = nomatches[["input_ext_id"]]
+        unmatched = df[df["match_rnb_id"].isnull()]
+        unmatched = unmatched[["input_ext_id"]]
 
-        print(nomatches.sample(count))
+        print(unmatched.sample(sample_size))
 
     def save_work_file(self, file_path):
         self.convert_matches()
@@ -157,7 +157,6 @@ class Guesser:
             guesses[ext_id] = {
                 "input": input,
                 "matches": [],
-                # "match": None,
                 "match_reason": None,
                 "finished_steps": [],
             }
@@ -469,7 +468,7 @@ class PartialRoofHandler(AbstractHandler):
 
         roof_poly = GEOSGeometry(json.dumps(roof_geojson))
 
-        # Get the two closest buildings
+        # Get closest buildings. We have to get many
         closest_bdgs = get_closest_from_poly(roof_poly, 35)[:20]
 
         if not closest_bdgs:
@@ -484,7 +483,7 @@ class PartialRoofHandler(AbstractHandler):
             guess["match_reason"] = "sole_bdg_intersects_roof_enough"
             return guess
 
-        # Est-ce qu'il yn seul bâtiment qui intersects et le second bâtiment le plus proche est assez loin ?
+        # Est-ce qu'il y a unn seul bâtiment qui intersecte et le second bâtiment le plus proche est assez loin ?
         if self._isolated_bdg_intersecting(roof_poly, closest_bdgs):
             guess["matches"].append(closest_bdgs[0])
             guess["match_reason"] = "isolated_bdg_intersects_roof"
