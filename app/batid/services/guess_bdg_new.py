@@ -60,7 +60,7 @@ class Guesser:
             batch = self.guess_batch(batch)
             self.guesses.update(batch)
 
-    def _guesses_to_batches(self, batch_size: int = 100):
+    def _guesses_to_batches(self, batch_size: int = 1000):
         batches = []
         batch = {}
 
@@ -92,13 +92,20 @@ class Guesser:
         print(f"Number of match: {match_count} ({match_percentage:.2f}%)")
 
         # Display table of all march_reason values with their absolute count and their percentage
-
         match_reason_count = df["match_reason"].value_counts()
         match_reason_percentage = match_reason_count / total * 100
         print("\n-- match_reasons : absolute --")
         print(match_reason_count)
         print("\n-- match_reasons : % --")
         print(match_reason_percentage)
+
+        # About inputs
+        print("\n-- Inputs --")
+
+        # how many have an input_ban_id
+        ban_id_count = df["input_ban_id"].notnull().sum()
+        ban_id_percentage = ban_id_count / total * 100
+        print(f"rows with ban_id: {ban_id_count} ({ban_id_percentage:.2f}%)")
 
     def display_matches(
         self,
@@ -129,10 +136,10 @@ class Guesser:
     def convert_matches(self):
         for ext_id, guess in self.guesses.items():
             if guess["match"] and isinstance(guess["match"], Building):
+
                 guess["match"] = {
                     "rnb_id": guess["match"].rnb_id,
                     "lat_lng": f"{guess['match'].point[1]}, {guess['match'].point[0]}",
-                    "distance": guess["match"].distance.m,
                 }
 
     def guess_batch(self, guesses: dict) -> dict:
@@ -367,6 +374,8 @@ class GeocodeAddressHandler(AbstractHandler):
 
     def _geocode_batch(self, guesses: dict) -> dict:
 
+        print("geocode batch")
+
         # Format addresses for geocoding
         addresses = []
         for ext_id, guess in guesses.items():
@@ -388,6 +397,7 @@ class GeocodeAddressHandler(AbstractHandler):
             raise Exception(f"Error while geocoding addresses : {response.text}")
 
         # Parse the response
+
         csv_file = StringIO(response.text)
         reader = csv.DictReader(csv_file)
 
@@ -395,7 +405,7 @@ class GeocodeAddressHandler(AbstractHandler):
 
             if (
                 row["result_type"] == "housenumber"
-                and float(row["result_score"]) >= 0.8
+                and float(row["result_score"]) >= 0.65
             ):
                 guesses[row["ext_id"]]["input"]["ban_id"] = row["result_id"]
 
