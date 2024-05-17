@@ -336,6 +336,8 @@ class GeocodeAddressHandler(AbstractHandler):
 
     def _guess_batch(self, guesses: dict) -> dict:
 
+        guesses = self._geocode_batch(guesses)
+
         for guess in guesses.values():
             guess = self._guess_one(guess)
             guesses[guess["input"]["ext_id"]] = guess
@@ -370,6 +372,12 @@ class GeocodeAddressHandler(AbstractHandler):
 
         return guess
 
+    def _geocode_batch(self, guesses: dict) -> dict:
+
+        addresses = [
+            (ext_id, guess["input"]["address"]) for ext_id, guess in guesses.items()
+        ]
+
     @staticmethod
     def _address_to_ban_id(address: str, lat: float, lng: float) -> Optional[str]:
 
@@ -402,6 +410,7 @@ class GeocodeNameHandler(AbstractHandler):
         self.sleep_time = sleep_time
 
     def _guess_batch(self, guesses: dict) -> dict:
+
         for guess in guesses.values():
             guess = self._guess_one(guess)
             guesses[guess["input"]["ext_id"]] = guess
