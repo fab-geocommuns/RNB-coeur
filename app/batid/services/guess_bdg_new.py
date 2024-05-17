@@ -127,6 +127,16 @@ class Guesser:
 
         print(reasons.sample(count))
 
+    def display_unmatched(self, count: int = 10):
+
+        data = list(self.guesses.values())
+
+        df = pd.json_normalize(data, sep="_")
+
+        unmatched = df[df["match_rnb_id"].isnull()]
+
+        print(unmatched.sample(count))
+
     def save_work_file(self, file_path):
         self.convert_matches()
 
@@ -373,8 +383,6 @@ class GeocodeAddressHandler(AbstractHandler):
         return guess
 
     def _geocode_batch(self, guesses: dict) -> dict:
-
-        print("geocode batch")
 
         # Format addresses for geocoding
         addresses = []
