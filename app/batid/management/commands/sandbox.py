@@ -1,11 +1,16 @@
 from django.core.management.base import BaseCommand
 
 from batid.services.guess_bdg_new import Guesser
+from batid.services.geocoders import BanBatchGeocoder
 
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
 
+        g = BanBatchGeocoder()
+        r = g.geocode_in_memory([])
+
+    def note(self):
         f_path = "notebooks/rapprochements/histologe/guess.json"
 
         guesser = Guesser()
