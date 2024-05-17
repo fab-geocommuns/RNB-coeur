@@ -1,12 +1,5 @@
 from batid.models import Building
 
-TABLE = {
-    "table": Building._meta.db_table,
-    "srid": str(4326),
-    "geomColumn": "point",
-    "attrColumns": "rnb_id",
-}
-
 
 def tileIsValid(tile):
     if not ("x" in tile and "y" in tile and "zoom" in tile):
@@ -60,8 +53,15 @@ def envelopeToBoundsSQL(env):
 
 # Generate a SQL query to pull a tile worth of MVT data
 # from the table of interest.
-def envelopeToSQL(env):
-    tbl = TABLE.copy()
+def envelopeToSQL(env, geometry_column):
+    params = {
+        "table": Building._meta.db_table,
+        "srid": str(4326),
+        "attrColumns": "rnb_id",
+    }
+    params["geomColumn"] = geometry_column
+
+    tbl = params.copy()
     tbl["env"] = envelopeToBoundsSQL(env)
     # Materialize the bounds
     # Select the relevant geometry and clip to MVT bounds
@@ -92,8 +92,12 @@ def url_params_to_tile(x, y, z):
     return tile
 
 
-def tile_sql(tile):
+def tile_sql(tile, data_type):
     env = tileToEnvelope(tile)
-    sql = envelopeToSQL(env)
+    if data_type == "shape":
+        geometry_column = "shape"
+    elif data_type == "point":
+        geometry_column = "point"
+    sql = envelopeToSQL(env, geometry_column)
 
     return sql

@@ -380,11 +380,28 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         return search.get_queryset()
 
 
-def get_tile(request, x, y, z):
+def get_tile_point(request, x, y, z):
     # Check the request zoom level
     if int(z) >= 16:
         tile_dict = url_params_to_tile(x, y, z)
-        sql = tile_sql(tile_dict)
+        sql = tile_sql(tile_dict, "point")
+
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            tile_file = cursor.fetchone()[0]
+
+        return HttpResponse(
+            tile_file, content_type="application/vnd.mapbox-vector-tile"
+        )
+    else:
+        return HttpResponse(status=204)
+
+
+def get_tile_shape(request, x, y, z):
+    # Check the request zoom level
+    if int(z) >= 16:
+        tile_dict = url_params_to_tile(x, y, z)
+        sql = tile_sql(tile_dict, "shape")
 
         with connection.cursor() as cursor:
             cursor.execute(sql)

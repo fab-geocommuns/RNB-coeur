@@ -1,4 +1,5 @@
 import concurrent
+import csv
 import json
 import time
 from abc import ABC
@@ -54,10 +55,11 @@ class Guesser:
         batches = self._guesses_to_batches()
 
         for batch in batches:
+
             batch = self.guess_batch(batch)
             self.guesses.update(batch)
 
-    def _guesses_to_batches(self, batch_size: int = 300):
+    def _guesses_to_batches(self, batch_size: int = 100):
         batches = []
         batch = {}
 
@@ -97,6 +99,26 @@ class Guesser:
         print("\n-- match_reasons : % --")
         print(match_reason_percentage)
 
+    def display_matches(
+        self,
+        reason: str,
+        count: int = 10,
+        cols: list = ["input_ext_id", "match_rnb_id", "match_reason"],
+    ):
+        data = list(self.guesses.values())
+
+        df = pd.json_normalize(data, sep="_")
+
+        # show keys
+        print(df.keys())
+
+        reasons = df[df["match_reason"] == reason]
+
+        # keep only some cols
+        reasons = reasons[cols]
+
+        print(reasons.sample(count))
+
     def save_work_file(self, file_path):
         self.convert_matches()
 
@@ -120,6 +142,36 @@ class Guesser:
             guesses = handler.handle(guesses)
 
         return guesses
+
+    def to_csv(self, file_path, ext_id_col_name="ext_id"):
+
+        self.convert_matches()
+
+        rows = []
+        for ext_id, guess in self.guesses.items():
+
+            rnb_id = None
+            reason = None
+
+            match = guess.get("match", None)
+            if match:
+                rnb_id = match.get("rnb_id", None)
+                reason = guess.get("match_reason", None)
+
+            rows.append(
+                {
+                    ext_id_col_name: ext_id,
+                    "rnb_id": rnb_id,
+                    "match_reason": reason,
+                }
+            )
+
+        with open(file_path, "w") as f:
+            writer = csv.DictWriter(
+                f, fieldnames=[ext_id_col_name, "rnb_id", "match_reason"]
+            )
+            writer.writeheader()
+            writer.writerows(rows)
 
     @staticmethod
     def _inputs_to_guesses(inputs) -> dict:
@@ -161,7 +213,7 @@ class AbstractHandler(ABC):
 
     def handle(self, guesses: dict) -> dict:
         to_guess, to_not_guess = self._split_guesses(guesses)
-        to_guess = self._guess_batch(guesses)
+        to_guess = self._guess_batch(to_guess)
 
         guesses = to_guess | to_not_guess
         guesses = self._add_finished_step(guesses)
@@ -173,6 +225,7 @@ class AbstractHandler(ABC):
         not_to_handle = {}
 
         for ext_id, guess in guesses.items():
+
             if self.name not in guess["finished_steps"] and guess["match"] is None:
                 to_handle[ext_id] = guess
             else:
@@ -282,6 +335,7 @@ class GeocodeAddressHandler(AbstractHandler):
         self.closest_radius = closest_radius
 
     def _guess_batch(self, guesses: dict) -> dict:
+
         for guess in guesses.values():
             guess = self._guess_one(guess)
             guesses[guess["input"]["ext_id"]] = guess
@@ -299,9 +353,13 @@ class GeocodeAddressHandler(AbstractHandler):
         # We sleep a little bit to avoid being throttled by the geocoder
         time.sleep(self.sleep_time)
 
-        ban_id = self._address_to_ban_id(address, lat, lng)
+        # If we already have a ban_id, we don't need to geocode again
+        if not guess["input"].get("ban_id", None):
+            ban_id = self._address_to_ban_id(address, lat, lng)
+            if ban_id:
+                guess["input"]["ban_id"] = ban_id
 
-        if ban_id:
+        if guess["input"].get("ban_id", None):
             close_bdg_w_ban_id = get_closest(lat, lng, self.closest_radius).filter(
                 addresses__id=ban_id
             )
@@ -314,6 +372,7 @@ class GeocodeAddressHandler(AbstractHandler):
 
     @staticmethod
     def _address_to_ban_id(address: str, lat: float, lng: float) -> Optional[str]:
+
         geocoder = BanGeocoder()
         geocode_response = geocoder.geocode(
             {
