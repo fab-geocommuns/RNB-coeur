@@ -30,7 +30,7 @@ from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
 from batid.models import Contribution
-from batid.services.closest_bdg import get_closest
+from batid.services.closest_bdg import get_closest_from_point
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
@@ -74,7 +74,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
             lng = float(lng)
             radius = int(radius)
 
-            qs = get_closest(lat, lng, radius)
+            qs = get_closest_from_point(lat, lng, radius)
             bdg = qs.first()
 
             if isinstance(bdg, Building):
