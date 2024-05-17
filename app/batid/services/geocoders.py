@@ -19,6 +19,44 @@ class BanGeocoder:
         return response
 
 
+class BanBatchGeocoder:
+
+    GEOCODE_URL = "https://api-adresse.data.gouv.fr/search/csv/"
+
+    def geocode(
+        self,
+        csv_path,
+        columns=None,
+        result_columns=None,
+        citycode_col=None,
+        postcode_col=None,
+    ):
+
+        with open(csv_path, "rb") as f:
+
+            files = {"data": f}
+
+            # Prepare the form data
+            data = {}
+            if columns:
+                for column in columns:
+                    data.setdefault("columns", []).append(column)
+
+            if result_columns:
+                for result_column in result_columns:
+                    data.setdefault("result_columns", []).append(result_column)
+
+            if citycode_col:
+                data["citycode"] = citycode_col
+            if postcode_col:
+                data["postcode"] = postcode_col
+
+            # Send POST request
+            response = requests.post(self.GEOCODE_URL, files=files, data=data)
+
+            return response
+
+
 class PhotonGeocoder:
     GEOCODE_URL = "https://photon.komoot.io/api/"
 
