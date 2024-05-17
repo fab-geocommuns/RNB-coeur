@@ -9,7 +9,6 @@ services:
     ports:
       - '8000:8000'
       - '8888:8888'
-      - "8890:8888"
     env_file:
       - ./.env.db_auth.dev
       - ./.env.app.dev
