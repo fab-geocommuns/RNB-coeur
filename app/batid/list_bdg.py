@@ -1,12 +1,17 @@
 from django.contrib.gis.geos import Polygon
+from django.db.models import QuerySet
 
 from batid.models import Building
 from batid.models import City
 from batid.services.bdg_status import BuildingStatus
 
 
-def list_bdgs(params):
+def list_bdgs(params) -> QuerySet:
+
     qs = Building.objects.all().filter(is_active=True)
+
+    # By default, we sort on id since the column is indexed
+    qs = qs.order_by("id")
 
     # #######################
     # Status filter
@@ -42,7 +47,10 @@ def list_bdgs(params):
             (nw_lng, nw_lat),
         )
         poly = Polygon(poly_coords, srid=4326)
+
         qs = qs.filter(shape__intersects=poly)
+        # We have to order by created_at to avoid pagination issues on geographic queries
+        qs = qs.order_by("created_at")
 
     # #######################
     # Insee Code filter
@@ -51,5 +59,7 @@ def list_bdgs(params):
     if insee_code:
         city = City.objects.get(code_insee=insee_code)
         qs = qs.filter(shape__intersects=city.shape)
+        # We have to order by created_at to avoid pagination issues on geographic queries
+        qs = qs.order_by("created_at")
 
     return qs

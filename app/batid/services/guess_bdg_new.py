@@ -7,20 +7,19 @@ from abc import abstractmethod
 from typing import Optional
 
 import pandas as pd
+from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import Polygon
 from django.db import connections
 
 from batid.models import Building
-from batid.services.closest_bdg import get_closest
+from batid.services.closest_bdg import get_closest_from_point
+from batid.services.closest_bdg import get_closest_from_poly
 from batid.services.geocoders import BanGeocoder
 from batid.services.geocoders import PhotonGeocoder
 
 
 class Guesser:
-    STEP_CLOSEST_FROM_POINT = "closest_from_point"
-    STEP_GEOCODE_ADDRESS = "geocode_address"
-    STEP_GEOCODE_NAME = "geocode_name"
-
     def __init__(self):
         self.guesses = {}
         self.handlers = [
@@ -86,7 +85,7 @@ class Guesser:
         print(f"Number of rows: {total}")
 
         # Number and percetange of rows where match_rnb_id is not null
-        match_count = df["match_rnb_id"].notnull().sum()
+        match_count = df["match_reason"].notnull().sum()
         match_percentage = match_count / total * 100
         print(f"Number of match: {match_count} ({match_percentage:.2f}%)")
 
@@ -99,25 +98,30 @@ class Guesser:
         print("\n-- match_reasons : % --")
         print(match_reason_percentage)
 
-    def display_matches(
+    def matched_sample(
         self,
-        reason: str,
-        count: int = 10,
-        cols: list = ["input_ext_id", "match_rnb_id", "match_reason"],
+        match_reason: str,
+        sample_size: int = 10,
+        sample_cols: list = ("input_ext_id", "match_rnb_id", "match_reason"),
     ):
         data = list(self.guesses.values())
 
         df = pd.json_normalize(data, sep="_")
 
-        # show keys
-        print(df.keys())
+        reasons = df[df["match_reason"] == match_reason]
+        reasons = reasons[sample_cols]
 
-        reasons = df[df["match_reason"] == reason]
+        print(reasons.sample(sample_size))
 
-        # keep only some cols
-        reasons = reasons[cols]
+    def unmatched_sample(self, sample_size: int = 10):
+        data = list(self.guesses.values())
 
-        print(reasons.sample(count))
+        df = pd.json_normalize(data, sep="_")
+
+        unmatched = df[df["match_rnb_id"].isnull()]
+        unmatched = unmatched[["input_ext_id"]]
+
+        print(unmatched.sample(sample_size))
 
     def save_work_file(self, file_path):
         self.convert_matches()
@@ -127,12 +131,13 @@ class Guesser:
 
     def convert_matches(self):
         for ext_id, guess in self.guesses.items():
-            if guess["match"] and isinstance(guess["match"], Building):
-                guess["match"] = {
-                    "rnb_id": guess["match"].rnb_id,
-                    "lat_lng": f"{guess['match'].point[1]}, {guess['match'].point[0]}",
-                    "distance": guess["match"].distance.m,
-                }
+            if guess["matches"] and not isinstance(guess["matches"], str):
+                rnb_ids = []
+
+                for idx, match in enumerate(guess["matches"]):
+                    rnb_ids.append(match.rnb_id)
+
+                guess["matches"] = ",".join(rnb_ids)
 
     def guess_batch(self, guesses: dict) -> dict:
         for handler in self.handlers:
@@ -177,10 +182,13 @@ class Guesser:
     def _inputs_to_guesses(inputs) -> dict:
         guesses = {}
         for input in inputs:
-            ext_id = input["ext_id"]
+            # Always transform ext_id to string
+            ext_id = str(input["ext_id"])
+            input["ext_id"] = ext_id
+
             guesses[ext_id] = {
                 "input": input,
-                "match": None,
+                "matches": [],
                 "match_reason": None,
                 "finished_steps": [],
             }
@@ -200,6 +208,9 @@ class Guesser:
 
             if "ext_id" not in input:
                 raise Exception("ext_id is required for each input")
+
+            if "polygon" in input and not isinstance(input["polygon"], dict):
+                raise Exception("polygon must be a geojson geometry formatted dict")
 
     @staticmethod
     def _validate_ext_ids(inputs):
@@ -226,7 +237,7 @@ class AbstractHandler(ABC):
 
         for ext_id, guess in guesses.items():
 
-            if self.name not in guess["finished_steps"] and guess["match"] is None:
+            if self.name not in guess["finished_steps"] and len(guess["matches"]) == 0:
                 to_handle[ext_id] = guess
             else:
                 not_to_handle[ext_id] = guess
@@ -281,7 +292,7 @@ class ClosestFromPointHandler(AbstractHandler):
             return guess
 
         # Get the two closest buildings
-        closest_bdgs = get_closest(lat, lng, self.closest_radius)[:2]
+        closest_bdgs = get_closest_from_point(lat, lng, self.closest_radius)[:2]
 
         if not closest_bdgs:
             return guess
@@ -289,7 +300,7 @@ class ClosestFromPointHandler(AbstractHandler):
         first_bdg = closest_bdgs[0]
         # Is the the point is in the first building ?
         if first_bdg.distance.m <= 0:
-            guess["match"] = first_bdg
+            guess["matches"].append(first_bdg)
             guess["match_reason"] = "point_on_bdg"
             return guess
 
@@ -297,7 +308,7 @@ class ClosestFromPointHandler(AbstractHandler):
         if first_bdg.distance.m <= self.isolated_bdg_max_distance:
             if len(closest_bdgs) == 1:
                 # There is only one building close enough. No need to compare to the second one.
-                guess["match"] = first_bdg
+                guess["matches"].append(first_bdg)
                 guess["match_reason"] = "isolated_closest_bdg"
                 return guess
 
@@ -308,7 +319,7 @@ class ClosestFromPointHandler(AbstractHandler):
                     first_bdg.distance.m
                 )
                 if second_bdg.distance.m >= min_second_bdg_distance:
-                    guess["match"] = first_bdg
+                    guess["matches"].append(first_bdg)
                     guess["match_reason"] = "isolated_closest_bdg"
                     return guess
 
@@ -360,12 +371,12 @@ class GeocodeAddressHandler(AbstractHandler):
                 guess["input"]["ban_id"] = ban_id
 
         if guess["input"].get("ban_id", None):
-            close_bdg_w_ban_id = get_closest(lat, lng, self.closest_radius).filter(
-                addresses_id__contains=[ban_id]
-            )
+            close_bdg_w_ban_id = get_closest_from_point(
+                lat, lng, self.closest_radius
+            ).filter(addresses_id__contains=[ban_id])
 
             if close_bdg_w_ban_id.count() == 1:
-                guess["match"] = close_bdg_w_ban_id.first()
+                guess["matches"].append(close_bdg_w_ban_id.first())
                 guess["match_reason"] = "precise_address_match"
 
         return guess
@@ -426,7 +437,7 @@ class GeocodeNameHandler(AbstractHandler):
             bdg = Building.objects.filter(shape__contains=osm_bdg_point).first()
 
             if isinstance(bdg, Building):
-                guess["match"] = bdg
+                guess["matches"].append(bdg)
                 guess["match_reason"] = "found_name_in_osm"
                 return guess
 
@@ -460,3 +471,121 @@ class GeocodeNameHandler(AbstractHandler):
             return Point(lng, lat, srid=4326)
         else:
             return
+
+
+class PartialRoofHandler(AbstractHandler):
+    """
+    This handler is used to match a building based on a roof section.
+    """
+
+    _name = "partial_roof"
+
+    def __init__(self, isolated_section_max_distance=1, min_second_bdg_distance=6):
+        self.isolated_section_max_distance = isolated_section_max_distance
+        self.min_second_bdg_distance = min_second_bdg_distance
+
+    def _guess_batch(self, guesses: dict) -> dict:
+        tasks = []
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for guess in guesses.values():
+                future = executor.submit(self._guess_one, guess)
+                future.add_done_callback(lambda future: connections.close_all())
+                tasks.append(future)
+
+            for future in concurrent.futures.as_completed(tasks):
+                guess = future.result()
+                guesses[guess["input"]["ext_id"]] = guess
+
+        return guesses
+
+    def _guess_one(self, guess: dict) -> dict:
+        roof_geojson = guess["input"].get("polygon", None)
+
+        if not roof_geojson:
+            return guess
+
+        roof_poly = GEOSGeometry(json.dumps(roof_geojson))
+
+        # Get closest buildings. We have to get many
+        closest_bdgs = get_closest_from_poly(roof_poly, 35)[:20]
+
+        if not closest_bdgs:
+            return guess
+
+        # Est-ce qu'il y a un seul batiment qui couvre à plus de X% le pan de toit ?
+        sole_bdg_intersecting_enough = self._roof_interesected_enough_by_one_bdg(
+            roof_poly, closest_bdgs
+        )
+        if isinstance(sole_bdg_intersecting_enough, Building):
+            guess["matches"].append(sole_bdg_intersecting_enough)
+            guess["match_reason"] = "sole_bdg_intersects_roof_enough"
+            return guess
+
+        # Est-ce qu'il y a unn seul bâtiment qui intersecte et le second bâtiment le plus proche est assez loin ?
+        if self._isolated_bdg_intersecting(roof_poly, closest_bdgs):
+            guess["matches"].append(closest_bdgs[0])
+            guess["match_reason"] = "isolated_bdg_intersects_roof"
+            return guess
+
+        bdgs_covered_enough = self._many_bdgs_covered_enough(roof_poly, closest_bdgs)
+        if bdgs_covered_enough:
+            guess["matches"] = bdgs_covered_enough
+            guess["match_reason"] = "many_bdgs_covered_enough_by_roof"
+            return guess
+
+        # No match :(
+        return guess
+
+    def _many_bdgs_covered_enough(self, roof_poly: Polygon, closest_bdgs: list) -> list:
+        matches = []
+
+        for bdg in closest_bdgs:
+            bdg_area = bdg.shape.area
+            if bdg_area <= 0:
+                continue
+
+            intersection_percentage = bdg.shape.intersection(roof_poly).area / bdg_area
+
+            if intersection_percentage >= 0.80:
+                bdg.match_details = {"intersection_percentage": intersection_percentage}
+                matches.append(bdg)
+
+        return matches
+
+    def _closest_bdg_contains_roof(
+        self, roof_poly: GEOSGeometry, closest_bdgs: list
+    ) -> bool:
+        first_bdg = closest_bdgs[0]
+        return first_bdg.shape.contains(roof_poly)
+
+    def _roof_interesected_enough_by_one_bdg(
+        self, roof_poly: GEOSGeometry, closest_bdgs: list
+    ) -> bool:
+        matches = []
+
+        for bdg in closest_bdgs:
+            intersection_percentage = (
+                bdg.shape.intersection(roof_poly).area / roof_poly.area
+            )
+
+            if intersection_percentage >= 0.25:
+                bdg.match_details = {"intersection_percentage": intersection_percentage}
+                matches.append(bdg)
+
+        if len(matches) == 1:
+            return matches[0]
+
+    def _isolated_bdg_intersecting(
+        self, roof_poly: GEOSGeometry, closest_bdgs: list
+    ) -> bool:
+        # If first building does not intersect the roof, we return False
+        if not roof_poly.intersects(closest_bdgs[0].shape):
+            return False
+
+        if len(closest_bdgs) == 1:
+            return True
+
+        second_bdg = closest_bdgs[1]
+
+        return second_bdg.distance.m >= self.min_second_bdg_distance
