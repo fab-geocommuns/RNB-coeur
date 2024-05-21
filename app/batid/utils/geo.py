@@ -21,9 +21,7 @@ def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:
         big_area = 0
         for idx, p in enumerate(polys):
             if p.num_interior_rings > 0:
-                print(geom.wkt)
                 r = geom.buffer(0)
-                print(r.json)
                 return r
 
                 # raise ValueError(
