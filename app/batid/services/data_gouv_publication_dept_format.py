@@ -9,20 +9,23 @@ import boto3
 import requests
 from django.db import connection
 
+
 def publish(depts, format):
     # Publish the RNB on data.gouv.fr
     directory_name = create_directory()
-    print(str(len(depts)) + ' departments to process...')
+    print(str(len(depts)) + " departments to process...")
 
     try:
         for dept in depts:
-            print('Processing dept: ' + dept)
+            print("Processing dept: " + dept)
             create_rnb_files(directory_name, dept, format)
-            (archive_path, archive_size, archive_sha1) = create_archive(directory_name, dept, format)
+            (archive_path, archive_size, archive_sha1) = create_archive(
+                directory_name, dept, format
+            )
             # Delete file after archiving
             drop_file(directory_name + "/rnb_building_" + dept + "." + format)
             drop_file(directory_name + "/rnb_address_" + dept + "." + format)
-            
+
             # public_url = upload_to_s3(archive_path)
             # publish_on_data_gouv(public_url, archive_size, archive_sha1)
             # Delete archive after pushed on S3
@@ -47,7 +50,7 @@ def create_directory():
 def create_rnb_files(directory_name, code_dept, format):
     if format == "csv":
         create_rnb_csv_files(directory_name, code_dept)
-    
+
 
 def create_rnb_csv_files(directory_name, code_dept):
     create_building_csv(directory_name, code_dept)
@@ -58,7 +61,11 @@ def create_rnb_csv_files(directory_name, code_dept):
 
 def create_building_csv(directory_name, code_dept):
     with connection.cursor() as cursor:
-        sql = "COPY (SELECT rnb_id, geom, bati, external_ids FROM opendata.rnb_compact WHERE code_dept = '" + code_dept + "') TO STDOUT WITH CSV HEADER DELIMITER ';'"
+        sql = (
+            "COPY (SELECT rnb_id, geom, bati, external_ids FROM opendata.rnb_compact WHERE code_dept = '"
+            + code_dept
+            + "') TO STDOUT WITH CSV HEADER DELIMITER ';'"
+        )
 
         with open(f"{directory_name}/rnb_building_{code_dept}.csv", "w") as fp:
             cursor.copy_expert(sql, fp)
@@ -66,7 +73,11 @@ def create_building_csv(directory_name, code_dept):
 
 def create_address_csv(directory_name, code_dept):
     with connection.cursor() as cursor:
-        sql = "COPY (SELECT rnb_id, address_code, address_source, street_number, street_rep, street_type, street_name, city_zipcode, city_code, city_name FROM opendata.rnb_addr WHERE city_code LIKE '" + code_dept + "%') TO STDOUT WITH CSV HEADER DELIMITER ';'"
+        sql = (
+            "COPY (SELECT rnb_id, address_code, address_source, street_number, street_rep, street_type, street_name, city_zipcode, city_code, city_name FROM opendata.rnb_addr WHERE city_code LIKE '"
+            + code_dept
+            + "%') TO STDOUT WITH CSV HEADER DELIMITER ';'"
+        )
 
         with open(f"{directory_name}/rnb_address_{code_dept}.csv", "w") as fp:
             cursor.copy_expert(sql, fp)
@@ -124,7 +135,7 @@ def upload_to_s3(archive_path):
     MAX_PARTS = 1000
     # compute the corresponding part size
     archive_size = os.path.getsize(archive_path)
-    part_size = max(1,int(archive_size * 1.2 / MAX_PARTS))
+    part_size = max(1, int(archive_size * 1.2 / MAX_PARTS))
     print(part_size)
     config = boto3.s3.transfer.TransferConfig(multipart_chunksize=part_size)
 

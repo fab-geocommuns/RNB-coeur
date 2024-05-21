@@ -1,7 +1,7 @@
 import json
 import os
-from unittest import mock
 from datetime import datetime
+from unittest import mock
 
 import boto3
 from django.contrib.gis.geos import GEOSGeometry
@@ -197,7 +197,14 @@ class TestDataGouvPublication(TestCase):
         archive_size = 1234
         archive_sha1 = "some-sha1"
         update_resource_metadata(
-            "some-dataset-id", "some-resource-id", title, description, public_url, archive_size, archive_sha1, "csv"
+            "some-dataset-id",
+            "some-resource-id",
+            title,
+            description,
+            public_url,
+            archive_size,
+            archive_sha1,
+            "csv",
         )
 
         put_mock.assert_called_with(
@@ -215,7 +222,7 @@ class TestDataGouvPublication(TestCase):
                 "format": "csv",
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "last_modified": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "last_modified": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             },
         )
 
@@ -236,7 +243,13 @@ class TestDataGouvPublication(TestCase):
         archive_sha1 = "some-sha1"
         format = "csv"
         data_gouv_create_resource(
-            "some-dataset-id", title, description, public_url, archive_size, archive_sha1, format
+            "some-dataset-id",
+            title,
+            description,
+            public_url,
+            archive_size,
+            archive_sha1,
+            format,
         )
 
         post_mock.assert_called_with(
@@ -254,7 +267,7 @@ class TestDataGouvPublication(TestCase):
                 "format": format,
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             },
         )
 
@@ -265,7 +278,7 @@ class TestDataGouvPublication(TestCase):
         {
             "DATA_GOUV_API_KEY": "DATA_GOUV_API_KEY",
             "DATA_GOUV_BASE_URL": "https://data.gouv.fr",
-            "DATA_GOUV_DATASET_ID": "some-dataset-id"
+            "DATA_GOUV_DATASET_ID": "some-dataset-id",
         },
     )
     @mock.patch("batid.services.data_gouv_publication.requests.get")
@@ -282,21 +295,21 @@ class TestDataGouvPublication(TestCase):
         put_mock.return_value.status_code = 200
         department = "33"
         title = "Export Départemental " + department
-        description = "Export du RNB au format csv pour le département " + department + "."
+        description = (
+            "Export du RNB au format csv pour le département " + department + "."
+        )
         public_url = "some-url"
         archive_size = 1234
         archive_sha1 = "some-sha1"
         format = "csv"
-        publish_on_data_gouv(
-            department, public_url, archive_size, archive_sha1, format
-            )
+        publish_on_data_gouv(department, public_url, archive_size, archive_sha1, format)
 
         put_mock.assert_called_with(
             f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/",
             headers={
                 "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
-                "Content-Type": "application/json"
-                },
+                "Content-Type": "application/json",
+            },
             json={
                 "title": title,
                 "description": description,
@@ -306,7 +319,7 @@ class TestDataGouvPublication(TestCase):
                 "format": format,
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "last_modified": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "last_modified": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             },
         )
 
@@ -317,27 +330,27 @@ class TestDataGouvPublication(TestCase):
         {
             "DATA_GOUV_API_KEY": "DATA_GOUV_API_KEY",
             "DATA_GOUV_BASE_URL": "https://data.gouv.fr",
-            "DATA_GOUV_DATASET_ID": "some-dataset-id"
+            "DATA_GOUV_DATASET_ID": "some-dataset-id",
         },
     )
     def test_publishing_non_existing_resource_on_data_gouv(self, post_mock):
         post_mock.return_value.status_code = 200
         title = "Export National"
-        description = "Export du RNB au format csv pour l’ensemble du territoire français."
+        description = (
+            "Export du RNB au format csv pour l’ensemble du territoire français."
+        )
         public_url = "some-url"
         archive_size = 1234
         archive_sha1 = "some-sha1"
         format = "csv"
-        publish_on_data_gouv(
-            "nat", public_url, archive_size, archive_sha1, format
-            )
+        publish_on_data_gouv("nat", public_url, archive_size, archive_sha1, format)
 
         post_mock.assert_called_with(
             f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/",
             headers={
                 "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
-                "Content-Type": "application/json"
-                },
+                "Content-Type": "application/json",
+            },
             json={
                 "title": title,
                 "description": description,
@@ -347,6 +360,6 @@ class TestDataGouvPublication(TestCase):
                 "format": format,
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             },
         )

@@ -10,19 +10,22 @@ import boto3
 import requests
 from django.db import connection
 
+
 def publish(areas_list):
     # Publish the RNB on data.gouv.fr
     directory_name = create_directory()
-    print(str(len(areas_list)) + ' area(s) to process...')
+    print(str(len(areas_list)) + " area(s) to process...")
 
     try:
         for area in areas_list:
-            print('Processing area: ' + area)
+            print("Processing area: " + area)
             create_csv(directory_name, area)
-            (archive_path, archive_size, archive_sha1) = create_archive(directory_name, area)
+            (archive_path, archive_size, archive_sha1) = create_archive(
+                directory_name, area
+            )
             # Delete file after archiving
             drop_file(directory_name + "/rnb_" + area + ".csv")
-            
+
             # public_url = upload_to_s3(archive_path)
             # publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
             # Delete archive after pushed on S3
@@ -49,7 +52,11 @@ def create_csv(directory_name, code_area):
         if code_area == "nat":
             sql = "COPY (SELECT rnb_id, geom, bati, external_ids, code_dept FROM opendata.rnb_compact) TO STDOUT WITH CSV HEADER DELIMITER ';'"
         else:
-            sql = "COPY (SELECT rnb_id, geom, bati, external_ids FROM opendata.rnb_compact WHERE code_dept = '" + code_area + "') TO STDOUT WITH CSV HEADER DELIMITER ';'"
+            sql = (
+                "COPY (SELECT rnb_id, geom, bati, external_ids FROM opendata.rnb_compact WHERE code_dept = '"
+                + code_area
+                + "') TO STDOUT WITH CSV HEADER DELIMITER ';'"
+            )
 
         with open(f"{directory_name}/rnb_{code_area}.csv", "w") as fp:
             cursor.copy_expert(sql, fp)
@@ -107,7 +114,7 @@ def upload_to_s3(archive_path):
     MAX_PARTS = 1000
     # compute the corresponding part size
     archive_size = os.path.getsize(archive_path)
-    part_size = max(1,int(archive_size * 1.2 / MAX_PARTS))
+    part_size = max(1, int(archive_size * 1.2 / MAX_PARTS))
     config = boto3.s3.transfer.TransferConfig(multipart_chunksize=part_size)
 
     s3.upload_file(
@@ -133,33 +140,52 @@ def publish_on_data_gouv(area, public_url, archive_size, archive_sha1, format=zi
     resource_id = data_gouv_resource_id(dataset_id, area)
     print("ress: " + resource_id)
 
-    if area == 'nat':
+    if area == "nat":
         title = "Export National"
-        description = "Export du RNB au format csv pour l’ensemble du territoire français."
+        description = (
+            "Export du RNB au format csv pour l’ensemble du territoire français."
+        )
     else:
         title = "Export Départemental " + area
         description = "Export du RNB au format csv pour le département " + area + "."
-        
+
     # ressource already exists
     if resource_id is not None:
         update_resource_metadata(
-            dataset_id, resource_id, title, description, public_url, archive_size, archive_sha1, format
+            dataset_id,
+            resource_id,
+            title,
+            description,
+            public_url,
+            archive_size,
+            archive_sha1,
+            format,
         )
     # ressource don't exist
     else:
-        data_gouv_create_resource(dataset_id, title, description, public_url, archive_size, archive_sha1, format)
+        data_gouv_create_resource(
+            dataset_id,
+            title,
+            description,
+            public_url,
+            archive_size,
+            archive_sha1,
+            format,
+        )
 
     return True
 
 
-def data_gouv_create_resource(dataset_id, title, description, public_url, archive_size, archive_sha1, format=zip):
+def data_gouv_create_resource(
+    dataset_id, title, description, public_url, archive_size, archive_sha1, format=zip
+):
     # get the resource id from data.gouv.fr
     DATA_GOUV_BASE_URL = os.environ.get("DATA_GOUV_BASE_URL")
     dataset_url = f"{DATA_GOUV_BASE_URL}/api/1/datasets/{dataset_id}/resources/"
     headers = {
-        "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"), 
-        "Content-Type": "application/json"
-        }
+        "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
+        "Content-Type": "application/json",
+    }
 
     response = requests.post(
         dataset_url,
@@ -173,7 +199,7 @@ def data_gouv_create_resource(dataset_id, title, description, public_url, archiv
             "format": format,
             "filesize": archive_size,
             "checksum": {"type": "sha1", "value": archive_sha1},
-            "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         },
     )
 
@@ -203,16 +229,25 @@ def data_gouv_resource_id(dataset_id, area):
         return None
 
 
-def update_resource_metadata(dataset_id, resource_id, title, description, public_url, archive_size, archive_sha1, format=zip):
+def update_resource_metadata(
+    dataset_id,
+    resource_id,
+    title,
+    description,
+    public_url,
+    archive_size,
+    archive_sha1,
+    format=zip,
+):
     # update the resource url on data.gouv.fr
     DATA_GOUV_BASE_URL = os.environ.get("DATA_GOUV_BASE_URL")
     update_url = (
         f"{DATA_GOUV_BASE_URL}/api/1/datasets/{dataset_id}/resources/{resource_id}/"
     )
     headers = {
-        "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"), 
-        "Content-Type": "application/json"
-        }
+        "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
+        "Content-Type": "application/json",
+    }
 
     response = requests.put(
         update_url,
@@ -226,7 +261,7 @@ def update_resource_metadata(dataset_id, resource_id, title, description, public
             "format": format,
             "filesize": archive_size,
             "checksum": {"type": "sha1", "value": archive_sha1},
-            "last_modified": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "last_modified": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         },
     )
 
