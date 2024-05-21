@@ -137,7 +137,10 @@ class Guesser:
 
         df = pd.json_normalize(data, sep="_")
 
-        unmatched = df[df["match_rnb_id"].isnull()]
+        # unmatched is where "matches" is empty or null
+        unmatched = df[
+            df["matches"].isnull() | df["matches"].apply(lambda x: len(x) == 0)
+        ]
 
         print(unmatched.sample(count))
 
@@ -387,8 +390,8 @@ class GeocodeAddressHandler(AbstractHandler):
 
         bdgs = qs.filter(addresses__id=ban_id)
 
-        if bdgs.count() == 1:
-            guess["match"] = bdgs.first()
+        if bdgs.count() > 0:
+            guess["matches"] = bdgs
             guess["match_reason"] = "precise_address_match"
 
         return guess
@@ -424,7 +427,7 @@ class GeocodeAddressHandler(AbstractHandler):
 
             if (
                 row["result_type"] == "housenumber"
-                and float(row["result_score"]) >= 0.65
+                and float(row["result_score"]) >= 0.50
             ):
                 guesses[row["ext_id"]]["input"]["ban_id"] = row["result_id"]
 

@@ -2,13 +2,10 @@
     "2021-01--ligne2": {
         "input": {
             "ext_id": "2021-01--ligne2",
-            "address": "76 AVENUE DE SAINT-JUST 13013 MARSEILLE ",
+            "address": "76 avenue de saint-just 13013 marseille ",
             "ban_id": "13213_8376_00076"
         },
-        "match": {
-            "rnb_id": "MGD276QX15SY",
-            "lat_lng": "43.317235960726734, 5.405478888999877"
-        },
+        "matches": "MGD276QX15SY",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -17,11 +14,11 @@
     "2021-02--ligne3": {
         "input": {
             "ext_id": "2021-02--ligne3",
-            "address": "260 CHEMIN DU PONT 13750 PLAN-D'ORGON ",
+            "address": "260 chemin du pont 13750 plan-d'orgon ",
             "ban_id": "13076_0041_00260"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "2XHY8CBZEQ26,3H4PGM3PHYRK,8KBKZJSJ4YYZ,8M6DTZY1AAR7,CX451EKE9XZD,DGS4B94M27AH,E5VQE6KXBBS7,EJFAYE6PSNED,K8FVD55JHBRV,RSQH193ASHCG,RZ1RJKJP4DYZ,T137Z98RYCY7,V83YGZE7N7Q5",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -29,13 +26,10 @@
     "2021-03--ligne4": {
         "input": {
             "ext_id": "2021-03--ligne4",
-            "address": "19 BOULEVARD GEMY 13013 MARSEILLE ",
+            "address": "19 boulevard gemy 13013 marseille ",
             "ban_id": "13213_3980_00019"
         },
-        "match": {
-            "rnb_id": "T2DCZ9QQ2BGE",
-            "lat_lng": "43.3216416752115, 5.413760512666576"
-        },
+        "matches": "T2DCZ9QQ2BGE",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -44,13 +38,10 @@
     "2021-04--ligne5": {
         "input": {
             "ext_id": "2021-04--ligne5",
-            "address": "21 RUE PUITS MADAME 13700 MARIGNANE ",
+            "address": "21 rue puits madame 13700 marignane ",
             "ban_id": "13054_0830_00021"
         },
-        "match": {
-            "rnb_id": "GY2T99DCC471",
-            "lat_lng": "43.41539748147956, 5.21331346870664"
-        },
+        "matches": "GY2T99DCC471",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -59,13 +50,10 @@
     "2021-05--ligne6": {
         "input": {
             "ext_id": "2021-05--ligne6",
-            "address": "62 RUE CAISSERIE 13002 MARSEILLE ",
+            "address": "62 rue caisserie 13002 marseille ",
             "ban_id": "13202_1579_00062"
         },
-        "match": {
-            "rnb_id": "DM629P43R8RA",
-            "lat_lng": "43.297069803328206, 5.366425546828607"
-        },
+        "matches": "DM629P43R8RA",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -74,11 +62,11 @@
     "2021-08--ligne7": {
         "input": {
             "ext_id": "2021-08--ligne7",
-            "address": "7 RUE EDOUARD MILLAUD 13150 TARASCON ",
+            "address": "7 rue edouard millaud 13150 tarascon ",
             "ban_id": "13108_0420_00007"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "7WV9541Z38DH,D2C8WD9HX2E2",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -86,10 +74,11 @@
     "2021-09--ligne8": {
         "input": {
             "ext_id": "2021-09--ligne8",
-            "address": "8 AVENUE DE LAMBESC 13480 ROGNES "
+            "address": "8 avenue de lambesc 13480 rognes ",
+            "ban_id": "13082_4750_00008"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "ADESDHZ7TVJG",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -97,11 +86,11 @@
     "2021-10--ligne9": {
         "input": {
             "ext_id": "2021-10--ligne9",
-            "address": "20 BOULEVARD DES DAMES 13002 MARSEILLE ",
+            "address": "20 boulevard des dames 13002 marseille ",
             "ban_id": "13202_2688_00020"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "4CHN8GFJH1BT,VK4WHYX853S3",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -109,10 +98,11 @@
     "2021-11--ligne10": {
         "input": {
             "ext_id": "2021-11--ligne10",
-            "address": "19 RUE PASTEUR 13700 MARIGNANE "
+            "address": "19 rue pasteur 13700 marignane ",
+            "ban_id": "13054_0770_00019"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "29XCJ6DZE56T",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -120,13 +110,10 @@
     "2021-12--ligne11": {
         "input": {
             "ext_id": "2021-12--ligne11",
-            "address": "3 RUE DU PORTAIL NEUF 13800 ISTRES ",
+            "address": "3 rue du portail neuf 13800 istres ",
             "ban_id": "13047_0760_00003"
         },
-        "match": {
-            "rnb_id": "BBEVYFPTFF32",
-            "lat_lng": "43.51367835576613, 4.989435291217261"
-        },
+        "matches": "BBEVYFPTFF32",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -135,13 +122,10 @@
     "2021-13--ligne12": {
         "input": {
             "ext_id": "2021-13--ligne12",
-            "address": "125 CHEMIN DU SORBIER 13270 FOS-SUR-MER",
+            "address": "125 chemin du sorbier 13270 fos-sur-mer",
             "ban_id": "13039_8100_00125"
         },
-        "match": {
-            "rnb_id": "T6A45ZYKJSXE",
-            "lat_lng": "43.46398710877028, 4.934501677730307"
-        },
+        "matches": "T6A45ZYKJSXE",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -150,11 +134,11 @@
     "2021-15--ligne13": {
         "input": {
             "ext_id": "2021-15--ligne13",
-            "address": "260 CHEMIN DU PONT 13750 PLAN-D'ORGON ",
+            "address": "260 chemin du pont 13750 plan-d'orgon ",
             "ban_id": "13076_0041_00260"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "2XHY8CBZEQ26,3H4PGM3PHYRK,8KBKZJSJ4YYZ,8M6DTZY1AAR7,CX451EKE9XZD,DGS4B94M27AH,E5VQE6KXBBS7,EJFAYE6PSNED,K8FVD55JHBRV,RSQH193ASHCG,RZ1RJKJP4DYZ,T137Z98RYCY7,V83YGZE7N7Q5",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -162,13 +146,10 @@
     "2021-16--ligne14": {
         "input": {
             "ext_id": "2021-16--ligne14",
-            "address": "11 RUE DUGUESCLIN 13001 MARSEILLE ",
+            "address": "11 rue duguesclin 13001 marseille ",
             "ban_id": "13201_2914_00011"
         },
-        "match": {
-            "rnb_id": "ZQT9JRR2W4H8",
-            "lat_lng": "43.29843991688033, 5.385993693067987"
-        },
+        "matches": "ZQT9JRR2W4H8",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -177,13 +158,10 @@
     "2021-17--ligne15": {
         "input": {
             "ext_id": "2021-17--ligne15",
-            "address": "48 RUE PIERRE ALBRAND 13002 MARSEILLE ",
+            "address": "48 rue pierre albrand 13002 marseille ",
             "ban_id": "13202_7126_00048"
         },
-        "match": {
-            "rnb_id": "MAGJXS74AXZ7",
-            "lat_lng": "43.30776973179612, 5.370933982293407"
-        },
+        "matches": "MAGJXS74AXZ7",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -192,13 +170,10 @@
     "2021-18--ligne16": {
         "input": {
             "ext_id": "2021-18--ligne16",
-            "address": "250 AVENUE DE TOULON 13010 MARSEILLE ",
+            "address": "250 avenue de toulon 13010 marseille ",
             "ban_id": "13210_9083_00250"
         },
-        "match": {
-            "rnb_id": "ZPZ76JTCYN8M",
-            "lat_lng": "43.28336788019526, 5.3968035547186854"
-        },
+        "matches": "ZPZ76JTCYN8M",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -207,11 +182,11 @@
     "2021-19--ligne17": {
         "input": {
             "ext_id": "2021-19--ligne17",
-            "address": "4 IMPASSE ABOVIAN 13015 MARSEILLE ",
+            "address": "4 impasse abovian 13015 marseille ",
             "ban_id": "13215_0042_00004"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "AP8KP6TG25YY,E8BCFVJ51KTB",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -219,10 +194,11 @@
     "2021-20--ligne18": {
         "input": {
             "ext_id": "2021-20--ligne18",
-            "address": "4 RUE DU CAZAL 13420 G\u00c9MENOS "
+            "address": "4 rue du cazal 13420 g\u00e9menos ",
+            "ban_id": "13042_0084_00004"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "32N6SR2BP7G5,3KPVX8NFYHD7",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -230,9 +206,9 @@
     "2021-21--ligne19": {
         "input": {
             "ext_id": "2021-21--ligne19",
-            "address": "TRAVERSE DES ROSIERS 13014 MARSEILLE "
+            "address": "traverse des rosiers 13014 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -241,9 +217,9 @@
     "2021-22--ligne20": {
         "input": {
             "ext_id": "2021-22--ligne20",
-            "address": "IMPASSE DE L'\u00c9OLIENNE 13005 AUBAGNE"
+            "address": "impasse de l'\u00e9olienne 13005 aubagne"
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -252,11 +228,11 @@
     "2021-23--ligne21": {
         "input": {
             "ext_id": "2021-23--ligne21",
-            "address": "9 RUE DES PETITES MARIES 13001 MARSEILLE ",
+            "address": "9 rue des petites maries 13001 marseille ",
             "ban_id": "13201_7051_00009"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "PFSDBQH87GEM,R3TQGMS4KC8A",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -264,13 +240,10 @@
     "2021-24--ligne22": {
         "input": {
             "ext_id": "2021-24--ligne22",
-            "address": "32 AVENUE ROGER SALENGRO 13160 CH\u00c2TEAURENARD ",
+            "address": "32 avenue roger salengro 13160 ch\u00e2teaurenard ",
             "ban_id": "13027_0830_00032"
         },
-        "match": {
-            "rnb_id": "3T2CTZNWKF67",
-            "lat_lng": "43.882421556706674, 4.8517881477418285"
-        },
+        "matches": "3T2CTZNWKF67",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -279,9 +252,9 @@
     "2021-29--ligne23": {
         "input": {
             "ext_id": "2021-29--ligne23",
-            "address": "23 B TRAVERSE ANTOINE DONAZ 13015 MARSEILLE "
+            "address": "23 b traverse antoine donaz 13015 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -290,11 +263,11 @@
     "2021-33--ligne24": {
         "input": {
             "ext_id": "2021-33--ligne24",
-            "address": "73 BOULEVARD CHAVE 13005 MARSEILLE ",
+            "address": "73 boulevard chave 13005 marseille ",
             "ban_id": "13205_2193_00073"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "AJQE1J4CY3D8,VPT4MB8XTBJQ",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -302,13 +275,10 @@
     "2021-34--ligne25": {
         "input": {
             "ext_id": "2021-34--ligne25",
-            "address": "9 RUE DU PAVILLON 13100 AIX-EN-PROVENCE ",
+            "address": "9 rue du pavillon 13100 aix-en-provence ",
             "ban_id": "13001_2230_00009"
         },
-        "match": {
-            "rnb_id": "T4WYXP4GX71M",
-            "lat_lng": "43.52570754569396, 5.454115090275741"
-        },
+        "matches": "T4WYXP4GX71M",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -317,13 +287,10 @@
     "2021-35--ligne26": {
         "input": {
             "ext_id": "2021-35--ligne26",
-            "address": "3 RUE DU PORTAIL NEUF 13800 ISTRES ",
+            "address": "3 rue du portail neuf 13800 istres ",
             "ban_id": "13047_0760_00003"
         },
-        "match": {
-            "rnb_id": "BBEVYFPTFF32",
-            "lat_lng": "43.51367835576613, 4.989435291217261"
-        },
+        "matches": "BBEVYFPTFF32",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -332,13 +299,10 @@
     "2021-36--ligne27": {
         "input": {
             "ext_id": "2021-36--ligne27",
-            "address": "66 RUE DE ROME 13006 MARSEILLE ",
+            "address": "66 rue de rome 13006 marseille ",
             "ban_id": "13206_8024_00066"
         },
-        "match": {
-            "rnb_id": "T39DPB3K3C8Y",
-            "lat_lng": "43.292661156677326, 5.379730023429287"
-        },
+        "matches": "T39DPB3K3C8Y",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -347,13 +311,10 @@
     "2021-37--ligne28": {
         "input": {
             "ext_id": "2021-37--ligne28",
-            "address": "38 RUE DU BON PASTEUR 13002 MARSEILLE ",
+            "address": "38 rue du bon pasteur 13002 marseille ",
             "ban_id": "13202_1274_00038"
         },
-        "match": {
-            "rnb_id": "TT73SQJFS599",
-            "lat_lng": "43.303237275581424, 5.373431477669483"
-        },
+        "matches": "TT73SQJFS599",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -362,13 +323,10 @@
     "2021-38--ligne29": {
         "input": {
             "ext_id": "2021-38--ligne29",
-            "address": "9 RUE DE L'ACCORD 13120 GARDANNE ",
+            "address": "9 rue de l'accord 13120 gardanne ",
             "ban_id": "13041_0020_00009"
         },
-        "match": {
-            "rnb_id": "AEPFNV4NGNKP",
-            "lat_lng": "43.455412107153776, 5.46971882060759"
-        },
+        "matches": "AEPFNV4NGNKP",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -377,13 +335,10 @@
     "2021-39--ligne30": {
         "input": {
             "ext_id": "2021-39--ligne30",
-            "address": "36 RUE PARMENTIER 13120 GARDANNE ",
+            "address": "36 rue parmentier 13120 gardanne ",
             "ban_id": "13041_0870_00036"
         },
-        "match": {
-            "rnb_id": "JB53257BWCAF",
-            "lat_lng": "43.45739298294788, 5.4718238646941835"
-        },
+        "matches": "JB53257BWCAF",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -392,13 +347,10 @@
     "2021-43--ligne31": {
         "input": {
             "ext_id": "2021-43--ligne31",
-            "address": "14 RUE MESSIEURS BOYER 13720 LA BOUILLADISSE ",
+            "address": "14 rue messieurs boyer 13720 la bouilladisse ",
             "ban_id": "13016_o4oqmy_00014"
         },
-        "match": {
-            "rnb_id": "P25QEXQWSJG9",
-            "lat_lng": "43.395448347598446, 5.593084983540283"
-        },
+        "matches": "P25QEXQWSJG9",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -407,13 +359,10 @@
     "2021-44--ligne32": {
         "input": {
             "ext_id": "2021-44--ligne32",
-            "address": "20 RUE MARIUS SALUZZO 13110 PORT-DE-BOUC ",
+            "address": "20 rue marius saluzzo 13110 port-de-bouc ",
             "ban_id": "13077_0417_00020"
         },
-        "match": {
-            "rnb_id": "J7QJSR6YDJYA",
-            "lat_lng": "43.41631005167106, 4.972734931834243"
-        },
+        "matches": "J7QJSR6YDJYA",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -422,9 +371,9 @@
     "2021-45--ligne33": {
         "input": {
             "ext_id": "2021-45--ligne33",
-            "address": "14 13190 ALLAUCH"
+            "address": "14 13190 allauch"
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -433,10 +382,11 @@
     "2021-47--ligne34": {
         "input": {
             "ext_id": "2021-47--ligne34",
-            "address": "14 RUE LAUTARD 13003 MARSEILLE "
+            "address": "14 rue lautard 13003 marseille ",
+            "ban_id": "13203_5145_00014"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "8JXYZ2HS9FK7,KPBPS2XPFZH8",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -444,11 +394,11 @@
     "2021-48--ligne35": {
         "input": {
             "ext_id": "2021-48--ligne35",
-            "address": "21 TRAVERSE DES ROSIERS 13014 MARSEILLE ",
+            "address": "21 traverse des rosiers 13014 marseille ",
             "ban_id": "13214_jza1ab_00021"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "126FMY377SZ9,28ADJBVRCD9P,2SSGRBNDA3C2,5JX1W1DFDBE5,81CMVHADEN28,8WMHMKCM3897,9K1Y8S34T53S,9YXDMBDS2XE5,9ZM273Z6E36A,CGR92RY42ACY,CJJ1FA4X448T,D4Y8T2FNXC6H,DECH3E9E6QXJ,E2FDK7YMD65T,E7WZP45A25GT,G5FMFV65GBWG,H267MTHYJ8YX,JFS6AWV1D1E4,QQ21TSY8TC9V,VP49QC57457G,WCVSAQEDTRAF,XPH2VTG7VBGE,YWCFXNYB7824",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -456,13 +406,10 @@
     "2021-50--ligne36": {
         "input": {
             "ext_id": "2021-50--ligne36",
-            "address": "18 IMPASSE SARTURAN 13005 MARSEILLE ",
+            "address": "18 impasse sarturan 13005 marseille ",
             "ban_id": "13205_8631_00018"
         },
-        "match": {
-            "rnb_id": "C54TYGY1JQZH",
-            "lat_lng": "43.29205493772153, 5.404899073864042"
-        },
+        "matches": "C54TYGY1JQZH",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -471,11 +418,11 @@
     "2021-51--ligne37": {
         "input": {
             "ext_id": "2021-51--ligne37",
-            "address": "153 AVENUE DES AIRES 13120 GARDANNE ",
+            "address": "153 avenue des aires 13120 gardanne ",
             "ban_id": "13041_0031_00153"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "1BPF67SEBGA4,2XM5T6YXRXT9,VP8Y9988ZNQW",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -483,11 +430,11 @@
     "2021-53--ligne38": {
         "input": {
             "ext_id": "2021-53--ligne38",
-            "address": "12 RUE CHATEAUREDON 13001 MARSEILLE ",
+            "address": "12 rue chateauredon 13001 marseille ",
             "ban_id": "13201_2177_00012"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "5NP96TD6G6ZX,8JT8JXWJ4A2Q",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -495,13 +442,10 @@
     "2021-54--ligne39": {
         "input": {
             "ext_id": "2021-54--ligne39",
-            "address": "33 TRAVERSE DU COUVENT 13014 MARSEILLE ",
+            "address": "33 traverse du couvent 13014 marseille ",
             "ban_id": "13214_6fklwf_00033"
         },
-        "match": {
-            "rnb_id": "8QQPD5T1BN7G",
-            "lat_lng": "43.31909306810425, 5.386244232533999"
-        },
+        "matches": "8QQPD5T1BN7G",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -510,11 +454,11 @@
     "2021-55--ligne40": {
         "input": {
             "ext_id": "2021-55--ligne40",
-            "address": "21 TRAVERSE DES ROSIERS 13014 MARSEILLE ",
+            "address": "21 traverse des rosiers 13014 marseille ",
             "ban_id": "13214_jza1ab_00021"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "126FMY377SZ9,28ADJBVRCD9P,2SSGRBNDA3C2,5JX1W1DFDBE5,81CMVHADEN28,8WMHMKCM3897,9K1Y8S34T53S,9YXDMBDS2XE5,9ZM273Z6E36A,CGR92RY42ACY,CJJ1FA4X448T,D4Y8T2FNXC6H,DECH3E9E6QXJ,E2FDK7YMD65T,E7WZP45A25GT,G5FMFV65GBWG,H267MTHYJ8YX,JFS6AWV1D1E4,QQ21TSY8TC9V,VP49QC57457G,WCVSAQEDTRAF,XPH2VTG7VBGE,YWCFXNYB7824",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -522,11 +466,11 @@
     "2021-56--ligne41": {
         "input": {
             "ext_id": "2021-56--ligne41",
-            "address": "284 RUE \u00c9MILE ZOLA 13130 BERRE-L'\u00c9TANG ",
+            "address": "284 rue \u00e9mile zola 13130 berre-l'\u00e9tang ",
             "ban_id": "13014_0272_00284"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "G8JS2H3D4S9C,W7E6TA5BAKWT,ZH9NRG5T3WQA",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -534,13 +478,10 @@
     "2021-58--ligne42": {
         "input": {
             "ext_id": "2021-58--ligne42",
-            "address": "5 RUE GUY MOQUET 13001 MARSEILLE ",
+            "address": "5 rue guy moquet 13001 marseille ",
             "ban_id": "13201_4354_00005"
         },
-        "match": {
-            "rnb_id": "YMGFMR29VXS3",
-            "lat_lng": "43.296885243547436, 5.3818510864790525"
-        },
+        "matches": "YMGFMR29VXS3",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -549,11 +490,11 @@
     "2021-62--ligne43": {
         "input": {
             "ext_id": "2021-62--ligne43",
-            "address": "130 AVENUE COROT 13013 MARSEILLE ",
+            "address": "130 avenue corot 13013 marseille ",
             "ban_id": "13213_2566_00130"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "1XDPJ8NAK7K6,1ZF7DP9NSCK6,2Z28ZCT4PQQS,4MKX7GKDMATR,5VJQ1X112WVF,78H11ABK5F56,7CMAQ95E7VPS,7VM5F4FKQ2Z1,9K94EVJRYKSD,A2D1H7XY8X9D,EB8VWXQ62X6T,F25F21HHDSAP,HPDAZ3ZKZSDX,HQGW1KSWC6PK,HR4SSQMB7SGY,JF55M7BHB6JS,KJ1D7F3RM152,KM5SE1YSC6QN,KRQYPRX8K6HP,MKA4M6K68F6Y,Q7FZ76K1CAHC,QWBX64PH2Z2X,RWRK94B2JTRV,SCYMTRWBF4BR,T8WNP5JWPKSZ,W9SX22ZSVZQE,XQS5N8E2CXKY,Z1HNEP81BVBT,ZAGBQRNMKJ7S",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -561,9 +502,9 @@
     "2021-64--ligne44": {
         "input": {
             "ext_id": "2021-64--ligne44",
-            "address": "9 RUE GABRIEL P\u00c9RI 13130 BERRE-L'\u00c9TANG "
+            "address": "9 rue gabriel p\u00e9ri 13130 berre-l'\u00e9tang "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -572,9 +513,9 @@
     "2021-67--ligne45": {
         "input": {
             "ext_id": "2021-67--ligne45",
-            "address": "CHEMIN DE LA CRIDE 13740 LE ROVE "
+            "address": "chemin de la cride 13740 le rove "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -583,9 +524,9 @@
     "2021-68--ligne46": {
         "input": {
             "ext_id": "2021-68--ligne46",
-            "address": "CHEMIN DE LA CRIDE 13740 LE ROVE "
+            "address": "chemin de la cride 13740 le rove "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -594,11 +535,11 @@
     "2021-74--ligne47": {
         "input": {
             "ext_id": "2021-74--ligne47",
-            "address": "2 RUE JOSEPH D'ARBAUD 13160 CH\u00c2TEAURENARD ",
+            "address": "2 rue joseph d'arbaud 13160 ch\u00e2teaurenard ",
             "ban_id": "13027_0555_00002"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "DSAR8K8MWNNG,WH5SJBM65N6W",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -606,13 +547,10 @@
     "2021-75--ligne48": {
         "input": {
             "ext_id": "2021-75--ligne48",
-            "address": "516 BOULEVARD ANATOLE FRANCE 13130 BERRE-L'\u00c9TANG ",
+            "address": "516 boulevard anatole france 13130 berre-l'\u00e9tang ",
             "ban_id": "13014_0020_00516"
         },
-        "match": {
-            "rnb_id": "2NJPKCPVBY32",
-            "lat_lng": "43.48660603290271, 5.175037959253979"
-        },
+        "matches": "2NJPKCPVBY32",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -621,10 +559,11 @@
     "2021-78--ligne49": {
         "input": {
             "ext_id": "2021-78--ligne49",
-            "address": "3884 CHEMIN DONN\u00c9 13560 S\u00c9NAS "
+            "address": "3884 chemin donn\u00e9 13560 s\u00e9nas ",
+            "ban_id": "13105_0043_03884"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "H6FDX4MF3SRH,QWPV6E8SJZMW",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -632,11 +571,11 @@
     "2021-79--ligne50": {
         "input": {
             "ext_id": "2021-79--ligne50",
-            "address": "3 AVENUE AMBROISE CROIZAT 13110 PORT-DE-BOUC ",
+            "address": "3 avenue ambroise croizat 13110 port-de-bouc ",
             "ban_id": "13077_0025_00003"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "5317ERGHMDTT,9KDY4CGGRD51",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -644,13 +583,10 @@
     "2022-114--ligne51": {
         "input": {
             "ext_id": "2022-114--ligne51",
-            "address": "10 RUE VILLEBOIS MAREUIL 13110 PORT-DE-BOUC ",
+            "address": "10 rue villebois mareuil 13110 port-de-bouc ",
             "ban_id": "13077_0810_00010"
         },
-        "match": {
-            "rnb_id": "DVFRS7VKKRRH",
-            "lat_lng": "43.40163615303809, 4.9812190976591015"
-        },
+        "matches": "DVFRS7VKKRRH",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -659,13 +595,10 @@
     "2022-127--ligne52": {
         "input": {
             "ext_id": "2022-127--ligne52",
-            "address": "16 ALL\u00c9E DES BRUY\u00c8RES 13500 MARTIGUES ",
+            "address": "16 all\u00e9e des bruy\u00e8res 13500 martigues ",
             "ban_id": "13056_0245_00016"
         },
-        "match": {
-            "rnb_id": "5E4R5MJZG8X5",
-            "lat_lng": "43.40926918308293, 5.0259957598428056"
-        },
+        "matches": "5E4R5MJZG8X5",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -674,13 +607,10 @@
     "2022-01--ligne53": {
         "input": {
             "ext_id": "2022-01--ligne53",
-            "address": "6 RUE GRAND CAVAILLON 13420 G\u00c9MENOS ",
+            "address": "6 rue grand cavaillon 13420 g\u00e9menos ",
             "ban_id": "13042_0078_00006"
         },
-        "match": {
-            "rnb_id": "4QB7WK4BE2HT",
-            "lat_lng": "43.2959374180653, 5.629699051906348"
-        },
+        "matches": "4QB7WK4BE2HT",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -689,13 +619,10 @@
     "2022-02--ligne54": {
         "input": {
             "ext_id": "2022-02--ligne54",
-            "address": "6 RUE GRAND CAVAILLON 13420 G\u00c9MENOS ",
+            "address": "6 rue grand cavaillon 13420 g\u00e9menos ",
             "ban_id": "13042_0078_00006"
         },
-        "match": {
-            "rnb_id": "4QB7WK4BE2HT",
-            "lat_lng": "43.2959374180653, 5.629699051906348"
-        },
+        "matches": "4QB7WK4BE2HT",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -704,13 +631,10 @@
     "2022-03--ligne55": {
         "input": {
             "ext_id": "2022-03--ligne55",
-            "address": "9 RUE PAVILLON 13100 AIX-EN-PROVENCE ",
+            "address": "9 rue pavillon 13100 aix-en-provence ",
             "ban_id": "13001_2230_00009"
         },
-        "match": {
-            "rnb_id": "T4WYXP4GX71M",
-            "lat_lng": "43.52570754569396, 5.454115090275741"
-        },
+        "matches": "T4WYXP4GX71M",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -719,9 +643,9 @@
     "2022-04--ligne56": {
         "input": {
             "ext_id": "2022-04--ligne56",
-            "address": "2 ALL\u00c9E DU ROUGE GORGE 13500 MARTIGUES "
+            "address": "2 all\u00e9e du rouge gorge 13500 martigues "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -730,11 +654,11 @@
     "2022-05--ligne57": {
         "input": {
             "ext_id": "2022-05--ligne57",
-            "address": "18 RUE MARX DORMOY 13220 CH\u00c2TEAUNEUF-LES-MARTIGUES",
+            "address": "18 rue marx dormoy 13220 ch\u00e2teauneuf-les-martigues",
             "ban_id": "13026_0408_00018"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "DJJ56JY3ARKA,PFFM2GG2YT3Q,WTWT6GMBSPYA",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -742,9 +666,9 @@
     "2022-06--ligne58": {
         "input": {
             "ext_id": "2022-06--ligne58",
-            "address": "AVENUE DES PIELETTES 13740 LE ROVE "
+            "address": "avenue des pielettes 13740 le rove "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -753,10 +677,10 @@
     "2022-07--ligne59": {
         "input": {
             "ext_id": "2022-07--ligne59",
-            "address": "5 C AVENUE JEAN MOULIN 13270 FOS-SUR-MER",
+            "address": "5 c avenue jean moulin 13270 fos-sur-mer",
             "ban_id": "13039_4349_00005_c"
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -765,10 +689,11 @@
     "2022-08--ligne60": {
         "input": {
             "ext_id": "2022-08--ligne60",
-            "address": "11 RUE FORTIN 13005 MARSEILLE "
+            "address": "11 rue fortin 13005 marseille ",
+            "ban_id": "13205_3644_00011"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "CEPD35NP4M78",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -776,10 +701,11 @@
     "2022-09--ligne61": {
         "input": {
             "ext_id": "2022-09--ligne61",
-            "address": "11 RUE FORTIN 13005 MARSEILLE "
+            "address": "11 rue fortin 13005 marseille ",
+            "ban_id": "13205_3644_00011"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "CEPD35NP4M78",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -787,11 +713,11 @@
     "2022-10--ligne62": {
         "input": {
             "ext_id": "2022-10--ligne62",
-            "address": "11 ALL\u00c9E MARCEL SOULAT 13014 MARSEILLE ",
+            "address": "11 all\u00e9e marcel soulat 13014 marseille ",
             "ban_id": "13214_5647_00011"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "9Y9MK8WQ9C8Y,FF13VMTSH698,H27EBB7P62SF,JCV6C7DJ96YM,VC6SABGAY2K2",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -799,10 +725,11 @@
     "2022-11--ligne63": {
         "input": {
             "ext_id": "2022-11--ligne63",
-            "address": "34-36 RUE DE RIMAS 13011 MARSEILLE "
+            "address": "34-36 rue de rimas 13011 marseille ",
+            "ban_id": "13211_7921_00036"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "AJ4M1DS67SA6",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -810,9 +737,9 @@
     "2022-12--ligne64": {
         "input": {
             "ext_id": "2022-12--ligne64",
-            "address": "ROUTE BLANCHE 13110 PORT-DE-BOUC "
+            "address": "route blanche 13110 port-de-bouc "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -821,13 +748,10 @@
     "2022-13--ligne65": {
         "input": {
             "ext_id": "2022-13--ligne65",
-            "address": "1 RUE GEORGES M\u00c9LI\u00c8S 13500 MARTIGUES ",
+            "address": "1 rue georges m\u00e9li\u00e8s 13500 martigues ",
             "ban_id": "13056_1361_00001"
         },
-        "match": {
-            "rnb_id": "1PEABG4EK95E",
-            "lat_lng": "43.41079235786333, 5.044761571829733"
-        },
+        "matches": "1PEABG4EK95E",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -836,9 +760,9 @@
     "2022-15--ligne66": {
         "input": {
             "ext_id": "2022-15--ligne66",
-            "address": "TRAVERSE DES ROSIERS 13014 MARSEILLE "
+            "address": "traverse des rosiers 13014 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -847,9 +771,9 @@
     "2022-16--ligne67": {
         "input": {
             "ext_id": "2022-16--ligne67",
-            "address": "31 B FAUBOURG DE GUEYDAN 13120 GARDANNE "
+            "address": "31 b faubourg de gueydan 13120 gardanne "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -858,11 +782,11 @@
     "2022-17--ligne68": {
         "input": {
             "ext_id": "2022-17--ligne68",
-            "address": "3 AVENUE AMBROISE CROIZAT 13110 PORT-DE-BOUC ",
+            "address": "3 avenue ambroise croizat 13110 port-de-bouc ",
             "ban_id": "13077_0025_00003"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "5317ERGHMDTT,9KDY4CGGRD51",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -870,9 +794,9 @@
     "2022-18--ligne69": {
         "input": {
             "ext_id": "2022-18--ligne69",
-            "address": "141 AVENUE DE SAINT MENET 13011 MARSEILLE "
+            "address": "141 avenue de saint menet 13011 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -881,11 +805,11 @@
     "2022-19--ligne70": {
         "input": {
             "ext_id": "2022-19--ligne70",
-            "address": "90 RUE EDMOND ROSTAND 13006 MARSEILLE ",
+            "address": "90 rue edmond rostand 13006 marseille ",
             "ban_id": "13206_3005_00090"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "2SP1KQQKBE2F,MSEGVNHS7D3W",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -893,10 +817,11 @@
     "2022-20--ligne71": {
         "input": {
             "ext_id": "2022-20--ligne71",
-            "address": "3 RUE PARMENTIER 13120 GARDANNE "
+            "address": "3 rue parmentier 13120 gardanne ",
+            "ban_id": "13041_0870_00003"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "SJ3QYBXDMS25",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -904,10 +829,11 @@
     "2022-21--ligne72": {
         "input": {
             "ext_id": "2022-21--ligne72",
-            "address": "62 RUE HOCHE 13003 MARSEILLE "
+            "address": "62 rue hoche 13003 marseille ",
+            "ban_id": "13203_4470_00062"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "HB1SQ1DVJKZ2",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -915,13 +841,10 @@
     "2022-22--ligne73": {
         "input": {
             "ext_id": "2022-22--ligne73",
-            "address": "39 RUE FAUCHIER 13002 MARSEILLE ",
+            "address": "39 rue fauchier 13002 marseille ",
             "ban_id": "13202_3367_00039"
         },
-        "match": {
-            "rnb_id": "Q6J3RG9F2DM1",
-            "lat_lng": "43.30365830418177, 5.369636139752654"
-        },
+        "matches": "Q6J3RG9F2DM1",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -930,11 +853,11 @@
     "2022-23--ligne74": {
         "input": {
             "ext_id": "2022-23--ligne74",
-            "address": "1 RUE FR\u00c9D\u00c9RIC MISTRAL 13180 GIGNAC-LA-NERTHE ",
+            "address": "1 rue fr\u00e9d\u00e9ric mistral 13180 gignac-la-nerthe ",
             "ban_id": "13043_4123_00001"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "65PRGM9NQTJR,XJHY1B48X6A9",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -942,11 +865,11 @@
     "2022-24--ligne75": {
         "input": {
             "ext_id": "2022-24--ligne75",
-            "address": "12 PLACE BOUGAINVILLE 13015 MARSEILLE ",
+            "address": "12 place bougainville 13015 marseille ",
             "ban_id": "13215_1365_00012"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "KJ8M9K14YW3P,V532Z6VTQX98",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -954,10 +877,11 @@
     "2022-25--ligne76": {
         "input": {
             "ext_id": "2022-25--ligne76",
-            "address": "33 RUE VITALIS 13005 MARSEILLE "
+            "address": "33 rue vitalis 13005 marseille ",
+            "ban_id": "13205_9622_00033"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "2GG237REV7SG,5GSP27JGJ77X",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -965,9 +889,9 @@
     "2022-26--ligne77": {
         "input": {
             "ext_id": "2022-26--ligne77",
-            "address": "BOULEVARD DE LA CABASSETTE 13170 LES PENNES-MIRABEAU "
+            "address": "boulevard de la cabassette 13170 les pennes-mirabeau "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -976,13 +900,10 @@
     "2022-27--ligne78": {
         "input": {
             "ext_id": "2022-27--ligne78",
-            "address": "20 AVENUE GEORGES CLEMENCEAU 13400 AUBAGNE",
+            "address": "20 avenue georges clemenceau 13400 aubagne",
             "ban_id": "13005_0852_00020"
         },
-        "match": {
-            "rnb_id": "WJYHJ9TCNS18",
-            "lat_lng": "43.29248148762697, 5.5705051306360005"
-        },
+        "matches": "WJYHJ9TCNS18",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -991,9 +912,9 @@
     "2022-29--ligne79": {
         "input": {
             "ext_id": "2022-29--ligne79",
-            "address": "AVENUE DES PIELETTES 13740 LE ROVE "
+            "address": "avenue des pielettes 13740 le rove "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1002,10 +923,11 @@
     "2022-30--ligne80": {
         "input": {
             "ext_id": "2022-30--ligne80",
-            "address": "36 RUE DE RIMAS 13011 MARSEILLE "
+            "address": "36 rue de rimas 13011 marseille ",
+            "ban_id": "13211_7921_00036"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "AJ4M1DS67SA6",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1013,13 +935,10 @@
     "2022-31--ligne81": {
         "input": {
             "ext_id": "2022-31--ligne81",
-            "address": "11 PLACE BASSERON 13360 ROQUEVAIRE",
+            "address": "11 place basseron 13360 roquevaire",
             "ban_id": "13086_0125_00011"
         },
-        "match": {
-            "rnb_id": "7XMG1R6Z923G",
-            "lat_lng": "43.34930020260293, 5.60502061618301"
-        },
+        "matches": "7XMG1R6Z923G",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1028,13 +947,10 @@
     "2022-32--ligne82": {
         "input": {
             "ext_id": "2022-32--ligne82",
-            "address": "5 BOULEVARD BOISSON 13004 MARSEILLE ",
+            "address": "5 boulevard boisson 13004 marseille ",
             "ban_id": "13204_1262_00005"
         },
-        "match": {
-            "rnb_id": "G3NH1S9BA82A",
-            "lat_lng": "43.302936648454946, 5.403703747607988"
-        },
+        "matches": "G3NH1S9BA82A",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1043,9 +959,9 @@
     "2022-34--ligne83": {
         "input": {
             "ext_id": "2022-34--ligne83",
-            "address": "CHEMIN BARBIER DAUPHIN 13650 MEYRARGUES "
+            "address": "chemin barbier dauphin 13650 meyrargues "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1054,13 +970,10 @@
     "2022-35--ligne84": {
         "input": {
             "ext_id": "2022-35--ligne84",
-            "address": "50 RUE DE LA R\u00c9PUBLIQUE 13002 MARSEILLE ",
+            "address": "50 rue de la r\u00e9publique 13002 marseille ",
             "ban_id": "13202_7849_00050"
         },
-        "match": {
-            "rnb_id": "HYPB7AFQDRQK",
-            "lat_lng": "43.30031484880391, 5.371126486039345"
-        },
+        "matches": "HYPB7AFQDRQK",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1069,9 +982,9 @@
     "2022-36--ligne85": {
         "input": {
             "ext_id": "2022-36--ligne85",
-            "address": "ROUTE BLANCHE 13110 PORT-DE-BOUC "
+            "address": "route blanche 13110 port-de-bouc "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1080,13 +993,10 @@
     "2022-38--ligne86": {
         "input": {
             "ext_id": "2022-38--ligne86",
-            "address": "12 RUE DU CHEVALIER ROZE 13002 MARSEILLE ",
+            "address": "12 rue du chevalier roze 13002 marseille ",
             "ban_id": "13202_2230_00012"
         },
-        "match": {
-            "rnb_id": "AJV8MTASFVKY",
-            "lat_lng": "43.29818533172477, 5.371988448489065"
-        },
+        "matches": "AJV8MTASFVKY",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1095,11 +1005,11 @@
     "2022-39--ligne87": {
         "input": {
             "ext_id": "2022-39--ligne87",
-            "address": "21 TRAVERSE DES ROSIERS 13014 MARSEILLE ",
+            "address": "21 traverse des rosiers 13014 marseille ",
             "ban_id": "13214_jza1ab_00021"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "126FMY377SZ9,28ADJBVRCD9P,2SSGRBNDA3C2,5JX1W1DFDBE5,81CMVHADEN28,8WMHMKCM3897,9K1Y8S34T53S,9YXDMBDS2XE5,9ZM273Z6E36A,CGR92RY42ACY,CJJ1FA4X448T,D4Y8T2FNXC6H,DECH3E9E6QXJ,E2FDK7YMD65T,E7WZP45A25GT,G5FMFV65GBWG,H267MTHYJ8YX,JFS6AWV1D1E4,QQ21TSY8TC9V,VP49QC57457G,WCVSAQEDTRAF,XPH2VTG7VBGE,YWCFXNYB7824",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1107,13 +1017,10 @@
     "2022-41--ligne88": {
         "input": {
             "ext_id": "2022-41--ligne88",
-            "address": "20 BOULEVARD DES M\u00dbRIERS 13015 MARSEILLE ",
+            "address": "20 boulevard des m\u00fbriers 13015 marseille ",
             "ban_id": "13215_6428_00020"
         },
-        "match": {
-            "rnb_id": "75XD3RC7HG1K",
-            "lat_lng": "43.335554247173704, 5.359045794381644"
-        },
+        "matches": "75XD3RC7HG1K",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1122,10 +1029,11 @@
     "2022-43--ligne89": {
         "input": {
             "ext_id": "2022-43--ligne89",
-            "address": "17 PLACE D'AMONT 13390 AURIOL "
+            "address": "17 place d'amont 13390 auriol ",
+            "ban_id": "13007_0008_00017"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "DQSD2PBZ4NN4",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1133,9 +1041,9 @@
     "2022-44--ligne90": {
         "input": {
             "ext_id": "2022-44--ligne90",
-            "address": "14 PLACE BOUGAINVILLE 13015 MARSEILLE "
+            "address": "14 place bougainville 13015 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1144,11 +1052,11 @@
     "2022-46--ligne91": {
         "input": {
             "ext_id": "2022-46--ligne91",
-            "address": "70 BOULEVARD DE LA LIB\u00c9RATION 13004 MARSEILLE ",
+            "address": "70 boulevard de la lib\u00e9ration 13004 marseille ",
             "ban_id": "13204_5266_00070"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "MN41XZX7MKH7,WY29GQPKCFFN,XDEKGRQHYRQF",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1156,11 +1064,11 @@
     "2022-47--ligne92": {
         "input": {
             "ext_id": "2022-47--ligne92",
-            "address": "158 RUE LE CHATELIER 13015 MARSEILLE ",
+            "address": "158 rue le chatelier 13015 marseille ",
             "ban_id": "13215_5183_00158"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "G1H6ZZSZ3HZG,V5XXM81YM6NG",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1168,10 +1076,11 @@
     "2022-49--ligne93": {
         "input": {
             "ext_id": "2022-49--ligne93",
-            "address": "62 RUE HOCHE 13003 MARSEILLE "
+            "address": "62 rue hoche 13003 marseille ",
+            "ban_id": "13203_4470_00062"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "HB1SQ1DVJKZ2",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1179,9 +1088,9 @@
     "2022-54--ligne94": {
         "input": {
             "ext_id": "2022-54--ligne94",
-            "address": "14 PLACE BOUGAINVILLE 13015 MARSEILLE "
+            "address": "14 place bougainville 13015 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1190,10 +1099,11 @@
     "2022-55--ligne95": {
         "input": {
             "ext_id": "2022-55--ligne95",
-            "address": "9 RUE GOURJON 13002 MARSEILLE "
+            "address": "9 rue gourjon 13002 marseille ",
+            "ban_id": "13202_4179_00009"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "156GYDERQM77",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1201,11 +1111,11 @@
     "2022-56--ligne96": {
         "input": {
             "ext_id": "2022-56--ligne96",
-            "address": "1 RUE FR\u00c9D\u00c9RIC MISTRAL 13180 GIGNAC-LA-NERTHE ",
+            "address": "1 rue fr\u00e9d\u00e9ric mistral 13180 gignac-la-nerthe ",
             "ban_id": "13043_4123_00001"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "65PRGM9NQTJR,XJHY1B48X6A9",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1213,10 +1123,11 @@
     "2022-57--ligne97": {
         "input": {
             "ext_id": "2022-57--ligne97",
-            "address": "14 RUE LAUTARD 13003 MARSEILLE "
+            "address": "14 rue lautard 13003 marseille ",
+            "ban_id": "13203_5145_00014"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "8JXYZ2HS9FK7,KPBPS2XPFZH8",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1224,9 +1135,9 @@
     "2022-58--ligne98": {
         "input": {
             "ext_id": "2022-58--ligne98",
-            "address": "CHEMIN DES PI\u00c9LETTES 13740 LE ROVE "
+            "address": "chemin des pi\u00e9lettes 13740 le rove "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1235,10 +1146,11 @@
     "2022-59--ligne99": {
         "input": {
             "ext_id": "2022-59--ligne99",
-            "address": "3884 CHEMIN DONN\u00c9 13560 S\u00c9NAS "
+            "address": "3884 chemin donn\u00e9 13560 s\u00e9nas ",
+            "ban_id": "13105_0043_03884"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "H6FDX4MF3SRH,QWPV6E8SJZMW",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1246,13 +1158,10 @@
     "2022-60--ligne100": {
         "input": {
             "ext_id": "2022-60--ligne100",
-            "address": "37 RUE LONGUE DES CAPUCINS 13001 MARSEILLE ",
+            "address": "37 rue longue des capucins 13001 marseille ",
             "ban_id": "13201_5352_00037"
         },
-        "match": {
-            "rnb_id": "6YVCG1ZCDNN4",
-            "lat_lng": "43.29814973705244, 5.378947429269123"
-        },
+        "matches": "6YVCG1ZCDNN4",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1261,13 +1170,10 @@
     "2022-61--ligne101": {
         "input": {
             "ext_id": "2022-61--ligne101",
-            "address": "20 BOULEVARD DES M\u00dbRIERS 13015 MARSEILLE ",
+            "address": "20 boulevard des m\u00fbriers 13015 marseille ",
             "ban_id": "13215_6428_00020"
         },
-        "match": {
-            "rnb_id": "75XD3RC7HG1K",
-            "lat_lng": "43.335554247173704, 5.359045794381644"
-        },
+        "matches": "75XD3RC7HG1K",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1276,9 +1182,9 @@
     "2022-62--ligne102": {
         "input": {
             "ext_id": "2022-62--ligne102",
-            "address": "2 A RUE D'ISOARD 13001 MARSEILLE "
+            "address": "2 a rue d'isoard 13001 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1287,11 +1193,11 @@
     "2022-63--ligne103": {
         "input": {
             "ext_id": "2022-63--ligne103",
-            "address": "44 BOULEVARD DE LA LIB\u00c9RATION 13001 MARSEILLE ",
+            "address": "44 boulevard de la lib\u00e9ration 13001 marseille ",
             "ban_id": "13201_5266_00044"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "HTJGVVVHBGC9,TECQ6YZ6J1VX,XNRA46YNT7RZ",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1299,11 +1205,11 @@
     "2022-64--ligne104": {
         "input": {
             "ext_id": "2022-64--ligne104",
-            "address": "3 BOULEVARD ADRIEN ROUSSEAU 13011 MARSEILLE ",
+            "address": "3 boulevard adrien rousseau 13011 marseille ",
             "ban_id": "13211_0080_00003"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "35V3ZM75PYMZ,9C8ZS6PEJZRF,MBC6MVVF75J8",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1311,13 +1217,10 @@
     "2022-65--ligne105": {
         "input": {
             "ext_id": "2022-65--ligne105",
-            "address": "35 COURS FRANKLIN ROOSEVELT 13001 MARSEILLE ",
+            "address": "35 cours franklin roosevelt 13001 marseille ",
             "ban_id": "13201_3738_00035"
         },
-        "match": {
-            "rnb_id": "QBYYV3ZPXCZS",
-            "lat_lng": "43.29907924919243, 5.38787323768422"
-        },
+        "matches": "QBYYV3ZPXCZS",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1326,11 +1229,11 @@
     "2022-66--ligne106": {
         "input": {
             "ext_id": "2022-66--ligne106",
-            "address": "21 AVENUE PAUL DI LORTO 13500 MARTIGUES ",
+            "address": "21 avenue paul di lorto 13500 martigues ",
             "ban_id": "13056_1510_00021"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "H8BM73235NV3,MKCZ7V7PZNB8",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1338,13 +1241,10 @@
     "2022-67--ligne107": {
         "input": {
             "ext_id": "2022-67--ligne107",
-            "address": "516 BOULEVARD ANATOLE FRANCE 13130 BERRE-L'\u00c9TANG ",
+            "address": "516 boulevard anatole france 13130 berre-l'\u00e9tang ",
             "ban_id": "13014_0020_00516"
         },
-        "match": {
-            "rnb_id": "2NJPKCPVBY32",
-            "lat_lng": "43.48660603290271, 5.175037959253979"
-        },
+        "matches": "2NJPKCPVBY32",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1353,13 +1253,10 @@
     "2022-67--ligne108": {
         "input": {
             "ext_id": "2022-67--ligne108",
-            "address": "516 BOULEVARD ANATOLE FRANCE 13130 BERRE-L'\u00c9TANG ",
+            "address": "516 boulevard anatole france 13130 berre-l'\u00e9tang ",
             "ban_id": "13014_0020_00516"
         },
-        "match": {
-            "rnb_id": "2NJPKCPVBY32",
-            "lat_lng": "43.48660603290271, 5.175037959253979"
-        },
+        "matches": "2NJPKCPVBY32",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1368,9 +1265,9 @@
     "2022-68--ligne109": {
         "input": {
             "ext_id": "2022-68--ligne109",
-            "address": "14 PLACE BOUGAINVILLE 13015 MARSEILLE "
+            "address": "14 place bougainville 13015 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1379,11 +1276,11 @@
     "2022-69--ligne110": {
         "input": {
             "ext_id": "2022-69--ligne110",
-            "address": "7-9 RUE JEAN CRISTOFOL 13003 MARSEILLE ",
+            "address": "7-9 rue jean cristofol 13003 marseille ",
             "ban_id": "13203_4717_00009"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "DGSYNWEXS5AZ,QE86Y194MZHX",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1391,11 +1288,11 @@
     "2022-70--ligne111": {
         "input": {
             "ext_id": "2022-70--ligne111",
-            "address": "7-9 RUE JEAN CRISTOFOL 13003 MARSEILLE ",
+            "address": "7-9 rue jean cristofol 13003 marseille ",
             "ban_id": "13203_4717_00009"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "DGSYNWEXS5AZ,QE86Y194MZHX",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1403,13 +1300,10 @@
     "2022-71--ligne112": {
         "input": {
             "ext_id": "2022-71--ligne112",
-            "address": "20 RUE DU BOSQUET 13004 MARSEILLE ",
+            "address": "20 rue du bosquet 13004 marseille ",
             "ban_id": "13204_1344_00020"
         },
-        "match": {
-            "rnb_id": "N622G3Z43ZQJ",
-            "lat_lng": "43.29884488334359, 5.399458264652338"
-        },
+        "matches": "N622G3Z43ZQJ",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1418,11 +1312,11 @@
     "2022-72--ligne113": {
         "input": {
             "ext_id": "2022-72--ligne113",
-            "address": "14 HAMEAU DE TOURDINAOU 13190 ALLAUCH",
+            "address": "14 hameau de tourdinaou 13190 allauch",
             "ban_id": "13002_b158_00014"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "1FZGXCS2RS33,WT6BN1WM659S",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1430,10 +1324,11 @@
     "2022-74--ligne114": {
         "input": {
             "ext_id": "2022-74--ligne114",
-            "address": "33 RUE VITALIS 13005 MARSEILLE "
+            "address": "33 rue vitalis 13005 marseille ",
+            "ban_id": "13205_9622_00033"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "2GG237REV7SG,5GSP27JGJ77X",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1441,13 +1336,10 @@
     "2022-76--ligne115": {
         "input": {
             "ext_id": "2022-76--ligne115",
-            "address": "272 BOULEVARD ERNEST GENEVET 13160 CH\u00c2TEAURENARD ",
+            "address": "272 boulevard ernest genevet 13160 ch\u00e2teaurenard ",
             "ban_id": "13027_0310_00272"
         },
-        "match": {
-            "rnb_id": "4K6NWHAV83VV",
-            "lat_lng": "43.88727978599725, 4.8483834228819465"
-        },
+        "matches": "4K6NWHAV83VV",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1456,11 +1348,11 @@
     "2022-78--ligne116": {
         "input": {
             "ext_id": "2022-78--ligne116",
-            "address": "7-9 RUE JEAN CRISTOFOL 13003 MARSEILLE ",
+            "address": "7-9 rue jean cristofol 13003 marseille ",
             "ban_id": "13203_4717_00009"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "DGSYNWEXS5AZ,QE86Y194MZHX",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1468,13 +1360,10 @@
     "2022-79--ligne117": {
         "input": {
             "ext_id": "2022-79--ligne117",
-            "address": "21 RUE MARIUS LIEUTAUD 13600 LA CIOTAT ",
+            "address": "21 rue marius lieutaud 13600 la ciotat ",
             "ban_id": "13028_1168_00021"
         },
-        "match": {
-            "rnb_id": "2B3CVB7EJKEF",
-            "lat_lng": "43.17557408149136, 5.607367464979221"
-        },
+        "matches": "2B3CVB7EJKEF",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1483,11 +1372,11 @@
     "2022-80--ligne118": {
         "input": {
             "ext_id": "2022-80--ligne118",
-            "address": "69 TRAVERSE MARDIROSSIAN 13015 MARSEILLE ",
+            "address": "69 traverse mardirossian 13015 marseille ",
             "ban_id": "13215_hlgstk_00069"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "8PS6KQ6FAQVY,A27CFSXMEYZX,N1F76C9YFW7S",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1495,13 +1384,10 @@
     "2022-81--ligne119": {
         "input": {
             "ext_id": "2022-81--ligne119",
-            "address": "26 RUE DE LA BUTINEUSE 13015 MARSEILLE ",
+            "address": "26 rue de la butineuse 13015 marseille ",
             "ban_id": "13215_1519_00026"
         },
-        "match": {
-            "rnb_id": "EFHEMVHAFW3M",
-            "lat_lng": "43.3302394761963, 5.359709812456456"
-        },
+        "matches": "EFHEMVHAFW3M",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1510,11 +1396,11 @@
     "2022-82--ligne120": {
         "input": {
             "ext_id": "2022-82--ligne120",
-            "address": "8 BOULEVARD DES ITALIENS 13015 MARSEILLE ",
+            "address": "8 boulevard des italiens 13015 marseille ",
             "ban_id": "13215_4622_00008"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "QHBXCBBP32GQ,ZEC4KC5N57J3",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1522,11 +1408,11 @@
     "2022-83--ligne121": {
         "input": {
             "ext_id": "2022-83--ligne121",
-            "address": "12 BOULEVARD P\u00c9RIER 13008 MARSEILLE ",
+            "address": "12 boulevard p\u00e9rier 13008 marseille ",
             "ban_id": "13208_6988_00012"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "1J42YKQ58354,3F8DKEYC6ZVM,9535QQCH8PW6,9CSKK9PHK2JM,D4MHXCNN9TQD,NKE5VV256G31",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1534,11 +1420,11 @@
     "2022-84--ligne122": {
         "input": {
             "ext_id": "2022-84--ligne122",
-            "address": "9 RUE POIDS DE LA FARINE 13001 MARSEILLE ",
+            "address": "9 rue poids de la farine 13001 marseille ",
             "ban_id": "13201_7371_00009"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "CWBYB54T95HZ,NK5TY8W9H2C7",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1546,13 +1432,10 @@
     "2022-86--ligne123": {
         "input": {
             "ext_id": "2022-86--ligne123",
-            "address": "1257 CHEMIN DES PLAYES 13720 LA BOUILLADISSE ",
+            "address": "1257 chemin des playes 13720 la bouilladisse ",
             "ban_id": "13016_0234_01257"
         },
-        "match": {
-            "rnb_id": "AQXZ949GDTCD",
-            "lat_lng": "43.38697936751764, 5.614569707901255"
-        },
+        "matches": "AQXZ949GDTCD",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1561,13 +1444,10 @@
     "2022-87--ligne124": {
         "input": {
             "ext_id": "2022-87--ligne124",
-            "address": "20 RUE DU BOSQUET 13004 MARSEILLE ",
+            "address": "20 rue du bosquet 13004 marseille ",
             "ban_id": "13204_1344_00020"
         },
-        "match": {
-            "rnb_id": "N622G3Z43ZQJ",
-            "lat_lng": "43.29884488334359, 5.399458264652338"
-        },
+        "matches": "N622G3Z43ZQJ",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1576,10 +1456,11 @@
     "2022-88--ligne125": {
         "input": {
             "ext_id": "2022-88--ligne125",
-            "address": "105 RUE LOUBON 13003 MARSEILLE "
+            "address": "105 rue loubon 13003 marseille ",
+            "ban_id": "13203_5385_00105"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "J2FAT953CHY5",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1587,9 +1468,9 @@
     "2022-89--ligne126": {
         "input": {
             "ext_id": "2022-89--ligne126",
-            "address": "5094 CHEMIN DE LA GRANDE BASTIDE 13710 FUVEAU "
+            "address": "5094 chemin de la grande bastide 13710 fuveau "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1598,9 +1479,9 @@
     "2022-90--ligne127": {
         "input": {
             "ext_id": "2022-90--ligne127",
-            "address": "41 RUE DU DOCTEUR RODOCANACHI 13008 MARSEILLE "
+            "address": "41 rue du docteur rodocanachi 13008 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1609,10 +1490,11 @@
     "2022-91--ligne128": {
         "input": {
             "ext_id": "2022-91--ligne128",
-            "address": "13 B AVENUE GEORGES COSTE 13360 ORGON"
+            "address": "13 b avenue georges coste 13360 orgon",
+            "ban_id": "13067_0140_00013_bis"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "5C86ZCZ6E38N,86PYKV1EV4VG",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1620,9 +1502,9 @@
     "2022-92--ligne129": {
         "input": {
             "ext_id": "2022-92--ligne129",
-            "address": "CHEMIN DE BARBIER DAUPHIN 13650 MEYRARGUES "
+            "address": "chemin de barbier dauphin 13650 meyrargues "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1631,9 +1513,9 @@
     "2022-93--ligne130": {
         "input": {
             "ext_id": "2022-93--ligne130",
-            "address": "CHEMIN DE BARBIER DAUPHIN 13650 MEYRARGUES "
+            "address": "chemin de barbier dauphin 13650 meyrargues "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1642,9 +1524,9 @@
     "2022-94--ligne131": {
         "input": {
             "ext_id": "2022-94--ligne131",
-            "address": "CHEMIN DE BARBIER DAUPHIN 13650 MEYRARGUES "
+            "address": "chemin de barbier dauphin 13650 meyrargues "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1653,10 +1535,11 @@
     "2022-95--ligne132": {
         "input": {
             "ext_id": "2022-95--ligne132",
-            "address": "12 RUE DU CHEVALIER ROZE 13002 MARSEILLE "
+            "address": "12 rue du chevalier roze 13002 marseille ",
+            "ban_id": "13202_2230_00012"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "AJV8MTASFVKY",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1664,9 +1547,9 @@
     "2022-96--ligne133": {
         "input": {
             "ext_id": "2022-96--ligne133",
-            "address": "4 IMPASSE SUMIAN 13014 MARSEILLE "
+            "address": "4 impasse sumian 13014 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1675,9 +1558,9 @@
     "2022-98--ligne134": {
         "input": {
             "ext_id": "2022-98--ligne134",
-            "address": "41 RUE DU DOCTEUR RODOCANACHI 13008 MARSEILLE "
+            "address": "41 rue du docteur rodocanachi 13008 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1686,13 +1569,10 @@
     "2022-100--ligne135": {
         "input": {
             "ext_id": "2022-100--ligne135",
-            "address": "6 RUE CLOVIS HUGUES 13130 BERRE-L'\u00c9TANG ",
+            "address": "6 rue clovis hugues 13130 berre-l'\u00e9tang ",
             "ban_id": "13014_0180_00006"
         },
-        "match": {
-            "rnb_id": "V7GB9FEKPEEN",
-            "lat_lng": "43.473641618462054, 5.166286984120259"
-        },
+        "matches": "V7GB9FEKPEEN",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1701,11 +1581,11 @@
     "2022-102--ligne136": {
         "input": {
             "ext_id": "2022-102--ligne136",
-            "address": "12 BOULEVARD P\u00c9RIER 13008 MARSEILLE ",
+            "address": "12 boulevard p\u00e9rier 13008 marseille ",
             "ban_id": "13208_6988_00012"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "1J42YKQ58354,3F8DKEYC6ZVM,9535QQCH8PW6,9CSKK9PHK2JM,D4MHXCNN9TQD,NKE5VV256G31",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1713,11 +1593,11 @@
     "2022-103--ligne137": {
         "input": {
             "ext_id": "2022-103--ligne137",
-            "address": "9 RUE POIDS DE LA FARINE 13001 MARSEILLE ",
+            "address": "9 rue poids de la farine 13001 marseille ",
             "ban_id": "13201_7371_00009"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "CWBYB54T95HZ,NK5TY8W9H2C7",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1725,11 +1605,11 @@
     "2022-104--ligne138": {
         "input": {
             "ext_id": "2022-104--ligne138",
-            "address": "10 RUE FRAN\u00c7OIS BARBINI 13003 MARSEILLE ",
+            "address": "10 rue fran\u00e7ois barbini 13003 marseille ",
             "ban_id": "13203_3700_00010"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "JA6XAACNN3WD,T2CX7FT7PVJ7",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1737,11 +1617,11 @@
     "2022-105--ligne139": {
         "input": {
             "ext_id": "2022-105--ligne139",
-            "address": "234 BOULEVARD NATIONAL 13003 MARSEILLE ",
+            "address": "234 boulevard national 13003 marseille ",
             "ban_id": "13203_6461_00234"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "3QV9AJF1GDDY,RPVGEFB556E6",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1749,10 +1629,11 @@
     "2022-106--ligne140": {
         "input": {
             "ext_id": "2022-106--ligne140",
-            "address": "73 RUE FERRARI 13005 MARSEILLE "
+            "address": "73 rue ferrari 13005 marseille ",
+            "ban_id": "13205_3455_00073"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "Y954XXH3TNEB",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1760,11 +1641,11 @@
     "2022-110--ligne141": {
         "input": {
             "ext_id": "2022-110--ligne141",
-            "address": "36 BOULEVARD DE LA SIGNORE 13700 MARIGNANE ",
+            "address": "36 boulevard de la signore 13700 marignane ",
             "ban_id": "13054_0923_00036"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "3YYDA3162DT7,GWBRYT32ECH2,Q51CPB8GTNBT",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1772,11 +1653,11 @@
     "2022-111--ligne142": {
         "input": {
             "ext_id": "2022-111--ligne142",
-            "address": "13 RUE RENE CAILLOUX 13700 MARIGNANE ",
+            "address": "13 rue rene cailloux 13700 marignane ",
             "ban_id": "13054_0842_00013"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "98GA4RP33XA4,9FC98E929SGA,WX9S1QSDZMDQ",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1784,10 +1665,11 @@
     "2022-112--ligne143": {
         "input": {
             "ext_id": "2022-112--ligne143",
-            "address": "7-9 RUE JEAN CRISTOFOL 13003 MARSEILLE "
+            "address": "7-9 rue jean cristofol 13003 marseille ",
+            "ban_id": "13203_4717_00009"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "DGSYNWEXS5AZ,QE86Y194MZHX",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1795,13 +1677,10 @@
     "2022-113--ligne144": {
         "input": {
             "ext_id": "2022-113--ligne144",
-            "address": "4 RUE DE LA BUTINEUSE 13015 MARSEILLE ",
+            "address": "4 rue de la butineuse 13015 marseille ",
             "ban_id": "13215_1519_00004"
         },
-        "match": {
-            "rnb_id": "XAYD1T3FC9WW",
-            "lat_lng": "43.32797895797901, 5.361337104741862"
-        },
+        "matches": "XAYD1T3FC9WW",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1810,13 +1689,10 @@
     "2022-114--ligne145": {
         "input": {
             "ext_id": "2022-114--ligne145",
-            "address": "10 RUE VILLEBOIS MAREUIL 13110 PORT-DE-BOUC ",
+            "address": "10 rue villebois mareuil 13110 port-de-bouc ",
             "ban_id": "13077_0810_00010"
         },
-        "match": {
-            "rnb_id": "DVFRS7VKKRRH",
-            "lat_lng": "43.40163615303809, 4.9812190976591015"
-        },
+        "matches": "DVFRS7VKKRRH",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1825,10 +1701,11 @@
     "2022-115--ligne146": {
         "input": {
             "ext_id": "2022-115--ligne146",
-            "address": "7 RUE JEAN COURRET 13700 MARIGNANE "
+            "address": "7 rue jean courret 13700 marignane ",
+            "ban_id": "13054_0530_00007"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "TCNQKREBHR79",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1836,13 +1713,10 @@
     "2022-117--ligne147": {
         "input": {
             "ext_id": "2022-117--ligne147",
-            "address": "169 BOULEVARD DE SAINT-MARCEL 13011 MARSEILLE ",
+            "address": "169 boulevard de saint-marcel 13011 marseille ",
             "ban_id": "13211_8409_00169"
         },
-        "match": {
-            "rnb_id": "AK2ZD88N1NQ9",
-            "lat_lng": "43.287565320186104, 5.465445802803227"
-        },
+        "matches": "AK2ZD88N1NQ9",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1851,11 +1725,11 @@
     "2022-123--ligne148": {
         "input": {
             "ext_id": "2022-123--ligne148",
-            "address": "26 RUE DES PETITES MARIES 13001 MARSEILLE ",
+            "address": "26 rue des petites maries 13001 marseille ",
             "ban_id": "13201_7051_00026"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "M85S53XD69PC,N1GGTRFSHNHZ",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1863,13 +1737,10 @@
     "2022-125--ligne149": {
         "input": {
             "ext_id": "2022-125--ligne149",
-            "address": "43 ALL\u00c9E SERPENTINE 13014 MARSEILLE ",
+            "address": "43 all\u00e9e serpentine 13014 marseille ",
             "ban_id": "13214_8714_00043"
         },
-        "match": {
-            "rnb_id": "T94AYKCYE38M",
-            "lat_lng": "43.34267970430043, 5.382670655877128"
-        },
+        "matches": "T94AYKCYE38M",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1878,10 +1749,11 @@
     "2022-126--ligne150": {
         "input": {
             "ext_id": "2022-126--ligne150",
-            "address": "8 A RUE DU 141E RIA 13003 MARSEILLE "
+            "address": "8 a rue du 141e ria 13003 marseille ",
+            "ban_id": "13203_1901_00008_a"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "Q2WR34ME1Y4T",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1889,13 +1761,10 @@
     "2022-127--ligne151": {
         "input": {
             "ext_id": "2022-127--ligne151",
-            "address": "16 ALL\u00c9E DES BRUY\u00c8RES 13500 MARTIGUES ",
+            "address": "16 all\u00e9e des bruy\u00e8res 13500 martigues ",
             "ban_id": "13056_0245_00016"
         },
-        "match": {
-            "rnb_id": "5E4R5MJZG8X5",
-            "lat_lng": "43.40926918308293, 5.0259957598428056"
-        },
+        "matches": "5E4R5MJZG8X5",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1904,9 +1773,9 @@
     "2022-128--ligne152": {
         "input": {
             "ext_id": "2022-128--ligne152",
-            "address": "14 PLACE BOUGAINVILLE 13015 MARSEILLE "
+            "address": "14 place bougainville 13015 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1915,13 +1784,10 @@
     "2022-129--ligne153": {
         "input": {
             "ext_id": "2022-129--ligne153",
-            "address": "4 RUE DE LA BUTINEUSE 13015 MARSEILLE ",
+            "address": "4 rue de la butineuse 13015 marseille ",
             "ban_id": "13215_1519_00004"
         },
-        "match": {
-            "rnb_id": "XAYD1T3FC9WW",
-            "lat_lng": "43.32797895797901, 5.361337104741862"
-        },
+        "matches": "XAYD1T3FC9WW",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -1930,10 +1796,11 @@
     "2022-130--ligne154": {
         "input": {
             "ext_id": "2022-130--ligne154",
-            "address": "13 B AVENUE GEORGES COSTE 13360 ORGON"
+            "address": "13 b avenue georges coste 13360 orgon",
+            "ban_id": "13067_0140_00013_bis"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "5C86ZCZ6E38N,86PYKV1EV4VG",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1941,9 +1808,9 @@
     "2022-132--ligne155": {
         "input": {
             "ext_id": "2022-132--ligne155",
-            "address": "1014 CHEMIN DU VX MIRAMAS VERS LUNARD 13140 MIRAMAS "
+            "address": "1014 chemin du vx miramas vers lunard 13140 miramas "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1952,9 +1819,10 @@
     "2022-133--ligne156": {
         "input": {
             "ext_id": "2022-133--ligne156",
-            "address": "1 B AVENUE DE VALDONNE 13124 PEYPIN "
+            "address": "1 b avenue de valdonne 13124 peypin ",
+            "ban_id": "13073_0273_00001_bis"
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1963,9 +1831,9 @@
     "2022-134--ligne157": {
         "input": {
             "ext_id": "2022-134--ligne157",
-            "address": "14 PLACE BOUGAINVILLE 13015 MARSEILLE "
+            "address": "14 place bougainville 13015 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1974,10 +1842,11 @@
     "2022-135--ligne158": {
         "input": {
             "ext_id": "2022-135--ligne158",
-            "address": "5 RUE GUY MOQUET 13001 MARSEILLE "
+            "address": "5 rue guy moquet 13001 marseille ",
+            "ban_id": "13201_4354_00005"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "YMGFMR29VXS3",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1985,11 +1854,11 @@
     "2022-140--ligne159": {
         "input": {
             "ext_id": "2022-140--ligne159",
-            "address": "2 BOULEVARD DE BOIGNE 13011 MARSEILLE ",
+            "address": "2 boulevard de boigne 13011 marseille ",
             "ban_id": "13211_1236_00002"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "4G3R5T3VEJNC,9WCSSF2APREZ,ACYVX3D38QMG,FS6J9N9HR56R,H6Y2P35JJRXQ,KR265QRH42GB,KSRG3WA8XD6R,V8ZBXYCJQ31Y",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -1997,10 +1866,11 @@
     "2022-141--ligne160": {
         "input": {
             "ext_id": "2022-141--ligne160",
-            "address": "3 RUE CAPOULI\u00c8RE 13500 MARTIGUES "
+            "address": "3 rue capouli\u00e8re 13500 martigues ",
+            "ban_id": "13056_0300_00003"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "JJBVVW32SZ5Z",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2008,9 +1878,9 @@
     "2022-142--ligne161": {
         "input": {
             "ext_id": "2022-142--ligne161",
-            "address": "18 RUE DE L'AMIDONNERIE 13003 MARSEILLE "
+            "address": "18 rue de l'amidonnerie 13003 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2019,13 +1889,10 @@
     "2022-143--ligne162": {
         "input": {
             "ext_id": "2022-143--ligne162",
-            "address": "36 BOULEVARD LAFUENTE 13015 MARSEILLE ",
+            "address": "36 boulevard lafuente 13015 marseille ",
             "ban_id": "13215_5044_00036"
         },
-        "match": {
-            "rnb_id": "MQ64QCVGK71V",
-            "lat_lng": "43.331193090461845, 5.363243664326542"
-        },
+        "matches": "MQ64QCVGK71V",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2034,11 +1901,11 @@
     "2022-148--ligne163": {
         "input": {
             "ext_id": "2022-148--ligne163",
-            "address": "36 BOULEVARD DE LA SIGNORE 13700 MARIGNANE ",
+            "address": "36 boulevard de la signore 13700 marignane ",
             "ban_id": "13054_0923_00036"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "3YYDA3162DT7,GWBRYT32ECH2,Q51CPB8GTNBT",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2046,13 +1913,10 @@
     "2022-150--ligne164": {
         "input": {
             "ext_id": "2022-150--ligne164",
-            "address": "7 RUE JEAN CRISTOFOL 13003 MARSEILLE ",
+            "address": "7 rue jean cristofol 13003 marseille ",
             "ban_id": "13203_4717_00007"
         },
-        "match": {
-            "rnb_id": "S9B2X972BPTW",
-            "lat_lng": "43.310407597218685, 5.3801274276090885"
-        },
+        "matches": "S9B2X972BPTW",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2061,11 +1925,11 @@
     "2023-01--ligne165": {
         "input": {
             "ext_id": "2023-01--ligne165",
-            "address": "131 RUE RABELAIS 13016 MARSEILLE ",
+            "address": "131 rue rabelais 13016 marseille ",
             "ban_id": "13216_7704_00131"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "1AD4T1APQKYN,CNC1R46YPXN8,PQEM6EQW5S5R,V4EYQ4WCB8BP",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2073,13 +1937,10 @@
     "2023-03--ligne166": {
         "input": {
             "ext_id": "2023-03--ligne166",
-            "address": "68 RUE LONGUE DES CAPUCINS 13001 MARSEILLE ",
+            "address": "68 rue longue des capucins 13001 marseille ",
             "ban_id": "13201_5352_00068"
         },
-        "match": {
-            "rnb_id": "PYHQ4WRTYGWR",
-            "lat_lng": "43.30061861230129, 5.378549222813163"
-        },
+        "matches": "PYHQ4WRTYGWR",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2088,13 +1949,10 @@
     "2023-05--ligne167": {
         "input": {
             "ext_id": "2023-05--ligne167",
-            "address": "2 RUE HENRI FIOCCA 13001 MARSEILLE ",
+            "address": "2 rue henri fiocca 13001 marseille ",
             "ban_id": "13201_4435_00002"
         },
-        "match": {
-            "rnb_id": "W8EX99GEZFJM",
-            "lat_lng": "43.297843175257555, 5.3738373040157175"
-        },
+        "matches": "W8EX99GEZFJM",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2103,13 +1961,10 @@
     "2023-06--ligne168": {
         "input": {
             "ext_id": "2023-06--ligne168",
-            "address": "46 RUE D'AUBAGNE 13001 MARSEILLE ",
+            "address": "46 rue d'aubagne 13001 marseille ",
             "ban_id": "13201_0576_00046"
         },
-        "match": {
-            "rnb_id": "B5BVR2TFKYJW",
-            "lat_lng": "43.29458580318967, 5.380381772510088"
-        },
+        "matches": "B5BVR2TFKYJW",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2118,13 +1973,10 @@
     "2023-07--ligne169": {
         "input": {
             "ext_id": "2023-07--ligne169",
-            "address": "11 RUE FONTAINE DE CAYLUS 13002 MARSEILLE ",
+            "address": "11 rue fontaine de caylus 13002 marseille ",
             "ban_id": "13202_3570_00011"
         },
-        "match": {
-            "rnb_id": "ATPCS47FHFYJ",
-            "lat_lng": "43.29816026663789, 5.366930845655736"
-        },
+        "matches": "ATPCS47FHFYJ",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2133,11 +1985,11 @@
     "2023-09--ligne170": {
         "input": {
             "ext_id": "2023-09--ligne170",
-            "address": "76 RUE EDMOND ROSTAND 13006 MARSEILLE ",
+            "address": "76 rue edmond rostand 13006 marseille ",
             "ban_id": "13206_3005_00076"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "6B9VQQSNPTSD,SASM11TJMN2T",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2145,13 +1997,10 @@
     "2023-11--ligne171": {
         "input": {
             "ext_id": "2023-11--ligne171",
-            "address": "2 RUE HENRI FIOCCA 13001 MARSEILLE ",
+            "address": "2 rue henri fiocca 13001 marseille ",
             "ban_id": "13201_4435_00002"
         },
-        "match": {
-            "rnb_id": "W8EX99GEZFJM",
-            "lat_lng": "43.297843175257555, 5.3738373040157175"
-        },
+        "matches": "W8EX99GEZFJM",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2160,13 +2009,10 @@
     "2023-12--ligne172": {
         "input": {
             "ext_id": "2023-12--ligne172",
-            "address": "8 IMPASSE DES CERISIERS 13800 ISTRES ",
+            "address": "8 impasse des cerisiers 13800 istres ",
             "ban_id": "13047_1168_00008"
         },
-        "match": {
-            "rnb_id": "P3XWNN2CEZWM",
-            "lat_lng": "43.520453833724076, 4.976333274156375"
-        },
+        "matches": "P3XWNN2CEZWM",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2175,11 +2021,11 @@
     "2023-124--ligne173": {
         "input": {
             "ext_id": "2023-124--ligne173",
-            "address": "96 RUE JEAN MERMOZ 13008 MARSEILLE ",
+            "address": "96 rue jean mermoz 13008 marseille ",
             "ban_id": "13208_4774_00096"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "7T521M1V1E86,ECZ7J7C6V87H,PPZ1G3RBZBKY,SKYGSQHGV6WV,YFZEZ3ACYJ7X",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2187,13 +2033,10 @@
     "2023-127--ligne174": {
         "input": {
             "ext_id": "2023-127--ligne174",
-            "address": "31 BOULEVARD ANGE MARTIN 13190 ALLAUCH",
+            "address": "31 boulevard ange martin 13190 allauch",
             "ban_id": "13002_0071_00031"
         },
-        "match": {
-            "rnb_id": "QD4EPJZ977FB",
-            "lat_lng": "43.33261691211153, 5.463570083309057"
-        },
+        "matches": "QD4EPJZ977FB",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2202,10 +2045,11 @@
     "2023-140--ligne175": {
         "input": {
             "ext_id": "2023-140--ligne175",
-            "address": "8 RUE LEON GAMBETTA 13880 VELAUX "
+            "address": "8 rue leon gambetta 13880 velaux ",
+            "ban_id": "13112_2950_00008"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "YTBHDH8QS7K1",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2213,13 +2057,10 @@
     "2023-15--ligne176": {
         "input": {
             "ext_id": "2023-15--ligne176",
-            "address": "12 RUE DES AIGUILLES 13150 TARASCON ",
+            "address": "12 rue des aiguilles 13150 tarascon ",
             "ban_id": "13108_0010_00012"
         },
-        "match": {
-            "rnb_id": "QANCGGJRCJBK",
-            "lat_lng": "43.80478486195311, 4.658972905626167"
-        },
+        "matches": "QANCGGJRCJBK",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2228,11 +2069,11 @@
     "2023-17--ligne177": {
         "input": {
             "ext_id": "2023-17--ligne177",
-            "address": "32 BOULEVARD DE LA LIBERT\u00c9 13001 MARSEILLE ",
+            "address": "32 boulevard de la libert\u00e9 13001 marseille ",
             "ban_id": "13201_5268_00032"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "PQM6KZWXCACW,QPE18YZ2YKWB,SEDREXARGSKR,VRB9M4PZA2Q6",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2240,11 +2081,11 @@
     "2023-18--ligne178": {
         "input": {
             "ext_id": "2023-18--ligne178",
-            "address": "40 BOULEVARD MARIE JOSEPH 13015 MARSEILLE ",
+            "address": "40 boulevard marie joseph 13015 marseille ",
             "ban_id": "13215_5714_00040"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "1RV81BA79T9G,27ETX4AEB12K,3QX77PQMKJM6,7NB13RE19JAP,GP333KA5KCTM,JY82T7G7HNK7,KCNVNQX7XT85,QDY9RC4J8219",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2252,10 +2093,11 @@
     "2023-19--ligne179": {
         "input": {
             "ext_id": "2023-19--ligne179",
-            "address": "18 RUE D'AIX 13001 MARSEILLE "
+            "address": "18 rue d'aix 13001 marseille ",
+            "ban_id": "13201_0114_00018"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "8835STW2T6X7",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2263,10 +2105,11 @@
     "2023-20--ligne180": {
         "input": {
             "ext_id": "2023-20--ligne180",
-            "address": "7 RUE BLACHE 13440 CABANNES "
+            "address": "7 rue blache 13440 cabannes ",
+            "ban_id": "13018_0040_00007"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "SSJW6GQ5GHD2",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2274,13 +2117,10 @@
     "2023-21--ligne181": {
         "input": {
             "ext_id": "2023-21--ligne181",
-            "address": "5 RUE EDMOND ROSTAND 13006 MARSEILLE ",
+            "address": "5 rue edmond rostand 13006 marseille ",
             "ban_id": "13206_3005_00005"
         },
-        "match": {
-            "rnb_id": "QWPV5DJY4J8C",
-            "lat_lng": "43.28920564644089, 5.380065123223174"
-        },
+        "matches": "QWPV5DJY4J8C",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2289,11 +2129,11 @@
     "2023-22--ligne182": {
         "input": {
             "ext_id": "2023-22--ligne182",
-            "address": "1 RUE FR\u00c9D\u00c9RIC MISTRAL 13180 GIGNAC-LA-NERTHE ",
+            "address": "1 rue fr\u00e9d\u00e9ric mistral 13180 gignac-la-nerthe ",
             "ban_id": "13043_4123_00001"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "65PRGM9NQTJR,XJHY1B48X6A9",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2301,11 +2141,11 @@
     "2023-24--ligne183": {
         "input": {
             "ext_id": "2023-24--ligne183",
-            "address": "10 CHEMIN DE SAINT BOURDON 13127 VITROLLES ",
+            "address": "10 chemin de saint bourdon 13127 vitrolles ",
             "ban_id": "13117_3802_00010"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "49QT7Z6FDGW6,7CY7E5T65N7M,GBF486JWVSJQ,HVV91DPAXC8V,RZ5C9JAZTDX6,V3STBX9YMTB5",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2313,9 +2153,9 @@
     "2023-25--ligne184": {
         "input": {
             "ext_id": "2023-25--ligne184",
-            "address": "ROUTE DE JEAN MOULIN 13300 SALON-DE-PROVENCE "
+            "address": "route de jean moulin 13300 salon-de-provence "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2324,11 +2164,11 @@
     "2023-26--ligne185": {
         "input": {
             "ext_id": "2023-26--ligne185",
-            "address": "130 AVENUE COROT 13013 MARSEILLE ",
+            "address": "130 avenue corot 13013 marseille ",
             "ban_id": "13213_2566_00130"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "1XDPJ8NAK7K6,1ZF7DP9NSCK6,2Z28ZCT4PQQS,4MKX7GKDMATR,5VJQ1X112WVF,78H11ABK5F56,7CMAQ95E7VPS,7VM5F4FKQ2Z1,9K94EVJRYKSD,A2D1H7XY8X9D,EB8VWXQ62X6T,F25F21HHDSAP,HPDAZ3ZKZSDX,HQGW1KSWC6PK,HR4SSQMB7SGY,JF55M7BHB6JS,KJ1D7F3RM152,KM5SE1YSC6QN,KRQYPRX8K6HP,MKA4M6K68F6Y,Q7FZ76K1CAHC,QWBX64PH2Z2X,RWRK94B2JTRV,SCYMTRWBF4BR,T8WNP5JWPKSZ,W9SX22ZSVZQE,XQS5N8E2CXKY,Z1HNEP81BVBT,ZAGBQRNMKJ7S",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2336,13 +2176,10 @@
     "2023-27--ligne186": {
         "input": {
             "ext_id": "2023-27--ligne186",
-            "address": "1 RUE GEORGES M\u00c9LI\u00c8S 13500 MARTIGUES ",
+            "address": "1 rue georges m\u00e9li\u00e8s 13500 martigues ",
             "ban_id": "13056_1361_00001"
         },
-        "match": {
-            "rnb_id": "1PEABG4EK95E",
-            "lat_lng": "43.41079235786333, 5.044761571829733"
-        },
+        "matches": "1PEABG4EK95E",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2351,11 +2188,11 @@
     "2023-28--ligne187": {
         "input": {
             "ext_id": "2023-28--ligne187",
-            "address": "21 AVENUE PAUL DI LORTO 13500 MARTIGUES ",
+            "address": "21 avenue paul di lorto 13500 martigues ",
             "ban_id": "13056_1510_00021"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "H8BM73235NV3,MKCZ7V7PZNB8",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2363,11 +2200,11 @@
     "2023-29--ligne188": {
         "input": {
             "ext_id": "2023-29--ligne188",
-            "address": "159 BOULEVARD NATIONAL 13003 MARSEILLE ",
+            "address": "159 boulevard national 13003 marseille ",
             "ban_id": "13203_6461_00159"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "6PMVJ1JG9SMQ,TN729SG5SEGE",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2375,10 +2212,11 @@
     "2023-40--ligne189": {
         "input": {
             "ext_id": "2023-40--ligne189",
-            "address": "7 TRAVERSE DU MOULIN 13015 MARSEILLE "
+            "address": "7 traverse du moulin 13015 marseille ",
+            "ban_id": "13215_77zbpj_00007"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "F3YWTB18TN3E",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2386,9 +2224,9 @@
     "2023-45--ligne190": {
         "input": {
             "ext_id": "2023-45--ligne190",
-            "address": "CHEMIN BARBIER DAUPHIN 13650 MEYRARGUES "
+            "address": "chemin barbier dauphin 13650 meyrargues "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2397,13 +2235,10 @@
     "2023-56--ligne191": {
         "input": {
             "ext_id": "2023-56--ligne191",
-            "address": "7 COURS VICTOR LEYDET 13710 FUVEAU ",
+            "address": "7 cours victor leydet 13710 fuveau ",
             "ban_id": "13040_4750_00007"
         },
-        "match": {
-            "rnb_id": "3BT2JKPYKMJ1",
-            "lat_lng": "43.453479884523134, 5.562581724266257"
-        },
+        "matches": "3BT2JKPYKMJ1",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2412,10 +2247,11 @@
     "2023-30--ligne192": {
         "input": {
             "ext_id": "2023-30--ligne192",
-            "address": "76-78-80 RUE BELLE DE MAI 13003 MARSEILLE "
+            "address": "76-78-80 rue belle de mai 13003 marseille ",
+            "ban_id": "13203_0984_00080"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "222GKCAJ9GKT",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2423,11 +2259,11 @@
     "2023-32--ligne193": {
         "input": {
             "ext_id": "2023-32--ligne193",
-            "address": "23 BOULEVARD DES M\u00dbRIERS 13015 MARSEILLE ",
+            "address": "23 boulevard des m\u00fbriers 13015 marseille ",
             "ban_id": "13215_6428_00023"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "37ASJA763D9N,EJYM6B2ZRAMB,KKK61VFAE7WC",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2435,10 +2271,10 @@
     "2023-33--ligne194": {
         "input": {
             "ext_id": "2023-33--ligne194",
-            "address": "25 ALL\u00c9E JULES DASSIN 13920 SAINT-MITRE-LES-REMPARTS ",
+            "address": "25 all\u00e9e jules dassin 13920 saint-mitre-les-remparts ",
             "ban_id": "13098_1226_00025"
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2447,13 +2283,10 @@
     "2023-34--ligne195": {
         "input": {
             "ext_id": "2023-34--ligne195",
-            "address": "29 RUE DE MADRID 13300 SALON-DE-PROVENCE ",
+            "address": "29 rue de madrid 13300 salon-de-provence ",
             "ban_id": "13103_1218_00029"
         },
-        "match": {
-            "rnb_id": "CK1N2GRK9K9W",
-            "lat_lng": "43.64895849846777, 5.103272847334839"
-        },
+        "matches": "CK1N2GRK9K9W",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2462,11 +2295,11 @@
     "2023-35--ligne196": {
         "input": {
             "ext_id": "2023-35--ligne196",
-            "address": "26 BOULEVARD DES PLAINES 13700 MARIGNANE ",
+            "address": "26 boulevard des plaines 13700 marignane ",
             "ban_id": "13054_0796_00026"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "4QNM7DR9WHEK,BDVPZAXRDV9F",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2474,11 +2307,11 @@
     "2023-36--ligne197": {
         "input": {
             "ext_id": "2023-36--ligne197",
-            "address": "270 AVENUE ROGER SALENGRO 13015 MARSEILLE ",
+            "address": "270 avenue roger salengro 13015 marseille ",
             "ban_id": "13215_7989_00270"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "F8WE65KYBFD6,VEH99ZJVMMRE",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2486,13 +2319,10 @@
     "2023-38--ligne198": {
         "input": {
             "ext_id": "2023-38--ligne198",
-            "address": "16 AVENUE ADAM DE CRAPONNE 13800 ISTRES ",
+            "address": "16 avenue adam de craponne 13800 istres ",
             "ban_id": "13047_0020_00016"
         },
-        "match": {
-            "rnb_id": "6ZEPBECSWCYQ",
-            "lat_lng": "43.515616871988236, 4.985461093827032"
-        },
+        "matches": "6ZEPBECSWCYQ",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2501,13 +2331,10 @@
     "2023-40--ligne199": {
         "input": {
             "ext_id": "2023-40--ligne199",
-            "address": "31 BOULEVARD ANGE MARTIN 13190 ALLAUCH",
+            "address": "31 boulevard ange martin 13190 allauch",
             "ban_id": "13002_0071_00031"
         },
-        "match": {
-            "rnb_id": "QD4EPJZ977FB",
-            "lat_lng": "43.33261691211153, 5.463570083309057"
-        },
+        "matches": "QD4EPJZ977FB",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2516,11 +2343,11 @@
     "2023-41--ligne200": {
         "input": {
             "ext_id": "2023-41--ligne200",
-            "address": "10 RUE FRAN\u00c7OIS BARBINI 13003 MARSEILLE ",
+            "address": "10 rue fran\u00e7ois barbini 13003 marseille ",
             "ban_id": "13203_3700_00010"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "JA6XAACNN3WD,T2CX7FT7PVJ7",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2528,9 +2355,9 @@
     "2023-42--ligne201": {
         "input": {
             "ext_id": "2023-42--ligne201",
-            "address": "5094 CHEMIN DE LA GRANDE BASTIDE 13170 FUVEAU "
+            "address": "5094 chemin de la grande bastide 13170 fuveau "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2539,10 +2366,11 @@
     "2023-44--ligne202": {
         "input": {
             "ext_id": "2023-44--ligne202",
-            "address": "26 AVENUE DE LA R\u00c9PUBLIQUE 13400 AUBAGNE"
+            "address": "26 avenue de la r\u00e9publique 13400 aubagne",
+            "ban_id": "13005_1740_00026"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "MNENKF8XBA54",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2550,9 +2378,9 @@
     "2023-47--ligne203": {
         "input": {
             "ext_id": "2023-47--ligne203",
-            "address": "4 ALL\u00c9E DE LA MONTAGNETTE 13015 MARSEILLE "
+            "address": "4 all\u00e9e de la montagnette 13015 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2561,9 +2389,9 @@
     "2023-48--ligne204": {
         "input": {
             "ext_id": "2023-48--ligne204",
-            "address": "4 ALL\u00c9E DE LA MONTAGNETTE 13015 MARSEILLE "
+            "address": "4 all\u00e9e de la montagnette 13015 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2572,10 +2400,11 @@
     "2023-49--ligne205": {
         "input": {
             "ext_id": "2023-49--ligne205",
-            "address": "1 RUE ARISTOTE 13370 MARIGNANE "
+            "address": "1 rue aristote 13370 marignane ",
+            "ban_id": "13054_0033_00001"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "19PH91AG6M7K",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2583,11 +2412,11 @@
     "2023-51--ligne206": {
         "input": {
             "ext_id": "2023-51--ligne206",
-            "address": "74 BOULEVARD DE LA BARASSE 13011 MARSEILLE ",
+            "address": "74 boulevard de la barasse 13011 marseille ",
             "ban_id": "13211_nczfy3_00074"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "C3ZSQF4F2VE1,HAFCEECFXWEQ,JHV9VKMFBT81",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2595,11 +2424,11 @@
     "2023-54--ligne207": {
         "input": {
             "ext_id": "2023-54--ligne207",
-            "address": "7-9 RUE JEAN CRISTOFOL 13003 MARSEILLE ",
+            "address": "7-9 rue jean cristofol 13003 marseille ",
             "ban_id": "13203_4717_00009"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "DGSYNWEXS5AZ,QE86Y194MZHX",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2607,9 +2436,9 @@
     "2023-55--ligne208": {
         "input": {
             "ext_id": "2023-55--ligne208",
-            "address": "1 A CHEMIN DE BLAQUEIRON 13800 ISTRES "
+            "address": "1 a chemin de blaqueiron 13800 istres "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2618,11 +2447,11 @@
     "2023-57--ligne209": {
         "input": {
             "ext_id": "2023-57--ligne209",
-            "address": "101 RUE SAINT-PIERRE 13005 MARSEILLE ",
+            "address": "101 rue saint-pierre 13005 marseille ",
             "ban_id": "13205_8437_00101"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "V9MFCDQKGDMT,WJGH8N6534FT",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2630,11 +2459,11 @@
     "2023-58--ligne210": {
         "input": {
             "ext_id": "2023-58--ligne210",
-            "address": "69 TRAVERSE MARDIROSSIAN 13015 MARSEILLE ",
+            "address": "69 traverse mardirossian 13015 marseille ",
             "ban_id": "13215_hlgstk_00069"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "8PS6KQ6FAQVY,A27CFSXMEYZX,N1F76C9YFW7S",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2642,11 +2471,11 @@
     "2023-59--ligne211": {
         "input": {
             "ext_id": "2023-59--ligne211",
-            "address": "1 RUE ANDR\u00c9 ISAIA 13013 MARSEILLE ",
+            "address": "1 rue andr\u00e9 isaia 13013 marseille ",
             "ban_id": "13213_0376_00001"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "138N3H73V77S,2SPMGCXT2CJ3,2ZP751DBQZBR,31ZFNWVFHWQH,687Y72VHDFJ1,6T8NVQ3PENCR,7ACE13SHR3RD,7MA9GPZH9H5M,8KGAPBGCPRC5,8YFGXAZEPW7W,9F14RF77KKHR,9WQNJA6DG1W2,9Y6J53VBEWF5,AKVHHJW1FQH8,AN8FR5JFFEMB,EAQQT95JS6CD,G3RPEF17CB8W,K5B2DZ6KDCPS,KCDPR9135BQ4,MJKA82SPRAXS,N4MS9H3RTY76,NYE2J49H86EH,P5EWYRRR8FCQ,PEXEZXBTJAXS,PKT5G6Z29KHT,PZAYJ3CPA9YZ,QXBZR2NSF8PC,T57EPPYVGS97,T97DR1T86HH3,XFG4AXFQKTWE,Y3MXZMK2RSXJ,ZHRYGK2AQ9N2,ZR4DMS7DHVFX",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2654,11 +2483,11 @@
     "2023-60--ligne212": {
         "input": {
             "ext_id": "2023-60--ligne212",
-            "address": "29 AVENUE EDOUARD VAILLANT 13003 MARSEILLE ",
+            "address": "29 avenue edouard vaillant 13003 marseille ",
             "ban_id": "13203_3026_00029"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "BXJKTF3N8SPT,XY8MCP5AW67Q",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2666,11 +2495,11 @@
     "2023-61--ligne213": {
         "input": {
             "ext_id": "2023-61--ligne213",
-            "address": "27 ALL\u00c9E DES OLIVIERS 13700 MARIGNANE ",
+            "address": "27 all\u00e9e des oliviers 13700 marignane ",
             "ban_id": "13054_0737_00027"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "756Y6W68VJ8Q,CGVB7EVCK8GG,D5M2SF895KQR,HV5PHEPXMHNJ,N5KPGMVWS3E1,PSVF79CBF2SP,SYHTYQ1WDTRK",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2678,9 +2507,9 @@
     "2023-62--ligne214": {
         "input": {
             "ext_id": "2023-62--ligne214",
-            "address": "129 RUE DE LA GRANI\u00c8RE 13011 MARSEILLE "
+            "address": "129 rue de la grani\u00e8re 13011 marseille "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2689,10 +2518,11 @@
     "2023-63--ligne215": {
         "input": {
             "ext_id": "2023-63--ligne215",
-            "address": "30 RUE GUIBAL 13001 MARSEILLE "
+            "address": "30 rue guibal 13001 marseille ",
+            "ban_id": "13201_4295_00030"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "KXKPA7TZKJZE,WRTMRRTGXTND",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2700,10 +2530,11 @@
     "2023-64--ligne216": {
         "input": {
             "ext_id": "2023-64--ligne216",
-            "address": "7 TRAVERSE DU MOULIN 13015 MARSEILLE "
+            "address": "7 traverse du moulin 13015 marseille ",
+            "ban_id": "13215_77zbpj_00007"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "F3YWTB18TN3E",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2711,11 +2542,11 @@
     "2023-65--ligne217": {
         "input": {
             "ext_id": "2023-65--ligne217",
-            "address": "11 AVENUE CAMILLE PELLETAN 13002 MARSEILLE ",
+            "address": "11 avenue camille pelletan 13002 marseille ",
             "ban_id": "13202_1624_00011"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "G6NT6QBWHEWQ,T1YV2BQ3EFFP",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2723,10 +2554,11 @@
     "2023-66--ligne218": {
         "input": {
             "ext_id": "2023-66--ligne218",
-            "address": "28 RUE ALBE 13004 MARSEILLE "
+            "address": "28 rue albe 13004 marseille ",
+            "ban_id": "13204_0128_00028"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "H9ZP922VSCZA",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2734,10 +2566,11 @@
     "2023-67--ligne219": {
         "input": {
             "ext_id": "2023-67--ligne219",
-            "address": "73 RUE FERRARI 13005 MARSEILLE "
+            "address": "73 rue ferrari 13005 marseille ",
+            "ban_id": "13205_3455_00073"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "Y954XXH3TNEB",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2745,10 +2578,11 @@
     "2023-68--ligne220": {
         "input": {
             "ext_id": "2023-68--ligne220",
-            "address": "710 CHEMIN DE LA CRAU 13880 VELAUX "
+            "address": "710 chemin de la crau 13880 velaux ",
+            "ban_id": "13112_1140_00710"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "1MZRT8PE6T2E,6629M9MP8853,BJMFFN9YT6KN,T5H9QWGAHM7H",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2756,13 +2590,10 @@
     "2023-69--ligne221": {
         "input": {
             "ext_id": "2023-69--ligne221",
-            "address": "6 RUE CHANTE PIE 13110 SAINT-MARTIN-DE-CRAU ",
+            "address": "6 rue chante pie 13110 saint-martin-de-crau ",
             "ban_id": "13097_konad9_00006"
         },
-        "match": {
-            "rnb_id": "S2HDZT2Q9HHB",
-            "lat_lng": "43.63386409687674, 4.8196520576989474"
-        },
+        "matches": "S2HDZT2Q9HHB",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2771,11 +2602,11 @@
     "2023-70--ligne222": {
         "input": {
             "ext_id": "2023-70--ligne222",
-            "address": "35 CHEMIN DES BAUMILLONS 13015 MARSEILLE ",
+            "address": "35 chemin des baumillons 13015 marseille ",
             "ban_id": "13215_0882_00035"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "22JC77T2JFS8,BDNZ9QCACF8K,C6VD3NRQ4FPF,DH9P1J75Y6PZ,GY4ZBP4GFPTR,HXE9YKS377GA,PZNK2TRFCAVY,W9CMGAVHXMAP,X7BJ7MGVVZM6,Y8RKJRX4RQ34,ZAQ6G1BZACNH",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2783,9 +2614,9 @@
     "2023-71--ligne223": {
         "input": {
             "ext_id": "2023-71--ligne223",
-            "address": "AVENUE DES COMBATTANTS EN AFRIQUE DU NORD 13700 MARIGNANE "
+            "address": "avenue des combattants en afrique du nord 13700 marignane "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2794,10 +2625,11 @@
     "2023-72--ligne224": {
         "input": {
             "ext_id": "2023-72--ligne224",
-            "address": "76-78-80 RUE BELLE DE MAI 13003 MARSEILLE "
+            "address": "76-78-80 rue belle de mai 13003 marseille ",
+            "ban_id": "13203_0984_00080"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "222GKCAJ9GKT",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2805,10 +2637,11 @@
     "2023-73--ligne225": {
         "input": {
             "ext_id": "2023-73--ligne225",
-            "address": "18 RUE D'AIX 13001 MARSEILLE "
+            "address": "18 rue d'aix 13001 marseille ",
+            "ban_id": "13201_0114_00018"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "8835STW2T6X7",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2816,11 +2649,11 @@
     "2023-74--ligne226": {
         "input": {
             "ext_id": "2023-74--ligne226",
-            "address": "34 RUE DU BON PASTEUR 13002 MARSEILLE ",
+            "address": "34 rue du bon pasteur 13002 marseille ",
             "ban_id": "13202_1274_00034"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "FGHSF5PTF4ZY,TCSN8X19NNSA",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2828,13 +2661,10 @@
     "2023-75--ligne227": {
         "input": {
             "ext_id": "2023-75--ligne227",
-            "address": "30 RUE ANTOINE AYALA 13110 PORT-DE-BOUC ",
+            "address": "30 rue antoine ayala 13110 port-de-bouc ",
             "ban_id": "13077_0040_00030"
         },
-        "match": {
-            "rnb_id": "Y3WJP6HSCDG5",
-            "lat_lng": "43.408623321817096, 4.984673599126113"
-        },
+        "matches": "Y3WJP6HSCDG5",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2843,10 +2673,11 @@
     "2023-76--ligne228": {
         "input": {
             "ext_id": "2023-76--ligne228",
-            "address": "11 RUE SINETIS 13500 MARTIGUES "
+            "address": "11 rue sinetis 13500 martigues ",
+            "ban_id": "13056_2010_00011"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "BHRHGJJCRCBA,E7MQVKT3M9TB,EPPW56BRC6H7",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2854,10 +2685,11 @@
     "2023-77--ligne229": {
         "input": {
             "ext_id": "2023-77--ligne229",
-            "address": "16 RUE DES ACACIAS 13440 CABANNES "
+            "address": "16 rue des acacias 13440 cabannes ",
+            "ban_id": "13018_0004_00016"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "WX4JZ3MCYEXX",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2865,10 +2697,11 @@
     "2023-78--ligne230": {
         "input": {
             "ext_id": "2023-78--ligne230",
-            "address": "7 COURS LEYDET 13710 FUVEAU "
+            "address": "7 cours leydet 13710 fuveau ",
+            "ban_id": "13040_4750_00007"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "3BT2JKPYKMJ1",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2876,11 +2709,11 @@
     "2023-79--ligne231": {
         "input": {
             "ext_id": "2023-79--ligne231",
-            "address": "12 PLACE BOUGAINVILLE 13015 MARSEILLE ",
+            "address": "12 place bougainville 13015 marseille ",
             "ban_id": "13215_1365_00012"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "KJ8M9K14YW3P,V532Z6VTQX98",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2888,13 +2721,10 @@
     "2023-80--ligne232": {
         "input": {
             "ext_id": "2023-80--ligne232",
-            "address": "29 RUE D'AUBAGNE 13001 MARSEILLE ",
+            "address": "29 rue d'aubagne 13001 marseille ",
             "ban_id": "13201_0576_00029"
         },
-        "match": {
-            "rnb_id": "RF7PK2XBCK3K",
-            "lat_lng": "43.29521042643658, 5.379889376598506"
-        },
+        "matches": "RF7PK2XBCK3K",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -2903,10 +2733,11 @@
     "2023-81--ligne233": {
         "input": {
             "ext_id": "2023-81--ligne233",
-            "address": "6-8 RUE DESAIX 13003 MARSEILLE "
+            "address": "6-8 rue desaix 13003 marseille ",
+            "ban_id": "13203_2779_00008"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "NF52JFRBYKVM,XHZNJ1A58SH4",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2914,10 +2745,11 @@
     "2023-82--ligne234": {
         "input": {
             "ext_id": "2023-82--ligne234",
-            "address": "6-8 RUE DESAIX 13003 MARSEILLE "
+            "address": "6-8 rue desaix 13003 marseille ",
+            "ban_id": "13203_2779_00008"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "NF52JFRBYKVM,XHZNJ1A58SH4",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2925,10 +2757,11 @@
     "2023-82--ligne235": {
         "input": {
             "ext_id": "2023-82--ligne235",
-            "address": "6-8 RUE DESAIX 13003 MARSEILLE "
+            "address": "6-8 rue desaix 13003 marseille ",
+            "ban_id": "13203_2779_00008"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "NF52JFRBYKVM,XHZNJ1A58SH4",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2936,10 +2769,11 @@
     "2023-82--ligne236": {
         "input": {
             "ext_id": "2023-82--ligne236",
-            "address": "6-8 RUE DESAIX 13003 MARSEILLE "
+            "address": "6-8 rue desaix 13003 marseille ",
+            "ban_id": "13203_2779_00008"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "NF52JFRBYKVM,XHZNJ1A58SH4",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2947,10 +2781,11 @@
     "2023-83--ligne237": {
         "input": {
             "ext_id": "2023-83--ligne237",
-            "address": "3 AVENUE DE LA MONTAGNETTE 13015 MARSEILLE "
+            "address": "3 avenue de la montagnette 13015 marseille ",
+            "ban_id": "13215_6464_00003"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "4783REZYSJTZ,KCW2MVA3EYQ4,QB4MKSDB6224,SHFFXKNH4QTN",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2958,11 +2793,11 @@
     "2023-84--ligne238": {
         "input": {
             "ext_id": "2023-84--ligne238",
-            "address": "24 AVENUE DU DOCTEUR G\u00c9RARD MONTUS 13620 CARRY-LE-ROUET ",
+            "address": "24 avenue du docteur g\u00e9rard montus 13620 carry-le-rouet ",
             "ban_id": "13021_1600_00024"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "CBC8HV43NMAH,DKW6D9NM7ZQH,ND9M22S17EA9,Q87FBMXQE42E",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2970,10 +2805,11 @@
     "2023-85--ligne239": {
         "input": {
             "ext_id": "2023-85--ligne239",
-            "address": "7 TRAVERSE DU MOULIN 13015 MARSEILLE "
+            "address": "7 traverse du moulin 13015 marseille ",
+            "ban_id": "13215_77zbpj_00007"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "F3YWTB18TN3E",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2981,11 +2817,11 @@
     "2023-86--ligne240": {
         "input": {
             "ext_id": "2023-86--ligne240",
-            "address": "43 RUE D'AUBAGNE 13001 MARSEILLE ",
+            "address": "43 rue d'aubagne 13001 marseille ",
             "ban_id": "13201_0576_00043"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "3C7QS6HTE8V2,JQC26482J54Q",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -2993,10 +2829,11 @@
     "2023-89--ligne241": {
         "input": {
             "ext_id": "2023-89--ligne241",
-            "address": "29 RUE DUVERGER 13002 MARSEILLE "
+            "address": "29 rue duverger 13002 marseille ",
+            "ban_id": "13202_2958_00029"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "TSTMGJVZXZ56",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3004,10 +2841,11 @@
     "2023-90--ligne242": {
         "input": {
             "ext_id": "2023-90--ligne242",
-            "address": "8 RUE DIDEROT 13160 CH\u00c2TEAURENARD "
+            "address": "8 rue diderot 13160 ch\u00e2teaurenard ",
+            "ban_id": "13027_0240_00008"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "QGVRAPZ4NYYR",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3015,10 +2853,11 @@
     "2023-91--ligne243": {
         "input": {
             "ext_id": "2023-91--ligne243",
-            "address": "76-78-80 RUE BELLE DE MAI 13003 MARSEILLE "
+            "address": "76-78-80 rue belle de mai 13003 marseille ",
+            "ban_id": "13203_0984_00080"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "222GKCAJ9GKT",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3026,13 +2865,10 @@
     "2023-92--ligne244": {
         "input": {
             "ext_id": "2023-92--ligne244",
-            "address": "6 RUE FERDINAND REY 13006 MARSEILLE ",
+            "address": "6 rue ferdinand rey 13006 marseille ",
             "ban_id": "13206_3437_00006"
         },
-        "match": {
-            "rnb_id": "YNZQ52YHM22S",
-            "lat_lng": "43.29360150309246, 5.38624304802603"
-        },
+        "matches": "YNZQ52YHM22S",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3041,10 +2877,11 @@
     "2023-93--ligne245": {
         "input": {
             "ext_id": "2023-93--ligne245",
-            "address": "2 RUE MARCEAU 13110 PORT-DE-BOUC "
+            "address": "2 rue marceau 13110 port-de-bouc ",
+            "ban_id": "13077_0380_00002"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "KY7ARKDB1PWF",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3052,10 +2889,11 @@
     "2023-94--ligne246": {
         "input": {
             "ext_id": "2023-94--ligne246",
-            "address": "8 CHEMIN DU FENOUIL 13420 G\u00c9MENOS "
+            "address": "8 chemin du fenouil 13420 g\u00e9menos ",
+            "ban_id": "13042_0157_00008"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "8SEDJ23AAG9C,AEDCTH9AWPHJ,PSN2M6QT359K,XC9F982ETT8M",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3063,13 +2901,10 @@
     "2023-96--ligne247": {
         "input": {
             "ext_id": "2023-96--ligne247",
-            "address": "19 RUE DE LA BUTINEUSE 13015 MARSEILLE ",
+            "address": "19 rue de la butineuse 13015 marseille ",
             "ban_id": "13215_1519_00019"
         },
-        "match": {
-            "rnb_id": "YDQWF334Y2KB",
-            "lat_lng": "43.32933669289008, 5.36012516954472"
-        },
+        "matches": "YDQWF334Y2KB",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3078,9 +2913,9 @@
     "2023-99--ligne248": {
         "input": {
             "ext_id": "2023-99--ligne248",
-            "address": "89 BOULEVARD MARCEL PAUL 13500 MARTIGUES "
+            "address": "89 boulevard marcel paul 13500 martigues "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -3089,13 +2924,10 @@
     "2023-100--ligne249": {
         "input": {
             "ext_id": "2023-100--ligne249",
-            "address": "31 ROUTE D'APT 13240 SEPT\u00c8MES-LES-VALLONS ",
+            "address": "31 route d'apt 13240 sept\u00e8mes-les-vallons ",
             "ban_id": "13106_0012_00031"
         },
-        "match": {
-            "rnb_id": "Z11824SWMRRT",
-            "lat_lng": "43.399702987979424, 5.365288791716607"
-        },
+        "matches": "Z11824SWMRRT",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3104,10 +2936,11 @@
     "2023-101--ligne250": {
         "input": {
             "ext_id": "2023-101--ligne250",
-            "address": "12 RUE DES AIGUILLES 13150 TARASCON "
+            "address": "12 rue des aiguilles 13150 tarascon ",
+            "ban_id": "13108_0010_00012"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "QANCGGJRCJBK",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3115,10 +2948,11 @@
     "2023-102--ligne251": {
         "input": {
             "ext_id": "2023-102--ligne251",
-            "address": "2 RUE VOLTAIRE 13140 MIRAMAS "
+            "address": "2 rue voltaire 13140 miramas ",
+            "ban_id": "13063_0870_00002"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "RBGCJSW6XJFF",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3126,11 +2960,11 @@
     "2023-107--ligne252": {
         "input": {
             "ext_id": "2023-107--ligne252",
-            "address": "29 AVENUE EDOUARD VAILLANT 13003 MARSEILLE ",
+            "address": "29 avenue edouard vaillant 13003 marseille ",
             "ban_id": "13203_3026_00029"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "BXJKTF3N8SPT,XY8MCP5AW67Q",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3138,10 +2972,11 @@
     "2023-108--ligne253": {
         "input": {
             "ext_id": "2023-108--ligne253",
-            "address": "131 RUE RABELAIS 13016 MARSEILLE "
+            "address": "131 rue rabelais 13016 marseille ",
+            "ban_id": "13216_7704_00131"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "1AD4T1APQKYN,CNC1R46YPXN8,PQEM6EQW5S5R,V4EYQ4WCB8BP",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3149,10 +2984,11 @@
     "2023-109--ligne254": {
         "input": {
             "ext_id": "2023-109--ligne254",
-            "address": "3 RUE NOUVELLE 13003 MARSEILLE "
+            "address": "3 rue nouvelle 13003 marseille ",
+            "ban_id": "13203_6603_00003"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "9ZTM5SD8HWBP",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3160,13 +2996,10 @@
     "2023-110--ligne255": {
         "input": {
             "ext_id": "2023-110--ligne255",
-            "address": "76 BOULEVARD DE SAINT-MARCEL 13011 MARSEILLE ",
+            "address": "76 boulevard de saint-marcel 13011 marseille ",
             "ban_id": "13211_8409_00076"
         },
-        "match": {
-            "rnb_id": "ANEQVQCHF2DP",
-            "lat_lng": "43.28865213767904, 5.460298882735153"
-        },
+        "matches": "ANEQVQCHF2DP",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3175,13 +3008,10 @@
     "2023-111--ligne256": {
         "input": {
             "ext_id": "2023-111--ligne256",
-            "address": "4 RUE DES DOMINICAINES 13001 MARSEILLE ",
+            "address": "4 rue des dominicaines 13001 marseille ",
             "ban_id": "13201_2888_00004"
         },
-        "match": {
-            "rnb_id": "VVSDW33Z2BDJ",
-            "lat_lng": "43.29989530457705, 5.376157438209319"
-        },
+        "matches": "VVSDW33Z2BDJ",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3190,11 +3020,11 @@
     "2023-114--ligne257": {
         "input": {
             "ext_id": "2023-114--ligne257",
-            "address": "40 BOULEVARD MARIE JOSEPH 13015 MARSEILLE ",
+            "address": "40 boulevard marie joseph 13015 marseille ",
             "ban_id": "13215_5714_00040"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "1RV81BA79T9G,27ETX4AEB12K,3QX77PQMKJM6,7NB13RE19JAP,GP333KA5KCTM,JY82T7G7HNK7,KCNVNQX7XT85,QDY9RC4J8219",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3202,10 +3032,11 @@
     "2023-115--ligne258": {
         "input": {
             "ext_id": "2023-115--ligne258",
-            "address": "6 RUE FERDINAND REY 13006 MARSEILLE "
+            "address": "6 rue ferdinand rey 13006 marseille ",
+            "ban_id": "13206_3437_00006"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "YNZQ52YHM22S",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3213,10 +3044,11 @@
     "2023-116--ligne259": {
         "input": {
             "ext_id": "2023-116--ligne259",
-            "address": "3 AVENUE DE LA MONTAGNETTE 13015 MARSEILLE "
+            "address": "3 avenue de la montagnette 13015 marseille ",
+            "ban_id": "13215_6464_00003"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "4783REZYSJTZ,KCW2MVA3EYQ4,QB4MKSDB6224,SHFFXKNH4QTN",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3224,9 +3056,9 @@
     "2023-117--ligne260": {
         "input": {
             "ext_id": "2023-117--ligne260",
-            "address": "AVENUE PAUL LANGEVIN 13110 PORT-DE-BOUC "
+            "address": "avenue paul langevin 13110 port-de-bouc "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -3235,10 +3067,11 @@
     "2023-119--ligne261": {
         "input": {
             "ext_id": "2023-119--ligne261",
-            "address": "15 RUE ABRAM 13015 MARSEILLE "
+            "address": "15 rue abram 13015 marseille ",
+            "ban_id": "13215_0044_00015"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "4GXAZC3FPBM9,RJEB3T6AQSD4",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3246,11 +3079,11 @@
     "2023-122--ligne262": {
         "input": {
             "ext_id": "2023-122--ligne262",
-            "address": "12 BOULEVARD MARIE-JOSEPH 13015 MARSEILLE ",
+            "address": "12 boulevard marie-joseph 13015 marseille ",
             "ban_id": "13215_5714_00012"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "3WXXVNFRK7F3,43VQ9Y4HRYYC,489FQWYE5HCW,6Y83AXPA36FH,7XWVYQ5WSBY8,9W89WG6D58T3,AYK913WX1R85,DHJ8HYJZ1H49,ECHDK3P74PD3,YSAEVHZ6KT8H",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3258,9 +3091,9 @@
     "2023-124--ligne263": {
         "input": {
             "ext_id": "2023-124--ligne263",
-            "address": "RUE COMBATTANTS D\u2019EXTREME ORIENT 13700 MARIGNANE "
+            "address": "rue combattants d\u2019extreme orient 13700 marignane "
         },
-        "match": null,
+        "matches": [],
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -3269,13 +3102,10 @@
     "2023-125--ligne264": {
         "input": {
             "ext_id": "2023-125--ligne264",
-            "address": "63 RUE BELLE DE MAI 13003 MARSEILLE ",
+            "address": "63 rue belle de mai 13003 marseille ",
             "ban_id": "13203_0984_00063"
         },
-        "match": {
-            "rnb_id": "6HFCFSXW2M7B",
-            "lat_lng": "43.31028795628705, 5.383106327019272"
-        },
+        "matches": "6HFCFSXW2M7B",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3284,13 +3114,10 @@
     "2023-126--ligne265": {
         "input": {
             "ext_id": "2023-126--ligne265",
-            "address": "10 RUE VILLEBOIS MAREUIL 13110 PORT-DE-BOUC ",
+            "address": "10 rue villebois mareuil 13110 port-de-bouc ",
             "ban_id": "13077_0810_00010"
         },
-        "match": {
-            "rnb_id": "DVFRS7VKKRRH",
-            "lat_lng": "43.40163615303809, 4.9812190976591015"
-        },
+        "matches": "DVFRS7VKKRRH",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3299,13 +3126,10 @@
     "2023-128--ligne266": {
         "input": {
             "ext_id": "2023-128--ligne266",
-            "address": "36 RUE DU BON PASTEUR 13002 MARSEILLE ",
+            "address": "36 rue du bon pasteur 13002 marseille ",
             "ban_id": "13202_1274_00036"
         },
-        "match": {
-            "rnb_id": "A2SSHZ6FQZDE",
-            "lat_lng": "43.30311223793197, 5.373481657685397"
-        },
+        "matches": "A2SSHZ6FQZDE",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3314,13 +3138,10 @@
     "2023-129--ligne267": {
         "input": {
             "ext_id": "2023-129--ligne267",
-            "address": "256 AVENUE DE TOULON 13010 MARSEILLE ",
+            "address": "256 avenue de toulon 13010 marseille ",
             "ban_id": "13210_9083_00256"
         },
-        "match": {
-            "rnb_id": "8W1CSAFB35VQ",
-            "lat_lng": "43.28330842379057, 5.397188475716151"
-        },
+        "matches": "8W1CSAFB35VQ",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3329,13 +3150,10 @@
     "2023-130--ligne268": {
         "input": {
             "ext_id": "2023-130--ligne268",
-            "address": "73 BOULEVARD MARCEL CACHIN 13130 BERRE-L'\u00c9TANG ",
+            "address": "73 boulevard marcel cachin 13130 berre-l'\u00e9tang ",
             "ban_id": "13014_0540_00073"
         },
-        "match": {
-            "rnb_id": "RVMFY2D81PEZ",
-            "lat_lng": "43.49273040516802, 5.170196766112223"
-        },
+        "matches": "RVMFY2D81PEZ",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3344,10 +3162,11 @@
     "2023-131--ligne269": {
         "input": {
             "ext_id": "2023-131--ligne269",
-            "address": "2 RUE DE L'ARMISTICE 13340 ROGNAC "
+            "address": "2 rue de l'armistice 13340 rognac ",
+            "ban_id": "13081_0170_00002"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "ET7T8PEX5J7H",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3355,10 +3174,11 @@
     "2023-134--ligne270": {
         "input": {
             "ext_id": "2023-134--ligne270",
-            "address": "24 B AVENUE DES P\u00c8RES BLANCS 13380 PLAN-DE-CUQUES "
+            "address": "24 b avenue des p\u00e8res blancs 13380 plan-de-cuques ",
+            "ban_id": "13075_6190_00024_bis"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "1D5156HMPQFH,ZK61ZY35424K",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3366,11 +3186,11 @@
     "2023-135--ligne271": {
         "input": {
             "ext_id": "2023-135--ligne271",
-            "address": "8 BOULEVARD DES ITALIENS 13015 MARSEILLE ",
+            "address": "8 boulevard des italiens 13015 marseille ",
             "ban_id": "13215_4622_00008"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "QHBXCBBP32GQ,ZEC4KC5N57J3",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3378,10 +3198,11 @@
     "2023-136--ligne272": {
         "input": {
             "ext_id": "2023-136--ligne272",
-            "address": "5 RUE JULIEN JULES 13015 MARSEILLE "
+            "address": "5 rue julien jules 13015 marseille ",
+            "ban_id": "13215_4967_00005"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "9TTP49CHAGXZ",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3389,10 +3210,11 @@
     "2023-136--ligne273": {
         "input": {
             "ext_id": "2023-136--ligne273",
-            "address": "5 RUE JULIEN JULES 13015 MARSEILLE "
+            "address": "5 rue julien jules 13015 marseille ",
+            "ban_id": "13215_4967_00005"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "9TTP49CHAGXZ",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3400,13 +3222,10 @@
     "2023-137--ligne274": {
         "input": {
             "ext_id": "2023-137--ligne274",
-            "address": "1 BOULEVARD MARCEL CACHIN 13130 BERRE-L'\u00c9TANG ",
+            "address": "1 boulevard marcel cachin 13130 berre-l'\u00e9tang ",
             "ban_id": "13014_0540_00001"
         },
-        "match": {
-            "rnb_id": "ACAPKGQQRDCM",
-            "lat_lng": "43.48121646273634, 5.169426101505527"
-        },
+        "matches": "ACAPKGQQRDCM",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3415,11 +3234,11 @@
     "2023-137--ligne275": {
         "input": {
             "ext_id": "2023-137--ligne275",
-            "address": "96 RUE JEAN MERMOZ 13008 MARSEILLE ",
+            "address": "96 rue jean mermoz 13008 marseille ",
             "ban_id": "13208_4774_00096"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "7T521M1V1E86,ECZ7J7C6V87H,PPZ1G3RBZBKY,SKYGSQHGV6WV,YFZEZ3ACYJ7X",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
@@ -3427,13 +3246,10 @@
     "2023-138--ligne276": {
         "input": {
             "ext_id": "2023-138--ligne276",
-            "address": "1 RUE DE LA FOURANE 13090 AIX-EN-PROVENCE ",
+            "address": "1 rue de la fourane 13090 aix-en-provence ",
             "ban_id": "13001_1135_00001"
         },
-        "match": {
-            "rnb_id": "TZBK6AP4NYHK",
-            "lat_lng": "43.513463373426475, 5.443709902923034"
-        },
+        "matches": "TZBK6AP4NYHK",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3442,13 +3258,10 @@
     "2023-139--ligne277": {
         "input": {
             "ext_id": "2023-139--ligne277",
-            "address": "68 RUE LONGUE DES CAPUCINS 13001 MARSEILLE ",
+            "address": "68 rue longue des capucins 13001 marseille ",
             "ban_id": "13201_5352_00068"
         },
-        "match": {
-            "rnb_id": "PYHQ4WRTYGWR",
-            "lat_lng": "43.30061861230129, 5.378549222813163"
-        },
+        "matches": "PYHQ4WRTYGWR",
         "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
@@ -3457,10 +3270,11 @@
     "2023-142--ligne278": {
         "input": {
             "ext_id": "2023-142--ligne278",
-            "address": "3 RUE DU PEUPLE 13500 MARTIGUES "
+            "address": "3 rue du peuple 13500 martigues ",
+            "ban_id": "13056_1570_00003"
         },
-        "match": null,
-        "match_reason": null,
+        "matches": "9G6CET4N3N3N",
+        "match_reason": "precise_address_match",
         "finished_steps": [
             "geocode_address"
         ]
