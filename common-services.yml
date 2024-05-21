@@ -45,7 +45,7 @@ services:
     container_name: web
 
   db:
-    image: postgis/postgis:14-master
+    image: postgis/postgis:15-master
     platform: linux/amd64
     shm_size: 1gb
     volumes:

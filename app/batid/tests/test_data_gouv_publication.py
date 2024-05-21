@@ -1,6 +1,7 @@
 import json
 import os
 from unittest import mock
+from datetime import datetime
 
 import boto3
 from django.contrib.gis.geos import GEOSGeometry
@@ -53,10 +54,6 @@ def get_department_geom():
         ],
         "type": "MultiPolygon",
     }
-    print("DEBUG-1: ")
-    print(json.dumps(coords))
-    print("DEBUG-2: ")
-    print(GEOSGeometry(json.dumps(coords), srid=4326))
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
 
@@ -66,8 +63,6 @@ class TestDataGouvPublication(TestCase):
         department = Department.objects.create(
             code="75", name="Paris", shape=get_department_geom()
         )
-        print("DEBUG-3: ")
-        print(get_department_geom())
         address = Address.objects.create(
             source="BAN",
             point=geom.point_on_surface,
@@ -85,7 +80,7 @@ class TestDataGouvPublication(TestCase):
         building.save()
 
         directory_name = create_directory()
-        area = "nat"
+        area = "75"
         create_csv(directory_name, area)
 
         # Check if the directory exists
@@ -104,7 +99,7 @@ class TestDataGouvPublication(TestCase):
                 content,
             )
             self.assertIn("BDG-CONSTR", content)
-            self.assertIn("MULTIPOLYGON", content)
+            self.assertIn("POLYGON", content)
             self.assertIn("POINT", content)
             self.assertIn("some_source", content)
 
@@ -118,7 +113,7 @@ class TestDataGouvPublication(TestCase):
         # assert sha is not empty
         self.assertTrue(archive_sha1)
 
-        # cleanup_directory(directory_name)
+        cleanup_directory(directory_name)
 
         # check the directory has been removed
         self.assertFalse(os.path.exists(directory_name))
@@ -174,11 +169,18 @@ class TestDataGouvPublication(TestCase):
             "resources": [
                 {"id": "1", "title": "33", "format": "csv"},
                 {"id": "2", "title": "33", "format": "zip"},
+                {"id": "3", "title": "75", "format": "zip"},
             ]
         }
 
         resource_id = data_gouv_resource_id("some-dataset-id", "33")
         self.assertEqual(resource_id, "2")
+
+        resource_id = data_gouv_resource_id("some-dataset-id", "75")
+        self.assertEqual(resource_id, "3")
+
+        resource_id = data_gouv_resource_id("some-dataset-id", "123")
+        self.assertIsNone(resource_id)
 
     @mock.patch("batid.services.data_gouv_publication.requests.put")
     @mock.patch.dict(
@@ -189,18 +191,31 @@ class TestDataGouvPublication(TestCase):
     )
     def test_update_resource_on_data_gouv(self, put_mock):
         put_mock.return_value.status_code = 200
+        title = "Export du RNB"
+        description = "Export du RNB au format csv pour un territoire français."
+        public_url = "some-url"
+        archive_size = 1234
         archive_sha1 = "some-sha1"
         update_resource_metadata(
-            "some-dataset-id", "some-resource-id", "some-url", 1234, archive_sha1
+            "some-dataset-id", "some-resource-id", title, description, public_url, archive_size, archive_sha1, "csv"
         )
 
         put_mock.assert_called_with(
             f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/some-resource-id/",
-            headers={"X-API-KEY": os.environ.get("DATA_GOUV_API_KEY")},
+            headers={
+                "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
+                "Content-Type": "application/json",
+            },
             json={
-                "url": "some-url",
-                "filesize": 1234,
+                "title": title,
+                "description": description,
+                "type": "main",
+                "url": public_url,
+                "filetype": "remote",
+                "format": "csv",
+                "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
+                "last_modified": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             },
         )
 
@@ -217,8 +232,11 @@ class TestDataGouvPublication(TestCase):
         title = "Export du RNB"
         description = "Export du RNB au format csv pour un territoire français."
         public_url = "some-url"
+        archive_size = 1234
+        archive_sha1 = "some-sha1"
+        format = "csv"
         data_gouv_create_resource(
-            "some-dataset-id", title, description, public_url, "csv"
+            "some-dataset-id", title, description, public_url, archive_size, archive_sha1, format
         )
 
         post_mock.assert_called_with(
@@ -233,29 +251,102 @@ class TestDataGouvPublication(TestCase):
                 "type": "main",
                 "url": public_url,
                 "filetype": "remote",
-                "format": "csv",
+                "format": format,
+                "filesize": archive_size,
+                "checksum": {"type": "sha1", "value": archive_sha1},
+                "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             },
         )
 
-    # Test publication d'une ressource inexistante - A Faire
+    # Test publication d'une ressource existante
     @mock.patch("batid.services.data_gouv_publication.requests.put")
     @mock.patch.dict(
         os.environ,
         {
             "DATA_GOUV_API_KEY": "DATA_GOUV_API_KEY",
+            "DATA_GOUV_BASE_URL": "https://data.gouv.fr",
+            "DATA_GOUV_DATASET_ID": "some-dataset-id"
         },
     )
-    def test_publishing_non_existing_resource_on_data_gouv(self, put_mock):
+    @mock.patch("batid.services.data_gouv_publication.requests.get")
+    def test_publishing_existing_resource_on_data_gouv(self, put_mock, get_mock):
+        get_mock.return_value.status_code = 200
+        get_mock.return_value.json.return_value = {
+            "resources": [
+                {"id": "1", "title": "33", "format": "csv"},
+                {"id": "2", "title": "33", "format": "zip"},
+                {"id": "3", "title": "75", "format": "zip"},
+            ]
+        }
+
         put_mock.return_value.status_code = 200
+        department = "33"
+        title = "Export Départemental " + department
+        description = "Export du RNB au format csv pour le département " + department + "."
+        public_url = "some-url"
+        archive_size = 1234
         archive_sha1 = "some-sha1"
-        publish_on_data_gouv("nat", "some-url", 1234, archive_sha1)
+        format = "csv"
+        publish_on_data_gouv(
+            department, public_url, archive_size, archive_sha1, format
+            )
 
         put_mock.assert_called_with(
             f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/",
-            headers={"X-API-KEY": os.environ.get("DATA_GOUV_API_KEY")},
+            headers={
+                "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
+                "Content-Type": "application/json"
+                },
             json={
-                "url": "some-url",
-                "filesize": 1234,
+                "title": title,
+                "description": description,
+                "type": "main",
+                "url": public_url,
+                "filetype": "remote",
+                "format": format,
+                "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
+                "last_modified": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            },
+        )
+
+    # Test publication d'une ressource inexistante
+    @mock.patch("batid.services.data_gouv_publication.requests.post")
+    @mock.patch.dict(
+        os.environ,
+        {
+            "DATA_GOUV_API_KEY": "DATA_GOUV_API_KEY",
+            "DATA_GOUV_BASE_URL": "https://data.gouv.fr",
+            "DATA_GOUV_DATASET_ID": "some-dataset-id"
+        },
+    )
+    def test_publishing_non_existing_resource_on_data_gouv(self, post_mock):
+        post_mock.return_value.status_code = 200
+        title = "Export National"
+        description = "Export du RNB au format csv pour l’ensemble du territoire français."
+        public_url = "some-url"
+        archive_size = 1234
+        archive_sha1 = "some-sha1"
+        format = "csv"
+        publish_on_data_gouv(
+            "nat", public_url, archive_size, archive_sha1, format
+            )
+
+        post_mock.assert_called_with(
+            f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/",
+            headers={
+                "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
+                "Content-Type": "application/json"
+                },
+            json={
+                "title": title,
+                "description": description,
+                "type": "main",
+                "url": public_url,
+                "filetype": "remote",
+                "format": format,
+                "filesize": archive_size,
+                "checksum": {"type": "sha1", "value": archive_sha1},
+                "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             },
         )
