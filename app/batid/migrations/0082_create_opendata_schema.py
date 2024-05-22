@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             DROP VIEW IF EXISTS opendata.rnb_compact;
 
             CREATE OR REPLACE VIEW opendata.rnb_compact AS
-            SELECT bat.rnb_id, ST_AsText(bat.point) AS geom, ST_AsText(bat.shape) AS bati, bat.ext_ids AS external_ids,
+            SELECT bdg.rnb_id AS rnb_id, ST_AsText(bdg.point) AS point, ST_AsText(bdg.shape) AS shape, bdg.ext_ids AS ext_ids,
             json_agg(
                 concat_ws(' ',
                     NULLIF(addr.street_number, ''),
@@ -27,12 +27,12 @@ class Migration(migrations.Migration):
                 )
             ) AS addresses,
             dept.code AS code_dept
-            FROM batid_building bat
-            LEFT JOIN batid_building_addresses bat_addr ON bat_addr.building_id = bat.id
-            LEFT JOIN batid_address addr ON addr.id = bat_addr.address_id
-            LEFT JOIN batid_department AS dept ON ST_Intersects(dept.shape, bat.point)
+            FROM batid_building bdg
+            LEFT JOIN batid_building_addresses bdg ON bdg_addr.building_id = bdg.id
+            LEFT JOIN batid_address addr ON addr.id = bdg_addr.address_id
+            LEFT JOIN batid_department AS dept ON ST_Intersects(dept.shape, bdg.point)
             WHERE is_active
-            GROUP BY bat.rnb_id, bat.point, bat.shape, bat.ext_ids, dept.code;
+            GROUP BY bdg.rnb_id, bdg.point, bdg.shape, bdg.ext_ids, dept.code;
             """,
             reverse_sql="""DROP VIEW IF EXISTS opendata.rnb_compact;
             DROP SCHEMA IF EXISTS opendata;""",
