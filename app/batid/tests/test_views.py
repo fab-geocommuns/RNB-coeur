@@ -53,7 +53,7 @@ class TestContributionsViews(TestCase):
         self.assertEqual(response.status_code, 200)
 
         # Check the html content of the response
-        self.assertIn(f"Le bâtiment {rnb_id} a été supprimé", response.content.decode())
+        self.assertIn(f"Revue de contribution enregistrée.", response.content.decode())
 
         # Check that the building has been deleted
         building.refresh_from_db()
