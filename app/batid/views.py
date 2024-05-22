@@ -184,7 +184,9 @@ def update_building_addresses(request):
                     contribution.review_user = request.user
                     contribution.save()
             except Exception as e:
-                return HttpResponseBadRequest("Erreur : " + str(e))
+                return HttpResponseBadRequest(
+                    "Erreur : mise à jour impossible. Il est probable que cette adresses n'existe pas encore en base."
+                )
 
             return render(
                 request,
