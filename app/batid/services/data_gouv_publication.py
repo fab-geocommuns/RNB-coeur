@@ -24,12 +24,12 @@ def publish(areas_list):
                 directory_name, area
             )
             # Delete file after archiving
-            drop_file(directory_name + "/rnb_" + area + ".csv")
+            os.remove(directory_name + "/rnb_" + area + ".csv")
 
-            # public_url = upload_to_s3(archive_path)
-            # publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
+            public_url = upload_to_s3(archive_path)
+            publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
             # Delete archive after pushed on S3
-            drop_file(archive_path)
+            os.remove(archive_path)
     except Exception as e:
         logging.error(f"Error while publishing the RNB on data.gouv.fr: {e}")
         return False
@@ -50,10 +50,10 @@ def create_directory():
 def create_csv(directory_name, code_area):
     with connection.cursor() as cursor:
         if code_area == "nat":
-            sql = "COPY (SELECT rnb_id, geom, bati, external_ids, code_dept FROM opendata.rnb_compact) TO STDOUT WITH CSV HEADER DELIMITER ';'"
+            sql = "COPY (SELECT rnb_id, point, shape, ext_ids, addresses, code_dept FROM opendata.rnb_compact) TO STDOUT WITH CSV HEADER DELIMITER ';'"
         else:
             sql = (
-                "COPY (SELECT rnb_id, geom, bati, external_ids FROM opendata.rnb_compact WHERE code_dept = '"
+                "COPY (SELECT rnb_id, point, shape, ext_ids, addresses FROM opendata.rnb_compact WHERE code_dept = '"
                 + code_area
                 + "') TO STDOUT WITH CSV HEADER DELIMITER ';'"
             )
@@ -224,7 +224,7 @@ def data_gouv_resource_id(dataset_id, area):
         for resource in resources:
             print(resource["format"])
             print(resource["title"])
-            if resource["format"] == "zip" and resource["title"] == area:
+            if resource["format"] == "zip" and ((area == "nat" and resource["title"] == "Export National") or (area != "nat" and resource["title"] == "Export Départemental " + area)):
                 return resource["id"]
         return None
 
@@ -273,7 +273,3 @@ def update_resource_metadata(
 
 def cleanup_directory(directory_name):
     shutil.rmtree(directory_name)
-
-
-def drop_file(path):
-    os.remove(path)
