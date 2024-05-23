@@ -24,7 +24,7 @@ def publish(areas_list):
                 directory_name, area
             )
             # Delete file after archiving
-            os.remove(directory_name + "/RNB_" + area + ".csv")
+            os.remove(f"{file_path(directory_name, area)}.csv")
 
             public_url = upload_to_s3(archive_path)
             publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
@@ -47,6 +47,11 @@ def create_directory():
     return directory_name
 
 
+# Return the global path of a file WITHOUT the extension
+def file_path(directory_name, code_area):
+    return directory_name + "/RNB_" + str(code_area)
+
+
 def create_csv(directory_name, code_area):
     with connection.cursor() as cursor:
         if code_area == "nat":
@@ -58,7 +63,7 @@ def create_csv(directory_name, code_area):
                 + "') TO STDOUT WITH CSV HEADER DELIMITER ';'"
             )
 
-        with open(f"{directory_name}/RNB_{code_area}.csv", "w") as fp:
+        with open(f"{file_path(directory_name, code_area)}.csv", "w") as fp:
             cursor.copy_expert(sql, fp)
 
 
@@ -72,12 +77,12 @@ def sha1sum(filename):
     return h.hexdigest()
 
 
-def create_archive(directory_name, code):
+def create_archive(directory_name, code_area):
     files = os.listdir(directory_name)
-    archive_path = f"{directory_name}/RNB_{code}.csv.zip"
+    archive_path = f"{file_path(directory_name, code_area)}.csv.zip"
 
     with ZipFile(archive_path, "w", ZIP_DEFLATED) as zip:
-        zip.write(f"{directory_name}/RNB_{code}.csv")
+        zip.write(f"{file_path(directory_name, code_area)}.csv")
 
     archive_size = os.path.getsize(archive_path)
 
