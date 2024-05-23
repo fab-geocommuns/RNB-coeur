@@ -413,10 +413,14 @@ class GeocodeAddressHandler(AbstractHandler):
         # Geocode addresses in batch
         geocoder = BanBatchGeocoder()
         response = geocoder.geocode(
-            addresses, result_columns=["result_type", "result_id", "result_score"]
+            addresses,
+            columns=["address"],
+            result_columns=["result_type", "result_id", "result_score"],
         )
         if response.status_code != 200:
             raise Exception(f"Error while geocoding addresses : {response.text}")
+
+        print(response.text)
 
         # Parse the response
 
@@ -427,7 +431,7 @@ class GeocodeAddressHandler(AbstractHandler):
 
             if (
                 row["result_type"] == "housenumber"
-                and float(row["result_score"]) >= 0.50
+                and float(row["result_score"]) >= 0.75
             ):
                 guesses[row["ext_id"]]["input"]["ban_id"] = row["result_id"]
 
