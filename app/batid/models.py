@@ -29,7 +29,6 @@ class BuildingAbstract(models.Model):
     status = models.CharField(
         choices=BuildingStatusModel.TYPES_CHOICES,
         null=False,
-        db_index=True,
         max_length=30,
         default=BuildingStatusModel.DEFAULT_STATUS,
     )
@@ -147,6 +146,7 @@ class Building(BuildingAbstract):
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
             GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
+            models.Index(fields=("status",), name="bdg_status_idx"),
         ]
 
 
@@ -177,6 +177,7 @@ class BuildingHistoryOnly(BuildingAbstract):
         db_table = "batid_building_history"
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_history_event_origin_idx"),
+            models.Index(fields=("status",), name="bdg_history_status_idx"),
         ]
 
 
