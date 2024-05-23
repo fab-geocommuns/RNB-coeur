@@ -95,7 +95,7 @@ class TestDataGouvPublication(TestCase):
             content = f.read()
             self.assertIn(
                 # "id,rnb_id,point,created_at,updated_at,shape,ext_ids", content
-                "rnb_id;geom;bati;external_ids",
+                "rnb_id;point;shape;ext_ids;addresses",
                 content,
             )
             self.assertIn("BDG-CONSTR", content)
@@ -167,9 +167,10 @@ class TestDataGouvPublication(TestCase):
         get_mock.return_value.status_code = 200
         get_mock.return_value.json.return_value = {
             "resources": [
-                {"id": "1", "title": "33", "format": "csv"},
-                {"id": "2", "title": "33", "format": "zip"},
-                {"id": "3", "title": "75", "format": "zip"},
+                {"id": "1", "title": "Export Départemental 33", "format": "csv"},
+                {"id": "2", "title": "Export Départemental 33", "format": "zip"},
+                {"id": "3", "title": "Export Départemental 75", "format": "zip"},
+                {"id": "4", "title": "Export National", "format": "zip"},
             ]
         }
 
@@ -178,6 +179,9 @@ class TestDataGouvPublication(TestCase):
 
         resource_id = data_gouv_resource_id("some-dataset-id", "75")
         self.assertEqual(resource_id, "3")
+
+        resource_id = data_gouv_resource_id("some-dataset-id", "nat")
+        self.assertEqual(resource_id, "4")
 
         resource_id = data_gouv_resource_id("some-dataset-id", "123")
         self.assertIsNone(resource_id)
