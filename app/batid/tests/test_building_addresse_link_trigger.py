@@ -79,6 +79,16 @@ class BuildingAddressLinkCase(TransactionTestCase):
                 rnb_id="1", addresses_id=[a1.id, "salut je suis un hacker ahahah"]
             )
 
+    def test_update_building_with_non_existing_address(self):
+        from django.db.utils import IntegrityError
+
+        a1 = Address.objects.create(id="address_1")
+        b = Building.objects.create(rnb_id="1", addresses_id=[a1.id])
+
+        with self.assertRaises(IntegrityError):
+            b.addresses_id = [a1.id, "salut je suis un hacker ahahah"]
+            b.save()
+
 
 class AddressDeletionTrigger(TestCase):
     def test_delete_address(self):

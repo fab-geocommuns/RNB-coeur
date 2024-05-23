@@ -373,7 +373,7 @@ class GeocodeAddressHandler(AbstractHandler):
         if guess["input"].get("ban_id", None):
             close_bdg_w_ban_id = get_closest_from_point(
                 lat, lng, self.closest_radius
-            ).filter(addresses__id=ban_id)
+            ).filter(addresses_id__contains=[ban_id])
 
             if close_bdg_w_ban_id.count() == 1:
                 guess["matches"].append(close_bdg_w_ban_id.first())
