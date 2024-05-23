@@ -152,7 +152,7 @@ class Guesser:
 
     def convert_matches(self):
         for ext_id, guess in self.guesses.items():
-            if guess["matches"] and not isinstance(guess["matches"], str):
+            if not isinstance(guess["matches"], str):
                 rnb_ids = []
 
                 for idx, match in enumerate(guess["matches"]):
@@ -176,25 +176,20 @@ class Guesser:
         rows = []
         for ext_id, guess in self.guesses.items():
 
-            rnb_id = None
-            reason = None
-
-            match = guess.get("match", None)
-            if match:
-                rnb_id = match.get("rnb_id", None)
-                reason = guess.get("match_reason", None)
+            matches = guess.get("matches", None)
+            reason = guess.get("match_reason", None)
 
             rows.append(
                 {
                     ext_id_col_name: ext_id,
-                    "rnb_id": rnb_id,
+                    "rnb_ids": matches,
                     "match_reason": reason,
                 }
             )
 
         with open(file_path, "w") as f:
             writer = csv.DictWriter(
-                f, fieldnames=[ext_id_col_name, "rnb_id", "match_reason"]
+                f, fieldnames=[ext_id_col_name, "rnb_ids", "match_reason"]
             )
             writer.writeheader()
             writer.writerows(rows)
@@ -420,8 +415,6 @@ class GeocodeAddressHandler(AbstractHandler):
         if response.status_code != 200:
             raise Exception(f"Error while geocoding addresses : {response.text}")
 
-        print(response.text)
-
         # Parse the response
 
         csv_file = StringIO(response.text)
@@ -431,7 +424,7 @@ class GeocodeAddressHandler(AbstractHandler):
 
             if (
                 row["result_type"] == "housenumber"
-                and float(row["result_score"]) >= 0.75
+                and float(row["result_score"]) >= 0.80
             ):
                 guesses[row["ext_id"]]["input"]["ban_id"] = row["result_id"]
 

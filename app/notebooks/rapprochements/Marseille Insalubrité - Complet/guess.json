@@ -208,7 +208,7 @@
             "ext_id": "2021-21--ligne19",
             "address": "TRAVERSE DES ROSIERS 13014 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -219,7 +219,7 @@
             "ext_id": "2021-22--ligne20",
             "address": "IMPASSE DE L'\u00c9OLIENNE 13005 AUBAGNE"
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -254,7 +254,7 @@
             "ext_id": "2021-29--ligne23",
             "address": "23 B TRAVERSE ANTOINE DONAZ 13015 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -373,7 +373,7 @@
             "ext_id": "2021-45--ligne33",
             "address": "14 13190 ALLAUCH"
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -504,7 +504,7 @@
             "ext_id": "2021-64--ligne44",
             "address": "9 RUE GABRIEL P\u00c9RI 13130 BERRE-L'\u00c9TANG "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -515,7 +515,7 @@
             "ext_id": "2021-67--ligne45",
             "address": "CHEMIN DE LA CRIDE 13740 LE ROVE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -526,7 +526,7 @@
             "ext_id": "2021-68--ligne46",
             "address": "CHEMIN DE LA CRIDE 13740 LE ROVE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -645,7 +645,7 @@
             "ext_id": "2022-04--ligne56",
             "address": "2 ALL\u00c9E DU ROUGE GORGE 13500 MARTIGUES "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -668,7 +668,7 @@
             "ext_id": "2022-06--ligne58",
             "address": "AVENUE DES PIELETTES 13740 LE ROVE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -680,7 +680,7 @@
             "address": "5 C AVENUE JEAN MOULIN 13270 FOS-SUR-MER",
             "ban_id": "13039_4349_00005_c"
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -739,7 +739,7 @@
             "ext_id": "2022-12--ligne64",
             "address": "ROUTE BLANCHE 13110 PORT-DE-BOUC "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -762,7 +762,7 @@
             "ext_id": "2022-15--ligne66",
             "address": "TRAVERSE DES ROSIERS 13014 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -773,7 +773,7 @@
             "ext_id": "2022-16--ligne67",
             "address": "31 B FAUBOURG DE GUEYDAN 13120 GARDANNE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -796,7 +796,7 @@
             "ext_id": "2022-18--ligne69",
             "address": "141 AVENUE DE SAINT MENET 13011 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -891,7 +891,7 @@
             "ext_id": "2022-26--ligne77",
             "address": "BOULEVARD DE LA CABASSETTE 13170 LES PENNES-MIRABEAU "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -914,7 +914,7 @@
             "ext_id": "2022-29--ligne79",
             "address": "AVENUE DES PIELETTES 13740 LE ROVE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -961,7 +961,7 @@
             "ext_id": "2022-34--ligne83",
             "address": "CHEMIN BARBIER DAUPHIN 13650 MEYRARGUES "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -984,7 +984,7 @@
             "ext_id": "2022-36--ligne85",
             "address": "ROUTE BLANCHE 13110 PORT-DE-BOUC "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1043,7 +1043,7 @@
             "ext_id": "2022-44--ligne90",
             "address": "14 PLACE BOUGAINVILLE 13015 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1090,7 +1090,7 @@
             "ext_id": "2022-54--ligne94",
             "address": "14 PLACE BOUGAINVILLE 13015 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1137,7 +1137,7 @@
             "ext_id": "2022-58--ligne98",
             "address": "CHEMIN DES PI\u00c9LETTES 13740 LE ROVE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1184,7 +1184,7 @@
             "ext_id": "2022-62--ligne102",
             "address": "2 A RUE D'ISOARD 13001 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1267,7 +1267,7 @@
             "ext_id": "2022-68--ligne109",
             "address": "14 PLACE BOUGAINVILLE 13015 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1470,7 +1470,7 @@
             "ext_id": "2022-89--ligne126",
             "address": "5094 CHEMIN DE LA GRANDE BASTIDE 13710 FUVEAU "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1481,7 +1481,7 @@
             "ext_id": "2022-90--ligne127",
             "address": "41 RUE DU DOCTEUR RODOCANACHI 13008 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1490,11 +1490,10 @@
     "2022-91--ligne128": {
         "input": {
             "ext_id": "2022-91--ligne128",
-            "address": "13 B AVENUE GEORGES COSTE 13360 ORGON",
-            "ban_id": "13067_0140_00013_bis"
+            "address": "13 B AVENUE GEORGES COSTE 13360 ORGON"
         },
-        "matches": "5C86ZCZ6E38N,86PYKV1EV4VG",
-        "match_reason": "precise_address_match",
+        "matches": "",
+        "match_reason": null,
         "finished_steps": [
             "geocode_address"
         ]
@@ -1504,7 +1503,7 @@
             "ext_id": "2022-92--ligne129",
             "address": "CHEMIN DE BARBIER DAUPHIN 13650 MEYRARGUES "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1515,7 +1514,7 @@
             "ext_id": "2022-93--ligne130",
             "address": "CHEMIN DE BARBIER DAUPHIN 13650 MEYRARGUES "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1526,7 +1525,7 @@
             "ext_id": "2022-94--ligne131",
             "address": "CHEMIN DE BARBIER DAUPHIN 13650 MEYRARGUES "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1549,7 +1548,7 @@
             "ext_id": "2022-96--ligne133",
             "address": "4 IMPASSE SUMIAN 13014 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1560,7 +1559,7 @@
             "ext_id": "2022-98--ligne134",
             "address": "41 RUE DU DOCTEUR RODOCANACHI 13008 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1775,7 +1774,7 @@
             "ext_id": "2022-128--ligne152",
             "address": "14 PLACE BOUGAINVILLE 13015 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1796,11 +1795,10 @@
     "2022-130--ligne154": {
         "input": {
             "ext_id": "2022-130--ligne154",
-            "address": "13 B AVENUE GEORGES COSTE 13360 ORGON",
-            "ban_id": "13067_0140_00013_bis"
+            "address": "13 B AVENUE GEORGES COSTE 13360 ORGON"
         },
-        "matches": "5C86ZCZ6E38N,86PYKV1EV4VG",
-        "match_reason": "precise_address_match",
+        "matches": "",
+        "match_reason": null,
         "finished_steps": [
             "geocode_address"
         ]
@@ -1810,7 +1808,7 @@
             "ext_id": "2022-132--ligne155",
             "address": "1014 CHEMIN DU VX MIRAMAS VERS LUNARD 13140 MIRAMAS "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1822,7 +1820,7 @@
             "address": "1 B AVENUE DE VALDONNE 13124 PEYPIN ",
             "ban_id": "13073_0273_00001_bis"
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1833,7 +1831,7 @@
             "ext_id": "2022-134--ligne157",
             "address": "14 PLACE BOUGAINVILLE 13015 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -1880,7 +1878,7 @@
             "ext_id": "2022-142--ligne161",
             "address": "18 RUE DE L'AMIDONNERIE 13003 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2155,7 +2153,7 @@
             "ext_id": "2023-25--ligne184",
             "address": "ROUTE DE JEAN MOULIN 13300 SALON-DE-PROVENCE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2226,7 +2224,7 @@
             "ext_id": "2023-45--ligne190",
             "address": "CHEMIN BARBIER DAUPHIN 13650 MEYRARGUES "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2274,7 +2272,7 @@
             "address": "25 ALL\u00c9E JULES DASSIN 13920 SAINT-MITRE-LES-REMPARTS ",
             "ban_id": "13098_1226_00025"
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2357,7 +2355,7 @@
             "ext_id": "2023-42--ligne201",
             "address": "5094 CHEMIN DE LA GRANDE BASTIDE 13170 FUVEAU "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2380,7 +2378,7 @@
             "ext_id": "2023-47--ligne203",
             "address": "4 ALL\u00c9E DE LA MONTAGNETTE 13015 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2391,7 +2389,7 @@
             "ext_id": "2023-48--ligne204",
             "address": "4 ALL\u00c9E DE LA MONTAGNETTE 13015 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2438,7 +2436,7 @@
             "ext_id": "2023-55--ligne208",
             "address": "1 A CHEMIN DE BLAQUEIRON 13800 ISTRES "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2509,7 +2507,7 @@
             "ext_id": "2023-62--ligne214",
             "address": "129 RUE DE LA GRANI\u00c8RE 13011 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2616,7 +2614,7 @@
             "ext_id": "2023-71--ligne223",
             "address": "AVENUE DES COMBATTANTS EN AFRIQUE DU NORD 13700 MARIGNANE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2697,11 +2695,10 @@
     "2023-78--ligne230": {
         "input": {
             "ext_id": "2023-78--ligne230",
-            "address": "7 COURS LEYDET 13710 FUVEAU ",
-            "ban_id": "13040_4750_00007"
+            "address": "7 COURS LEYDET 13710 FUVEAU "
         },
-        "matches": "3BT2JKPYKMJ1",
-        "match_reason": "precise_address_match",
+        "matches": "",
+        "match_reason": null,
         "finished_steps": [
             "geocode_address"
         ]
@@ -2783,7 +2780,7 @@
             "ext_id": "2023-83--ligne237",
             "address": "3 AVENUE DE LA MONTAGNETTE 13015 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -2914,7 +2911,7 @@
             "ext_id": "2023-99--ligne248",
             "address": "89 BOULEVARD MARCEL PAUL 13500 MARTIGUES "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -3045,7 +3042,7 @@
             "ext_id": "2023-116--ligne259",
             "address": "3 AVENUE DE LA MONTAGNETTE 13015 MARSEILLE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -3056,7 +3053,7 @@
             "ext_id": "2023-117--ligne260",
             "address": "AVENUE PAUL LANGEVIN 13110 PORT-DE-BOUC "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
@@ -3091,7 +3088,7 @@
             "ext_id": "2023-124--ligne263",
             "address": "RUE COMBATTANTS D\u2019EXTREME ORIENT 13700 MARIGNANE "
         },
-        "matches": [],
+        "matches": "",
         "match_reason": null,
         "finished_steps": [
             "geocode_address"
