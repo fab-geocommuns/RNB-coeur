@@ -94,20 +94,24 @@ class TestGuesser(TransactionTestCase):
         create_from_geojson(rnb_bdgs)
 
         # Add one address for testing address geocoding
-        address = Address.objects.create(
+        address_1 = Address.objects.create(
             id="BAN_ID_ONE",
             point=Point(-0.5628137581613334, 44.82584611733995, srid=4326),
         )
-        bdg = Building.objects.get(rnb_id="SouthOne")
-        bdg.addresses.add(address)
 
         # Add one address on two buildings to test ambiguous address
-        address = Address.objects.create(
+        address_2 = Address.objects.create(
             id="AMBIGUOUS_ADDRESS",
             point=Point(-0.562675427959789, 44.825661934374295, srid=4326),
         )
-        Building.objects.get(rnb_id="BigLong").addresses.add(address)
-        Building.objects.get(rnb_id="SouthOne").addresses.add(address)
+
+        bs = Building.objects.get(rnb_id="SouthOne")
+        bs.addresses_id = [address_1.id, address_2.id]
+        bs.save()
+
+        bl = Building.objects.get(rnb_id="BigLong")
+        bl.addresses_id = [address_2.id]
+        bl.save()
 
     def _create_guess_work_file(self):
         # Let's be sure the file is not on disk

@@ -384,7 +384,7 @@ class GeocodeAddressHandler(AbstractHandler):
         else:
             qs = Building.objects.all()
 
-        bdgs = qs.filter(addresses__id=ban_id)
+        bdgs = qs.filter(addresses_id__contains=[ban_id])
 
         if bdgs.count() > 0:
             guess["matches"] = bdgs
