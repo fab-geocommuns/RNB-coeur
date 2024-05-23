@@ -229,7 +229,13 @@ def data_gouv_resource_id(dataset_id, area):
         for resource in resources:
             print(resource["format"])
             print(resource["title"])
-            if resource["format"] == "zip" and ((area == "nat" and resource["title"] == "Export National") or (area != "nat" and resource["title"] == "Export Départemental " + area)):
+            if resource["format"] == "zip" and (
+                (area == "nat" and resource["title"] == "Export National")
+                or (
+                    area != "nat"
+                    and resource["title"] == "Export Départemental " + area
+                )
+            ):
                 return resource["id"]
         return None
 
