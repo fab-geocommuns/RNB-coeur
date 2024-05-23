@@ -10,7 +10,7 @@ from batid.models import Building
 from batid.services.guess_bdg_new import ClosestFromPointHandler
 from batid.services.guess_bdg_new import Guesser
 from batid.services.guess_bdg_new import PartialRoofHandler
-from batid.tests.helpers import create_from_geojson
+from batid.tests.helpers import create_from_geojson, create_default_bdg
 
 
 class TestGuesser(TransactionTestCase):
@@ -636,3 +636,14 @@ class TestIsolatedMatching(PartialRoofTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].rnb_id, "WWEIRDSHAPEE")
         self.assertEqual(matches[0].distance.m, 0)
+
+
+class TestAddressGeocoding(TransactionTestCase):
+
+    def setUp(self):
+
+        Address.objects.create(id="BAN_ID_ONE")
+        Address.objects.create(id="BAN_ID_TWO")
+        Address.objects.create(id="BAN_ID_THREE")
+
+        b = create_default_bdg(rnb_id="one")
