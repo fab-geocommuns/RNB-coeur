@@ -407,27 +407,28 @@ class GeocodeAddressHandler(AbstractHandler):
                 )
 
         # Geocode addresses in batch
-        geocoder = BanBatchGeocoder()
-        response = geocoder.geocode(
-            addresses,
-            columns=["address"],
-            result_columns=["result_type", "result_id", "result_score"],
-        )
-        if response.status_code != 200:
-            raise Exception(f"Error while geocoding addresses : {response.text}")
+        if addresses:
+            geocoder = BanBatchGeocoder()
+            response = geocoder.geocode(
+                addresses,
+                columns=["address"],
+                result_columns=["result_type", "result_id", "result_score"],
+            )
+            if response.status_code != 200:
+                raise Exception(f"Error while geocoding addresses : {response.text}")
 
-        # Parse the response
+            # Parse the response
 
-        csv_file = StringIO(response.text)
-        reader = csv.DictReader(csv_file)
+            csv_file = StringIO(response.text)
+            reader = csv.DictReader(csv_file)
 
-        for row in reader:
+            for row in reader:
 
-            if (
-                row["result_type"] == "housenumber"
-                and float(row["result_score"]) >= self.min_score
-            ):
-                guesses[row["ext_id"]]["input"]["ban_id"] = row["result_id"]
+                if (
+                    row["result_type"] == "housenumber"
+                    and float(row["result_score"]) >= self.min_score
+                ):
+                    guesses[row["ext_id"]]["input"]["ban_id"] = row["result_id"]
 
         return guesses
 

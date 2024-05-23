@@ -2,6 +2,7 @@ import csv
 from io import StringIO
 
 import requests
+from requests import Response
 
 
 class BanGeocoder:
@@ -33,7 +34,7 @@ class BanBatchGeocoder:
         result_columns=None,
         citycode_col=None,
         postcode_col=None,
-    ):
+    ) -> Response:
 
         with open(csv_path, "rb") as f:
 
@@ -52,7 +53,7 @@ class BanBatchGeocoder:
         result_columns=None,
         citycode_col=None,
         postcode_col=None,
-    ):
+    ) -> Response:
 
         # Create an in-memory CSV file
         csv_buffer = StringIO()
