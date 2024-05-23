@@ -91,7 +91,7 @@ class TestDataGouvPublication(TestCase):
         self.assertEqual(len(files), 1)
 
         # open the file and check the content
-        with open(f"{directory_name}/rnb_{area}.csv", "r") as f:
+        with open(f"{directory_name}/RNB_{area}.csv", "r") as f:
             content = f.read()
             self.assertIn(
                 # "id,rnb_id,point,created_at,updated_at,shape,ext_ids", content

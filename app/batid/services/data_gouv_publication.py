@@ -24,7 +24,7 @@ def publish(areas_list):
                 directory_name, area
             )
             # Delete file after archiving
-            os.remove(directory_name + "/rnb_" + area + ".csv")
+            os.remove(directory_name + "/RNB_" + area + ".csv")
 
             public_url = upload_to_s3(archive_path)
             publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
@@ -58,7 +58,7 @@ def create_csv(directory_name, code_area):
                 + "') TO STDOUT WITH CSV HEADER DELIMITER ';'"
             )
 
-        with open(f"{directory_name}/rnb_{code_area}.csv", "w") as fp:
+        with open(f"{directory_name}/RNB_{code_area}.csv", "w") as fp:
             cursor.copy_expert(sql, fp)
 
 
@@ -77,7 +77,7 @@ def create_archive(directory_name, code):
     archive_path = f"{directory_name}/RNB_{code}.csv.zip"
 
     with ZipFile(archive_path, "w", ZIP_DEFLATED) as zip:
-        zip.write(f"{directory_name}/rnb_{code}.csv")
+        zip.write(f"{directory_name}/RNB_{code}.csv")
 
     archive_size = os.path.getsize(archive_path)
 
