@@ -357,8 +357,9 @@ class ClosestFromPointHandler(AbstractHandler):
 class GeocodeAddressHandler(AbstractHandler):
     _name = "geocode_address"
 
-    def __init__(self, closest_radius=100):
+    def __init__(self, closest_radius=100, min_score=0.8):
         self.closest_radius = closest_radius
+        self.min_score = min_score
 
     def _guess_batch(self, guesses: dict) -> dict:
 
@@ -424,7 +425,7 @@ class GeocodeAddressHandler(AbstractHandler):
 
             if (
                 row["result_type"] == "housenumber"
-                and float(row["result_score"]) >= 0.80
+                and float(row["result_score"]) >= self.min_score
             ):
                 guesses[row["ext_id"]]["input"]["ban_id"] = row["result_id"]
 
