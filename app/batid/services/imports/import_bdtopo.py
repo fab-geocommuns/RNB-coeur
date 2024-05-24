@@ -20,17 +20,14 @@ from batid.services.source import Source
 from batid.utils.geo import fix_nested_shells
 
 
-def import_bdtopo(bdtopo_edition, dpt, bulk_launch_uuid=None):
-    dpt = dpt.zfill(3)
+def import_bdtopo(src_params, bulk_launch_uuid=None):
 
-    source_name = bdtopo_source_switcher(bdtopo_edition, dpt)
+    src = Source("bdtopo")
+    src.set_params(src_params)
 
     building_import = building_import_history.insert_building_import(
-        source_name, bulk_launch_uuid, dpt
+        "bdtopo", bulk_launch_uuid, dpt
     )
-
-    src = Source(source_name)
-    src.set_param("dpt", dpt)
 
     with fiona.open(src.find(src.filename)) as f:
         print("-- read bdtopo ")
