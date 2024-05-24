@@ -3,6 +3,7 @@ import gzip
 import os
 import tarfile
 import zipfile
+from datetime import datetime
 
 import nanoid
 import py7zr
@@ -300,8 +301,22 @@ def bdtopo_src_params(dpt: str, date: str) -> dict:
     }
 
 
-def bdtopo_most_recent_date() -> str:
-    return "2023-09-15"
+def bdtopo_most_recent_date(before: datetime = None) -> str:
+
+    # If no date is provided, we use the current date
+    if before is None:
+        before = datetime.now()
+
+    # First we get an ordred list of all release dates
+    release_dates = sorted(
+        [datetime.strptime(date, "%Y-%m-%d") for date in _bdtopo_release_dates()]
+    )
+
+    for idx, date in enumerate(release_dates):
+        if date > before:
+
+            # Return the previous release date
+            return release_dates[idx - 1].strftime("%Y-%m-%d")
 
 
 def _bdtopo_dpt_projection(dpt: str) -> str:
@@ -320,3 +335,44 @@ def _bdtopo_dpt_projection(dpt: str) -> str:
     }
 
     return projs.get(dpt, default_proj)
+
+
+def _bdtopo_release_dates() -> list:
+
+    return [
+        #
+        "2024-03-15",
+        "2024-06-15",
+        "2024-09-15",
+        "2024-12-15",
+        #
+        "2025-03-15",
+        "2025-06-15",
+        "2025-09-15",
+        "2025-12-15",
+        #
+        "2026-03-15",
+        "2026-06-15",
+        "2026-09-15",
+        "2026-12-15",
+        #
+        "2027-03-15",
+        "2027-06-15",
+        "2027-09-15",
+        "2027-12-15",
+        #
+        "2028-03-15",
+        "2028-06-15",
+        "2028-09-15",
+        "2028-12-15",
+        #
+        "2029-03-15",
+        "2029-06-15",
+        "2029-09-15",
+        "2029-12-15",
+        #
+        "2030-03-15",
+        "2030-06-15",
+        "2030-09-15",
+        "2030-12-15",
+    ]
