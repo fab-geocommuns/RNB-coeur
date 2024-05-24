@@ -14,7 +14,6 @@ from django.db import transaction
 from batid.models import BuildingImport
 from batid.models import Candidate
 from batid.services.imports import building_import_history
-from batid.services.source import bdtopo_source_switcher
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
 from batid.utils.geo import fix_nested_shells
@@ -26,7 +25,7 @@ def import_bdtopo(src_params, bulk_launch_uuid=None):
     src.set_params(src_params)
 
     building_import = building_import_history.insert_building_import(
-        "bdtopo", bulk_launch_uuid, dpt
+        "bdtopo", bulk_launch_uuid, src_params["dpt"]
     )
 
     with fiona.open(src.find(src.filename)) as f:
@@ -44,7 +43,7 @@ def import_bdtopo(src_params, bulk_launch_uuid=None):
 
             candidate = _transform_bdtopo_feature(feature, srid)
             candidate = _add_import_info(candidate, building_import)
-            candidate["source_version"] = bdtopo_edition
+            candidate["source_version"] = src_params["date"]
             candidates.append(candidate)
 
         buffer = BufferToCopy()

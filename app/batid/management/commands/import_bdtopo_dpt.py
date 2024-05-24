@@ -2,7 +2,7 @@ from celery import chain
 from celery import Signature
 from django.core.management.base import BaseCommand
 
-from batid.services.source import bdtopo_source_switcher, bdtopo_src_params
+from batid.services.source import bdtopo_src_params
 
 
 class Command(BaseCommand):
