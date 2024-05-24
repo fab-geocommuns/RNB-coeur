@@ -1,15 +1,13 @@
 from datetime import date
 
-from django.test import TransactionTestCase, TestCase
+from django.test import TransactionTestCase
 
-from batid.models import Building
 from batid.services.imports.import_bdtopo import _known_bdtopo_id
 from batid.services.source import bdtopo_release_before
 from batid.tests.helpers import create_default_bdg
 
 
 class ReleaseDate(TransactionTestCase):
-
     def test(self):
 
         # Test normal case
@@ -22,7 +20,6 @@ class ReleaseDate(TransactionTestCase):
 
 
 class KnownId(TransactionTestCase):
-
     def setUp(self):
 
         bdg = create_default_bdg("RNB_ID")

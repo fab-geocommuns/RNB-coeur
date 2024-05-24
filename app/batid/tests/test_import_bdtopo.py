@@ -15,7 +15,6 @@ from batid.tests.helpers import create_default_bdg
 
 
 class ImportBDTopo(TransactionTestCase):
-
     def setUp(self):
 
         # Create a bdg with a bdtopo ID also present in the file. It should be skipped

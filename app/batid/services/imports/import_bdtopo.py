@@ -11,7 +11,8 @@ from django.contrib.gis.geos import WKTWriter
 from django.db import connection
 from django.db import transaction
 
-from batid.models import BuildingImport, Building
+from batid.models import Building
+from batid.models import BuildingImport
 from batid.models import Candidate
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
