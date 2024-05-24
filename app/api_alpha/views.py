@@ -1,3 +1,5 @@
+from base64 import b64encode
+
 import requests
 from django.db import connection
 from django.http import Http404
@@ -8,10 +10,11 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.exceptions import ParseError
-from rest_framework.pagination import CursorPagination
+from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
+from rest_framework.utils.urls import replace_query_param
 from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
@@ -27,7 +30,7 @@ from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
 from batid.models import Contribution
-from batid.services.closest_bdg import get_closest
+from batid.services.closest_bdg import get_closest_from_point
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
@@ -71,7 +74,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
             lng = float(lng)
             radius = int(radius)
 
-            qs = get_closest(lat, lng, radius)
+            qs = get_closest_from_point(lat, lng, radius)
             bdg = qs.first()
 
             if isinstance(bdg, Building):
@@ -87,9 +90,110 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
             return Response(query_serializer.errors, status=400)
 
 
-class BuildingCursorPagination(CursorPagination):
+class BuildingCursorPagination(BasePagination):
     page_size = 20
-    ordering = "id"
+
+    cursor_query_param = "cursor"
+
+    def __init__(self):
+        self.base_url = None
+        self.current_page = None
+
+        self.has_next = False
+        self.has_previous = False
+
+        self.page = None
+
+    def get_paginated_response_schema(self, schema):
+        return {
+            "type": "object",
+            "properties": {
+                "next": {
+                    "type": "string",
+                    "nullable": True,
+                },
+                "previous": {
+                    "type": "string",
+                    "nullable": True,
+                },
+                "results": schema,
+            },
+        }
+
+    def get_html_context(self):
+        return {
+            "previous_url": self.get_previous_link(),
+            "next_url": self.get_next_link(),
+        }
+
+    def get_paginated_response(self, data):
+
+        return Response(
+            {
+                "next": self.get_next_link(),
+                "previous": self.get_previous_link(),
+                "results": data,
+            }
+        )
+
+    def get_next_link(self):
+
+        if self.has_next:
+            next_cursor = str(self.current_page + 1)
+            return replace_query_param(
+                self.base_url, self.cursor_query_param, next_cursor
+            )
+
+        return None
+
+    def get_previous_link(self):
+
+        if self.has_previous:
+            previous_cursor = str(self.current_page - 1)
+            return replace_query_param(
+                self.base_url, self.cursor_query_param, previous_cursor
+            )
+
+        return None
+
+    def paginate_queryset(self, queryset, request, view=None):
+
+        # Get the current URL with all parameters
+        self.base_url = request.build_absolute_uri()
+
+        self.current_page = self.get_page(request)
+        if self.current_page is None:
+            self.current_page = 1
+
+        offset = (self.current_page - 1) * self.page_size
+
+        # If we have an offset cursor then offset the entire page by that amount.
+        # We also always fetch an extra item in order to determine if there is a
+        # page following on from this one.
+        results = queryset[offset : offset + self.page_size + 1]
+
+        if len(results) > self.page_size:
+            self.has_next = True
+
+        if self.current_page > 1:
+            self.has_previous = True
+
+        return results[: self.page_size]
+
+    def get_page(self, request):
+
+        request_page = request.query_params.get(self.cursor_query_param)
+        if request_page:
+            try:
+                return int(request_page)
+            except ValueError:
+                return None
+
+        return None
+
+    def encode_cursor(self, cursor):
+
+        return b64encode(cursor.encode("ascii")).decode("ascii")
 
 
 class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
@@ -276,11 +380,28 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         return search.get_queryset()
 
 
-def get_tile(request, x, y, z):
+def get_tile_point(request, x, y, z):
     # Check the request zoom level
     if int(z) >= 16:
         tile_dict = url_params_to_tile(x, y, z)
-        sql = tile_sql(tile_dict)
+        sql = tile_sql(tile_dict, "point")
+
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            tile_file = cursor.fetchone()[0]
+
+        return HttpResponse(
+            tile_file, content_type="application/vnd.mapbox-vector-tile"
+        )
+    else:
+        return HttpResponse(status=204)
+
+
+def get_tile_shape(request, x, y, z):
+    # Check the request zoom level
+    if int(z) >= 16:
+        tile_dict = url_params_to_tile(x, y, z)
+        sql = tile_sql(tile_dict, "shape")
 
         with connection.cursor() as cursor:
             cursor.execute(sql)

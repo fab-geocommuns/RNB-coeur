@@ -97,7 +97,7 @@ class ImportBDNB202301TestCase(TransactionTestCase):
         self.assertEqual(b.ext_ids[0]["source_version"], "2023_01")
         self.assertIsInstance(b.shape, MultiPolygon)
         self.assertIsInstance(b.point, Point)
-        self.assertEqual(b.addresses.count(), 1)
+        self.assertEqual(len(b.addresses_id), 1)
 
         b = Building.objects.filter(
             ext_ids__contains=[{"id": "bdnb-bc-111D-RG76-V7GK"}]
@@ -107,7 +107,7 @@ class ImportBDNB202301TestCase(TransactionTestCase):
         self.assertEqual(b.ext_ids[0]["source_version"], "2023_01")
         self.assertIsInstance(b.shape, MultiPolygon)
         self.assertIsInstance(b.point, Point)
-        self.assertEqual(b.addresses.count(), 2)
+        self.assertEqual(len(b.addresses_id), 2)
 
         b = Building.objects.filter(
             ext_ids__contains=[{"id": "bdnb-bc-KCFS-ZDYC-D9D5"}]
@@ -117,7 +117,7 @@ class ImportBDNB202301TestCase(TransactionTestCase):
         self.assertEqual(b.ext_ids[0]["source_version"], "2023_01")
         self.assertIsInstance(b.shape, Point)
         self.assertIsInstance(b.point, Point)
-        self.assertEqual(b.addresses.count(), 0)
+        self.assertEqual(len(b.addresses_id), 0)
 
     @patch("batid.services.imports.import_bdnb_2023_01.Source.find")
     def test_import_addresses(self, sourceMock):

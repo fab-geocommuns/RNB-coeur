@@ -29,7 +29,6 @@ class BuildingAbstract(models.Model):
     status = models.CharField(
         choices=BuildingStatusModel.TYPES_CHOICES,
         null=False,
-        db_index=True,
         max_length=30,
         default=BuildingStatusModel.DEFAULT_STATUS,
     )
@@ -59,13 +58,35 @@ class BuildingAbstract(models.Model):
     event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
     # only currently active buildings are considered part of the RNB
     is_active = models.BooleanField(db_index=True, default=True)
+    # this field is the source of truth for the building <> address link
+    # it contains BAN ids (clé d'interopérabilité)
+    addresses_id = ArrayField(models.CharField(max_length=40), null=True)
 
     class Meta:
         abstract = True
 
 
+class BuildingAddressesReadOnly(models.Model):
+    building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
+    address = models.ForeignKey("Address", on_delete=models.CASCADE, db_index=True)
+
+    class Meta:
+        unique_together = ("building", "address")
+
+
 class Building(BuildingAbstract):
+    # will be deleted soon
     addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
+
+    # this only exists to make it possible for the Django ORM to access the associated addresses
+    # but this field is read-only : you should not attempt to save a building/address association through this field
+    # use addresses_id instead.
+    addresses_read_only = models.ManyToManyField(
+        "Address",
+        blank=True,
+        related_name="buildings_read_only",
+        through="BuildingAddressesReadOnly",
+    )
 
     def add_ext_id(
         self, source: str, source_version: Optional[str], id: str, created_at: str
@@ -124,6 +145,8 @@ class Building(BuildingAbstract):
         ordering = ["rnb_id"]
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
+            GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
+            models.Index(fields=("status",), name="bdg_status_idx"),
         ]
 
 
@@ -154,6 +177,7 @@ class BuildingHistoryOnly(BuildingAbstract):
         db_table = "batid_building_history"
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_history_event_origin_idx"),
+            models.Index(fields=("status",), name="bdg_history_status_idx"),
         ]
 
 
