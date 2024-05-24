@@ -17,6 +17,7 @@ class Command(BaseCommand):
 
 
 def create_tasks_list(dpt, bulk_launch_uuid=None):
+
     bdtopo_dpt = dpt.zfill(3)
 
     bdtopo_edition = "bdtopo_2023_09"

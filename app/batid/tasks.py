@@ -30,7 +30,11 @@ def test_all() -> str:
 @shared_task(
     autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 5}
 )
-def dl_source(src: Source):
+def dl_source(src_name: dict, src_params: dict):
+
+    src = Source(src_name)
+    for param, value in src_params.items():
+        src.set_param(param, value)
 
     print(f"-- downloading {src.url}")
     src.download()

@@ -110,6 +110,10 @@ class Source:
             if isinstance(self.ref[k], str):
                 self.ref[k] = self.ref[k].replace("{{" + p_key + "}}", p_val)
 
+    def set_params(self, params):
+        for key, value in params.items():
+            self.set_param(key, value)
+
     @property
     def abs_dir(self):
         return f"{self._dl_dir}/{self.folder}/"
@@ -294,18 +298,26 @@ def bdtopo_source_switcher(source_name: str, dpt: str) -> str:
     return source_name
 
 
-def bdtopo_source(dpt: str, date: str) -> Source:
+def bdtopo_src(dpt: str, date: str) -> Source:
 
-    # BD Topo dpt is always 3 digits
+    params = bdtopo_src_params(dpt, date)
+
+    source = Source("bdtopo")
+    source.set_params(params)
+
+    return source
+
+
+def bdtopo_src_params(dpt: str, date: str) -> dict:
+
     dpt = dpt.zfill(3)
     projection = _bdtopo_dpt_projection(dpt)
 
-    source = Source("bdtopo")
-    source.set_param("dpt", dpt)
-    source.set_param("projection", projection)
-    source.set_param("date", date)
-
-    return source
+    return {
+        "dpt": dpt,
+        "projection": projection,
+        "date": date,
+    }
 
 
 def _bdtopo_dpt_projection(dpt: str) -> str:
