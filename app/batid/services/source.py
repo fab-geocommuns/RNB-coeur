@@ -45,6 +45,9 @@ class Source:
             # },
             # ######
             # For BD TOPO we use the edition name (eg: bdtopo_2023_09) as the source name for continental data. DROM COM source names are suffixed with _{dpt}
+            "bdtopo": {
+                "url": "https://data.geopf.fr/telechargement/download/BDTOPO/BDTOPO_3-3_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}/BDTOPO_3-3_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}.7z"
+            },
             "bdtopo_2023_09": {
                 "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15.7z",
                 "filename": "BATIMENT.shp",
