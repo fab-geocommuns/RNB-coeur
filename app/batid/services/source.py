@@ -292,3 +292,35 @@ def bdtopo_source_switcher(source_name: str, dpt: str) -> str:
         return f"{source_name}_{dpt}"
 
     return source_name
+
+
+def bdtopo_source(dpt: str, date: str) -> Source:
+
+    # BD Topo dpt is always 3 digits
+    dpt = dpt.zfill(3)
+    projection = _bdtopo_dpt_projection(dpt)
+
+    source = Source("bdtopo")
+    source.set_param("dpt", dpt)
+    source.set_param("projection", projection)
+    source.set_param("date", date)
+
+    return source
+
+
+def _bdtopo_dpt_projection(dpt: str) -> str:
+
+    default_proj = "LAMB93"
+
+    projs = {
+        "971": "RGAF09UTM20",
+        "972": "RGAF09UTM20",
+        "973": "UTM22RGFG95",
+        "974": "RGR92UTM40S",
+        "975": "RGSPM06U21",
+        "976": "RGM04UTM38S",
+        "977": "RGAF09UTM20",
+        "978": "RGAF09UTM20",
+    }
+
+    return projs.get(dpt, default_proj)
