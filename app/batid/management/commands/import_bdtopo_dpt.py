@@ -2,7 +2,7 @@ from celery import chain
 from celery import Signature
 from django.core.management.base import BaseCommand
 
-from batid.services.source import bdtopo_src_params
+from batid.services.source import bdtopo_src_params, bdtopo_most_recent_date
 
 
 class Command(BaseCommand):
@@ -18,9 +18,7 @@ class Command(BaseCommand):
 
 def create_tasks_list(dpt, bulk_launch_uuid=None):
 
-    # todo : créer un sélecteur de date automatique
-    most_recent_date = "2024-03-15"
-
+    most_recent_date = bdtopo_most_recent_date()
     src_params = bdtopo_src_params(dpt, most_recent_date)
 
     tasks = []

@@ -288,16 +288,6 @@ class BufferToCopy(Source):
         )
 
 
-def bdtopo_src(dpt: str, date: str) -> Source:
-
-    params = bdtopo_src_params(dpt, date)
-
-    source = Source("bdtopo")
-    source.set_params(params)
-
-    return source
-
-
 def bdtopo_src_params(dpt: str, date: str) -> dict:
 
     dpt = dpt.zfill(3)
@@ -308,6 +298,10 @@ def bdtopo_src_params(dpt: str, date: str) -> dict:
         "projection": projection,
         "date": date,
     }
+
+
+def bdtopo_most_recent_date() -> str:
+    return "2023-09-15"
 
 
 def _bdtopo_dpt_projection(dpt: str) -> str:
