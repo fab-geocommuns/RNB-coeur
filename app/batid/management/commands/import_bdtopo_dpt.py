@@ -2,7 +2,7 @@ from celery import chain
 from celery import Signature
 from django.core.management.base import BaseCommand
 
-from batid.services.source import bdtopo_source_switcher
+from batid.services.source import bdtopo_source_switcher, bdtopo_src_params
 
 
 class Command(BaseCommand):
@@ -18,17 +18,14 @@ class Command(BaseCommand):
 
 def create_tasks_list(dpt, bulk_launch_uuid=None):
 
-    bdtopo_dpt = dpt.zfill(3)
+    # todo : créer un sélecteur de date automatique
+    most_recent_date = "2024-03-15"
 
-    bdtopo_edition = "bdtopo_2023_09"
-
-    source_name = bdtopo_source_switcher(bdtopo_edition, bdtopo_dpt)
+    src_params = bdtopo_src_params(dpt, most_recent_date)
 
     tasks = []
     tasks.append(
-        Signature(
-            "batid.tasks.dl_source", args=[source_name, bdtopo_dpt], immutable=True
-        )
+        Signature("batid.tasks.dl_source", args=["bdtopo", src_params], immutable=True)
     )
     tasks.append(
         Signature(
