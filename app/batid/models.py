@@ -67,15 +67,10 @@ class BuildingAbstract(models.Model):
 
 class BuildingAddressesReadOnly(models.Model):
     building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
-    address = models.ForeignKey("Address", on_delete=models.CASCADE)
+    address = models.ForeignKey("Address", on_delete=models.CASCADE, db_index=True)
 
     class Meta:
         unique_together = ("building", "address")
-        indexes = [
-            # index creation is moved here to avoid the creation of the "_like" index
-            # see https://stackoverflow.com/a/50926644/1892308
-            models.Index(fields=("address_id",), name="bdg_addr_readonly_address_id"),
-        ]
 
 
 class Building(BuildingAbstract):
