@@ -52,7 +52,6 @@ class BuildingAbstract(models.Model):
         ],
         max_length=10,
         null=True,
-        db_index=True,
     )
     # the user at the origin of the event
     event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
@@ -68,10 +67,15 @@ class BuildingAbstract(models.Model):
 
 class BuildingAddressesReadOnly(models.Model):
     building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
-    address = models.ForeignKey("Address", on_delete=models.CASCADE, db_index=True)
+    address = models.ForeignKey("Address", on_delete=models.CASCADE)
 
     class Meta:
         unique_together = ("building", "address")
+        indexes = [
+            # index creation is moved here to avoid the creation of the "_like" index
+            # see https://stackoverflow.com/a/50926644/1892308
+            models.Index(fields=("address_id",), name="bdg_addr_readonly_address_id"),
+        ]
 
 
 class Building(BuildingAbstract):
@@ -147,6 +151,7 @@ class Building(BuildingAbstract):
             GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
             GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
             models.Index(fields=("status",), name="bdg_status_idx"),
+            models.Index(fields=("event_type",), name="bdg_event_type_idx"),
         ]
 
 
@@ -178,6 +183,7 @@ class BuildingHistoryOnly(BuildingAbstract):
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_history_event_origin_idx"),
             models.Index(fields=("status",), name="bdg_history_status_idx"),
+            models.Index(fields=("event_type",), name="bdg_history_event_type_idx"),
         ]
 
 
