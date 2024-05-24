@@ -11,7 +11,7 @@ from django.contrib.gis.geos import WKTWriter
 from django.db import connection
 from django.db import transaction
 
-from batid.models import BuildingImport
+from batid.models import BuildingImport, Building
 from batid.models import Candidate
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
@@ -39,6 +39,9 @@ def import_bdtopo(src_params, bulk_launch_uuid=None):
         for feature in f:
             # We skip the light buildings
             if feature["properties"]["LEGER"] == "Oui":
+                continue
+
+            if _known_bdtopo_id(feature["properties"]["ID"]):
                 continue
 
             candidate = _transform_bdtopo_feature(feature, srid)
@@ -69,6 +72,13 @@ def import_bdtopo(src_params, bulk_launch_uuid=None):
 
         print("- remove buffer")
         os.remove(buffer.path)
+
+
+def _known_bdtopo_id(bdtopo_id: str) -> bool:
+
+    return Building.objects.filter(
+        ext_ids__contains=[{"source": "bdtopo", "id": bdtopo_id}]
+    ).exists()
 
 
 def _transform_bdtopo_feature(feature, from_srid) -> dict:
