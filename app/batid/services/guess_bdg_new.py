@@ -16,7 +16,8 @@ from django.db import connections
 from batid.models import Building
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.closest_bdg import get_closest_from_poly
-from batid.services.geocoders import BanGeocoder, BanBatchGeocoder
+from batid.services.geocoders import BanBatchGeocoder
+from batid.services.geocoders import BanGeocoder
 from batid.services.geocoders import PhotonGeocoder
 
 

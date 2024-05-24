@@ -10,12 +10,12 @@ from requests import Response
 
 from batid.models import Address
 from batid.models import Building
-
-from batid.services.guess_bdg_new import Guesser
-from batid.services.guess_bdg_new import PartialRoofHandler
 from batid.services.guess_bdg_new import ClosestFromPointHandler
 from batid.services.guess_bdg_new import GeocodeAddressHandler
-from batid.tests.helpers import create_from_geojson, create_default_bdg
+from batid.services.guess_bdg_new import Guesser
+from batid.services.guess_bdg_new import PartialRoofHandler
+from batid.tests.helpers import create_default_bdg
+from batid.tests.helpers import create_from_geojson
 
 
 class TestGuesser(TransactionTestCase):
@@ -649,7 +649,6 @@ class TestIsolatedMatching(PartialRoofTest):
 
 
 class TestAddressGeocoding(TransactionTestCase):
-
     def setUp(self):
 
         Address.objects.create(id="BAN_ID_ONE")
