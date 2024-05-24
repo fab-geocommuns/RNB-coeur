@@ -9,10 +9,10 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
-
-
 import os
+
 import sentry_sdk
+from celery.schedules import crontab
 from sentry_sdk.integrations.django import DjangoIntegration
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -36,6 +36,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 LOGIN_URL = "/admin/login/"
 
+DATABASE_ROUTERS = ("app.dbrouters.DBRouter",)
 
 if DEBUG:
     import socket  # only if you haven't already imported this
@@ -65,15 +66,18 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework.authtoken",
+    "rest_framework_gis",
     "django.contrib.postgres",
     "corsheaders",
     "rest_framework_tracking",
     "batid",
     "website",
     "api_alpha",
+    "webhook",
     "xp",
     "django_extensions",
     "revproxy",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -111,6 +115,10 @@ WSGI_APPLICATION = "app.wsgi.application"
 
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
+
+SERIALIZATION_MODULES = {
+    "geojson": "django.contrib.gis.serializers.geojson",
+}
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
@@ -151,6 +159,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 30,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -177,9 +186,16 @@ STATIC_URL = "/static/"
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
 CELERY_BACKEND_URL = os.environ.get("CELERY_RESULT_BACKEND")
 
+CELERY_BEAT_SCHEDULE = {
+    "backup_to_s3": {
+        "task": "batid.tasks.backup_to_s3",
+        # saturday at 7am
+        "schedule": crontab(hour=7, minute=0, day_of_week=6),
+    }
+}
+
 
 # Bat ID custom settings
-DEFAULT_SRID = int(os.environ.get("DEFAULT_SRID"))  # 2154 = Lambert 93
 MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))
 
 # Zoom range for vector tiles generation

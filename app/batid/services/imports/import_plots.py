@@ -1,14 +1,13 @@
-import concurrent.futures
+import csv
 import json
 from datetime import datetime
+from io import StringIO
 
 import ijson
-
-from django.conf import settings
-from django.contrib.gis.geos import Polygon, GEOSGeometry, MultiPolygon
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import MultiPolygon
 from django.db import connection
 from django.utils import timezone
-from psycopg2.extras import execute_values
 
 from batid.models import Plot
 from batid.services.source import Source
@@ -20,17 +19,15 @@ def import_etalab_plots(dpt: str):
 
     src = Source("plot")
     src.set_param("dpt", dpt)
-    batch_size = 50000
+    batch_size = 10000
 
     with open(src.path) as f:
         features = ijson.items(f, "features.item", use_float=True)
 
         batch = []
-
         c = 0
         for plot in features:
             c += 1
-            print("plot", c)
 
             batch.append(plot)
 
@@ -43,17 +40,24 @@ def import_etalab_plots(dpt: str):
 
 
 def __handle_batch(batch):
-    print("-- converting batch")
+    print("-- converting and saving batch")
     rows = map(_feature_to_row, batch)
-    print("-- saving batch")
     __save_batch(rows)
 
 
-def __save_batch(batch):
-    q = f"INSERT INTO {Plot._meta.db_table} (id, shape, created_at, updated_at) VALUES %s ON CONFLICT DO NOTHING"
+def __save_batch(rows):
+    f = StringIO()
+    writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
+    writer.writerows(rows)
+    f.seek(0)
 
     with connection.cursor() as cursor:
-        execute_values(cursor, q, batch)
+        cursor.copy_from(
+            f,
+            Plot._meta.db_table,
+            columns=("id", "shape", "created_at", "updated_at"),
+            sep=",",
+        )
 
 
 def polygon_to_multipolygon(polygon):
@@ -66,9 +70,6 @@ def _feature_to_row(feature):
 
     multi_poly = GEOSGeometry(json.dumps(feature["geometry"]))
 
-    if multi_poly.srid != settings.DEFAULT_SRID:
-        multi_poly.transform(settings.DEFAULT_SRID)
-
     if not multi_poly.valid:
         multi_poly = multi_poly.buffer(0)
 
@@ -77,4 +78,4 @@ def _feature_to_row(feature):
 
     now = datetime.now(timezone.utc)
 
-    return feature["id"], f"{multi_poly}", now, now
+    return [feature["id"], multi_poly.hexewkb.decode("ascii"), f"{now}", f"{now}"]

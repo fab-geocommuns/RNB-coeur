@@ -1,4 +1,3 @@
-
 def is_float(string: str) -> bool:
     try:
         float(string)

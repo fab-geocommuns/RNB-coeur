@@ -1,8 +1,8 @@
 import csv
-import json
+import gzip
 import os
 import tarfile
-import gzip
+import zipfile
 
 import nanoid
 import py7zr
@@ -14,7 +14,7 @@ class Source:
 
     # Must be prefixed with a dot
 
-    archive_exts = [".7z", ".tar.gz", ".gz"]
+    archive_exts = [".7z", ".tar.gz", ".gz", ".zip"]
 
     def __init__(self, name, custom_ref=None):
         self.name = name
@@ -23,7 +23,7 @@ class Source:
             self.ref = custom_ref
         else:
             self.refs = self.default_ref()
-            self.ref = self.refs[name]
+            self.ref = self.refs.get(name, {})
 
         self.create_abs_dir()
 
@@ -39,17 +39,59 @@ class Source:
                 "filename": "buffer.csv",
             },
             # 2022 december
-            "bdtopo": {
-                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_224$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15.7z",
-                "filename": "BATIMENT.shp",
-            },
-            # 2023 june
-            # "bdtopo": {
-            #     "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_232$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-06-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-06-15.7z",
+            # "bdtopo_2022_12": {
+            #     "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_224$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15.7z",
             #     "filename": "BATIMENT.shp",
             # },
-            "bdnb_7": {
-                "url": "https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz",
+            # ######
+            # For BD TOPO we use the edition name (eg: bdtopo_2023_09) as the source name for continental data. DROM COM source names are suffixed with _{dpt}
+            "bdtopo_2023_09": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            # Special case for 03, download url is slightly different
+            "bdtopo_2023_09_003": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233-1$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_971": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D971_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D971_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_972": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D972_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D972_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_973": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_UTM22RGFG95_D973_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_UTM22RGFG95_D973_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_974": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGR92UTM40S_D974_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGR92UTM40S_D974_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_975": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGSPM06U21_D975_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGSPM06U21_D975_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_976": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGM04UTM38S_D976_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGM04UTM38S_D976_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_977": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D977_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D977_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            "bdtopo_2023_09_978": {
+                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D978_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D978_2023-09-15.7z",
+                "filename": "BATIMENT.shp",
+            },
+            # BDNB 7.2 is not used anymore
+            # "bdnb_7": {
+            #     "url": "https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz",
+            # },
+            "bdnb_2023_01": {
+                "url": "https://rnb-open.s3.fr-par.scw.cloud/bdnb_2023_01/{{dpt}}.zip"
             },
             "insee-cog-commune": {
                 "url": "https://api.insee.fr/metadonnees/V1/geo/communes",
@@ -159,9 +201,17 @@ class Source:
             self.uncompress_gz()
             return
 
+        if self.dl_filename.endswith(".zip"):
+            self.uncompress_zip()
+            return
+
+    def uncompress_zip(self):
+        with zipfile.ZipFile(self.dl_path, "r") as zip_ref:
+            zip_ref.extractall(self.uncompress_abs_dir)
+
     def uncompress_7z(self):
         with py7zr.SevenZipFile(self.dl_path, "r") as archive:
-            archive.extractall(self.abs_dir)
+            archive.extractall(self.uncompress_abs_dir)
 
     def uncompress_tar_gz(self):
         with tarfile.open(self.dl_path, "r:gz") as tar:
@@ -208,12 +258,20 @@ class BufferToCopy(Source):
     def write_data(self, data):
         with open(self.path, "w") as f:
             if isinstance(data[0], list) or isinstance(data[0], tuple):
-                writer = csv.writer(f, delimiter=";")
+                writer = csv.writer(
+                    f, delimiter=";", doublequote=False, escapechar="\\"
+                )
                 writer.writerows(data)
                 return
 
             if isinstance(data[0], dict):
-                writer = csv.DictWriter(f, fieldnames=data[0].keys(), delimiter=";")
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=data[0].keys(),
+                    delimiter=";",
+                    doublequote=False,
+                    escapechar="\\",
+                )
                 # writer.writeheader()
                 writer.writerows(data)
                 return
@@ -221,3 +279,13 @@ class BufferToCopy(Source):
         raise Exception(
             f"Can't write buffer, data rows must be a list or a dict, {type(data)} given"
         )
+
+
+def bdtopo_source_switcher(source_name: str, dpt: str) -> str:
+    if dpt in ["971", "972", "973", "974", "975", "976", "977", "978"]:
+        return f"{source_name}_{dpt}"
+
+    if dpt == "003":
+        return f"{source_name}_{dpt}"
+
+    return source_name

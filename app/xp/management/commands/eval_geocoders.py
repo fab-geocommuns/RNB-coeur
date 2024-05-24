@@ -1,20 +1,15 @@
-from pprint import pprint
-from typing import Optional
-from django.core.management.base import BaseCommand
 import json
-from batid.models import Plot
-from batid.services.geocoders import (
-    GeocodeEarthGeocoder,
-    NominatimGeocoder,
-    PhotonGeocoder,
-    BanGeocoder,
-)
-from batid.services.imports.import_plots import import_etalab_plots
-from batid.services.guess_bdg import BuildingGuess
-
-from django.contrib.gis.geos import GEOSGeometry, Point
+from typing import Optional
 
 import pandas as pd
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import Point
+from django.core.management.base import BaseCommand
+
+from batid.services.geocoders import BanGeocoder
+from batid.services.geocoders import GeocodeEarthGeocoder
+from batid.services.geocoders import NominatimGeocoder
+from batid.services.geocoders import PhotonGeocoder
 
 
 class Command(BaseCommand):
@@ -351,7 +346,7 @@ class Command(BaseCommand):
 
         g = BanGeocoder()
 
-        r = g.geocode(address)
+        r = g.geocode({"q": address})
 
         if r["features"]:
             point = GEOSGeometry(json.dumps(r["features"][0]["geometry"]))

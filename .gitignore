@@ -2,31 +2,47 @@
 .env.worker.dev
 .env.worker.prod
 .env.worker.staging
+.env.worker.import
 .env.worker.public-sandbox
 
 .env.rnb.dev
 .env.rnb.prod
 .env.rnb.staging
+.env.rnb.import
 .env.rnb.public-sandbox
 
 .env.app.dev
 .env.app.prod
 .env.app.staging
+.env.app.import
 .env.app.public-sandbox
 
 .env.db_auth.dev
 .env.db_auth.prod
 .env.db_auth.staging
+.env.db_auth.import
 .env.db_auth.public-sandbox
 
 .env.sentry.dev
 .env.sentry.prod
 .env.sentry.staging
+.env.sentry.import
 .env.sentry.public-sandbox
 
 .env.nginx-encrypt.prod
 .env.nginx-encrypt.staging
+.env.nginx-encrypt.import
 .env.nginx-encrypt.public-sandbox
+
+.env.s3_backup.dev
+.env.s3_backup.prod
+.env.s3_backup.staging
+.env.s3_backup.import
+.env.s3_backup.public-sandbox
+
+# Jupyter notebooks trash
+/app/.Trash-*
+
 
 # Remove files in data folder since they are used for importing default data
 source_data/
@@ -44,4 +60,7 @@ venv/
 
 # Jupyter Notebook temporary files
 *-checkpoint.ipynb
+
+.devcontainer/
+
 

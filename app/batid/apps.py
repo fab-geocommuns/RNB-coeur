@@ -6,6 +6,4 @@ class BatidConfig(AppConfig):
     name = "batid"
 
     def ready(self):
-        from batid.signals import receivers
-
-        pass
+        from batid.signals import receivers  # noqa

@@ -1,14 +1,14 @@
-import datetime
 import json
-from pprint import pprint
 
-from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
-from rest_framework.test import APITestCase
-from batid.models import Building, BuildingStatus, User, Organization
 from rest_framework.authtoken.models import Token
+from rest_framework.test import APITestCase
 
-from batid.tests.helpers import create_grenoble, create_bdg
+from batid.models import Building
+from batid.models import Organization
+from batid.models import User
+from batid.tests.helpers import create_bdg
+from batid.tests.helpers import create_grenoble
 
 
 class BuildingsEndpointsTest(APITestCase):
@@ -30,15 +30,13 @@ class BuildingsEndpointsTest(APITestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
 
         b = Building.objects.create(
             rnb_id="BDGSRNBBIDID",
-            source="dummy",
             shape=geom,
             point=geom.point_on_surface,
+            status="constructed",
         )
-        BuildingStatus.objects.create(building=b, type="constructed", is_current=True)
 
         coords = {
             "coordinates": [
@@ -55,19 +53,12 @@ class BuildingsEndpointsTest(APITestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
 
         b = Building.objects.create(
             rnb_id="BDGPROJ",
-            source="dummy",
             shape=geom,
             point=geom.point_on_surface,
-        )
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructionProject",
-            is_current=True,
-            happened_at=datetime.datetime(2020, 2, 1),
+            status="constructionProject",
         )
 
         # Check buildings in a city
@@ -84,12 +75,6 @@ class BuildingsEndpointsTest(APITestCase):
                 [5.721187072129851, 45.18439363812283],
             ],
         )
-        BuildingStatus.objects.create(
-            building=bdg,
-            type="constructed",
-            is_current=True,
-            happened_at=datetime.datetime(2023, 2, 1),
-        )
 
     def test_bdg_in_bbox(self):
         r = self.client.get(
@@ -103,20 +88,14 @@ class BuildingsEndpointsTest(APITestCase):
             "results": [
                 {
                     "addresses": [],
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
+                    "status": "constructed",
                     "point": {
-                        "coordinates": [5.7211808330356, 45.18433388648706],
+                        "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
+                    "is_active": True,
                 }
             ],
         }
@@ -136,20 +115,14 @@ class BuildingsEndpointsTest(APITestCase):
             "results": [
                 {
                     "addresses": [],
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
+                    "status": "constructed",
                     "point": {
-                        "coordinates": [5.7211808330356, 45.18433388648706],
+                        "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
+                    "is_active": True,
                 }
             ],
         }
@@ -158,6 +131,14 @@ class BuildingsEndpointsTest(APITestCase):
 
         self.assertEqual(len(data["results"]), 1)
         self.assertDictEqual(data, expected)
+
+        building = Building.objects.get(rnb_id="INGRENOBLEGO")
+        building.is_active = False
+        building.save()
+
+        r = self.client.get("/api/alpha/buildings/?insee_code=38185")
+        # No building should be returned
+        self.assertEqual(len(r.json()["results"]), 0)
 
     def test_buildings_root(self):
         r = self.client.get("/api/alpha/buildings/")
@@ -168,38 +149,26 @@ class BuildingsEndpointsTest(APITestCase):
             "next": None,
             "results": [
                 {
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
+                    "status": "constructed",
                     "rnb_id": "BDGSRNBBIDID",
-                    "status": [
-                        {
-                            "type": "constructed",
-                            "label": "Construit",
-                            "happened_at": None,
-                            "is_current": True,
-                        }
-                    ],
                     "point": {
                         "type": "Point",
-                        "coordinates": [1.065566769109709, 46.63416324688213],
+                        "coordinates": [1.065566787499344, 46.634163236377134],
                     },
                     "addresses": [],
+                    "is_active": True,
                 },
                 {
                     "addresses": [],
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
+                    "status": "constructed",
                     "point": {
-                        "coordinates": [5.7211808330356, 45.18433388648706],
+                        "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
+                    "is_active": True,
                 },
             ],
         }
@@ -212,24 +181,32 @@ class BuildingsEndpointsTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         expected = {
-            "ext_bdtopo_id": None,
+            "ext_ids": None,
             "rnb_id": "BDGSRNBBIDID",
+            "status": "constructed",
             "point": {
                 "type": "Point",
-                "coordinates": [1.065566769109709, 46.63416324688213],
+                "coordinates": [1.065566787499344, 46.634163236377134],
             },
-            "status": [
-                {
-                    "type": "constructed",
-                    "label": "Construit",
-                    "happened_at": None,
-                    "is_current": True,
-                }
-            ],
             "addresses": [],
+            "is_active": True,
         }
 
         self.assertEqual(r.json(), expected)
+
+    def test_non_active_buildings_are_excluded(self):
+        building = Building.objects.get(rnb_id="BDGSRNBBIDID")
+
+        r = self.client.get("/api/alpha/buildings/")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.json()["results"]), 2)
+
+        building.is_active = False
+        building.save()
+
+        r = self.client.get("/api/alpha/buildings/")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.json()["results"]), 1)
 
 
 class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
@@ -259,55 +236,37 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
             "next": None,
             "results": [
                 {
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
                     "rnb_id": "BDGSRNBBIDID",
+                    "status": "constructed",
                     "point": {
                         "type": "Point",
-                        "coordinates": [1.065566769109709, 46.63416324688213],
+                        "coordinates": [1.065566787499344, 46.634163236377134],
                     },
-                    "status": [
-                        {
-                            "type": "constructed",
-                            "label": "Construit",
-                            "happened_at": None,
-                            "is_current": True,
-                        }
-                    ],
                     "addresses": [],
+                    "is_active": True,
                 },
                 {
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
                     "rnb_id": "BDGPROJ",
+                    "status": "constructionProject",
                     "point": {
                         "type": "Point",
-                        "coordinates": [1.065566769109709, 46.63416324688213],
+                        "coordinates": [1.065566787499344, 46.634163236377134],
                     },
-                    "status": [
-                        {
-                            "type": "constructionProject",
-                            "label": "En projet",
-                            "is_current": True,
-                            "happened_at": "2020-02-01",
-                        }
-                    ],
                     "addresses": [],
+                    "is_active": True,
                 },
                 {
                     "addresses": [],
-                    "ext_bdtopo_id": None,
+                    "ext_ids": None,
+                    "status": "constructed",
                     "point": {
-                        "coordinates": [5.7211808330356, 45.18433388648706],
+                        "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
                     "rnb_id": "INGRENOBLEGO",
-                    "status": [
-                        {
-                            "happened_at": "2023-02-01",
-                            "is_current": True,
-                            "label": "Construit",
-                            "type": "constructed",
-                        }
-                    ],
+                    "is_active": True,
                 },
             ],
         }
@@ -316,8 +275,8 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
         self.assertDictEqual(data, expected)
 
 
-class BuildingsEndpointsSingleTest(APITestCase):
-    def setUp(self) -> None:
+class BuildingClosestViewTest(APITestCase):
+    def test_closest(self):
         coords = {
             "coordinates": [
                 [
@@ -333,36 +292,79 @@ class BuildingsEndpointsSingleTest(APITestCase):
             "type": "MultiPolygon",
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
-        geom.transform(settings.DEFAULT_SRID)
 
-        b = Building.objects.create(
-            rnb_id="SINGLEONE",
-            source="dummy",
+        b_1 = Building.objects.create(
+            rnb_id="building_1",
             shape=geom,
             point=geom.point_on_surface,
         )
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructed",
-            happened_at=datetime.datetime(2020, 2, 1),
-        )
-        BuildingStatus.objects.create(
-            building=b,
-            type="constructionProject",
-        )
-        BuildingStatus.objects.create(
-            building=b,
-            type="demolished",
-            is_current=True,
-            happened_at=datetime.datetime(2022, 2, 1),
+
+        coords_2 = {
+            "coordinates": [
+                [
+                    [
+                        [1.1654705955877262, 46.63423852982024],
+                        [1.165454930919401, 46.634105152847496],
+                        [1.1656648374661017, 46.63409009413692],
+                        [1.1656773692001593, 46.63422131990677],
+                        [1.1654705955877262, 46.63423852982024],
+                    ]
+                ]
+            ],
+            "type": "MultiPolygon",
+        }
+        geom_2 = GEOSGeometry(json.dumps(coords_2), srid=4326)
+
+        b_2 = Building.objects.create(
+            rnb_id="building_2",
+            shape=geom_2,
+            point=geom_2.point_on_surface,
         )
 
-    def test_status_order(self):
-        r = self.client.get("/api/alpha/buildings/SINGLEONE/")
+        # request on the building
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=10"
+        )
         self.assertEqual(r.status_code, 200)
 
-        status = r.json()["status"]
+        data = r.json()
+        self.assertEqual(data["rnb_id"], "building_1")
+        self.assertEqual(data["distance"], 0.0)
 
-        self.assertEqual(status[0]["type"], "constructionProject")
-        self.assertEqual(status[1]["type"], "constructed")
-        self.assertEqual(status[2]["type"], "demolished")
+        # request next to the building, 1e-5 difference is about 1m
+        lat = 46.63423852982024 + 0.00001
+        r = self.client.get(
+            f"/api/alpha/buildings/closest/?point={lat},1.0654705955877262&radius=10"
+        )
+        data = r.json()
+        self.assertEqual(data["rnb_id"], "building_1")
+
+        self.assertGreater(data["distance"], 1.0)
+        self.assertLess(data["distance"], 2.0)
+
+    def test_closest_invalid_query_params(self):
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262"
+        )
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=foo"
+        )
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=-10"
+        )
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get("/api/alpha/buildings/closest/?radius=10")
+        self.assertEqual(r.status_code, 400)
+
+    def test_closest_no_building(self):
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=10"
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(r.json(), {"message": "No building found in the area"})

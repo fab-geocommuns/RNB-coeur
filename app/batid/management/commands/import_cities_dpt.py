@@ -1,7 +1,6 @@
-from datetime import datetime
+from celery import chain
+from celery import Signature
 from django.core.management.base import BaseCommand
-from app.celery import app
-from celery import chain, Signature
 
 
 class Command(BaseCommand):

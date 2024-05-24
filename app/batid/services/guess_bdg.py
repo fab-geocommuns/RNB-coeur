@@ -1,10 +1,14 @@
-from batid.utils.misc import is_float
-from batid.models import Building, BuildingStatus, Plot
-from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
-from batid.services.geocoders import BanGeocoder, PhotonGeocoder
-from django.conf import settings
-from django.contrib.gis.geos import Polygon, MultiPolygon, Point
+from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import Polygon
 from django.db.models import QuerySet
+from geopy import distance
+
+from batid.models import Building
+from batid.models import Plot
+from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
+from batid.services.geocoders import BanGeocoder
+from batid.services.geocoders import PhotonGeocoder
+from batid.utils.misc import is_float
 
 
 class BuildingGuess:
@@ -35,7 +39,7 @@ class BuildingGuess:
         # ###################
 
         selects = ["b.id", "b.rnb_id"]
-        wheres = []
+        wheres = ["is_active = TRUE"]
         joins = []
         group_by = None
         params = {}
@@ -43,12 +47,7 @@ class BuildingGuess:
 
         # Status
         if self.params.status:
-            joins.append(
-                f"LEFT JOIN {BuildingStatus._meta.db_table} as s ON s.building_id = b.id"
-            )
-            group_by = "b.id"
-
-            wheres.append("s.type IN %(status)s AND s.is_current = TRUE")
+            wheres.append("status IN %(status)s")
             params["status"] = tuple(self.params.status)
 
         # #########################################
@@ -59,7 +58,7 @@ class BuildingGuess:
             # ON THIS SIDE OF THE ROAD SCORE
             # We give more score (2 points) when point comes from OSM than from query
             # todo : if we have both point and address, we should use the same cluster for both
-            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape, %(osm_point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(osm_point)s) ASC LIMIT 1"
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(osm_point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(osm_point)s) ASC LIMIT 1"
             self.scores[
                 "osm_point_plot_cluster"
             ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
@@ -68,7 +67,7 @@ class BuildingGuess:
             # We want to keep buildings that are close to the point
             self.scores[
                 "osm_point_distance"
-            ] = f"CASE WHEN ST_Distance(shape, %(osm_point)s) > 0 THEN 2 / ST_Distance(shape, %(osm_point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape, %(osm_point)s) >= 1 THEN 2 / ST_DistanceSphere(shape, %(osm_point)s) WHEN ST_DistanceSphere(shape, %(osm_point)s) > 0 THEN 2 ELSE 3 END"
 
             # Add the point to the params
             params["osm_point"] = f"{self.params._osm_point}"
@@ -95,7 +94,7 @@ class BuildingGuess:
             # ON THIS SIDE OF THE ROAD SCORE
             # We give more score (2 points) when point comes from BAN than from query
             # todo : if we have both point and address, we should use the same cluster for both
-            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape, %(ban_point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(ban_point)s) ASC LIMIT 1"
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(ban_point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(ban_point)s) ASC LIMIT 1"
             self.scores[
                 "ban_point_plot_cluster"
             ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
@@ -105,7 +104,7 @@ class BuildingGuess:
             # todo : does the double ST_Distance evaluation is a performance problem ?
             self.scores[
                 "ban_point_distance"
-            ] = f"CASE WHEN ST_Distance(shape, %(ban_point)s) > 0 THEN 2 / ST_Distance(shape, %(ban_point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape, %(ban_point)s) >= 1 THEN 2 / ST_DistanceSphere(shape, %(ban_point)s) WHEN ST_DistanceSphere(shape, %(ban_point)s) > 0 THEN 2 ELSE 3 END"
 
             # Add the point to the params
             params["ban_point"] = f"{self.params._ban_point}"
@@ -114,13 +113,11 @@ class BuildingGuess:
         # Point
 
         if self.params.point:
-            self.params.point.transform(settings.DEFAULT_SRID)
-
             # ON THIS SIDE OF THE ROAD SCORE
             # Points tend to be on the right side of the road. We can filter out buildings that are on the other side of the road.
             # Public roads are not in cadastre plots. By grouping contiguous plots we can recreate simili-roads and keep only buildings intersecting this plot group.
             # todo : it might be interesting to pre-calculate cluster and store them in DB. It would be faster.
-            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape, %(point)s, 300)) c ORDER BY ST_Distance(c.cluster, %(point)s) ASC LIMIT 1"
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(point)s) ASC LIMIT 1"
             self.scores[
                 "point_plot_cluster"
             ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 1 ELSE 0 END"
@@ -130,10 +127,10 @@ class BuildingGuess:
             # todo : does the double ST_Distance evaluation is a performance problem ?
             self.scores[
                 "point_distance"
-            ] = f"CASE WHEN ST_Distance(shape, %(point)s) > 0 THEN 1 / ST_Distance(shape, %(point)s) ELSE 5 END"
+            ] = f"CASE WHEN ST_DistanceSphere(shape, %(point)s) >= 1 THEN 1 / ST_DistanceSphere(shape, %(point)s) WHEN ST_DistanceSphere(shape, %(point)s) > 0 THEN 1 ELSE 5 END"
 
             # LIMIT THE DISTANCE TO THE POINT
-            wheres.append(f"ST_DWithin(shape, %(point)s, 400)")
+            wheres.append(f"ST_DWithin(shape::geography, %(point)s::geography, 400)")
 
             # Add the point to the params
             params["point"] = f"{self.params.point}"
@@ -141,8 +138,8 @@ class BuildingGuess:
         # #########################################
         # Restrict research in a radius around point and address point
 
-        ban_point_where = "ST_DWithin(shape, %(ban_point)s, 400)"
-        point_where = "ST_DWithin(shape, %(point)s, 400)"
+        ban_point_where = "ST_DWithin(shape::geography, %(ban_point)s::geography, 400)"
+        point_where = "ST_DWithin(shape::geography, %(point)s::geography, 400)"
 
         if self.params.point and self.params._ban_point:
             wheres.append(f"({ban_point_where} or {point_where})")
@@ -153,7 +150,13 @@ class BuildingGuess:
 
         # Polygon
         if self.params.poly:
-            wheres = ["ST_HausdorffDistance(shape, %(poly)s) <= %(max_hausdorff_dist)s"]
+            # warning : ST_HausdorffDistance is in degree when using wgs_84.
+            # we need to find a way to fix a meaningful threshold
+            # for the time being I use https://epsg.io/4087 because it is a projected CRS (its unit is meters)
+            # and it is valid worldwide, but I am absolutely not sure this is precise!
+            wheres = [
+                "ST_HausdorffDistance(ST_Transform(shape, 4087), st_transform(%(poly)s, 4087)) <= %(max_hausdorff_dist)s"
+            ]
             params["poly"] = f"{self.params.poly}"
             params["max_hausdorff_dist"] = self.MAX_HAUSDORFF_DISTANCE
 
@@ -199,10 +202,15 @@ class BuildingGuess:
 
         # SCORE SUM
         scores_sum = ", 0 as score"
+        subscores_obj = " "
         if len(self.scores):
+            # Total score
             subscore_sum_str = " + ".join(self.scores.keys())
+            scores_sum = f", {subscore_sum_str} as score "
 
-            scores_sum = f", ({subscore_sum_str}) / (sum({subscore_sum_str}) over()) as score, {subscore_sum_str} as abs_score "
+            # Subscores
+            subscores_struct = ", ".join([f"'{k}', {k}" for k in self.scores.keys()])
+            subscores_obj = f", json_build_object({subscores_struct}) as sub_scores "
 
         # ######################
         # Assembling the queries
@@ -215,17 +223,13 @@ class BuildingGuess:
 
         global_query = (
             f"WITH scored_bdgs AS ({score_query}) "
-            f"SELECT *  {scores_sum} "
+            f"SELECT *  {scores_sum} {subscores_obj} "
             f"FROM scored_bdgs "
             "ORDER BY score DESC "
             f"{pagination_str}"
         )
 
-        qs = (
-            Building.objects.raw(global_query, params)
-            .prefetch_related("addresses")
-            .prefetch_related("status")
-        )
+        qs = Building.objects.raw(global_query, params).prefetch_related("addresses")
 
         # print("---- QUERY ---")
         # print(qs.query)
@@ -350,7 +354,7 @@ class BuildingGuess:
 
         def prepare_point(self):
             if self.point and self._ban_point:
-                distance = self.point.distance(self._ban_point)
+                distance = compute_distance(self.point, self._ban_point)
 
                 # We consider that if point address and point are too far, it comes from an incoherent query point, then we remove it
                 if distance > 1000:
@@ -511,13 +515,7 @@ class BuildingGuess:
         def set_poly(self, poly: Polygon) -> None:
             if poly is not None:
                 if self.__validate_poly(poly):
-                    self.poly = self.__convert_poly(poly)
-
-        def __convert_poly(self, poly: Polygon) -> Polygon:
-            if poly.srid == settings.DEFAULT_SRID:
-                return poly
-
-            return poly.transform(settings.DEFAULT_SRID, clone=True)
+                    self.poly = poly
 
         def __validate_point(self, point: Point) -> bool:
             if not isinstance(point, Point):
@@ -562,8 +560,6 @@ class BuildingGuess:
                     "You must provide at least one of the following parameters: address, name, point, poly"
                 )
 
-            pass
-
 
 class PhotonGeocodingHandler:
     def __init__(self):
@@ -598,14 +594,15 @@ class PhotonGeocodingHandler:
         params = self.geocode_params(search_params)
 
         if isinstance(params["q"], str):
-            results = self.geocoder.geocode(params)
+            geocode_response = self.geocoder.geocode(params)
+            results = geocode_response.json()
 
             if results["features"]:
                 best = results["features"][0]
 
                 search_params._osm_point = Point(
                     best["geometry"]["coordinates"], srid=4326
-                ).transform(settings.DEFAULT_SRID, clone=True)
+                )
 
 
 class BANGeocodingHandler:
@@ -613,7 +610,10 @@ class BANGeocodingHandler:
         self.geocoder = BanGeocoder()
 
     def geocode(self, search_params):
-        results = self.geocoder.geocode(search_params.address)
+        address = search_params.address
+
+        geocode_response = self.geocoder.geocode({"q": address})
+        results = geocode_response.json()
 
         # If there is any result coming from the geocoder
         if "features" in results and results["features"]:
@@ -627,7 +627,16 @@ class BANGeocodingHandler:
                 # We set the address point
                 search_params._ban_point = Point(
                     best["geometry"]["coordinates"], srid=4326
-                ).transform(settings.DEFAULT_SRID, clone=True)
+                )
 
                 # We set the ban id
                 search_params._ban_id = best["properties"]["id"]
+
+
+def compute_distance(a, b):
+    # we use geopy package to compute distance using the WGS84 ellipsoid
+    if a.srid != 4326:
+        a = a.transform(4326, clone=True)
+    if b.srid != 4326:
+        b = b.transform(4326, clone=True)
+    return distance.distance((a.y, a.x), (b.y, b.x)).meters

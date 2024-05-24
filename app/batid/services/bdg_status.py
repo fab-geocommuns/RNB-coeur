@@ -1,4 +1,5 @@
 class BuildingStatus:
+    # if a new status is added to the list, the front-end code should be updated accordingly
     TYPES = [
         {"key": "constructionProject", "label": "En projet", "public": False},
         {
@@ -24,9 +25,13 @@ class BuildingStatus:
     PUBLIC_TYPES_KEYS = [s["key"] for s in TYPES if s["public"]]
     PRIVATE_TYPES_KEYS = [s["key"] for s in TYPES if not s["public"]]
     ALL_TYPES_KEYS = [s["key"] for s in TYPES]
+    DEFAULT_STATUS = "constructed"
 
-    # Those are the default status display in the listing API
-    DEFAULT_DISPLAY_STATUS = [
+    # ####### REAL_BUILDINGS_STATUS #######
+    # Those are the status for buildings having a real physical presence in the world
+    # It is used in many places:
+    # eg: default status values in the listing API or the Candidate Inspector to match buildings
+    REAL_BUILDINGS_STATUS = [
         "ongoingConstruction",
         "constructed",
         "ongoingChange",

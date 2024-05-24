@@ -1,19 +1,10 @@
 import concurrent
 import json
-import os
-from pprint import pprint
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.management.base import BaseCommand
-from django.db import connections
-from django.conf import settings
-from batid.models import Building
-import pandas as pd
-
 
 from batid.services.source import Source
-
-from batid.utils.db import dictfetchall
 
 
 # This command analyze a city buildings stock and compare it to the RNB
@@ -78,8 +69,8 @@ class Command(BaseCommand):
 def feature_w_geom(feature: dict) -> dict:
     geom = GEOSGeometry(json.dumps(feature["geometry"]))
 
-    if geom.srid != settings.DEFAULT_SRID:
-        geom.transform(settings.DEFAULT_SRID)
+    if geom.srid != 4326:
+        geom.transform(4326)
 
     feature["properties"]["geom"] = geom
     feature["properties"]["area"] = geom.area

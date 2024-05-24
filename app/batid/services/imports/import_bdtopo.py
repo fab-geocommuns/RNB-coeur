@@ -1,84 +1,123 @@
-import csv
+import json
 import os
+import random
+from datetime import datetime
+from datetime import timezone
 
-
-from batid.services.source import Source
-from shapely.geometry import shape, MultiPolygon
-from shapely.ops import transform
 import fiona
-from datetime import datetime, timezone
 import psycopg2
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import WKTWriter
 from django.db import connection
+from django.db import transaction
+
+from batid.models import BuildingImport
+from batid.models import Candidate
+from batid.services.imports import building_import_history
+from batid.services.source import bdtopo_source_switcher
+from batid.services.source import BufferToCopy
+from batid.services.source import Source
+from batid.utils.geo import fix_nested_shells
 
 
-def import_bdtopo(dpt):
+def import_bdtopo(bdtopo_edition, dpt, bulk_launch_uuid=None):
     dpt = dpt.zfill(3)
 
-    src = Source("bdtopo")
+    source_name = bdtopo_source_switcher(bdtopo_edition, dpt)
+
+    building_import = building_import_history.insert_building_import(
+        source_name, bulk_launch_uuid, dpt
+    )
+
+    src = Source(source_name)
     src.set_param("dpt", dpt)
 
     with fiona.open(src.find(src.filename)) as f:
         print("-- read bdtopo ")
 
-        bdgs = []
+        # We extract the SRID from the crs attribute of the shapefile
+        srid = int(f.crs["init"].split(":")[1])
+
+        candidates = []
 
         for feature in f:
-            bdg = _transform_bdtopo_feature(feature)
-            bdgs.append(bdg)
+            # We skip the light buildings
+            if feature["properties"]["LEGER"] == "Oui":
+                continue
 
-        buffer_src = Source(
-            "buffer",
-            {
-                "folder": "bdtopo",
-                "filename": "bdgs-{{dpt}}.csv",
-            },
-        )
-        buffer_src.set_param("dpt", dpt)
+            candidate = _transform_bdtopo_feature(feature, srid)
+            candidate = _add_import_info(candidate, building_import)
+            candidate["source_version"] = bdtopo_edition
+            candidates.append(candidate)
 
-        cols = bdgs[0].keys()
+        buffer = BufferToCopy()
+        buffer.write_data(candidates)
 
-        with open(buffer_src.path, "w") as f:
-            print("-- writing buffer file --")
-            writer = csv.DictWriter(f, delimiter=";", fieldnames=cols)
-            writer.writerows(bdgs)
+        cols = candidates[0].keys()
 
-        with open(buffer_src.path, "r") as f, connection.cursor() as cursor:
-            print("-- transfer buffer to db --")
-            try:
-                cursor.copy_from(f, "batid_candidate", sep=";", columns=cols)
-                connection.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                connection.rollback()
-                cursor.close()
-                raise error
+        with open(buffer.path, "r") as f:
+            with transaction.atomic():
+                print("-- transfer buffer to db --")
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.copy_from(
+                            f, Candidate._meta.db_table, sep=";", columns=cols
+                        )
+
+                    building_import_history.increment_created_candidates(
+                        building_import, len(candidates)
+                    )
+
+                except (Exception, psycopg2.DatabaseError) as error:
+                    raise error
 
         print("- remove buffer")
-        os.remove(buffer_src.path)
+        os.remove(buffer.path)
 
 
-def _transform_bdtopo_feature(feature) -> dict:
-    multipoly = feature_to_multipoly(feature)
+def _transform_bdtopo_feature(feature, from_srid) -> dict:
+    geom_wkt = feature_to_wkt(feature, from_srid)
 
-    # todo : handle addresses
     address_keys = []
 
-    bdg = {
-        "shape": multipoly.wkt,
-        "is_light": True if feature["properties"]["LEGER"] == "Oui" else False,
+    candidate_dict = {
+        "shape": geom_wkt,
+        "is_light": feature["properties"]["LEGER"] == "Oui",
         "source": "bdtopo",
         "source_id": feature["properties"]["ID"],
         "address_keys": f"{{{','.join(address_keys)}}}",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
+        # TODO: extract the function
+        "random": random.randint(0, 1000000000),
     }
 
-    return bdg
+    return candidate_dict
 
 
-def feature_to_multipoly(feature) -> MultiPolygon:
-    shape_3d = shape(feature["geometry"])  # BD Topo provides 3D shapes
-    shape_2d = transform(
-        lambda x, y, z=None: (x, y), shape_3d
-    )  # we convert them into 2d shapes
+def _add_import_info(candidate, building_import: BuildingImport):
+    candidate["created_by"] = json.dumps({"source": "import", "id": building_import.id})
+    return candidate
 
-    return MultiPolygon([shape_2d])
+
+def feature_to_wkt(feature, from_srid):
+    # From shapefile feature to GEOS geometry
+    geom = GEOSGeometry(json.dumps(dict(feature["geometry"])))
+    geom.srid = from_srid
+
+    # From local SRID to WGS84
+    geom.transform(4326)
+
+    # From 3D geom to 2D geom wkt
+    writer = WKTWriter()
+    writer.outdim = 2
+    wkt = writer.write(geom)
+
+    # Back to geom
+    geom = GEOSGeometry(wkt)
+
+    # Eventually, fix nested shells
+    if not geom.valid and "Nested shells" in geom.valid_reason:
+        geom = fix_nested_shells(geom)
+
+    return geom.wkt

@@ -1,12 +1,12 @@
-from django.test import TestCase
 from unittest.mock import patch
-from batid.services import source
-import batid.services.imports.import_plots as import_plots
-from batid.models import Plot
-import os
+
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
+from django.test import TestCase
+
+import batid.services.imports.import_plots as import_plots
 import batid.tests.helpers as helpers
+from batid.models import Plot
 
 
 class ImportPlotsTestCase(TestCase):
@@ -23,7 +23,7 @@ class ImportPlotsTestCase(TestCase):
 
         plot_1 = Plot.objects.get(id="380010000A0507")
         self.assertEqual(plot_1.shape.geom_type, "MultiPolygon")
-        self.assertEqual(plot_1.shape.srid, 2154)
+        self.assertEqual(plot_1.shape.srid, 4326)
         # easiest way I found to test the geometry is coherent is to check there is one close to the middle of the plot
         self.assertEqual(
             Plot.objects.filter(

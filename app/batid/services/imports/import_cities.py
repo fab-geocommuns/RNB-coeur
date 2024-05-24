@@ -1,10 +1,10 @@
 import json
 
-from django.conf import settings
-from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import MultiPolygon
 
-from batid.services.france import fetch_dpt_cities_geojson
 from batid.models import City
+from batid.services.france import fetch_dpt_cities_geojson
 
 
 def import_etalab_cities(dpt: str):
@@ -16,9 +16,6 @@ def import_etalab_cities(dpt: str):
         if geom.geom_type == "Polygon":
             # transform into a multipolygon
             geom = MultiPolygon([geom], srid=4326)
-
-        geom.transform(settings.DEFAULT_SRID)
-
         try:
             city = City.objects.get(code_insee=c["properties"]["code"])
         except City.DoesNotExist:

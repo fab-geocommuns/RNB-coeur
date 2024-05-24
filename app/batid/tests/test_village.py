@@ -1,14 +1,13 @@
-from django.contrib.gis.geos import Point
-from django.test import TestCase
-from batid.models import Building, Address
-from batid.services.guess_bdg import BuildingGuess
-from django.test import tag
 from unittest.mock import patch
 
-from batid.tests.helpers import (
-    mock_ban_geocoder_result,
-    mock_photon_geocoder_empty_result,
-)
+from django.contrib.gis.geos import Point
+from django.test import tag
+from django.test import TestCase
+
+from batid.models import Building
+from batid.services.guess_bdg import BuildingGuess
+from batid.tests.helpers import mock_ban_geocoder_result
+from batid.tests.helpers import mock_photon_geocoder_empty_result
 
 
 class TestSearch(TestCase):

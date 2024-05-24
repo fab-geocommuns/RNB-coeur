@@ -1,8 +1,11 @@
-from django.urls import path
 from django.contrib import admin
-from batid.views import worker
+from django.urls import path
+from django.utils.html import format_html
 
-from batid.models import Organization, Address, Contribution
+from batid.models import Address
+from batid.models import Contribution
+from batid.models import Organization
+from batid.views import worker
 
 
 class OrganizationAdmin(admin.ModelAdmin):
@@ -31,7 +34,20 @@ admin.site.register(Address, AddressAdmin)
 
 
 class ContributionAdmin(admin.ModelAdmin):
-    list_display = ("rnb_id", "text", "created_at")
+    list_display = (
+        "rnb_id",
+        "text",
+        "created_at",
+        "status",
+        "fix_issue",
+        "review_user",
+        "review_comment",
+    )
+
+    def fix_issue(self, obj):
+        if obj.status == "pending":
+            link = f"/contribution/fix/{obj.id}"
+            return format_html('<a href="{}">{}</a>', link, "résoudre")
 
 
 admin.site.register(Contribution, ContributionAdmin)

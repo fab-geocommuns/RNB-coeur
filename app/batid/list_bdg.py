@@ -1,11 +1,12 @@
 from django.contrib.gis.geos import Polygon
-from django.db.models import QuerySet
+
+from batid.models import Building
+from batid.models import City
 from batid.services.bdg_status import BuildingStatus
-from batid.models import Building, City
 
 
 def list_bdgs(params):
-    qs = Building.objects.all()
+    qs = Building.objects.all().filter(is_active=True)
 
     # #######################
     # Status filter
@@ -16,7 +17,7 @@ def list_bdgs(params):
         allowed_status = BuildingStatus.ALL_TYPES_KEYS
 
     # Queries status and filter on allowed status
-    status_list = BuildingStatus.DEFAULT_DISPLAY_STATUS
+    status_list = BuildingStatus.REAL_BUILDINGS_STATUS
     if "status" in params:
         if params["status"] == "all":
             status_list = BuildingStatus.ALL_TYPES_KEYS
@@ -25,7 +26,7 @@ def list_bdgs(params):
 
     status = [s for s in status_list if s in allowed_status]
 
-    qs = qs.filter(status__type__in=status, status__is_current=True)
+    qs = qs.filter(status__in=status)
 
     # #######################
     # Bounding box filter

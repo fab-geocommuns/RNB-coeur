@@ -1,5 +1,6 @@
-from batid.models import Building
 from django.core.management.base import BaseCommand
+
+from batid.models import Building
 
 
 class Command(BaseCommand):
@@ -16,7 +17,6 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(f"Building found: {b[0].rnb_id}")
-        # self.stdout.write(f"Current status: {b[0].current_status.status}")
 
         confirm = input(f"Type 'REMOVEBDG' to confirm: ")
 

@@ -1,32 +1,38 @@
+import requests
 from django.db import connection
-from rest_framework.decorators import api_view
-from rest_framework.generics import ListCreateAPIView, ListAPIView
+from django.http import Http404
+from django.http import HttpResponse
+from drf_spectacular.openapi import OpenApiExample
+from drf_spectacular.openapi import OpenApiParameter
+from drf_spectacular.utils import extend_schema
+from rest_framework import status
+from rest_framework import viewsets
+from rest_framework.exceptions import ParseError
+from rest_framework.pagination import CursorPagination
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.renderers import JSONRenderer
+from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_tracking.mixins import LoggingMixin
+from rest_framework_tracking.models import APIRequestLog
 
-from api_alpha.pagination import PagedNumberNoCount
 from api_alpha.permissions import ADSPermission
-from api_alpha.serializers import (
-    ADSSerializer,
-    BuildingSerializer,
-    GuessBuildingSerializer,
-    ContributionSerializer,
-)
-from api_alpha.services import get_city_from_request
+from api_alpha.serializers import ADSSerializer
+from api_alpha.serializers import BuildingClosestQuerySerializer
+from api_alpha.serializers import BuildingClosestSerializer
+from api_alpha.serializers import BuildingSerializer
+from api_alpha.serializers import ContributionSerializer
+from api_alpha.serializers import GuessBuildingSerializer
 from batid.list_bdg import list_bdgs
+from batid.models import ADS
+from batid.models import Building
+from batid.models import Contribution
+from batid.services.closest_bdg import get_closest
+from batid.services.guess_bdg import BuildingGuess
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.guess_bdg import BuildingGuess
-from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
-from batid.models import ADS, Building, Contribution
-
-from rest_framework import viewsets, status
-from rest_framework.exceptions import ParseError
-from rest_framework.pagination import PageNumberPagination, CursorPagination
-from rest_framework.response import Response
-
-from django.http import HttpResponse, Http404
-from batid.services.vector_tiles import tile_sql, url_params_to_tile
-from rest_framework_tracking.mixins import LoggingMixin
+from batid.services.vector_tiles import tile_sql
+from batid.services.vector_tiles import url_params_to_tile
 
 
 class RNBLoggingMixin(LoggingMixin):
@@ -51,13 +57,43 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         return Response(serializer.data)
 
 
+class BuildingClosestView(RNBLoggingMixin, APIView):
+    def get(self, request, *args, **kwargs):
+        query_serializer = BuildingClosestQuerySerializer(data=request.query_params)
+
+        if query_serializer.is_valid():
+            # todo : si ouverture du endpoint au public : ne permettre de voir que les bâtiments dont le statut est public et qui représente un bâtiment réel (cf `BuildingStatus.REAL_BUILDINGS_STATUS`)
+
+            point = request.query_params.get("point")
+            radius = request.query_params.get("radius")
+            lat, lng = point.split(",")
+            lat = float(lat)
+            lng = float(lng)
+            radius = int(radius)
+
+            qs = get_closest(lat, lng, radius)
+            bdg = qs.first()
+
+            if isinstance(bdg, Building):
+                serializer = BuildingClosestSerializer(bdg)
+                return Response(serializer.data)
+            else:
+                return Response(
+                    {"message": "No building found in the area"}, status=200
+                )
+
+        else:
+            # Invalid data, return validation errors
+            return Response(query_serializer.errors, status=400)
+
+
 class BuildingCursorPagination(CursorPagination):
     page_size = 20
     ordering = "id"
 
 
 class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
-    queryset = Building.objects.all()
+    queryset = Building.objects.all().filter(is_active=True)
     serializer_class = BuildingSerializer
     http_method_names = ["get"]
     lookup_field = "rnb_id"
@@ -79,6 +115,99 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         qs = list_bdgs(query_params)
 
         return qs
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "bb",
+                str,
+                OpenApiParameter.QUERY,
+                description="""
+                    Filtre les bâtiments grâce à une bounding box.
+
+                    Le format est nw_lat,nw_lng,se_lat,se_lng avec :
+
+                    • nw_lat : latitude du point Nord Ouest
+                    • nw_lng : longitude du point Nord Ouest
+                    • se_lat : latitude du point Sud Est
+                    • se_lng : longitude du point Sud Est
+                """,
+                examples=[
+                    OpenApiExample(
+                        "Exemple 1", value="48.845782,2.424525,48.839201,2.434158"
+                    )
+                ],
+            ),
+            OpenApiParameter(
+                "status",
+                str,
+                OpenApiParameter.QUERY,
+                enum=[
+                    "constructed",
+                    "ongoingChange",
+                    "notUsable",
+                    "demolished",
+                    "constructionProject",
+                    "canceledConstructionProject",
+                ],
+                description="""
+                    Filtre les bâtiments par statut.
+
+                    • constructed : Bâtiment construit
+                    • ongoingChange : En cours de modification
+                    • notUsable : Non utilisable (ex : une ruine)
+                    • demolished : Démoli
+
+                    Statuts réservés aux instructeurs d’autorisation du droit des sols.
+
+                    • constructionProject : Bâtiment en projet
+                    • canceledConstructionProject : Projet de bâtiment annulé
+                """,
+                examples=[
+                    OpenApiExample(
+                        "Exemple 1",
+                        summary="Liste les bâtiments construits",
+                        value="constructed",
+                    ),
+                    OpenApiExample(
+                        "Exemple 2",
+                        summary="Liste les bâtiments construits ou démolis",
+                        value="constructed,demolished",
+                    ),
+                ],
+            ),
+            OpenApiParameter(
+                "insee_code",
+                str,
+                OpenApiParameter.QUERY,
+                description="""
+                    Filtre les bâtiments grâce au code INSEE d'une commune.
+                     """,
+                examples=[
+                    OpenApiExample(
+                        "Liste les bâtiments de la commune de Talence", value="33522"
+                    )
+                ],
+            ),
+        ],
+        examples=[
+            OpenApiExample(
+                "Exemple 1",
+                summary="Liste les bâtiments de la commune de Talence",
+                value="GET https://rnb-api.beta.gouv.fr/api/alpha/buildings/?insee_code=33522",
+            ),
+            OpenApiExample(
+                "Exemple 2",
+                summary="Liste les bâtiments construits ou démolis",
+                value="GET https://rnb-api.beta.gouv.fr/api/alpha/buildings/?status=constructed,demolished",
+            ),
+        ],
+    )
+    def list(self, request, *args, **kwargs):
+        """
+        Renvoie une liste paginée de bâtiments. Des filtres (notamment par code INSEE de la commune) sont disponibles.
+        """
+        return super().list(request, *args, **kwargs)
 
 
 class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
@@ -105,9 +234,7 @@ class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                 serializer = self.get_serializer(data=ads)
 
             if serializer.is_valid():
-                city = get_city_from_request(ads, request.user, self)
-
-                to_save.append({"city": city, "serializer": serializer})
+                to_save.append({"serializer": serializer})
 
             else:
                 errors[ads["file_number"]] = serializer.errors
@@ -117,10 +244,10 @@ class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         else:
             to_show = []
             for item in to_save:
-                item["serializer"].save(city=item["city"])
+                item["serializer"].save()
                 to_show.append(item["serializer"].data)
 
-            return Response(to_show)
+            return Response(to_show, status=201)
 
     def validate_length(self, data):
         if len(data) > self.max_batch_size:
@@ -145,34 +272,64 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
         if not search.is_valid():
             raise ParseError({"errors": search.errors})
-            pass
 
         return search.get_queryset()
 
-    def create(self, request):
-        serializer = self.get_serializer(data=request.data)
-
-        if serializer.is_valid():
-            city = get_city_from_request(request.data, request.user, self)
-            serializer.save(city=city)
-
-            return Response(serializer.data)
-
-        return Response(serializer.errors, status=400)
-
-    def retrieve(self, request, file_number=None):
-        return super().retrieve(request, file_number)
-
 
 def get_tile(request, x, y, z):
-    tile_dict = url_params_to_tile(x, y, z)
-    sql = tile_sql(tile_dict)
+    # Check the request zoom level
+    if int(z) >= 16:
+        tile_dict = url_params_to_tile(x, y, z)
+        sql = tile_sql(tile_dict)
 
-    with connection.cursor() as cursor:
-        cursor.execute(sql)
-        tile_file = cursor.fetchone()[0]
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            tile_file = cursor.fetchone()[0]
 
-    return HttpResponse(tile_file, content_type="application/vnd.mapbox-vector-tile")
+        return HttpResponse(
+            tile_file, content_type="application/vnd.mapbox-vector-tile"
+        )
+    else:
+        return HttpResponse(status=204)
+
+
+def get_data_gouv_publication_count():
+    # call data.gouv.fr API to get the number of datasets
+    req = requests.get("https://www.data.gouv.fr/api/1/datasets/?tag=rnb")
+    if req.status_code != 200:
+        return None
+    else:
+        # remove the dataset that is the RNB
+        return req.json()["total"] - 1
+
+
+def get_stats(request):
+    def get_building_count_estimate():
+        cursor = connection.cursor()
+        # fast way to get an estimate
+        cursor.execute(
+            "SELECT reltuples::bigint FROM pg_class WHERE relname='batid_building'"
+        )
+        return cursor.fetchone()[0]
+
+    building_counts = get_building_count_estimate()
+    api_calls_since_2024_count = APIRequestLog.objects.filter(
+        requested_at__gte="2024-01-01T00:00:00Z"
+    ).count()
+    contributions_count = Contribution.objects.count()
+    data_gouv_publication_count = get_data_gouv_publication_count()
+
+    data = {
+        "building_counts": building_counts,
+        "api_calls_since_2024_count": api_calls_since_2024_count,
+        "contributions_count": contributions_count,
+        "data_gouv_publication_count": data_gouv_publication_count,
+    }
+
+    renderer = JSONRenderer()
+    response = HttpResponse(renderer.render(data), content_type="application/json")
+
+    return response
 
 
 class ContributionsViewSet(viewsets.ModelViewSet):
