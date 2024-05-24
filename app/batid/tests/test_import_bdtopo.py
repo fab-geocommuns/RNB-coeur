@@ -11,9 +11,18 @@ from batid.services.candidate import Inspector
 from batid.services.imports.import_bdtopo import import_bdtopo
 from batid.services.source import bdtopo_src_params
 from batid.tests import helpers
+from batid.tests.helpers import create_default_bdg
 
 
-class ImportBDTOPO202309TestCase(TransactionTestCase):
+class ImportBDTopo(TransactionTestCase):
+
+    def setUp(self):
+
+        # Create a bdg with a bdtopo ID also present in the file. It should be skipped
+        bdg = create_default_bdg("RNB_ID")
+        bdg.add_ext_id("bdtopo", "2023-09-15", "BATIMENT0000000301182075", "2024-03-15")
+        bdg.save()
+
     @patch("batid.services.imports.import_bdtopo.Source.find")
     def test_import_bdtopo_2023_09(self, sourceMock):
         sourceMock.return_value = helpers.fixture_path("bdtopo_2023_09_38.shp")
@@ -22,7 +31,8 @@ class ImportBDTOPO202309TestCase(TransactionTestCase):
 
         import_bdtopo(src_params)
 
-        self.assertEqual(Candidate.objects.count(), 6)
+        # The file contains 6 buildings, one of them is skipped because the database contains a bdg with the same bdtopo ID
+        self.assertEqual(Candidate.objects.count(), 5)
 
         # Check a light bdtopo building is not imported
         c = Candidate.objects.filter(source_id="BATIMENT0000000301181911").first()
