@@ -9,6 +9,7 @@ from batid.models import Building
 from batid.models import Candidate
 from batid.services.candidate import Inspector
 from batid.services.imports.import_bdtopo import import_bdtopo
+from batid.services.source import bdtopo_src_params
 from batid.tests import helpers
 
 
@@ -17,7 +18,9 @@ class ImportBDTOPO202309TestCase(TransactionTestCase):
     def test_import_bdtopo_2023_09(self, sourceMock):
         sourceMock.return_value = helpers.fixture_path("bdtopo_2023_09_38.shp")
 
-        import_bdtopo("bdtopo_2023_09", "38")
+        src_params = bdtopo_src_params("38", "2023-09-15")
+
+        import_bdtopo(src_params)
 
         self.assertEqual(Candidate.objects.count(), 6)
 
@@ -27,7 +30,7 @@ class ImportBDTOPO202309TestCase(TransactionTestCase):
 
         c = Candidate.objects.filter(source_id="BATIMENT0000000301181909").first()
         self.assertEqual(c.source, "bdtopo")
-        self.assertEqual(c.source_version, "bdtopo_2023_09")
+        self.assertEqual(c.source_version, "2023-09-15")
         self.assertEqual(c.is_light, False)
         self.assertListEqual(c.address_keys, [])
         self.assertIsInstance(c.created_by, dict)

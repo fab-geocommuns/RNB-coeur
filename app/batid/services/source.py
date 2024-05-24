@@ -3,6 +3,7 @@ import gzip
 import os
 import tarfile
 import zipfile
+from datetime import date
 from datetime import datetime
 
 import nanoid
@@ -39,61 +40,10 @@ class Source:
                 "folder": "bdnb_7",
                 "filename": "buffer.csv",
             },
-            # 2022 december
-            # "bdtopo_2022_12": {
-            #     "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_224$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2022-12-15.7z",
-            #     "filename": "BATIMENT.shp",
-            # },
-            # ######
-            # For BD TOPO we use the edition name (eg: bdtopo_2023_09) as the source name for continental data. DROM COM source names are suffixed with _{dpt}
             "bdtopo": {
-                "url": "https://data.geopf.fr/telechargement/download/BDTOPO/BDTOPO_3-3_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}/BDTOPO_3-3_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}.7z"
-            },
-            "bdtopo_2023_09": {
-                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15.7z",
+                "url": "https://data.geopf.fr/telechargement/download/BDTOPO/BDTOPO_3-3_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}/BDTOPO_3-3_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}.7z",
                 "filename": "BATIMENT.shp",
             },
-            # Special case for 03, download url is slightly different
-            "bdtopo_2023_09_003": {
-                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233-1$BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_LAMB93_D{{dpt}}_2023-09-15.7z",
-                "filename": "BATIMENT.shp",
-            },
-            "bdtopo_2023_09_971": {
-                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D971_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D971_2023-09-15.7z",
-                "filename": "BATIMENT.shp",
-            },
-            "bdtopo_2023_09_972": {
-                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D972_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D972_2023-09-15.7z",
-                "filename": "BATIMENT.shp",
-            },
-            "bdtopo_2023_09_973": {
-                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_UTM22RGFG95_D973_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_UTM22RGFG95_D973_2023-09-15.7z",
-                "filename": "BATIMENT.shp",
-            },
-            "bdtopo_2023_09_974": {
-                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGR92UTM40S_D974_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGR92UTM40S_D974_2023-09-15.7z",
-                "filename": "BATIMENT.shp",
-            },
-            "bdtopo_2023_09_975": {
-                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGSPM06U21_D975_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGSPM06U21_D975_2023-09-15.7z",
-                "filename": "BATIMENT.shp",
-            },
-            "bdtopo_2023_09_976": {
-                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGM04UTM38S_D976_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGM04UTM38S_D976_2023-09-15.7z",
-                "filename": "BATIMENT.shp",
-            },
-            "bdtopo_2023_09_977": {
-                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D977_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D977_2023-09-15.7z",
-                "filename": "BATIMENT.shp",
-            },
-            "bdtopo_2023_09_978": {
-                "url": "https://wxs.ign.fr/859x8t863h6a09o9o6fy4v60/telechargement/prepackage/BDTOPOV3-TOUSTHEMES-DEPARTEMENT-PACK_233$BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D978_2023-09-15/file/BDTOPO_3-3_TOUSTHEMES_SHP_RGAF09UTM20_D978_2023-09-15.7z",
-                "filename": "BATIMENT.shp",
-            },
-            # BDNB 7.2 is not used anymore
-            # "bdnb_7": {
-            #     "url": "https://open-data.s3.fr-par.scw.cloud/bdnb_v072/v072_{{dpt}}/open_data_v072_{{dpt}}_csv.tar.gz",
-            # },
             "bdnb_2023_01": {
                 "url": "https://rnb-open.s3.fr-par.scw.cloud/bdnb_2023_01/{{dpt}}.zip"
             },
@@ -103,7 +53,6 @@ class Source:
                 "filename": "commune_insee.csv",
             },
             "export": {"filename": "export-{{city}}-{{date}}.geojson"},
-            "ads-dgfip": {"filename": "{{fname}}"},
         }
 
     def set_param(self, p_key, p_val):
@@ -301,24 +250,6 @@ def bdtopo_src_params(dpt: str, date: str) -> dict:
     }
 
 
-def bdtopo_most_recent_date(before: datetime = None) -> str:
-
-    # If no date is provided, we use the current date
-    if before is None:
-        before = datetime.now()
-
-    # First we get an ordred list of all release dates
-    release_dates = sorted(
-        [datetime.strptime(date, "%Y-%m-%d") for date in _bdtopo_release_dates()]
-    )
-
-    for idx, date in enumerate(release_dates):
-        if date > before:
-
-            # Return the previous release date
-            return release_dates[idx - 1].strftime("%Y-%m-%d")
-
-
 def _bdtopo_dpt_projection(dpt: str) -> str:
 
     default_proj = "LAMB93"
@@ -335,6 +266,24 @@ def _bdtopo_dpt_projection(dpt: str) -> str:
     }
 
     return projs.get(dpt, default_proj)
+
+
+def bdtopo_release_before(before: date = None) -> str:
+
+    # If no date is provided, we use the current date
+    if before is None:
+        before = datetime.now().date()
+
+    # First we get an ordred list of all release dates
+    release_dates = sorted(
+        [datetime.strptime(date, "%Y-%m-%d").date() for date in _bdtopo_release_dates()]
+    )
+
+    for idx, date in enumerate(release_dates):
+        if date >= before:
+
+            # Return the previous release date
+            return release_dates[idx - 1].strftime("%Y-%m-%d")
 
 
 def _bdtopo_release_dates() -> list:

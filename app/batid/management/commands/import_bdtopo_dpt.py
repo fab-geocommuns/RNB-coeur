@@ -2,7 +2,7 @@ from celery import chain
 from celery import Signature
 from django.core.management.base import BaseCommand
 
-from batid.services.source import bdtopo_src_params, bdtopo_most_recent_date
+from batid.services.source import bdtopo_src_params, bdtopo_release_before
 
 
 class Command(BaseCommand):
@@ -18,7 +18,7 @@ class Command(BaseCommand):
 
 def create_tasks_list(dpt, bulk_launch_uuid=None):
 
-    most_recent_date = bdtopo_most_recent_date()
+    most_recent_date = bdtopo_release_before()
     src_params = bdtopo_src_params(dpt, most_recent_date)
 
     tasks = []
