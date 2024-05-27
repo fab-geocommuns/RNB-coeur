@@ -203,7 +203,7 @@ def data_gouv_create_resource(
             "format": format,
             "filesize": archive_size,
             "checksum": {"type": "sha1", "value": archive_sha1},
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "created_at": datetime.now(),
         },
     )
 

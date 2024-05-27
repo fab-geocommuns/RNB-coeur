@@ -188,6 +188,7 @@ class TestDataGouvPublication(TestCase):
         resource_id = data_gouv_resource_id("some-dataset-id", "123")
         self.assertIsNone(resource_id)
 
+    @freeze_time("2021-02-23")
     @mock.patch("batid.services.data_gouv_publication.requests.put")
     @mock.patch.dict(
         os.environ,
@@ -228,10 +229,11 @@ class TestDataGouvPublication(TestCase):
                 "format": "csv",
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "last_modified": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "last_modified": datetime.now(),
             },
         )
 
+    @freeze_time("2021-02-23")
     @mock.patch("batid.services.data_gouv_publication.requests.post")
     @mock.patch.dict(
         os.environ,
@@ -273,7 +275,7 @@ class TestDataGouvPublication(TestCase):
                 "format": format,
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "created_at": datetime.now(),
             },
         )
 
@@ -329,6 +331,7 @@ class TestDataGouvPublication(TestCase):
         )
 
     # Test publication d'une ressource inexistante
+    @freeze_time("2021-02-23")
     @mock.patch.dict(
         os.environ,
         {
@@ -365,6 +368,6 @@ class TestDataGouvPublication(TestCase):
                 "format": format,
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "created_at": datetime.now(),
             },
         )
