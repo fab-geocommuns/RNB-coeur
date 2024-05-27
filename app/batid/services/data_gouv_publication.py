@@ -112,8 +112,7 @@ def upload_to_s3(archive_path):
     )
     # extract file name from archive path
     archive_name = os.path.basename(archive_path)
-    folder_on_bucket = S3_SCALEWAY_OPENDATA_DIRECTORY
-    path_on_bucket = f"{folder_on_bucket}/{archive_name}"
+    path_on_bucket = f"{S3_SCALEWAY_OPENDATA_DIRECTORY}/{archive_name}"
 
     # Scaleway S3's maximum number of parts for multipart upload
     MAX_PARTS = 1000
