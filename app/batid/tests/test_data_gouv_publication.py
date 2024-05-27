@@ -22,7 +22,7 @@ from batid.services.data_gouv_publication import publish_on_data_gouv
 from batid.services.data_gouv_publication import update_resource_metadata
 from batid.services.data_gouv_publication import upload_to_s3
 
-
+# Polygone dans Paris
 def get_geom():
     coords = {
         "coordinates": [
@@ -39,7 +39,7 @@ def get_geom():
 
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
-
+# bbox sur Paris
 def get_department_geom():
     coords = {
         "coordinates": [
@@ -57,6 +57,16 @@ def get_department_geom():
     }
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
+def get_resources():
+    json = {
+            "resources": [
+                {"id": "1", "title": "Export Départemental 33", "format": "csv"},
+                {"id": "2", "title": "Export Départemental 33", "format": "zip"},
+                {"id": "3", "title": "Export Départemental 75", "format": "zip"},
+                {"id": "4", "title": "Export National", "format": "zip"},
+            ]
+        }
+    return json
 
 class TestDataGouvPublication(TestCase):
     def test_archive_creation_deletion(self):
@@ -95,7 +105,6 @@ class TestDataGouvPublication(TestCase):
         with open(f"{directory_name}/RNB_{area}.csv", "r") as f:
             content = f.read()
             self.assertIn(
-                # "id,rnb_id,point,created_at,updated_at,shape,ext_ids", content
                 "rnb_id;point;shape;ext_ids;addresses",
                 content,
             )
@@ -167,14 +176,7 @@ class TestDataGouvPublication(TestCase):
     @mock.patch("batid.services.data_gouv_publication.requests.get")
     def test_get_resource_id_on_data_gouv(self, get_mock):
         get_mock.return_value.status_code = 200
-        get_mock.return_value.json.return_value = {
-            "resources": [
-                {"id": "1", "title": "Export Départemental 33", "format": "csv"},
-                {"id": "2", "title": "Export Départemental 33", "format": "zip"},
-                {"id": "3", "title": "Export Départemental 75", "format": "zip"},
-                {"id": "4", "title": "Export National", "format": "zip"},
-            ]
-        }
+        get_mock.return_value.json.return_value = get_resources()
 
         resource_id = data_gouv_resource_id("some-dataset-id", "33")
         self.assertEqual(resource_id, "2")
@@ -279,7 +281,7 @@ class TestDataGouvPublication(TestCase):
             },
         )
 
-    # Test publication d'une ressource existante
+    # Test publication de ressources existantes
     @freeze_time("2021-02-23")
     @mock.patch.dict(
         os.environ,
@@ -291,15 +293,9 @@ class TestDataGouvPublication(TestCase):
     )
     @mock.patch("batid.services.data_gouv_publication.requests.put")
     @mock.patch("batid.services.data_gouv_publication.requests.get")
-    def test_publishing_existing_resource_on_data_gouv(self, get_mock, put_mock):
+    def test_publishing_existing_dept_resource_on_data_gouv(self, get_mock, put_mock):
         get_mock.return_value.status_code = 200
-        get_mock.return_value.json.return_value = {
-            "resources": [
-                {"id": "1", "title": "Export Départemental 33", "format": "csv"},
-                {"id": "2", "title": "Export Départemental 33", "format": "zip"},
-                {"id": "3", "title": "Export Départemental 75", "format": "zip"},
-            ]
-        }
+        get_mock.return_value.json.return_value = get_resources()
 
         put_mock.return_value.status_code = 200
         department = "33"
@@ -313,6 +309,49 @@ class TestDataGouvPublication(TestCase):
 
         put_mock.assert_called_with(
             f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/2/",
+            headers={
+                "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
+                "Content-Type": "application/json",
+            },
+            json={
+                "title": title,
+                "description": description,
+                "type": "main",
+                "url": public_url,
+                "filetype": "remote",
+                "format": format,
+                "filesize": archive_size,
+                "checksum": {"type": "sha1", "value": archive_sha1},
+                "last_modified": datetime.now(),
+            },
+        )
+    
+    @freeze_time("2021-02-23")
+    @mock.patch.dict(
+        os.environ,
+        {
+            "DATA_GOUV_API_KEY": "DATA_GOUV_API_KEY",
+            "DATA_GOUV_BASE_URL": "https://data.gouv.fr",
+            "DATA_GOUV_DATASET_ID": "some-dataset-id",
+        },
+    )
+    @mock.patch("batid.services.data_gouv_publication.requests.put")
+    @mock.patch("batid.services.data_gouv_publication.requests.get")
+    def test_publishing_existing_national_resource_on_data_gouv(self, get_mock, put_mock):
+        get_mock.return_value.status_code = 200
+        get_mock.return_value.json.return_value = get_resources()
+
+        put_mock.return_value.status_code = 200
+        title = f"Export National"
+        description = f"Export du RNB au format csv pour l’ensemble du territoire français."
+        public_url = "some-url"
+        archive_size = 1234
+        archive_sha1 = "some-sha1"
+        format = "csv"
+        publish_on_data_gouv("nat", public_url, archive_size, archive_sha1, format)
+
+        put_mock.assert_called_with(
+            f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/4/",
             headers={
                 "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
                 "Content-Type": "application/json",
@@ -347,13 +386,7 @@ class TestDataGouvPublication(TestCase):
         post_mock.return_value.json.return_value = 4
 
         get_mock.return_value.status_code = 200
-        get_mock.return_value.json.return_value = {
-            "resources": [
-                {"id": "1", "title": "Export Départemental 33", "format": "csv"},
-                {"id": "2", "title": "Export Départemental 33", "format": "zip"},
-                {"id": "3", "title": "Export Départemental 75", "format": "zip"},
-            ]
-        }
+        get_mock.return_value.json.return_value = get_resources()
 
         department = "45"
         title = f"Export Départemental {department}"
