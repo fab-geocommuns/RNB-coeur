@@ -329,7 +329,6 @@ class TestDataGouvPublication(TestCase):
         )
 
     # Test publication d'une ressource inexistante
-    @mock.patch("batid.services.data_gouv_publication.requests.post")
     @mock.patch.dict(
         os.environ,
         {
@@ -338,6 +337,7 @@ class TestDataGouvPublication(TestCase):
             "DATA_GOUV_DATASET_ID": "some-dataset-id",
         },
     )
+    @mock.patch("batid.services.data_gouv_publication.requests.post")
     def test_publishing_non_existing_resource_on_data_gouv(self, post_mock):
         post_mock.return_value.status_code = 200
         title = "Export National"
