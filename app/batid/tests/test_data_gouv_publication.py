@@ -345,7 +345,7 @@ class TestDataGouvPublication(TestCase):
     def test_publishing_non_existing_resource_on_data_gouv(self, post_mock, get_mock):
         post_mock.return_value.status_code = 200
         post_mock.return_value.json.return_value = 4
-        
+
         get_mock.return_value.status_code = 200
         get_mock.return_value.json.return_value = {
             "resources": [
