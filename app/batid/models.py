@@ -18,7 +18,7 @@ class BuildingAbstract(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
-    ext_ids = models.JSONField(null=True)
+    ext_ids = models.JSONField(null=True, db_index=True)
     event_origin = models.JSONField(null=True)
     # temporal table field
     sys_period = DateTimeRangeField(null=False, default=from_now_to_infinity)
