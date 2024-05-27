@@ -140,9 +140,7 @@ def upload_to_s3(archive_path):
 def publish_on_data_gouv(area, public_url, archive_size, archive_sha1, format=zip):
     # publish the archive on data.gouv.fr
     dataset_id = os.environ.get("DATA_GOUV_DATASET_ID")
-    print("values: " + dataset_id + " - " + str(area))
     resource_id = data_gouv_resource_id(dataset_id, area)
-    print("ress: " + resource_id)
 
     if area == "nat":
         title = "Export National"
@@ -226,8 +224,6 @@ def data_gouv_resource_id(dataset_id, area):
         res = response.json()
         resources = res["resources"]
         for resource in resources:
-            print(resource["format"])
-            print(resource["title"])
             if resource["format"] == "zip" and (
                 (area == "nat" and resource["title"] == "Export National")
                 or (
