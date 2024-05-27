@@ -5,7 +5,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0081_buildingaddressesreadonly_building_addresses_id_and_more"),
+        ("batid", "0083_building_bdg_sys_period_idx_and_more"),
     ]
 
     operations = [
