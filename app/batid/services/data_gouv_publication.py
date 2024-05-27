@@ -271,7 +271,7 @@ def update_resource_metadata(
             "format": format,
             "filesize": archive_size,
             "checksum": {"type": "sha1", "value": archive_sha1},
-            "last_modified": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "last_modified": datetime.now(),
         },
     )
 

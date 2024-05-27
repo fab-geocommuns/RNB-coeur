@@ -6,6 +6,7 @@ from unittest import mock
 import boto3
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
+from freezegun import freeze_time
 from moto import mock_aws
 
 from batid.models import Address
@@ -276,7 +277,7 @@ class TestDataGouvPublication(TestCase):
         )
 
     # Test publication d'une ressource existante
-    @mock.patch("batid.services.data_gouv_publication.requests.put")
+    @freeze_time("2021-02-23")
     @mock.patch.dict(
         os.environ,
         {
@@ -285,23 +286,22 @@ class TestDataGouvPublication(TestCase):
             "DATA_GOUV_DATASET_ID": "some-dataset-id",
         },
     )
+    @mock.patch("batid.services.data_gouv_publication.requests.put")
     @mock.patch("batid.services.data_gouv_publication.requests.get")
-    def test_publishing_existing_resource_on_data_gouv(self, put_mock, get_mock):
+    def test_publishing_existing_resource_on_data_gouv(self, get_mock, put_mock):
         get_mock.return_value.status_code = 200
         get_mock.return_value.json.return_value = {
             "resources": [
-                {"id": "1", "title": "33", "format": "csv"},
-                {"id": "2", "title": "33", "format": "zip"},
-                {"id": "3", "title": "75", "format": "zip"},
+                {"id": "1", "title": "Export Départemental 33", "format": "csv"},
+                {"id": "2", "title": "Export Départemental 33", "format": "zip"},
+                {"id": "3", "title": "Export Départemental 75", "format": "zip"},
             ]
         }
 
         put_mock.return_value.status_code = 200
         department = "33"
-        title = "Export Départemental " + department
-        description = (
-            "Export du RNB au format csv pour le département " + department + "."
-        )
+        title = f"Export Départemental {department}"
+        description = f"Export du RNB au format csv pour le département {department}."
         public_url = "some-url"
         archive_size = 1234
         archive_sha1 = "some-sha1"
@@ -309,7 +309,7 @@ class TestDataGouvPublication(TestCase):
         publish_on_data_gouv(department, public_url, archive_size, archive_sha1, format)
 
         put_mock.assert_called_with(
-            f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/",
+            f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/2/",
             headers={
                 "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
                 "Content-Type": "application/json",
@@ -323,7 +323,7 @@ class TestDataGouvPublication(TestCase):
                 "format": format,
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "last_modified": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "last_modified": datetime.now(),
             },
         )
 
