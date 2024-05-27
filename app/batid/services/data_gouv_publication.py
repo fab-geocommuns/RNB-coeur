@@ -18,7 +18,7 @@ def publish(areas_list):
 
     try:
         for area in areas_list:
-            print("Processing area: " + area)
+            print('Processing area: {area}')
             create_csv(directory_name, area)
             (archive_path, archive_size, archive_sha1) = create_archive(
                 directory_name, area
@@ -57,11 +57,7 @@ def create_csv(directory_name, code_area):
         if code_area == "nat":
             sql = "COPY (SELECT rnb_id, point, shape, ext_ids, addresses, code_dept FROM opendata.rnb_compact) TO STDOUT WITH CSV HEADER DELIMITER ';'"
         else:
-            sql = (
-                "COPY (SELECT rnb_id, point, shape, ext_ids, addresses FROM opendata.rnb_compact WHERE code_dept = '"
-                + code_area
-                + "') TO STDOUT WITH CSV HEADER DELIMITER ';'"
-            )
+            sql = f"COPY (SELECT rnb_id, point, shape, ext_ids, addresses FROM opendata.rnb_compact WHERE code_dept = '{code_area}') TO STDOUT WITH CSV HEADER DELIMITER ';'"
 
         with open(f"{file_path(directory_name, code_area)}.csv", "w") as fp:
             cursor.copy_expert(sql, fp)
@@ -148,8 +144,8 @@ def publish_on_data_gouv(area, public_url, archive_size, archive_sha1, format=zi
             "Export du RNB au format csv pour l’ensemble du territoire français."
         )
     else:
-        title = "Export Départemental " + area
-        description = "Export du RNB au format csv pour le département " + area + "."
+        title = f"Export Départemental {area}"
+        description = f"Export du RNB au format csv pour le département {area}."
 
     # ressource already exists
     if resource_id is not None:
@@ -228,7 +224,7 @@ def data_gouv_resource_id(dataset_id, area):
                 (area == "nat" and resource["title"] == "Export National")
                 or (
                     area != "nat"
-                    and resource["title"] == "Export Départemental " + area
+                    and resource["title"] == f'Export Départemental {area}'
                 )
             ):
                 return resource["id"]
