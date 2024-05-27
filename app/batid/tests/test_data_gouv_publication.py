@@ -340,18 +340,29 @@ class TestDataGouvPublication(TestCase):
             "DATA_GOUV_DATASET_ID": "some-dataset-id",
         },
     )
+    @mock.patch("batid.services.data_gouv_publication.requests.get")
     @mock.patch("batid.services.data_gouv_publication.requests.post")
-    def test_publishing_non_existing_resource_on_data_gouv(self, post_mock):
+    def test_publishing_non_existing_resource_on_data_gouv(self, post_mock, get_mock):
         post_mock.return_value.status_code = 200
-        title = "Export National"
-        description = (
-            "Export du RNB au format csv pour l’ensemble du territoire français."
-        )
+        post_mock.return_value.json.return_value = 4
+        
+        get_mock.return_value.status_code = 200
+        get_mock.return_value.json.return_value = {
+            "resources": [
+                {"id": "1", "title": "Export Départemental 33", "format": "csv"},
+                {"id": "2", "title": "Export Départemental 33", "format": "zip"},
+                {"id": "3", "title": "Export Départemental 75", "format": "zip"},
+            ]
+        }
+
+        department = "45"
+        title = f"Export Départemental {department}"
+        description = f"Export du RNB au format csv pour le département {department}."
         public_url = "some-url"
         archive_size = 1234
         archive_sha1 = "some-sha1"
         format = "csv"
-        publish_on_data_gouv("nat", public_url, archive_size, archive_sha1, format)
+        publish_on_data_gouv(department, public_url, archive_size, archive_sha1, format)
 
         post_mock.assert_called_with(
             f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/",
