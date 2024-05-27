@@ -39,6 +39,7 @@ def get_geom():
 
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
+
 # bbox sur Paris
 def get_department_geom():
     coords = {
@@ -57,16 +58,18 @@ def get_department_geom():
     }
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
+
 def get_resources():
     json = {
-            "resources": [
-                {"id": "1", "title": "Export Départemental 33", "format": "csv"},
-                {"id": "2", "title": "Export Départemental 33", "format": "zip"},
-                {"id": "3", "title": "Export Départemental 75", "format": "zip"},
-                {"id": "4", "title": "Export National", "format": "zip"},
-            ]
-        }
+        "resources": [
+            {"id": "1", "title": "Export Départemental 33", "format": "csv"},
+            {"id": "2", "title": "Export Départemental 33", "format": "zip"},
+            {"id": "3", "title": "Export Départemental 75", "format": "zip"},
+            {"id": "4", "title": "Export National", "format": "zip"},
+        ]
+    }
     return json
+
 
 class TestDataGouvPublication(TestCase):
     def test_archive_creation_deletion(self):
@@ -325,7 +328,7 @@ class TestDataGouvPublication(TestCase):
                 "last_modified": datetime.now(),
             },
         )
-    
+
     @freeze_time("2021-02-23")
     @mock.patch.dict(
         os.environ,
@@ -337,13 +340,17 @@ class TestDataGouvPublication(TestCase):
     )
     @mock.patch("batid.services.data_gouv_publication.requests.put")
     @mock.patch("batid.services.data_gouv_publication.requests.get")
-    def test_publishing_existing_national_resource_on_data_gouv(self, get_mock, put_mock):
+    def test_publishing_existing_national_resource_on_data_gouv(
+        self, get_mock, put_mock
+    ):
         get_mock.return_value.status_code = 200
         get_mock.return_value.json.return_value = get_resources()
 
         put_mock.return_value.status_code = 200
         title = f"Export National"
-        description = f"Export du RNB au format csv pour l’ensemble du territoire français."
+        description = (
+            f"Export du RNB au format csv pour l’ensemble du territoire français."
+        )
         public_url = "some-url"
         archive_size = 1234
         archive_sha1 = "some-sha1"

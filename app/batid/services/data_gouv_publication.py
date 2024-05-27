@@ -18,7 +18,7 @@ def publish(areas_list):
 
     try:
         for area in areas_list:
-            print('Processing area: {area}')
+            print("Processing area: {area}")
             create_csv(directory_name, area)
             (archive_path, archive_size, archive_sha1) = create_archive(
                 directory_name, area
@@ -224,7 +224,7 @@ def data_gouv_resource_id(dataset_id, area):
                 (area == "nat" and resource["title"] == "Export National")
                 or (
                     area != "nat"
-                    and resource["title"] == f'Export Départemental {area}'
+                    and resource["title"] == f"Export Départemental {area}"
                 )
             ):
                 return resource["id"]
