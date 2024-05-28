@@ -197,7 +197,7 @@ def data_gouv_create_resource(
             "format": format,
             "filesize": archive_size,
             "checksum": {"type": "sha1", "value": archive_sha1},
-            "created_at": datetime.now(),
+            "created_at": str(datetime.now()),
         },
     )
 
@@ -263,7 +263,7 @@ def update_resource_metadata(
             "format": format,
             "filesize": archive_size,
             "checksum": {"type": "sha1", "value": archive_sha1},
-            "last_modified": datetime.now(),
+            "last_modified": str(datetime.now()),
         },
     )
 

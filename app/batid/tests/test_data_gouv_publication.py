@@ -234,7 +234,7 @@ class TestDataGouvPublication(TestCase):
                 "format": "csv",
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "last_modified": datetime.now(),
+                "last_modified": str(datetime.now()),
             },
         )
 
@@ -280,7 +280,7 @@ class TestDataGouvPublication(TestCase):
                 "format": format,
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "created_at": datetime.now(),
+                "created_at": str(datetime.now()),
             },
         )
 
@@ -325,7 +325,7 @@ class TestDataGouvPublication(TestCase):
                 "format": format,
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "last_modified": datetime.now(),
+                "last_modified": str(datetime.now()),
             },
         )
 
@@ -372,7 +372,7 @@ class TestDataGouvPublication(TestCase):
                 "format": format,
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "last_modified": datetime.now(),
+                "last_modified": str(datetime.now()),
             },
         )
 
@@ -419,6 +419,6 @@ class TestDataGouvPublication(TestCase):
                 "format": format,
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "created_at": datetime.now(),
+                "created_at": str(datetime.now()),
             },
         )
