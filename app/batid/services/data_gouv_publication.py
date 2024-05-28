@@ -18,7 +18,7 @@ def publish(areas_list):
 
     try:
         for area in areas_list:
-            print("Processing area: {area}")
+            print(f"Processing area: {area}")
             create_csv(directory_name, area)
             (archive_path, archive_size, archive_sha1) = create_archive(
                 directory_name, area
@@ -133,7 +133,7 @@ def upload_to_s3(archive_path):
     return public_url
 
 
-def publish_on_data_gouv(area, public_url, archive_size, archive_sha1, format=zip):
+def publish_on_data_gouv(area, public_url, archive_size, archive_sha1, format='zip'):
     # publish the archive on data.gouv.fr
     dataset_id = os.environ.get("DATA_GOUV_DATASET_ID")
     resource_id = data_gouv_resource_id(dataset_id, area)
@@ -175,9 +175,8 @@ def publish_on_data_gouv(area, public_url, archive_size, archive_sha1, format=zi
 
 
 def data_gouv_create_resource(
-    dataset_id, title, description, public_url, archive_size, archive_sha1, format=zip
+    dataset_id, title, description, public_url, archive_size, archive_sha1, format='zip'
 ):
-    # get the resource id from data.gouv.fr
     DATA_GOUV_BASE_URL = os.environ.get("DATA_GOUV_BASE_URL")
     dataset_url = f"{DATA_GOUV_BASE_URL}/api/1/datasets/{dataset_id}/resources/"
     headers = {
