@@ -8,7 +8,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
     atomic = False
     dependencies = [
-        ("batid", "0082_alter_building_status_and_more"),
+        ("batid", "0083_building_bdg_sys_period_idx_and_more"),
     ]
 
     operations = [
