@@ -61,6 +61,11 @@ def import_bdtopo(src_params, bulk_launch_uuid=None):
     import_bdtopo_job(src_params, bulk_launch_uuid)
     return "done"
 
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def import_full_bdtopo():
+
+
+
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_plots(dpt):

@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
@@ -191,7 +192,8 @@ CELERY_BEAT_SCHEDULE = {
         "task": "batid.tasks.backup_to_s3",
         # saturday at 7am
         "schedule": crontab(hour=7, minute=0, day_of_week=6),
-    }
+    },
+    "import_bdtopo": {},
 }
 
 
