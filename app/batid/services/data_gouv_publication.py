@@ -133,7 +133,7 @@ def upload_to_s3(archive_path):
     return public_url
 
 
-def publish_on_data_gouv(area, public_url, archive_size, archive_sha1, format='zip'):
+def publish_on_data_gouv(area, public_url, archive_size, archive_sha1, format="zip"):
     # publish the archive on data.gouv.fr
     dataset_id = os.environ.get("DATA_GOUV_DATASET_ID")
     resource_id = data_gouv_resource_id(dataset_id, area)
@@ -175,7 +175,7 @@ def publish_on_data_gouv(area, public_url, archive_size, archive_sha1, format='z
 
 
 def data_gouv_create_resource(
-    dataset_id, title, description, public_url, archive_size, archive_sha1, format='zip'
+    dataset_id, title, description, public_url, archive_size, archive_sha1, format="zip"
 ):
     DATA_GOUV_BASE_URL = os.environ.get("DATA_GOUV_BASE_URL")
     dataset_url = f"{DATA_GOUV_BASE_URL}/api/1/datasets/{dataset_id}/resources/"
