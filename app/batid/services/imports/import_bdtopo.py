@@ -82,13 +82,13 @@ def import_bdtopo(src_params, bulk_launch_uuid=None):
 
 def _known_bdtopo_id(bdtopo_id: str) -> bool:
 
-    qs = Building.objects.filter(
-        ext_ids__contains=[{"source": "bdtopo", "id": bdtopo_id}]
-    ).order_by()
-
-    print(qs.query)
-
-    return qs.exists()
+    return (
+        Building.objects.filter(
+            ext_ids__contains=[{"source": "bdtopo", "id": bdtopo_id}]
+        )
+        .order_by()
+        .exists()
+    )
 
 
 def _transform_bdtopo_feature(feature, from_srid) -> dict:
