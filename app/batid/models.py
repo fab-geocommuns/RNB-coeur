@@ -18,7 +18,7 @@ class BuildingAbstract(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
-    ext_ids = models.JSONField(null=True, db_index=True)
+    ext_ids = models.JSONField(null=True)
     event_origin = models.JSONField(null=True)
     # temporal table field
     sys_period = DateTimeRangeField(null=False, default=from_now_to_infinity)
@@ -147,6 +147,7 @@ class Building(BuildingAbstract):
             GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
             GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
             models.Index(fields=("status",), name="bdg_status_idx"),
+            models.Index(fields=("ext_ids",), name="bdg_ext_ids_idx"),
         ]
 
 
