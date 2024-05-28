@@ -78,7 +78,7 @@ def create_archive(directory_name, code_area):
     archive_path = f"{file_path(directory_name, code_area)}.csv.zip"
 
     with ZipFile(archive_path, "w", ZIP_DEFLATED) as zip:
-        zip.write(f"{file_path(directory_name, code_area)}.csv")
+        zip.write(f"{file_path(directory_name, code_area)}.csv", f"RNB_{code_area}.csv")
 
     archive_size = os.path.getsize(archive_path)
 
