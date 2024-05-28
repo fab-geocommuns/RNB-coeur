@@ -43,7 +43,12 @@ def import_bdtopo(src_params, bulk_launch_uuid=None):
                 continue
 
             if _known_bdtopo_id(feature["properties"]["ID"]):
+                print(f"Building {feature['properties']['ID']} already known")
                 continue
+
+            print(
+                f"Building {feature['properties']['ID']} not known - we add candidate"
+            )
 
             candidate = _transform_bdtopo_feature(feature, srid)
             candidate = _add_import_info(candidate, building_import)
@@ -77,9 +82,13 @@ def import_bdtopo(src_params, bulk_launch_uuid=None):
 
 def _known_bdtopo_id(bdtopo_id: str) -> bool:
 
-    return Building.objects.filter(
+    qs = Building.objects.filter(
         ext_ids__contains=[{"source": "bdtopo", "id": bdtopo_id}]
-    ).exists()
+    ).order_by()
+
+    print(qs.query)
+
+    return qs.exists()
 
 
 def _transform_bdtopo_feature(feature, from_srid) -> dict:

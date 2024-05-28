@@ -147,7 +147,7 @@ class Building(BuildingAbstract):
             GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
             GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
             models.Index(fields=("status",), name="bdg_status_idx"),
-            models.Index(fields=("ext_ids",), name="bdg_ext_ids_idx"),
+            GinIndex(fields=("ext_ids",), name="bdg_ext_ids_idx"),
         ]
 
 
