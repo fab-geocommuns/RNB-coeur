@@ -10,6 +10,7 @@ from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
 from api_alpha.views import BuildingViewSet
 from api_alpha.views import ContributionsViewSet
+from api_alpha.views import get_diff
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_point
 from api_alpha.views import get_tile_shape
@@ -37,5 +38,6 @@ urlpatterns = [
     path("login/", auth_views.obtain_auth_token),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile_point),
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
+    path("diff", get_diff),
     # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]

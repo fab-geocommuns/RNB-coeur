@@ -453,6 +453,48 @@ def get_stats(request):
     return response
 
 
+def get_diff(request):
+    import io
+    from psycopg2 import sql
+    from django.utils.dateparse import parse_datetime
+
+    if request.method == "GET":
+
+        since_input = request.GET.get("since", "")
+        # parse since to a timestamp
+        since = parse_datetime(since_input)
+
+        if since is None:
+            return HttpResponse(
+                "The 'since' parameter is missing or incorrect", status=400
+            )
+
+        # nobody should downlaod the whole database
+        if since < parse_datetime("2024-04-01T00:00:00Z"):
+            return HttpResponse(
+                "The 'since' parameter must be after 2024-04-01T00:00:00Z",
+                status=400,
+            )
+
+        with connection.cursor() as cursor:
+            sql_query = sql.SQL(
+                """
+                COPY (
+                    select coalesce(event_type, 'create') as action, rnb_id, sys_period, point, shape, addresses_id, ext_ids from batid_building bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
+                ) TO STDOUT WITH CSV HEADER
+                """
+            ).format(t=sql.Literal(since.isoformat()))
+
+            file_output = io.StringIO()
+            cursor.copy_expert(sql_query, file_output)
+            file_output.seek(0)
+            response = HttpResponse(
+                file_output.getvalue(), content_type="text/csv", status=200
+            )
+            response["Content-Disposition"] = 'attachment; filename="diff.csv"'
+            return response
+
+
 class ContributionsViewSet(viewsets.ModelViewSet):
     queryset = Contribution.objects.all()
     http_method_names = ["post"]

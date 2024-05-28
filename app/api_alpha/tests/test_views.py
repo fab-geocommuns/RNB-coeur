@@ -40,3 +40,46 @@ class StatsTest(APITestCase):
 
         # assert the mock was called
         get_mock.assert_called_with("https://www.data.gouv.fr/api/1/datasets/?tag=rnb")
+
+
+class DiffTest(APITestCase):
+    def test_diff(self):
+        from django.utils.http import urlencode
+        import csv
+        import io
+
+        # create 2 buldings
+        b1 = Building.objects.create(rnb_id="1")
+        b2 = Building.objects.create(rnb_id="2")
+
+        params = urlencode({"since": b1.sys_period.lower.isoformat()})
+        url = f"/api/alpha/diff?{params}"
+
+        r = self.client.get(url)
+
+        self.assertEqual(r.status_code, 200)
+        # parse the CSV response
+        diff_text = r.content.decode("utf-8")
+        reader = csv.reader(io.StringIO(diff_text))
+
+        # check the CSV header
+        header = next(reader)
+        self.assertEqual(
+            header,
+            [
+                "action",
+                "rnb_id",
+                "sys_period",
+                "point",
+                "shape",
+                "addresses_id",
+                "ext_ids",
+            ],
+        )
+
+        # check the CSV content
+        rows = list(reader)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            rows[0], [b1.rnb_id, "sys_period", b1.sys_period.lower.isoformat(), None]
+        )
