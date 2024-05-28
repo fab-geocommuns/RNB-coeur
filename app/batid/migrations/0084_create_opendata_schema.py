@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             DROP VIEW IF EXISTS opendata.rnb_compact;
 
             CREATE OR REPLACE VIEW opendata.rnb_compact AS
-            SELECT bdg.rnb_id AS rnb_id, ST_AsText(bdg.point) AS point, ST_AsText(bdg.shape) AS shape, bdg.ext_ids AS ext_ids,
+            SELECT bdg.rnb_id AS rnb_id, ST_AsEWKT(bdg.point) AS point, ST_AsEWKT(bdg.shape) AS shape, bdg.ext_ids AS ext_ids,
             json_agg(
                 concat_ws(' ',
                     NULLIF(addr.street_number, ''),
