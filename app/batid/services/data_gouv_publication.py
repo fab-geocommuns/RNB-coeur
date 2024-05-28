@@ -200,7 +200,7 @@ def data_gouv_create_resource(
         },
     )
 
-    if response.status_code != 200:
+    if response.status_code != 201:
         raise Exception("Error while creating the resource")
 
     return True
