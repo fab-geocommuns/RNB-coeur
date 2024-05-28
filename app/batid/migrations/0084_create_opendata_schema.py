@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
             ) AS addresses,
             dept.code AS code_dept
             FROM batid_building bdg
-            LEFT JOIN batid_building_addresses bdg_addr ON bdg_addr.building_id = bdg.id
+            LEFT JOIN batid_buildingaddressesreadonly bdg_addr ON bdg_addr.building_id = bdg.id
             LEFT JOIN batid_address addr ON addr.id = bdg_addr.address_id
             LEFT JOIN batid_department AS dept ON ST_Intersects(dept.shape, bdg.point)
             WHERE is_active
