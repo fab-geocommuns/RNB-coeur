@@ -248,7 +248,7 @@ class TestDataGouvPublication(TestCase):
         },
     )
     def test_create_resource_on_data_gouv(self, post_mock):
-        post_mock.return_value.status_code = 200
+        post_mock.return_value.status_code = 201
         title = "Export du RNB"
         description = "Export du RNB au format csv pour un territoire français."
         public_url = "some-url"
@@ -389,7 +389,7 @@ class TestDataGouvPublication(TestCase):
     @mock.patch("batid.services.data_gouv_publication.requests.get")
     @mock.patch("batid.services.data_gouv_publication.requests.post")
     def test_publishing_non_existing_resource_on_data_gouv(self, post_mock, get_mock):
-        post_mock.return_value.status_code = 200
+        post_mock.return_value.status_code = 201
         post_mock.return_value.json.return_value = 4
 
         get_mock.return_value.status_code = 200
