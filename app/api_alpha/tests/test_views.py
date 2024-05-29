@@ -145,6 +145,16 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[3][1], b3.rnb_id)
         self.assertEqual(rows[3][2], "constructed")
 
+        # check the CSV file name
+        b3 = Building.objects.get(rnb_id="3")
+        most_recent_modification = b3.sys_period.lower
+        expected_name = (
+            f"diff_{treshold.isoformat()}_{most_recent_modification.isoformat()}.csv"
+        )
+        self.assertEqual(
+            r["Content-Disposition"], f'attachment; filename="{expected_name}"'
+        )
+
     def test_diff_no_since(self):
         # we want all the diff since the the creation of b1 (excluded)
         url = f"/api/alpha/diff"

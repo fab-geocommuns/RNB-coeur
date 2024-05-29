@@ -3,6 +3,7 @@ from base64 import b64encode
 
 import requests
 from django.db import connection
+from django.db import transaction
 from django.http import Http404
 from django.http import HttpResponse
 from django.utils.dateparse import parse_datetime
@@ -520,9 +521,28 @@ def get_diff(request):
         ).format(t=sql.Literal(since.isoformat()))
 
         file_output = io.StringIO()
-        cursor.copy_expert(sql_query, file_output)
+        with transaction.atomic():
+            cursor.copy_expert(sql_query, file_output)
+            most_recent_modification_query = sql.SQL(
+                """
+                select max(lower(sys_period)) from batid_building_with_history
+                """
+            )
+            cursor.execute(most_recent_modification_query)
+
+        # most recent modification datetime is used in the filename
+        # so the user knows what "since" parameter he should use next time
+        most_recent_modification = cursor.fetchone()[0]
+        most_recent_modification = most_recent_modification.isoformat(sep="T")
+
         file_output.seek(0)
-        return Response(file_output.getvalue(), content_type="text/csv", status=200)
+        response = HttpResponse(
+            file_output.getvalue(), content_type="text/csv", status=200
+        )
+        response[
+            "Content-Disposition"
+        ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+        return response
 
 
 class ContributionsViewSet(viewsets.ModelViewSet):
