@@ -1,12 +1,15 @@
+import io
 from base64 import b64encode
 
 import requests
 from django.db import connection
 from django.http import Http404
 from django.http import HttpResponse
+from django.utils.dateparse import parse_datetime
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
 from drf_spectacular.utils import extend_schema
+from psycopg2 import sql
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.exceptions import ParseError
@@ -454,12 +457,10 @@ def get_stats(request):
 
 
 def get_diff(request):
-    import io
-    from psycopg2 import sql
-    from django.utils.dateparse import parse_datetime
+    # the day the quantity of data will be too big, we could stream the response
+    # see https://docs.djangoproject.com/en/5.0/howto/outputting-csv/#streaming-csv-files
 
     if request.method == "GET":
-
         since_input = request.GET.get("since", "")
         # parse since to a timestamp
         since = parse_datetime(since_input)
@@ -480,7 +481,7 @@ def get_diff(request):
             sql_query = sql.SQL(
                 """
                 COPY (
-                    select coalesce(event_type, 'create') as action, rnb_id, sys_period, point, shape, addresses_id, ext_ids from batid_building bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
+                    select coalesce(event_type, 'create') as action, rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
                 ) TO STDOUT WITH CSV HEADER
                 """
             ).format(t=sql.Literal(since.isoformat()))
