@@ -12,6 +12,7 @@ from drf_spectacular.utils import extend_schema
 from psycopg2 import sql
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.decorators import api_view
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
@@ -456,44 +457,72 @@ def get_stats(request):
     return response
 
 
+@extend_schema(
+    description="""
+        Filtre les modifications apportées au RNB ayant eu lieu strictement après un datetime.
+        Les données sont retournées au format CSV.
+
+        Les modifications listées sont de trois types : create, update et delete.
+
+        Les modifications sont triées par rnb_id puis par dates de modification croissante.
+        Il est possible qu'un même bâtiment ait eu  plusieurs modifications dans la période considérée.
+        Par exemple, une création suivie d'une mise à jour.
+        """,
+    parameters=[
+        OpenApiParameter(
+            "since",
+            str,
+            OpenApiParameter.QUERY,
+            description="""
+                Date et heure à partir de laquelle les modifications sont retournées.
+                Au format ISO 8601.
+
+                Si un "+" est présent dans la date, il doit être encodé en %2B.
+                2024-04-02 15:29:44.26+01 => 2024-04-02 15:29:44.26%2B01
+
+                Seules les dates après le 1er avril 2024 sont acceptées.
+                Une date inférieure reviendrait à télécharger l'intégralité de la base de données.
+                Ce qui peut être fait via https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/.
+            """,
+            examples=[
+                OpenApiExample("Exemple 1", value="2024-04-02T00:00:00Z"),
+                OpenApiExample("Exemple 2", value="2024-04-02 15:29:44.267%2B01"),
+            ],
+        ),
+    ],
+)
+@api_view(["GET"])
 def get_diff(request):
     # the day the quantity of data will be too big, we could stream the response
     # see https://docs.djangoproject.com/en/5.0/howto/outputting-csv/#streaming-csv-files
 
-    if request.method == "GET":
-        since_input = request.GET.get("since", "")
-        # parse since to a timestamp
-        since = parse_datetime(since_input)
+    since_input = request.GET.get("since", "")
+    # parse since to a timestamp
+    since = parse_datetime(since_input)
 
-        if since is None:
-            return HttpResponse(
-                "The 'since' parameter is missing or incorrect", status=400
-            )
+    if since is None:
+        return HttpResponse("The 'since' parameter is missing or incorrect", status=400)
 
-        # nobody should downlaod the whole database
-        if since < parse_datetime("2024-04-01T00:00:00Z"):
-            return HttpResponse(
-                "The 'since' parameter must be after 2024-04-01T00:00:00Z",
-                status=400,
-            )
+    # nobody should downlaod the whole database
+    if since < parse_datetime("2024-04-01T00:00:00Z"):
+        return HttpResponse(
+            "The 'since' parameter must be after 2024-04-01T00:00:00Z",
+            status=400,
+        )
 
-        with connection.cursor() as cursor:
-            sql_query = sql.SQL(
-                """
-                COPY (
-                    select coalesce(event_type, 'create') as action, rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
-                ) TO STDOUT WITH CSV HEADER
-                """
-            ).format(t=sql.Literal(since.isoformat()))
+    with connection.cursor() as cursor:
+        sql_query = sql.SQL(
+            """
+            COPY (
+                select coalesce(event_type, 'create') as action, rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
+            ) TO STDOUT WITH CSV HEADER
+            """
+        ).format(t=sql.Literal(since.isoformat()))
 
-            file_output = io.StringIO()
-            cursor.copy_expert(sql_query, file_output)
-            file_output.seek(0)
-            response = HttpResponse(
-                file_output.getvalue(), content_type="text/csv", status=200
-            )
-            response["Content-Disposition"] = 'attachment; filename="diff.csv"'
-            return response
+        file_output = io.StringIO()
+        cursor.copy_expert(sql_query, file_output)
+        file_output.seek(0)
+        return Response(file_output.getvalue(), content_type="text/csv", status=200)
 
 
 class ContributionsViewSet(viewsets.ModelViewSet):
