@@ -4,6 +4,8 @@ from django.contrib.postgres.operations import AddIndexConcurrently
 from django.db import migrations
 from django.db import models
 
+from batid.migrations.utils.create_view import sql_migration_building_with_history
+
 
 class Migration(migrations.Migration):
 
@@ -35,4 +37,5 @@ class Migration(migrations.Migration):
                 name="bdg_hist_sys_period_start_idx",
             ),
         ),
+        sql_migration_building_with_history(),
     ]
