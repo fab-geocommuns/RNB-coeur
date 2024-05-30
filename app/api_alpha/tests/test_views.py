@@ -94,7 +94,7 @@ class DiffTest(TransactionTestCase):
 
         # we want all the diff since the the creation of b1 (excluded)
         params = urlencode({"since": treshold.isoformat()})
-        url = f"/api/alpha/diff?{params}"
+        url = f"/api/alpha/buildings/diff/?{params}"
 
         r = self.client.get(url)
 
@@ -178,7 +178,7 @@ class DiffTest(TransactionTestCase):
 
         # we want all the diff since the the creation of b1 (excluded)
         params = urlencode({"since": treshold.isoformat()})
-        url = f"/api/alpha/diff?{params}"
+        url = f"/api/alpha/buildings/diff/?{params}"
 
         r = self.client.get(url)
 
@@ -226,7 +226,7 @@ class DiffTest(TransactionTestCase):
 
         # we want all the diff since the the creation of b1 (excluded)
         params = urlencode({"since": treshold.isoformat()})
-        url = f"/api/alpha/diff?{params}"
+        url = f"/api/alpha/buildings/diff/?{params}"
 
         r = self.client.get(url)
 
@@ -255,21 +255,21 @@ class DiffTest(TransactionTestCase):
 
     def test_diff_no_since(self):
         # we want all the diff since the the creation of b1 (excluded)
-        url = f"/api/alpha/diff"
+        url = f"/api/alpha/buildings/diff/"
 
         r = self.client.get(url)
 
         self.assertEqual(r.status_code, 400)
 
     def test_since_is_too_old(self):
-        url = f"/api/alpha/diff?since=2021-01-01T00:00:00Z"
+        url = f"/api/alpha/buildings/diff/?since=2021-01-01T00:00:00Z"
 
         r = self.client.get(url)
 
         self.assertEqual(r.status_code, 400)
 
     def test_since_is_invalid(self):
-        url = f"/api/alpha/diff?since=invalid"
+        url = f"/api/alpha/buildings/diff/?since=invalid"
 
         r = self.client.get(url)
 

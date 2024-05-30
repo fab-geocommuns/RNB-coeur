@@ -34,10 +34,10 @@ urlpatterns = [
     path("stats", get_stats),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
+    path("buildings/diff/", get_diff),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile_point),
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
-    path("diff", get_diff),
     # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
