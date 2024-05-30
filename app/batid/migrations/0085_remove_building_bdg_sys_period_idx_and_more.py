@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     atomic = False
     dependencies = [
-        ("batid", "0083_building_bdg_sys_period_idx_and_more"),
+        ("batid", "0084_alter_building_event_type_and_more"),
     ]
 
     operations = [

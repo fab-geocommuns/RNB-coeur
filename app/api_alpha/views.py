@@ -465,9 +465,9 @@ def get_stats(request):
 
         Les modifications listées sont de trois types : create, update et delete.
 
-        Les modifications sont triées par rnb_id puis par dates de modification croissante.
-        Il est possible qu'un même bâtiment ait eu  plusieurs modifications dans la période considérée.
-        Par exemple, une création suivie d'une mise à jour.
+        Les modifications sont triées par rnb_id puis par date de modification croissante.
+        Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée.
+        Par exemple, une création (create) suivie d'une mise à jour (update).
         """,
     parameters=[
         OpenApiParameter(
@@ -504,7 +504,7 @@ def get_diff(request):
     if since is None:
         return HttpResponse("The 'since' parameter is missing or incorrect", status=400)
 
-    # nobody should downlaod the whole database
+    # nobody should download the whole database
     if since < parse_datetime("2024-04-01T00:00:00Z"):
         return HttpResponse(
             "The 'since' parameter must be after 2024-04-01T00:00:00Z",
