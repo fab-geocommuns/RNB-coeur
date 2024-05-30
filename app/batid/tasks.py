@@ -68,11 +68,10 @@ def convert_bdtopo(src_params, bulk_launch_uuid=None):
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_full_bdtopo_import():
 
-    return "hello"
+    tasks = create_bdtopo_full_import_tasks()
 
-    # tasks = create_bdtopo_full_import_tasks()
-    # chain(*tasks)()
-    # return f"Queued {len(tasks)} tasks"
+    chain(*tasks)()
+    return f"Queued {len(tasks)} tasks"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
