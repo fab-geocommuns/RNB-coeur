@@ -515,7 +515,17 @@ def get_diff(request):
         sql_query = sql.SQL(
             """
             COPY (
-                select coalesce(event_type, 'create') as action, rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
+                select
+                CASE
+                    WHEN event_type = 'deletion' THEN 'delete'
+                    WHEN event_type = 'update' THEN 'update'
+                    WHEN event_type = 'split' and not is_active THEN 'delete'
+                    WHEN event_type = 'split' and is_active THEN 'create'
+                    WHEN event_type = 'merge' and not is_active THEN 'delete'
+                    WHEN event_type = 'merge' and is_active THEN 'create'
+                    ELSE 'create'
+                END as action,
+                rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
             ) TO STDOUT WITH CSV HEADER
             """
         ).format(t=sql.Literal(since.isoformat()))

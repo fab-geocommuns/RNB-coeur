@@ -1,6 +1,11 @@
+import csv
+import io
+import json
 from unittest import mock
 
+from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase
+from django.utils.http import urlencode
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
@@ -44,13 +49,7 @@ class StatsTest(APITestCase):
 
 
 class DiffTest(TransactionTestCase):
-    def test_diff(self):
-        from django.utils.http import urlencode
-        import csv
-        import io
-        from django.contrib.gis.geos import GEOSGeometry
-        import json
-
+    def test_diff_create_update_delete(self):
         coords = {
             "coordinates": [
                 [
@@ -67,20 +66,17 @@ class DiffTest(TransactionTestCase):
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
 
-        b = Building.objects.create(
-            rnb_id="BDGSRNBBIDID",
-            shape=geom,
-            point=geom.point_on_surface,
-            status="constructed",
-        )
-
         # create buildings
         b1 = Building.objects.create(rnb_id="1")
         # reload the buildings to get the sys_period
         treshold = Building.objects.get(rnb_id="1").sys_period.lower
 
         b2 = Building.objects.create(
-            rnb_id="2", shape=geom, point=geom.point_on_surface, status="constructed"
+            rnb_id="2",
+            shape=geom,
+            point=geom.point_on_surface,
+            status="constructed",
+            event_type="creation",
         )
         b3 = Building.objects.create(
             rnb_id="3", shape=geom, point=geom.point_on_surface, status="constructed"
@@ -93,7 +89,7 @@ class DiffTest(TransactionTestCase):
 
         # soft delete a building
         b3.is_active = False
-        b3.event_type = "delete"
+        b3.event_type = "deletion"
         b3.save()
 
         # we want all the diff since the the creation of b1 (excluded)
@@ -154,6 +150,108 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(
             r["Content-Disposition"], f'attachment; filename="{expected_name}"'
         )
+
+    def test_diff_merge(self):
+        # create buildings
+        b1 = Building.objects.create(
+            rnb_id="1", status="constructed", event_type="creation"
+        )
+        b2 = Building.objects.create(
+            rnb_id="2", status="constructed", event_type="creation"
+        )
+        Building.objects.create(rnb_id="t")
+        # reload the buildings to get the sys_period
+        treshold = Building.objects.get(rnb_id="t").sys_period.lower
+
+        # merge buildings b1 and b2 into b3
+        b1.event_type = "merge"
+        b1.is_active = False
+        b1.save()
+
+        b2.event_type = "merge"
+        b2.is_active = False
+        b2.save()
+
+        b3 = Building.objects.create(
+            rnb_id="3", status="constructed", event_type="merge", is_active=True
+        )
+
+        # we want all the diff since the the creation of b1 (excluded)
+        params = urlencode({"since": treshold.isoformat()})
+        url = f"/api/alpha/diff?{params}"
+
+        r = self.client.get(url)
+
+        self.assertEqual(r.status_code, 200)
+        # parse the CSV response
+        diff_text = r.content.decode("utf-8")
+        reader = csv.reader(io.StringIO(diff_text))
+
+        _headers = next(reader)
+
+        # check the CSV content
+        rows = list(reader)
+        self.assertEqual(len(rows), 3)
+
+        self.assertEqual(rows[0][0], "delete")
+        self.assertEqual(rows[0][1], b1.rnb_id)
+        self.assertEqual(rows[0][2], "constructed")
+
+        self.assertEqual(rows[1][0], "delete")
+        self.assertEqual(rows[1][1], b2.rnb_id)
+        self.assertEqual(rows[1][2], "constructed")
+
+        self.assertEqual(rows[2][0], "create")
+        self.assertEqual(rows[2][1], b3.rnb_id)
+        self.assertEqual(rows[2][2], "constructed")
+
+    def test_diff_split(self):
+        # create building
+        b1 = Building.objects.create(rnb_id="1", status="constructed")
+        Building.objects.create(rnb_id="t")
+        # reload the buildings to get the sys_period
+        treshold = Building.objects.get(rnb_id="t").sys_period.lower
+
+        # split building b1 into b2 and b3
+        b1.event_type = "split"
+        b1.is_active = False
+        b1.save()
+
+        b2 = Building.objects.create(
+            rnb_id="2", status="constructed", event_type="split", is_active=True
+        )
+        b3 = Building.objects.create(
+            rnb_id="3", status="constructed", event_type="split", is_active=True
+        )
+
+        # we want all the diff since the the creation of b1 (excluded)
+        params = urlencode({"since": treshold.isoformat()})
+        url = f"/api/alpha/diff?{params}"
+
+        r = self.client.get(url)
+
+        self.assertEqual(r.status_code, 200)
+        # parse the CSV response
+        diff_text = r.content.decode("utf-8")
+        reader = csv.reader(io.StringIO(diff_text))
+
+        _headers = next(reader)
+
+        # check the CSV content
+        rows = list(reader)
+        self.assertEqual(len(rows), 3)
+
+        self.assertEqual(rows[0][0], "delete")
+        self.assertEqual(rows[0][1], b1.rnb_id)
+        self.assertEqual(rows[0][2], "constructed")
+
+        self.assertEqual(rows[1][0], "create")
+        self.assertEqual(rows[1][1], b2.rnb_id)
+        self.assertEqual(rows[1][2], "constructed")
+
+        self.assertEqual(rows[2][0], "create")
+        self.assertEqual(rows[2][1], b3.rnb_id)
+        self.assertEqual(rows[2][2], "constructed")
 
     def test_diff_no_since(self):
         # we want all the diff since the the creation of b1 (excluded)
