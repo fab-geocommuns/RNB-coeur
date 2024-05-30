@@ -1,4 +1,4 @@
-from celery import shared_task
+from celery import shared_task, chain
 
 from batid.models import AsyncSignal
 from batid.services.building import export_city as export_city_job
@@ -7,7 +7,10 @@ from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.candidate import Inspector
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
-from batid.services.imports.import_bdtopo import import_bdtopo as import_bdtopo_job
+from batid.services.imports.import_bdtopo import (
+    import_dpt_bdtopo as import_dpt_bdtopo_job,
+    full_recent_bdtopo_tasks,
+)
 from batid.services.imports.import_cities import import_etalab_cities
 from batid.services.imports.import_dgfip_ads import (
     import_dgfip_ads_achievements as import_dgfip_ads_achievements_job,
@@ -57,14 +60,19 @@ def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdtopo(src_params, bulk_launch_uuid=None):
-    import_bdtopo_job(src_params, bulk_launch_uuid)
+def import_dpt_bdtopo(src_params, bulk_launch_uuid=None):
+    import_dpt_bdtopo_job(src_params, bulk_launch_uuid)
     return "done"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_full_bdtopo():
-    pass
+def queue_full_bdtopo_import():
+
+    return "hello"
+
+    # tasks = full_bdtopo_tasks()
+    # chain(*tasks)()
+    # return f"Queued {len(tasks)} tasks"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})

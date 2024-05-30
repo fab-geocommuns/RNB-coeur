@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import uuid
 from datetime import datetime, date
 from datetime import timezone
 
@@ -12,6 +13,7 @@ from django.db import connection
 from django.db import transaction
 from celery import Signature
 
+from batid.management.commands.import_france import dpts_list
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import Candidate
@@ -21,7 +23,45 @@ from batid.services.source import Source
 from batid.utils.geo import fix_nested_shells
 
 
-def import_bdtopo(src_params, bulk_launch_uuid=None):
+def create_bdtopo_full_import_tasks() -> list:
+
+    tasks = []
+
+    bulk_launch_uuid = uuid.uuid4()
+
+    for dpt in dpts_list():
+
+        dpt_tasks = create_bdtopo_dpt_import_tasks(dpt, bulk_launch_uuid)
+        tasks.extend(dpt_tasks)
+
+    return tasks
+
+
+def create_bdtopo_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
+
+    tasks = []
+
+    most_recent_date = bdtopo_release_before()
+    src_params = bdtopo_src_params(dpt, most_recent_date)
+
+    dl_task = Signature(
+        "batid.tasks.dl_source",
+        args=["bdtopo", src_params],
+        immutable=True,
+    )
+    tasks.append(dl_task)
+
+    convert_task = Signature(
+        "batid.tasks.convert_bdtopo",
+        args=[src_params, bulk_launch_id],
+        immutable=True,
+    )
+    tasks.append(convert_task)
+
+    return tasks
+
+
+def dpt_bdtopo_to_candidates(src_params, bulk_launch_uuid=None):
 
     src = Source("bdtopo")
     src.set_params(src_params)
@@ -44,12 +84,7 @@ def import_bdtopo(src_params, bulk_launch_uuid=None):
                 continue
 
             if _known_bdtopo_id(feature["properties"]["ID"]):
-                print(f"Building {feature['properties']['ID']} already known")
                 continue
-
-            print(
-                f"Building {feature['properties']['ID']} not known - we add candidate"
-            )
 
             candidate = _transform_bdtopo_feature(feature, srid)
             candidate = _add_import_info(candidate, building_import)
@@ -138,25 +173,6 @@ def feature_to_wkt(feature, from_srid):
         geom = fix_nested_shells(geom)
 
     return geom.wkt
-
-
-def create_tasks_list(dpt, bulk_launch_uuid=None):
-
-    most_recent_date = bdtopo_release_before()
-    src_params = bdtopo_src_params(dpt, most_recent_date)
-
-    tasks = []
-    tasks.append(
-        Signature("batid.tasks.dl_source", args=["bdtopo", src_params], immutable=True)
-    )
-    tasks.append(
-        Signature(
-            "batid.tasks.import_bdtopo",
-            args=[src_params, bulk_launch_uuid],
-            immutable=True,
-        )
-    )
-    return tasks
 
 
 def bdtopo_src_params(dpt: str, date: str) -> dict:
