@@ -209,6 +209,9 @@ def bdtopo_release_before(before: date = None) -> str:
 
 def _bdtopo_release_dates() -> list:
 
+    # Those are official IGN **internal** release dates.
+    # They are made public 3 to 4 weeks later to the public. This delay is not fixed and can vary.
+
     return [
         #
         "2024-03-15",
