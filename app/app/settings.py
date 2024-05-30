@@ -193,7 +193,13 @@ CELERY_BEAT_SCHEDULE = {
         # saturday at 7am
         "schedule": crontab(hour=7, minute=0, day_of_week=6),
     },
-    "import_bdtopo": {},
+    "import_full_bdtopo": {
+        "task": "import_full_bdtopo",
+        # 15 april, 15 july, 15 october, 15 january
+        "schedule": crontab(
+            minute=0, hour=0, day_of_month=15, month_of_year="1,4,7,10"
+        ),
+    },
 }
 
 
