@@ -8,8 +8,8 @@ from batid.services.candidate import Inspector
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
 from batid.services.imports.import_bdtopo import (
-    import_dpt_bdtopo as import_dpt_bdtopo_job,
-    full_recent_bdtopo_tasks,
+    create_bdtopo_full_import_tasks,
+    create_candidate_from_bdtopo,
 )
 from batid.services.imports.import_cities import import_etalab_cities
 from batid.services.imports.import_dgfip_ads import (
@@ -60,8 +60,8 @@ def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_dpt_bdtopo(src_params, bulk_launch_uuid=None):
-    import_dpt_bdtopo_job(src_params, bulk_launch_uuid)
+def convert_bdtopo(src_params, bulk_launch_uuid=None):
+    create_candidate_from_bdtopo(src_params, bulk_launch_uuid)
     return "done"
 
 
@@ -70,7 +70,7 @@ def queue_full_bdtopo_import():
 
     return "hello"
 
-    # tasks = full_bdtopo_tasks()
+    # tasks = create_bdtopo_full_import_tasks()
     # chain(*tasks)()
     # return f"Queued {len(tasks)} tasks"
 

@@ -13,10 +13,11 @@ from django.db import connection
 from django.db import transaction
 from celery import Signature
 
-from batid.management.commands.import_france import dpts_list
+
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import Candidate
+from batid.services.france import dpts_list
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
@@ -61,7 +62,7 @@ def create_bdtopo_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
     return tasks
 
 
-def dpt_bdtopo_to_candidates(src_params, bulk_launch_uuid=None):
+def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
 
     src = Source("bdtopo")
     src.set_params(src_params)
