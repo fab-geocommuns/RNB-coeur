@@ -72,11 +72,14 @@ def convert_bdtopo(src_params, bulk_launch_uuid=None):
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 @notify_if_error
-def queue_full_bdtopo_import():
+def queue_full_bdtopo_import(dpts=None):
 
     notify_tech(f"Queuing full BDTopo import tasks")
 
-    tasks = create_bdtopo_full_import_tasks()
+    if dpts:
+        dpts = dpts.split("-")
+
+    tasks = create_bdtopo_full_import_tasks(dpts)
 
     chain(*tasks)()
     return f"Queued {len(tasks)} tasks"
@@ -101,8 +104,6 @@ def import_dpts():
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def inspect_candidates():
-    print("---- Inspecting candidates ----")
-
     i = Inspector()
     i.inspect()
 
@@ -154,3 +155,12 @@ def populate_addresses_id_field():
 
     launch_procedure()
     return "done"
+
+
+@shared_task
+def dummy_task():
+    # wait for 10 seconds
+    import time
+
+    time.sleep(100)
+    print("Dummy task executed")

@@ -1,5 +1,7 @@
+import os
 from datetime import datetime
 from datetime import timezone
+from celery import Signature
 from typing import Literal
 
 from django.conf import settings
@@ -313,3 +315,12 @@ def new_bdg_from_candidate(c: Candidate) -> Building:
     b.addresses_id = c.address_keys
 
     return b
+
+
+def create_inspection_tasks() -> list:
+
+    tasks = []
+    for _ in range(os.cpu_count()):
+        tasks.append(Signature("batid.tasks.inspect_candidates", immutable=True))
+
+    return tasks

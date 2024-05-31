@@ -11,12 +11,12 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import WKTWriter
 from django.db import connection
 from django.db import transaction
-from celery import Signature
-
+from celery import Signature, group
 
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import Candidate
+from batid.services.candidate import create_inspection_tasks
 from batid.services.france import dpts_list
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
@@ -24,13 +24,16 @@ from batid.services.source import Source
 from batid.utils.geo import fix_nested_shells
 
 
-def create_bdtopo_full_import_tasks() -> list:
+def create_bdtopo_full_import_tasks(dpt_list=None) -> list:
 
     tasks = []
 
     bulk_launch_uuid = uuid.uuid4()
 
-    for dpt in dpts_list():
+    if not dpt_list:
+        dpt_list = dpts_list()
+
+    for dpt in dpt_list:
 
         dpt_tasks = create_bdtopo_dpt_import_tasks(dpt, bulk_launch_uuid)
         tasks.extend(dpt_tasks)
@@ -58,6 +61,10 @@ def create_bdtopo_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
         immutable=True,
     )
     tasks.append(convert_task)
+
+    inspect_tasks = create_inspection_tasks()
+    inspect_group = group(*inspect_tasks)
+    tasks.append(inspect_group)
 
     return tasks
 
