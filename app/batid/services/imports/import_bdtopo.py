@@ -2,16 +2,18 @@ import json
 import os
 import random
 import uuid
-from datetime import datetime, date
+from datetime import date
+from datetime import datetime
 from datetime import timezone
 
 import fiona
 import psycopg2
+from celery import group
+from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import WKTWriter
 from django.db import connection
 from django.db import transaction
-from celery import Signature, group
 
 from batid.models import Building
 from batid.models import BuildingImport

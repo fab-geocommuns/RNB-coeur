@@ -1,6 +1,7 @@
-import os
-import requests
 import json
+import os
+
+import requests
 
 
 def notify_tech(msg):

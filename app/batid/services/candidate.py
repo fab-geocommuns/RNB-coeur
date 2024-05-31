@@ -1,9 +1,9 @@
 import os
 from datetime import datetime
 from datetime import timezone
-from celery import Signature
 from typing import Literal
 
+from celery import Signature
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection

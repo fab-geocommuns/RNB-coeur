@@ -1,11 +1,11 @@
 from unittest.mock import patch
 
 from django.test import TestCase
+
 from batid.services.mattermost import notify_if_error
 
 
 class Decorator(TestCase):
-
     def test_function_without_error(self):
         """
         Test that the decorated function returns the correct output without error.

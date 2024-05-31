@@ -7,15 +7,16 @@ from django.core.management.base import BaseCommand
 from batid.management.commands.import_bdnb_dpt import (
     create_tasks_list as create_tasks_list_bdnb_dpt,
 )
-from batid.services.france import dpt_list_metropole, dpts_list
-from batid.services.imports.import_bdtopo import (
-    create_bdtopo_full_import_tasks,
-)
 from batid.management.commands.import_cities_dpt import (
     create_tasks_list as create_tasks_list_cities_dpt,
 )
 from batid.management.commands.import_plots_dpt import (
     create_tasks_list as create_tasks_list_plots_dpt,
+)
+from batid.services.france import dpt_list_metropole
+from batid.services.france import dpts_list
+from batid.services.imports.import_bdtopo import (
+    create_bdtopo_full_import_tasks,
 )
 
 
