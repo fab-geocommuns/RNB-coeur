@@ -8,6 +8,8 @@ from datetime import timezone
 import boto3
 import requests
 
+from batid.services.mattermost import notify_tech
+
 
 # main function to be called by the cron job
 def backup_to_s3(task_id=None):
@@ -22,31 +24,15 @@ def backup_to_s3(task_id=None):
 
 
 def notify_mattermost_error(error, task_id):
-    MATTERMOST_RNB_TECH_WEBHOOK_URL = os.environ.get("MATTERMOST_RNB_TECH_WEBHOOK_URL")
 
-    data = {
-        "username": "backup-bot",
-        "text": f"Une erreur est survenue lors de la création d'un backup de la base de production du RNB : {error}. Task ID : {task_id}",
-    }
-
-    r = requests.post(MATTERMOST_RNB_TECH_WEBHOOK_URL, data=json.dumps(data))
-
-    if r.status_code != 200:
-        raise Exception("Error while sending the mattermost notification")
+    msg = f"Une erreur est survenue lors de la création d'un backup de la base de production du RNB : {error}. Task ID : {task_id}"
+    notify_tech(msg)
 
 
 def notify_mattermost(backup_name):
-    MATTERMOST_RNB_TECH_WEBHOOK_URL = os.environ.get("MATTERMOST_RNB_TECH_WEBHOOK_URL")
 
-    data = {
-        "username": "backup-bot",
-        "text": f"Un nouveau backup de la base de production du RNB a été créé chez OVH : {backup_name}.",
-    }
-
-    r = requests.post(MATTERMOST_RNB_TECH_WEBHOOK_URL, data=json.dumps(data))
-
-    if r.status_code != 200:
-        raise Exception("Error while sending the mattermost notification")
+    msg = f"Un nouveau backup de la base de production du RNB a été créé chez OVH : {backup_name}."
+    notify_tech(msg)
 
 
 def scaleway_headers():
