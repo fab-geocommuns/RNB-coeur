@@ -2,9 +2,13 @@ import json
 import os
 
 import requests
+from django.conf import settings
 
 
 def notify_tech(msg):
+
+    if not _notifications_are_active():
+        return
 
     MATTERMOST_RNB_TECH_WEBHOOK_URL = os.environ.get("MATTERMOST_RNB_TECH_WEBHOOK_URL")
 
@@ -31,3 +35,7 @@ def notify_if_error(func):
             raise e
 
     return wrapper
+
+
+def _notifications_are_active() -> bool:
+    return settings.MATTERMOST_NOTIFICATIONS
