@@ -19,6 +19,7 @@ from batid.services.imports.import_dpt import import_etalab_dpts
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
 )
+from batid.services.mattermost import notify_if_error, notify_tech
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.signal import AsyncSignalDispatcher
 from batid.services.source import Source
@@ -60,13 +61,20 @@ def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@notify_if_error
 def convert_bdtopo(src_params, bulk_launch_uuid=None):
+
+    notify_tech(f"Starting BDTopo conversion to candidates : {src_params}")
+
     create_candidate_from_bdtopo(src_params, bulk_launch_uuid)
     return "done"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@notify_if_error
 def queue_full_bdtopo_import():
+
+    notify_tech(f"Queuing full BDTopo import tasks")
 
     tasks = create_bdtopo_full_import_tasks()
 
