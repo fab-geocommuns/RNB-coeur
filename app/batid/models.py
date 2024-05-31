@@ -53,7 +53,6 @@ class BuildingAbstract(models.Model):
         ],
         max_length=10,
         null=True,
-        db_index=True,
     )
     # the user at the origin of the event
     event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
@@ -149,6 +148,7 @@ class Building(BuildingAbstract):
             GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
             models.Index(fields=("status",), name="bdg_status_idx"),
             GinIndex(fields=("ext_ids",), name="bdg_ext_ids_idx"),
+            models.Index(fields=("event_type",), name="bdg_event_type_idx"),
             GistIndex(fields=["sys_period"], name="bdg_sys_period_idx"),
         ]
 
@@ -181,6 +181,7 @@ class BuildingHistoryOnly(BuildingAbstract):
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_history_event_origin_idx"),
             models.Index(fields=("status",), name="bdg_history_status_idx"),
+            models.Index(fields=("event_type",), name="bdg_history_event_type_idx"),
             GistIndex(fields=["sys_period"], name="bdg_history_sys_period_idx"),
         ]
 
