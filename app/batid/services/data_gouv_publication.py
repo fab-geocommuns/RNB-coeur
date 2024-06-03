@@ -11,73 +11,54 @@ import requests
 from django.db import connection
 
 
-def publish():
+def publish(areas_list):
     # Publish the RNB on data.gouv.fr
-    directory_name = create_directory()
+    print(str(len(areas_list)) + " area(s) to process...")
 
-    try:
-        create_rnb_csv_files(directory_name)
-        (archive_path, archive_size, archive_sha1) = create_archive(directory_name)
-        public_url = upload_to_s3(archive_path)
-        publish_on_data_gouv(public_url, archive_size, archive_sha1)
-        return True
-    except Exception as e:
-        logging.error(f"Error while publishing the RNB on data.gouv.fr: {e}")
-        return False
-    finally:
-        # we always cleanup the directory, no matter what happens
-        cleanup_directory(directory_name)
+    for area in areas_list:
+        try:
+            directory_name = create_directory(area)
+            print(f"Processing area: {area}")
+            create_csv(directory_name, area)
+            (archive_path, archive_size, archive_sha1) = create_archive(
+                directory_name, area
+            )
+
+            public_url = upload_to_s3(archive_path)
+            publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
+            cleanup_directory(directory_name)
+        except Exception as e:
+            logging.error(
+                f"Error while publishing the RNB for area {area} on data.gouv.fr: {e}"
+            )
+            return False
+        finally:
+            # we always cleanup the directory, no matter what happens
+            cleanup_directory(directory_name)
+    return True
 
 
-def create_directory():
+def create_directory(area):
     directory_name = (
-        f'datagouvfr_publication_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
+        f'datagouvfr_publication_{area}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
     )
     os.mkdir(directory_name)
     return directory_name
 
 
-def create_rnb_csv_files(directory_name):
-    create_building_csv(directory_name)
-    create_building_address_csv(directory_name)
-    create_address_csv(directory_name)
-
-    return True
+# Return the global path of a file WITHOUT the extension
+def file_path(directory_name, code_area):
+    return directory_name + "/RNB_" + str(code_area)
 
 
-def create_building_csv(directory_name):
+def create_csv(directory_name, code_area):
     with connection.cursor() as cursor:
-        sql = """
-            COPY (
-                select "id","rnb_id",ST_AsText("point") as point,"created_at","updated_at",ST_AsText("shape") as shape,"ext_ids" from batid_building
-            ) TO STDOUT WITH CSV HEADER
-        """
+        if code_area == "nat":
+            sql = "COPY (SELECT rnb_id, point, shape, status, ext_ids, addresses, code_dept FROM opendata.data_gouv_publication) TO STDOUT WITH CSV HEADER DELIMITER ';'"
+        else:
+            sql = f"COPY (SELECT rnb_id, point, shape, status, ext_ids, addresses FROM opendata.data_gouv_publication WHERE code_dept = '{code_area}') TO STDOUT WITH CSV HEADER DELIMITER ';'"
 
-        with open(f"{directory_name}/rnb_building.csv", "w") as fp:
-            cursor.copy_expert(sql, fp)
-
-
-def create_building_address_csv(directory_name):
-    with connection.cursor() as cursor:
-        sql = """
-            COPY (
-                select "building_id", "address_id" from batid_building_addresses bba
-            ) TO STDOUT WITH CSV HEADER
-        """
-
-        with open(f"{directory_name}/rnb_building_address.csv", "w") as fp:
-            cursor.copy_expert(sql, fp)
-
-
-def create_address_csv(directory_name):
-    with connection.cursor() as cursor:
-        sql = """
-            COPY (
-                select "id","source","street_number","street_rep","street_name","street_type","city_name","city_zipcode","created_at","updated_at","point","city_insee_code" from batid_address ba
-            ) TO STDOUT WITH CSV HEADER
-        """
-
-        with open(f"{directory_name}/rnb_address.csv", "w") as fp:
+        with open(f"{file_path(directory_name, code_area)}.csv", "w") as fp:
             cursor.copy_expert(sql, fp)
 
 
@@ -91,13 +72,12 @@ def sha1sum(filename):
     return h.hexdigest()
 
 
-def create_archive(directory_name):
+def create_archive(directory_name, code_area):
     files = os.listdir(directory_name)
-    archive_path = f"{directory_name}/RNB_{directory_name}.zip"
+    archive_path = f"{file_path(directory_name, code_area)}.csv.zip"
 
     with ZipFile(archive_path, "w", ZIP_DEFLATED) as zip:
-        for file in files:
-            zip.write(f"{directory_name}/{file}")
+        zip.write(f"{file_path(directory_name, code_area)}.csv", f"RNB_{code_area}.csv")
 
     archive_size = os.path.getsize(archive_path)
 
@@ -116,6 +96,7 @@ def upload_to_s3(archive_path):
     S3_SCALEWAY_ENDPOINT_URL = os.environ.get("S3_SCALEWAY_ENDPOINT_URL")
     S3_SCALEWAY_REGION_NAME = os.environ.get("S3_SCALEWAY_REGION_NAME")
     S3_SCALEWAY_BUCKET_NAME = os.environ.get("S3_SCALEWAY_BUCKET_NAME")
+    S3_SCALEWAY_OPENDATA_DIRECTORY = os.environ.get("S3_SCALEWAY_OPENDATA_DIRECTORY")
 
     s3 = boto3.client(
         "s3",
@@ -126,14 +107,13 @@ def upload_to_s3(archive_path):
     )
     # extract file name from archive path
     archive_name = os.path.basename(archive_path)
-    folder_on_bucket = "data.gouv.fr"
-    path_on_bucket = f"{folder_on_bucket}/{archive_name}"
+    path_on_bucket = f"{S3_SCALEWAY_OPENDATA_DIRECTORY}/{archive_name}"
 
     # Scaleway S3's maximum number of parts for multipart upload
     MAX_PARTS = 1000
     # compute the corresponding part size
     archive_size = os.path.getsize(archive_path)
-    part_size = int(archive_size * 1.2 / MAX_PARTS)
+    part_size = max(1, int(archive_size * 1.2 / MAX_PARTS))
     config = boto3.s3.transfer.TransferConfig(multipart_chunksize=part_size)
 
     s3.upload_file(
@@ -152,17 +132,80 @@ def upload_to_s3(archive_path):
     return public_url
 
 
-def publish_on_data_gouv(public_url, archive_size, archive_sha1):
+def publish_on_data_gouv(area, public_url, archive_size, archive_sha1, format="zip"):
     # publish the archive on data.gouv.fr
     dataset_id = os.environ.get("DATA_GOUV_DATASET_ID")
-    resource_id = data_gouv_resource_id(dataset_id)
-    update_resource_metadata(
-        dataset_id, resource_id, public_url, archive_size, archive_sha1
-    )
+    resource_id = data_gouv_resource_id(dataset_id, area)
+
+    if area == "nat":
+        title = "Export National"
+        description = (
+            "Export du RNB au format csv pour l’ensemble du territoire français."
+        )
+    else:
+        title = f"Export Départemental {area}"
+        description = f"Export du RNB au format csv pour le département {area}."
+
+    # ressource already exists
+    if resource_id is not None:
+        update_resource_metadata(
+            dataset_id,
+            resource_id,
+            title,
+            description,
+            public_url,
+            archive_size,
+            archive_sha1,
+            format,
+        )
+    # ressource don't exist
+    else:
+        data_gouv_create_resource(
+            dataset_id,
+            title,
+            description,
+            public_url,
+            archive_size,
+            archive_sha1,
+            format,
+        )
+
     return True
 
 
-def data_gouv_resource_id(dataset_id):
+def data_gouv_create_resource(
+    dataset_id, title, description, public_url, archive_size, archive_sha1, format="zip"
+):
+    DATA_GOUV_BASE_URL = os.environ.get("DATA_GOUV_BASE_URL")
+    dataset_url = f"{DATA_GOUV_BASE_URL}/api/1/datasets/{dataset_id}/resources/"
+    headers = {
+        "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
+        "Content-Type": "application/json",
+    }
+
+    response = requests.post(
+        dataset_url,
+        headers=headers,
+        json={
+            "title": title,
+            "description": description,
+            "type": "main",
+            "url": public_url,
+            "filetype": "remote",
+            "format": format,
+            "filesize": archive_size,
+            "checksum": {"type": "sha1", "value": archive_sha1},
+            "created_at": str(datetime.now()),
+        },
+    )
+
+    if response.status_code != 201:
+        raise Exception("Error while creating the resource")
+
+    return True
+
+
+def data_gouv_resource_id(dataset_id, area):
     # get the resource id from data.gouv.fr
     DATA_GOUV_BASE_URL = os.environ.get("DATA_GOUV_BASE_URL")
     dataset_url = f"{DATA_GOUV_BASE_URL}/api/1/datasets/{dataset_id}/"
@@ -175,28 +218,50 @@ def data_gouv_resource_id(dataset_id):
         res = response.json()
         resources = res["resources"]
         for resource in resources:
-            if resource["format"] == "zip":
+            if resource["format"] == "zip" and (
+                (area == "nat" and resource["title"] == "Export National")
+                or (
+                    area != "nat"
+                    and resource["title"] == f"Export Départemental {area}"
+                )
+            ):
                 return resource["id"]
-        raise Exception("No zip resource found on the dataset")
+        return None
 
 
 def update_resource_metadata(
-    dataset_id, resource_id, public_url, archive_size, archive_sha1
+    dataset_id,
+    resource_id,
+    title,
+    description,
+    public_url,
+    archive_size,
+    archive_sha1,
+    format=zip,
 ):
     # update the resource url on data.gouv.fr
     DATA_GOUV_BASE_URL = os.environ.get("DATA_GOUV_BASE_URL")
     update_url = (
         f"{DATA_GOUV_BASE_URL}/api/1/datasets/{dataset_id}/resources/{resource_id}/"
     )
-    headers = {"X-API-KEY": os.environ.get("DATA_GOUV_API_KEY")}
+    headers = {
+        "X-API-KEY": os.environ.get("DATA_GOUV_API_KEY"),
+        "Content-Type": "application/json",
+    }
 
     response = requests.put(
         update_url,
         headers=headers,
         json={
+            "title": title,
+            "description": description,
+            "type": "main",
             "url": public_url,
+            "filetype": "remote",
+            "format": format,
             "filesize": archive_size,
             "checksum": {"type": "sha1", "value": archive_sha1},
+            "last_modified": str(datetime.now()),
         },
     )
 
