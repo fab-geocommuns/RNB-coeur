@@ -162,7 +162,6 @@ class TestDataGouvPublication(TestCase):
         building.addresses.add(address_Montreuil)
         building.save()
 
-        directory_name = create_directory()
         area = "75"
         directory_name = create_directory(area)
 
