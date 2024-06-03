@@ -39,6 +39,7 @@ def get_geom_paris():
 
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
+
 # Polygone dans Montreuil
 def get_geom_montreuil():
     coords = {
@@ -55,6 +56,7 @@ def get_geom_montreuil():
     }
 
     return GEOSGeometry(json.dumps(coords), srid=4326)
+
 
 # bbox sur Paris
 def get_department_75_geom():
@@ -74,6 +76,7 @@ def get_department_75_geom():
     }
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
+
 # bbox sur Est de Paris
 def get_department_93_geom():
     coords = {
@@ -92,6 +95,7 @@ def get_department_93_geom():
     }
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
+
 def get_resources():
     json = {
         "resources": [
@@ -108,11 +112,15 @@ class TestDataGouvPublication(TestCase):
     def test_archive_creation_deletion(self):
         geom_bdg_paris = get_geom_paris()
         department_75 = Department.objects.create(
-            code="75", name="Paris", shape=get_department_75_geom(),
+            code="75",
+            name="Paris",
+            shape=get_department_75_geom(),
         )
         geom_bdg_montreuil = get_geom_montreuil()
         department_93 = Department.objects.create(
-            code="93", name="Est", shape=get_department_93_geom(),
+            code="93",
+            name="Est",
+            shape=get_department_93_geom(),
         )
         address_Paris = Address.objects.create(
             id="75105_8884_00004",
