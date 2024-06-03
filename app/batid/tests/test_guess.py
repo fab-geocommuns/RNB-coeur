@@ -1,15 +1,20 @@
+import csv
 import json
 import os
+from io import StringIO
 from unittest.mock import patch
 
 from django.contrib.gis.geos import Point
 from django.test import TransactionTestCase
+from requests import Response
 
 from batid.models import Address
 from batid.models import Building
 from batid.services.guess_bdg_new import ClosestFromPointHandler
+from batid.services.guess_bdg_new import GeocodeAddressHandler
 from batid.services.guess_bdg_new import Guesser
 from batid.services.guess_bdg_new import PartialRoofHandler
+from batid.tests.helpers import create_default_bdg
 from batid.tests.helpers import create_from_geojson
 
 
@@ -140,6 +145,7 @@ class TestGuesser(TransactionTestCase):
         guesser.create_work_file(inputs, self.WORK_FILE)
 
     def test_work_file_creation(self):
+
         # Verify the file has been created during the setup
         self.assertTrue(os.path.exists(self.WORK_FILE))
 
@@ -156,7 +162,7 @@ class TestGuesser(TransactionTestCase):
                         "name": "Random urban place",
                         "address": "75 Rue Malbec, 33800 Bordeaux",
                     },
-                    "matches": [],
+                    "matches": "",
                     "match_reason": None,
                     "finished_steps": [],
                 },
@@ -168,7 +174,7 @@ class TestGuesser(TransactionTestCase):
                         "name": "Random rural place",
                         "address": "5 Rue des Deux Fermés, 02210 Beugneux",
                     },
-                    "matches": [],
+                    "matches": "",
                     "match_reason": None,
                     "finished_steps": [],
                 },
@@ -227,13 +233,13 @@ class TestGuesser(TransactionTestCase):
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "point_on_bdg")
 
-    @patch("batid.services.guess_bdg_new.GeocodeAddressHandler._address_to_ban_id")
+    @patch("batid.services.geocoders.BanBatchGeocoder.geocode")
     @patch("batid.services.guess_bdg_new.GeocodeNameHandler._geocode_name_and_point")
-    def test_guess_from_address(
-        self, geocode_name_and_point_mock, address_to_ban_id_mock
-    ):
+    def test_guess_from_address(self, geocode_name_and_point_mock, geocode_mock):
         geocode_name_and_point_mock.return_value = None
-        address_to_ban_id_mock.return_value = "BAN_ID_ONE"
+        geocode_mock.return_value = _mock_guesser_batch_address_geocoding(
+            [{"ext_id": "UNIQUE_ROW", "result_id": "BAN_ID_ONE", "result_score": 0.9}]
+        )
 
         inputs = [
             {
@@ -640,3 +646,123 @@ class TestIsolatedMatching(PartialRoofTest):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].rnb_id, "WWEIRDSHAPEE")
         self.assertEqual(matches[0].distance.m, 0)
+
+
+class TestAddressGeocoding(TransactionTestCase):
+    def setUp(self):
+
+        Address.objects.create(id="BAN_ID_ONE")
+        Address.objects.create(id="BAN_ID_TWO")
+        Address.objects.create(id="BAN_ID_THREE")
+
+        b = create_default_bdg(rnb_id="BDG_ONE")
+        b.addresses_id = ["BAN_ID_ONE"]
+        b.save()
+
+        b = create_default_bdg(rnb_id="BDG_TWO")
+        b.addresses_id = ["BAN_ID_ONE", "BAN_ID_TWO"]
+        b.save()
+
+        b = create_default_bdg(rnb_id="BDG_THREE")
+
+    @patch("batid.services.geocoders.BanBatchGeocoder.geocode")
+    def test_find_bdgs(self, geocode_mock):
+
+        geocode_mock.return_value = _mock_guesser_batch_address_geocoding(
+            [{"ext_id": "line_1", "result_id": "BAN_ID_ONE"}]
+        )
+
+        guesser = Guesser()
+        guesser.handlers = [GeocodeAddressHandler()]
+
+        guesser.load_inputs(
+            [{"ext_id": "line_1", "address": "1 rue de la paix, 75001 Paris"}]
+        )
+
+        guesser.guess_all()
+
+        self.assertEqual(guesser.guesses["line_1"]["matches"][0].rnb_id, "BDG_ONE")
+        self.assertEqual(guesser.guesses["line_1"]["matches"][1].rnb_id, "BDG_TWO")
+
+    @patch("batid.services.geocoders.BanBatchGeocoder.geocode")
+    def test_low_score(self, geocode_mock):
+        geocode_mock.return_value = _mock_guesser_batch_address_geocoding(
+            [{"ext_id": "line_1", "result_id": "BAN_ID_ONE", "result_score": 0.1}]
+        )
+
+        guesser = Guesser()
+        guesser.handlers = [GeocodeAddressHandler()]
+
+        guesser.load_inputs(
+            [{"ext_id": "line_1", "address": "1 rue de la paix, 75001 Paris"}]
+        )
+
+        guesser.guess_all()
+
+        self.assertEqual(len(guesser.guesses["line_1"]["matches"]), 0)
+
+    @patch("batid.services.geocoders.BanBatchGeocoder.geocode")
+    def test_street_type(self, geocode_mock):
+        geocode_mock.return_value = _mock_guesser_batch_address_geocoding(
+            [
+                {
+                    "ext_id": "line_1",
+                    "result_id": "BAN_ID_ONE",
+                    "result_type": "street",
+                }
+            ]
+        )
+
+        guesser = Guesser()
+        guesser.handlers = [GeocodeAddressHandler()]
+
+        guesser.load_inputs(
+            [{"ext_id": "line_1", "address": "Rue de la paix, 75001 Paris"}]
+        )
+
+        guesser.guess_all()
+
+        self.assertEqual(len(guesser.guesses["line_1"]["matches"]), 0)
+
+    @patch("batid.services.geocoders.BanBatchGeocoder.geocode")
+    def test_no_bdg_w_ban_id(self, geocode_mock):
+        geocode_mock.return_value = _mock_guesser_batch_address_geocoding(
+            [{"ext_id": "line_1", "result_id": "BAN_ID_XXX", "result_score": 0.9}]
+        )
+
+        guesser = Guesser()
+        guesser.handlers = [GeocodeAddressHandler()]
+
+        guesser.load_inputs(
+            [{"ext_id": "line_1", "address": "42 rue de la réponse, 75001 Paris"}]
+        )
+
+        guesser.guess_all()
+
+        self.assertEqual(len(guesser.guesses["line_1"]["matches"]), 0)
+
+
+def _mock_guesser_batch_address_geocoding(data):
+
+    for d in data:
+
+        if "result_type" not in d:
+            d["result_type"] = "housenumber"
+
+        if "result_id" not in d:
+            d["result_id"] = "dummy_ban_id"
+
+        if "result_score" not in d:
+            d["result_score"] = 0.9
+
+    r = Response()
+    r.status_code = 200
+
+    buffer = StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=data[0].keys())
+    writer.writeheader()
+    writer.writerows(data)
+
+    r._content = buffer.getvalue().encode()
+
+    return r
