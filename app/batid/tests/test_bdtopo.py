@@ -2,7 +2,8 @@ from datetime import date
 
 from django.test import TransactionTestCase
 
-from batid.services.imports.import_bdtopo import _known_bdtopo_id, bdtopo_release_before
+from batid.services.imports.import_bdtopo import _known_bdtopo_id
+from batid.services.imports.import_bdtopo import bdtopo_release_before
 from batid.tests.helpers import create_default_bdg
 
 

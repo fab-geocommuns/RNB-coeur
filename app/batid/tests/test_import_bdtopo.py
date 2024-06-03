@@ -8,10 +8,8 @@ from django.test import TransactionTestCase
 from batid.models import Building
 from batid.models import Candidate
 from batid.services.candidate import Inspector
-from batid.services.imports.import_bdtopo import (
-    create_candidate_from_bdtopo,
-    bdtopo_src_params,
-)
+from batid.services.imports.import_bdtopo import bdtopo_src_params
+from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
 from batid.tests import helpers
 from batid.tests.helpers import create_default_bdg
 
