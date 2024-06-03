@@ -23,15 +23,15 @@ from batid.services.data_gouv_publication import update_resource_metadata
 from batid.services.data_gouv_publication import upload_to_s3
 
 # Polygone dans Paris
-def get_geom():
+def get_geom_paris():
     coords = {
         "coordinates": [
             [
-                [2.335567506457323, 48.86527682329017],
-                [2.333737188147865, 48.863794276245784],
-                [2.335572829422773, 48.862958671187045],
-                [2.334026055739656, 48.862126337971404],
-                [2.335567506457323, 48.86527682329017],
+                [2.353721421744524, 48.83801408684721],
+                [2.3538278210596104, 48.83790774339977],
+                [2.353989390389472, 48.83797518073416],
+                [2.3538810207165, 48.83809708645475],
+                [2.353721421744524, 48.83801408684721],
             ]
         ],
         "type": "Polygon",
@@ -39,9 +39,25 @@ def get_geom():
 
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
+# Polygone dans Montreuil
+def get_geom_montreuil():
+    coords = {
+        "coordinates": [
+            [
+                [2.433562579127482, 48.858632940973195],
+                [2.4335441278550434, 48.85851518821599],
+                [2.433634539088416, 48.858507904531365],
+                [2.4336511452333127, 48.858625657305396],
+                [2.433562579127482, 48.858632940973195],
+            ]
+        ],
+        "type": "Polygon",
+    }
+
+    return GEOSGeometry(json.dumps(coords), srid=4326)
 
 # bbox sur Paris
-def get_department_geom():
+def get_department_75_geom():
     coords = {
         "coordinates": [
             [
@@ -58,6 +74,23 @@ def get_department_geom():
     }
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
+# bbox sur Est de Paris
+def get_department_93_geom():
+    coords = {
+        "coordinates": [
+            [
+                [
+                    [2.426210394796641, 48.90890218742271],
+                    [2.426210394796641, 48.84215900551669],
+                    [2.5026701757286105, 48.84215900551669],
+                    [2.5026701757286105, 48.90890218742271],
+                    [2.426210394796641, 48.90890218742271],
+                ]
+            ]
+        ],
+        "type": "MultiPolygon",
+    }
+    return GEOSGeometry(json.dumps(coords), srid=4326)
 
 def get_resources():
     json = {
@@ -73,25 +106,52 @@ def get_resources():
 
 class TestDataGouvPublication(TestCase):
     def test_archive_creation_deletion(self):
-        geom = get_geom()
-        department = Department.objects.create(
-            code="75", name="Paris", shape=get_department_geom()
+        geom_bdg_paris = get_geom_paris()
+        department_75 = Department.objects.create(
+            code="75", name="Paris", shape=get_department_75_geom(),
         )
-        address = Address.objects.create(
+        geom_bdg_montreuil = get_geom_montreuil()
+        department_93 = Department.objects.create(
+            code="93", name="Est", shape=get_department_93_geom(),
+        )
+        address_Paris = Address.objects.create(
+            id="75105_8884_00004",
             source="BAN",
-            point=geom.point_on_surface,
+            point=geom_bdg_paris.point_on_surface,
             street_number="4",
             street_name="rue scipion",
             city_name="Paris",
+            city_zipcode="75005",
         )
         building = Building.objects.create(
             rnb_id="BDG-CONSTR",
-            shape=geom,
-            point=geom.point_on_surface,
+            shape=geom_bdg_paris,
+            point=geom_bdg_paris.point_on_surface,
             status="constructed",
             ext_ids={"some_source": "1234"},
+            addresses_id=[address_Paris.id],
         )
-        building.addresses.add(address)
+        building.addresses.add(address_Paris)
+        building.save()
+
+        address_Montreuil = Address.objects.create(
+            id="93048_1450_00050",
+            source="BAN",
+            point=geom_bdg_montreuil.point_on_surface,
+            street_number="50",
+            street_name="boulevard de chanzy",
+            city_name="Montreuil",
+            city_zipcode="93100",
+        )
+        building = Building.objects.create(
+            rnb_id="BDG-2-CONSTR",
+            shape=geom_bdg_montreuil,
+            point=geom_bdg_montreuil.point_on_surface,
+            status="constructed",
+            ext_ids={"some_source": "987"},
+            addresses_id=[address_Paris.id],
+        )
+        building.addresses.add(address_Montreuil)
         building.save()
 
         directory_name = create_directory()
@@ -117,6 +177,10 @@ class TestDataGouvPublication(TestCase):
             self.assertIn("POINT", content)
             self.assertIn("constructed", content)
             self.assertIn("some_source", content)
+            self.assertIn("75005", content)
+            self.assertIn("scipion", content)
+            self.assertNotIn("93100", content)
+            self.assertNotIn("chanzy", content)
 
         (archive_path, archive_size, archive_sha1) = create_archive(
             directory_name, area
@@ -127,7 +191,6 @@ class TestDataGouvPublication(TestCase):
         self.assertEqual(archive_size, os.path.getsize(archive_path))
         # assert sha is not empty
         self.assertTrue(archive_sha1)
-
         cleanup_directory(directory_name)
 
         # check the directory has been removed
@@ -147,7 +210,7 @@ class TestDataGouvPublication(TestCase):
     )
     def test_upload_to_s3(self):
         # create the zip file to upload
-        geom = get_geom()
+        geom = get_geom_paris()
         Building.objects.create(
             rnb_id="BDG-CONSTR",
             shape=geom,
