@@ -4,6 +4,7 @@ import json
 import time
 from abc import ABC
 from abc import abstractmethod
+from io import StringIO
 from typing import Optional
 
 import pandas as pd
@@ -15,6 +16,7 @@ from django.db import connections
 from batid.models import Building
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.closest_bdg import get_closest_from_poly
+from batid.services.geocoders import BanBatchGeocoder
 from batid.services.geocoders import BanGeocoder
 from batid.services.geocoders import PhotonGeocoder
 
@@ -58,7 +60,7 @@ class Guesser:
             batch = self.guess_batch(batch)
             self.guesses.update(batch)
 
-    def _guesses_to_batches(self, batch_size: int = 100):
+    def _guesses_to_batches(self, batch_size: int = 1000):
         batches = []
         batch = {}
 
@@ -90,13 +92,20 @@ class Guesser:
         print(f"Number of match: {match_count} ({match_percentage:.2f}%)")
 
         # Display table of all march_reason values with their absolute count and their percentage
-
         match_reason_count = df["match_reason"].value_counts()
         match_reason_percentage = match_reason_count / total * 100
         print("\n-- match_reasons : absolute --")
         print(match_reason_count)
         print("\n-- match_reasons : % --")
         print(match_reason_percentage)
+
+        # About inputs
+        print("\n-- Inputs --")
+
+        # how many have an input_ban_id
+        ban_id_count = df["input_ban_id"].notnull().sum()
+        ban_id_percentage = ban_id_count / total * 100
+        print(f"rows with ban_id: {ban_id_count} ({ban_id_percentage:.2f}%)")
 
     def matched_sample(
         self,
@@ -123,6 +132,19 @@ class Guesser:
 
         print(unmatched.sample(sample_size))
 
+    def display_unmatched(self, count: int = 10):
+
+        data = list(self.guesses.values())
+
+        df = pd.json_normalize(data, sep="_")
+
+        # unmatched is where "matches" is empty or null
+        unmatched = df[
+            df["matches"].isnull() | df["matches"].apply(lambda x: len(x) == 0)
+        ]
+
+        print(unmatched.sample(count))
+
     def save_work_file(self, file_path):
         self.convert_matches()
 
@@ -131,7 +153,7 @@ class Guesser:
 
     def convert_matches(self):
         for ext_id, guess in self.guesses.items():
-            if guess["matches"] and not isinstance(guess["matches"], str):
+            if not isinstance(guess["matches"], str):
                 rnb_ids = []
 
                 for idx, match in enumerate(guess["matches"]):
@@ -155,25 +177,20 @@ class Guesser:
         rows = []
         for ext_id, guess in self.guesses.items():
 
-            rnb_id = None
-            reason = None
-
-            match = guess.get("match", None)
-            if match:
-                rnb_id = match.get("rnb_id", None)
-                reason = guess.get("match_reason", None)
+            matches = guess.get("matches", None)
+            reason = guess.get("match_reason", None)
 
             rows.append(
                 {
                     ext_id_col_name: ext_id,
-                    "rnb_id": rnb_id,
+                    "rnb_ids": matches,
                     "match_reason": reason,
                 }
             )
 
         with open(file_path, "w") as f:
             writer = csv.DictWriter(
-                f, fieldnames=[ext_id_col_name, "rnb_id", "match_reason"]
+                f, fieldnames=[ext_id_col_name, "rnb_ids", "match_reason"]
             )
             writer.writeheader()
             writer.writerows(rows)
@@ -341,11 +358,13 @@ class ClosestFromPointHandler(AbstractHandler):
 class GeocodeAddressHandler(AbstractHandler):
     _name = "geocode_address"
 
-    def __init__(self, sleep_time=0.8, closest_radius=100):
-        self.sleep_time = sleep_time
+    def __init__(self, closest_radius=100, min_score=0.8):
         self.closest_radius = closest_radius
+        self.min_score = min_score
 
     def _guess_batch(self, guesses: dict) -> dict:
+
+        guesses = self._geocode_batch(guesses)
 
         for guess in guesses.values():
             guess = self._guess_one(guess)
@@ -356,30 +375,63 @@ class GeocodeAddressHandler(AbstractHandler):
     def _guess_one(self, guess: dict) -> dict:
         lat = guess["input"].get("lat", None)
         lng = guess["input"].get("lng", None)
-        address = guess["input"].get("address", None)
+        ban_id = guess["input"].get("ban_id", None)
 
-        if not address or not lat or not lng:
+        if not ban_id:
             return guess
 
-        # We sleep a little bit to avoid being throttled by the geocoder
-        time.sleep(self.sleep_time)
+        if lat and lng:
+            qs = get_closest_from_point(lat, lng, self.closest_radius)
+        else:
+            qs = Building.objects.all()
 
-        # If we already have a ban_id, we don't need to geocode again
-        if not guess["input"].get("ban_id", None):
-            ban_id = self._address_to_ban_id(address, lat, lng)
-            if ban_id:
-                guess["input"]["ban_id"] = ban_id
+        bdgs = qs.filter(addresses_id__contains=[ban_id])
 
-        if guess["input"].get("ban_id", None):
-            close_bdg_w_ban_id = get_closest_from_point(
-                lat, lng, self.closest_radius
-            ).filter(addresses_id__contains=[ban_id])
-
-            if close_bdg_w_ban_id.count() == 1:
-                guess["matches"].append(close_bdg_w_ban_id.first())
-                guess["match_reason"] = "precise_address_match"
+        if bdgs.count() > 0:
+            guess["matches"] = bdgs
+            guess["match_reason"] = "precise_address_match"
 
         return guess
+
+    def _geocode_batch(self, guesses: dict) -> dict:
+
+        # Format addresses for geocoding
+        addresses = []
+        for ext_id, guess in guesses.items():
+            address = guess["input"].get("address", None)
+            if address:
+                addresses.append(
+                    {
+                        "ext_id": ext_id,
+                        "address": address,
+                    }
+                )
+
+        # Geocode addresses in batch
+        if addresses:
+            geocoder = BanBatchGeocoder()
+            response = geocoder.geocode(
+                addresses,
+                columns=["address"],
+                result_columns=["result_type", "result_id", "result_score"],
+            )
+            if response.status_code != 200:
+                raise Exception(f"Error while geocoding addresses : {response.text}")
+
+            # Parse the response
+
+            csv_file = StringIO(response.text)
+            reader = csv.DictReader(csv_file)
+
+            for row in reader:
+
+                if (
+                    row["result_type"] == "housenumber"
+                    and float(row["result_score"]) >= self.min_score
+                ):
+                    guesses[row["ext_id"]]["input"]["ban_id"] = row["result_id"]
+
+        return guesses
 
     @staticmethod
     def _address_to_ban_id(address: str, lat: float, lng: float) -> Optional[str]:
@@ -413,6 +465,7 @@ class GeocodeNameHandler(AbstractHandler):
         self.sleep_time = sleep_time
 
     def _guess_batch(self, guesses: dict) -> dict:
+
         for guess in guesses.values():
             guess = self._guess_one(guess)
             guesses[guess["input"]["ext_id"]] = guess

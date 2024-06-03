@@ -10,8 +10,10 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--strate", type=str, default="department",
-            choices=['country', 'department']
+            "--strate",
+            type=str,
+            default="department",
+            choices=["country", "department"],
         )
 
     def handle(self, *args, **options):
