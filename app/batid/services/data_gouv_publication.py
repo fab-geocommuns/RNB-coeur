@@ -13,35 +13,34 @@ from django.db import connection
 
 def publish(areas_list):
     # Publish the RNB on data.gouv.fr
-    directory_name = create_directory()
     print(str(len(areas_list)) + " area(s) to process...")
 
-    try:
-        for area in areas_list:
+    for area in areas_list:
+        try:
+            directory_name = create_directory(area)
             print(f"Processing area: {area}")
             create_csv(directory_name, area)
             (archive_path, archive_size, archive_sha1) = create_archive(
                 directory_name, area
             )
-            # Delete file after archiving
-            os.remove(f"{file_path(directory_name, area)}.csv")
 
             public_url = upload_to_s3(archive_path)
             publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
-            # Delete archive after pushed on S3
-            os.remove(archive_path)
-    except Exception as e:
-        logging.error(f"Error while publishing the RNB on data.gouv.fr: {e}")
-        return False
-    finally:
-        # we always cleanup the directory, no matter what happens
-        cleanup_directory(directory_name)
+            cleanup_directory(directory_name)
+        except Exception as e:
+            logging.error(
+                f"Error while publishing the RNB for area {area} on data.gouv.fr: {e}"
+            )
+            return False
+        finally:
+            # we always cleanup the directory, no matter what happens
+            cleanup_directory(directory_name)
     return True
 
 
-def create_directory():
+def create_directory(area):
     directory_name = (
-        f'datagouvfr_publication_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
+        f'datagouvfr_publication_{area}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
     )
     os.mkdir(directory_name)
     return directory_name

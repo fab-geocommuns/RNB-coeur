@@ -111,13 +111,13 @@ def get_resources():
 class TestDataGouvPublication(TestCase):
     def test_archive_creation_deletion(self):
         geom_bdg_paris = get_geom_paris()
-        department_75 = Department.objects.create(
+        Department.objects.create(
             code="75",
             name="Paris",
             shape=get_department_75_geom(),
         )
         geom_bdg_montreuil = get_geom_montreuil()
-        department_93 = Department.objects.create(
+        Department.objects.create(
             code="93",
             name="Est",
             shape=get_department_93_geom(),
@@ -164,6 +164,8 @@ class TestDataGouvPublication(TestCase):
 
         directory_name = create_directory()
         area = "75"
+        directory_name = create_directory(area)
+
         create_csv(directory_name, area)
 
         # Check if the directory exists
@@ -225,8 +227,9 @@ class TestDataGouvPublication(TestCase):
             point=geom.point_on_surface,
             ext_ids={"some_source": "1234"},
         )
-        directory_name = create_directory()
         area = "nat"
+        directory_name = create_directory(area)
+
         create_csv(directory_name, area)
 
         (archive_path, archive_size, archive_sha1) = create_archive(
