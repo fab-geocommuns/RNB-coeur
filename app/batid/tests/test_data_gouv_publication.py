@@ -88,6 +88,7 @@ class TestDataGouvPublication(TestCase):
             rnb_id="BDG-CONSTR",
             shape=geom,
             point=geom.point_on_surface,
+            status="constructed",
             ext_ids={"some_source": "1234"},
         )
         building.addresses.add(address)
@@ -108,12 +109,13 @@ class TestDataGouvPublication(TestCase):
         with open(f"{directory_name}/RNB_{area}.csv", "r") as f:
             content = f.read()
             self.assertIn(
-                "rnb_id;point;shape;ext_ids;addresses",
+                "rnb_id;point;shape;status;ext_ids;addresses",
                 content,
             )
             self.assertIn("BDG-CONSTR", content)
             self.assertIn("POLYGON", content)
             self.assertIn("POINT", content)
+            self.assertIn("constructed", content)
             self.assertIn("some_source", content)
 
         (archive_path, archive_size, archive_sha1) = create_archive(
