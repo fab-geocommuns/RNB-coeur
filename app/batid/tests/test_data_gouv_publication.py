@@ -178,7 +178,7 @@ class TestDataGouvPublication(TestCase):
         with open(f"{directory_name}/RNB_{area}.csv", "r") as f:
             content = f.read()
             self.assertIn(
-                "rnb_id;point;shape;status;ext_ids;addresses",
+                "rnb_id;point;shape;status;ext_ids;addresses\n",
                 content,
             )
             self.assertIn("BDG-CONSTR", content)
