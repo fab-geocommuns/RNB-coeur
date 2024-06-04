@@ -3,9 +3,19 @@
 
 {% if action_success %}
 <p>Revue de contribution enregistrée.</p>
+<a href="/admin/batid/contribution/?status__exact=pending">Retour à la liste des contributions</a>
 {% else %}
-<h3>Actions</h3>
-<form method="post" style="display: flex;" action="/contribution/fix/refuse">
+<p>
+    <a href="https://rnb.beta.gouv.fr/carte?q={{rnb_id}}" target="_blank">carte rnb</a>
+    {% for address in addresses_id_array %}
+    <a href="https://adresse.data.gouv.fr/base-adresse-nationale/{{address}}" target="_blank">carte adresse</a>
+    {% endfor %}
+    <a href="https://www.google.fr/maps/@{{coordinates.1}},{{coordinates.0}},20z" target="_blank">google maps</a>
+</p>
+    <div style="margin-top: 48px;"></div>
+
+<h4>Refuser la contribution</h4>
+<form method="post" style="display: flex; flex-direction: column;" action="/contribution/fix/refuse">
     {% csrf_token %}
     <input name="review_comment" type="text" placeholder="raison refus" value="{{ review_comment }}"
         style="width: 350px; margin-right:20px;">
