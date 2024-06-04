@@ -190,7 +190,7 @@ class TestContributionsViews(TestCase):
             rnb_id=rnb_id, text="Ce batiment est au 12 de la rue"
         )
 
-        url = reverse("update_building_addresses")
+        url = reverse("update_building")
         data = {
             "review_comment": "mise à jour de l'adresse",
             "contribution_id": contribution.id,
@@ -203,7 +203,9 @@ class TestContributionsViews(TestCase):
         create_superuser_and_login(self)
 
         rnb_id = "1234"
-        building = Building.objects.create(rnb_id=rnb_id, event_type="create")
+        building = Building.objects.create(
+            rnb_id=rnb_id, event_type="create", status="constructed"
+        )
 
         address_1 = Address.objects.create(id="1")
         address_2 = Address.objects.create(id="2")
@@ -212,12 +214,13 @@ class TestContributionsViews(TestCase):
             rnb_id=rnb_id, text="Ce bâtiment est au 12 de la rue"
         )
 
-        url = reverse("update_building_addresses")
+        url = reverse("update_building")
         data = {
             "contribution_id": contribution.id,
             "rnb_id": rnb_id,
             "review_comment": "mise à jour de l'adresse.",
             "addresses_id": f"{address_1.id},{address_2.id}",
+            "status": "constructed",
         }
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 200)
@@ -239,4 +242,45 @@ class TestContributionsViews(TestCase):
         self.assertEqual(contribution.status, "fixed")
         self.assertIsNotNone(contribution.status_changed_at)
         self.assertEqual(contribution.review_comment, "mise à jour de l'adresse.")
+        self.assertEqual(contribution.review_user, self.superuser)
+
+    def test_update_building_status(self):
+        create_superuser_and_login(self)
+
+        rnb_id = "1234"
+        building = Building.objects.create(
+            rnb_id=rnb_id, event_type="create", status="constructed"
+        )
+
+        contribution = Contribution.objects.create(
+            rnb_id=rnb_id, text="Ce bâtiment est en ruine"
+        )
+
+        url = reverse("update_building")
+        data = {
+            "contribution_id": contribution.id,
+            "rnb_id": rnb_id,
+            "review_comment": "mise à jour du statut",
+            "status": "notUsable",
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+
+        # Check the html content of the response
+        self.assertIn("Revue de contribution enregistrée.", response.content.decode())
+
+        # Check that the building has not been modified.
+        building.refresh_from_db()
+        self.assertEqual(building.event_type, "update")
+        self.assertIsNotNone(building.event_id)
+        self.assertTrue(building.is_active)
+        self.assertIsNotNone(building.event_user)
+        # addresses are updated
+        self.assertEqual(building.status, "notUsable")
+
+        # Check that the contribution has been updated
+        contribution.refresh_from_db()
+        self.assertEqual(contribution.status, "fixed")
+        self.assertIsNotNone(contribution.status_changed_at)
+        self.assertEqual(contribution.review_comment, "mise à jour du statut")
         self.assertEqual(contribution.review_user, self.superuser)
