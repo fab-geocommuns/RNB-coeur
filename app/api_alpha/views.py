@@ -1,14 +1,19 @@
+import io
 from base64 import b64encode
 
 import requests
 from django.db import connection
+from django.db import transaction
 from django.http import Http404
 from django.http import HttpResponse
+from django.utils.dateparse import parse_datetime
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
 from drf_spectacular.utils import extend_schema
+from psycopg2 import sql
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.decorators import api_view
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
@@ -451,6 +456,103 @@ def get_stats(request):
     response = HttpResponse(renderer.render(data), content_type="application/json")
 
     return response
+
+
+@extend_schema(
+    description="""
+        Filtre les modifications apportées au RNB ayant eu lieu strictement après un datetime.
+        Les données sont retournées au format CSV.
+
+        Les modifications listées sont de trois types : create, update et delete.
+
+        Les modifications sont triées par rnb_id puis par date de modification croissante.
+        Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée.
+        Par exemple, une création (create) suivie d'une mise à jour (update).
+        """,
+    parameters=[
+        OpenApiParameter(
+            "since",
+            str,
+            OpenApiParameter.QUERY,
+            description="""
+                Date et heure à partir de laquelle les modifications sont retournées.
+                Au format ISO 8601.
+
+                Si un "+" est présent dans la date, il doit être encodé en %2B.
+                2024-04-02 15:29:44.26+01 => 2024-04-02 15:29:44.26%2B01
+
+                Seules les dates après le 1er avril 2024 sont acceptées.
+                Une date inférieure reviendrait à télécharger l'intégralité de la base de données.
+                Ce qui peut être fait via https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/.
+            """,
+            examples=[
+                OpenApiExample("Exemple 1", value="2024-04-02T00:00:00Z"),
+                OpenApiExample("Exemple 2", value="2024-04-02 15:29:44.267%2B01"),
+            ],
+        ),
+    ],
+)
+@api_view(["GET"])
+def get_diff(request):
+    # the day the quantity of data will be too big, we could stream the response
+    # see https://docs.djangoproject.com/en/5.0/howto/outputting-csv/#streaming-csv-files
+
+    since_input = request.GET.get("since", "")
+    # parse since to a timestamp
+    since = parse_datetime(since_input)
+
+    if since is None:
+        return HttpResponse("The 'since' parameter is missing or incorrect", status=400)
+
+    # nobody should download the whole database
+    if since < parse_datetime("2024-04-01T00:00:00Z"):
+        return HttpResponse(
+            "The 'since' parameter must be after 2024-04-01T00:00:00Z",
+            status=400,
+        )
+
+    with connection.cursor() as cursor:
+        sql_query = sql.SQL(
+            """
+            COPY (
+                select
+                CASE
+                    WHEN event_type = 'deletion' THEN 'delete'
+                    WHEN event_type = 'update' THEN 'update'
+                    WHEN event_type = 'split' and not is_active THEN 'delete'
+                    WHEN event_type = 'split' and is_active THEN 'create'
+                    WHEN event_type = 'merge' and not is_active THEN 'delete'
+                    WHEN event_type = 'merge' and is_active THEN 'create'
+                    ELSE 'create'
+                END as action,
+                rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
+            ) TO STDOUT WITH CSV HEADER
+            """
+        ).format(t=sql.Literal(since.isoformat()))
+
+        file_output = io.StringIO()
+        with transaction.atomic():
+            cursor.copy_expert(sql_query, file_output)
+            most_recent_modification_query = sql.SQL(
+                """
+                select max(lower(sys_period)) from batid_building_with_history
+                """
+            )
+            cursor.execute(most_recent_modification_query)
+
+        # most recent modification datetime is used in the filename
+        # so the user knows what "since" parameter he should use next time
+        most_recent_modification = cursor.fetchone()[0]
+        most_recent_modification = most_recent_modification.isoformat(sep="T")
+
+        file_output.seek(0)
+        response = HttpResponse(
+            file_output.getvalue(), content_type="text/csv", status=200
+        )
+        response[
+            "Content-Disposition"
+        ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+        return response
 
 
 class ContributionsViewSet(viewsets.ModelViewSet):
