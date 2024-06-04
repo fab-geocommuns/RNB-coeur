@@ -1,10 +1,9 @@
 # empty django command
-from django.core.management.base import BaseCommand
 from celery import chain
 from celery import Signature
+from django.core.management.base import BaseCommand
 
 from batid.management.commands.utils.administrative_areas import dpts_list
-from batid.services.data_gouv_publication import publish
 
 
 class Command(BaseCommand):
@@ -29,13 +28,15 @@ def create_tasks_list(strate, bulk_launch_uuid=None):
     tasks = []
 
     if strate == "country":
-        tasks.append(
-            Signature("batid.tasks.opendata_publish_national", immutable=True)
-        )
+        tasks.append(Signature("batid.tasks.opendata_publish_national", immutable=True))
     elif strate == "department":
         for dept in dpts_list():
             tasks.append(
-                Signature("batid.tasks.opendata_publish_department", args=[dept], immutable=True)
+                Signature(
+                    "batid.tasks.opendata_publish_department",
+                    args=[dept],
+                    immutable=True,
+                )
             )
             print(f"code_dept: {dept}")
     return tasks
