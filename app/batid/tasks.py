@@ -134,10 +134,12 @@ def populate_addresses_id_field():
     launch_procedure()
     return "done"
 
+
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def opendata_publish_national():
     publish(["nat"])
     return "done"
+
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def opendata_publish_department(dept):
