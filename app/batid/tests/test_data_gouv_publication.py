@@ -198,7 +198,7 @@ class TestDataGouvPublication(TestCase):
             self.assertIn("75005", content)
             self.assertIn("scipion", content)
             # check none address is null and not [""]
-            self.assertNotIn("[\"\"]", content)
+            self.assertNotIn('[""]', content)
             self.assertNotIn("93100", content)
             self.assertNotIn("chanzy", content)
 
