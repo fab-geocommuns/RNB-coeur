@@ -10,6 +10,7 @@ from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
 from api_alpha.views import BuildingViewSet
 from api_alpha.views import ContributionsViewSet
+from api_alpha.views import get_diff
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_point
 from api_alpha.views import get_tile_shape
@@ -33,6 +34,7 @@ urlpatterns = [
     path("stats", get_stats),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
+    path("buildings/diff/", get_diff),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile_point),

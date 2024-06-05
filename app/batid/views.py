@@ -61,7 +61,10 @@ def contribution(request, contribution_id):
                 "text": contribution.text,
                 # join the addresses_id list to a string
                 "addresses_id": ",".join(building.addresses_id),
+                "addresses_id_array": building.addresses_id,
                 "review_comment": contribution.review_comment,
+                "coordinates": building.point.coords,
+                "status": building.status,
             },
         )
 
@@ -145,7 +148,7 @@ def refuse_contribution(request):
             )
 
 
-def update_building_addresses(request):
+def update_building(request):
     if not request.user.is_superuser:
         return HttpResponseForbidden()
     else:
@@ -155,7 +158,9 @@ def update_building_addresses(request):
             rnb_id = request.POST.get("rnb_id")
             contribution_id = request.POST.get("contribution_id")
             review_comment = request.POST.get("review_comment")
-            addresses_id = request.POST.get("addresses_id").split(",")
+            addresses_id_string = request.POST.get("addresses_id")
+            addresses_id = addresses_id_string.split(",") if addresses_id_string else []
+            status = request.POST.get("status")
             contribution = get_object_or_404(Contribution, id=contribution_id)
 
             if contribution.status != "pending":
@@ -176,6 +181,7 @@ def update_building_addresses(request):
                         "contribution_id": contribution_id,
                     }
                     building.addresses_id = addresses_id
+                    building.status = status
                     building.save()
 
                     contribution.status = "fixed"
