@@ -12,6 +12,8 @@ RUN pip install --upgrade pip
 COPY ./app/requirements.txt .
 RUN pip install -r requirements.txt
 
+RUN useradd --no-create-home --system --uid 1000 --user-group worker
+
 FROM app as app_web
 
 ## Add the wait script to the image
@@ -20,7 +22,5 @@ COPY --from=ghcr.io/ufoscout/docker-compose-wait:latest /wait /wait
 COPY ./app/entrypoint.sh .
 RUN chmod +x  ./entrypoint.sh
 ENTRYPOINT ["./entrypoint.sh"]
-
-
 
 FROM app as app_worker

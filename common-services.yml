@@ -62,7 +62,7 @@ services:
       context: .
       dockerfile: ./app/Dockerfile
       target: app_worker
-    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=INFO --concurrency=6
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=WARNING --concurrency=6 --uid 1000
     volumes:
       - ./app:/app
       - ./source_data:/data/downloads
@@ -79,7 +79,7 @@ services:
       context: .
       dockerfile: ./app/Dockerfile
       target: app_worker
-    command: celery -A app beat --loglevel=INFO
+    command: celery -A app beat --loglevel=WARNING
     volumes:
       - ./app:/app
     depends_on:
@@ -91,7 +91,7 @@ services:
 
   rabbitmq:
     restart: unless-stopped
-    image: rabbitmq:3.9-alpine
+    image: rabbitmq:3.12-alpine
     healthcheck:
       test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
       interval: 15s
