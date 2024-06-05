@@ -142,6 +142,15 @@ class TestDataGouvPublication(TestCase):
         building.addresses.add(address_Paris)
         building.save()
 
+        # building without address
+        building = Building.objects.create(
+            rnb_id="BDG2-PARIS",
+            shape=geom_bdg_paris,
+            point=geom_bdg_paris.point_on_surface,
+            status="constructed",
+            ext_ids={"some_source": "5678"},
+        )
+
         address_Montreuil = Address.objects.create(
             id="93048_1450_00050",
             source="BAN",
@@ -178,7 +187,7 @@ class TestDataGouvPublication(TestCase):
         with open(f"{directory_name}/RNB_{area}.csv", "r") as f:
             content = f.read()
             self.assertIn(
-                "rnb_id;point;shape;status;ext_ids;addresses",
+                "rnb_id;point;shape;status;ext_ids;addresses\n",
                 content,
             )
             self.assertIn("BDG-CONSTR", content)
@@ -188,6 +197,8 @@ class TestDataGouvPublication(TestCase):
             self.assertIn("some_source", content)
             self.assertIn("75005", content)
             self.assertIn("scipion", content)
+            # check none address is null and not [""]
+            self.assertNotIn('[""]', content)
             self.assertNotIn("93100", content)
             self.assertNotIn("chanzy", content)
 
