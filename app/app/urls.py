@@ -21,7 +21,7 @@ from batid.views import contribution
 from batid.views import delete_building
 from batid.views import FlowerProxyView
 from batid.views import refuse_contribution
-from batid.views import update_building_addresses
+from batid.views import update_building
 
 urlpatterns = [
     path("", include("website.urls")),
@@ -32,9 +32,9 @@ urlpatterns = [
     path("contribution/fix/delete", delete_building, name="delete_building"),
     path("contribution/fix/refuse", refuse_contribution, name="refuse_contribution"),
     path(
-        "contribution/fix/update_addresses",
-        update_building_addresses,
-        name="update_building_addresses",
+        "contribution/fix/update_building",
+        update_building,
+        name="update_building",
     ),
     path("__debug__/", include("debug_toolbar.urls")),
     path("webhook/", include("webhook.urls")),

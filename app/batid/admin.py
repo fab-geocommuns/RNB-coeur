@@ -34,6 +34,7 @@ admin.site.register(Address, AddressAdmin)
 
 
 class ContributionAdmin(admin.ModelAdmin):
+    list_filter = ["status"]
     list_display = (
         "rnb_id",
         "text",

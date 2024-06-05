@@ -26,7 +26,6 @@ def publish(areas_list):
 
             public_url = upload_to_s3(archive_path)
             publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
-            cleanup_directory(directory_name)
         except Exception as e:
             logging.error(
                 f"Error while publishing the RNB for area {area} on data.gouv.fr: {e}"
