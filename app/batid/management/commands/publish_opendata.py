@@ -16,17 +16,14 @@ class Command(BaseCommand):
             choices=["country", "department"],
         ),
         parser.add_argument(
-            "--start-at",
+            "--start-dpt",
             type=str,
             help="Only for strate=department, allow to start at a specific department code.",
         )
 
     def handle(self, *args, **options):
         strate = options["strate"]
-        if options["start-at"]:
-            starting_code = options["start-at"]
-        else:
-            starting_code = None
+        starting_code = options.get("start_dpt", None)
         enqueue_tasks(strate, starting_code)
 
 
@@ -34,9 +31,11 @@ def enqueue_tasks(strate, starting_code=None):
     if strate == "country":
         app.send_task("batid.tasks.opendata_publish_national")
     elif strate == "department":
-        process = False
-        for dept in dpts_list():
-            if dept == starting_code:
-                process = True
-            if starting_code is None or process is True:
-                app.send_task("batid.tasks.opendata_publish_department", args=[dept])
+        dpts = dpts_list()
+
+        if starting_code is not None:
+            dpts = dpts[dpts.index(starting_code) :]
+
+        for dept in dpts:
+            print(dept)
+            app.send_task("batid.tasks.opendata_publish_department", args=[dept])
