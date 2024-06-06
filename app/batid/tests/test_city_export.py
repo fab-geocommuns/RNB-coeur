@@ -96,6 +96,36 @@ class TestCityExport(TestCase):
                         "coordinates": [
                             [
                                 [
+                                    [5.727718139549069, 45.174683403317374],
+                                    [5.727668380659253, 45.17460155596146],
+                                    [5.727650135732972, 45.17426831908293],
+                                    [5.727782826104686, 45.17423324140296],
+                                    [5.728097965736993, 45.17458752497444],
+                                    [5.727718139549069, 45.174683403317374],
+                                ]
+                            ]
+                        ],
+                        "type": "MultiPolygon",
+                    },
+                    "properties": {
+                        "ext_ids": [
+                            {
+                                "created_at": "2024-01-01T00:00:00",
+                                "id": "BAT_BDTOPO_2",
+                                "source": "bdtopo",
+                                "source_version": "v1",
+                            }
+                        ],
+                        "rnb_id": "AAAABBBBCCCC",
+                        "status": "constructed",
+                    },
+                    "type": "Feature",
+                },
+                {
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [
                                     [5.721187072129851, 45.18439363812283],
                                     [5.721094925229238, 45.184330511384644],
                                     [5.721122483180295, 45.184274061453465],
@@ -124,36 +154,6 @@ class TestCityExport(TestCase):
                             },
                         ],
                         "rnb_id": "XXXXYYYYZZZZ",
-                        "status": "constructed",
-                    },
-                    "type": "Feature",
-                },
-                {
-                    "geometry": {
-                        "coordinates": [
-                            [
-                                [
-                                    [5.727718139549069, 45.174683403317374],
-                                    [5.727668380659253, 45.17460155596146],
-                                    [5.727650135732972, 45.17426831908293],
-                                    [5.727782826104686, 45.17423324140296],
-                                    [5.728097965736993, 45.17458752497444],
-                                    [5.727718139549069, 45.174683403317374],
-                                ]
-                            ]
-                        ],
-                        "type": "MultiPolygon",
-                    },
-                    "properties": {
-                        "ext_ids": [
-                            {
-                                "created_at": "2024-01-01T00:00:00",
-                                "id": "BAT_BDTOPO_2",
-                                "source": "bdtopo",
-                                "source_version": "v1",
-                            }
-                        ],
-                        "rnb_id": "AAAABBBBCCCC",
                         "status": "constructed",
                     },
                     "type": "Feature",
