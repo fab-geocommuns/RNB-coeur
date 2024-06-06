@@ -2,7 +2,8 @@ from celery import chain
 from celery import Signature
 from django.core.management.base import BaseCommand
 
-from batid.services.source import bdtopo_source_switcher
+from batid.services.source import bdtopo_release_before
+from batid.services.source import bdtopo_src_params
 
 
 class Command(BaseCommand):
@@ -17,22 +18,18 @@ class Command(BaseCommand):
 
 
 def create_tasks_list(dpt, bulk_launch_uuid=None):
-    bdtopo_dpt = dpt.zfill(3)
 
-    bdtopo_edition = "bdtopo_2023_09"
-
-    source_name = bdtopo_source_switcher(bdtopo_edition, bdtopo_dpt)
+    most_recent_date = bdtopo_release_before()
+    src_params = bdtopo_src_params(dpt, most_recent_date)
 
     tasks = []
     tasks.append(
-        Signature(
-            "batid.tasks.dl_source", args=[source_name, bdtopo_dpt], immutable=True
-        )
+        Signature("batid.tasks.dl_source", args=["bdtopo", src_params], immutable=True)
     )
     tasks.append(
         Signature(
             "batid.tasks.import_bdtopo",
-            args=[bdtopo_dpt, bdtopo_edition, bulk_launch_uuid],
+            args=[src_params, bulk_launch_uuid],
             immutable=True,
         )
     )

@@ -31,9 +31,11 @@ def test_all() -> str:
 @shared_task(
     autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 5}
 )
-def dl_source(src, dpt):
-    src = Source(src)
-    src.set_param("dpt", dpt)
+def dl_source(src_name: dict, src_params: dict):
+
+    src = Source(src_name)
+    for param, value in src_params.items():
+        src.set_param(param, value)
 
     print(f"-- downloading {src.url}")
     src.download()
@@ -56,8 +58,8 @@ def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdtopo(dpt, bdtopo_edition="bdtopo_2023_09", bulk_launch_uuid=None):
-    import_bdtopo_job(bdtopo_edition, dpt, bulk_launch_uuid)
+def import_bdtopo(src_params, bulk_launch_uuid=None):
+    import_bdtopo_job(src_params, bulk_launch_uuid)
     return "done"
 
 
