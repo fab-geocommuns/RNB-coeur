@@ -14,7 +14,7 @@ class Command(BaseCommand):
             type=str,
             default="department",
             choices=["country", "department"],
-        ), 
+        ),
         parser.add_argument(
             "--start-at",
             type=str,
