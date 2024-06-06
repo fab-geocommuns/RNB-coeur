@@ -78,7 +78,7 @@ def export_city(insee_code: str) -> str:
     city = City.objects.get(code_insee=insee_code)
 
     # NB : filtrer pour ne conserver que les bâtiments réels
-    bdgs = Building.objects.filter(shape__intersects=city.shape)
+    bdgs = Building.objects.filter(shape__intersects=city.shape).order_by("rnb_id")
 
     geojson = serialize(
         "geojson",

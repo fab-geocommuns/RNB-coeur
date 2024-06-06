@@ -11,26 +11,23 @@ from django.contrib.gis.geos import WKTWriter
 from django.db import connection
 from django.db import transaction
 
+from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import Candidate
 from batid.services.imports import building_import_history
-from batid.services.source import bdtopo_source_switcher
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
 from batid.utils.geo import fix_nested_shells
 
 
-def import_bdtopo(bdtopo_edition, dpt, bulk_launch_uuid=None):
-    dpt = dpt.zfill(3)
+def import_bdtopo(src_params, bulk_launch_uuid=None):
 
-    source_name = bdtopo_source_switcher(bdtopo_edition, dpt)
+    src = Source("bdtopo")
+    src.set_params(src_params)
 
     building_import = building_import_history.insert_building_import(
-        source_name, bulk_launch_uuid, dpt
+        "bdtopo", bulk_launch_uuid, src_params["dpt"]
     )
-
-    src = Source(source_name)
-    src.set_param("dpt", dpt)
 
     with fiona.open(src.find(src.filename)) as f:
         print("-- read bdtopo ")
@@ -45,9 +42,17 @@ def import_bdtopo(bdtopo_edition, dpt, bulk_launch_uuid=None):
             if feature["properties"]["LEGER"] == "Oui":
                 continue
 
+            if _known_bdtopo_id(feature["properties"]["ID"]):
+                print(f"Building {feature['properties']['ID']} already known")
+                continue
+
+            print(
+                f"Building {feature['properties']['ID']} not known - we add candidate"
+            )
+
             candidate = _transform_bdtopo_feature(feature, srid)
             candidate = _add_import_info(candidate, building_import)
-            candidate["source_version"] = bdtopo_edition
+            candidate["source_version"] = src_params["date"]
             candidates.append(candidate)
 
         buffer = BufferToCopy()
@@ -73,6 +78,13 @@ def import_bdtopo(bdtopo_edition, dpt, bulk_launch_uuid=None):
 
         print("- remove buffer")
         os.remove(buffer.path)
+
+
+def _known_bdtopo_id(bdtopo_id: str) -> bool:
+
+    return Building.objects.filter(
+        ext_ids__contains=[{"source": "bdtopo", "id": bdtopo_id}]
+    ).exists()
 
 
 def _transform_bdtopo_feature(feature, from_srid) -> dict:
