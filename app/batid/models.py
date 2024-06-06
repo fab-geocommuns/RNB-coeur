@@ -6,7 +6,8 @@ from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex
-from django.contrib.postgres.indexes import GistIndex
+from django.db.models.functions import Lower
+from django.db.models.indexes import Index
 
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.utils.db import from_now_to_infinity
@@ -148,8 +149,9 @@ class Building(BuildingAbstract):
             GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
             models.Index(fields=("status",), name="bdg_status_idx"),
             GinIndex(fields=("ext_ids",), name="bdg_ext_ids_idx"),
+            # lower is used to create an index on the start of the time range
+            Index(Lower("sys_period"), name="bdg_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_event_type_idx"),
-            GistIndex(fields=["sys_period"], name="bdg_sys_period_idx"),
         ]
 
 
@@ -181,8 +183,8 @@ class BuildingHistoryOnly(BuildingAbstract):
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_history_event_origin_idx"),
             models.Index(fields=("status",), name="bdg_history_status_idx"),
+            Index(Lower("sys_period"), name="bdg_hist_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_history_event_type_idx"),
-            GistIndex(fields=["sys_period"], name="bdg_history_sys_period_idx"),
         ]
 
 
