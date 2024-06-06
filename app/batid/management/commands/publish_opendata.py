@@ -37,5 +37,4 @@ def enqueue_tasks(strate, starting_code=None):
             dpts = dpts[dpts.index(starting_code) :]
 
         for dept in dpts:
-            print(dept)
             app.send_task("batid.tasks.opendata_publish_department", args=[dept])
