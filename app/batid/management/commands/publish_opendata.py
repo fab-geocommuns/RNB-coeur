@@ -1,8 +1,8 @@
 # empty django command
 from django.core.management.base import BaseCommand
 
+from app.celery import app
 from batid.management.commands.utils.administrative_areas import dpts_list
-from batid.services.data_gouv_publication import publish
 
 
 class Command(BaseCommand):
@@ -14,13 +14,27 @@ class Command(BaseCommand):
             type=str,
             default="department",
             choices=["country", "department"],
+        ),
+        parser.add_argument(
+            "--start-dpt",
+            type=str,
+            help="Only for strate=department, allow to start at a specific department code.",
         )
 
     def handle(self, *args, **options):
         strate = options["strate"]
+        starting_code = options.get("start_dpt", None)
+        enqueue_tasks(strate, starting_code)
 
-        if strate == "country":
-            areas_list = ["nat"]
-        elif strate == "department":
-            areas_list = dpts_list()
-        tasks = publish(areas_list)
+
+def enqueue_tasks(strate, starting_code=None):
+    if strate == "country":
+        app.send_task("batid.tasks.opendata_publish_national")
+    elif strate == "department":
+        dpts = dpts_list()
+
+        if starting_code is not None:
+            dpts = dpts[dpts.index(starting_code) :]
+
+        for dept in dpts:
+            app.send_task("batid.tasks.opendata_publish_department", args=[dept])

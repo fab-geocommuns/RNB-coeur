@@ -128,13 +128,9 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
 
 def _known_bdtopo_id(bdtopo_id: str) -> bool:
 
-    return (
-        Building.objects.filter(
-            ext_ids__contains=[{"source": "bdtopo", "id": bdtopo_id}]
-        )
-        .order_by()
-        .exists()
-    )
+    return Building.objects.filter(
+        ext_ids__contains=[{"source": "bdtopo", "id": bdtopo_id}]
+    ).exists()
 
 
 def _transform_bdtopo_feature(feature, from_srid) -> dict:

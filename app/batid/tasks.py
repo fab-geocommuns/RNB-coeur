@@ -6,6 +6,7 @@ from batid.services.building import export_city as export_city_job
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.candidate import Inspector
+from batid.services.data_gouv_publication import publish
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
 from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
@@ -157,10 +158,13 @@ def populate_addresses_id_field():
     return "done"
 
 
-@shared_task
-def dummy_task():
-    # wait for 10 seconds
-    import time
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def opendata_publish_national():
+    publish(["nat"])
+    return "done"
 
-    time.sleep(100)
-    print("Dummy task executed")
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def opendata_publish_department(dept):
+    publish([dept])
+    return "done"

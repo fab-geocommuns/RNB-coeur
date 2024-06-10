@@ -26,7 +26,6 @@ def publish(areas_list):
 
             public_url = upload_to_s3(archive_path)
             publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
-            cleanup_directory(directory_name)
         except Exception as e:
             logging.error(
                 f"Error while publishing the RNB for area {area} on data.gouv.fr: {e}"
@@ -54,9 +53,9 @@ def file_path(directory_name, code_area):
 def create_csv(directory_name, code_area):
     with connection.cursor() as cursor:
         if code_area == "nat":
-            sql = "COPY (SELECT rnb_id, point, shape, status, ext_ids, addresses, code_dept FROM opendata.data_gouv_publication) TO STDOUT WITH CSV HEADER DELIMITER ';'"
+            sql = "COPY (SELECT rnb_id, point, shape, status, ext_ids, NULLIF(addresses::text, '[\"\"]') AS addresses, code_dept FROM opendata.data_gouv_publication) TO STDOUT WITH CSV HEADER DELIMITER ';'"
         else:
-            sql = f"COPY (SELECT rnb_id, point, shape, status, ext_ids, addresses FROM opendata.data_gouv_publication WHERE code_dept = '{code_area}') TO STDOUT WITH CSV HEADER DELIMITER ';'"
+            sql = f"COPY (SELECT rnb_id, point, shape, status, ext_ids, NULLIF(addresses::text, '[\"\"]') AS addresses FROM opendata.data_gouv_publication WHERE code_dept = '{code_area}') TO STDOUT WITH CSV HEADER DELIMITER ';'"
 
         with open(f"{file_path(directory_name, code_area)}.csv", "w") as fp:
             cursor.copy_expert(sql, fp)

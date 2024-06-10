@@ -37,7 +37,7 @@ services:
     extends:
       file: common-services.yml
       service: worker
-    command: celery -A app worker --concurrency=6 --loglevel=INFO
+    command: celery -A app worker --concurrency=3 --loglevel=INFO
     volumes:
       - ./source_data:/home/app/source_data
     env_file:
