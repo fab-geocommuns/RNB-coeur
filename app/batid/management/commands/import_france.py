@@ -13,8 +13,8 @@ from batid.management.commands.import_cities_dpt import (
 from batid.management.commands.import_plots_dpt import (
     create_tasks_list as create_tasks_list_plots_dpt,
 )
-from batid.services.france import dpt_list_metropole
-from batid.services.france import dpts_list
+from batid.services.administrative_areas import dpt_list_metropole
+from batid.services.administrative_areas import dpts_list
 from batid.services.imports.import_bdtopo import (
     create_bdtopo_full_import_tasks,
 )

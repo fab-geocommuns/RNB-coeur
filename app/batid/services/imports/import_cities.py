@@ -4,7 +4,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 
 from batid.models import City
-from batid.services.france import fetch_dpt_cities_geojson
+from batid.services.administrative_areas import fetch_dpt_cities_geojson
 
 
 def import_etalab_cities(dpt: str):
