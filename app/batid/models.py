@@ -143,11 +143,12 @@ class Building(BuildingAbstract):
         return self.point_geojson()["coordinates"][0]
 
     class Meta:
-        ordering = ["rnb_id"]
+        # ordering = ["rnb_id"]
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
             GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
             models.Index(fields=("status",), name="bdg_status_idx"),
+            GinIndex(fields=("ext_ids",), name="bdg_ext_ids_idx"),
             # lower is used to create an index on the start of the time range
             Index(Lower("sys_period"), name="bdg_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_event_type_idx"),

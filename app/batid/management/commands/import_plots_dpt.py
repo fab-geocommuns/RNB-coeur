@@ -16,6 +16,8 @@ class Command(BaseCommand):
 
 def create_tasks_list(dpt):
     tasks = []
-    tasks.append(Signature("batid.tasks.dl_source", args=["plot", dpt], immutable=True))
+    tasks.append(
+        Signature("batid.tasks.dl_source", args=["plot", {"dpt": dpt}], immutable=True)
+    )
     tasks.append(Signature("batid.tasks.import_plots", args=[dpt], immutable=True))
     return tasks
