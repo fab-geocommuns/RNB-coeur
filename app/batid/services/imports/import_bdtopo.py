@@ -8,7 +8,6 @@ from datetime import timezone
 
 import fiona
 import psycopg2
-from celery import group
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import WKTWriter
@@ -19,7 +18,6 @@ from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import Candidate
 from batid.services.administrative_areas import dpts_list
-from batid.services.candidate import create_inspection_tasks
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
