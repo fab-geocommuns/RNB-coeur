@@ -52,7 +52,7 @@ geopandas==0.12.2
 geopy==2.4.0
 gunicorn==20.1.0
 humanize==4.9.0
-idna==3.4
+idna==3.7
 ijson==3.2.3
 inflate64==0.3.1
 ipykernel==6.25.2
