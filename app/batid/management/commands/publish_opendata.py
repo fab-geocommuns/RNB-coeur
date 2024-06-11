@@ -1,8 +1,7 @@
 # empty django command
-from celery import chain
-from celery import Signature
 from django.core.management.base import BaseCommand
 
+from app.celery import app
 from batid.management.commands.utils.administrative_areas import dpts_list
 
 
@@ -15,28 +14,27 @@ class Command(BaseCommand):
             type=str,
             default="department",
             choices=["country", "department"],
+        ),
+        parser.add_argument(
+            "--start-dpt",
+            type=str,
+            help="Only for strate=department, allow to start at a specific department code.",
         )
 
     def handle(self, *args, **options):
         strate = options["strate"]
+        starting_code = options.get("start_dpt", None)
+        enqueue_tasks(strate, starting_code)
 
-        tasks = create_tasks_list(strate)
-        chain(*tasks)()
 
-
-def create_tasks_list(strate, bulk_launch_uuid=None):
-    tasks = []
-
+def enqueue_tasks(strate, starting_code=None):
     if strate == "country":
-        tasks.append(Signature("batid.tasks.opendata_publish_national", immutable=True))
+        app.send_task("batid.tasks.opendata_publish_national")
     elif strate == "department":
-        for dept in dpts_list():
-            tasks.append(
-                Signature(
-                    "batid.tasks.opendata_publish_department",
-                    args=[dept],
-                    immutable=True,
-                )
-            )
-            print(f"code_dept: {dept}")
-    return tasks
+        dpts = dpts_list()
+
+        if starting_code is not None:
+            dpts = dpts[dpts.index(starting_code) :]
+
+        for dept in dpts:
+            app.send_task("batid.tasks.opendata_publish_department", args=[dept])

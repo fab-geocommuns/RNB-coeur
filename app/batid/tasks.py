@@ -145,5 +145,5 @@ def opendata_publish_national():
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def opendata_publish_department(dept):
-    publish(dept)
+    publish([dept])
     return "done"
