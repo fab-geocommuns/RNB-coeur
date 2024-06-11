@@ -76,7 +76,7 @@ def queue_full_bdtopo_import(dpts=None):
     notify_tech(f"Queuing full BDTopo import tasks")
 
     if dpts:
-        dpts = dpts.split("-")
+        dpts = dpts.split(",")
 
     tasks = create_bdtopo_full_import_tasks(dpts)
 
