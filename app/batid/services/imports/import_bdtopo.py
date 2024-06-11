@@ -64,9 +64,10 @@ def create_bdtopo_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
     )
     tasks.append(convert_task)
 
-    inspect_tasks = create_inspection_tasks()
-    inspect_group = group(*inspect_tasks)
-    tasks.append(inspect_group)
+    # Those inspections are commented out for now since we want to verify the created candidates first
+    # inspect_tasks = create_inspection_tasks()
+    # inspect_group = group(*inspect_tasks)
+    # tasks.append(inspect_group)
 
     return tasks
 

@@ -65,8 +65,6 @@ def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def convert_bdtopo(src_params, bulk_launch_uuid=None):
 
-    notify_tech(f"Starting BDTopo conversion to candidates : {src_params}")
-
     create_candidate_from_bdtopo(src_params, bulk_launch_uuid)
     return "done"
 
