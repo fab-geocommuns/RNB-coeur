@@ -49,9 +49,10 @@ class Inspector:
         self.candidate = qs[0] if len(qs) > 0 else None
 
     def get_matching_bdgs(self):
+
         self.matching_bdgs = Building.objects.filter(
             shape__intersects=self.candidate.shape
-        ).filter(status__in=BuildingStatusService.REAL_BUILDINGS_STATUS)
+        ).filter(status__in=BuildingStatusService.REAL_BUILDINGS_STATUS, is_active=True)
 
     def inspect_candidate(self):
         # Record the inspection datetime
