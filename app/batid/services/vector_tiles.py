@@ -1,4 +1,11 @@
 from batid.models import Building
+from batid.services.bdg_status import BuildingStatus
+
+
+def get_real_buildings_status():
+    return ", ".join(
+        ["'" + status + "'" for status in BuildingStatus.REAL_BUILDINGS_STATUS]
+    )
 
 
 def tileIsValid(tile):
@@ -58,6 +65,7 @@ def envelopeToSQL(env, geometry_column):
         "table": Building._meta.db_table,
         "srid": str(4326),
         "attrColumns": "rnb_id",
+        "real_buildings_status": get_real_buildings_status(),
     }
     params["geomColumn"] = geometry_column
 
@@ -78,7 +86,7 @@ def envelopeToSQL(env, geometry_column):
             FROM {table} t, bounds
             WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
             and t.is_active = true
-            and t.status IN ('constructionProject','ongoingConstruction','constructed','ongoingChange','notUsable')
+            and t.status IN ({real_buildings_status})
         )
         SELECT ST_AsMVT(mvtgeom.*) FROM mvtgeom
     """
