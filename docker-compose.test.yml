@@ -24,6 +24,7 @@ services:
       - MIN_BDG_AREA=5
       - WAIT_HOSTS=db:5432 rabbitmq:5672 redis:6379
       - WAIT_BEFORE=8
+      - MATTERMOST_NOTIFICATIONS=0
     depends_on:
       db:
         condition: service_healthy

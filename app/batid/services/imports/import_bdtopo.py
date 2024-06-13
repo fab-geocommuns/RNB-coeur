@@ -1,11 +1,14 @@
 import json
 import os
 import random
+import uuid
+from datetime import date
 from datetime import datetime
 from datetime import timezone
 
 import fiona
 import psycopg2
+from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import WKTWriter
 from django.db import connection
@@ -14,13 +17,60 @@ from django.db import transaction
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import Candidate
+from batid.services.administrative_areas import dpts_list
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
 from batid.utils.geo import fix_nested_shells
 
 
-def import_bdtopo(src_params, bulk_launch_uuid=None):
+def create_bdtopo_full_import_tasks(dpt_list=None) -> list:
+
+    tasks = []
+
+    bulk_launch_uuid = uuid.uuid4()
+
+    if not dpt_list:
+        dpt_list = dpts_list()
+
+    for dpt in dpt_list:
+
+        dpt_tasks = create_bdtopo_dpt_import_tasks(dpt, bulk_launch_uuid)
+        tasks.extend(dpt_tasks)
+
+    return tasks
+
+
+def create_bdtopo_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
+
+    tasks = []
+
+    most_recent_date = bdtopo_release_before()
+    src_params = bdtopo_src_params(dpt, most_recent_date)
+
+    dl_task = Signature(
+        "batid.tasks.dl_source",
+        args=["bdtopo", src_params],
+        immutable=True,
+    )
+    tasks.append(dl_task)
+
+    convert_task = Signature(
+        "batid.tasks.convert_bdtopo",
+        args=[src_params, bulk_launch_id],
+        immutable=True,
+    )
+    tasks.append(convert_task)
+
+    # Those inspections are commented out for now since we want to verify the created candidates first
+    # inspect_tasks = create_inspection_tasks()
+    # inspect_group = group(*inspect_tasks)
+    # tasks.append(inspect_group)
+
+    return tasks
+
+
+def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
 
     src = Source("bdtopo")
     src.set_params(src_params)
@@ -43,12 +93,7 @@ def import_bdtopo(src_params, bulk_launch_uuid=None):
                 continue
 
             if _known_bdtopo_id(feature["properties"]["ID"]):
-                print(f"Building {feature['properties']['ID']} already known")
                 continue
-
-            print(
-                f"Building {feature['properties']['ID']} not known - we add candidate"
-            )
 
             candidate = _transform_bdtopo_feature(feature, srid)
             candidate = _add_import_info(candidate, building_import)
@@ -133,3 +178,95 @@ def feature_to_wkt(feature, from_srid):
         geom = fix_nested_shells(geom)
 
     return geom.wkt
+
+
+def bdtopo_src_params(dpt: str, date: str) -> dict:
+
+    dpt = dpt.zfill(3)
+    projection = _bdtopo_dpt_projection(dpt)
+
+    return {
+        "dpt": dpt,
+        "projection": projection,
+        "date": date,
+    }
+
+
+def _bdtopo_dpt_projection(dpt: str) -> str:
+
+    default_proj = "LAMB93"
+
+    projs = {
+        "971": "RGAF09UTM20",
+        "972": "RGAF09UTM20",
+        "973": "UTM22RGFG95",
+        "974": "RGR92UTM40S",
+        "975": "RGSPM06U21",
+        "976": "RGM04UTM38S",
+        "977": "RGAF09UTM20",
+        "978": "RGAF09UTM20",
+    }
+
+    return projs.get(dpt, default_proj)
+
+
+def bdtopo_release_before(before: date = None) -> str:
+
+    # If no date is provided, we use the current date
+    if before is None:
+        before = datetime.now().date()
+
+    # First we get an ordred list of all release dates
+    release_dates = sorted(
+        [datetime.strptime(date, "%Y-%m-%d").date() for date in _bdtopo_release_dates()]
+    )
+
+    for idx, date in enumerate(release_dates):
+        if date >= before:
+
+            # Return the previous release date
+            return release_dates[idx - 1].strftime("%Y-%m-%d")
+
+
+def _bdtopo_release_dates() -> list:
+
+    # Those are official IGN **internal** release dates.
+    # They are made public 3 to 4 weeks later to the public. This delay is not fixed and can vary.
+
+    return [
+        #
+        "2024-03-15",
+        "2024-06-15",
+        "2024-09-15",
+        "2024-12-15",
+        #
+        "2025-03-15",
+        "2025-06-15",
+        "2025-09-15",
+        "2025-12-15",
+        #
+        "2026-03-15",
+        "2026-06-15",
+        "2026-09-15",
+        "2026-12-15",
+        #
+        "2027-03-15",
+        "2027-06-15",
+        "2027-09-15",
+        "2027-12-15",
+        #
+        "2028-03-15",
+        "2028-06-15",
+        "2028-09-15",
+        "2028-12-15",
+        #
+        "2029-03-15",
+        "2029-06-15",
+        "2029-09-15",
+        "2029-12-15",
+        #
+        "2030-03-15",
+        "2030-06-15",
+        "2030-09-15",
+        "2030-12-15",
+    ]
