@@ -8,8 +8,8 @@ from django.test import TransactionTestCase
 from batid.models import Building
 from batid.models import Candidate
 from batid.services.candidate import Inspector
-from batid.services.imports.import_bdtopo import import_bdtopo
-from batid.services.source import bdtopo_src_params
+from batid.services.imports.import_bdtopo import bdtopo_src_params
+from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
 from batid.tests import helpers
 from batid.tests.helpers import create_default_bdg
 
@@ -28,7 +28,7 @@ class ImportBDTopo(TransactionTestCase):
 
         src_params = bdtopo_src_params("38", "2023-09-15")
 
-        import_bdtopo(src_params)
+        create_candidate_from_bdtopo(src_params)
 
         # The file contains 6 buildings, one of them is skipped because the database contains a bdg with the same bdtopo ID
         self.assertEqual(Candidate.objects.count(), 5)

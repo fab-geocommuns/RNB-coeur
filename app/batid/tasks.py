@@ -1,3 +1,4 @@
+from celery import chain
 from celery import shared_task
 
 from batid.models import AsyncSignal
@@ -8,7 +9,8 @@ from batid.services.candidate import Inspector
 from batid.services.data_gouv_publication import publish
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
-from batid.services.imports.import_bdtopo import import_bdtopo as import_bdtopo_job
+from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
+from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
 from batid.services.imports.import_cities import import_etalab_cities
 from batid.services.imports.import_dgfip_ads import (
     import_dgfip_ads_achievements as import_dgfip_ads_achievements_job,
@@ -17,6 +19,8 @@ from batid.services.imports.import_dpt import import_etalab_dpts
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
 )
+from batid.services.mattermost import notify_if_error
+from batid.services.mattermost import notify_tech
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.signal import AsyncSignalDispatcher
 from batid.services.source import Source
@@ -57,10 +61,27 @@ def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
     return "done"
 
 
+@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdtopo(src_params, bulk_launch_uuid=None):
-    import_bdtopo_job(src_params, bulk_launch_uuid)
+def convert_bdtopo(src_params, bulk_launch_uuid=None):
+
+    create_candidate_from_bdtopo(src_params, bulk_launch_uuid)
     return "done"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_full_bdtopo_import(dpts=None):
+
+    notify_tech(f"Queuing full BDTopo import tasks")
+
+    if dpts:
+        dpts = dpts.split(",")
+
+    tasks = create_bdtopo_full_import_tasks(dpts)
+
+    chain(*tasks)()
+    return f"Queued {len(tasks)} tasks"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
@@ -82,8 +103,6 @@ def import_dpts():
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def inspect_candidates():
-    print("---- Inspecting candidates ----")
-
     i = Inspector()
     i.inspect()
 

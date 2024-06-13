@@ -1,7 +1,9 @@
+import os
 from datetime import datetime
 from datetime import timezone
 from typing import Literal
 
+from celery import Signature
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
@@ -47,9 +49,10 @@ class Inspector:
         self.candidate = qs[0] if len(qs) > 0 else None
 
     def get_matching_bdgs(self):
+
         self.matching_bdgs = Building.objects.filter(
             shape__intersects=self.candidate.shape
-        ).filter(status__in=BuildingStatusService.REAL_BUILDINGS_STATUS)
+        ).filter(status__in=BuildingStatusService.REAL_BUILDINGS_STATUS, is_active=True)
 
     def inspect_candidate(self):
         # Record the inspection datetime
@@ -313,3 +316,12 @@ def new_bdg_from_candidate(c: Candidate) -> Building:
     b.addresses_id = c.address_keys
 
     return b
+
+
+def create_inspection_tasks() -> list:
+
+    tasks = []
+    for _ in range(os.cpu_count()):
+        tasks.append(Signature("batid.tasks.inspect_candidates", immutable=True))
+
+    return tasks
