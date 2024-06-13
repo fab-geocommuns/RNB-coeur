@@ -22,7 +22,7 @@ class RNBIdField(serializers.CharField):
 class ContributionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contribution
-        fields = ["rnb_id", "text"]
+        fields = ["rnb_id", "text", "email"]
 
 
 class AddressSerializer(serializers.ModelSerializer):
