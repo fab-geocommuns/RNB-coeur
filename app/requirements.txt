@@ -52,7 +52,7 @@ geopandas==0.12.2
 geopy==2.4.0
 gunicorn==20.1.0
 humanize==4.9.0
-idna==3.4
+idna==3.7
 ijson==3.2.3
 inflate64==0.3.1
 ipykernel==6.25.2
@@ -60,7 +60,7 @@ ipython==8.15.0
 ipython-genutils==0.2.0
 isoduration==20.11.0
 jedi==0.19.0
-Jinja2==3.1.3
+Jinja2==3.1.4
 jmespath==1.0.1
 jsonpointer==2.4
 jsonschema==4.19.1
@@ -97,7 +97,7 @@ pandocfilters==1.5.0
 parso==0.8.3
 pexpect==4.8.0
 pickleshare==0.7.5
-pillow==10.2.0
+pillow==10.3.0
 platformdirs==3.10.0
 prometheus-client==0.17.1
 prompt-toolkit==3.0.38
@@ -122,7 +122,7 @@ pyzmq==24.0.1
 pyzstd==0.15.4
 redis==4.5.4
 referencing==0.30.2
-requests==2.31.0
+requests==2.32.2
 responses==0.25.0
 rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
@@ -134,7 +134,7 @@ shapely==2.0.3
 six==1.16.0
 sniffio==1.3.0
 soupsieve==2.5
-sqlparse==0.4.4
+sqlparse==0.5.0
 stack-data==0.6.2
 terminado==0.17.1
 texttable==1.6.7
@@ -150,7 +150,7 @@ wcwidth==0.2.6
 webcolors==1.13
 webencodings==0.5.1
 websocket-client==1.5.1
-Werkzeug==3.0.2
+Werkzeug==3.0.3
 whitenoise==6.4.0
 xmltodict==0.13.0
 drf-api-tracking==1.8.4
