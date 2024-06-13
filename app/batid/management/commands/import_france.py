@@ -7,14 +7,16 @@ from django.core.management.base import BaseCommand
 from batid.management.commands.import_bdnb_dpt import (
     create_tasks_list as create_tasks_list_bdnb_dpt,
 )
-from batid.management.commands.import_bdtopo_dpt import (
-    create_tasks_list as create_tasks_list_bdtopo_dpt,
-)
 from batid.management.commands.import_cities_dpt import (
     create_tasks_list as create_tasks_list_cities_dpt,
 )
 from batid.management.commands.import_plots_dpt import (
     create_tasks_list as create_tasks_list_plots_dpt,
+)
+from batid.services.administrative_areas import dpt_list_metropole
+from batid.services.administrative_areas import dpts_list
+from batid.services.imports.import_bdtopo import (
+    create_bdtopo_full_import_tasks,
 )
 
 
@@ -41,7 +43,7 @@ def task_method(task_name):
         "cities": create_tasks_list_cities_dpt,
         "plots": create_tasks_list_plots_dpt,
         "bdnb": create_tasks_list_bdnb_dpt,
-        "bdtopo": create_tasks_list_bdtopo_dpt,
+        "bdtopo": create_bdtopo_full_import_tasks,
     }
     return d[task_name]
 
@@ -73,112 +75,3 @@ def create_tasks_list_france(start_dpt, end_dpt, task_name):
     # flattern the list
     tasks = [item for sublist in tasks for item in sublist]
     return tasks
-
-
-def dpt_list_metropole():
-    return [
-        "01",
-        "02",
-        "03",
-        "04",
-        "05",
-        "06",
-        "07",
-        "08",
-        "09",
-        "10",
-        "11",
-        "12",
-        "13",
-        "14",
-        "15",
-        "16",
-        "17",
-        "18",
-        "19",
-        "2A",
-        "2B",
-        "21",
-        "22",
-        "23",
-        "24",
-        "25",
-        "26",
-        "27",
-        "28",
-        "29",
-        "30",
-        "31",
-        "32",
-        "33",
-        "34",
-        "35",
-        "36",
-        "37",
-        "38",
-        "39",
-        "40",
-        "41",
-        "42",
-        "43",
-        "44",
-        "45",
-        "46",
-        "47",
-        "48",
-        "49",
-        "50",
-        "51",
-        "52",
-        "53",
-        "54",
-        "55",
-        "56",
-        "57",
-        "58",
-        "59",
-        "60",
-        "61",
-        "62",
-        "63",
-        "64",
-        "65",
-        "66",
-        "67",
-        "68",
-        "69",
-        "70",
-        "71",
-        "72",
-        "73",
-        "74",
-        "75",
-        "76",
-        "77",
-        "78",
-        "79",
-        "80",
-        "81",
-        "82",
-        "83",
-        "84",
-        "85",
-        "86",
-        "87",
-        "88",
-        "89",
-        "90",
-        "91",
-        "92",
-        "93",
-        "94",
-        "95",
-    ]
-
-
-def dpt_list_overseas():
-    return ["971", "972", "973", "974", "975", "976", "977", "978"]
-
-
-def dpts_list():
-    return dpt_list_metropole() + dpt_list_overseas()
