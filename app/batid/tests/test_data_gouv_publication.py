@@ -139,7 +139,6 @@ class TestDataGouvPublication(TestCase):
             ext_ids={"some_source": "1234"},
             addresses_id=[address_Paris.id],
         )
-        building.addresses.add(address_Paris)
         building.save()
 
         # building without address
@@ -166,9 +165,8 @@ class TestDataGouvPublication(TestCase):
             point=geom_bdg_montreuil.point_on_surface,
             status="constructed",
             ext_ids={"some_source": "987"},
-            addresses_id=[address_Paris.id],
+            addresses_id=[address_Paris.id, address_Montreuil.id],
         )
-        building.addresses.add(address_Montreuil)
         building.save()
 
         area = "75"
