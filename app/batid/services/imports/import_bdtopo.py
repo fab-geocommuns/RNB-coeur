@@ -24,9 +24,7 @@ from batid.services.source import Source
 from batid.utils.geo import fix_nested_shells
 
 
-def create_bdtopo_full_import_tasks(
-    dpt_list: Optional[list] = None, release_date: Optional[str] = None
-) -> list:
+def create_bdtopo_full_import_tasks(dpt_list: list, release_date: str) -> list:
 
     tasks = []
 
@@ -210,7 +208,7 @@ def _bdtopo_dpt_projection(dpt: str) -> str:
     return projs.get(dpt, default_proj)
 
 
-def bdtopo_recente_release_date(before: date = None) -> str:
+def bdtopo_recente_release_date(before: Optional[date] = None) -> str:
 
     # If no date is provided, we use the current date
     if before is None:

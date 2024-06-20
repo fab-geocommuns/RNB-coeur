@@ -76,15 +76,17 @@ def convert_bdtopo(src_params, bulk_launch_uuid=None):
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def queue_full_bdtopo_import(dpts: Optional[str] = None, before: Optional[str] = None):
+def queue_full_bdtopo_import(
+    dpts_str: Optional[str] = None, before: Optional[str] = None
+):
 
     notify_tech(
-        f"Queuing full BDTopo import tasks.  Dpts: {dpts}  Released before: {before}"
+        f"Queuing full BDTopo import tasks.  Dpts: {dpts_str}  Released before: {before}"
     )
 
     # Default to all dpts
-    if dpts:
-        dpts = dpts.split(",")
+    if dpts_str:
+        dpts = dpts_str.split(",")
     else:
         dpts = dpts_list()
 
