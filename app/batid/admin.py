@@ -38,6 +38,7 @@ class ContributionAdmin(admin.ModelAdmin):
     list_display = (
         "rnb_id",
         "text",
+        "email",
         "created_at",
         "status",
         "fix_issue",
