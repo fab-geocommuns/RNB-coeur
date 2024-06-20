@@ -5,6 +5,7 @@ import uuid
 from datetime import date
 from datetime import datetime
 from datetime import timezone
+from typing import Optional
 
 import fiona
 import psycopg2
@@ -24,29 +25,29 @@ from batid.services.source import Source
 from batid.utils.geo import fix_nested_shells
 
 
-def create_bdtopo_full_import_tasks(dpt_list=None) -> list:
+def create_bdtopo_full_import_tasks(
+    dpt_list: Optional[list] = None, release_date: Optional[str] = None
+) -> list:
 
     tasks = []
 
     bulk_launch_uuid = uuid.uuid4()
 
-    if not dpt_list:
-        dpt_list = dpts_list()
-
     for dpt in dpt_list:
 
-        dpt_tasks = create_bdtopo_dpt_import_tasks(dpt, bulk_launch_uuid)
+        dpt_tasks = create_bdtopo_dpt_import_tasks(dpt, release_date, bulk_launch_uuid)
         tasks.extend(dpt_tasks)
 
     return tasks
 
 
-def create_bdtopo_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
+def create_bdtopo_dpt_import_tasks(
+    dpt: str, release_date: str, bulk_launch_id=None
+) -> list:
 
     tasks = []
 
-    most_recent_date = bdtopo_release_before()
-    src_params = bdtopo_src_params(dpt, most_recent_date)
+    src_params = bdtopo_src_params(dpt, release_date)
 
     dl_task = Signature(
         "batid.tasks.dl_source",
@@ -210,7 +211,7 @@ def _bdtopo_dpt_projection(dpt: str) -> str:
     return projs.get(dpt, default_proj)
 
 
-def bdtopo_release_before(before: date = None) -> str:
+def bdtopo_recente_release_date(before: date = None) -> str:
 
     # If no date is provided, we use the current date
     if before is None:

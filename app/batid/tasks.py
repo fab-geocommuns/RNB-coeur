@@ -1,7 +1,11 @@
+from datetime import datetime
+from typing import Optional
+
 from celery import chain
 from celery import shared_task
 
 from batid.models import AsyncSignal
+from batid.services.administrative_areas import dpts_list
 from batid.services.building import export_city as export_city_job
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
@@ -9,7 +13,10 @@ from batid.services.candidate import Inspector
 from batid.services.data_gouv_publication import publish
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
-from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
+from batid.services.imports.import_bdtopo import (
+    create_bdtopo_full_import_tasks,
+    bdtopo_recente_release_date,
+)
 from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
 from batid.services.imports.import_cities import import_etalab_cities
 from batid.services.imports.import_dgfip_ads import (
@@ -71,14 +78,28 @@ def convert_bdtopo(src_params, bulk_launch_uuid=None):
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def queue_full_bdtopo_import(dpts=None):
+def queue_full_bdtopo_import(dpts: Optional[str] = None, before: Optional[str] = None):
 
-    notify_tech(f"Queuing full BDTopo import tasks")
+    notify_tech(
+        f"Queuing full BDTopo import tasks.  Dpts: {dpts}  Released before: {before}"
+    )
 
+    # Default to all dpts
     if dpts:
         dpts = dpts.split(",")
+    else:
+        dpts = dpts_list()
 
-    tasks = create_bdtopo_full_import_tasks(dpts)
+    # Default release date to most recent one
+    if before:
+        # date str to date object
+        before_date = datetime.strptime(before, "%Y-%m-%d").date()
+
+        release_date = bdtopo_recente_release_date(before_date)
+    else:
+        release_date = bdtopo_recente_release_date()
+
+    tasks = create_bdtopo_full_import_tasks(dpts, release_date)
 
     chain(*tasks)()
     return f"Queued {len(tasks)} tasks"
