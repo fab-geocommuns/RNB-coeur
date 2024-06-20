@@ -13,10 +13,8 @@ from batid.services.candidate import Inspector
 from batid.services.data_gouv_publication import publish
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
-from batid.services.imports.import_bdtopo import (
-    create_bdtopo_full_import_tasks,
-    bdtopo_recente_release_date,
-)
+from batid.services.imports.import_bdtopo import bdtopo_recente_release_date
+from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
 from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
 from batid.services.imports.import_cities import import_etalab_cities
 from batid.services.imports.import_dgfip_ads import (
