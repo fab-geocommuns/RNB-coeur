@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSGeometry
 
 from batid.models import ADS
 from batid.models import City
@@ -50,7 +51,7 @@ def can_manage_ads(user: User, ads: ADS) -> bool:
     return can_manage_ads_in_cities(user, cities)
 
 
-def get_cities(rnb_ids: list, geojson_geometries: list) -> list:
+def get_cities(rnb_ids: list, geojson_geometries: list[GEOSGeometry]) -> list:
 
     if not rnb_ids and not geojson_geometries:
         return []
@@ -68,7 +69,7 @@ def get_cities(rnb_ids: list, geojson_geometries: list) -> list:
         wheres.append(
             "ST_Intersects(ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326), c.shape)"
         )
-        params.append(json.dumps(geojson_geom))
+        params.append(geojson_geom.json)
 
     wheres_str = " OR ".join(wheres)
 
