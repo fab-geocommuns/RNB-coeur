@@ -19,7 +19,9 @@ class BdgInADSValidator:
             raise serializers.ValidationError("Either rnb_id or shape is required.")
 
         if rnb_id is not None and shape is not None:
-            raise serializers.ValidationError("You can't provide a rnb_id and a shape, you should remove the shape.")
+            raise serializers.ValidationError(
+                "You can't provide a rnb_id and a shape, you should remove the shape."
+            )
 
         # if shape is not None:
         #     try:

@@ -478,7 +478,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
         for op in r_data["buildings_operations"]:
             if "non_field_errors" in op:
-                self.assertIn("Either rnb_id or shape is required.", op["non_field_errors"])
+                self.assertIn(
+                    "Either rnb_id or shape is required.", op["non_field_errors"]
+                )
 
     def test_create_ads_with_shape_and_rnd_id(self):
         data = {
@@ -504,7 +506,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
         for op in r_data["buildings_operations"]:
             if "non_field_errors" in op:
-                self.assertIn("You can't provide a rnb_id and a shape, you should remove the shape.", op["non_field_errors"])
+                self.assertIn(
+                    "You can't provide a rnb_id and a shape, you should remove the shape.",
+                    op["non_field_errors"],
+                )
 
     def test_ads_create_with_multipolygon(self):
         data = {
