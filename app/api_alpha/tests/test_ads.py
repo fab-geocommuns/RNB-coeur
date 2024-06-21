@@ -622,11 +622,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "rnb_id": "BDGSADSSONE1",
-                    "shape": {
-                        "type": "Point",
-                        "coordinates": [5.720861502527286, 45.18380982645842],
-                    },
+                    "rnb_id": "BDGSADSSTWO2",
                 }
             ],
         }
@@ -645,11 +641,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "rnb_id": "BDGSADSSONE1",
-                    "shape": {
-                        "type": "Point",
-                        "coordinates": [5.720861502527286, 45.18380982645842],
-                    },
+                    "rnb_id": "BDGSADSSTWO2",
+                    'shape': None,
                 }
             ],
         }
