@@ -642,7 +642,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 {
                     "operation": "build",
                     "rnb_id": "BDGSADSSTWO2",
-                    'shape': None,
+                    "shape": None,
                 }
             ],
         }
