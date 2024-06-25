@@ -887,8 +887,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
         data = json.dumps(
             [
                 {
-                    "username": "bbaret",
-                    "email": "bastien.baret@beta.gouv.fr",
+                    "username": "johndoe",
+                    "email": "test@exemple.fr",
                     "organization_name": "TempOrg",
                     "organization_managed_cities": ["38185"],
                 }
@@ -914,8 +914,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
             data=json.dumps(
                 [
                     {
-                        "username": "bbaret",
-                        "email": "bastien.baret@beta.gouv.fr",
+                        "username": "johndoe",
+                        "email": "test@exemple.fr",
                         "organization_name": "TempOrg",
                         "organization_managed_cities": ["38185"],
                     }
@@ -932,9 +932,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         expected = [
             {
-                "username": "bbaret",
+                "username": "johndoe",
                 "organization_name": "TempOrg",
-                "email": "bastien.baret@beta.gouv.fr",
+                "email": "test@exemple.fr",
             }
         ]
 
