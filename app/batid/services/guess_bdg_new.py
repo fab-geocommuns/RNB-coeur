@@ -13,6 +13,7 @@ from batid.models import Building
 from batid.services.closest_bdg import get_closest_from_point, get_closest_from_poly
 from batid.services.geocoders import BanGeocoder
 from batid.services.geocoders import PhotonGeocoder
+from batid.utils.decorators import show_duration
 
 
 class Guesser:
@@ -24,10 +25,12 @@ class Guesser:
             GeocodeNameHandler(),
         ]
 
+    @show_duration
     def create_work_file(self, inputs, file_path):
         self.load_inputs(inputs)
         self.save_work_file(file_path)
 
+    @show_duration
     def load_work_file(self, file_path):
         with open(file_path, "r") as f:
             self.guesses = json.load(f)
@@ -37,11 +40,21 @@ class Guesser:
         self.guesses = self._inputs_to_guesses(inputs)
 
     def guess_work_file(self, file_path):
+
+        print("- loading work file")
         self.load_work_file(file_path)
 
+        total = 0
+        print("- converting to batches")
         batches = self._guesses_to_batches()
 
         for batch in batches:
+            print("----- new batch")
+            print(
+                f"Processing {len(batch)} guesses more. Total processed so far : {total}/{len(self.guesses)}"
+            )
+            total += len(batch)
+
             batch = self.guess_batch(batch)
             self.guesses.update(batch)
             self.save_work_file(file_path)
@@ -53,16 +66,16 @@ class Guesser:
             batch = self.guess_batch(batch)
             self.guesses.update(batch)
 
-    def _guesses_to_batches(self, batch_size: int = 300):
+    def _guesses_to_batches(self, batch_size: int = 20000):
         batches = []
         batch = {}
 
-        c = 0
+        last_ext_id = list(self.guesses.keys())[-1]
+
         for ext_id, guess in self.guesses.items():
-            c += 1
             batch[ext_id] = guess
 
-            if len(batch) == batch_size or ext_id == list(self.guesses.keys())[-1]:
+            if len(batch) == batch_size or ext_id == last_ext_id:
                 batches.append(batch)
                 batch = {}
 
@@ -118,6 +131,7 @@ class Guesser:
 
         print(nomatches.sample(count))
 
+    @show_duration
     def save_work_file(self, file_path):
         self.convert_matches()
 
@@ -134,6 +148,7 @@ class Guesser:
 
                 guess["matches"] = ",".join(rnb_ids)
 
+    @show_duration
     def guess_batch(self, guesses: dict) -> dict:
         for handler in self.handlers:
             if not isinstance(handler, AbstractHandler):
@@ -465,6 +480,9 @@ class PartialRoofHandler(AbstractHandler):
             return guess
 
         roof_poly = GEOSGeometry(json.dumps(roof_geojson))
+
+        if not roof_poly.valid:
+            return guess
 
         # Get the two closest buildings
         closest_bdgs = get_closest_from_poly(roof_poly, 35)[:20]
