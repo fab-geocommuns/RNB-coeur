@@ -884,54 +884,65 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
     def test_ads_create_user_wrong_auth(self):
-        data = json.dumps([
-            {
-                "username": "bbaret",
-                "email": "bastien.baret@beta.gouv.fr",
-                "organization_name": "TempOrg",
-                "organization_managed_cities": ["38185"]
-            }
-        ])
+        data = json.dumps(
+            [
+                {
+                    "username": "bbaret",
+                    "email": "bastien.baret@beta.gouv.fr",
+                    "organization_name": "TempOrg",
+                    "organization_managed_cities": ["38185"],
+                }
+            ]
+        )
 
         self.client.credentials()
-        r = self.client.post("/api/alpha/ads/token/", data=data, content_type="application/json")
+        r = self.client.post(
+            "/api/alpha/ads/token/", data=data, content_type="application/json"
+        )
         self.assertEqual(r.status_code, 401)
 
         self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
-        r = self.client.post("/api/alpha/ads/token/", data=data, content_type="application/json")
+        r = self.client.post(
+            "/api/alpha/ads/token/", data=data, content_type="application/json"
+        )
         self.assertEqual(r.status_code, 403)
 
     def test_ads_create_user_ok(self):
         self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token_superuser.key)
         r = self.client.post(
-            "/api/alpha/ads/token/", data=json.dumps([
-                {
-                    "username": "bbaret",
-                    "email": "bastien.baret@beta.gouv.fr",
-                    "organization_name": "TempOrg",
-                    "organization_managed_cities": ["38185"]
-                }
-            ]), content_type="application/json"
+            "/api/alpha/ads/token/",
+            data=json.dumps(
+                [
+                    {
+                        "username": "bbaret",
+                        "email": "bastien.baret@beta.gouv.fr",
+                        "organization_name": "TempOrg",
+                        "organization_managed_cities": ["38185"],
+                    }
+                ]
+            ),
+            content_type="application/json",
         )
 
         self.assertEqual(r.status_code, 200)
         r_data = r.json()
 
         def clean_users_in_response(d):
-            return {k: v for k, v in d.items() if k not in ['password', 'token']}
+            return {k: v for k, v in d.items() if k not in ["password", "token"]}
 
         expected = [
             {
-                'username': 'bbaret',
-                'organization_name': 'TempOrg',
-                'email': 'bastien.baret@beta.gouv.fr',
+                "username": "bbaret",
+                "organization_name": "TempOrg",
+                "email": "bastien.baret@beta.gouv.fr",
             }
         ]
 
-        self.assertListEqual([clean_users_in_response(item) for item in r_data], expected)
-        self.assertIsNotNone(r_data[0]['token'])
-        self.assertIsNotNone(r_data[0]['password'])
-
+        self.assertListEqual(
+            [clean_users_in_response(item) for item in r_data], expected
+        )
+        self.assertIsNotNone(r_data[0]["token"])
+        self.assertIsNotNone(r_data[0]["password"])
 
     # def test_batch_create(self):
     #     data = [
@@ -1154,11 +1165,13 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         # User, Org & Token for superuser
         self.superuser = User.objects.create_user(
-            first_name="Super-John", last_name="Doe", username="johndoe_superuser", is_superuser=True
+            first_name="Super-John",
+            last_name="Doe",
+            username="johndoe_superuser",
+            is_superuser=True,
         )
         org.users.add(self.superuser)
         self.token_superuser = Token.objects.create(user=self.superuser)
-
 
 
 class ADSEnpointsNoAuthTest(APITestCase):

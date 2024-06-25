@@ -42,6 +42,6 @@ urlpatterns = [
     path("login/", auth_views.obtain_auth_token),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile_point),
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
-    path('api-auth/', obtain_auth_token),
+    path("api-auth/", obtain_auth_token),
     # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]

@@ -1,14 +1,14 @@
-import json
-
 import io
+import json
 from base64 import b64encode
 
 import requests
 from django.contrib.auth.models import User
 from django.db import connection
 from django.db import transaction
-from django.http import Http404, JsonResponse
+from django.http import Http404
 from django.http import HttpResponse
+from django.http import JsonResponse
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
@@ -16,6 +16,7 @@ from drf_spectacular.utils import extend_schema
 from psycopg2 import sql
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
@@ -27,7 +28,6 @@ from rest_framework.utils.urls import replace_query_param
 from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
-from rest_framework.authtoken.models import Token
 
 from api_alpha.permissions import ADSPermission
 from api_alpha.serializers import ADSSerializer
@@ -37,10 +37,10 @@ from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
 from batid.list_bdg import list_bdgs
-from batid.models import Organization
 from batid.models import ADS
 from batid.models import Building
 from batid.models import Contribution
+from batid.models import Organization
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.rnb_id import clean_rnb_id
@@ -583,14 +583,14 @@ class AdsTokenView(APIView):
             for json_user in json_users:
                 password = User.objects.make_random_password(length=15)
                 user = User.objects.create_user(
-                    username=json_user['username'],
-                    email=json_user.get('email', None),
-                    password=password
+                    username=json_user["username"],
+                    email=json_user.get("email", None),
+                    password=password,
                 )
 
                 organization = Organization.objects.create(
-                    name=json_user['organization_name'],
-                    managed_cities=json_user['organization_managed_cities'],
+                    name=json_user["organization_name"],
+                    managed_cities=json_user["organization_managed_cities"],
                 )
 
                 organization.users.set([user])
@@ -598,14 +598,16 @@ class AdsTokenView(APIView):
 
                 token = Token.objects.create(user=user)
 
-                users.append({
-                    'username': user.username,
-                    'organization_name': json_user['organization_name'],
-                    'email': user.email,
-                    'password': password,
-                    'token': token.key,
-                })
+                users.append(
+                    {
+                        "username": user.username,
+                        "organization_name": json_user["organization_name"],
+                        "email": user.email,
+                        "password": password,
+                        "token": token.key,
+                    }
+                )
 
             return JsonResponse(users, safe=False)
         except json.JSONDecodeError:
-            return HttpResponse('Invalid JSON', status=400)
+            return HttpResponse("Invalid JSON", status=400)
