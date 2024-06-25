@@ -462,6 +462,58 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
         self.assertDictEqual(r_data, expected)
 
+    def test_create_ads_without_shape_and_rnd_id(self):
+        data = {
+            "file_number": "ADS-TEST-3",
+            "decided_at": "2019-01-02",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(r.status_code, 400)
+
+        r_data = r.json()
+        for op in r_data["buildings_operations"]:
+            if "non_field_errors" in op:
+                self.assertIn(
+                    "Either rnb_id or shape is required.", op["non_field_errors"]
+                )
+
+    def test_create_ads_with_shape_and_rnd_id(self):
+        data = {
+            "file_number": "ADS-TEST-3",
+            "decided_at": "2019-01-02",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "rnb_id": "BDGSRNBBIDID",
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.724331358994107, 45.18157371019683],
+                    },
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(r.status_code, 400)
+
+        r_data = r.json()
+        for op in r_data["buildings_operations"]:
+            if "non_field_errors" in op:
+                self.assertIn(
+                    "You can't provide a rnb_id and a shape, you should remove the shape.",
+                    op["non_field_errors"],
+                )
+
     def test_ads_create_with_multipolygon(self):
         data = {
             "file_number": "ADS-TEST-NEW-BDG-MP",
@@ -573,11 +625,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "rnb_id": "BDGSADSSONE1",
-                    "shape": {
-                        "type": "Point",
-                        "coordinates": [5.720861502527286, 45.18380982645842],
-                    },
+                    "rnb_id": "BDGSADSSTWO2",
                 }
             ],
         }
@@ -596,11 +644,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "rnb_id": "BDGSADSSONE1",
-                    "shape": {
-                        "type": "Point",
-                        "coordinates": [5.720861502527286, 45.18380982645842],
-                    },
+                    "rnb_id": "BDGSADSSTWO2",
+                    "shape": None,
                 }
             ],
         }
