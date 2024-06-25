@@ -970,7 +970,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 200)
-        r_data = r.json()['created_users']
+        r_data = r.json()["created_users"]
 
         def clean_users_in_response(d):
             return {k: v for k, v in d.items() if k not in ["password", "token"]}
