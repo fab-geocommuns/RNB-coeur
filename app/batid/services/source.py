@@ -1,6 +1,7 @@
 import csv
 import gzip
 import os
+import shutil
 import tarfile
 import zipfile
 
@@ -182,6 +183,10 @@ class Source:
             return
 
         os.remove(self.dl_path)
+
+    def remove_uncompressed_folder(self):
+        if self.is_archive:
+            shutil.rmtree(self.uncompress_folder)
 
     def find(self, filename):
         root_dir = self.abs_dir

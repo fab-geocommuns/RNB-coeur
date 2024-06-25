@@ -23,8 +23,10 @@ class ImportBDTopo(TransactionTestCase):
         bdg.save()
 
     @patch("batid.services.imports.import_bdtopo.Source.find")
-    def test_import_bdtopo_2023_09(self, sourceMock):
-        sourceMock.return_value = helpers.fixture_path("bdtopo_2023_09_38.shp")
+    @patch("batid.services.imports.import_bdtopo.Source.remove_uncompressed_folder")
+    def test_import_bdtopo_2023_09(self, sourceRemoveFolderMock, sourceFindMock):
+        sourceFindMock.return_value = helpers.fixture_path("bdtopo_2023_09_38.shp")
+        sourceRemoveFolderMock.return_value = None
 
         src_params = bdtopo_src_params("38", "2023-09-15")
 
