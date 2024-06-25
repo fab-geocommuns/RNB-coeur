@@ -29,6 +29,7 @@
 .env.sentry.import
 .env.sentry.sandbox
 
+.env.nginx-encrypt.dev
 .env.nginx-encrypt.prod
 .env.nginx-encrypt.staging
 .env.nginx-encrypt.import
