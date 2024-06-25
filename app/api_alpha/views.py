@@ -611,6 +611,6 @@ class AdsTokenView(APIView):
                         }
                     )
 
-                return JsonResponse(users, safe=False)
+                return JsonResponse({'created_users': users})
         except json.JSONDecodeError:
             return HttpResponse("Invalid JSON", status=400)
