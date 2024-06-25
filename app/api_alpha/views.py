@@ -577,37 +577,38 @@ class AdsTokenView(APIView):
 
     def post(self, request, *args, **kwargs):
         try:
-            json_users = json.loads(request.body)
-            users = []
+            with transaction.atomic():
+                json_users = json.loads(request.body)
+                users = []
 
-            for json_user in json_users:
-                password = User.objects.make_random_password(length=15)
-                user = User.objects.create_user(
-                    username=json_user["username"],
-                    email=json_user.get("email", None),
-                    password=password,
-                )
+                for json_user in json_users:
+                    password = User.objects.make_random_password(length=15)
+                    user = User.objects.create_user(
+                        username=json_user["username"],
+                        email=json_user.get("email", None),
+                        password=password,
+                    )
 
-                organization = Organization.objects.create(
-                    name=json_user["organization_name"],
-                    managed_cities=json_user["organization_managed_cities"],
-                )
+                    organization = Organization.objects.create(
+                        name=json_user["organization_name"],
+                        managed_cities=json_user["organization_managed_cities"],
+                    )
 
-                organization.users.set([user])
-                organization.save()
+                    organization.users.set([user])
+                    organization.save()
 
-                token = Token.objects.create(user=user)
+                    token = Token.objects.create(user=user)
 
-                users.append(
-                    {
-                        "username": user.username,
-                        "organization_name": json_user["organization_name"],
-                        "email": user.email,
-                        "password": password,
-                        "token": token.key,
-                    }
-                )
+                    users.append(
+                        {
+                            "username": user.username,
+                            "organization_name": json_user["organization_name"],
+                            "email": user.email,
+                            "password": password,
+                            "token": token.key,
+                        }
+                    )
 
-            return JsonResponse(users, safe=False)
+                return JsonResponse(users, safe=False)
         except json.JSONDecodeError:
             return HttpResponse("Invalid JSON", status=400)
