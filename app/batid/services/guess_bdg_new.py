@@ -66,7 +66,7 @@ class Guesser:
             batch = self.guess_batch(batch)
             self.guesses.update(batch)
 
-    def _guesses_to_batches(self, batch_size: int = 20000):
+    def _guesses_to_batches(self, batch_size: int = 50000):
         batches = []
         batch = {}
 
