@@ -139,7 +139,7 @@ stack-data==0.6.2
 terminado==0.17.1
 texttable==1.6.7
 tinycss2==1.2.1
-tornado==6.3.3
+tornado==6.4.1
 traitlets==5.9.0
 uri-template==1.3.0
 uritemplate==4.1.1
