@@ -589,7 +589,7 @@ class AdsTokenView(APIView):
                         password=password,
                     )
 
-                    organization = Organization.objects.get_or_create(
+                    organization, created = Organization.objects.get_or_create(
                         name=json_user["organization_name"],
                         defaults={
                             "managed_cities": json_user["organization_managed_cities"]

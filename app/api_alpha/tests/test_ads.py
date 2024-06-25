@@ -959,7 +959,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             data=json.dumps(
                 [
                     {
-                        "username": "johndoe",
+                        "username": "john_doe",
                         "email": "test@exemple.fr",
                         "organization_name": "TempOrg",
                         "organization_managed_cities": ["38185"],
@@ -970,14 +970,14 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 200)
-        r_data = r.json()
+        r_data = r.json()['created_users']
 
         def clean_users_in_response(d):
             return {k: v for k, v in d.items() if k not in ["password", "token"]}
 
         expected = [
             {
-                "username": "johndoe",
+                "username": "john_doe",
                 "organization_name": "TempOrg",
                 "email": "test@exemple.fr",
             }
