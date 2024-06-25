@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import shutil
 import uuid
 from datetime import date
 from datetime import datetime
@@ -121,6 +122,8 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
 
         print("- remove buffer")
         os.remove(buffer.path)
+        print(f"- remove {src.uncompress_folder} folder")
+        shutil.rmtree(src.uncompress_folder)
 
 
 def _known_bdtopo_id(bdtopo_id: str) -> bool:
