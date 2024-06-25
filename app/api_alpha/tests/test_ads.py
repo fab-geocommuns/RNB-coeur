@@ -1119,7 +1119,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             rnb_id="BDGSRNBBIDID",
             ads=ads,
             operation="build",
-            shape=GEOSGeometry("POINT(0 0)"),
+            shape=None,
         )
 
         ads_in_paris = ADS.objects.create(
