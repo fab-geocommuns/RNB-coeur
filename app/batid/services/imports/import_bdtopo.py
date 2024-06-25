@@ -1,7 +1,6 @@
 import json
 import os
 import random
-import shutil
 import uuid
 from datetime import date
 from datetime import datetime
