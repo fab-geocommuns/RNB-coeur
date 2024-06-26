@@ -1002,6 +1002,28 @@ class ADSEndpointsWithAuthTest(APITestCase):
         token = Token.objects.get(user=john)
         self.assertEqual(r_data[0]["token"], token.key)
 
+        # Try creating an ADS with this new user/token
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+        data = {
+            "file_number": "ADS-TEST-NEW-USER",
+            "decided_at": "2020-03-18",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.717771597834023, 45.17739684209898],
+                    },
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(r.status_code, 201)
+
+
     # def test_batch_create(self):
     #     data = [
     #         {
