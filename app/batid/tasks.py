@@ -77,24 +77,22 @@ def convert_bdtopo(src_params, bulk_launch_uuid=None):
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_full_bdtopo_import(
-    dpts_str: Optional[str] = None, before: Optional[str] = None
+    dpt_start: Optional[str] = None,
+    dpt_end: Optional[str] = None,
+    released_before: Optional[str] = None,
 ):
 
     notify_tech(
-        f"Queuing full BDTopo import tasks.  Dpts: {dpts_str}  Released before: {before}"
+        f"Queuing full BDTopo import tasks.  Dpt start: {dpt_start}, dpt end: {dpt_end}.  Released before: {released_before}"
     )
 
-    # Default to all dpts
-    if dpts_str:
-        dpts = dpts_str.split(",")
-    else:
-        dpts = dpts_list()
+    # Get list of dpts
+    dpts = dpts_list(dpt_start, dpt_end)
 
     # Default release date to most recent one
-    if before:
+    if released_before:
         # date str to date object
-        before_date = datetime.strptime(before, "%Y-%m-%d").date()
-
+        before_date = datetime.strptime(released_before, "%Y-%m-%d").date()
         release_date = bdtopo_recente_release_date(before_date)
     else:
         release_date = bdtopo_recente_release_date()
