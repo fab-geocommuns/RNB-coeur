@@ -559,3 +559,40 @@ class ContributionsViewSet(viewsets.ModelViewSet):
     queryset = Contribution.objects.all()
     http_method_names = ["post"]
     serializer_class = ContributionSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = ContributionSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            if request.query_params.get("classement") == "true" and request.data.get(
+                "email"
+            ):
+                count, rank = get_contributor_count_and_rank(request.data.get("email"))
+                response = dict(serializer.data)
+                response["contributor_count"] = count
+                response["contributor_rank"] = rank
+                return Response(response, status=201)
+            else:
+                return Response(serializer.data, status=201)
+        else:
+            return Response(serializer.errors, status=400)
+
+
+def get_contributor_count_and_rank(email):
+    rawSql = """
+    select email, count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null group by email order by count desc;
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(rawSql)
+        results = cursor.fetchall()
+
+        target_count, target_rank = None, None
+
+        for current_email, count, rank in results:
+            if current_email == email:
+                target_count, target_rank = count, rank
+                break
+
+        return (target_count, target_rank)

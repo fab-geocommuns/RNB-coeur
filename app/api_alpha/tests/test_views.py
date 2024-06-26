@@ -274,3 +274,55 @@ class DiffTest(TransactionTestCase):
         r = self.client.get(url)
 
         self.assertEqual(r.status_code, 400)
+
+
+class ContributionTest(APITestCase):
+    def test_contribution(self):
+        Building.objects.create(rnb_id="1")
+        Building.objects.create(rnb_id="2")
+        Building.objects.create(rnb_id="3")
+
+        Contribution.objects.create(rnb_id="1", text="", email="riri@email.fr")
+        Contribution.objects.create(rnb_id="2", text="", email="riri@email.fr")
+        Contribution.objects.create(rnb_id="3", text="", email="riri@email.fr")
+
+        Contribution.objects.create(rnb_id="1", text="", email="fifi@email.fr")
+
+        data = {"email": "loulou@email.fr", "text": "test", "rnb_id": "1"}
+
+        r = self.client.post("/api/alpha/contributions/?classement=true", data)
+
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(Contribution.objects.count(), 5)
+        # loulou is expected at the second place, ex aequo with fifi
+        self.assertEqual(
+            r.json(),
+            {
+                "rnb_id": "1",
+                "text": "test",
+                "email": "loulou@email.fr",
+                "contributor_count": 1,
+                "contributor_rank": 2,
+            },
+        )
+
+        self.client.post("/api/alpha/contributions/?classement=true", data)
+        r = self.client.post("/api/alpha/contributions/?classement=true", data)
+        # two contributions later, loulou is now first ex aequo with riri
+        self.assertEqual(Contribution.objects.count(), 7)
+        self.assertEqual(
+            r.json(),
+            {
+                "rnb_id": "1",
+                "text": "test",
+                "email": "loulou@email.fr",
+                "contributor_count": 3,
+                "contributor_rank": 1,
+            },
+        )
+
+        # contribution without ranking in response
+        r = self.client.post("/api/alpha/contributions/", data)
+        self.assertEqual(
+            r.json(), {"rnb_id": "1", "text": "test", "email": "loulou@email.fr"}
+        )
