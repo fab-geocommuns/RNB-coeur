@@ -589,19 +589,14 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
 def get_contributor_count_and_rank(email):
     rawSql = """
-    select email, count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null group by email order by count desc;
+    with ranking as (select email, count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null and email != '' group by email order by count desc)
+    select count, rank from ranking where email = %s;
     """
 
     with connection.cursor() as cursor:
-        cursor.execute(rawSql)
+        cursor.execute(rawSql, [email])
         results = cursor.fetchall()
-
-        target_count, target_rank = None, None
-
-        for current_email, count, rank in results:
-            if current_email == email:
-                target_count, target_rank = count, rank
-                break
+        target_count, target_rank = results[0]
 
         return (target_count, target_rank)
 
