@@ -953,9 +953,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(r.status_code, 403)
 
     def test_ads_create_user_ok(self):
-        username = 'john_doe'
-        email = 'test@exemple.fr'
-        organization_name = 'TempOrg'
+        username = "john_doe"
+        email = "test@exemple.fr"
+        organization_name = "TempOrg"
         organization_managed_cities = ["38185"]
         self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token_superuser.key)
         r = self.client.post(
@@ -1001,7 +1001,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         token = Token.objects.get(user=john)
         self.assertEqual(r_data[0]["token"], token.key)
-
 
     # def test_batch_create(self):
     #     data = [
