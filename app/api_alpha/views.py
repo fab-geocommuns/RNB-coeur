@@ -11,8 +11,10 @@ from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
 from drf_spectacular.utils import extend_schema
 from psycopg2 import sql
+from rest_framework import mixins
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
@@ -555,9 +557,8 @@ def get_diff(request):
         return response
 
 
-class ContributionsViewSet(viewsets.ModelViewSet):
+class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     queryset = Contribution.objects.all()
-    http_method_names = ["post"]
     serializer_class = ContributionSerializer
 
     def create(self, request, *args, **kwargs):
@@ -578,6 +579,13 @@ class ContributionsViewSet(viewsets.ModelViewSet):
         else:
             return Response(serializer.errors, status=400)
 
+    @action(detail=False, methods=["get"])
+    def classement(self, request, *args, **kwargs):
+        individual = individual_ranking()
+        departement = departement_ranking()
+        data = {"individual": individual, "departement": departement}
+        return Response(data, status=200)
+
 
 def get_contributor_count_and_rank(email):
     rawSql = """
@@ -596,3 +604,30 @@ def get_contributor_count_and_rank(email):
                 break
 
         return (target_count, target_rank)
+
+
+def individual_ranking():
+    rawSql = """
+    select count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null group by email order by count desc;
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(rawSql)
+        results = cursor.fetchall()
+        return results
+
+
+def departement_ranking():
+    rawSql = """
+    select d.code, d.name, count(*) as count_dpt
+    from batid_contribution c
+    left join batid_building b on c.rnb_id = b.rnb_id
+    left join batid_department d on ST_Contains(d.shape, b.point)
+    group by d.code, d.name
+    order by count_dpt desc;
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(rawSql)
+        results = cursor.fetchall()
+        return results
