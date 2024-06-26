@@ -4,7 +4,6 @@ from drf_spectacular.views import SpectacularAPIView
 from drf_spectacular.views import SpectacularRedocView
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
-from rest_framework.authtoken.views import obtain_auth_token
 
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSViewSet
@@ -42,6 +41,5 @@ urlpatterns = [
     path("login/", auth_views.obtain_auth_token),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile_point),
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
-    path("api-auth/", obtain_auth_token),
     # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]

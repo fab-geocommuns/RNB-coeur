@@ -953,16 +953,20 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(r.status_code, 403)
 
     def test_ads_create_user_ok(self):
+        username = 'john_doe'
+        email = 'test@exemple.fr'
+        organization_name = 'TempOrg'
+        organization_managed_cities = ["38185"]
         self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token_superuser.key)
         r = self.client.post(
             "/api/alpha/ads/token/",
             data=json.dumps(
                 [
                     {
-                        "username": "john_doe",
-                        "email": "test@exemple.fr",
-                        "organization_name": "TempOrg",
-                        "organization_managed_cities": ["38185"],
+                        "username": username,
+                        "email": email,
+                        "organization_name": organization_name,
+                        "organization_managed_cities": organization_managed_cities,
                     }
                 ]
             ),
@@ -977,9 +981,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         expected = [
             {
-                "username": "john_doe",
-                "organization_name": "TempOrg",
-                "email": "test@exemple.fr",
+                "username": username,
+                "organization_name": organization_name,
+                "email": email,
             }
         ]
 
@@ -988,6 +992,16 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
         self.assertIsNotNone(r_data[0]["token"])
         self.assertIsNotNone(r_data[0]["password"])
+
+        john = User.objects.get(username=username)
+        self.assertEqual(email, john.email)
+
+        temp_org = Organization.objects.get(name=organization_name)
+        self.assertEqual(organization_managed_cities, temp_org.managed_cities)
+
+        token = Token.objects.get(user=john)
+        self.assertEqual(r_data[0]["token"], token.key)
+
 
     # def test_batch_create(self):
     #     data = [
