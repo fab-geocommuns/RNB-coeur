@@ -1,14 +1,21 @@
+import copy
+
 from rest_framework import permissions
 
 from batid.services.ads import can_manage_ads
 
 
-class ADSPermission(permissions.BasePermission):
+class ADSPermission(permissions.DjangoModelPermissions):
     """Custom permission class to allow access to ADS API."""
+
+    def __init__(self):
+        # Enforce 'view' permission for all GET requests (allowed by default in DjangoModelPermissions)
+        self.perms_map = copy.deepcopy(self.perms_map)
+        self.perms_map['GET'] = ['%(app_label)s.view_%(model_name)s']
 
     def has_permission(self, request, view):
 
-        return request.user.is_authenticated
+        return request.user.is_authenticated and super().has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
 
@@ -19,6 +26,10 @@ class ADSPermission(permissions.BasePermission):
         # Super user -> all permissions
         if request.user.is_authenticated and request.user.is_superuser:
             return True
+
+        # User does not have permission to perform this action (DjangoModelPermissions) -> no permission
+        if not super().has_object_permission(request, view, obj):
+            return False
 
         # ########
         # UPDATE
