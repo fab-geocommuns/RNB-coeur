@@ -11,7 +11,7 @@ class ADSPermission(permissions.DjangoModelPermissions):
     def __init__(self):
         # Enforce 'view' permission for all GET requests (allowed by default in DjangoModelPermissions)
         self.perms_map = copy.deepcopy(self.perms_map)
-        self.perms_map['GET'] = ['%(app_label)s.view_%(model_name)s']
+        self.perms_map["GET"] = ["%(app_label)s.view_%(model_name)s"]
 
     def has_permission(self, request, view):
 

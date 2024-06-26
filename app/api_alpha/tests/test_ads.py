@@ -1,8 +1,8 @@
-import random
-
 import json
 
-from django.contrib.auth.models import User, Group, Permission
+from django.contrib.auth.models import Group
+from django.contrib.auth.models import Permission
+from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
@@ -210,15 +210,19 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
 
     def test_view_ads_without_permission(self):
         # The current user's group has all permissions on ADS
-        r = self.client.get("/api/alpha/ads/ADS-GRENOBLE/", content_type="application/json")
+        r = self.client.get(
+            "/api/alpha/ads/ADS-GRENOBLE/", content_type="application/json"
+        )
         self.assertEqual(r.status_code, 200)
 
         # Remove permission
-        permission = Permission.objects.get(codename='view_ads')
+        permission = Permission.objects.get(codename="view_ads")
         group = Group.objects.get(name=ADS_GROUP_NAME)
         group.permissions.remove(permission)
 
-        r = self.client.get("/api/alpha/ads/ADS-GRENOBLE/", content_type="application/json")
+        r = self.client.get(
+            "/api/alpha/ads/ADS-GRENOBLE/", content_type="application/json"
+        )
         self.assertEqual(r.status_code, 403)
 
 
@@ -1022,7 +1026,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         # Check User in DB
         john = User.objects.get(username=username)
         self.assertEqual(email, john.email)
-        self.assertTrue(john.groups.filter(name='ADS').exists())
+        self.assertTrue(john.groups.filter(name="ADS").exists())
 
         # Check Organization in DB
         temp_org = Organization.objects.get(name=organization_name)

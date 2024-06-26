@@ -3,7 +3,8 @@ import json
 from base64 import b64encode
 
 import requests
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import Group
+from django.contrib.auth.models import User
 from django.db import connection
 from django.db import transaction
 from django.http import Http404
