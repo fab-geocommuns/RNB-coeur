@@ -1023,7 +1023,6 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         self.assertEqual(r.status_code, 201)
 
-
     # def test_batch_create(self):
     #     data = [
     #         {
