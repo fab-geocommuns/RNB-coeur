@@ -1,3 +1,5 @@
+from typing import Optional
+
 import requests
 
 
@@ -131,8 +133,21 @@ def dpt_list_overseas():
     return ["971", "972", "973", "974", "975", "976", "977", "978"]
 
 
-def dpts_list():
-    return dpt_list_metropole() + dpt_list_overseas()
+def dpts_list(start: Optional[str] = None, end: Optional[str] = None):
+    """
+    :param start: First department to be included
+    :param end: Last department to be included
+    :return: list of departments in France
+    """
 
+    all = dpt_list_metropole() + dpt_list_overseas()
 
-# Returns a dict representation of the WGS84 bbox of the metropolitan area
+    start_idx = 0
+    if start:
+        start_idx = all.index(start)
+
+    end_idx = len(all)
+    if end:
+        end_idx = all.index(end) + 1
+
+    return all[start_idx:end_idx]
