@@ -66,7 +66,7 @@ class Guesser:
             batch = self.guess_batch(batch)
             self.guesses.update(batch)
 
-    def _guesses_to_batches(self, batch_size: int = 50000):
+    def _guesses_to_batches(self, batch_size: int = 20000):
         batches = []
         batch = {}
 
@@ -495,7 +495,14 @@ class PartialRoofHandler(AbstractHandler):
             roof_poly, closest_bdgs
         )
         if isinstance(sole_bdg_intersecting_enough, Building):
-            guess["matches"].append(sole_bdg_intersecting_enough)
+            try:
+                guess["matches"].append(sole_bdg_intersecting_enough)
+            except Exception as e:
+                print(f"ext_id {guess['input']['ext_id']}")
+                print(guess)
+                print(e)
+                raise e
+
             guess["match_reason"] = "sole_bdg_intersects_roof_enough"
             return guess
 
