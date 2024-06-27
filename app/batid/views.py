@@ -1,6 +1,4 @@
 import os
-import uuid
-from datetime import datetime
 
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
@@ -90,21 +88,11 @@ def delete_building(request):
                 return HttpResponseBadRequest("Cannot delete an inactive building.")
             # start a transaction
             with transaction.atomic():
-                building.event_type = "delete"
-                building.is_active = False
-                building.event_id = uuid.uuid4()
-                building.event_user = request.user
-                building.event_origin = {
-                    "source": "contribution",
-                    "contribution_id": contribution_id,
-                }
-                building.save()
-
-                contribution.status = "fixed"
-                contribution.status_changed_at = datetime.now()
-                contribution.review_comment = review_comment
-                contribution.review_user = request.user
-                contribution.save()
+                building.delete(
+                    request.user,
+                    {"source": "contribution", "contribution_id": contribution_id},
+                )
+                contribution.fix(request.user, review_comment)
 
             return render(
                 request,
@@ -131,11 +119,7 @@ def refuse_contribution(request):
             if contribution.status != "pending":
                 return HttpResponseBadRequest("Contribution is not pending.")
 
-            contribution.status = "refused"
-            contribution.status_changed_at = datetime.now()
-            contribution.review_comment = review_comment
-            contribution.review_user = request.user
-            contribution.save()
+            contribution.refuse(request.user, review_comment)
 
             return render(
                 request,
@@ -173,22 +157,17 @@ def update_building(request):
             # start a transaction
             try:
                 with transaction.atomic():
-                    building.event_type = "update"
-                    building.event_id = uuid.uuid4()
-                    building.event_user = request.user
-                    building.event_origin = {
-                        "source": "contribution",
-                        "contribution_id": contribution_id,
-                    }
-                    building.addresses_id = addresses_id
-                    building.status = status
-                    building.save()
+                    building.update(
+                        request.user,
+                        {
+                            "source": "contribution",
+                            "contribution_id": contribution_id,
+                        },
+                        status,
+                        addresses_id,
+                    )
 
-                    contribution.status = "fixed"
-                    contribution.status_changed_at = datetime.now()
-                    contribution.review_comment = review_comment
-                    contribution.review_user = request.user
-                    contribution.save()
+                    contribution.fix(request.user, review_comment)
             except Exception as e:
                 return HttpResponseBadRequest(
                     "Erreur : mise à jour impossible. Il est probable que cette adresses n'existe pas encore en base."

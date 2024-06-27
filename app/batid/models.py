@@ -1,4 +1,6 @@
 import json
+import uuid
+from datetime import datetime
 from typing import Optional
 
 from django.contrib.auth.models import User
@@ -138,6 +140,23 @@ class Building(BuildingAbstract):
 
     def point_lng(self):
         return self.point_geojson()["coordinates"][0]
+
+    def delete(self, user, event_origin):
+        self.event_type = "delete"
+        self.is_active = False
+        self.event_id = uuid.uuid4()
+        self.event_user = user
+        self.event_origin = event_origin
+        self.save()
+
+    def update(self, user, event_origin, status, addresses_id):
+        self.event_type = "update"
+        self.event_id = uuid.uuid4()
+        self.event_user = user
+        self.event_origin = event_origin
+        self.addresses_id = addresses_id
+        self.status = status
+        self.save()
 
     class Meta:
         # ordering = ["rnb_id"]
@@ -354,3 +373,23 @@ class Contribution(models.Model):
     review_user = models.ForeignKey(
         User, on_delete=models.PROTECT, null=True, blank=True
     )
+
+    def fix(self, user, review_comment=""):
+        if self.status != "pending":
+            raise ValueError("Contribution is not pending.")
+
+        self.status = "fixed"
+        self.status_changed_at = datetime.now()
+        self.review_comment = review_comment
+        self.review_user = user
+        self.save()
+
+    def refuse(self, user, review_comment=""):
+        if self.status != "pending":
+            raise ValueError("Contribution is not pending.")
+
+        self.status = "refused"
+        self.status_changed_at = datetime.now()
+        self.review_comment = review_comment
+        self.review_user = user
+        self.save()
