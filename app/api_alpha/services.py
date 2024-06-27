@@ -43,8 +43,7 @@ def calc_ads_request_cities(data):
                 # We have to check if the shape is a valid geojson.
                 # It is hacky but the DRF structure dont let us validate data before permission check
                 try:
-                    GEOSGeometry(json.dumps(shape))
-                    geojson_geometries.append(shape)
+                    geojson_geometries.append(GEOSGeometry(json.dumps(shape)))
                 except (ValueError, GEOSException):
                     raise ValidationError(
                         {"buildings_operations": ["Invalid GeoJSON geometry"]}
