@@ -1,14 +1,10 @@
-version: "3.9"
+name: rnb-coeur
 
 services:
-
   web:
-    build:
-      context: .
-      dockerfile: ./app/Dockerfile
-      target: app_web
-    ports:
-      - '8000:8000'
+    extends:
+      file: common-services.yml
+      service: web
     environment:
       - DEBUG=1
       - DJANGO_SECRET_KEY=FOR_TEST_ONLY_eTPoJ4J132rg3UhQUAYAYOGljoh6MX8V
@@ -28,25 +24,16 @@ services:
       - MIN_BDG_AREA=5
       - WAIT_HOSTS=db:5432 rabbitmq:5672 redis:6379
       - WAIT_BEFORE=8
-    command: sh -c "/wait && python manage.py runserver 0.0.0.0:8000"
-    volumes:
-      - ./app:/app
+      - MATTERMOST_NOTIFICATIONS=0
     depends_on:
       db:
         condition: service_healthy
-      rabbitmq:
-        condition: service_started
-      redis:
-        condition: service_started
-    container_name: web
     restart: always
+
   db:
-    image: postgis/postgis:14-master
-    platform: linux/amd64
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    extends:
+      file: common-services.yml
+      service: db
     environment:
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
@@ -54,21 +41,18 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     restart: always
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+
   rabbitmq:
-    restart: unless-stopped
-    image: rabbitmq:3.9-alpine
+    extends:
+      file: common-services.yml
+      service: rabbitmq
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-  redis:
-    image: redis:latest
-    ports:
-      - "6379:6379"
 
+  redis:
+    extends:
+      file: common-services.yml
+      service: redis
 
 volumes:
   postgres_data:

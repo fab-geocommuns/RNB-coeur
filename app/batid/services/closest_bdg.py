@@ -1,10 +1,12 @@
 from typing import Optional
 
 from django.contrib.gis.db.models.functions import Distance
-from django.contrib.gis.geos import Point, Polygon
+from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import Polygon
 from django.db.models import QuerySet
 
 from batid.models import Building
+from batid.services.bdg_status import BuildingStatus
 
 
 def get_closest_from_poly(poly: Polygon, radius) -> Optional[QuerySet]:
@@ -33,7 +35,11 @@ def get_closest_from_point(lat, lng, radius) -> Optional[QuerySet]:
 
 
 def __get_qs(lat, lng, radius):
-    qs = __get_real_bdg_qs()
+    qs = (
+        Building.objects.all()
+        .filter(is_active=True)
+        .filter(status__in=BuildingStatus.REAL_BUILDINGS_STATUS)
+    )
 
     point_geom = Point(lng, lat, srid=4326)
 

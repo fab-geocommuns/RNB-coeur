@@ -39,7 +39,7 @@ class BuildingGuess:
         # ###################
 
         selects = ["b.id", "b.rnb_id"]
-        wheres = []
+        wheres = ["is_active = TRUE"]
         joins = []
         group_by = None
         params = {}
@@ -76,7 +76,7 @@ class BuildingGuess:
         # BAN ID
         if self.params._ban_id:
             joins.append(
-                f"LEFT JOIN {Building.addresses.through._meta.db_table} as b_rel_a ON b_rel_a.building_id = b.id"
+                f"LEFT JOIN {Building.addresses_read_only.through._meta.db_table} as b_rel_a ON b_rel_a.building_id = b.id"
             )
 
             group_by = "b.id"
@@ -229,7 +229,9 @@ class BuildingGuess:
             f"{pagination_str}"
         )
 
-        qs = Building.objects.raw(global_query, params).prefetch_related("addresses")
+        qs = Building.objects.raw(global_query, params).prefetch_related(
+            "addresses_read_only"
+        )
 
         # print("---- QUERY ---")
         # print(qs.query)

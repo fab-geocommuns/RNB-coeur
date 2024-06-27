@@ -52,7 +52,7 @@ class TestCityExport(TestCase):
             ],
         )
 
-        bdg.addresses.add(address_1)
+        bdg.addresses_id = [address_1.id]
 
         # Add some attributes
         bdg.add_ext_id("bdtopo", "v1", "BAT_BDTOPO_1", ext_id_date.isoformat())
@@ -74,8 +74,7 @@ class TestCityExport(TestCase):
             ],
         )
 
-        bdg.addresses.add(address_1)
-        bdg.addresses.add(address_2)
+        bdg.addresses_id = [address_1.id, address_2.id]
 
         # Add some attributes
         bdg.add_ext_id("bdtopo", "v1", "BAT_BDTOPO_2", ext_id_date.isoformat())

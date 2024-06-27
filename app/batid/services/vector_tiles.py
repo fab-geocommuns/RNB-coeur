@@ -1,11 +1,11 @@
 from batid.models import Building
+from batid.services.bdg_status import BuildingStatus
 
-TABLE = {
-    "table": Building._meta.db_table,
-    "srid": str(4326),
-    "geomColumn": "point",
-    "attrColumns": "rnb_id",
-}
+
+def get_real_buildings_status():
+    return ", ".join(
+        ["'" + status + "'" for status in BuildingStatus.REAL_BUILDINGS_STATUS]
+    )
 
 
 def tileIsValid(tile):
@@ -60,8 +60,16 @@ def envelopeToBoundsSQL(env):
 
 # Generate a SQL query to pull a tile worth of MVT data
 # from the table of interest.
-def envelopeToSQL(env):
-    tbl = TABLE.copy()
+def envelopeToSQL(env, geometry_column):
+    params = {
+        "table": Building._meta.db_table,
+        "srid": str(4326),
+        "attrColumns": "rnb_id",
+        "real_buildings_status": get_real_buildings_status(),
+    }
+    params["geomColumn"] = geometry_column
+
+    tbl = params.copy()
     tbl["env"] = envelopeToBoundsSQL(env)
     # Materialize the bounds
     # Select the relevant geometry and clip to MVT bounds
@@ -77,6 +85,8 @@ def envelopeToSQL(env):
                    {attrColumns}
             FROM {table} t, bounds
             WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
+            and t.is_active = true
+            and t.status IN ({real_buildings_status})
         )
         SELECT ST_AsMVT(mvtgeom.*) FROM mvtgeom
     """
@@ -92,8 +102,12 @@ def url_params_to_tile(x, y, z):
     return tile
 
 
-def tile_sql(tile):
+def tile_sql(tile, data_type):
     env = tileToEnvelope(tile)
-    sql = envelopeToSQL(env)
+    if data_type == "shape":
+        geometry_column = "shape"
+    elif data_type == "point":
+        geometry_column = "point"
+    sql = envelopeToSQL(env, geometry_column)
 
     return sql

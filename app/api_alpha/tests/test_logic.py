@@ -1,6 +1,6 @@
 from rest_framework.test import APITestCase
 
-from api_alpha.services import calc_ads_cities
+from api_alpha.services import calc_ads_request_cities
 from batid.tests.helpers import create_bdg
 from batid.tests.helpers import create_grenoble
 from batid.tests.helpers import create_paris
@@ -11,18 +11,15 @@ class LogicTest(APITestCase):
         data = {
             "buildings_operations": [
                 {
-                    "building": {
-                        "rnb_id": "new",
-                        "geometry": {
-                            "coordinates": [5.724331358994107, 45.18157371019683],
-                            "type": "Point",
-                        },
-                    }
+                    "shape": {
+                        "coordinates": [5.724331358994107, 45.18157371019683],
+                        "type": "Point",
+                    },
                 }
             ]
         }
 
-        cities = calc_ads_cities(data)
+        cities = calc_ads_request_cities(data)
 
         self.assertEqual(len(cities), 1)
         self.assertEqual(cities[0].code_insee, "38185")
@@ -30,20 +27,17 @@ class LogicTest(APITestCase):
     def test_calc_existing_and_new(self):
         data = {
             "buildings_operations": [
-                {"building": {"rnb_id": "ONE1ONE1ONE1"}},
+                {"rnb_id": "ONE1ONE1ONE1"},
                 {
-                    "building": {
-                        "rnb_id": "new",
-                        "geometry": {
-                            "coordinates": [2.36107202146934, 48.84551122951689],
-                            "type": "Point",
-                        },
-                    }
+                    "shape": {
+                        "coordinates": [2.36107202146934, 48.84551122951689],
+                        "type": "Point",
+                    },
                 },
             ],
         }
 
-        cities = calc_ads_cities(data)
+        cities = calc_ads_request_cities(data)
 
         self.assertEqual(len(cities), 2)
         self.assertEqual(cities[0].code_insee, "38185")
@@ -53,29 +47,26 @@ class LogicTest(APITestCase):
         data = {
             "buildings_operations": [
                 {
-                    "building": {
-                        "rnb_id": "new",
-                        "geometry": {
-                            "coordinates": [
+                    "shape": {
+                        "coordinates": [
+                            [
                                 [
-                                    [
-                                        [2.342150687705498, 48.827855733036756],
-                                        [2.342094227074142, 48.827759092595244],
-                                        [2.342231144105199, 48.8277293570373],
-                                        [2.342335596272477, 48.82792821324557],
-                                        [2.342221263494281, 48.82794865636265],
-                                        [2.342150687705498, 48.827855733036756],
-                                    ]
+                                    [2.342150687705498, 48.827855733036756],
+                                    [2.342094227074142, 48.827759092595244],
+                                    [2.342231144105199, 48.8277293570373],
+                                    [2.342335596272477, 48.82792821324557],
+                                    [2.342221263494281, 48.82794865636265],
+                                    [2.342150687705498, 48.827855733036756],
                                 ]
-                            ],
-                            "type": "MultiPolygon",
-                        },
-                    }
+                            ]
+                        ],
+                        "type": "MultiPolygon",
+                    },
                 }
             ]
         }
 
-        cities = calc_ads_cities(data)
+        cities = calc_ads_request_cities(data)
 
         self.assertEqual(len(cities), 1)
         self.assertEqual(cities[0].code_insee, "75056")
@@ -85,70 +76,42 @@ class LogicTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "building": {
-                        "rnb_id": "new",
-                        "geometry": {
-                            "coordinates": [
+                    "shape": {
+                        "coordinates": [
+                            [
                                 [
-                                    [
-                                        [5.736498177543439, 45.18740370893255],
-                                        [5.736455101954846, 45.18732521910442],
-                                        [5.736581176848205, 45.187335585691784],
-                                        [5.736620049940626, 45.187404449402266],
-                                        [5.736498177543439, 45.18740370893255],
-                                    ]
+                                    [5.736498177543439, 45.18740370893255],
+                                    [5.736455101954846, 45.18732521910442],
+                                    [5.736581176848205, 45.187335585691784],
+                                    [5.736620049940626, 45.187404449402266],
+                                    [5.736498177543439, 45.18740370893255],
                                 ]
-                            ],
-                            "type": "MultiPolygon",
-                        },
+                            ]
+                        ],
+                        "type": "MultiPolygon",
                     },
-                }
+                },
             ]
         }
 
-        cities = calc_ads_cities(data)
+        cities = calc_ads_request_cities(data)
 
         self.assertEqual(len(cities), 1)
         self.assertEqual(cities[0].code_insee, "38185")
 
-    def test_calc_one_new_bdg_point_paris(self):
+    def test_calc_one_point(self):
         data = {
-            "file_number": "ADS-TEST-NEW-BDG",
-            "decided_at": "2019-03-18",
             "buildings_operations": [
                 {
-                    "operation": "build",
-                    "building": {
-                        "rnb_id": "new",
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [2.3552747458487002, 48.86958288638419],
-                        },
+                    "shape": {
+                        "coordinates": [2.36107202146934, 48.84551122951689],
+                        "type": "Point",
                     },
-                }
-            ],
-        }
-        cities = calc_ads_cities(data)
-
-        self.assertEqual(len(cities), 1)
-        self.assertEqual(cities[0].code_insee, "75056")
-
-    def test_calc_one_new_bdg_point(self):
-        data = {
-            "buildings_operations": [
-                {
-                    "building": {
-                        "rnb_id": "new",
-                        "geometry": {
-                            "coordinates": [2.36107202146934, 48.84551122951689],
-                            "type": "Point",
-                        },
-                    }
                 }
             ]
         }
 
-        cities = calc_ads_cities(data)
+        cities = calc_ads_request_cities(data)
 
         self.assertEqual(len(cities), 1)
         self.assertEqual(cities[0].code_insee, "75056")
@@ -156,12 +119,12 @@ class LogicTest(APITestCase):
     def test_calc_two_bdg_two_city(self):
         data = {
             "buildings_operations": [
-                {"building": {"rnb_id": "ONE1ONE1ONE1"}},
-                {"building": {"rnb_id": "PARIPARIPARI"}},
+                {"rnb_id": "ONE1ONE1ONE1"},
+                {"rnb_id": "PARIPARIPARI"},
             ]
         }
 
-        cities = calc_ads_cities(data)
+        cities = calc_ads_request_cities(data)
 
         self.assertEqual(len(cities), 2)
         self.assertEqual(cities[0].code_insee, "38185")
@@ -170,20 +133,20 @@ class LogicTest(APITestCase):
     def test_calc_two_bdg_one_city(self):
         data = {
             "buildings_operations": [
-                {"building": {"rnb_id": "ONE1ONE1ONE1"}},
-                {"building": {"rnb_id": "TWO2TWO2TWO2"}},
+                {"rnb_id": "ONE1ONE1ONE1"},
+                {"rnb_id": "TWO2TWO2TWO2"},
             ]
         }
 
-        cities = calc_ads_cities(data)
+        cities = calc_ads_request_cities(data)
 
         self.assertEqual(len(cities), 1)
         self.assertEqual(cities[0].code_insee, "38185")
 
     def test_calc_one_bdg_one_city(self):
-        data = {"buildings_operations": [{"building": {"rnb_id": "ONE1ONE1ONE1"}}]}
+        data = {"buildings_operations": [{"rnb_id": "ONE1ONE1ONE1"}]}
 
-        cities = calc_ads_cities(data)
+        cities = calc_ads_request_cities(data)
 
         self.assertEqual(len(cities), 1)
         self.assertEqual(cities[0].code_insee, "38185")

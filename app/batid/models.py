@@ -5,6 +5,9 @@ from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import DateTimeRangeField
+from django.contrib.postgres.indexes import GinIndex
+from django.db.models.functions import Lower
+from django.db.models.indexes import Index
 
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.utils.db import from_now_to_infinity
@@ -28,17 +31,60 @@ class BuildingAbstract(models.Model):
     status = models.CharField(
         choices=BuildingStatusModel.TYPES_CHOICES,
         null=False,
-        db_index=True,
         max_length=30,
         default=BuildingStatusModel.DEFAULT_STATUS,
     )
+    # an event can modify several buildings at once
+    # all the buildings modified by the same event will have the same event_id
+    event_id = models.UUIDField(null=True, db_index=True)
+    # the possible event types
+    # creation: the building is created for the first time
+    # update: some fields of an existing building are modified
+    # deletion: the building is deleted, because it had no reason to be in the RNB in the first place
+    # WARNING : a deletion is different from a real building demolition, which would be a change of the status (a thus an event_type: update).
+    # merge: two or more buildings are merged into one
+    # split: one building is split into two or more
+    event_type = models.CharField(
+        choices=[
+            ("creation", "creation"),
+            ("update", "update"),
+            ("deletion", "deletion"),
+            ("merge", "merge"),
+            ("split", "split"),
+        ],
+        max_length=10,
+        null=True,
+    )
+    # the user at the origin of the event
+    event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
+    # only currently active buildings are considered part of the RNB
+    is_active = models.BooleanField(db_index=True, default=True)
+    # this field is the source of truth for the building <> address link
+    # it contains BAN ids (clé d'interopérabilité)
+    addresses_id = ArrayField(models.CharField(max_length=40), null=True)
 
     class Meta:
         abstract = True
 
 
+class BuildingAddressesReadOnly(models.Model):
+    building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
+    address = models.ForeignKey("Address", on_delete=models.CASCADE, db_index=True)
+
+    class Meta:
+        unique_together = ("building", "address")
+
+
 class Building(BuildingAbstract):
-    addresses = models.ManyToManyField("Address", blank=True, related_name="buildings")
+    # this only exists to make it possible for the Django ORM to access the associated addresses
+    # but this field is read-only : you should not attempt to save a building/address association through this field
+    # use addresses_id instead.
+    addresses_read_only = models.ManyToManyField(
+        "Address",
+        blank=True,
+        related_name="buildings_read_only",
+        through="BuildingAddressesReadOnly",
+    )
 
     def add_ext_id(
         self, source: str, source_version: Optional[str], id: str, created_at: str
@@ -94,7 +140,16 @@ class Building(BuildingAbstract):
         return self.point_geojson()["coordinates"][0]
 
     class Meta:
-        ordering = ["rnb_id"]
+        # ordering = ["rnb_id"]
+        indexes = [
+            GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
+            GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
+            models.Index(fields=("status",), name="bdg_status_idx"),
+            GinIndex(fields=("ext_ids",), name="bdg_ext_ids_idx"),
+            # lower is used to create an index on the start of the time range
+            Index(Lower("sys_period"), name="bdg_sys_period_start_idx"),
+            models.Index(fields=("event_type",), name="bdg_event_type_idx"),
+        ]
 
 
 class BuildingWithHistory(BuildingAbstract):
@@ -122,6 +177,12 @@ class BuildingHistoryOnly(BuildingAbstract):
     class Meta:
         managed = True
         db_table = "batid_building_history"
+        indexes = [
+            GinIndex(fields=["event_origin"], name="bdg_history_event_origin_idx"),
+            models.Index(fields=("status",), name="bdg_history_status_idx"),
+            Index(Lower("sys_period"), name="bdg_hist_sys_period_start_idx"),
+            models.Index(fields=("event_type",), name="bdg_history_event_type_idx"),
+        ]
 
 
 class City(models.Model):
@@ -156,19 +217,20 @@ class ADS(models.Model):
         max_length=40, null=False, unique=True, db_index=True
     )
     decided_at = models.DateField(null=True)
-    city = models.ForeignKey(City, on_delete=models.CASCADE, null=True)
     achieved_at = models.DateField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    creator = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
 
     class Meta:
         ordering = ["decided_at"]
 
 
 class BuildingADS(models.Model):
-    building = models.ForeignKey(Building, on_delete=models.CASCADE)
+    # building = models.ForeignKey(Building, on_delete=models.CASCADE)
+    rnb_id = models.CharField(max_length=12, null=True)
+    shape = models.GeometryField(null=True, srid=4326)
     ads = models.ForeignKey(
         ADS, related_name="buildings_operations", on_delete=models.CASCADE
     )
@@ -177,10 +239,8 @@ class BuildingADS(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
-
     class Meta:
-        unique_together = ("building", "ads")
+        unique_together = ("rnb_id", "ads")
 
 
 class Candidate(models.Model):
@@ -279,5 +339,18 @@ class Contribution(models.Model):
     id = models.AutoField(primary_key=True)
     rnb_id = models.CharField(max_length=255, null=True)
     text = models.TextField(null=True)
+    email = models.EmailField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
+    status = models.CharField(
+        choices=[("pending", "pending"), ("fixed", "fixed"), ("refused", "refused")],
+        max_length=10,
+        null=False,
+        default="pending",
+        db_index=True,
+    )
+    status_changed_at = models.DateTimeField(null=True, blank=True)
+    review_comment = models.TextField(null=True, blank=True)
+    review_user = models.ForeignKey(
+        User, on_delete=models.PROTECT, null=True, blank=True
+    )

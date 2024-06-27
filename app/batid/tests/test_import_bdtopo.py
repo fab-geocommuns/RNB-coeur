@@ -8,18 +8,32 @@ from django.test import TransactionTestCase
 from batid.models import Building
 from batid.models import Candidate
 from batid.services.candidate import Inspector
-from batid.services.imports.import_bdtopo import import_bdtopo
+from batid.services.imports.import_bdtopo import bdtopo_src_params
+from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
 from batid.tests import helpers
+from batid.tests.helpers import create_default_bdg
 
 
-class ImportBDTOPO202309TestCase(TransactionTestCase):
+class ImportBDTopo(TransactionTestCase):
+    def setUp(self):
+
+        # Create a bdg with a bdtopo ID also present in the file. It should be skipped
+        bdg = create_default_bdg("RNB_ID")
+        bdg.add_ext_id("bdtopo", "2023-09-15", "BATIMENT0000000301182075", "2024-03-15")
+        bdg.save()
+
     @patch("batid.services.imports.import_bdtopo.Source.find")
-    def test_import_bdtopo_2023_09(self, sourceMock):
-        sourceMock.return_value = helpers.fixture_path("bdtopo_2023_09_38.shp")
+    @patch("batid.services.imports.import_bdtopo.Source.remove_uncompressed_folder")
+    def test_import_bdtopo_2023_09(self, sourceRemoveFolderMock, sourceFindMock):
+        sourceFindMock.return_value = helpers.fixture_path("bdtopo_2023_09_38.shp")
+        sourceRemoveFolderMock.return_value = None
 
-        import_bdtopo("bdtopo_2023_09", "38")
+        src_params = bdtopo_src_params("38", "2023-09-15")
 
-        self.assertEqual(Candidate.objects.count(), 6)
+        create_candidate_from_bdtopo(src_params)
+
+        # The file contains 6 buildings, one of them is skipped because the database contains a bdg with the same bdtopo ID
+        self.assertEqual(Candidate.objects.count(), 5)
 
         # Check a light bdtopo building is not imported
         c = Candidate.objects.filter(source_id="BATIMENT0000000301181911").first()
@@ -27,7 +41,7 @@ class ImportBDTOPO202309TestCase(TransactionTestCase):
 
         c = Candidate.objects.filter(source_id="BATIMENT0000000301181909").first()
         self.assertEqual(c.source, "bdtopo")
-        self.assertEqual(c.source_version, "bdtopo_2023_09")
+        self.assertEqual(c.source_version, "2023-09-15")
         self.assertEqual(c.is_light, False)
         self.assertListEqual(c.address_keys, [])
         self.assertIsInstance(c.created_by, dict)

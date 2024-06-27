@@ -1,7 +1,9 @@
+import os
 from datetime import datetime
 from datetime import timezone
 from typing import Literal
 
+from celery import Signature
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
@@ -47,9 +49,10 @@ class Inspector:
         self.candidate = qs[0] if len(qs) > 0 else None
 
     def get_matching_bdgs(self):
+
         self.matching_bdgs = Building.objects.filter(
             shape__intersects=self.candidate.shape
-        ).filter(status__in=BuildingStatusService.REAL_BUILDINGS_STATUS)
+        ).filter(status__in=BuildingStatusService.REAL_BUILDINGS_STATUS, is_active=True)
 
     def inspect_candidate(self):
         # Record the inspection datetime
@@ -133,9 +136,6 @@ class Inspector:
         bdg = new_bdg_from_candidate(self.candidate)
         bdg.save()
 
-        # We add the addresses
-        add_addresses_to_building(bdg, self.candidate.address_keys)
-
         # Finally, we update the candidate
         self.candidate.inspection_details = {
             "decision": "creation",
@@ -146,13 +146,10 @@ class Inspector:
 
     def decide_update(self):
         bdg = Building.objects.get(id=self.matching_bdgs[0].id)
-        has_changed, added_address_keys, bdg = self.calc_bdg_update(bdg)
+        has_changed, bdg = self.calc_bdg_update(bdg)
 
         if has_changed:
             bdg.save()
-
-        # We add the addresses
-        add_addresses_to_building(bdg, added_address_keys)
 
         # Finally, we update the candidate
         self.candidate.inspection_details = {
@@ -163,7 +160,6 @@ class Inspector:
 
     def calc_bdg_update(self, bdg: Building):
         has_changed = False
-        added_address_keys = []
 
         # ##############################
         # PROPERTIES
@@ -197,35 +193,26 @@ class Inspector:
 
         # ##############################
         # ADDRESSES
-        # Handle change in address
-        # We will return all the address keys that are not in the bdg
+        # Handle change in addresses
+        def sort_handle_null(lst):
+            return sorted(lst) if lst else []
 
-        bdg_addresses_keys = [a.id for a in bdg.addresses.all()]
-
-        if self.candidate.address_keys:
-            for c_address_key in self.candidate.address_keys:
-                if c_address_key not in bdg_addresses_keys:
-                    added_address_keys.append(c_address_key)
-                    # for the moment we don't consider a change in address as a change in the building
-                    # because we don't historize the addresses
-                    # so we don't know what has changed afterwards.
-                    # has_changed = True
+        bdg_addresses = sort_handle_null(bdg.addresses_id)
+        candidate_addresses = sort_handle_null(self.candidate.address_keys)
+        if bdg_addresses != candidate_addresses:
+            has_changed = True
+            # concatenate the two lists and remove duplicates
+            bdg.addresses_id = list(set(bdg_addresses + candidate_addresses))
 
         if has_changed:
             bdg.event_origin = self.candidate.created_by
 
-        return has_changed, added_address_keys, bdg
+        return has_changed, bdg
 
 
 def add_addresses_to_building(bdg: Building, add_keys):
-    if add_keys:
-        rels = []
-        for address_key in add_keys:
-            rels.append(
-                Building.addresses.through(building_id=bdg.id, address_id=address_key)
-            )
-        if len(rels) > 0:
-            Building.addresses.through.objects.bulk_create(rels, ignore_conflicts=True)
+    bdg.addresses_id = add_keys
+    bdg.save()
 
 
 def match_shapes(
@@ -326,5 +313,15 @@ def new_bdg_from_candidate(c: Candidate) -> Building:
             "created_at": c.created_at.isoformat(),
         }
     ]
+    b.addresses_id = c.address_keys
 
     return b
+
+
+def create_inspection_tasks() -> list:
+
+    tasks = []
+    for _ in range(os.cpu_count()):
+        tasks.append(Signature("batid.tasks.inspect_candidates", immutable=True))
+
+    return tasks

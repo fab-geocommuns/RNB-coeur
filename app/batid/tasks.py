@@ -1,13 +1,21 @@
+from datetime import datetime
+from typing import Optional
+
+from celery import chain
 from celery import shared_task
 
 from batid.models import AsyncSignal
+from batid.services.administrative_areas import dpts_list
 from batid.services.building import export_city as export_city_job
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.candidate import Inspector
+from batid.services.data_gouv_publication import publish
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
-from batid.services.imports.import_bdtopo import import_bdtopo as import_bdtopo_job
+from batid.services.imports.import_bdtopo import bdtopo_recente_release_date
+from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
+from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
 from batid.services.imports.import_cities import import_etalab_cities
 from batid.services.imports.import_dgfip_ads import (
     import_dgfip_ads_achievements as import_dgfip_ads_achievements_job,
@@ -16,6 +24,8 @@ from batid.services.imports.import_dpt import import_etalab_dpts
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
 )
+from batid.services.mattermost import notify_if_error
+from batid.services.mattermost import notify_tech
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.signal import AsyncSignalDispatcher
 from batid.services.source import Source
@@ -30,9 +40,11 @@ def test_all() -> str:
 @shared_task(
     autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 5}
 )
-def dl_source(src, dpt):
-    src = Source(src)
-    src.set_param("dpt", dpt)
+def dl_source(src_name: dict, src_params: dict):
+
+    src = Source(src_name)
+    for param, value in src_params.items():
+        src.set_param(param, value)
 
     print(f"-- downloading {src.url}")
     src.download()
@@ -54,10 +66,41 @@ def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
     return "done"
 
 
+@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bdtopo(dpt, bdtopo_edition="bdtopo_2023_09", bulk_launch_uuid=None):
-    import_bdtopo_job(bdtopo_edition, dpt, bulk_launch_uuid)
+def convert_bdtopo(src_params, bulk_launch_uuid=None):
+
+    create_candidate_from_bdtopo(src_params, bulk_launch_uuid)
     return "done"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_full_bdtopo_import(
+    dpt_start: Optional[str] = None,
+    dpt_end: Optional[str] = None,
+    released_before: Optional[str] = None,
+):
+
+    notify_tech(
+        f"Queuing full BDTopo import tasks.  Dpt start: {dpt_start}, dpt end: {dpt_end}.  Released before: {released_before}"
+    )
+
+    # Get list of dpts
+    dpts = dpts_list(dpt_start, dpt_end)
+
+    # Default release date to most recent one
+    if released_before:
+        # date str to date object
+        before_date = datetime.strptime(released_before, "%Y-%m-%d").date()
+        release_date = bdtopo_recente_release_date(before_date)
+    else:
+        release_date = bdtopo_recente_release_date()
+
+    tasks = create_bdtopo_full_import_tasks(dpts, release_date)
+
+    chain(*tasks)()
+    return f"Queued {len(tasks)} tasks"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
@@ -79,8 +122,6 @@ def import_dpts():
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def inspect_candidates():
-    print("---- Inspecting candidates ----")
-
     i = Inspector()
     i.inspect()
 
@@ -123,4 +164,24 @@ def dispatch_signal(pk: int):
 def backup_to_s3(self):
     # Backing up the database on a separate S3 service
     backup_to_s3_job(task_id=self.request.id)
+    return "done"
+
+
+@shared_task()
+def populate_addresses_id_field():
+    from batid.services.populate_addresses_id_field import launch_procedure
+
+    launch_procedure()
+    return "done"
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def opendata_publish_national():
+    publish(["nat"])
+    return "done"
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def opendata_publish_department(dept):
+    publish([dept])
     return "done"

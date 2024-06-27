@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework.authtoken",
+    "rest_framework_gis",
     "django.contrib.postgres",
     "corsheaders",
     "rest_framework_tracking",
@@ -76,6 +77,7 @@ INSTALLED_APPS = [
     "xp",
     "django_extensions",
     "revproxy",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -157,6 +159,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 30,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -188,7 +191,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "batid.tasks.backup_to_s3",
         # saturday at 7am
         "schedule": crontab(hour=7, minute=0, day_of_week=6),
-    }
+    },
+    "import_bdtopo": {
+        "task": "queue_full_bdtopo_import",
+        # 15 april, 15 july, 15 october, 15 january
+        "schedule": crontab(
+            minute=0, hour=0, day_of_month=15, month_of_year="1,4,7,10"
+        ),
+    },
 }
 
 
@@ -198,6 +208,11 @@ MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))
 # Zoom range for vector tiles generation
 VCTR_TILES_MIN_ZOOM = 14
 VCTR_TILES_MAX_ZOOM = 18
+
+# Mattermost
+MATTERMOST_NOTIFICATIONS = (
+    True if os.environ.get("MATTERMOST_NOTIFICATIONS") == 1 else False
+)
 
 
 sentry_dsn = os.environ.get("SENTRY_DSN", None)

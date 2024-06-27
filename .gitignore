@@ -29,6 +29,7 @@
 .env.sentry.import
 .env.sentry.sandbox
 
+.env.nginx-encrypt.dev
 .env.nginx-encrypt.prod
 .env.nginx-encrypt.staging
 .env.nginx-encrypt.import
@@ -53,6 +54,10 @@
 
 # Jupyter notebooks trash
 app/.Trash-0/*
+
+# Some data in notebook
+/app/notebooks/rapprochements/histologe/*.csv
+/app/notebooks/rapprochements/histologe/*.json
 
 # Remove files in data folder since they are used for importing default data
 source_data/
