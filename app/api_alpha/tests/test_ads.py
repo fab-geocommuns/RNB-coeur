@@ -1247,7 +1247,12 @@ class ADSEndpointsWithAuthTest(APITestCase):
             file_number="ADS-TEST-DELETE-YES",
             decided_at="2025-01-01",
         )
-        BuildingADS.objects.create(rnb_id="BDGSRNBBIDID", ads=ads, operation="build")
+        BuildingADS.objects.create(
+            rnb_id="BDGSRNBBIDID",
+            ads=ads,
+            operation="build",
+            shape=None,
+        )
 
         ads_in_paris = ADS.objects.create(
             file_number="ADS-TEST-DELETE-NO", decided_at="2025-01-01"
