@@ -290,7 +290,7 @@ class ContributionTest(APITestCase):
 
         data = {"email": "loulou@email.fr", "text": "test", "rnb_id": "1"}
 
-        r = self.client.post("/api/alpha/contributions/?classement=true", data)
+        r = self.client.post("/api/alpha/contributions/?ranking=true", data)
 
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Contribution.objects.count(), 5)
@@ -306,8 +306,8 @@ class ContributionTest(APITestCase):
             },
         )
 
-        self.client.post("/api/alpha/contributions/?classement=true", data)
-        r = self.client.post("/api/alpha/contributions/?classement=true", data)
+        self.client.post("/api/alpha/contributions/?ranking=true", data)
+        r = self.client.post("/api/alpha/contributions/?ranking=true", data)
         # two contributions later, loulou is now first ex aequo with riri
         self.assertEqual(Contribution.objects.count(), 7)
         self.assertEqual(
@@ -362,7 +362,12 @@ class ContributionTest(APITestCase):
         Contribution.objects.create(rnb_id="2_1", text="", email="riri@email.fr")
         Contribution.objects.create(rnb_id="2_2", text="", email="fifi@email.fr")
 
-        r = self.client.get("/api/alpha/contributions/classement/")
+        # refused contribution
+        Contribution.objects.create(
+            rnb_id="2_1", text="", email="riri@email.fr", status="refused"
+        )
+
+        r = self.client.get("/api/alpha/contributions/ranking/")
         response = r.json()
 
         self.assertEqual(r.status_code, 200)
@@ -376,6 +381,7 @@ class ContributionTest(APITestCase):
             {
                 "individual": [[2, 1], [2, 1], [1, 3]],
                 "departement": [["01", "Ain", 3], ["02", "Aisne", 2]],
+                "global": 5,
             },
         )
 

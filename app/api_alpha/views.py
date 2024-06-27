@@ -566,7 +566,7 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
         if serializer.is_valid():
             serializer.save()
-            if request.query_params.get("classement") == "true" and request.data.get(
+            if request.query_params.get("ranking") == "true" and request.data.get(
                 "email"
             ):
                 count, rank = get_contributor_count_and_rank(request.data.get("email"))
@@ -580,16 +580,23 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             return Response(serializer.errors, status=400)
 
     @action(detail=False, methods=["get"])
-    def classement(self, request, *args, **kwargs):
+    def ranking(self, request, *args, **kwargs):
         individual = individual_ranking()
         departement = departement_ranking()
-        data = {"individual": individual, "departement": departement}
+        all_contributions = Contribution.objects.filter(
+            status__in=["fixed", "pending"]
+        ).count()
+        data = {
+            "individual": individual,
+            "departement": departement,
+            "global": all_contributions,
+        }
         return Response(data, status=200)
 
 
 def get_contributor_count_and_rank(email):
     rawSql = """
-    with ranking as (select email, count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null and email != '' group by email order by count desc)
+    with ranking as (select email, count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null and email != '' and status != 'refused' group by email order by count desc)
     select count, rank from ranking where email = %s;
     """
 
@@ -603,7 +610,7 @@ def get_contributor_count_and_rank(email):
 
 def individual_ranking():
     rawSql = """
-    select count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null group by email order by count desc;
+    select count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null and email != '' and status != 'refused' group by email order by count desc;
     """
 
     with connection.cursor() as cursor:
@@ -618,6 +625,7 @@ def departement_ranking():
     from batid_contribution c
     left join batid_building b on c.rnb_id = b.rnb_id
     left join batid_department d on ST_Contains(d.shape, b.point)
+    where c.status != 'refused'
     group by d.code, d.name
     order by count_dpt desc;
     """
