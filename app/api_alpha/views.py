@@ -3,6 +3,7 @@ import json
 from base64 import b64encode
 
 import requests
+from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.db import connection
 from django.db import transaction
@@ -47,6 +48,7 @@ from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.vector_tiles import tile_sql
 from batid.services.vector_tiles import url_params_to_tile
+from batid.utils.constants import ADS_GROUP_NAME
 
 
 class IsSuperUser(BasePermission):
@@ -588,6 +590,10 @@ class AdsTokenView(APIView):
                         email=json_user.get("email", None),
                         password=password,
                     )
+
+                    group, created = Group.objects.get_or_create(name=ADS_GROUP_NAME)
+                    user.groups.add(group)
+                    user.save()
 
                     organization, created = Organization.objects.get_or_create(
                         name=json_user["organization_name"],
