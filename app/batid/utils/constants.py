@@ -1,0 +1,1 @@
+ADS_GROUP_NAME = "ADS"

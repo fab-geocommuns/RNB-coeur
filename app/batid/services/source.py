@@ -186,7 +186,7 @@ class Source:
 
     def remove_uncompressed_folder(self):
         if self.is_archive:
-            shutil.rmtree(self.uncompress_folder)
+            shutil.rmtree(self.uncompress_abs_dir)
 
     def find(self, filename):
         root_dir = self.abs_dir
