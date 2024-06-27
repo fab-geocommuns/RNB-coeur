@@ -5,6 +5,7 @@ from drf_spectacular.views import SpectacularRedocView
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
 
+from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
@@ -35,6 +36,7 @@ urlpatterns = [
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
     path("buildings/diff/", get_diff),
+    path("ads/token/", AdsTokenView.as_view()),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile_point),
