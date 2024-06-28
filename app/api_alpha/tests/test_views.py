@@ -11,7 +11,8 @@ from rest_framework_tracking.models import APIRequestLog
 
 from batid.models import Building
 from batid.models import Contribution
-from batid.tests.helpers import create_grenoble, create_paris
+from batid.tests.helpers import create_grenoble
+from batid.tests.helpers import create_paris
 
 
 class StatsTest(APITestCase):
