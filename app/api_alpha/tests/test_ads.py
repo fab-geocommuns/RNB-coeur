@@ -1,6 +1,9 @@
 import json
 
+from django.contrib.auth.models import Group
+from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
@@ -13,6 +16,7 @@ from batid.tests.helpers import create_cenac
 from batid.tests.helpers import create_from_geojson_feature
 from batid.tests.helpers import create_grenoble
 from batid.tests.helpers import create_paris
+from batid.utils.constants import ADS_GROUP_NAME
 
 
 class ADSEnpointsWithBadAuthTest(APITestCase):
@@ -26,6 +30,14 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
         )
         token = Token.objects.create(user=user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+
+        # Add permission
+        group, created = Group.objects.get_or_create(name=ADS_GROUP_NAME)
+        user.groups.add(group)
+        content_type = ContentType.objects.get_for_model(ADS)
+        permissions = Permission.objects.filter(content_type=content_type)
+        for permission in permissions:
+            group.permissions.add(permission)
 
         org = Organization.objects.create(name="Test Org", managed_cities=["38185"])
         org.users.add(user)
@@ -196,11 +208,31 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
 
         self.assertEqual(r.status_code, 400)
 
+    def test_view_ads_without_permission(self):
+        # The current user's group has all permissions on ADS
+        r = self.client.get(
+            "/api/alpha/ads/ADS-GRENOBLE/", content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 200)
+
+        # Remove permission
+        permission = Permission.objects.get(codename="view_ads")
+        group = Group.objects.get(name=ADS_GROUP_NAME)
+        group.permissions.remove(permission)
+
+        r = self.client.get(
+            "/api/alpha/ads/ADS-GRENOBLE/", content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 403)
+
 
 class ADSEndpointsWithAuthTest(APITestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = None
+        self.token = None
+        self.superuser = None
+        self.token_superuser = None
 
     def setUp(self):
         self.__insert_data()
@@ -459,6 +491,58 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
         self.assertDictEqual(r_data, expected)
 
+    def test_create_ads_without_shape_and_rnd_id(self):
+        data = {
+            "file_number": "ADS-TEST-3",
+            "decided_at": "2019-01-02",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(r.status_code, 400)
+
+        r_data = r.json()
+        for op in r_data["buildings_operations"]:
+            if "non_field_errors" in op:
+                self.assertIn(
+                    "Either rnb_id or shape is required.", op["non_field_errors"]
+                )
+
+    def test_create_ads_with_shape_and_rnd_id(self):
+        data = {
+            "file_number": "ADS-TEST-3",
+            "decided_at": "2019-01-02",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "rnb_id": "BDGSRNBBIDID",
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.724331358994107, 45.18157371019683],
+                    },
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(r.status_code, 400)
+
+        r_data = r.json()
+        for op in r_data["buildings_operations"]:
+            if "non_field_errors" in op:
+                self.assertIn(
+                    "You can't provide a rnb_id and a shape, you should remove the shape.",
+                    op["non_field_errors"],
+                )
+
     def test_ads_create_with_multipolygon(self):
         data = {
             "file_number": "ADS-TEST-NEW-BDG-MP",
@@ -570,11 +654,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "rnb_id": "BDGSADSSONE1",
-                    "shape": {
-                        "type": "Point",
-                        "coordinates": [5.720861502527286, 45.18380982645842],
-                    },
+                    "rnb_id": "BDGSADSSTWO2",
                 }
             ],
         }
@@ -593,11 +673,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "buildings_operations": [
                 {
                     "operation": "build",
-                    "rnb_id": "BDGSADSSONE1",
-                    "shape": {
-                        "type": "Point",
-                        "coordinates": [5.720861502527286, 45.18380982645842],
-                    },
+                    "rnb_id": "BDGSADSSTWO2",
+                    "shape": None,
                 }
             ],
         }
@@ -880,6 +957,106 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r = self.client.get("/api/alpha/ads/ADS-TEST-DELETE-NO/")
         self.assertEqual(r.status_code, 200)
 
+    def test_ads_create_user_wrong_auth(self):
+        data = json.dumps(
+            [
+                {
+                    "username": "johndoe",
+                    "email": "test@exemple.fr",
+                    "organization_name": "TempOrg",
+                    "organization_managed_cities": ["38185"],
+                }
+            ]
+        )
+
+        self.client.credentials()
+        r = self.client.post(
+            "/api/alpha/ads/token/", data=data, content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 401)
+
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+        r = self.client.post(
+            "/api/alpha/ads/token/", data=data, content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_ads_create_user_ok(self):
+        username = "john_doe"
+        email = "test@exemple.fr"
+        organization_name = "TempOrg"
+        organization_managed_cities = ["38185"]
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token_superuser.key)
+        r = self.client.post(
+            "/api/alpha/ads/token/",
+            data=json.dumps(
+                [
+                    {
+                        "username": username,
+                        "email": email,
+                        "organization_name": organization_name,
+                        "organization_managed_cities": organization_managed_cities,
+                    }
+                ]
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 200)
+        r_data = r.json()["created_users"]
+
+        def clean_users_in_response(d):
+            return {k: v for k, v in d.items() if k not in ["password", "token"]}
+
+        expected = [
+            {
+                "username": username,
+                "organization_name": organization_name,
+                "email": email,
+            }
+        ]
+
+        # Check response
+        self.assertListEqual(
+            [clean_users_in_response(item) for item in r_data], expected
+        )
+        self.assertIsNotNone(r_data[0]["token"])
+        self.assertIsNotNone(r_data[0]["password"])
+
+        # Check User in DB
+        john = User.objects.get(username=username)
+        self.assertEqual(email, john.email)
+        self.assertTrue(john.groups.filter(name="ADS").exists())
+
+        # Check Organization in DB
+        temp_org = Organization.objects.get(name=organization_name)
+        self.assertEqual(organization_managed_cities, temp_org.managed_cities)
+
+        # Check Token in DB
+        token = Token.objects.get(user=john)
+        self.assertEqual(r_data[0]["token"], token.key)
+
+        # Create an ADS with this new user/token
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+        data = {
+            "file_number": "ADS-TEST-RIGHT-42",
+            "decided_at": "2020-03-18",
+            "buildings_operations": [
+                {
+                    "operation": "build",
+                    "shape": {
+                        "type": "Point",
+                        "coordinates": [5.717771597834023, 45.17739684209898],
+                    },
+                }
+            ],
+        }
+        r = self.client.post(
+            "/api/alpha/ads/", data=json.dumps(data), content_type="application/json"
+        )
+
+        self.assertEqual(r.status_code, 201)
+
     # def test_batch_create(self):
     #     data = [
     #         {
@@ -1070,7 +1247,12 @@ class ADSEndpointsWithAuthTest(APITestCase):
             file_number="ADS-TEST-DELETE-YES",
             decided_at="2025-01-01",
         )
-        BuildingADS.objects.create(rnb_id="BDGSRNBBIDID", ads=ads, operation="build")
+        BuildingADS.objects.create(
+            rnb_id="BDGSRNBBIDID",
+            ads=ads,
+            operation="build",
+            shape=None,
+        )
 
         ads_in_paris = ADS.objects.create(
             file_number="ADS-TEST-DELETE-NO", decided_at="2025-01-01"
@@ -1096,9 +1278,28 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
         org = Organization.objects.create(name="Test Org", managed_cities=["38185"])
         org.users.add(self.user)
+        self.token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
 
-        token = Token.objects.create(user=self.user)
-        self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+        # Add John to a group and add all permissions on ADS to this group
+        group, created = Group.objects.get_or_create(name=ADS_GROUP_NAME)
+        self.user.groups.add(group)
+        self.user.save()
+        content_type = ContentType.objects.get_for_model(ADS)
+        permissions = Permission.objects.filter(content_type=content_type)
+        for permission in permissions:
+            group.permissions.add(permission)
+        group.save()
+
+        # User, Org & Token for superuser
+        self.superuser = User.objects.create_user(
+            first_name="Super-John",
+            last_name="Doe",
+            username="johndoe_superuser",
+            is_superuser=True,
+        )
+        org.users.add(self.superuser)
+        self.token_superuser = Token.objects.create(user=self.superuser)
 
 
 class ADSEnpointsNoAuthTest(APITestCase):

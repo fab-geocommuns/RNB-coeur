@@ -1,22 +1,30 @@
 import io
+import json
 from base64 import b64encode
 
 import requests
+from django.contrib.auth.models import Group
+from django.contrib.auth.models import User
 from django.db import connection
 from django.db import transaction
 from django.http import Http404
 from django.http import HttpResponse
+from django.http import JsonResponse
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
 from drf_spectacular.utils import extend_schema
 from psycopg2 import sql
+from rest_framework import mixins
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.authtoken.models import Token
+from rest_framework.decorators import action
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import BasePermission
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.utils.urls import replace_query_param
@@ -35,12 +43,19 @@ from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
 from batid.models import Contribution
+from batid.models import Organization
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.vector_tiles import tile_sql
 from batid.services.vector_tiles import url_params_to_tile
+from batid.utils.constants import ADS_GROUP_NAME
+
+
+class IsSuperUser(BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_superuser)
 
 
 class RNBLoggingMixin(LoggingMixin):
@@ -555,7 +570,147 @@ def get_diff(request):
         return response
 
 
-class ContributionsViewSet(viewsets.ModelViewSet):
+class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     queryset = Contribution.objects.all()
-    http_method_names = ["post"]
     serializer_class = ContributionSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = ContributionSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            if request.query_params.get("ranking") == "true" and request.data.get(
+                "email"
+            ):
+                count, rank = get_contributor_count_and_rank(request.data.get("email"))
+                response = dict(serializer.data)
+                response["contributor_count"] = count
+                response["contributor_rank"] = rank
+                return Response(response, status=201)
+            else:
+                return Response(serializer.data, status=201)
+        else:
+            return Response(serializer.errors, status=400)
+
+    @action(detail=False, methods=["get"])
+    def ranking(self, request, *args, **kwargs):
+        individual = individual_ranking()
+        departement = departement_ranking()
+        city = city_ranking()
+        all_contributions = Contribution.objects.filter(
+            status__in=["fixed", "pending"]
+        ).count()
+        data = {
+            "individual": individual,
+            "city": city,
+            "departement": departement,
+            "global": all_contributions,
+        }
+        return Response(data, status=200)
+
+
+def get_contributor_count_and_rank(email):
+    rawSql = """
+    with ranking as (select email, count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null and email != '' and status != 'refused' group by email order by count desc)
+    select count, rank from ranking where email = %s;
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(rawSql, [email])
+        results = cursor.fetchall()
+        target_count, target_rank = results[0]
+
+        return (target_count, target_rank)
+
+
+def individual_ranking():
+    rawSql = """
+    select count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null and email != '' and status != 'refused' group by email order by count desc;
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(rawSql)
+        results = cursor.fetchall()
+        return results
+
+
+def departement_ranking():
+    rawSql = """
+    select d.code, d.name, count(*) as count_dpt
+    from batid_contribution c
+    left join batid_building b on c.rnb_id = b.rnb_id
+    left join batid_department d on ST_Contains(d.shape, b.point)
+    where c.status != 'refused'
+    group by d.code, d.name
+    order by count_dpt desc;
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(rawSql)
+        results = cursor.fetchall()
+        return results
+
+
+def city_ranking():
+    rawSql = """
+    select city.code_insee, city.name, count(*) as count_city
+    from batid_contribution c
+    inner join batid_building b on c.rnb_id = b.rnb_id
+    inner join batid_city city on ST_Contains(city.shape, b.point)
+    where c.status != 'refused'
+    group by city.code_insee, city.name
+    order by count_city desc;
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(rawSql)
+        results = cursor.fetchall()
+        return results
+
+
+class AdsTokenView(APIView):
+    permission_classes = [IsSuperUser]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            with transaction.atomic():
+                json_users = json.loads(request.body)
+                users = []
+
+                for json_user in json_users:
+                    password = User.objects.make_random_password(length=15)
+                    user = User.objects.create_user(
+                        username=json_user["username"],
+                        email=json_user.get("email", None),
+                        password=password,
+                    )
+
+                    group, created = Group.objects.get_or_create(name=ADS_GROUP_NAME)
+                    user.groups.add(group)
+                    user.save()
+
+                    organization, created = Organization.objects.get_or_create(
+                        name=json_user["organization_name"],
+                        defaults={
+                            "managed_cities": json_user["organization_managed_cities"]
+                        },
+                    )
+
+                    organization.users.add(user)
+                    organization.save()
+
+                    token = Token.objects.create(user=user)
+
+                    users.append(
+                        {
+                            "username": user.username,
+                            "organization_name": json_user["organization_name"],
+                            "email": user.email,
+                            "password": password,
+                            "token": token.key,
+                        }
+                    )
+
+                return JsonResponse({"created_users": users})
+        except json.JSONDecodeError:
+            return HttpResponse("Invalid JSON", status=400)
