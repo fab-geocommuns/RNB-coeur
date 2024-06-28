@@ -653,12 +653,12 @@ def departement_ranking():
 
 def city_ranking():
     rawSql = """
-    select c.code_insee, c.name, count(*) as count_city
+    select city.code_insee, city.name, count(*) as count_city
     from batid_contribution c
     inner join batid_building b on c.rnb_id = b.rnb_id
-    inner join batid_city d on ST_Contains(c.shape, b.point)
+    inner join batid_city city on ST_Contains(city.shape, b.point)
     where c.status != 'refused'
-    group by c.code_insee, c.name
+    group by city.code_insee, city.name
     order by count_city desc;
     """
 
