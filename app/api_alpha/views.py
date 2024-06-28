@@ -564,9 +564,9 @@ def get_diff(request):
         response = HttpResponse(
             file_output.getvalue(), content_type="text/csv", status=200
         )
-        response[
-            "Content-Disposition"
-        ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+        response["Content-Disposition"] = (
+            f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+        )
         return response
 
 
@@ -596,11 +596,13 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     def ranking(self, request, *args, **kwargs):
         individual = individual_ranking()
         departement = departement_ranking()
+        city = city_ranking()
         all_contributions = Contribution.objects.filter(
             status__in=["fixed", "pending"]
         ).count()
         data = {
             "individual": individual,
+            "city": city,
             "departement": departement,
             "global": all_contributions,
         }
@@ -641,6 +643,23 @@ def departement_ranking():
     where c.status != 'refused'
     group by d.code, d.name
     order by count_dpt desc;
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(rawSql)
+        results = cursor.fetchall()
+        return results
+
+
+def city_ranking():
+    rawSql = """
+    select c.code_insee, c.name, count(*) as count_city
+    from batid_contribution c
+    left join batid_building b on c.rnb_id = b.rnb_id
+    left join batid_city d on ST_Contains(c.shape, b.point)
+    where c.status != 'refused'
+    group by d.code, d.name
+    order by count_city desc;
     """
 
     with connection.cursor() as cursor:
