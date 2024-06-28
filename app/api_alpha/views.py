@@ -655,10 +655,10 @@ def city_ranking():
     rawSql = """
     select c.code_insee, c.name, count(*) as count_city
     from batid_contribution c
-    left join batid_building b on c.rnb_id = b.rnb_id
-    left join batid_city d on ST_Contains(c.shape, b.point)
+    inner join batid_building b on c.rnb_id = b.rnb_id
+    inner join batid_city d on ST_Contains(c.shape, b.point)
     where c.status != 'refused'
-    group by d.code, d.name
+    group by c.code_insee, c.name
     order by count_city desc;
     """
 
