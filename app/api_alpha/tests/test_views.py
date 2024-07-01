@@ -11,6 +11,8 @@ from rest_framework_tracking.models import APIRequestLog
 
 from batid.models import Building
 from batid.models import Contribution
+from batid.tests.helpers import create_grenoble
+from batid.tests.helpers import create_paris
 
 
 class StatsTest(APITestCase):
@@ -274,3 +276,179 @@ class DiffTest(TransactionTestCase):
         r = self.client.get(url)
 
         self.assertEqual(r.status_code, 400)
+
+
+class ContributionTest(APITestCase):
+    def test_contribution(self):
+        Building.objects.create(rnb_id="1")
+        Building.objects.create(rnb_id="2")
+        Building.objects.create(rnb_id="3")
+
+        Contribution.objects.create(rnb_id="1", text="", email="riri@email.fr")
+        Contribution.objects.create(rnb_id="2", text="", email="riri@email.fr")
+        Contribution.objects.create(rnb_id="3", text="", email="riri@email.fr")
+
+        Contribution.objects.create(rnb_id="1", text="", email="fifi@email.fr")
+
+        data = {"email": "loulou@email.fr", "text": "test", "rnb_id": "1"}
+
+        r = self.client.post("/api/alpha/contributions/?ranking=true", data)
+
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(Contribution.objects.count(), 5)
+        # loulou is expected at the second place, ex aequo with fifi
+        self.assertEqual(
+            r.json(),
+            {
+                "rnb_id": "1",
+                "text": "test",
+                "email": "loulou@email.fr",
+                "contributor_count": 1,
+                "contributor_rank": 2,
+            },
+        )
+
+        self.client.post("/api/alpha/contributions/?ranking=true", data)
+        r = self.client.post("/api/alpha/contributions/?ranking=true", data)
+        # two contributions later, loulou is now first ex aequo with riri
+        self.assertEqual(Contribution.objects.count(), 7)
+        self.assertEqual(
+            r.json(),
+            {
+                "rnb_id": "1",
+                "text": "test",
+                "email": "loulou@email.fr",
+                "contributor_count": 3,
+                "contributor_rank": 1,
+            },
+        )
+
+        # contribution without ranking in response
+        r = self.client.post("/api/alpha/contributions/", data)
+        self.assertEqual(
+            r.json(), {"rnb_id": "1", "text": "test", "email": "loulou@email.fr"}
+        )
+
+    def test_ranking(self):
+        from batid.models import Department
+
+        create_grenoble()
+        create_paris()
+
+        Department.objects.create(
+            code="75",
+            name="Paris",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [
+                                    [2.353306071148694, 48.90085197679912],
+                                    [2.298936023110457, 48.89580357010155],
+                                    [2.273133288448662, 48.87419062799353],
+                                    [2.2602319211170823, 48.84630219945575],
+                                    [2.313373267504062, 48.82102752865572],
+                                    [2.372965297558153, 48.81678013291423],
+                                    [2.4175057323916462, 48.84407854008418],
+                                    [2.411362224139367, 48.878837188722514],
+                                    [2.3907814714921187, 48.89964040569237],
+                                    [2.353306071148694, 48.90085197679912],
+                                ]
+                            ]
+                        ],
+                        "type": "Multipolygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        Department.objects.create(
+            code="01",
+            name="Ain",
+            shape=GEOSGeometry(
+                "MULTIPOLYGON (((-1.1445170773446591 50.14048784607837, -1.1445170773446591 48.46067765220832, 2.180844882808316 48.46067765220832, 2.180844882808316 50.14048784607837, -1.1445170773446591 50.14048784607837)))"
+            ),
+        )
+
+        Department.objects.create(
+            code="02",
+            name="Aisne",
+            shape=GEOSGeometry(
+                "MULTIPOLYGON (((4.023367285356358 49.55818275540048, 4.023367285356358 48.001809772072534, 7.459707468976717 48.001809772072534, 7.459707468976717 49.55818275540048, 4.023367285356358 49.55818275540048)))"
+            ),
+        )
+
+        # Buildings in Paris
+        Building.objects.create(
+            rnb_id="p_1",
+            point=GEOSGeometry("POINT (2.3151031002108637 48.853855939132494)"),
+        )
+        Building.objects.create(
+            rnb_id="p_2",
+            point=GEOSGeometry("POINT (2.366944834508937 48.87440863357778)"),
+        )
+
+        # Contributions in Paris
+        Contribution.objects.create(rnb_id="p_1", text="", email="lucie@dummy.fr")
+        Contribution.objects.create(rnb_id="p_2", text="", email="lucie@dummy.fr")
+
+        # Buildings in Ain
+        Building.objects.create(rnb_id="1_1", point=GEOSGeometry("POINT (0 49)"))
+        Building.objects.create(rnb_id="1_2", point=GEOSGeometry("POINT (0 49)"))
+        # Buildings in Aisne
+        Building.objects.create(rnb_id="2_1", point=GEOSGeometry("POINT (5 49)"))
+        Building.objects.create(rnb_id="2_2", point=GEOSGeometry("POINT (5 49)"))
+
+        # Contributions in Ain
+        Contribution.objects.create(rnb_id="1_1", text="", email="riri@email.fr")
+        Contribution.objects.create(rnb_id="1_2", text="", email="fifi@email.fr")
+        Contribution.objects.create(rnb_id="1_2", text="", email="loulou@email.fr")
+
+        # Contributions in Aisne
+        Contribution.objects.create(rnb_id="2_1", text="", email="riri@email.fr")
+        Contribution.objects.create(rnb_id="2_2", text="", email="fifi@email.fr")
+
+        # refused contribution
+        Contribution.objects.create(
+            rnb_id="2_1", text="", email="riri@email.fr", status="refused"
+        )
+
+        r = self.client.get("/api/alpha/contributions/ranking/")
+        response = r.json()
+
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue("departement" in response)
+        self.assertTrue("city" in response)
+        self.assertTrue("individual" in response)
+
+        # individual ranking : [[count1, rank1], [count2, rank2], ...]
+        # departement ranking : [[dpt_code1, dpt_name1, dpt_count1], [dpt_code2, dpt_name2, dpt_count2], ...]
+        self.assertEqual(
+            response,
+            {
+                "individual": [[2, 1], [2, 1], [2, 1], [1, 4]],
+                "departement": [
+                    ["01", "Ain", 3],
+                    ["02", "Aisne", 2],
+                    ["75", "Paris", 2],
+                ],
+                "city": [["75056", "Paris", 2]],
+                "global": 7,
+            },
+        )
+
+    def test_contribution_permissions_list(self):
+        # you cannot list contributions
+        r = self.client.get("/api/alpha/contributions/")
+        self.assertEqual(r.status_code, 405)
+
+    def test_contribution_permissions_read(self):
+        Building.objects.create(rnb_id="xxx")
+        c = Contribution.objects.create(rnb_id="xxx", text="", email="riri@email.fr")
+
+        r = self.client.get(f"/api/alpha/contributions/{c.id}/")
+        # you cannot access a contribution after it has been created
+        # I was expecting a 405, but DRF is returning a 404
+        self.assertEqual(r.status_code, 404)
