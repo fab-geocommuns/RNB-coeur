@@ -639,7 +639,7 @@ def departement_ranking():
     select d.code, d.name, count(*) as count_dpt
     from batid_contribution c
     left join batid_building b on c.rnb_id = b.rnb_id
-    left join batid_department d on ST_Contains(d.shape, b.point)
+    left join batid_department_subdivided d on ST_Contains(d.shape, b.point)
     where c.status != 'refused'
     group by d.code, d.name
     order by count_dpt desc;
