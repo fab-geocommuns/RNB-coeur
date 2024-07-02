@@ -1,0 +1,9 @@
+Nombre de lignes : 908 579
+Nombre de lignes avec au moins une adresse rentrée : 562 773
+Nombre d'adresses à géocoder : 702 480
+Nombre d'adresses géocodées avec un score > 0,8 et de type housenumber : 544 191
+
+Nombre de copropriétés restantes avec un géocodage correct : 452 906
+Nombre de copropriétés rattachées à au moins un RNB ID : 435 817
+
+Soit 77,4% des copropriétés ayant une adresse fournie
