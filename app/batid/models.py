@@ -233,6 +233,8 @@ class ADS(models.Model):
 
     class Meta:
         ordering = ["decided_at"]
+        verbose_name = "ADS"
+        verbose_name_plural = "ADS"
 
 
 class BuildingADS(models.Model):

@@ -3,6 +3,7 @@ from django.urls import path
 from django.utils.html import format_html
 
 from batid.models import Address
+from batid.models import ADS
 from batid.models import Contribution
 from batid.models import Organization
 from batid.views import worker
@@ -53,6 +54,14 @@ class ContributionAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Contribution, ContributionAdmin)
+
+
+class ADSAdmin(admin.ModelAdmin):
+    list_filter = ["creator"]
+    list_display = ("file_number", "created_at", "creator")
+
+
+admin.site.register(ADS, ADSAdmin)
 
 
 def get_admin_urls(urls):
