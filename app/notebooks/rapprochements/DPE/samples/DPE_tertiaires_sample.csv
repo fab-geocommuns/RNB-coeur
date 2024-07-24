@@ -1,0 +1,11 @@
+N°DPE,Date_réception_DPE_x,Identifiant__BAN,Score_BAN,Statut_géocodage,Date_réception_DPE_y,rnb_id_filtered
+2238T2354914S,2022-10-11,38517_0620_00802,0.96,adresse non géocodée ban car aucune correspondance trouvée,2022-10-11,['2YGD3H486KTP'] ok
+2442T0885741H,2024-03-11,42094_0459,0.54,adresse géocodée ban à l'adresse,2024-03-11,[] ok
+2418T0686818M,2024-02-25,18033_2951,0.79,adresse non géocodée ban car aucune correspondance trouvée,2024-02-25,[] ok
+2131T0013724Q,2021-07-06,31106_0140,0.46,adresse géocodée ban à l'adresse,2021-07-06,[] ok
+2273T2201995O,2022-09-26,73150_mid8sz,0.39,adresse géocodée ban à l'adresse,2022-09-26,[] ok
+2313T2196341V,2023-06-29,13001_0681_00260,0.97,adresse géocodée ban à l'adresse,2023-06-29,"['XAKDGQHABP9N', 'F486RCFD1X4F']" ok
+2256T0770302U,2022-04-12,56061_0540_00004,0.53,adresse géocodée ban à l'adresse,2022-04-12,['1RBEG9B8829V'] ok
+2275T2674379G,2022-11-11,75115_9607_00015,0.78,adresse géocodée ban à l'adresse,2022-11-11,['T3J8P3Z6PS37'] ok
+2294T2896940A,2022-12-01,94042_4130_00078,0.65,adresse géocodée ban à l'adresse,2022-12-01,['BSNQYCP3F4F8'] ok
+2469T1397599E,2024-04-18,69381_1155_00010,0.66,adresse géocodée ban à l'adresse,2024-04-18,['VBSVWJWTF74B'] ok
