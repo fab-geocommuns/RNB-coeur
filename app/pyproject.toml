@@ -29,6 +29,7 @@ redis = "~4.5.4"
 gunicorn = "~22.0.0"
 requests = "~2.32.2"
 pandas = "~2.2.2"
+Fiona = "~1.9.6"
 
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.0.0"
