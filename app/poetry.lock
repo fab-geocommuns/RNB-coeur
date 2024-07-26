@@ -923,20 +923,21 @@ Django = ">=3.2"
 
 [[package]]
 name = "django-revproxy"
-version = "0.11.0"
-description = "Yet another Django reverse proxy application."
+version = "0.12.0"
+description = "Yet another Django reverse proxy application"
 optional = false
-python-versions = "*"
+python-versions = ">=3.7"
 files = [
-    {file = "django_revproxy-0.11.0-py3-none-any.whl", hash = "sha256:ad4bc652ab79f67d2217756cf9e933d19628ca5c0d783b2c3c422b6f5d53c1c6"},
+    {file = "django_revproxy-0.12.0-py3-none-any.whl", hash = "sha256:bd8e735414783477e18a79b3bb1e2180e0c60d412cd2bfdcf34d8898406b26e4"},
 ]
 
 [package.dependencies]
-django = ">=3.0"
+Django = ">=3.0"
 urllib3 = ">=1.12"
 
 [package.extras]
 diazo = ["diazo (>=1.0.5)", "lxml (>=3.4)"]
+tests = ["coverage", "diazo", "flake8", "lxml (>=3.4)"]
 
 [[package]]
 name = "djangorestframework"
@@ -3999,4 +4000,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "3.10.14"
-content-hash = "77b2b442a2456ee59a8c88eaa5479357821ef4ad635d44e9e40b9af42145edf9"
+content-hash = "be01e517091208fb5f5ec118d13fde53268a33d0f05a16d93c069abb4e904ed4"
