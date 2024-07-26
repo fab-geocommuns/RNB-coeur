@@ -1,7 +1,6 @@
 FROM python:3.10.14 as base
 
 WORKDIR /app
-COPY . .
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -15,6 +14,7 @@ RUN pipx install poetry==${POETRY_VERSION}
 
 # check python version is 3.10.14
 # RUN if [ "$(python3 --version)" != "Python 3.10.14" ]; then echo "Python version is not 3.10.14"; exit 1; fi
+COPY . .
 RUN poetry env use $(which python3)
 RUN poetry install
 
