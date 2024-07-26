@@ -15,7 +15,9 @@ RUN pipx install poetry==${POETRY_VERSION}
 
 COPY pyproject.toml poetry.lock ./
 RUN poetry env use $(which python3)
-RUN poetry install
+# only install dev dependencies for testing and local development
+ARG WITH_DEV_DEPENDENCIES=false
+RUN poetry install $(test "$WITH_DEV_DEPENDENCIES" != true && echo "--only=main")
 
 RUN ln -s $(poetry env info --path) /venv
 # https://pythonspeed.com/articles/activate-virtualenv-dockerfile/
