@@ -62,7 +62,7 @@ services:
       context: ./app
       dockerfile: ./Dockerfile
       target: app_worker
-    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=WARNING --concurrency=6
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=WARNING --concurrency=6 --uid 1000
     volumes:
       - ./app:/app
       - ./source_data:/data/downloads
@@ -76,8 +76,8 @@ services:
 
   celery_beat:
     build:
-      context: .
-      dockerfile: ./app/Dockerfile
+      context: ./app
+      dockerfile: ./Dockerfile
       target: app_worker
     command: celery -A app beat --loglevel=WARNING
     volumes:
