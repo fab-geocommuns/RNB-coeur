@@ -76,8 +76,8 @@ services:
 
   celery_beat:
     build:
-      context: .
-      dockerfile: ./app/Dockerfile
+      context: ./app
+      dockerfile: ./Dockerfile
       target: app_worker
     command: celery -A app beat --loglevel=WARNING
     volumes:
