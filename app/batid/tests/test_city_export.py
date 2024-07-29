@@ -89,10 +89,26 @@ class TestCityExport(TestCase):
             data = json.load(f)
 
         expected = {
-            "crs": {"properties": {"name": "EPSG:4326"}, "type": "name"},
+            "type": "FeatureCollection",
+            "crs": {"type": "name", "properties": {"name": "EPSG:4326"}},
             "features": [
                 {
+                    "type": "Feature",
+                    "id": 2,
+                    "properties": {
+                        "rnb_id": "AAAABBBBCCCC",
+                        "ext_ids": [
+                            {
+                                "id": "BAT_BDTOPO_2",
+                                "source": "bdtopo",
+                                "created_at": "2024-01-01T00:00:00",
+                                "source_version": "v1",
+                            }
+                        ],
+                        "status": "constructed",
+                    },
                     "geometry": {
+                        "type": "MultiPolygon",
                         "coordinates": [
                             [
                                 [
@@ -105,24 +121,31 @@ class TestCityExport(TestCase):
                                 ]
                             ]
                         ],
-                        "type": "MultiPolygon",
                     },
-                    "properties": {
-                        "ext_ids": [
-                            {
-                                "created_at": "2024-01-01T00:00:00",
-                                "id": "BAT_BDTOPO_2",
-                                "source": "bdtopo",
-                                "source_version": "v1",
-                            }
-                        ],
-                        "rnb_id": "AAAABBBBCCCC",
-                        "status": "constructed",
-                    },
-                    "type": "Feature",
                 },
                 {
+                    "type": "Feature",
+                    "id": 1,
+                    "properties": {
+                        "rnb_id": "XXXXYYYYZZZZ",
+                        "ext_ids": [
+                            {
+                                "id": "BAT_BDTOPO_1",
+                                "source": "bdtopo",
+                                "created_at": "2024-01-01T00:00:00",
+                                "source_version": "v1",
+                            },
+                            {
+                                "id": "BAT_BDNB_1",
+                                "source": "bdnb",
+                                "created_at": "2024-01-01T00:00:00",
+                                "source_version": "v8",
+                            },
+                        ],
+                        "status": "constructed",
+                    },
                     "geometry": {
+                        "type": "MultiPolygon",
                         "coordinates": [
                             [
                                 [
@@ -136,30 +159,9 @@ class TestCityExport(TestCase):
                                 ]
                             ]
                         ],
-                        "type": "MultiPolygon",
                     },
-                    "properties": {
-                        "ext_ids": [
-                            {
-                                "created_at": "2024-01-01T00:00:00",
-                                "id": "BAT_BDTOPO_1",
-                                "source": "bdtopo",
-                                "source_version": "v1",
-                            },
-                            {
-                                "created_at": "2024-01-01T00:00:00",
-                                "id": "BAT_BDNB_1",
-                                "source": "bdnb",
-                                "source_version": "v8",
-                            },
-                        ],
-                        "rnb_id": "XXXXYYYYZZZZ",
-                        "status": "constructed",
-                    },
-                    "type": "Feature",
                 },
             ],
-            "type": "FeatureCollection",
         }
 
         self.assertDictEqual(data, expected)
