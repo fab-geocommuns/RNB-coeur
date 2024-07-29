@@ -29,8 +29,8 @@ services:
 
   web:
     build:
-      context: .
-      dockerfile: ./app/Dockerfile
+      context: ./app
+      dockerfile: ./Dockerfile
       target: app_web
     ports:
       - '8000:8000'
@@ -59,8 +59,8 @@ services:
 
   worker:
     build:
-      context: .
-      dockerfile: ./app/Dockerfile
+      context: ./app
+      dockerfile: ./Dockerfile
       target: app_worker
     command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=WARNING --concurrency=6 --uid 1000
     volumes:
