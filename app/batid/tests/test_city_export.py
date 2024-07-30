@@ -94,7 +94,6 @@ class TestCityExport(TestCase):
             "features": [
                 {
                     "type": "Feature",
-                    "id": 2,
                     "properties": {
                         "rnb_id": "AAAABBBBCCCC",
                         "ext_ids": [
@@ -125,7 +124,6 @@ class TestCityExport(TestCase):
                 },
                 {
                     "type": "Feature",
-                    "id": 1,
                     "properties": {
                         "rnb_id": "XXXXYYYYZZZZ",
                         "ext_ids": [
