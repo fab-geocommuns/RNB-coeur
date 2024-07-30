@@ -1023,7 +1023,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             {
                 "username": "johndoe",
                 "organization_name": organization_name,
-                "email": "",
+                "email": "",  # Cet utilisateur est créé sans email dans le setup de cette classe de test
             },
         ]
 
