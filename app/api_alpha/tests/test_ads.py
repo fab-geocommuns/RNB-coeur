@@ -1002,7 +1002,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "email": email,
                         "organization_name": organization_name,
                         "organization_managed_cities": organization_managed_cities,
-                    }
+                    },
                 ]
             ),
             content_type="application/json",
@@ -1023,8 +1023,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
             {
                 "username": "johndoe",
                 "organization_name": organization_name,
-                "email": '',
-            }
+                "email": "",
+            },
         ]
 
         # Check response
