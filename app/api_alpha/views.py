@@ -682,9 +682,9 @@ class AdsTokenView(APIView):
                     user, created = User.objects.get_or_create(
                         username=json_user["username"],
                         defaults={
-                            'email': json_user.get("email", None),
-                            'password': password,
-                        }
+                            "email": json_user.get("email", None),
+                            "password": password,
+                        },
                     )
 
                     group, created = Group.objects.get_or_create(name=ADS_GROUP_NAME)
