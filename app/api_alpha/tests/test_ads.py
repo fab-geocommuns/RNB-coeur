@@ -996,6 +996,12 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "email": email,
                         "organization_name": organization_name,
                         "organization_managed_cities": organization_managed_cities,
+                    },
+                    {
+                        "username": "johndoe",
+                        "email": email,
+                        "organization_name": organization_name,
+                        "organization_managed_cities": organization_managed_cities,
                     }
                 ]
             ),
@@ -1013,6 +1019,11 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 "username": username,
                 "organization_name": organization_name,
                 "email": email,
+            },
+            {
+                "username": "johndoe",
+                "organization_name": organization_name,
+                "email": '',
             }
         ]
 
@@ -1022,6 +1033,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
         self.assertIsNotNone(r_data[0]["token"])
         self.assertIsNotNone(r_data[0]["password"])
+        self.assertIsNotNone(r_data[1]["token"])
+        self.assertIsNotNone(r_data[1]["password"])
 
         # Check User in DB
         john = User.objects.get(username=username)
