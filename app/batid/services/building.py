@@ -87,6 +87,18 @@ def export_city(insee_code: str) -> str:
         fields=("rnb_id", "status", "ext_ids"),
     )
 
+    # remove the id field from the features
+    # I would have preferred to serialize directly without the id field
+    # but since Django 4.2 the id field is included.
+    # https://github.com/django/django/pull/15740
+    # https://stackoverflow.com/questions/1615649/remove-pk-field-from-django-serialized-objects
+    import json
+
+    data = json.loads(geojson)
+    for f in data["features"]:
+        del f["id"]
+    geojson = json.dumps(data)
+
     with open(src.path, "w") as f:
         f.write(geojson)
 
