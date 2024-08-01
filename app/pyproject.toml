@@ -38,6 +38,7 @@ freezegun = "^1.5.1"
 geopandas = "~1.0.1"
 notebook = "~6.5.6"
 jupyter = "^1.0.0"
+openpyxl = "^3.1.5"
 
 
 [build-system]
