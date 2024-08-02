@@ -1023,7 +1023,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             {
                 "username": "johndoe",
                 "organization_name": organization_name,
-                "email": "",  # Cet utilisateur est créé sans email dans le setup de cette classe de test
+                "email": "",  # This user is already created in the setUp() function without an email. If the user already exists it is returned without being updated. 
             },
         ]
 
