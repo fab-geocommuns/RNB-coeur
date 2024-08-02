@@ -1,13 +1,13 @@
 import csv
 import json
 from datetime import datetime
+from datetime import timezone
 from io import StringIO
 
 import ijson
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.db import connection
-from django.utils import timezone
 
 from batid.models import Plot
 from batid.services.source import Source
