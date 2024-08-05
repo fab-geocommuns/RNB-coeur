@@ -64,6 +64,156 @@ class RNBLoggingMixin(LoggingMixin):
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
+    @extend_schema(
+        operation_id='guess_building',
+        summary='Identification de bâtiment',
+        description=(
+                "Ce endpoint permet de trouver un ou plusieurs bâtiments correspondant à une série de critères. "
+                "Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name='address',
+                description=(
+                        "Utilise les geocoders de la Base Adresse Nationale et d'Open Street Map pour tenter "
+                        "de géolocaliser l'adresse indiquée."
+                ),
+                required=False,
+                type=str,
+                examples=[
+                    OpenApiExample(
+                        "Exemple d'adresse",
+                        value="10 rue de la paix, Mérignac"
+                    )
+                ]
+            ),
+            OpenApiParameter(
+                name='name',
+                description=(
+                        "Utilise un geocoder Open Street Map pour tenter de géolocaliser le lieu donné."
+                ),
+                required=False,
+                type=str,
+                examples=[
+                    OpenApiExample(
+                        "Exemple de lieu",
+                        value="Notre Dame de Paris"
+                    )
+                ]
+            ),
+            OpenApiParameter(
+                name='point',
+                description=(
+                        "Favorise les bâtiments en fonction de leur position par rapport au point indiqué "
+                        "(latitude et longitude séparées par une virgule)."
+                ),
+                required=False,
+                type=str,
+                examples=[
+                    OpenApiExample(
+                        "Exemple de point",
+                        value="44.84114313595151,-0.5705289444867035"
+                    )
+                ]
+            ),
+            OpenApiParameter(
+                name='page',
+                description="Pagination des résultats de recherche.",
+                required=False,
+                type=int,
+                default=1,
+                examples=[
+                    OpenApiExample(
+                        "Page par défaut",
+                        value=1
+                    )
+                ]
+            )
+        ],
+        responses={
+            200: {
+                'description': 'Liste des bâtiments identifiés',
+                'content': {
+                    'application/json': {
+                        'example': [
+                            {
+                                "rnb_id": "QBAAG16VCJWA",
+                                "score": 0.753986390,
+                                "status": "constructed",
+                                "point": {
+                                    "type": "Point",
+                                    "coordinates": [
+                                        3.584410393780201,
+                                        49.52799819019749
+                                    ]
+                                },
+                                "addresses": [
+                                    {
+                                        "id": "02191_0020_00003",
+                                        "source": "bdnb",
+                                        "street_number": "3",
+                                        "street_rep": "",
+                                        "street_name": "de l'eglise",
+                                        "street_type": "rue",
+                                        "city_name": "Chivy-lès-Étouvelles",
+                                        "city_zipcode": "02000",
+                                        "city_insee_code": "02191"
+                                    }
+                                ],
+                                "ext_ids": [
+                                    {
+                                        "id": "bdnb-bc-3B85-TYM9-FDSX",
+                                        "source": "bdnb",
+                                        "created_at": "2023-12-07T13:20:58.310444+00:00",
+                                        "source_version": "2023_01"
+                                    }
+                                ]
+                            },
+                            {
+                                "rnb_id": "GT5Y98K4BV51",
+                                "score": 0.1405659,
+                                "status": "constructed",
+                                "point": {
+                                    "type": "Point",
+                                    "coordinates": [
+                                        6.269684,
+                                        43.89756654
+                                    ]
+                                },
+                                "addresses": [
+                                    {
+                                        "id": "02191_0020_00005",
+                                        "source": "bdnb",
+                                        "street_number": "5",
+                                        "street_rep": "",
+                                        "street_name": "de l'eglise",
+                                        "street_type": "rue",
+                                        "city_name": "Chivy-lès-Étouvelles",
+                                        "city_zipcode": "02000",
+                                        "city_insee_code": "02191"
+                                    }
+                                ],
+                                "ext_ids": [
+                                    {
+                                        "id": "bdnb-bc-3B86-TYM9-FRTS",
+                                        "source": "bdnb",
+                                        "created_at": "2023-12-07T13:25:58.310444+00:00",
+                                        "source_version": "2023_01"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
+            400: {
+                'description': 'Requête invalide'
+            },
+            404: {
+                'description': 'Bâtiment non trouvé'
+            }
+        }
+    )
     def get(self, request, *args, **kwargs):
         search = BuildingGuess()
         search.set_params_from_url(**request.query_params.dict())
@@ -333,6 +483,73 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         """
         return super().list(request, *args, **kwargs)
 
+    @extend_schema(
+        operation_id='get_building',
+        summary='Consultation d\'un bâtiment',
+        description=(
+                "Ce endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. "
+                "L'API renvoie les informations détaillées telles que l'ID du bâtiment, le statut, la géolocalisation, "
+                "les adresses associées et les identifiants externes."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name='rnb_id',
+                description='Identifiant RNB du bâtiment',
+                required=True,
+                type=str
+            )
+        ],
+        responses={
+            200: {
+                'description': 'Détails du bâtiment',
+                'content': {
+                    'application/json': {
+                        'example': {
+                            "rnb_id": "QBAAG16VCJWA",
+                            "status": "constructed",
+                            "point": {
+                                "type": "Point",
+                                "coordinates": [
+                                    3.584410393780201,
+                                    49.52799819019749
+                                ]
+                            },
+                            "addresses": [
+                                {
+                                    "id": "02191_0020_00003",
+                                    "source": "bdnb",
+                                    "street_number": "3",
+                                    "street_rep": "",
+                                    "street_name": "de l'eglise",
+                                    "street_type": "rue",
+                                    "city_name": "Chivy-lès-Étouvelles",
+                                    "city_zipcode": "02000",
+                                    "city_insee_code": "02191"
+                                }
+                            ],
+                            "ext_ids": [
+                                {
+                                    "id": "bdnb-bc-3B85-TYM9-FDSX",
+                                    "source": "bdnb",
+                                    "created_at": "2023-12-07T13:20:58.310444+00:00",
+                                    "source_version": "2023_01"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            404: {
+                'description': 'Bâtiment non trouvé'
+            }
+        }
+    )
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Renvoie les détails d'un bâtiment spécifique identifié par son RNB ID.
+        """
+        return super().retrieve(request, *args, **kwargs)
+
 
 class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     queryset = ADS.objects.all()
@@ -391,6 +608,94 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     permission_classes = [ADSPermission]
     http_method_names = ["get", "post", "put", "delete"]
 
+    @extend_schema(
+        operation_id='list_ads',
+        summary='Liste et recherche d\'ADS',
+        description=(
+                "Cette API permet de lister et de rechercher des ADS (Autorisation de Droit de Sol). "
+                "Les requêtes doivent être authentifiées en utilisant un token. "
+                "Les filtres de recherche peuvent être passés en tant que paramètres d'URL."
+        ),
+        parameters=[
+            OpenApiParameter(name='q', description='Recherche parmi les n° de dossiers (file_number).', required=False, type=str),
+            OpenApiParameter(name='since', description='Récupère tous les dossiers décidés depuis cette date (AAAA-MM-DD).', required=False, type=str),
+        ],
+        responses={
+            200: OpenApiExample(
+                'Exemple de réponse',
+                value={
+                    "count": 3,
+                    "next": None,
+                    "previous": None,
+                    "results": [
+                        {
+                            "file_number": "TEST03818519U9999",
+                            "decided_at": "2023-06-01",
+                            "buildings_operations": [
+                                {
+                                    "rnb_id": "A1B2C3A1B2C3",
+                                    "shape": None,
+                                    "operation": "build"
+                                },
+                                {
+                                    "rnb_id": None,
+                                    "shape": {
+                                        "type": "Point",
+                                        "coordinates": [
+                                            5.722961565015281,
+                                            45.1851103238598
+                                        ]
+                                    },
+                                    "operation": "demolish"
+                                },
+                                {
+                                    "rnb_id": "1M2N3O1M2N3O",
+                                    "shape": {
+                                        "type": "Point",
+                                        "coordinates": [
+                                            5.723006573148693,
+                                            45.1851402293713
+                                        ]
+                                    },
+                                    "operation": "demolish"
+                                }
+                            ]
+                        },
+                        {
+                            "file_number": "PC3807123200WW",
+                            "decided_at": "2023-05-01",
+                            "buildings_operations": [
+                                {
+                                    "rnb_id": "FXFJZNZYGTED",
+                                    "shape": None,
+                                    "operation": "build"
+                                }
+                            ]
+                        },
+                        {
+                            "file_number": "PC384712301337",
+                            "decided_at": "2023-02-22",
+                            "buildings_operations": [
+                                {
+                                    "rnb_id": "RXNOSN2DUCLG",
+                                    "geometry": {
+                                        "type": "Point",
+                                        "coordinates": [
+                                            5.775791408470412,
+                                            45.256939624268206
+                                        ]
+                                    },
+                                    "operation": "modify"
+                                }
+                            ]
+                        },
+                    ]
+                },
+                response_only=True,
+                status_codes=['200']
+            )
+        }
+    )
     def get_queryset(self):
         search = ADSSearch(**self.request.query_params.dict())
 
@@ -399,7 +704,164 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
         return search.get_queryset()
 
+    @extend_schema(
+        operation_id='create_ads',
+        summary='Création d\'une ADS',
+        description=(
+                "Ce endpoint permet de créer une Autorisation du Droit des Sols (ADS) dans le RNB. "
+                "L'API ADS est réservée aux communes et requiert une authentification par token."
+        ),
+        request=ADSSerializer,
+        responses={
+            201: {
+                'description': 'ADS créée avec succès',
+                'content': {
+                    'application/json': {
+                        'example': {
+                            "file_number": "PCXXXXXXXXXX",
+                            "decided_at": "2019-03-18",
+                            "buildings_operations": [
+                                {
+                                    "operation": "demolish",
+                                    "rnb_id": "ABCD1234WXYZ",
+                                    "shape": None
+                                },
+                                {
+                                    "operation": "build",
+                                    "rnb_id": None,
+                                    "shape": {
+                                        "type": "Point",
+                                        "coordinates": [2.3552747458487002, 48.86958288638419]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            400: {
+                'description': 'Requête invalide'
+            }
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
 
+
+    @extend_schema(
+        operation_id='update_ads',
+        summary='Modification d\'une ADS',
+        description=(
+                "Ce endpoint permet de modifier une Autorisation du Droit des Sols (ADS) existante dans le RNB. "
+                "L'API ADS est réservée aux communes et requiert une authentification par token."
+        ),
+        request=ADSSerializer,
+        responses={
+            200: {
+                'description': 'ADS modifiée avec succès',
+                'content': {
+                    'application/json': {
+                        'example': {
+                            "file_number": "PCXXXXXXXXXX",
+                            "decided_at": "2019-03-10",
+                            "buildings_operations": [
+                                {
+                                    "operation": "demolish",
+                                    "rnb_id": "7865HG43PLS9",
+                                    "shape": None
+                                },
+                                {
+                                    "operation": "build",
+                                    "rnb_id": None,
+                                    "shape": {
+                                        "type": "Point",
+                                        "coordinates": [2.3552747458487002, 48.86958288638419]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            400: {
+                'description': 'Requête invalide'
+            },
+            404: {
+                'description': 'ADS non trouvée'
+            }
+        }
+    )
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @extend_schema(
+        operation_id='delete_ads',
+        summary='Suppression d\'une ADS',
+        description='Ce endpoint permet de supprimer une Autorisation du Droit des Sols (ADS) existante dans le RNB.',
+        responses={
+            204: {
+                'description': 'ADS supprimée avec succès'
+            },
+            404: {
+                'description': 'ADS non trouvée'
+            }
+        }
+    )
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+
+@extend_schema(
+    operation_id='get_vector_tiles',
+    summary='Obtenir des tuiles vectorielles',
+    description=(
+            "Cette API fournit des tuiles vectorielles au format PBF permettant d'intégrer les bâtiments "
+            "du Référentiel National des Bâtiments (RNB) dans une cartographie. Chaque tuile contient des points "
+            "représentant des bâtiments avec un attribut 'rnb_id'. Les tuiles sont utilisables avec un niveau de zoom "
+            "minimal de 16 et peuvent être intégrées dans des outils comme QGIS ou des sites web."
+    ),
+    parameters=[
+        {
+            'name': 'x',
+            'required': True,
+            'description': 'Coordonnée X de la tuile',
+            'schema': {
+                'type': 'integer'
+            }
+        },
+        {
+            'name': 'y',
+            'required': True,
+            'description': 'Coordonnée Y de la tuile',
+            'schema': {
+                'type': 'integer'
+            }
+        },
+        {
+            'name': 'z',
+            'required': True,
+            'description': 'Niveau de zoom de la tuile',
+            'schema': {
+                'type': 'integer'
+            }
+        }
+    ],
+    responses={
+        200: {
+            'content': {
+                'application/x-protobuf': {
+                    'schema': {
+                        'type': 'string',
+                        'format': 'binary'
+                    }
+                }
+            },
+            'description': 'Fichier PBF contenant les tuiles vectorielles'
+        },
+        400: {
+            'description': 'Requête invalide'
+        }
+    }
+)
 def get_tile_point(request, x, y, z):
     # Check the request zoom level
     if int(z) >= 16:
