@@ -1,0 +1,11 @@
+N°DPE,Date_réception_DPE_x,Identifiant__BAN,Score_BAN,Statut_géocodage,Date_réception_DPE_y,rnb_id_filtered
+2331N2598845F,2023-08-01,31203_0100_00033_bis,0.83,adresse non géocodée ban car aucune correspondance trouvée,2023-08-01,['Z9TTRP5Z95YQ'] ok
+2366N3381141W,2023-10-09,66067_4180_00007,0.39,adresse géocodée ban à l'adresse,2023-10-09,[] ok
+2351N3027887P,2023-09-12,51454_5510,0.71,adresse non géocodée ban car aucune correspondance trouvée,2023-09-12,[] ok
+2233N0040711M,2022-01-10,33039_1240,0.4,adresse non géocodée ban car aucune correspondance trouvée,2022-01-10,[] ok
+2476N0376899N,2024-02-01,76540_5200,0.41,adresse non géocodée ban car aucune correspondance trouvée,2024-02-01,[] ok
+2119N0366289D,2021-09-22,19031_3500_00005,0.81,adresse non géocodée ban car aucune correspondance trouvée,2021-09-22,['VYB1J1B5KQ9Q'] ok
+2251N1637866F,2022-07-19,51454_8338,0.64,adresse géocodée ban à l'adresse,2022-07-19,[] ok
+2269N2740400B,2022-11-18,69256_0393_00014,0.73,adresse non géocodée ban car aucune correspondance trouvée,2022-11-18,['6RVYNEB98BWX'] ok
+2256N2646041J,2022-11-08,56260_2520,0.67,adresse géocodée ban à l'adresse,2022-11-08,[] ok
+2138N0553892J,2021-10-22,38401_0185,0.63,adresse non géocodée ban car aucune correspondance trouvée,2021-10-22,[] ok

@@ -222,6 +222,14 @@ class Department(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+class Department_subdivided(models.Model):
+    # this model exists for performance reasons
+    # it is much faster to query on the shape of a department if it is subdivided
+    code = models.CharField(max_length=3, null=False)
+    name = models.CharField(max_length=200, null=False)
+    shape = models.PolygonField(null=True, spatial_index=True, srid=4326)
+
+
 class ADSAchievement(models.Model):
     file_number = models.CharField(
         max_length=40, null=False, unique=True, db_index=True
@@ -244,6 +252,8 @@ class ADS(models.Model):
 
     class Meta:
         ordering = ["decided_at"]
+        verbose_name = "ADS"
+        verbose_name_plural = "ADS"
 
 
 class BuildingADS(models.Model):

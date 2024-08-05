@@ -639,7 +639,7 @@ def departement_ranking():
     select d.code, d.name, count(*) as count_dpt
     from batid_contribution c
     left join batid_building b on c.rnb_id = b.rnb_id
-    left join batid_department d on ST_Contains(d.shape, b.point)
+    left join batid_department_subdivided d on ST_Contains(d.shape, b.point)
     where c.status != 'refused'
     group by d.code, d.name
     order by count_dpt desc;
@@ -679,10 +679,12 @@ class AdsTokenView(APIView):
 
                 for json_user in json_users:
                     password = User.objects.make_random_password(length=15)
-                    user = User.objects.create_user(
+                    user, created = User.objects.get_or_create(
                         username=json_user["username"],
-                        email=json_user.get("email", None),
-                        password=password,
+                        defaults={
+                            "email": json_user.get("email", None),
+                            "password": password,
+                        },
                     )
 
                     group, created = Group.objects.get_or_create(name=ADS_GROUP_NAME)
@@ -699,7 +701,7 @@ class AdsTokenView(APIView):
                     organization.users.add(user)
                     organization.save()
 
-                    token = Token.objects.create(user=user)
+                    token, created = Token.objects.get_or_create(user=user)
 
                     users.append(
                         {
