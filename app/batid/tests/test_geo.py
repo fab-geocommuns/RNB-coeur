@@ -2,6 +2,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
 
 from batid.utils.geo import fix_nested_shells
+from batid.utils.geo import merge_contiguous_shapes
 
 
 class TestGeo(TestCase):
@@ -33,3 +34,40 @@ class TestGeo(TestCase):
 
         self.assertEqual(fixed_geo.valid, True)
         self.assertEqual(geo.envelope, fixed_geo.envelope)
+
+    def test_merge_contiguous_shapes_empty(self):
+        shapes = []
+        merged_shapes = merge_contiguous_shapes(shapes)
+        self.assertEqual(merged_shapes, None)
+
+    def test_merge_contiguous_shapes_single(self):
+        shapes = [GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")]
+        merged_shapes = merge_contiguous_shapes(shapes)
+        self.assertEqual(merged_shapes, shapes[0])
+
+    def test_merge_contiguous_shapes_multiple(self):
+        shape_1 = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
+        shape_2 = GEOSGeometry("POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))")
+        shape_3 = GEOSGeometry("POLYGON ((2 0, 2 1, 3 1, 3 0, 2 0))")
+
+        shapes = [shape_1, shape_2, shape_3]
+
+        merged_shapes = merge_contiguous_shapes(shapes)
+
+        self.assertEqual(
+            merged_shapes,
+            GEOSGeometry("POLYGON ((1 1, 2 1, 3 1, 3 0, 2 0, 1 0, 0 0, 0 1, 1 1))"),
+        )
+
+    def test_merge_contiguous_shapes_not_contiguous(self):
+        shape_1 = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
+        shape_2 = GEOSGeometry("POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))")
+        shape_3 = GEOSGeometry("POLYGON ((2 0, 2 1, 3 1, 3 0, 2 0))")
+
+        # not contiguous
+        shape_4 = GEOSGeometry("POLYGON ((14 10, 14 11, 15 11, 15 10, 14 10))")
+
+        shapes = [shape_1, shape_2, shape_3, shape_4]
+
+        with self.assertRaises(Exception):
+            merge_contiguous_shapes(shapes)
