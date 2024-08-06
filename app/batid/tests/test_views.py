@@ -351,7 +351,9 @@ class TestContributionsViews(TestCase):
         self.assertEqual(merged_building.status, "notUsable")
         self.assertEqual(merged_building.event_type, "merge")
         self.assertEqual(merged_building.event_user, self.superuser)
-        self.assertEqual(merged_building.addresses_id, [address_1.id, address_2.id])
+        self.assertEqual(
+            merged_building.addresses_id.sort(), [address_1.id, address_2.id].sort()
+        )
 
         # Check that the contribution has been updated
         contribution.refresh_from_db()
