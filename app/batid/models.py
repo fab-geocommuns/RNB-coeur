@@ -165,7 +165,7 @@ class Building(BuildingAbstract):
         from batid.utils.geo import merge_contiguous_shapes
 
         if not isinstance(buildings, list) or len(buildings) < 2:
-            raise ValueError("Not enough buildings to merge.")
+            raise Exception("Not enough buildings to merge.")
         event_id = uuid.uuid4()
         parent_buildings = [building.rnb_id for building in buildings]
         merged_shape = merge_contiguous_shapes(
