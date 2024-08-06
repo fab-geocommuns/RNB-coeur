@@ -286,6 +286,7 @@ class TestContributionsViews(TestCase):
         self.assertEqual(contribution.review_user, self.superuser)
 
     def test_merge_buildings(self):
+        # and merge existing addresses
         create_superuser_and_login(self)
 
         address_1 = Address.objects.create(id="1")
@@ -358,3 +359,50 @@ class TestContributionsViews(TestCase):
         self.assertIsNotNone(contribution.status_changed_at)
         self.assertEqual(contribution.review_comment, "fusion des bâtiments")
         self.assertEqual(contribution.review_user, self.superuser)
+
+    def test_merge_buildings_set_addresses(self):
+        # and manually write addresses
+        create_superuser_and_login(self)
+
+        address_1 = Address.objects.create(id="1")
+        address_2 = Address.objects.create(id="2")
+
+        rnb_id_1 = "123"
+        Building.objects.create(
+            rnb_id=rnb_id_1,
+            event_type="create",
+            status="constructed",
+            addresses_id=[address_1.id],
+            shape="POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+        )
+
+        rnb_id_2 = "456"
+        Building.objects.create(
+            rnb_id=rnb_id_2,
+            event_type="create",
+            status="constructed",
+            shape="POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))",
+        )
+
+        contribution = Contribution.objects.create(
+            rnb_id="123", text="il n'y a qu'un seul bâtiment ici"
+        )
+
+        url = reverse("merge_buildings")
+        data = {
+            "contribution_id": contribution.id,
+            "rnb_ids": f"{rnb_id_1},{rnb_id_2}",
+            "review_comment": "fusion des bâtiments",
+            # merge_addresses is not set on purpose
+            "addresses_id": f"{address_2.id}",
+            "status": "notUsable",
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+
+        merged_building = Building.objects.get(parent_buildings=[rnb_id_1, rnb_id_2])
+
+        # if the checkbox "Fusionner les clés BAN existantes" is not checked
+        # the existing addresses are not merged
+        # and the addresses given in the form are used
+        self.assertEqual(merged_building.addresses_id, [address_2.id])
