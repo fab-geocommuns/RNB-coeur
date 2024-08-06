@@ -172,7 +172,7 @@ class Building(BuildingAbstract):
             [GEOSGeometry(building.shape) for building in buildings]
         )
         merged_ext_ids = [
-            ext_id for building in buildings for ext_id in building.ext_ids
+            ext_id for building in buildings for ext_id in building.ext_ids or []
         ]
 
         def remove_existing_builing(building):
