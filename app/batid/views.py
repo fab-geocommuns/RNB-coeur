@@ -198,8 +198,13 @@ def merge_buildings(request):
             contribution_id = request.POST.get("contribution_id")
             review_comment = request.POST.get("review_comment")
 
-            addresses_id_string = request.POST.get("addresses_id")
-            addresses_id = addresses_id_string.split(",") if addresses_id_string else []
+            merge_addresses = request.POST.get("merge_addresses")
+            addresses_id = []
+            if not merge_addresses:
+                addresses_id_string = request.POST.get("addresses_id")
+                addresses_id = (
+                    addresses_id_string.split(",") if addresses_id_string else []
+                )
 
             status = request.POST.get("status")
 
@@ -213,13 +218,27 @@ def merge_buildings(request):
             for rnb_id in rnb_ids:
                 building = get_object_or_404(Building, rnb_id=rnb_id)
                 if not building.is_active:
-                    return HttpResponseBadRequest("Cannot update an inactive building.")
+                    return HttpResponseBadRequest(
+                        f"Cannot update an inactive building ({building.rnb_id})."
+                    )
                 buildings.append(building)
 
             if len(buildings) < 2:
                 return HttpResponseBadRequest("Not enough buildings to merge.")
 
             try:
+
+                if merge_addresses:
+                    # merge the existing addresses, remove duplicates
+                    addresses_id = list(
+                        set(
+                            [
+                                address
+                                for building in buildings
+                                for address in building.addresses_id
+                            ]
+                        )
+                    )
                 with transaction.atomic():
                     Building.merge(
                         buildings,
@@ -234,7 +253,7 @@ def merge_buildings(request):
                     contribution.fix(request.user, review_comment)
             except Exception as e:
                 return HttpResponseBadRequest(
-                    "Erreur : mise à jour impossible. Il est probable que cette adresses n'existe pas encore en base."
+                    "Erreur : fusion impossible. Les bâtiments fusionnés sont-ils bien adjacents ?"
                 )
 
             return render(
@@ -242,8 +261,6 @@ def merge_buildings(request):
                 "contribution.html",
                 {
                     "contribution_id": contribution_id,
-                    "rnb_id": contribution.rnb_id,
-                    "text": contribution.text,
                     "action_success": True,
                 },
             )
