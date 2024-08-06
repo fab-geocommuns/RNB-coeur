@@ -284,3 +284,77 @@ class TestContributionsViews(TestCase):
         self.assertIsNotNone(contribution.status_changed_at)
         self.assertEqual(contribution.review_comment, "mise à jour du statut")
         self.assertEqual(contribution.review_user, self.superuser)
+
+    def test_merge_buildings(self):
+        create_superuser_and_login(self)
+
+        address_1 = Address.objects.create(id="1")
+        address_2 = Address.objects.create(id="2")
+
+        rnb_id_1 = "123"
+        building_1 = Building.objects.create(
+            rnb_id=rnb_id_1,
+            event_type="create",
+            status="constructed",
+            addresses_id=[address_1.id],
+            shape="POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+        )
+
+        rnb_id_2 = "456"
+        building_2 = Building.objects.create(
+            rnb_id=rnb_id_2,
+            event_type="create",
+            status="constructed",
+            addresses_id=[address_2.id],
+            shape="POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))",
+        )
+
+        contribution = Contribution.objects.create(
+            rnb_id="123", text="il n'y a qu'un seul bâtiment ici"
+        )
+
+        url = reverse("merge_buildings")
+        data = {
+            "contribution_id": contribution.id,
+            "rnb_ids": f"{rnb_id_1},{rnb_id_2}",
+            "review_comment": "fusion des bâtiments",
+            "merge_addresses": "on",
+            "status": "notUsable",
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+
+        # Check the html content of the response
+        self.assertIn("Revue de contribution enregistrée.", response.content.decode())
+
+        # Check that the building has not been modified.
+        building_1.refresh_from_db()
+        self.assertEqual(building_1.event_type, "merge")
+        self.assertIsNotNone(building_1.event_id)
+        self.assertFalse(building_1.is_active)
+        self.assertEqual(building_1.event_user, self.superuser)
+
+        building_2.refresh_from_db()
+        self.assertEqual(building_2.event_type, "merge")
+        self.assertEqual(building_1.event_id, building_2.event_id)
+        self.assertFalse(building_2.is_active)
+        self.assertEqual(building_2.event_user, self.superuser)
+
+        merged_building = Building.objects.get(parent_buildings=[rnb_id_1, rnb_id_2])
+
+        self.assertIsNotNone(merged_building.point)
+        self.assertEqual(
+            merged_building.event_origin,
+            {"source": "contribution", "contribution_id": f"{contribution.id}"},
+        )
+        self.assertEqual(merged_building.status, "notUsable")
+        self.assertEqual(merged_building.event_type, "merge")
+        self.assertEqual(merged_building.event_user, self.superuser)
+        self.assertEqual(merged_building.addresses_id, [address_1.id, address_2.id])
+
+        # Check that the contribution has been updated
+        contribution.refresh_from_db()
+        self.assertEqual(contribution.status, "fixed")
+        self.assertIsNotNone(contribution.status_changed_at)
+        self.assertEqual(contribution.review_comment, "fusion des bâtiments")
+        self.assertEqual(contribution.review_user, self.superuser)
