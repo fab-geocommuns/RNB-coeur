@@ -5,6 +5,7 @@ from typing import Optional
 
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
+from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex
@@ -12,6 +13,7 @@ from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
+from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
 from batid.validators import validate_one_ext_id
 
@@ -157,6 +159,50 @@ class Building(BuildingAbstract):
         self.addresses_id = addresses_id
         self.status = status
         self.save()
+
+    @staticmethod
+    def merge(buildings: list, user, event_origin, status, addresses_id):
+        from batid.utils.geo import merge_contiguous_shapes
+
+        if not isinstance(buildings, list) or len(buildings) < 2:
+            raise ValueError("Not enough buildings to merge.")
+        event_id = uuid.uuid4()
+        parent_buildings = [building.rnb_id for building in buildings]
+        merged_shape = merge_contiguous_shapes(
+            [GEOSGeometry(building.shape) for building in buildings]
+        )
+        merged_ext_ids = [
+            ext_id for building in buildings for ext_id in building.ext_ids
+        ]
+
+        def remove_existing_builing(building):
+            building.is_active = False
+            building.event_type = "merge"
+            building.event_id = event_id
+            building.event_user = user
+            building.event_origin = event_origin
+            building.save()
+
+        for building in buildings:
+            remove_existing_builing(building)
+
+        # Create the new merged building
+        building = Building()
+        building.rnb_id = generate_rnb_id()
+        building.status = status
+        building.is_active = True
+        building.event_type = "merge"
+        building.event_id = event_id
+        building.event_user = user
+        building.event_origin = event_origin
+        building.parent_buildings = parent_buildings
+        building.addresses_id = addresses_id
+        building.shape = merged_shape
+        building.point = merged_shape.point_on_surface
+        building.ext_ids = merged_ext_ids
+        building.save()
+
+        return building
 
     class Meta:
         # ordering = ["rnb_id"]

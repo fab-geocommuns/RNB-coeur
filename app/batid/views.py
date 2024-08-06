@@ -183,3 +183,67 @@ def update_building(request):
                     "action_success": True,
                 },
             )
+
+
+def merge_buildings(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden()
+    else:
+        # check if the request is a POST request
+        if request.method == "POST":
+            # get the rnb_id from the request
+            rnb_ids_string = request.POST.get("rnb_ids")
+            rnb_ids = rnb_ids_string.split(",")
+
+            contribution_id = request.POST.get("contribution_id")
+            review_comment = request.POST.get("review_comment")
+
+            addresses_id_string = request.POST.get("addresses_id")
+            addresses_id = addresses_id_string.split(",") if addresses_id_string else []
+
+            status = request.POST.get("status")
+
+            contribution = get_object_or_404(Contribution, id=contribution_id)
+
+            if contribution.status != "pending":
+                return HttpResponseBadRequest("Contribution is not pending.")
+
+            # get the buildings with given rnb_ids
+            buildings = []
+            for rnb_id in rnb_ids:
+                building = get_object_or_404(Building, rnb_id=rnb_id)
+                if not building.is_active:
+                    return HttpResponseBadRequest("Cannot update an inactive building.")
+                buildings.append(building)
+
+            if len(buildings) < 2:
+                return HttpResponseBadRequest("Not enough buildings to merge.")
+
+            try:
+                with transaction.atomic():
+                    Building.merge(
+                        buildings,
+                        request.user,
+                        {
+                            "source": "contribution",
+                            "contribution_id": contribution_id,
+                        },
+                        status,
+                        addresses_id,
+                    )
+                    contribution.fix(request.user, review_comment)
+            except Exception as e:
+                return HttpResponseBadRequest(
+                    "Erreur : mise à jour impossible. Il est probable que cette adresses n'existe pas encore en base."
+                )
+
+            return render(
+                request,
+                "contribution.html",
+                {
+                    "contribution_id": contribution_id,
+                    "rnb_id": contribution.rnb_id,
+                    "text": contribution.text,
+                    "action_success": True,
+                },
+            )
