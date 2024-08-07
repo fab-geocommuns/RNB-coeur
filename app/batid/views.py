@@ -88,7 +88,7 @@ def delete_building(request):
                 return HttpResponseBadRequest("Cannot delete an inactive building.")
             # start a transaction
             with transaction.atomic():
-                building.delete(
+                building.soft_delete(
                     request.user,
                     {"source": "contribution", "contribution_id": contribution_id},
                 )

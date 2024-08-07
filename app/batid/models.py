@@ -143,7 +143,10 @@ class Building(BuildingAbstract):
     def point_lng(self):
         return self.point_geojson()["coordinates"][0]
 
-    def delete(self, user, event_origin):
+    def soft_delete(self, user, event_origin):
+        """it is not expected to hard delete anything in the RNB, as it would break our capacity to audit its history.
+        This soft delete method is used to mark a building as inactive, with an event_type "delete"
+        """
         self.event_type = "delete"
         self.is_active = False
         self.event_id = uuid.uuid4()
