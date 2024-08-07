@@ -5,7 +5,7 @@ from drf_spectacular.views import SpectacularRedocView
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
 
-from api_alpha.views import AdsTokenView
+from api_alpha.views import AdsTokenView, GetVectorTileView
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
@@ -13,7 +13,6 @@ from api_alpha.views import BuildingViewSet
 from api_alpha.views import ContributionsViewSet
 from api_alpha.views import get_diff
 from api_alpha.views import get_stats
-from api_alpha.views import get_tile_point
 from api_alpha.views import get_tile_shape
 
 # Routers provide an easy way of automatically determining the URL conf.
@@ -39,7 +38,7 @@ urlpatterns = [
     path("ads/token/", AdsTokenView.as_view()),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
-    path("tiles/<int:x>/<int:y>/<int:z>.pbf", get_tile_point),
+    path("tiles/<int:x>/<int:y>/<int:z>.pbf", GetVectorTileView.as_view()),
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
     # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
