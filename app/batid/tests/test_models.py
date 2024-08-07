@@ -20,12 +20,17 @@ class TestBuilding(TestCase):
             shape="POLYGON((1 0, 1 1, 2 1, 2 0, 1 0))",
             ext_ids=[{"source": "bdtopo", "id": "2"}],
         )
+        building_3 = Building.objects.create(
+            rnb_id="CCC"
+            # no shape, to check the function does not crash in that case
+            # even that case is unexpected
+        )
 
         address = Address.objects.create()
 
         # merge the two buildings
         merged_building = Building.merge(
-            [building_1, building_2],
+            [building_1, building_2, building_3],
             user,
             {"source": "contribution", "contribution_id": 1},
             "constructed",
@@ -68,7 +73,8 @@ class TestBuilding(TestCase):
             {"source": "contribution", "contribution_id": 1},
         )
         self.assertEqual(
-            merged_building.parent_buildings, [building_1.rnb_id, building_2.rnb_id]
+            merged_building.parent_buildings,
+            [building_1.rnb_id, building_2.rnb_id, building_3.rnb_id],
         )
         self.assertEqual(merged_building.status, "constructed")
         self.assertEqual(merged_building.event_type, "merge")

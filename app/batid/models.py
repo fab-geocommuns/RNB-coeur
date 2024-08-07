@@ -172,7 +172,7 @@ class Building(BuildingAbstract):
         event_id = uuid.uuid4()
         parent_buildings = [building.rnb_id for building in buildings]
         merged_shape = merge_contiguous_shapes(
-            [GEOSGeometry(building.shape) for building in buildings]
+            [GEOSGeometry(building.shape) for building in buildings if building.shape]
         )
         merged_ext_ids = [
             ext_id for building in buildings for ext_id in building.ext_ids or []
