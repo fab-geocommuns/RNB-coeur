@@ -40,33 +40,37 @@ class AddressSerializer(serializers.ModelSerializer):
             "city_insee_code",
         ]
         extra_kwargs = {
-            'id': {'help_text': "02191_0020_00003"},
-            'source': {'help_text': 'bdnb'},
-            'street_number': {'help_text': '3'},
-            'street_rep': {'help_text': ''},
-            'street_name': {'help_text': 'de l\'eglise'},
-            'street_type': {'help_text': 'rue'},
-            'city_name': {'help_text': 'Chivy-lès-Étouvelles'},
-            'city_zipcode': {'help_text': '02000'},
-            'city_insee_code': {'help_text': '02191'},
+            "id": {"help_text": "02191_0020_00003"},
+            "source": {"help_text": "bdnb"},
+            "street_number": {"help_text": "3"},
+            "street_rep": {"help_text": ""},
+            "street_name": {"help_text": "de l'eglise"},
+            "street_type": {"help_text": "rue"},
+            "city_name": {"help_text": "Chivy-lès-Étouvelles"},
+            "city_zipcode": {"help_text": "02000"},
+            "city_insee_code": {"help_text": "02191"},
         }
 
 
 class ExtIdSerializer(serializers.Serializer):
-    id = serializers.CharField(help_text='bdnb-bc-3B85-TYM9-FDSX')
-    source = serializers.CharField(help_text='bdnb')
-    created_at = serializers.DateTimeField(help_text='2023-12-07T13:20:58.310444+00:00')
-    source_version = serializers.CharField(help_text='2023_01')
+    id = serializers.CharField(help_text="bdnb-bc-3B85-TYM9-FDSX")
+    source = serializers.CharField(help_text="bdnb")
+    created_at = serializers.DateTimeField(help_text="2023-12-07T13:20:58.310444+00:00")
+    source_version = serializers.CharField(help_text="2023_01")
 
 
 class BuildingSerializer(serializers.ModelSerializer):
-    point = serializers.DictField(source="point_geojson", read_only=True, help_text='''{
+    point = serializers.DictField(
+        source="point_geojson",
+        read_only=True,
+        help_text="""{
                             "type": "Point",
                             "coordinates": [
                                 3.584410393780201,
                                 49.52799819019749
                             ]
-                        }''')
+                        }""",
+    )
     addresses = AddressSerializer(
         many=True, read_only=True, source="addresses_read_only"
     )
@@ -83,9 +87,9 @@ class BuildingSerializer(serializers.ModelSerializer):
             "is_active",
         ]
         extra_kwargs = {
-            'rnb_id': {'help_text': "QBAAG16VCJWA"},
-            'status': {'help_text': 'constructed'},
-            'is_active': {'help_text': 'true'},
+            "rnb_id": {"help_text": "QBAAG16VCJWA"},
+            "status": {"help_text": "constructed"},
+            "is_active": {"help_text": "true"},
         }
 
 
@@ -159,7 +163,10 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
 class BuildingsADSSerializer(serializers.ModelSerializer):
     # building = BdgInAdsSerializer()
     rnb_id = RNBIdField(
-        validators=[ads_validate_rnbid], required=False, allow_null=True, help_text='A1B2C3A1B2C3'
+        validators=[ads_validate_rnbid],
+        required=False,
+        allow_null=True,
+        help_text="A1B2C3A1B2C3",
     )
 
     operation = serializers.ChoiceField(
@@ -169,7 +176,7 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
             "invalid_choice": "'{input}' is not a valid operation. Valid operations are: "
             + f"{BuildingADSLogic.OPERATIONS}."
         },
-        help_text='build'
+        help_text="build",
     )
 
     class Meta:
@@ -179,15 +186,17 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
         validators = [BdgInADSValidator()]
 
         extra_kwargs = {
-            'rnb_id': {'help_text': "A1B2C3A1B2C3"},
-            'shape': {'help_text': '''{
+            "rnb_id": {"help_text": "A1B2C3A1B2C3"},
+            "shape": {
+                "help_text": """{
                                         "type": "Point",
                                         "coordinates": [
                                             5.722961565015281,
                                             45.1851103238598
                                         ]
-                                    }'''},
-            'operation': {'help_text': 'demolish'},
+                                    }"""
+            },
+            "operation": {"help_text": "demolish"},
         }
 
     def create(self, validated_data):
@@ -197,14 +206,16 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
 class ADSSerializer(serializers.ModelSerializer):
     file_number = serializers.CharField(
         required=True,
-        help_text='TEST03818519U9999',
+        help_text="TEST03818519U9999",
         validators=[
             UniqueValidator(
                 queryset=ADS.objects.all(), message="This file number already exists"
             )
         ],
     )
-    decided_at = serializers.DateField(required=True, format="%Y-%m-%d", help_text='2023-06-01')
+    decided_at = serializers.DateField(
+        required=True, format="%Y-%m-%d", help_text="2023-06-01"
+    )
     buildings_operations = BuildingsADSSerializer(many=True, required=True)
 
     creator = serializers.HiddenField(default=serializers.CurrentUserDefault())

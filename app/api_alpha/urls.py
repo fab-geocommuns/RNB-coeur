@@ -5,7 +5,7 @@ from drf_spectacular.views import SpectacularRedocView
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
 
-from api_alpha.views import AdsTokenView, GetVectorTileView
+from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
@@ -14,6 +14,7 @@ from api_alpha.views import ContributionsViewSet
 from api_alpha.views import get_diff
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
+from api_alpha.views import GetVectorTileView
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
