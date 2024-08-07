@@ -24,6 +24,5 @@ class AddExampleToOpenAPIFields(OpenApiSerializerFieldExtension):
 
         if self.target.help_text is not None:
             default["example"] = self.target.help_text
-            default.pop("description", None)
 
         return default
