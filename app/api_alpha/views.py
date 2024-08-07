@@ -642,7 +642,7 @@ def departement_ranking():
     left join batid_department_subdivided d on ST_Contains(d.shape, b.point)
     where c.status != 'refused'
     group by d.code, d.name
-    order by count_dpt desc;
+    order by count_dpt desc, d.code asc;
     """
 
     with connection.cursor() as cursor:
@@ -659,7 +659,7 @@ def city_ranking():
     inner join batid_city city on ST_Contains(city.shape, b.point)
     where c.status != 'refused'
     group by city.code_insee, city.name
-    order by count_city desc;
+    order by count_city desc, city.code_insee asc;
     """
 
     with connection.cursor() as cursor:
