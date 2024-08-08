@@ -177,6 +177,12 @@ class Building(BuildingAbstract):
         merged_ext_ids = [
             ext_id for building in buildings for ext_id in building.ext_ids or []
         ]
+        # remove eventual duplicates
+        merged_ext_ids = [
+            ext_id
+            for i, ext_id in enumerate(merged_ext_ids)
+            if ext_id not in merged_ext_ids[i + 1 :]
+        ]
 
         def remove_existing_builing(building):
             building.is_active = False

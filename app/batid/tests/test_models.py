@@ -18,7 +18,7 @@ class TestBuilding(TestCase):
         building_2 = Building.objects.create(
             rnb_id="BBB",
             shape="POLYGON((1 0, 1 1, 2 1, 2 0, 1 0))",
-            ext_ids=[{"source": "bdtopo", "id": "2"}],
+            ext_ids=[{"source": "bdtopo", "id": "1"}, {"source": "bdtopo", "id": "2"}],
         )
         building_3 = Building.objects.create(
             rnb_id="CCC"
