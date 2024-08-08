@@ -169,6 +169,10 @@ class Building(BuildingAbstract):
 
         if not isinstance(buildings, list) or len(buildings) < 2:
             raise Exception("Not enough buildings to merge.")
+
+        if any([not building.is_active for building in buildings]):
+            raise Exception("Cannot merge inactive buildings.")
+
         event_id = uuid.uuid4()
         parent_buildings = [building.rnb_id for building in buildings]
         merged_shape = merge_contiguous_shapes(

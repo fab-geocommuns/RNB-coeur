@@ -90,3 +90,17 @@ class TestBuilding(TestCase):
 
         with self.assertRaises(Exception):
             Building.merge([building], None, {}, "constructed", [])
+
+    def test_merge_buildings_inactive_buildings(self):
+        building = Building.objects.create(
+            rnb_id="AAA",
+            is_active=False,
+            shape="POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
+        )
+
+        with self.assertRaises(Exception) as e:
+            Building.merge([building], None, {}, "constructed", [])
+            self.assertEqual(
+                str(e),
+                f"Cannot merge inactive buildings.",
+            )
