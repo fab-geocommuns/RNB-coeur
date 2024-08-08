@@ -366,10 +366,10 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                 description=(
                     "Filtre les bâtiments grâce à une bounding box.<br/>\n"
                     "Le format est nw_lat,nw_lng,se_lat,se_lng avec :<br/>\n"
-                        "• nw_lat : latitude du point Nord Ouest<br/>\n"
-                        "• nw_lng : longitude du point Nord Ouest<br/>\n"
-                        "• se_lat : latitude du point Sud Est<br/>\n"
-                        "• se_lng : longitude du point Sud Est<br/>\n"
+                    "• nw_lat : latitude du point Nord Ouest<br/>\n"
+                    "• nw_lng : longitude du point Nord Ouest<br/>\n"
+                    "• se_lat : latitude du point Sud Est<br/>\n"
+                    "• se_lng : longitude du point Sud Est<br/>\n"
                 ),
                 examples=[
                     OpenApiExample(
@@ -390,14 +390,14 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                     "canceledConstructionProject",
                 ],
                 description=(
-                        "Filtre les bâtiments par statut.<br/><br/>\n"
-                        "• constructed : Bâtiment construit<br/>\n"
-                        "• ongoingChange : En cours de modification<br/>\n"
-                        "• notUsable : Non utilisable (ex : une ruine)<br/>\n"
-                        "• demolished : Démoli<br/>\n"
-                        "Statuts réservés aux instructeurs d’autorisation du droit des sols.<br/><br/>\n"
-                        "• constructionProject : Bâtiment en projet<br/>\n"
-                        "• canceledConstructionProject : Projet de bâtiment annulé"
+                    "Filtre les bâtiments par statut.<br/><br/>\n"
+                    "• constructed : Bâtiment construit<br/>\n"
+                    "• ongoingChange : En cours de modification<br/>\n"
+                    "• notUsable : Non utilisable (ex : une ruine)<br/>\n"
+                    "• demolished : Démoli<br/>\n"
+                    "Statuts réservés aux instructeurs d’autorisation du droit des sols.<br/><br/>\n"
+                    "• constructionProject : Bâtiment en projet<br/>\n"
+                    "• canceledConstructionProject : Projet de bâtiment annulé"
                 ),
                 examples=[
                     OpenApiExample(
@@ -1054,7 +1054,7 @@ def get_stats(request):
             description=(
                 "Date et heure à partir de laquelle les modifications sont retournées.<br/>\n"
                 "Au format ISO 8601.<br/><br/>\n"
-                "Si un \"+\" est présent dans la date, il doit être encodé en %2B.<br/>\n"
+                'Si un "+" est présent dans la date, il doit être encodé en %2B.<br/>\n'
                 "2024-04-02 15:29:44.26+01 => 2024-04-02 15:29:44.26%2B01<br/><br/>\n"
                 "Seules les dates après le 1er avril 2024 sont acceptées.<br/>\n"
                 "Une date inférieure reviendrait à télécharger l'intégralité de la base de données.<br/>\n"
