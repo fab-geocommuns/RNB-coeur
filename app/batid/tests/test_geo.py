@@ -46,7 +46,7 @@ class TestGeo(TestCase):
         self.assertEqual(merged_shapes, shapes[0])
 
     def test_merge_contiguous_shapes_multiple(self):
-        shape_1 = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
+        shape_1 = GEOSGeometry("MULTIPOLYGON (((0 0, 0 1, 1 1, 1 0, 0 0)))")
         shape_2 = GEOSGeometry("POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))")
         shape_3 = GEOSGeometry("POLYGON ((2 0, 2 1, 3 1, 3 0, 2 0))")
 
@@ -68,6 +68,15 @@ class TestGeo(TestCase):
         shape_4 = GEOSGeometry("POLYGON ((14 10, 14 11, 15 11, 15 10, 14 10))")
 
         shapes = [shape_1, shape_2, shape_3, shape_4]
+
+        with self.assertRaises(Exception):
+            merge_contiguous_shapes(shapes)
+
+    def test_merge_contiguous_shapes_no_point(self):
+        shape_1 = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
+        shape_2 = GEOSGeometry("POINT (0.5 0.5)")
+
+        shapes = [shape_1, shape_2]
 
         with self.assertRaises(Exception):
             merge_contiguous_shapes(shapes)
