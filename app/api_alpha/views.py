@@ -363,16 +363,14 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                 "bb",
                 str,
                 OpenApiParameter.QUERY,
-                description="""
-                    Filtre les bâtiments grâce à une bounding box.
-
-                    Le format est nw_lat,nw_lng,se_lat,se_lng avec :
-
-                    • nw_lat : latitude du point Nord Ouest
-                    • nw_lng : longitude du point Nord Ouest
-                    • se_lat : latitude du point Sud Est
-                    • se_lng : longitude du point Sud Est
-                """,
+                description=(
+                    "Filtre les bâtiments grâce à une bounding box.<br/>\n"
+                    "Le format est nw_lat,nw_lng,se_lat,se_lng avec :<br/>\n"
+                        "• nw_lat : latitude du point Nord Ouest<br/>\n"
+                        "• nw_lng : longitude du point Nord Ouest<br/>\n"
+                        "• se_lat : latitude du point Sud Est<br/>\n"
+                        "• se_lng : longitude du point Sud Est<br/>\n"
+                ),
                 examples=[
                     OpenApiExample(
                         "Exemple 1", value="48.845782,2.424525,48.839201,2.434158"
@@ -391,19 +389,16 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                     "constructionProject",
                     "canceledConstructionProject",
                 ],
-                description="""
-                    Filtre les bâtiments par statut.
-
-                    • constructed : Bâtiment construit
-                    • ongoingChange : En cours de modification
-                    • notUsable : Non utilisable (ex : une ruine)
-                    • demolished : Démoli
-
-                    Statuts réservés aux instructeurs d’autorisation du droit des sols.
-
-                    • constructionProject : Bâtiment en projet
-                    • canceledConstructionProject : Projet de bâtiment annulé
-                """,
+                description=(
+                        "Filtre les bâtiments par statut.<br/><br/>\n"
+                        "• constructed : Bâtiment construit<br/>\n"
+                        "• ongoingChange : En cours de modification<br/>\n"
+                        "• notUsable : Non utilisable (ex : une ruine)<br/>\n"
+                        "• demolished : Démoli<br/>\n"
+                        "Statuts réservés aux instructeurs d’autorisation du droit des sols.<br/><br/>\n"
+                        "• constructionProject : Bâtiment en projet<br/>\n"
+                        "• canceledConstructionProject : Projet de bâtiment annulé"
+                ),
                 examples=[
                     OpenApiExample(
                         "Exemple 1",
@@ -421,9 +416,7 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                 "insee_code",
                 str,
                 OpenApiParameter.QUERY,
-                description="""
-                    Filtre les bâtiments grâce au code INSEE d'une commune.
-                     """,
+                description="Filtre les bâtiments grâce au code INSEE d'une commune.",
                 examples=[
                     OpenApiExample(
                         "Liste les bâtiments de la commune de Talence", value="33522"
@@ -1058,17 +1051,15 @@ def get_stats(request):
             "since",
             str,
             OpenApiParameter.QUERY,
-            description="""
-                Date et heure à partir de laquelle les modifications sont retournées.
-                Au format ISO 8601.
-
-                Si un "+" est présent dans la date, il doit être encodé en %2B.
-                2024-04-02 15:29:44.26+01 => 2024-04-02 15:29:44.26%2B01
-
-                Seules les dates après le 1er avril 2024 sont acceptées.
-                Une date inférieure reviendrait à télécharger l'intégralité de la base de données.
-                Ce qui peut être fait via https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/.
-            """,
+            description=(
+                "Date et heure à partir de laquelle les modifications sont retournées.<br/>\n"
+                "Au format ISO 8601.<br/><br/>\n"
+                "Si un \"+\" est présent dans la date, il doit être encodé en %2B.<br/>\n"
+                "2024-04-02 15:29:44.26+01 => 2024-04-02 15:29:44.26%2B01<br/><br/>\n"
+                "Seules les dates après le 1er avril 2024 sont acceptées.<br/>\n"
+                "Une date inférieure reviendrait à télécharger l'intégralité de la base de données.<br/>\n"
+                "Ce qui peut être fait via https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/.<br/>\n"
+            ),
             examples=[
                 OpenApiExample("Exemple 1", value="2024-04-02T00:00:00Z"),
                 OpenApiExample("Exemple 2", value="2024-04-02 15:29:44.267%2B01"),
