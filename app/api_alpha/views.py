@@ -1044,16 +1044,14 @@ def get_stats(request):
     tags=["Bâtiment"],
     operation_id="get_building_diff",
     summary="Obtenir les dernières modifications",
-    description="""
-        Filtre les modifications apportées au RNB ayant eu lieu strictement après un datetime.
-        Les données sont retournées au format CSV.
-
-        Les modifications listées sont de trois types : create, update et delete.
-
-        Les modifications sont triées par rnb_id puis par date de modification croissante.
-        Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée.
-        Par exemple, une création (create) suivie d'une mise à jour (update).
-        """,
+    description=(
+        "Filtre les modifications apportées au RNB ayant eu lieu strictement après un datetime. "
+        "Les données sont retournées au format CSV. "
+        "Les modifications listées sont de trois types : create, update et delete. "
+        "Les modifications sont triées par rnb_id puis par date de modification croissante. "
+        "Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. "
+        "Par exemple, une création (create) suivie d'une mise à jour (update). "
+    ),
     auth=[],
     parameters=[
         OpenApiParameter(

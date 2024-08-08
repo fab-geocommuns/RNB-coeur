@@ -164,7 +164,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Documentation de l'API du Référentiel National du Bâtiment (RNB)",
-    "VERSION": "1.0.0",
+    "VERSION": "0.0.1",
     "SECURITY": [],
     "PREPROCESSING_HOOKS": [
         "api_alpha.utils.drf_spectacular_extension.filter_endpoints_hook"
