@@ -20,6 +20,7 @@ from django.urls import path
 from batid.views import contribution
 from batid.views import delete_building
 from batid.views import FlowerProxyView
+from batid.views import merge_buildings
 from batid.views import refuse_contribution
 from batid.views import update_building
 
@@ -36,6 +37,7 @@ urlpatterns = [
         update_building,
         name="update_building",
     ),
+    path("contribution/fix/merge_buildings", merge_buildings, name="merge_buildings"),
     path("__debug__/", include("debug_toolbar.urls")),
     path("webhook/", include("webhook.urls")),
 ]

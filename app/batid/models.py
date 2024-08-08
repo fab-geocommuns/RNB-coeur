@@ -1,8 +1,11 @@
 import json
+import uuid
+from datetime import datetime
 from typing import Optional
 
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
+from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex
@@ -10,6 +13,7 @@ from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
+from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
 from batid.validators import validate_one_ext_id
 
@@ -138,6 +142,80 @@ class Building(BuildingAbstract):
 
     def point_lng(self):
         return self.point_geojson()["coordinates"][0]
+
+    def soft_delete(self, user, event_origin):
+        """it is not expected to hard delete anything in the RNB, as it would break our capacity to audit its history.
+        This soft delete method is used to mark a building as inactive, with an event_type "delete"
+        """
+        self.event_type = "delete"
+        self.is_active = False
+        self.event_id = uuid.uuid4()
+        self.event_user = user
+        self.event_origin = event_origin
+        self.save()
+
+    def update(self, user, event_origin, status, addresses_id):
+        self.event_type = "update"
+        self.event_id = uuid.uuid4()
+        self.event_user = user
+        self.event_origin = event_origin
+        self.addresses_id = addresses_id
+        self.status = status
+        self.save()
+
+    @staticmethod
+    def merge(buildings: list, user, event_origin, status, addresses_id):
+        from batid.utils.geo import merge_contiguous_shapes
+
+        if not isinstance(buildings, list) or len(buildings) < 2:
+            raise Exception("Not enough buildings to merge.")
+
+        if any([not building.is_active for building in buildings]):
+            raise Exception("Cannot merge inactive buildings.")
+
+        event_id = uuid.uuid4()
+        parent_buildings = [building.rnb_id for building in buildings]
+        merged_shape = merge_contiguous_shapes(
+            [GEOSGeometry(building.shape) for building in buildings if building.shape]
+        )
+        merged_ext_ids = [
+            ext_id for building in buildings for ext_id in building.ext_ids or []
+        ]
+        # remove eventual duplicates
+        merged_ext_ids = [
+            ext_id
+            for i, ext_id in enumerate(merged_ext_ids)
+            if ext_id not in merged_ext_ids[i + 1 :]
+        ]
+
+        def remove_existing_builing(building):
+            building.is_active = False
+            building.event_type = "merge"
+            building.event_id = event_id
+            building.event_user = user
+            building.event_origin = event_origin
+            building.save()
+
+        for building in buildings:
+            remove_existing_builing(building)
+
+        # Create the new merged building
+        building = Building()
+        building.rnb_id = generate_rnb_id()
+        building.status = status
+        building.is_active = True
+        building.event_type = "merge"
+        building.event_id = event_id
+        building.event_user = user
+        building.event_origin = event_origin
+        building.parent_buildings = parent_buildings
+        building.addresses_id = addresses_id
+        building.shape = merged_shape
+        building.point = merged_shape.point_on_surface
+        building.ext_ids = merged_ext_ids
+        building.save()
+
+        return building
 
     class Meta:
         # ordering = ["rnb_id"]
@@ -364,3 +442,23 @@ class Contribution(models.Model):
     review_user = models.ForeignKey(
         User, on_delete=models.PROTECT, null=True, blank=True
     )
+
+    def fix(self, user, review_comment=""):
+        if self.status != "pending":
+            raise ValueError("Contribution is not pending.")
+
+        self.status = "fixed"
+        self.status_changed_at = datetime.now()
+        self.review_comment = review_comment
+        self.review_user = user
+        self.save()
+
+    def refuse(self, user, review_comment=""):
+        if self.status != "pending":
+            raise ValueError("Contribution is not pending.")
+
+        self.status = "refused"
+        self.status_changed_at = datetime.now()
+        self.review_comment = review_comment
+        self.review_user = user
+        self.save()

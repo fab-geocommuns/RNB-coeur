@@ -1,6 +1,4 @@
 import os
-import uuid
-from datetime import datetime
 
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
@@ -90,21 +88,11 @@ def delete_building(request):
                 return HttpResponseBadRequest("Cannot delete an inactive building.")
             # start a transaction
             with transaction.atomic():
-                building.event_type = "delete"
-                building.is_active = False
-                building.event_id = uuid.uuid4()
-                building.event_user = request.user
-                building.event_origin = {
-                    "source": "contribution",
-                    "contribution_id": contribution_id,
-                }
-                building.save()
-
-                contribution.status = "fixed"
-                contribution.status_changed_at = datetime.now()
-                contribution.review_comment = review_comment
-                contribution.review_user = request.user
-                contribution.save()
+                building.soft_delete(
+                    request.user,
+                    {"source": "contribution", "contribution_id": contribution_id},
+                )
+                contribution.fix(request.user, review_comment)
 
             return render(
                 request,
@@ -131,11 +119,7 @@ def refuse_contribution(request):
             if contribution.status != "pending":
                 return HttpResponseBadRequest("Contribution is not pending.")
 
-            contribution.status = "refused"
-            contribution.status_changed_at = datetime.now()
-            contribution.review_comment = review_comment
-            contribution.review_user = request.user
-            contribution.save()
+            contribution.refuse(request.user, review_comment)
 
             return render(
                 request,
@@ -173,25 +157,20 @@ def update_building(request):
             # start a transaction
             try:
                 with transaction.atomic():
-                    building.event_type = "update"
-                    building.event_id = uuid.uuid4()
-                    building.event_user = request.user
-                    building.event_origin = {
-                        "source": "contribution",
-                        "contribution_id": contribution_id,
-                    }
-                    building.addresses_id = addresses_id
-                    building.status = status
-                    building.save()
+                    building.update(
+                        request.user,
+                        {
+                            "source": "contribution",
+                            "contribution_id": contribution_id,
+                        },
+                        status,
+                        addresses_id,
+                    )
 
-                    contribution.status = "fixed"
-                    contribution.status_changed_at = datetime.now()
-                    contribution.review_comment = review_comment
-                    contribution.review_user = request.user
-                    contribution.save()
+                    contribution.fix(request.user, review_comment)
             except Exception as e:
                 return HttpResponseBadRequest(
-                    "Erreur : mise à jour impossible. Il est probable que cette adresses n'existe pas encore en base."
+                    "Could not update the building. It is likely that this address does not exist yet in our database."
                 )
 
             return render(
@@ -201,6 +180,87 @@ def update_building(request):
                     "contribution_id": contribution_id,
                     "rnb_id": contribution.rnb_id,
                     "text": contribution.text,
+                    "action_success": True,
+                },
+            )
+
+
+def merge_buildings(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden()
+    else:
+        # check if the request is a POST request
+        if request.method == "POST":
+            # get the rnb_id from the request
+            rnb_ids_string = request.POST.get("rnb_ids")
+            rnb_ids = rnb_ids_string.split(",")
+
+            contribution_id = request.POST.get("contribution_id")
+            review_comment = request.POST.get("review_comment")
+
+            merge_addresses = request.POST.get("merge_addresses")
+            addresses_id = []
+            if not merge_addresses:
+                addresses_id_string = request.POST.get("addresses_id")
+                addresses_id = (
+                    addresses_id_string.split(",") if addresses_id_string else []
+                )
+
+            status = request.POST.get("status")
+
+            contribution = get_object_or_404(Contribution, id=contribution_id)
+
+            if contribution.status != "pending":
+                return HttpResponseBadRequest("Contribution is not pending.")
+
+            # get the buildings with given rnb_ids
+            buildings = []
+            for rnb_id in rnb_ids:
+                building = get_object_or_404(Building, rnb_id=rnb_id)
+                if not building.is_active:
+                    return HttpResponseBadRequest(
+                        f"Cannot update an inactive building ({building.rnb_id})."
+                    )
+                buildings.append(building)
+
+            if len(buildings) < 2:
+                return HttpResponseBadRequest("Not enough buildings to merge.")
+
+            try:
+
+                if merge_addresses:
+                    # merge the existing addresses, remove duplicates
+                    addresses_id = list(
+                        set(
+                            [
+                                address
+                                for building in buildings
+                                for address in building.addresses_id
+                            ]
+                        )
+                    )
+                with transaction.atomic():
+                    Building.merge(
+                        buildings,
+                        request.user,
+                        {
+                            "source": "contribution",
+                            "contribution_id": contribution_id,
+                        },
+                        status,
+                        addresses_id,
+                    )
+                    contribution.fix(request.user, review_comment)
+            except Exception as e:
+                return HttpResponseBadRequest(
+                    "Could not merge. Most likely because the shapes of the merged buildings are not contiguous."
+                )
+
+            return render(
+                request,
+                "contribution.html",
+                {
+                    "contribution_id": contribution_id,
                     "action_success": True,
                 },
             )

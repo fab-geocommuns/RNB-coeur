@@ -27,6 +27,8 @@
     <input type="hidden" name="contribution_id" value="{{ contribution_id }}">
     <input type="submit" value="Refuser la contribution" style="margin-top: 12px; width: 200px;">
     </form>
+    <i>Une contribution est refusée lorsque le contributeur se trompe. Pas d'impact dans le RNB.</i><br>
+    <i>Par exemple : "Merci de supprimer ce bâtiment, c'est celui de mon voisin, je ne l'aime pas."</i>
 
 <hr>
 
@@ -38,13 +40,16 @@
             <label for="review_comment">Raison suppression du bâtiment</label>
         </div>
 
-        <input name="review_comment" type="text" placeholder="je refuse car..." value="{{ review_comment }}"
+        <input name="review_comment" type="text" placeholder="je supprime car..." value="{{ review_comment }}"
             style="width: 350px; margin-right:20px;">
         </div>
         <input type="hidden" name="rnb_id" value="{{ rnb_id }}">
         <input type="hidden" name="contribution_id" value="{{ contribution_id }}">
         <input type="submit" value="Supprimer le bâtiment" style="margin-top: 12px; width: 200px;">
     </form>
+    <i>Un bâtiment est supprimé lorsqu'il n'aurait jamais dû être dans le RNB</i><br>
+    <i>Par exemple : "ce n'est pas un bâtiment, c'est un bosquet"</i><br>
+    <i>Remarque : En cas de démolition, vous êtes au mauvais endroit, il faut "modifier le bâtiment"</i>
 
 <hr>
 
@@ -55,7 +60,7 @@
     <div style="display: inline-block; width: 350px;">
     <label for="addresses_id"">Liste des clés d’interopérabilité BAN</label>
     </div>
-    <input name="addresses_id" type="text" placeholder="Liste des clés d’interopérabilité" value="{{ addresses_id }}"
+    <input name="addresses_id" type="text" placeholder="Liste des clés, séparées par des virgules" value="{{ addresses_id }}"
         style="width: 350px; margin-right:20px;">
     </div>
     <div style="margin-top: 12px;">
@@ -71,8 +76,8 @@
         </option>
         <option value="constructed" {% if status == "constructed" %}selected{% endif %}>Construit</option>
         <option value="ongoingChange" {% if status == "ongoingChange" %}selected{% endif %}>Modification en cours</option>
-        <option value="notUsable" {% if status == "notUsable" %}selected{% endif %}>Non utilisable</option>
-        <option value="demolished" {% if status == "demolished" %}selected{% endif %}>démoli</option>
+        <option value="notUsable" {% if status == "notUsable" %}selected{% endif %}>Non utilisable (ex: Ruine)</option>
+        <option value="demolished" {% if status == "demolished" %}selected{% endif %}>Démoli</option>
     </select>
     </div>
     <div style="margin-top: 12px;">
@@ -87,4 +92,78 @@
     <input type="hidden" name="contribution_id" value="{{ contribution_id }}">
     <input type="submit" value="Mettre à jour le bâtiment" style="margin-top: 12px; width: 200px;">
 </form>
+<i>Un bâtiment est modifié lorsqu'une ou plusieurs de ses propriétés changent.</i><br>
+<i>Par exemple : "ce bâtiment a été démoli" => statut=Démoli</i><br>
+<i>Par exemple : "Ce bâtiment est au 4 rue de l'Eglise" => clé BAN</i>
+
+<hr>
+
+<h4 style="margin-top: 48px;">Fusionner des bâtiments</h4>
+<form method="post" style="display: flex; flex-direction: column;" action="/contribution/fix/merge_buildings">
+    {% csrf_token %}
+    <div>
+    <div style="display: inline-block; width: 350px;">
+    <label for="rnb_ids"">Liste RNB ids à fusionner</label>
+    </div>
+    <input name="rnb_ids" type="text" placeholder="HJ12JJK976G5,AAA89J76G5F4,..." value="{{ rnb_ids }}"
+        style="width: 350px; margin-right:20px;">
+    </div>
+
+    <div style="margin-top: 12px;">
+        <div style="display: inline-block; width: 350px;">
+            <u>Propriétés du bâtiment résultant :</u>
+        </div>
+    </div>
+
+    <div style="margin-top: 12px;">
+        <div style="display: inline-block; width: 350px;">
+            <label for="addresses_id"">Liste des clés d’interopérabilité BAN</label>
+        </div>
+        <input name="addresses_id" type="text" placeholder="Liste des clés, séparées par des virgules" value="{{ addresses_id }}"
+        style="width: 350px; margin-right:20px;">
+    </div>
+
+    OU <br>
+
+    <div>
+    <div style="display: inline-block; width: 350px;">
+    <label for="merge_addresses"">Fusionner les clés BAN existantes</label>
+    </div>
+    <input type="checkbox" name="merge_addresses" style="display: inline-block;">
+    </div>
+
+
+    <div style="margin-top: 12px;">
+    <div style="display: inline-block; width: 350px;">
+    <label for="status">Statut du bâtiment</label>
+    </div>
+    <select name="status" id="status" value="{{ status }}">
+        <option value="constructionProject" {% if status == "constructionProject" %} selected {% endif %}>Projet de construction
+        </option>
+        <option value="canceledConstructionProject" {% if status == "canceledConstructionProject" %}selected{% endif %}>Projet
+            de construction annulé</option>
+        <option value="ongoingConstruction" {% if status == "ongoingConstruction" %}selected{% endif %}>Construction en cours
+        </option>
+        <option value="constructed" {% if status == "constructed" %}selected{% endif %}>Construit</option>
+        <option value="ongoingChange" {% if status == "ongoingChange" %}selected{% endif %}>Modification en cours</option>
+        <option value="notUsable" {% if status == "notUsable" %}selected{% endif %}>Non utilisable (ex: Ruine)</option>
+        <option value="demolished" {% if status == "demolished" %}selected{% endif %}>Démoli</option>
+    </select>
+    </div>
+    <div style="margin-top: 12px;">
+        <div style="display: inline-block; width: 350px;">
+            <label for="review_comment">Raison de la fusion</label>
+        </div>
+        <input name="review_comment" type="text" placeholder="je fusionne ces bâtiments car..."
+        value="{{ review_comment }}" style="width: 350px; margin-right:20px;">
+    </div>
+
+    <input type="hidden" name="rnb_id" value="{{ rnb_id }}">
+    <input type="hidden" name="contribution_id" value="{{ contribution_id }}">
+    <input type="submit" value="Fusionner les bâtiments" style="margin-top: 12px; width: 200px;">
+</form>
+<i>Des bâtiments RNB sont fusionnés quand il n'existe dans la réalité qu'un seul bâtiment.</i><br>
+<i>Il est possible de spécifier les adresses du bâtiment créé, ou bien de garder les adresses des bâtiments qui sont fusionnés.</i><br>
+<i>Par exemple : "Il n'y a qu'un seul bâtiment à cet endroit, au lieu des 3 affichés sur la carte"</i><br>
+
 {% endif %}

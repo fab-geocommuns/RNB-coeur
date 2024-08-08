@@ -996,7 +996,13 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "email": email,
                         "organization_name": organization_name,
                         "organization_managed_cities": organization_managed_cities,
-                    }
+                    },
+                    {
+                        "username": "johndoe",
+                        "email": email,
+                        "organization_name": organization_name,
+                        "organization_managed_cities": organization_managed_cities,
+                    },
                 ]
             ),
             content_type="application/json",
@@ -1013,7 +1019,12 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 "username": username,
                 "organization_name": organization_name,
                 "email": email,
-            }
+            },
+            {
+                "username": "johndoe",
+                "organization_name": organization_name,
+                "email": "",  # This user is already created in the setUp() function without an email. If the user already exists it is returned without being updated.
+            },
         ]
 
         # Check response
@@ -1022,6 +1033,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
         self.assertIsNotNone(r_data[0]["token"])
         self.assertIsNotNone(r_data[0]["password"])
+        self.assertIsNotNone(r_data[1]["token"])
+        self.assertIsNotNone(r_data[1]["password"])
 
         # Check User in DB
         john = User.objects.get(username=username)
