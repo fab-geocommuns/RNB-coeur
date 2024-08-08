@@ -38,3 +38,30 @@ def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:
         geom = Polygon(big_poly_ring, *small_polys_rings)
 
     return geom
+
+
+def merge_contiguous_shapes(shapes: list):
+    """
+    Merge a list of contiguous GEOSGeometry shapes into a single shape.
+    Supported GEOSGeometry types are Polygon and MultiPolygon.
+    Function will raise if shapes given are not contiguous
+    """
+    if len(shapes) == 0:
+        return None
+    elif len(shapes) == 1:
+        return shapes[0]
+    else:
+        if any(shape.geom_type not in ["Polygon", "MultiPolygon"] for shape in shapes):
+            raise Exception("Only Polygon and MultiPolygon shapes can be merged")
+        merged_shape = shapes[0]
+        shapes = shapes[1:]
+
+        while len(shapes) > 0:
+            for i, shape in enumerate(shapes):
+                if shape.intersects(merged_shape):
+                    shape = shapes.pop(i)
+                    merged_shape = merged_shape.union(shape)
+                    break
+            else:  # no break
+                raise Exception("we don't want to merge non-contiguous shapes")
+        return merged_shape
