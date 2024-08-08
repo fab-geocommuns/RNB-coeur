@@ -78,5 +78,8 @@ class TestGeo(TestCase):
 
         shapes = [shape_1, shape_2]
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception) as e:
             merge_contiguous_shapes(shapes)
+            self.assertEqual(
+                str(e), "Only Polygon and MultiPolygon shapes can be merged"
+            )
