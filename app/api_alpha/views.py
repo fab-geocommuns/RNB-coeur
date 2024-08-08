@@ -352,7 +352,7 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     @extend_schema(
         tags=["Bâtiment"],
         operation_id="list_buildings",
-        summary="Listing de bâtiments",
+        summary="Liste et recherche de bâtiments",
         description=(
             "Ce endpoint permet de récupérer une liste paginée de bâtiments. "
             "Des filtres, notamment par code INSEE de la commune, sont disponibles."
@@ -756,7 +756,7 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     @extend_schema(
         tags=["ADS"],
         operation_id="get_ads",
-        summary="Obtenir une ADS",
+        summary="Consultation d'une ADS",
         description=(
             "Cette API permet de récupérer une ADS (Autorisation de Droit de Sol). "
             "Les requêtes doivent être authentifiées en utilisant un token. "
