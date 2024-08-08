@@ -170,7 +170,7 @@ def update_building(request):
                     contribution.fix(request.user, review_comment)
             except Exception as e:
                 return HttpResponseBadRequest(
-                    "Erreur : mise à jour impossible. Il est probable que cette adresses n'existe pas encore en base."
+                    "Could not update the building. It is likely that this address does not exist yet in our database."
                 )
 
             return render(
@@ -253,7 +253,7 @@ def merge_buildings(request):
                     contribution.fix(request.user, review_comment)
             except Exception as e:
                 return HttpResponseBadRequest(
-                    "Erreur : fusion impossible. Les bâtiments fusionnés sont-ils bien adjacents ?"
+                    "Could not merge. Most likely because the shapes of the merged buildings are not contiguous."
                 )
 
             return render(
