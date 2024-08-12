@@ -1,5 +1,6 @@
 import os
 
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
 from django.http import HttpResponseBadRequest, HttpResponse
@@ -27,6 +28,7 @@ def worker(request):
     )
 
 
+@staff_member_required
 def export_ads(request):
 
     return HttpResponse("Exporting ADS")
