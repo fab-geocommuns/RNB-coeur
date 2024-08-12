@@ -1,0 +1,10 @@
+{% extends "admin/change_list.html" %}
+{% block object-tools-items %}
+
+    {{ block.super }}
+
+    <li>
+        <a href="/admin/export_ads/" class="grp-state-focus addlink">Export</a>
+    </li>
+
+{% endblock %}
