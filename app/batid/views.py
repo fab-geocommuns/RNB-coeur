@@ -2,7 +2,7 @@ import os
 
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponseBadRequest, HttpResponse
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render
@@ -25,6 +25,11 @@ def worker(request):
             "active_tasks": active_tasks,
         },
     )
+
+
+def export_ads(request):
+
+    return HttpResponse("Exporting ADS")
 
 
 class FlowerProxyView(UserPassesTestMixin, ProxyView):
