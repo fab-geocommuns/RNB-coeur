@@ -6,9 +6,8 @@ from batid.models import Address
 from batid.models import ADS
 from batid.models import Contribution
 from batid.models import Organization
-from batid.views import worker, export_ads
-
-from django.contrib.admin.views.decorators import staff_member_required
+from batid.views import export_ads
+from batid.views import worker
 
 
 class OrganizationAdmin(admin.ModelAdmin):
