@@ -1,7 +1,11 @@
+import csv
 import os
+from io import StringIO
 
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
+from django.http import HttpResponse
 from django.http import HttpResponseBadRequest
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
@@ -12,6 +16,7 @@ from revproxy.views import ProxyView
 from app.celery import app as celery_app
 from batid.models import Building
 from batid.models import Contribution
+from batid.services.ads import export_format
 
 
 def worker(request):
@@ -24,6 +29,25 @@ def worker(request):
         {
             "active_tasks": active_tasks,
         },
+    )
+
+
+@staff_member_required
+def export_ads(request):
+
+    data = export_format()
+
+    csv_f = StringIO()
+    csv_writer = csv.DictWriter(csv_f, fieldnames=data[0].keys())
+    csv_writer.writeheader()
+    csv_writer.writerows(data)
+    csv_f.seek(0)
+
+    return HttpResponse(
+        csv_f,
+        content_type="text/csv",
+        status=200,
+        headers={"Content-Disposition": 'attachment; filename="export_ads.csv"'},
     )
 
 

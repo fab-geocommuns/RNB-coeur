@@ -1,8 +1,11 @@
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
+from django.db import connection
 
 from batid.models import ADS
+from batid.models import BuildingADS
 from batid.models import City
+from batid.utils.db import dictfetchall
 
 
 def get_managed_insee_codes(user: User) -> list:
@@ -80,3 +83,23 @@ def get_cities(rnb_ids: list, geojson_geometries: list[GEOSGeometry]) -> list:
     cities = City.objects.raw(q, params)
 
     return [c for c in cities]
+
+
+class CsvDictWriter:
+    pass
+
+
+def export_format() -> list:
+
+    q = (
+        "SELECT ads.*, ads_bdg.rnb_id, ST_AsText(ads_bdg.shape) as shape, ads_bdg.operation, u.id as user_id, u.username, u.email "
+        f"FROM {ADS._meta.db_table} as ads "
+        f"left join {BuildingADS._meta.db_table} as ads_bdg on ads.id = ads_bdg.ads_id "
+        f"left join {User._meta.db_table} as u on u.id = ads.creator_id "
+        "order by id desc"
+    )
+
+    with connection.cursor() as cursor:
+        data = dictfetchall(cursor, q)
+
+    return data
