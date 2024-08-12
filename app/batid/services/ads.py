@@ -1,11 +1,9 @@
-import csv
-from io import StringIO
-
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 
-from batid.models import ADS, BuildingADS
+from batid.models import ADS
+from batid.models import BuildingADS
 from batid.models import City
 from batid.utils.db import dictfetchall
 
