@@ -1,11 +1,35 @@
-from celery.canvas import chain
+import django.db.utils
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.management.base import BaseCommand
-
-from batid.services.imports.import_bdtopo import create_bdtopo_dpt_import_tasks
 
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
 
-        tasks = create_bdtopo_dpt_import_tasks("48")
-        chain(*tasks)()
+        wkt_1 = "POLYGON ((1.839012980156925 43.169860517728324, 1.838983490127865 43.169860200336274, 1.838898525601717 43.169868281549725, 1.838918565176068 43.1699719478626, 1.838920733577112 43.16998636433192, 1.838978629555589 43.16997979090823, 1.838982586839382 43.169966339940714, 1.838974943184281 43.169918580432174, 1.839020497362873 43.169914572864634, 1.839012980156925 43.169860517728324))"
+        wkt_2 = "POLYGON ((1.8391355300979277 43.16987802887805, 1.83913336164737 43.16986361241434, 1.8390129801569248 43.169860517728324, 1.8390790978572837 43.16987292371998, 1.8390909520103162 43.16995581178317, 1.8391377530291442 43.16995091801345, 1.8391293863398452 43.16987796276235, 1.8391355300979277 43.16987802887805))"
+
+        # Problematic case
+        # This triggers error
+        p1 = GEOSGeometry(wkt_1)
+        p2 = GEOSGeometry(wkt_2)
+
+        # p1.intersects(p2)
+
+        q = "Select ST_Intersects(ST_GeomFromText(%s), ST_GeomFromText(%s))"
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+
+            try:
+                cursor.execute(q, [wkt_1, wkt_2])
+                cursor.fetchall()
+            except django.db.utils.InternalError as e:
+                print("internal error")
+
+                if "TopologyException: side location conflict" in str(e):
+                    print("We got it")
+
+                print(e)
+                print(type(e))
+                print("Error<<<")

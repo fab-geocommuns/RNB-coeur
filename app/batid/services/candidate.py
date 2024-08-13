@@ -6,7 +6,7 @@ from typing import Literal
 from celery import Signature
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
-from django.db import connection
+from django.db import connection, InternalError
 from django.db import transaction
 
 from batid.models import Building
@@ -33,11 +33,17 @@ class Inspector:
     def inspect_one(self):
         self.reset()
 
-        with transaction.atomic():
-            self.get_candidate()
-            if isinstance(self.candidate, Candidate):
-                self.get_matching_bdgs()
-                self.inspect_candidate()
+        try:
+            with transaction.atomic():
+                self.get_candidate()
+                if isinstance(self.candidate, Candidate):
+                    self.get_matching_bdgs()
+                    self.inspect_candidate()
+        except Exception as e:
+            if "TopologyException: side location conflict" in str(e):
+                self.decide_refusal_topology_exception()
+            else:
+                raise e
 
     def reset(self):
         self.candidate = None
@@ -55,6 +61,7 @@ class Inspector:
         ).filter(status__in=BuildingStatusService.REAL_BUILDINGS_STATUS, is_active=True)
 
     def inspect_candidate(self):
+
         # Record the inspection datetime
         self.candidate.inspected_at = datetime.now(timezone.utc)
 
@@ -99,6 +106,13 @@ class Inspector:
 
         if len(self.matching_bdgs) > 1:
             self.decide_refusal_too_many_geomatches()
+
+    def decide_refusal_topology_exception(self):
+        self.candidate.inspection_details = {
+            "decision": "refusal",
+            "reason": "topology_exception",
+        }
+        self.candidate.save()
 
     def decide_refusal_is_light(self):
         self.candidate.inspection_details = {
