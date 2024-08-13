@@ -100,6 +100,4 @@ def export_format() -> list:
     )
 
     with connection.cursor() as cursor:
-        data = dictfetchall(cursor, q)
-
-    return data
+        return dictfetchall(cursor, q)
