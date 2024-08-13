@@ -6,6 +6,8 @@ from batid.models import Address
 from batid.models import ADS
 from batid.models import Contribution
 from batid.models import Organization
+from batid.views import export_ads
+from batid.views import export_contributions
 from batid.views import worker
 
 
@@ -66,7 +68,11 @@ admin.site.register(ADS, ADSAdmin)
 
 def get_admin_urls(urls):
     def get_urls():
-        my_urls = [path(r"worker/", admin.site.admin_view(worker))]
+        my_urls = [
+            path(r"worker/", admin.site.admin_view(worker)),
+            path(r"export_ads/", export_ads),
+            path(r"export_contributions/", export_contributions),
+        ]
         return my_urls + urls
 
     return get_urls
