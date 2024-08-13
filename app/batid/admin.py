@@ -6,7 +6,8 @@ from batid.models import Address
 from batid.models import ADS
 from batid.models import Contribution
 from batid.models import Organization
-from batid.views import export_ads, export_contributions
+from batid.views import export_ads
+from batid.views import export_contributions
 from batid.views import worker
 
 
