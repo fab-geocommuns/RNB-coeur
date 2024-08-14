@@ -70,7 +70,6 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
     @extend_schema(
         tags=["Bâtiment"],
         operation_id="guess_building",
-        summary="Identification de bâtiment",
         description=(
             "Ce endpoint permet de trouver un ou plusieurs bâtiments correspondant à une série de critères. "
             "Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat."
@@ -352,7 +351,6 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     @extend_schema(
         tags=["Bâtiment"],
         operation_id="list_buildings",
-        summary="Liste et recherche de bâtiments",
         description=(
             "Ce endpoint permet de récupérer une liste paginée de bâtiments. "
             "Des filtres, notamment par code INSEE de la commune, sont disponibles."
@@ -512,7 +510,6 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     @extend_schema(
         tags=["Bâtiment"],
         operation_id="get_building",
-        summary="Consultation d'un bâtiment",
         description=(
             "Ce endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. "
             "L'API renvoie les informations détaillées telles que l'ID du bâtiment, le statut, la géolocalisation, "
@@ -1145,9 +1142,9 @@ def get_diff(request):
         response = HttpResponse(
             file_output.getvalue(), content_type="text/csv", status=200
         )
-        response[
-            "Content-Disposition"
-        ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+        response["Content-Disposition"] = (
+            f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+        )
         return response
 
 
