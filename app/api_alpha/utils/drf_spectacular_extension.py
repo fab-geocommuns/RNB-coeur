@@ -9,20 +9,6 @@ excluded_endpoints = [
 ]
 
 
-def request_for_spectacular_middleware(get_response):
-    def middleware(request):
-
-        if request.path == "/api/alpha/schema/":
-
-            global root_url
-            root_url = root_url_from_request(request)
-
-        response = get_response(request)
-        return response
-
-    return middleware
-
-
 def filter_endpoints_hook(endpoints):
     return [endpoint for endpoint in endpoints if endpoint[0] not in excluded_endpoints]
 
@@ -44,13 +30,17 @@ class AddExampleToOpenAPIFields(OpenApiSerializerFieldExtension):
         return default
 
 
-def host_prefixed_paths(endpoints):
+def full_url_paths(result, generator, request, public):
 
-    new_endpoints = []
+    root = root_url_from_request(request)
 
-    for path, path_regex, method, callback in endpoints:
-        new_endpoints.append((f"{root_url}{path}", path_regex, method, callback))
+    new_paths = {}
 
-    print(new_endpoints)
+    for path in result["paths"]:
 
-    return new_endpoints
+        full_url = f"{root}{path}"
+        new_paths[full_url] = result["paths"][path]
+
+    result["paths"] = new_paths
+
+    return result

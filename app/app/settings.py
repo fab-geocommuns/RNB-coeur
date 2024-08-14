@@ -92,7 +92,6 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
-    "api_alpha.utils.drf_spectacular_extension.request_for_spectacular_middleware",
 ]
 
 ROOT_URLCONF = "app.urls"
@@ -169,8 +168,10 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.0.1",
     "SECURITY": [],
     "PREPROCESSING_HOOKS": [
-        "api_alpha.utils.drf_spectacular_extension.filter_endpoints_hook",
-        "api_alpha.utils.drf_spectacular_extension.host_prefixed_paths",
+        "api_alpha.utils.drf_spectacular_extension.filter_endpoints_hook"
+    ],
+    "POSTPROCESSING_HOOKS": [
+        "api_alpha.utils.drf_spectacular_extension.full_url_paths"
     ],
 }
 
