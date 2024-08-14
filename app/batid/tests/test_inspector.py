@@ -1,12 +1,12 @@
 import json
 from datetime import datetime
 
-import psycopg2
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
-from django.db import connection, transaction
-from django.db.utils import IntegrityError, InternalError
+from django.db import connection
+from django.db import transaction
+from django.db.utils import IntegrityError
 from django.test import TestCase
 from django.test import TransactionTestCase
 

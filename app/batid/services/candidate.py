@@ -6,7 +6,7 @@ from typing import Literal
 from celery import Signature
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
-from django.db import connection, InternalError
+from django.db import connection
 from django.db import transaction
 
 from batid.models import Building
