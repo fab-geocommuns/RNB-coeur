@@ -4,6 +4,8 @@ from datetime import datetime
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
+from django.db import connection
+from django.db import transaction
 from django.db.utils import IntegrityError
 from django.test import TestCase
 from django.test import TransactionTestCase
@@ -919,3 +921,56 @@ class NonExistingAddress(TransactionTestCase):
         # check the candidate inspection_details is properly reverted
         self.assertFalse(candidate.inspection_details)
         self.assertFalse(candidate.inspected_at)
+
+
+class GeosIntersectsBugInterception(TransactionTestCase):
+
+    WKT_1 = "POLYGON ((1.839012980156925 43.169860517728324, 1.838983490127865 43.169860200336274, 1.838898525601717 43.169868281549725, 1.838918565176068 43.1699719478626, 1.838920733577112 43.16998636433192, 1.838978629555589 43.16997979090823, 1.838982586839382 43.169966339940714, 1.838974943184281 43.169918580432174, 1.839020497362873 43.169914572864634, 1.839012980156925 43.169860517728324))"
+    WKT_2 = "POLYGON ((1.8391355300979277 43.16987802887805, 1.83913336164737 43.16986361241434, 1.8390129801569248 43.169860517728324, 1.8390790978572837 43.16987292371998, 1.8390909520103162 43.16995581178317, 1.8391377530291442 43.16995091801345, 1.8391293863398452 43.16987796276235, 1.8391355300979277 43.16987802887805))"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.buggy_geos = False
+
+    def setUp(self):
+        """
+        We do not have full control over GEOS version (our production db is managed)
+        The bug appears on GEOS 3.11 but not on GEOS 3.9 and seems to be fixed on 3.12
+        We first have to check if the bug is present, then we can test the interception
+        """
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                try:
+                    cursor.execute(
+                        "SELECT ST_Intersects(ST_GeomFromText(%s), ST_GeomFromText(%s))",
+                        [self.WKT_1, self.WKT_2],
+                    )
+                    cursor.fetchone()
+                except Exception as e:
+                    if "TopologyException: side location conflict" in str(e):
+                        self.buggy_geos = True
+
+    def test_interception(self):
+
+        if self.buggy_geos:
+
+            print("GEOS is buggy, we do the skip test")
+
+            bdg_geom = GEOSGeometry(self.WKT_1)
+            Building.objects.create(
+                rnb_id="BUGGY", shape=bdg_geom, point=bdg_geom.point_on_surface
+            )
+
+            candidate_geom = GEOSGeometry(self.WKT_2)
+            Candidate.objects.create(
+                shape=candidate_geom,
+                is_light=False,
+            )
+
+            i = Inspector()
+            i.inspect()
+
+            c = Candidate.objects.all().first()
+            self.assertEqual(c.inspection_details["decision"], "refusal")
+            self.assertEqual(c.inspection_details["reason"], "topology_exception")
+            self.assertNotEqual(c.inspected_at, None)
