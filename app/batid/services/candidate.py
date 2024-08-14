@@ -40,6 +40,8 @@ class Inspector:
                     self.get_matching_bdgs()
                     self.inspect_candidate()
         except Exception as e:
+            # We intercept the topology exception to avoid the task to crash
+            # bug description : https://gis.stackexchange.com/questions/484691/topologyexception-side-location-conflict-while-intersects-on-valid-polygons
             if "TopologyException: side location conflict" in str(e):
                 self.decide_refusal_topology_exception()
             else:
