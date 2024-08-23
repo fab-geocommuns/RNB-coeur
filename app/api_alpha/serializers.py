@@ -87,7 +87,9 @@ class BuildingSerializer(serializers.ModelSerializer):
             "is_active",
         ]
         extra_kwargs = {
-            "rnb_id": {"help_text": "QBAAG16VCJWA"},
+            "rnb_id": {
+                "help_text": "QBAAG16VCJWA - example",
+            },
             "status": {"help_text": "constructed"},
             "is_active": {"help_text": "true"},
         }

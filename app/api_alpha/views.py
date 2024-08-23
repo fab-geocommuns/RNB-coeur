@@ -78,10 +78,7 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         parameters=[
             OpenApiParameter(
                 name="address",
-                description=(
-                    "Utilise les geocoders de la Base Adresse Nationale et d'Open Street Map pour tenter "
-                    "de géolocaliser l'adresse indiquée."
-                ),
+                description=("Adresse du bâtiment recherché. Texte libre."),
                 required=False,
                 type=str,
                 examples=[
@@ -132,7 +129,7 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
                     OpenApiExample(
                         name="Exemple",
                         value={
-                            "rnb_id": "QBAAG16VCJWA",
+                            "rnb_id": "QBAAG16VCJWA - 1",
                             "score": 0.753986390,
                             "status": "constructed",
                             "point": {
@@ -362,64 +359,36 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                 str,
                 OpenApiParameter.QUERY,
                 description=(
-                    "Filtre les bâtiments grâce à une bounding box.<br/>\n"
-                    "Le format est nw_lat,nw_lng,se_lat,se_lng avec :<br/>\n"
-                    "• nw_lat : latitude du point Nord Ouest<br/>\n"
-                    "• nw_lng : longitude du point Nord Ouest<br/>\n"
-                    "• se_lat : latitude du point Sud Est<br/>\n"
-                    "• se_lng : longitude du point Sud Est<br/>\n"
+                    "Filtre les bâtiments grâce à une bounding box.<br/><br />"
+                    "Le format est nw_lat,nw_lng,se_lat,se_lng avec :<br/><br />"
+                    "• nw_lat : latitude du point Nord Ouest<br/>"
+                    "• nw_lng : longitude du point Nord Ouest<br/>"
+                    "• se_lat : latitude du point Sud Est<br/>"
+                    "• se_lng : longitude du point Sud Est<br/><br />"
+                    "Exemple : bb=48.845782,2.424525,48.839201,2.434158"
                 ),
-                examples=[
-                    OpenApiExample(
-                        "Exemple 1", value="48.845782,2.424525,48.839201,2.434158"
-                    )
-                ],
             ),
             OpenApiParameter(
                 "status",
                 str,
                 OpenApiParameter.QUERY,
-                enum=[
-                    "constructed",
-                    "ongoingChange",
-                    "notUsable",
-                    "demolished",
-                    "constructionProject",
-                    "canceledConstructionProject",
-                ],
                 description=(
-                    "Filtre les bâtiments par statut.<br/><br/>\n"
+                    "Filtre les bâtiments par statut. Il est possible de spécifier plusieurs statuts en les séparant par une virgule<br/><br/>"
                     "• constructed : Bâtiment construit<br/>\n"
                     "• ongoingChange : En cours de modification<br/>\n"
                     "• notUsable : Non utilisable (ex : une ruine)<br/>\n"
-                    "• demolished : Démoli<br/>\n"
-                    "Statuts réservés aux instructeurs d’autorisation du droit des sols.<br/><br/>\n"
-                    "• constructionProject : Bâtiment en projet<br/>\n"
-                    "• canceledConstructionProject : Projet de bâtiment annulé"
+                    "• demolished : Démoli<br/><br /><br />"
+                    "Exemple : status=demolished,notUsable"
                 ),
-                examples=[
-                    OpenApiExample(
-                        "Exemple 1",
-                        summary="Liste les bâtiments construits",
-                        value="constructed",
-                    ),
-                    OpenApiExample(
-                        "Exemple 2",
-                        summary="Liste les bâtiments construits ou démolis",
-                        value="constructed,demolished",
-                    ),
-                ],
             ),
             OpenApiParameter(
                 "insee_code",
                 str,
                 OpenApiParameter.QUERY,
-                description="Filtre les bâtiments grâce au code INSEE d'une commune.",
-                examples=[
-                    OpenApiExample(
-                        "Liste les bâtiments de la commune de Talence", value="33522"
-                    )
-                ],
+                description=(
+                    "Filtre les bâtiments grâce au code INSEE d'une commune.<br /><br />"
+                    "Exemple : insee_code=33522"
+                ),
             ),
         ],
         responses={
@@ -430,7 +399,7 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                         name="Exemple",
                         value=[
                             {
-                                "rnb_id": "QBAAG16VCJWA",
+                                "rnb_id": "QBAAG16VCJWA - 2",
                                 "status": "constructed",
                                 "point": {
                                     "type": "Point",
@@ -532,7 +501,7 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                     OpenApiExample(
                         name="Exemple",
                         value={
-                            "rnb_id": "QBAAG16VCJWA",
+                            "rnb_id": "QBAAG16VCJWA - 3",
                             "status": "constructed",
                             "point": {
                                 "type": "Point",
