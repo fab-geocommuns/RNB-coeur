@@ -8,11 +8,10 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSetMixin
 
 
-def rnb_doc(path_key, path_desc):
+def rnb_doc(path_desc):
 
     def decorator(fn):
         fn._in_rnb_doc = True
-        fn._path_key = path_key
         fn._path_desc = path_desc
         return fn
 
