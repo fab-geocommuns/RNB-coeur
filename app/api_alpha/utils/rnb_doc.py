@@ -1,15 +1,13 @@
-import importlib
 import inspect
-import sys
 
 from django.urls import get_resolver
-from rest_framework.schemas.generators import EndpointEnumerator, BaseSchemaGenerator
+from rest_framework.schemas.generators import BaseSchemaGenerator
+from rest_framework.schemas.generators import EndpointEnumerator
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSetMixin
 
 
 def rnb_doc(path_desc):
-
     def decorator(fn):
         fn._in_rnb_doc = True
         fn._path_desc = path_desc
