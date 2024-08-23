@@ -16,32 +16,8 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
 
         schema = build_schema()
-        print(schema)
 
-        # url_resolver = get_resolver()
-        # all_patterns = url_resolver.url_patterns
-        #
-        # inspector = EndpointEnumerator()
-        # endpoints = inspector.get_api_endpoints(all_patterns)
-        #
-        # for endpoint in endpoints:
-        #     path, method, callback = endpoint
-        #     print("---")
-        #     print(path, method, callback)
-        #
-        #     generator = BaseSchemaGenerator()
-        #     view = generator.create_view(callback, method)
-        #
-        #     if isinstance(view, ViewSetMixin):
-        #         action = getattr(view, view.action)
-        #     elif isinstance(view, APIView):
-        #         action = getattr(view, method.lower())
-        #     else:
-        #         raise Exception("Unknown view type")
-        #
-        #     if inspect.ismethod(action):
-        #
-        #         fn = action.__func__
-        #
-        #         if hasattr(fn, "_in_rnb_doc"):
-        #             print("in rnb doc")
+        # then, we should convert to YML
+        # it might be useful to check it against an OpenAPI schema validator (or it can be done in test)
+
+        print(schema)
