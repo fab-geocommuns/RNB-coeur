@@ -69,7 +69,7 @@ class RNBLoggingMixin(LoggingMixin):
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
     @rnb_doc(
-        "http://localhost:8000/api/alpha/buildings/",
+        "/api/alpha/buildings/guess/",
         {
             "get": {
                 "summary": "Liste des batiments",

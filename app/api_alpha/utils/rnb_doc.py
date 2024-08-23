@@ -2,6 +2,11 @@ import importlib
 import inspect
 import sys
 
+from django.urls import get_resolver
+from rest_framework.schemas.generators import EndpointEnumerator, BaseSchemaGenerator
+from rest_framework.views import APIView
+from rest_framework.viewsets import ViewSetMixin
+
 
 def rnb_doc(path_key, path_desc):
 
@@ -14,53 +19,63 @@ def rnb_doc(path_key, path_desc):
     return decorator
 
 
-def build_schema(modules_names):
+def build_schema():
     # goes through all methods and checks if they have add_to_doc attribute
     # if they do, it adds them to the schema
 
     schema = {
         "openapi": "3.0.3",
         "info": {"title": "Test API", "version": "1.0.0"},
-        "paths": _get_paths(modules_names),
+        "paths": _get_paths(),
     }
-
-    for name, obj in inspect.getmembers(sys.modules[__name__]):
-        if hasattr(obj, "add_to_doc"):
-            schema["paths"].update(obj())
 
     return schema
 
 
-def _get_paths(modules_names):
+def _get_endpoints() -> list:
 
-    paths = {}
+    url_resolver = get_resolver()
+    all_patterns = url_resolver.url_patterns
 
-    for module_name in modules_names:
+    inspector = EndpointEnumerator()
+    return inspector.get_api_endpoints(all_patterns)
 
-        module = importlib.import_module(module_name)
 
-        for name, obj in inspect.getmembers(module):
+def _add_fn_doc(path, fn, schema_paths) -> dict:
 
-            if (
-                inspect.isfunction(obj)
-                and hasattr(obj, "_in_rnb_doc")
-                and obj._in_rnb_doc
-            ):
-                if obj._path_key not in paths:
-                    paths[obj._path_key] = {}
+    if hasattr(fn, "_in_rnb_doc"):
+        if path not in schema_paths:
+            schema_paths[path] = {}
 
-                paths[obj._path_key].update(obj._path_desc)
+        schema_paths[path].update(fn._path_desc)
 
-            elif inspect.isclass(obj):
-                for method_name, method in inspect.getmembers(obj):
-                    if (
-                        inspect.isfunction(method)
-                        and hasattr(method, "_in_rnb_doc")
-                        and method._in_rnb_doc
-                    ):
-                        if method._path_key not in paths:
-                            paths[method._path_key] = {}
+    return schema_paths
 
-                        paths[method._path_key].update(method._path_desc)
 
-    return paths
+def _get_paths() -> dict:
+
+    schema_paths = {}
+
+    generator = BaseSchemaGenerator()
+
+    for path, method, callback in _get_endpoints():
+
+        # We have to instantiate the view to get the action and its associated method
+        view = generator.create_view(callback, method)
+
+        if isinstance(view, ViewSetMixin):
+            action = getattr(view, view.action)
+        elif isinstance(view, APIView):
+            action = getattr(view, method.lower())
+        else:
+            raise Exception("Unknown view type when generating schema")
+
+        # We attach the function/method rnb_doc if it has any
+        if inspect.ismethod(action):
+            fn = action.__func__
+            schema_paths = _add_fn_doc(path, fn, schema_paths)
+
+        if inspect.isfunction(action):
+            schema_paths = _add_fn_doc(path, action, schema_paths)
+
+    return schema_paths
