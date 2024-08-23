@@ -42,6 +42,7 @@ from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
+from api_alpha.utils.rnb_doc import rnb_doc
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
@@ -67,109 +68,27 @@ class RNBLoggingMixin(LoggingMixin):
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
-    @extend_schema(
-        tags=["Bâtiment"],
-        operation_id="guess_building",
-        summary="Identification de bâtiment",
-        description=(
-            "Ce endpoint permet de trouver un ou plusieurs bâtiments correspondant à une série de critères. "
-            "Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat."
-        ),
-        auth=[],
-        parameters=[
-            OpenApiParameter(
-                name="address",
-                description=(
-                    "Utilise les geocoders de la Base Adresse Nationale et d'Open Street Map pour tenter "
-                    "de géolocaliser l'adresse indiquée."
+    @rnb_doc(
+        "http://localhost:8000/api/alpha/buildings/",
+        {
+            "get": {
+                "summary": "Liste des batiments",
+                "description": (
+                    "Ce endpoint permet de récupérer une liste paginée de bâtiments."
+                    "Des filtres, notamment par code INSEE de la commune, sont disponibles."
                 ),
-                required=False,
-                type=str,
-                examples=[
-                    OpenApiExample(
-                        "Exemple d'adresse", value="10 rue de la paix, Mérignac"
-                    )
+                "operationId": "listBuildings",
+                "parameters": [
+                    {
+                        "name": "insee",
+                        "in": "query",
+                        "description": "Code INSEE de la commune",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "75101",
+                    }
                 ],
-            ),
-            OpenApiParameter(
-                name="name",
-                description=(
-                    "Utilise un geocoder Open Street Map pour tenter de géolocaliser le lieu donné."
-                ),
-                required=False,
-                type=str,
-                examples=[
-                    OpenApiExample("Exemple de lieu", value="Notre Dame de Paris")
-                ],
-            ),
-            OpenApiParameter(
-                name="point",
-                description=(
-                    "Favorise les bâtiments en fonction de leur position par rapport au point indiqué "
-                    "(latitude et longitude séparées par une virgule)."
-                ),
-                required=False,
-                type=str,
-                examples=[
-                    OpenApiExample(
-                        "Exemple de point",
-                        value="44.84114313595151,-0.5705289444867035",
-                    )
-                ],
-            ),
-            OpenApiParameter(
-                name="page",
-                description="Pagination des résultats de recherche.",
-                required=False,
-                type=int,
-                default=1,
-                examples=[OpenApiExample("Page par défaut", value=1)],
-            ),
-        ],
-        responses={
-            200: OpenApiResponse(
-                response=GuessBuildingSerializer(many=True),
-                examples=[
-                    OpenApiExample(
-                        name="Exemple",
-                        value={
-                            "rnb_id": "QBAAG16VCJWA",
-                            "score": 0.753986390,
-                            "status": "constructed",
-                            "point": {
-                                "type": "Point",
-                                "coordinates": [
-                                    3.584410393780201,
-                                    49.52799819019749,
-                                ],
-                            },
-                            "addresses": [
-                                {
-                                    "id": "02191_0020_00003",
-                                    "source": "bdnb",
-                                    "street_number": "3",
-                                    "street_rep": "",
-                                    "street_name": "de l'eglise",
-                                    "street_type": "rue",
-                                    "city_name": "Chivy-lès-Étouvelles",
-                                    "city_zipcode": "02000",
-                                    "city_insee_code": "02191",
-                                }
-                            ],
-                            "ext_ids": [
-                                {
-                                    "id": "bdnb-bc-3B85-TYM9-FDSX",
-                                    "source": "bdnb",
-                                    "created_at": "2023-12-07T13:20:58.310444+00:00",
-                                    "source_version": "2023_01",
-                                }
-                            ],
-                        },
-                    )
-                ],
-            ),
-            400: {"description": "Requête invalide"},
-            404: {"description": "Bâtiment non trouvé"},
+            },
         },
     )
     def get(self, request, *args, **kwargs):
@@ -1145,9 +1064,9 @@ def get_diff(request):
         response = HttpResponse(
             file_output.getvalue(), content_type="text/csv", status=200
         )
-        response[
-            "Content-Disposition"
-        ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+        response["Content-Disposition"] = (
+            f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+        )
         return response
 
 
