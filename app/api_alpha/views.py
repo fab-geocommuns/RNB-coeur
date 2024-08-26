@@ -68,28 +68,7 @@ class RNBLoggingMixin(LoggingMixin):
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
-    @rnb_doc(
-        {
-            "get": {
-                "summary": "Liste des batiments",
-                "description": (
-                    "Ce endpoint permet de récupérer une liste paginée de bâtiments."
-                    "Des filtres, notamment par code INSEE de la commune, sont disponibles."
-                ),
-                "operationId": "listBuildings",
-                "parameters": [
-                    {
-                        "name": "insee",
-                        "in": "query",
-                        "description": "Code INSEE de la commune",
-                        "required": False,
-                        "schema": {"type": "string"},
-                        "example": "75101",
-                    }
-                ],
-            },
-        },
-    )
+
     def get(self, request, *args, **kwargs):
         search = BuildingGuess()
         search.set_params_from_url(**request.query_params.dict())
@@ -267,158 +246,26 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
         return qs
 
-    @extend_schema(
-        tags=["Bâtiment"],
-        operation_id="list_buildings",
-        summary="Liste et recherche de bâtiments",
-        description=(
-            "Ce endpoint permet de récupérer une liste paginée de bâtiments. "
-            "Des filtres, notamment par code INSEE de la commune, sont disponibles."
-        ),
-        auth=[],
-        parameters=[
-            OpenApiParameter(
-                "bb",
-                str,
-                OpenApiParameter.QUERY,
-                description=(
-                    "Filtre les bâtiments grâce à une bounding box.<br/>\n"
-                    "Le format est nw_lat,nw_lng,se_lat,se_lng avec :<br/>\n"
-                    "• nw_lat : latitude du point Nord Ouest<br/>\n"
-                    "• nw_lng : longitude du point Nord Ouest<br/>\n"
-                    "• se_lat : latitude du point Sud Est<br/>\n"
-                    "• se_lng : longitude du point Sud Est<br/>\n"
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Liste des batiments",
+                "description": (
+                    "Ce endpoint permet de récupérer une liste paginée de bâtiments."
+                    "Des filtres, notamment par code INSEE de la commune, sont disponibles."
                 ),
-                examples=[
-                    OpenApiExample(
-                        "Exemple 1", value="48.845782,2.424525,48.839201,2.434158"
-                    )
+                "operationId": "listBuildings",
+                "parameters": [
+                    {
+                        "name": "insee",
+                        "in": "query",
+                        "description": "Code INSEE de la commune",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "75101",
+                    }
                 ],
-            ),
-            OpenApiParameter(
-                "status",
-                str,
-                OpenApiParameter.QUERY,
-                enum=[
-                    "constructed",
-                    "ongoingChange",
-                    "notUsable",
-                    "demolished",
-                    "constructionProject",
-                    "canceledConstructionProject",
-                ],
-                description=(
-                    "Filtre les bâtiments par statut.<br/><br/>\n"
-                    "• constructed : Bâtiment construit<br/>\n"
-                    "• ongoingChange : En cours de modification<br/>\n"
-                    "• notUsable : Non utilisable (ex : une ruine)<br/>\n"
-                    "• demolished : Démoli<br/>\n"
-                    "Statuts réservés aux instructeurs d’autorisation du droit des sols.<br/><br/>\n"
-                    "• constructionProject : Bâtiment en projet<br/>\n"
-                    "• canceledConstructionProject : Projet de bâtiment annulé"
-                ),
-                examples=[
-                    OpenApiExample(
-                        "Exemple 1",
-                        summary="Liste les bâtiments construits",
-                        value="constructed",
-                    ),
-                    OpenApiExample(
-                        "Exemple 2",
-                        summary="Liste les bâtiments construits ou démolis",
-                        value="constructed,demolished",
-                    ),
-                ],
-            ),
-            OpenApiParameter(
-                "insee_code",
-                str,
-                OpenApiParameter.QUERY,
-                description="Filtre les bâtiments grâce au code INSEE d'une commune.",
-                examples=[
-                    OpenApiExample(
-                        "Liste les bâtiments de la commune de Talence", value="33522"
-                    )
-                ],
-            ),
-        ],
-        responses={
-            200: OpenApiResponse(
-                response=BuildingSerializer(many=True),
-                examples=[
-                    OpenApiExample(
-                        name="Exemple",
-                        value=[
-                            {
-                                "rnb_id": "QBAAG16VCJWA",
-                                "status": "constructed",
-                                "point": {
-                                    "type": "Point",
-                                    "coordinates": [
-                                        3.584410393780201,
-                                        49.52799819019749,
-                                    ],
-                                },
-                                "addresses": [
-                                    {
-                                        "id": "02191_0020_00003",
-                                        "source": "bdnb",
-                                        "street_number": "3",
-                                        "street_rep": "",
-                                        "street_name": "de l'eglise",
-                                        "street_type": "rue",
-                                        "city_name": "Chivy-lès-Étouvelles",
-                                        "city_zipcode": "02000",
-                                        "city_insee_code": "02191",
-                                    }
-                                ],
-                                "ext_ids": [
-                                    {
-                                        "id": "bdnb-bc-3B85-TYM9-FDSX",
-                                        "source": "bdnb",
-                                        "created_at": "2023-12-07T13:20:58.310444+00:00",
-                                        "source_version": "2023_01",
-                                    }
-                                ],
-                            },
-                            {
-                                "rnb_id": "FXFJZNZYGTED",
-                                "status": "constructed",
-                                "point": {
-                                    "type": "Point",
-                                    "coordinates": [
-                                        5.775791408470412,
-                                        45.256939624268206,
-                                    ],
-                                },
-                                "addresses": [
-                                    {
-                                        "id": "02191_0020_00005",
-                                        "source": "bdnb",
-                                        "street_number": "5",
-                                        "street_rep": "",
-                                        "street_name": "de l'eglise",
-                                        "street_type": "rue",
-                                        "city_name": "Chivy-lès-Étouvelles",
-                                        "city_zipcode": "02000",
-                                        "city_insee_code": "02191",
-                                    }
-                                ],
-                                "ext_ids": [
-                                    {
-                                        "id": "bdnb-bc-3B86-TYM9-FRTS",
-                                        "source": "bdnb",
-                                        "created_at": "2023-12-07T13:25:58.310444+00:00",
-                                        "source_version": "2023_01",
-                                    }
-                                ],
-                            },
-                        ],
-                    )
-                ],
-            ),
-            400: {"description": "Requête invalide"},
-            404: {"description": "Bâtiment non trouvé"},
+            },
         },
     )
     def list(self, request, *args, **kwargs):
@@ -1063,9 +910,9 @@ def get_diff(request):
         response = HttpResponse(
             file_output.getvalue(), content_type="text/csv", status=200
         )
-        response[
-            "Content-Disposition"
-        ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+        response["Content-Disposition"] = (
+            f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+        )
         return response
 
 
