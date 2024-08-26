@@ -68,7 +68,6 @@ class RNBLoggingMixin(LoggingMixin):
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
-
     def get(self, request, *args, **kwargs):
         search = BuildingGuess()
         search.set_params_from_url(**request.query_params.dict())
@@ -910,9 +909,9 @@ def get_diff(request):
         response = HttpResponse(
             file_output.getvalue(), content_type="text/csv", status=200
         )
-        response["Content-Disposition"] = (
-            f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
-        )
+        response[
+            "Content-Disposition"
+        ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
         return response
 
 
