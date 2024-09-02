@@ -1,6 +1,7 @@
 import concurrent
 import csv
 import json
+import orjson
 import time
 from abc import ABC
 from abc import abstractmethod
@@ -11,7 +12,7 @@ import pandas as pd
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
-from django.db import connections
+from django.db import connections, connection
 
 from batid.models import Building
 from batid.services.closest_bdg import get_closest_from_point
@@ -35,6 +36,7 @@ class Guesser:
         self.save_work_file(file_path)
 
     def load_work_file(self, file_path):
+        print("- loading work file")
         with open(file_path, "r") as f:
             self.guesses = json.load(f)
 
@@ -47,10 +49,17 @@ class Guesser:
 
         batches = self._guesses_to_batches()
 
+        c = 0
         for batch in batches:
-            batch = self.guess_batch(batch)
-            self.guesses.update(batch)
-            self.save_work_file(file_path)
+            c += 1
+            print(f"Batch {c}/{len(batches)}")
+            batch, changed_batch = self.guess_batch(batch)
+            if changed_batch:
+                print("Batch changed")
+                self.guesses.update(batch)
+                self.save_work_file(file_path)
+            else:
+                print("Batch did not change")
 
     def guess_all(self):
         batches = self._guesses_to_batches()
@@ -61,17 +70,21 @@ class Guesser:
             self.guesses.update(batch)
 
     def _guesses_to_batches(self, batch_size: int = 1000):
+        print("- converting guesses to batches")
         batches = []
         batch = {}
+        last_ext_id = list(self.guesses.keys())[-1]
 
         c = 0
         for ext_id, guess in self.guesses.items():
             c += 1
             batch[ext_id] = guess
 
-            if len(batch) == batch_size or ext_id == list(self.guesses.keys())[-1]:
+            if len(batch) == batch_size or ext_id == last_ext_id:
                 batches.append(batch)
                 batch = {}
+
+        print(f"- converted {len(self.guesses)} guesses to {len(batches)} batches")
 
         return batches
 
@@ -91,6 +104,24 @@ class Guesser:
         match_percentage = match_count / total * 100
         print(f"Number of match: {match_count} ({match_percentage:.2f}%)")
 
+        # Count empty finished_steps
+        print("\n-- finished_steps --")
+
+        for idx, handler in enumerate(self.handlers):
+            finished_steps_count = (
+                df["finished_steps"].apply(lambda x: handler.name in x).sum()
+            )
+            finished_steps_percentage = finished_steps_count / total * 100
+            print(
+                f"Rows with finished_steps {handler.name}: {finished_steps_count} ({finished_steps_percentage:.2f}%)"
+            )
+
+        empty_finished_steps = df["finished_steps"].apply(lambda x: len(x) == 0).sum()
+        empty_finished_steps_percentage = empty_finished_steps / total * 100
+        print(
+            f"Rows with empty finished_steps: {empty_finished_steps} ({empty_finished_steps_percentage:.2f}%)"
+        )
+
         # Display table of all march_reason values with their absolute count and their percentage
         match_reason_count = df["match_reason"].value_counts()
         match_reason_percentage = match_reason_count / total * 100
@@ -103,9 +134,10 @@ class Guesser:
         print("\n-- Inputs --")
 
         # how many have an input_ban_id
-        ban_id_count = df["input_ban_id"].notnull().sum()
-        ban_id_percentage = ban_id_count / total * 100
-        print(f"rows with ban_id: {ban_id_count} ({ban_id_percentage:.2f}%)")
+        if "input_ban_id" in df.columns:
+            ban_id_count = df["input_ban_id"].notnull().sum()
+            ban_id_percentage = ban_id_count / total * 100
+            print(f"rows with ban_id: {ban_id_count} ({ban_id_percentage:.2f}%)")
 
     def matched_sample(
         self,
@@ -148,27 +180,37 @@ class Guesser:
     def save_work_file(self, file_path):
         self.convert_matches()
 
-        with open(file_path, "w") as f:
-            json.dump(self.guesses, f, indent=4)
+        with open(file_path, "wb") as f:
+            print("- saving work file")
+            f.write(orjson.dumps(self.guesses, option=orjson.OPT_INDENT_2))
+            # json.dump(self.guesses, f, indent=4, ensure_ascii=False)
+            print("- work file saved")
 
     def convert_matches(self):
         for ext_id, guess in self.guesses.items():
-            if not isinstance(guess["matches"], str):
-                rnb_ids = []
 
-                for idx, match in enumerate(guess["matches"]):
+            rnb_ids = []
+
+            for idx, match in enumerate(guess["matches"]):
+                if isinstance(match, Building):
                     rnb_ids.append(match.rnb_id)
+                if isinstance(match, str):
+                    rnb_ids.append(match)
 
-                guess["matches"] = ",".join(rnb_ids)
+            guess["matches"] = rnb_ids
 
-    def guess_batch(self, guesses: dict) -> dict:
+    def guess_batch(self, guesses: dict) -> tuple:
+        guesses_changed = False
         for handler in self.handlers:
             if not isinstance(handler, AbstractHandler):
                 raise ValueError("Handler must be an instance of AbstractHandler")
 
-            guesses = handler.handle(guesses)
+            guesses, handler_changed_guesses = handler.handle(guesses)
 
-        return guesses
+            if handler_changed_guesses:
+                guesses_changed = True
+
+        return guesses, guesses_changed
 
     def to_csv(self, file_path, ext_id_col_name="ext_id"):
 
@@ -239,14 +281,19 @@ class Guesser:
 class AbstractHandler(ABC):
     _name = None
 
-    def handle(self, guesses: dict) -> dict:
+    def handle(self, guesses: dict) -> tuple:
+
+        handler_changed_guesses = False
         to_guess, to_not_guess = self._split_guesses(guesses)
-        to_guess = self._guess_batch(to_guess)
 
-        guesses = to_guess | to_not_guess
-        guesses = self._add_finished_step(guesses)
+        if len(to_guess) > 0:
+            handler_changed_guesses = True
+            to_guess = self._guess_batch(to_guess)
 
-        return guesses
+            guesses = to_guess | to_not_guess
+            guesses = self._add_finished_step(guesses)
+
+        return guesses, handler_changed_guesses
 
     def _split_guesses(self, guesses: dict) -> tuple:
         to_handle = {}
@@ -292,7 +339,8 @@ class ClosestFromPointHandler(AbstractHandler):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for guess in guesses.values():
                 future = executor.submit(self._guess_one, guess)
-                future.add_done_callback(lambda future: connections.close_all())
+                # We comment out the line below since closing all connections might provoke with open connection where the query is not yet executed
+                # future.add_done_callback(lambda future: connections.close_all())
                 tasks.append(future)
 
             for future in concurrent.futures.as_completed(tasks):
@@ -310,6 +358,8 @@ class ClosestFromPointHandler(AbstractHandler):
 
         # Get the two closest buildings
         closest_bdgs = get_closest_from_point(lat, lng, self.closest_radius)[:2]
+        # we have to close the connections to avoid a "too many connections" error
+        connection.close()
 
         if not closest_bdgs:
             return guess
@@ -399,6 +449,9 @@ class GeocodeAddressHandler(AbstractHandler):
         addresses = []
         for ext_id, guess in guesses.items():
             address = guess["input"].get("address", None)
+
+            address = self._clean_address(address)
+
             if address:
                 addresses.append(
                     {
@@ -415,6 +468,12 @@ class GeocodeAddressHandler(AbstractHandler):
                 columns=["address"],
                 result_columns=["result_type", "result_id", "result_score"],
             )
+            if response.status_code == 400:
+                # save address in text file
+                with open("error_addresses.txt", "a") as f:
+                    for address in addresses:
+                        f.write(address["address"] + "\n")
+                raise Exception(f"Error while geocoding addresses : {response.text}")
             if response.status_code != 200:
                 raise Exception(f"Error while geocoding addresses : {response.text}")
 
@@ -432,6 +491,17 @@ class GeocodeAddressHandler(AbstractHandler):
                     guesses[row["ext_id"]]["input"]["ban_id"] = row["result_id"]
 
         return guesses
+
+    @staticmethod
+    def _clean_address(address: str) -> str:
+
+        while True:
+            if address.startswith(",") or address.startswith(" "):
+                address = address[1:]
+            else:
+                break
+
+        return address
 
     @staticmethod
     def _address_to_ban_id(address: str, lat: float, lng: float) -> Optional[str]:
@@ -543,7 +613,8 @@ class PartialRoofHandler(AbstractHandler):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for guess in guesses.values():
                 future = executor.submit(self._guess_one, guess)
-                future.add_done_callback(lambda future: connections.close_all())
+                # We comment out the line below since closing all connections might provoke with open connection where the query is not yet executed
+                # future.add_done_callback(lambda future: connections.close_all())
                 tasks.append(future)
 
             for future in concurrent.futures.as_completed(tasks):
@@ -559,6 +630,8 @@ class PartialRoofHandler(AbstractHandler):
             return guess
 
         roof_poly = GEOSGeometry(json.dumps(roof_geojson))
+        # we close the connection to avoid a "too many connections" error due to multi threading
+        connection.close()
 
         # Get closest buildings. We have to get many
         closest_bdgs = get_closest_from_poly(roof_poly, 35)[:20]
