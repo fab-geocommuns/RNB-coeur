@@ -1183,7 +1183,7 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         city = city_ranking()
         all_contributions = Contribution.objects.filter(
             status__in=["fixed", "pending"],
-            created_at__lt=timezone.make_aware(datetime(2024, 9, 4))
+            created_at__lt=timezone.make_aware(datetime(2024, 9, 4)),
         ).count()
         data = {
             "individual": individual,
