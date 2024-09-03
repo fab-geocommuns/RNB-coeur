@@ -1,6 +1,7 @@
 import io
 import json
 from base64 import b64encode
+from datetime import datetime
 
 import requests
 from django.contrib.auth.models import Group
@@ -1180,7 +1181,8 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         departement = departement_ranking()
         city = city_ranking()
         all_contributions = Contribution.objects.filter(
-            status__in=["fixed", "pending"]
+            status__in=["fixed", "pending"],
+            created_at__lt=datetime(2024, 9, 4)
         ).count()
         data = {
             "individual": individual,
@@ -1207,7 +1209,11 @@ def get_contributor_count_and_rank(email):
 
 def individual_ranking():
     rawSql = """
-    select count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null and email != '' and status != 'refused' group by email order by count desc;
+    select count(*) as count, rank() over(order by count(*) desc)
+    from batid_contribution
+    where email is not null and email != '' and status != 'refused' and created_at < '2024-09-04'
+    group by email
+    order by count desc;
     """
 
     with connection.cursor() as cursor:
@@ -1222,7 +1228,7 @@ def departement_ranking():
     from batid_contribution c
     left join batid_building b on c.rnb_id = b.rnb_id
     left join batid_department_subdivided d on ST_Contains(d.shape, b.point)
-    where c.status != 'refused'
+    where c.status != 'refused' and c.created_at < '2024-09-04'
     group by d.code, d.name
     order by count_dpt desc, d.code asc;
     """
@@ -1239,7 +1245,7 @@ def city_ranking():
     from batid_contribution c
     inner join batid_building b on c.rnb_id = b.rnb_id
     inner join batid_city city on ST_Contains(city.shape, b.point)
-    where c.status != 'refused'
+    where c.status != 'refused' and c.created_at < '2024-09-04'
     group by city.code_insee, city.name
     order by count_city desc, city.code_insee asc;
     """
