@@ -1181,8 +1181,7 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         departement = departement_ranking()
         city = city_ranking()
         all_contributions = Contribution.objects.filter(
-            status__in=["fixed", "pending"],
-            created_at__lt=datetime(2024, 9, 4)
+            status__in=["fixed", "pending"], created_at__lt=datetime(2024, 9, 4)
         ).count()
         data = {
             "individual": individual,
