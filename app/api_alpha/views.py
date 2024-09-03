@@ -11,6 +11,7 @@ from django.db import transaction
 from django.http import Http404
 from django.http import HttpResponse
 from django.http import JsonResponse
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
@@ -1181,7 +1182,8 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         departement = departement_ranking()
         city = city_ranking()
         all_contributions = Contribution.objects.filter(
-            status__in=["fixed", "pending"], created_at__lt=datetime(2024, 9, 4)
+            status__in=["fixed", "pending"],
+            created_at__lt=timezone.make_aware(datetime(2024, 9, 4))
         ).count()
         data = {
             "individual": individual,
