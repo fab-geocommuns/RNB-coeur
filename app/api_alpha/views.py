@@ -425,6 +425,18 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                     )
                 ],
             ),
+            OpenApiParameter(
+                "cle_interop_ban",
+                str,
+                OpenApiParameter.QUERY,
+                description="Filtre les bâtiments grâce à une clé d'interopérabilité BAN.",
+                examples=[
+                    OpenApiExample(
+                        "Liste les bâtiments associés dans le RNB à une clé d'interopérabilité BAN",
+                        value="33522_2620_00021",
+                    )
+                ],
+            ),
         ],
         responses={
             200: OpenApiResponse(
