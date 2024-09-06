@@ -49,7 +49,7 @@ docker compose build
 docker compose up -d
 ```
 
-Le serveur local est lancé à l'adresse http://localhost:8000 
+Le serveur local est lancé à l'adresse http://localhost:8000
 
 ## Lancer les tests
 ```
