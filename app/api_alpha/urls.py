@@ -29,9 +29,6 @@ router.register(r"ads", ADSViewSet)
 urlpatterns = [
     # YOUR PATTERNS
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
-    path(
-        "schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"
-    ),
     path("stats", get_stats),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
