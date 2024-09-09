@@ -68,8 +68,9 @@ class Guesser:
 
         for batch in batches:
 
-            batch = self.guess_batch(batch)
-            self.guesses.update(batch)
+            batch, changed_batch = self.guess_batch(batch)
+            if changed_batch:
+                self.guesses.update(batch)
 
     def _guesses_to_batches(self, batch_size: int = 500):
         print("- converting guesses to batches")
@@ -452,9 +453,8 @@ class GeocodeAddressHandler(AbstractHandler):
         for ext_id, guess in guesses.items():
             address = guess["input"].get("address", None)
 
-            address = self._clean_address(address)
-
             if address:
+                address = self._clean_address(address)
                 addresses.append(
                     {
                         "ext_id": ext_id,
