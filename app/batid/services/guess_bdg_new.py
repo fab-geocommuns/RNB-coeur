@@ -1,6 +1,8 @@
 import concurrent
 import csv
 import json
+import re
+
 import orjson
 import time
 from abc import ABC
@@ -69,7 +71,7 @@ class Guesser:
             batch = self.guess_batch(batch)
             self.guesses.update(batch)
 
-    def _guesses_to_batches(self, batch_size: int = 1000):
+    def _guesses_to_batches(self, batch_size: int = 500):
         print("- converting guesses to batches")
         batches = []
         batch = {}
@@ -470,7 +472,7 @@ class GeocodeAddressHandler(AbstractHandler):
             )
             if response.status_code == 400:
                 # save address in text file
-                with open("error_addresses.txt", "a") as f:
+                with open("error_addresses.txt", "w") as f:
                     for address in addresses:
                         f.write(address["address"] + "\n")
                 raise Exception(f"Error while geocoding addresses : {response.text}")
@@ -495,9 +497,19 @@ class GeocodeAddressHandler(AbstractHandler):
     @staticmethod
     def _clean_address(address: str) -> str:
 
+        # Remove any newline in the middle of the adresse
+        address = address.replace("\n", " ").strip()
+
+        # Transform any multiple space into single space
+        address = re.sub(r"\s+", " ", address)
+
+        # Remove any comma or space or both at the start of the address
+        forbidden_starting_chars = [",", " ", "."]
         while True:
-            if address.startswith(",") or address.startswith(" "):
-                address = address[1:]
+
+            if address[0] in forbidden_starting_chars:
+                for char in forbidden_starting_chars:
+                    address = address.lstrip(char)
             else:
                 break
 
@@ -558,6 +570,8 @@ class GeocodeNameHandler(AbstractHandler):
         if osm_bdg_point:
             # todo : on devrait filtrer pour n'avoir que les bâtiments qui ont un statut de bâtiment réel
             bdg = Building.objects.filter(shape__contains=osm_bdg_point).first()
+            # close the connection to avoid a "too many connections" error
+            connection.close()
 
             if isinstance(bdg, Building):
                 guess["matches"].append(bdg)
