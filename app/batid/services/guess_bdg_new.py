@@ -2,19 +2,18 @@ import concurrent
 import csv
 import json
 import re
-
-import orjson
 import time
 from abc import ABC
 from abc import abstractmethod
 from io import StringIO
 from typing import Optional
 
+import orjson
 import pandas as pd
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
-from django.db import connections, connection
+from django.db import connection
 
 from batid.models import Building
 from batid.services.closest_bdg import get_closest_from_point
