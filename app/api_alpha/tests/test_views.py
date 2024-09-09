@@ -6,6 +6,7 @@ from unittest import mock
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase
 from django.utils.http import urlencode
+from freezegun import freeze_time
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
@@ -329,6 +330,7 @@ class ContributionTest(APITestCase):
             r.json(), {"rnb_id": "1", "text": "test", "email": "loulou@email.fr"}
         )
 
+    @freeze_time("2024-08-05")
     def test_ranking(self):
         from batid.models import Department_subdivided
 
