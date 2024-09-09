@@ -9,5 +9,3 @@ class Command(BaseCommand):
         address = " , 17390 Les Mathes"
 
         print(GeocodeAddressHandler._clean_address(address))
-
-        pass
