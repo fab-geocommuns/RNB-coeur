@@ -37,6 +37,7 @@ def build_schema_dict():
 
     return schema
 
+
 def get_status_html_list():
     all_stats = [(status["key"], status["label"]) for status in BuildingStatus.TYPES]
     html_list = "<ul>"

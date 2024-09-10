@@ -265,7 +265,8 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "75101",
-                    }, {
+                    },
+                    {
                         "name": "status",
                         "in": "query",
                         "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />",
