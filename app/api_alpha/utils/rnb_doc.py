@@ -37,10 +37,14 @@ def build_schema_dict():
 
     return schema
 
-def get_available_status_lines():
+def get_status_html_list():
     all_stats = [(status["key"], status["label"]) for status in BuildingStatus.TYPES]
-    all_lines = [f"{status[0]}: {status[1]}" for status in all_stats]
-    return "<br />".join(all_lines)
+    html_list = "<ul>"
+    for status in all_stats:
+        html_list += f"<li><b>{status[0]}</b> : {status[1]}</li>"
+    html_list += "</ul>"
+
+    return html_list
 
 
 def _get_components() -> dict:
@@ -49,10 +53,38 @@ def _get_components() -> dict:
             "Building": {
                 "type": "object",
                 "properties": {
-                    "rnb_id": {"type": "string"},
+                    "rnb_id": {
+                        "type": "string",
+                        "description": "Identifiant unique du bâtiment dans le RNB",
+                        "example": "PG46YY6YWCX8"
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "Statut du bâtiment",
+                        "enum": BuildingStatus.ALL_TYPES_KEYS,
+                        "example": BuildingStatus.DEFAULT_STATUS,
+                    },
+                    "point": {
+                        "type": "object",
+                        "description": "Coordonnées géographiques du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "example": "Point"
+                            },
+                            "coordinates": {
+                                "type": "array",
+                                "items": {
+                                    "type": "number"
+                                },
+                                "example": [-0.570505392116188, 44.841034137099996]
+                            }
+                        }
+                    },
+                    }
+                }
                 },
-            }
-        }
+
     }
 
 
