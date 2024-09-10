@@ -44,7 +44,7 @@ from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
-from api_alpha.utils.rnb_doc import rnb_doc
+from api_alpha.utils.rnb_doc import rnb_doc, build_schema_dict
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
@@ -911,9 +911,9 @@ def get_diff(request):
         response = HttpResponse(
             file_output.getvalue(), content_type="text/csv", status=200
         )
-        response[
-            "Content-Disposition"
-        ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+        response["Content-Disposition"] = (
+            f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+        )
         return response
 
 
@@ -1091,3 +1091,16 @@ class TokenScheme(OpenApiAuthenticationExtension):
             "Exemple:\n\n"
             "`Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b`",
         }
+
+
+def get_schema(request):
+
+    import yaml
+
+    schema_dict = build_schema_dict()
+    schema_yml = yaml.dump(schema_dict, default_flow_style=False, allow_unicode=True)
+
+    response = HttpResponse(schema_yml, content_type="application/x-yaml")
+    response["Content-Disposition"] = 'attachment; filename="schema.yml"'
+
+    return response

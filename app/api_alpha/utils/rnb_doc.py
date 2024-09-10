@@ -5,6 +5,7 @@ from rest_framework.schemas.generators import BaseSchemaGenerator
 from rest_framework.schemas.generators import EndpointEnumerator
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSetMixin
+import yaml
 
 
 def rnb_doc(path_desc):
@@ -16,7 +17,7 @@ def rnb_doc(path_desc):
     return decorator
 
 
-def build_schema():
+def build_schema_dict():
     # goes through all methods and checks if they have add_to_doc attribute
     # if they do, it adds them to the schema
 
@@ -27,6 +28,12 @@ def build_schema():
     }
 
     return schema
+
+
+def build_schema_yml():
+    schema_dict = build_schema_dict()
+
+    return yaml.dump(schema_dict, default_flow_style=False, allow_unicode=True)
 
 
 def _get_endpoints() -> list:

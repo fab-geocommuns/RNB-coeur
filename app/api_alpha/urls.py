@@ -5,7 +5,7 @@ from drf_spectacular.views import SpectacularRedocView
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
 
-from api_alpha.views import AdsTokenView
+from api_alpha.views import AdsTokenView, get_schema
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
@@ -28,7 +28,7 @@ router.register(r"ads", ADSViewSet)
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
     # YOUR PATTERNS
-    path("schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("schema/", get_schema, name="schema"),
     path("stats", get_stats),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
