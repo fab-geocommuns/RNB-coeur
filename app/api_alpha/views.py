@@ -44,7 +44,7 @@ from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
-from api_alpha.utils.rnb_doc import build_schema_dict
+from api_alpha.utils.rnb_doc import build_schema_dict, get_available_status_lines
 from api_alpha.utils.rnb_doc import rnb_doc
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
@@ -259,12 +259,19 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                 "operationId": "listBuildings",
                 "parameters": [
                     {
-                        "name": "insee",
+                        "name": "insee_code",
                         "in": "query",
-                        "description": "Code INSEE de la commune",
+                        "description": "Filtre les bâtiments dont l'emprise au sol est située dans les limites géographiques de la commune ayant ce code INSEE",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "75101",
+                    }, {
+                        "name": "status",
+                        "in": "query",
+                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_available_status_lines()}",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "constructed,demolished",
                     }
                 ],
                 "responses": {

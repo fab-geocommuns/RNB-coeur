@@ -8,6 +8,8 @@ from rest_framework.schemas.generators import EndpointEnumerator
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSetMixin
 
+from batid.services.bdg_status import BuildingStatus
+
 
 def rnb_doc(path_desc):
     def decorator(fn):
@@ -34,6 +36,11 @@ def build_schema_dict():
     }
 
     return schema
+
+def get_available_status_lines():
+    all_stats = [(status["key"], status["label"]) for status in BuildingStatus.TYPES]
+    all_lines = [f"{status[0]}: {status[1]}" for status in all_stats]
+    return "<br />".join(all_lines)
 
 
 def _get_components() -> dict:
