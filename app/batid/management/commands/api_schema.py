@@ -1,6 +1,5 @@
 import json
 
-
 from django.core.management.base import BaseCommand
 from openapi_spec_validator import validate
 from openapi_spec_validator.validation.exceptions import OpenAPIValidationError
@@ -14,28 +13,17 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--validate", action="store_true", default=False)
 
-
     def handle(self, *args, **options):
 
         schema_dict = build_schema_dict()
         print(json.dumps(schema_dict, indent=4, ensure_ascii=False))
 
-
-
         if options["validate"]:
 
-            print('-------- Validate schema --------')
+            print("-------- Validate schema --------")
             try:
                 validate(schema_dict)
                 print("> Schema is valid 🎉")
             except OpenAPIValidationError as e:
                 print(f"> Schema is NOT valid: {e}")
                 raise e
-
-
-
-
-
-
-
-
