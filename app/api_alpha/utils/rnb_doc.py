@@ -22,12 +22,26 @@ def build_schema_dict():
     # if they do, it adds them to the schema
 
     schema = {
-        "openapi": "3.0.3",
-        "info": {"title": "Test API", "version": "1.0.0"},
+        # Specs of the 3.1.0 version of the OpenAPI: https://spec.openapis.org/oas/latest.html
+        "openapi": "3.1.0",
+        "info": {"title": "API du Référentiel National des Bâtiments", "version": "alpha"},
         "paths": _get_paths(),
+        "components": _get_components(),
     }
 
     return schema
+
+def _get_components() -> dict:
+    return {
+        "schemas": {
+            "Building": {
+                "type": "object",
+                "properties": {
+                    "rnb_id": {"type": "string"},
+                }
+            }
+        }
+    }
 
 
 def build_schema_yml():

@@ -266,6 +266,28 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                         "example": "75101",
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "Liste paginée de bâtiments",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "next": {"type": "string", "nullable": True},
+                                        "previous": {"type": "string", "nullable": True},
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Building",
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        }
+                    }
+                }
             },
         },
     )
