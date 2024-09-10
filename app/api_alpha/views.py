@@ -44,7 +44,8 @@ from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
-from api_alpha.utils.rnb_doc import rnb_doc, build_schema_dict
+from api_alpha.utils.rnb_doc import build_schema_dict
+from api_alpha.utils.rnb_doc import rnb_doc
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
@@ -911,9 +912,9 @@ def get_diff(request):
         response = HttpResponse(
             file_output.getvalue(), content_type="text/csv", status=200
         )
-        response["Content-Disposition"] = (
-            f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
-        )
+        response[
+            "Content-Disposition"
+        ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
         return response
 
 

@@ -1,11 +1,11 @@
 import inspect
 
+import yaml
 from django.urls import get_resolver
 from rest_framework.schemas.generators import BaseSchemaGenerator
 from rest_framework.schemas.generators import EndpointEnumerator
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSetMixin
-import yaml
 
 
 def rnb_doc(path_desc):
