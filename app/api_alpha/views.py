@@ -44,7 +44,8 @@ from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
-from api_alpha.utils.rnb_doc import build_schema_dict, get_available_status_lines
+from api_alpha.utils.rnb_doc import build_schema_dict
+from api_alpha.utils.rnb_doc import get_available_status_lines
 from api_alpha.utils.rnb_doc import rnb_doc
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
@@ -265,14 +266,15 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "75101",
-                    }, {
+                    },
+                    {
                         "name": "status",
                         "in": "query",
                         "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_available_status_lines()}",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "constructed,demolished",
-                    }
+                    },
                 ],
                 "responses": {
                     "200": {

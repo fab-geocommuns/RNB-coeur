@@ -37,6 +37,7 @@ def build_schema_dict():
 
     return schema
 
+
 def get_available_status_lines():
     all_stats = [(status["key"], status["label"]) for status in BuildingStatus.TYPES]
     all_lines = [f"{status[0]}: {status[1]}" for status in all_stats]
