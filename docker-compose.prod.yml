@@ -32,6 +32,7 @@ services:
       - VIRTUAL_HOST=rnb-api.beta.gouv.fr
       - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=rnb-api.beta.gouv.fr
+      - URL=https://rnb-api.beta.gouv.fr
 
   worker:
     extends:
