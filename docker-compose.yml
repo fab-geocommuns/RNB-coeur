@@ -22,7 +22,6 @@ services:
         condition: service_healthy
     environment:
       - URL=http://localhost:8000
-
   db:
     extends:
       file: common-services.yml

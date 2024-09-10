@@ -1,6 +1,7 @@
 import inspect
 
 import yaml
+from django.conf import settings
 from django.urls import get_resolver
 from rest_framework.schemas.generators import BaseSchemaGenerator
 from rest_framework.schemas.generators import EndpointEnumerator
@@ -65,11 +66,17 @@ def _get_endpoints() -> list:
 
 def _add_fn_doc(path, fn, schema_paths) -> dict:
 
-    if hasattr(fn, "_in_rnb_doc"):
-        if path not in schema_paths:
-            schema_paths[path] = {}
 
-        schema_paths[path].update(fn._path_desc)
+
+
+    if hasattr(fn, "_in_rnb_doc"):
+
+        full_url = f"{settings.URL}{path}"
+
+        if full_url not in schema_paths:
+            schema_paths[full_url] = {}
+
+        schema_paths[full_url].update(fn._path_desc)
 
     return schema_paths
 
