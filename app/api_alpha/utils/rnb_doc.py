@@ -73,9 +73,6 @@ def _get_endpoints() -> list:
 
 def _add_fn_doc(path, fn, schema_paths) -> dict:
 
-
-
-
     if hasattr(fn, "_in_rnb_doc"):
 
         full_url = f"{settings.URL}{path}"
