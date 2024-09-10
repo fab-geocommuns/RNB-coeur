@@ -276,7 +276,10 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                                     "type": "object",
                                     "properties": {
                                         "next": {"type": "string", "nullable": True},
-                                        "previous": {"type": "string", "nullable": True},
+                                        "previous": {
+                                            "type": "string",
+                                            "nullable": True,
+                                        },
                                         "results": {
                                             "type": "array",
                                             "items": {
@@ -286,9 +289,9 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                                     },
                                 }
                             }
-                        }
+                        },
                     }
-                }
+                },
             },
         },
     )
