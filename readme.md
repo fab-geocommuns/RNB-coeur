@@ -6,7 +6,7 @@ Ce readme est quant à lui destiné aux personnes amenées à contribuer au code
 
 # RNB-coeur
 
-RNB-coeur contient le code backoffice du projet RNB.
+RNB-coeur contient le backend du projet RNB.
 
 Le code du [site internet du RNB](https://rnb.beta.gouv.fr/) est quand à lui publié dans [ce repo](https://github.com/fab-geocommuns/RNB-site).
 
