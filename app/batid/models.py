@@ -462,3 +462,21 @@ class Contribution(models.Model):
         self.review_comment = review_comment
         self.review_user = user
         self.save()
+
+
+class DataFix(models.Model):
+    """
+    Sometimes we need to fix the data in the RNB.
+    We identify a problem, run queries to find the corresponding buildings
+    and then fix them.
+    """
+
+    # a message explaining the problem and the associated fix
+    # the text will be displayed to our users
+    # and should be written in French.
+    # ex : "Suppression des bâtiments légers importés par erreur"
+    text = models.TextField(null=True)
+    # the user who created the fix
+    user = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
