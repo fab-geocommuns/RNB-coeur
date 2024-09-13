@@ -14,9 +14,8 @@ from batid.services.source import Source
 from batid.tasks import dl_source
 
 
-def remove_light_buildings_france(start_dpt, end_dpt, username, fix_id):
-    dpts = dpts_list()
-    dpts = dpts[dpts_list.index(start_dpt) : dpts.index(end_dpt) + 1]
+def remove_light_buildings_france(username, fix_id, start_dpt=None, end_dpt=None):
+    dpts = dpts_list(start_dpt, end_dpt)
 
     for dpt in dpts:
         remove_light_buildings(dpt, username, fix_id)
