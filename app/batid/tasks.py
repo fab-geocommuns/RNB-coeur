@@ -26,6 +26,9 @@ from batid.services.imports.import_plots import (
 )
 from batid.services.mattermost import notify_if_error
 from batid.services.mattermost import notify_tech
+from batid.services.rnb_corrections.remove_light_buildings import (
+    remove_light_buildings_france as remove_light_buildings_france_job,
+)
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.signal import AsyncSignalDispatcher
 from batid.services.source import Source
@@ -40,7 +43,7 @@ def test_all() -> str:
 @shared_task(
     autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 5}
 )
-def dl_source(src_name: dict, src_params: dict):
+def dl_source(src_name: str, src_params: dict):
 
     src = Source(src_name)
     for param, value in src_params.items():
@@ -184,4 +187,12 @@ def opendata_publish_national():
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def opendata_publish_department(dept):
     publish([dept])
+    return "done"
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def remove_light_buildings_france(username, fix_id, start_dpt, end_dpt):
+    remove_light_buildings_france_job(
+        username, fix_id, start_dpt=start_dpt, end_dpt=end_dpt
+    )
     return "done"
