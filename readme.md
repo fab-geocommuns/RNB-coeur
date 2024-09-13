@@ -10,7 +10,7 @@ RNB-coeur contient le backend du projet RNB.
 
 Le code du [site internet du RNB](https://rnb.beta.gouv.fr/) est quant à lui publié dans [ce repo](https://github.com/fab-geocommuns/RNB-site).
 
-RNB-coeur est la partie backoffice du projet RNB, codé en Python/Django. Il contient :
+RNB-coeur est la partie backend du projet RNB, codé en Python/Django. Il contient :
 
 - le modèle de données (base PostgreSQL) et la logique métier
 - les outils d'import des bâtiments
