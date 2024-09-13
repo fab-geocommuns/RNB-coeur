@@ -7,11 +7,10 @@ from django.db import connection
 from django.db import transaction
 
 from batid.models import Building
-from batid.models import Fix
+from batid.models import DataFix
 from batid.services.administrative_areas import dpts_list
 from batid.services.imports.import_bdtopo import bdtopo_src_params
 from batid.services.source import Source
-from batid.tasks import dl_source
 
 
 def remove_light_buildings_france(username, fix_id, start_dpt=None, end_dpt=None):
@@ -24,8 +23,12 @@ def remove_light_buildings_france(username, fix_id, start_dpt=None, end_dpt=None
 def remove_light_buildings(dpt, username, fix_id):
     src_name = "bdtopo"
     src_params = bdtopo_src_params(dpt, "2024-09-12")
-    dl_source(src_name=src_name, src_params=src_params)
     src = Source(src_name)
+    for param, value in src_params.items():
+        src.set_param(param, value)
+    src.download()
+    src.uncompress()
+    src.remove_archive()
     bd_topo_path = src.find(src.filename)
 
     remove_buildings(bd_topo_path, username, fix_id)
@@ -98,8 +101,8 @@ def remove_buildings(bd_topo_path, username, fix_id, max_workers=10):
     # remove the buildings as a transaction
     with transaction.atomic():
         user = User.objects.get(username=username)
-        fix = Fix.objects.get(id=fix_id)
+        fix = DataFix.objects.get(id=fix_id)
 
         for rnb_id in rnb_ids_to_remove:
             building = Building.objects.get(rnb_id=rnb_id)
-            building.soft_delete(user, {"source": "fix", "id": fix_id})
+            building.soft_delete(user, {"source": "data_fix", "id": fix_id})

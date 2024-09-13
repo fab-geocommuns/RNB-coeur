@@ -10,6 +10,9 @@ from batid.services.building import export_city as export_city_job
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.candidate import Inspector
+from batid.services.data_fix.remove_light_buildings import (
+    remove_light_buildings_france as remove_light_buildings_france_job,
+)
 from batid.services.data_gouv_publication import publish
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
@@ -26,9 +29,6 @@ from batid.services.imports.import_plots import (
 )
 from batid.services.mattermost import notify_if_error
 from batid.services.mattermost import notify_tech
-from batid.services.rnb_corrections.remove_light_buildings import (
-    remove_light_buildings_france as remove_light_buildings_france_job,
-)
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.signal import AsyncSignalDispatcher
 from batid.services.source import Source

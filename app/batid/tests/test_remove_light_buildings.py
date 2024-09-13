@@ -3,8 +3,8 @@ from django.contrib.auth.models import User
 from django.test import TransactionTestCase
 
 from batid.models import Building
-from batid.models import Fix
-from batid.services.rnb_corrections.remove_light_buildings import remove_buildings
+from batid.models import DataFix
+from batid.services.data_fix.remove_light_buildings import remove_buildings
 
 # we use TransactionTestCase beacause of the ThreadPoolExecutor use
 class TestRemoveLightBuildings(TransactionTestCase):
@@ -28,12 +28,12 @@ class TestRemoveLightBuildings(TransactionTestCase):
         bd_topo_path = "batid/fixtures/remove_light_buildings/sample_bdtopo.shp"
 
         user = User.objects.create_user(username="jean")
-        fix = Fix.objects.create(
+        datafix = DataFix.objects.create(
             user=user,
             text="Oh oh, nous avons importé des bâtiments légers alors que nous n'aurions pas dû",
         )
 
-        remove_buildings(bd_topo_path, user.username, fix.id, max_workers=1)
+        remove_buildings(bd_topo_path, user.username, datafix.id, max_workers=1)
 
         # if you need to really understand the test case, open the fixtures files in QGIS
 
@@ -60,5 +60,5 @@ class TestRemoveLightBuildings(TransactionTestCase):
         b = Building.objects.get(rnb_id="2")
         self.assertEqual(b.is_active, False)
         self.assertEqual(b.event_type, "delete")
-        self.assertEqual(b.event_origin, {"source": "fix", "id": fix.id})
+        self.assertEqual(b.event_origin, {"source": "data_fix", "id": datafix.id})
         self.assertEqual(b.event_user, user)
