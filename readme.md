@@ -58,7 +58,7 @@ docker exec -ti web python manage.py test
 
 ## Ajouter une dépendance python
 
-Nous utilisons [Poetry](https://python-poetry.org/) pour gérer nos dépendances python.
+Nous utilisons [Poetry](https://python-poetry.org/) pour gérer nos dépendances Python.
 Pour ajouter une dépendance au projet, il faut [installer](https://python-poetry.org/docs/#installation) Poetry sur son poste.
 
 Puis executer la commande `poetry add nom_du_package`.
