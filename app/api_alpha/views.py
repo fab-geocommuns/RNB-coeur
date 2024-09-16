@@ -26,7 +26,6 @@ from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
-from rest_framework.decorators import api_view
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
@@ -915,53 +914,51 @@ def get_stats(request):
     return response
 
 
-
-
-
 class DiffView(APIView):
-
-    @rnb_doc({
-        "get": {
-            "summary": "Différences depuis une date donnée.",
-            "description": (
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Différences depuis une date donnée.",
+                "description": (
                     "Liste l'ensemble des modifications apportées au RNB depuis une date données. Génère un fichier CSV. "
                     "Les modifications listées sont de trois types : create, update et delete. "
                     "Les modifications sont triées par rnb_id puis par date de modification croissante. "
                     "Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. "
                     "Par exemple, une création (create) suivie d'une mise à jour (update). "
-            ),
-            "operationId": "getDiff",
-            "parameters": [
-                {
-                    "name": "since",
-                    "in": "query",
-                    "description": (
+                ),
+                "operationId": "getDiff",
+                "parameters": [
+                    {
+                        "name": "since",
+                        "in": "query",
+                        "description": (
                             "Date et heure à partir de laquelle les modifications sont retournées. Le format est ISO 8601. <br />"
                             "Seules les dates après le 1er avril 2024 sont acceptées.<br/>"
                             "Une date antérieure reviendrait à télécharger l'intégralité de la base de données (l'ensemble de la base est <a href='https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/'>disponible ici</a>). "
-                    ),
-                    "required": True,
-                    "schema": {"type": "string"},
-                    "example": "2024-04-02T00:00:00Z",
-                }
-            ],
-            "responses": {
-                "200": {
-                    "description": "Fichier CSV listant l'ensemble des opérations ayant modifié le RNB depuis la date indiquée.",
-                    "content": {
-                        "text/csv": {
-                            "schema": {"type": "string"},
-                            "example": (
+                        ),
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "2024-04-02T00:00:00Z",
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Fichier CSV listant l'ensemble des opérations ayant modifié le RNB depuis la date indiquée.",
+                        "content": {
+                            "text/csv": {
+                                "schema": {"type": "string"},
+                                "example": (
                                     "action,rnb_id,status,sys_period,point,shape,addresses_id,ext_ids\n"
                                     'create,QBAAG16VCJWA,constructed,"[2024-04-02,)",POINT(3.584410393780201 49.52799819019749),,02191_0020_00003,\n'
                                     'update,QBAAG16VCJWA,constructed,"[2024-04-03,)",POINT(3.584410393780201 49.52799819019749),,02191_0020_00003,\n'
-                            )
-                        }
-                    },
-                }
+                                ),
+                            }
+                        },
+                    }
+                },
             }
         }
-    })
+    )
     def get(self, request):
         # the day the quantity of data will be too big, we could stream the response
         # see https://docs.djangoproject.com/en/5.0/howto/outputting-csv/#streaming-csv-files
@@ -971,7 +968,9 @@ class DiffView(APIView):
         since = parse_datetime(since_input)
 
         if since is None:
-            return HttpResponse("The 'since' parameter is missing or incorrect", status=400)
+            return HttpResponse(
+                "The 'since' parameter is missing or incorrect", status=400
+            )
 
         # nobody should download the whole database
         if since < parse_datetime("2024-04-01T00:00:00Z"):
@@ -1022,9 +1021,6 @@ class DiffView(APIView):
                 "Content-Disposition"
             ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
             return response
-
-
-
 
 
 @extend_schema(exclude=True)
