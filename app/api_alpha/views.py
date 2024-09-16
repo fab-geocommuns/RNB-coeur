@@ -113,7 +113,7 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
                         "required": False,
                         "schema": {"type": "integer"},
                         "example": 1,
-                    }
+                    },
                 ],
                 "responses": {
                     "200": {
@@ -134,22 +134,18 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
                                                     },
                                                     "sub_scores": {
                                                         "type": "object",
-                                                        "description": "Liste des scores intermédiaires. Leur somme est égale au score principal."
-
-                                                    }
-
-                                                }
-                                            }
+                                                        "description": "Liste des scores intermédiaires. Leur somme est égale au score principal.",
+                                                    },
+                                                },
+                                            },
                                         ]
                                     },
                                     "type": "array",
-
                                 }
                             }
                         },
                     }
-                }
-
+                },
             }
         }
     )
@@ -424,36 +420,37 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         """
         return super().list(request, *args, **kwargs)
 
-    @rnb_doc({
-        "get": {
-            "summary": "Consultation d'un bâtiment",
-            "description": "Ce endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
-            "operationId": "getBuilding",
-            "parameters": [
-                {
-                    "name": "rnb_id",
-                    "in": "path",
-                    "description": "Identifiant unique du bâtiment dans le RNB",
-                    "required": True,
-                    "schema": {"type": "string"},
-                    "example": "PG46YY6YWCX8",
-                }
-            ],
-            "responses": {
-                "200": {
-                    "description": "Détails du bâtiment",
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Building",
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Consultation d'un bâtiment",
+                "description": "Ce endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
+                "operationId": "getBuilding",
+                "parameters": [
+                    {
+                        "name": "rnb_id",
+                        "in": "path",
+                        "description": "Identifiant unique du bâtiment dans le RNB",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "PG46YY6YWCX8",
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Détails du bâtiment",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Building",
+                                }
                             }
-                        }
-                    },
-
-                }
+                        },
+                    }
+                },
             }
         }
-    })
+    )
     def retrieve(self, request, *args, **kwargs):
         """
         Renvoie les détails d'un bâtiment spécifique identifié par son RNB ID.
