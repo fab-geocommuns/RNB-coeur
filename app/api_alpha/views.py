@@ -254,7 +254,7 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                 "summary": "Liste des batiments",
                 "description": (
                     "Ce endpoint permet de récupérer une liste paginée de bâtiments. "
-                    "Des filtres, notamment par code INSEE de la commune, sont disponibles."
+                    "Des filtres, notamment par code INSEE de la commune, sont disponibles. NB : l'URL se termine nécessairement par un slash (/)."
                 ),
                 "operationId": "listBuildings",
                 "parameters": [
@@ -342,66 +342,36 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         """
         return super().list(request, *args, **kwargs)
 
-    @extend_schema(
-        tags=["Bâtiment"],
-        operation_id="get_building",
-        summary="Consultation d'un bâtiment",
-        description=(
-            "Ce endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. "
-            "L'API renvoie les informations détaillées telles que l'ID du bâtiment, le statut, la géolocalisation, "
-            "les adresses associées et les identifiants externes."
-        ),
-        auth=[],
-        parameters=[
-            OpenApiParameter(
-                name="rnb_id",
-                description="Identifiant RNB du bâtiment",
-                required=True,
-                type=str,
-                location=OpenApiParameter.PATH,
-            )
-        ],
-        responses={
-            200: OpenApiResponse(
-                response=BuildingSerializer,
-                examples=[
-                    OpenApiExample(
-                        name="Exemple",
-                        value={
-                            "rnb_id": "QBAAG16VCJWA",
-                            "status": "constructed",
-                            "point": {
-                                "type": "Point",
-                                "coordinates": [3.584410393780201, 49.52799819019749],
-                            },
-                            "addresses": [
-                                {
-                                    "id": "02191_0020_00003",
-                                    "source": "bdnb",
-                                    "street_number": "3",
-                                    "street_rep": "",
-                                    "street_name": "de l'eglise",
-                                    "street_type": "rue",
-                                    "city_name": "Chivy-lès-Étouvelles",
-                                    "city_zipcode": "02000",
-                                    "city_insee_code": "02191",
-                                }
-                            ],
-                            "ext_ids": [
-                                {
-                                    "id": "bdnb-bc-3B85-TYM9-FDSX",
-                                    "source": "bdnb",
-                                    "created_at": "2023-12-07T13:20:58.310444+00:00",
-                                    "source_version": "2023_01",
-                                }
-                            ],
-                        },
-                    )
-                ],
-            ),
-            404: {"description": "Bâtiment non trouvé"},
-        },
-    )
+    @rnb_doc({
+        "get": {
+            "summary": "Consultation d'un bâtiment",
+            "description": "Ce endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
+            "operationId": "getBuilding",
+            "parameters": [
+                {
+                    "name": "rnb_id",
+                    "in": "path",
+                    "description": "Identifiant unique du bâtiment dans le RNB",
+                    "required": True,
+                    "schema": {"type": "string"},
+                    "example": "PG46YY6YWCX8",
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Détails du bâtiment",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Building",
+                            }
+                        }
+                    },
+
+                }
+            }
+        }
+    })
     def retrieve(self, request, *args, **kwargs):
         """
         Renvoie les détails d'un bâtiment spécifique identifié par son RNB ID.
