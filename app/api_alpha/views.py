@@ -253,7 +253,7 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
             "get": {
                 "summary": "Liste des batiments",
                 "description": (
-                    "Ce endpoint permet de récupérer une liste paginée de bâtiments."
+                    "Ce endpoint permet de récupérer une liste paginée de bâtiments. "
                     "Des filtres, notamment par code INSEE de la commune, sont disponibles."
                 ),
                 "operationId": "listBuildings",
@@ -291,13 +291,15 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                            "<li><b>nw_lat</b> : latitude du point Nord Ouest de la bounding box</li>"
                            "<li><b>nw_lng</b> : longitude du point Nord Ouest de la bounding box</li>"
                            "<li><b>se_lat</b> : latitude du point Sud Est de la bounding box</li>"
-                           "<li><b>se_lng</b> : longitude du point Sued Est de la bounding box</li>"
+                           "<li><b>se_lng</b> : longitude du point Sud Est de la bounding box</li>"
                             "</ul><br />"
                         ),
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "48.845782,2.424525,48.839201,2.434158"
-                    }
+                    },
+
+
                 ],
                 "responses": {
                     "200": {
