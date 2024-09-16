@@ -37,6 +37,7 @@ from rest_framework.utils.urls import replace_query_param
 from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
+
 from api_alpha.permissions import ADSPermission
 from api_alpha.serializers import ADSSerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
@@ -44,7 +45,8 @@ from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
-from api_alpha.utils.rnb_doc import build_schema_dict, get_status_html_list
+from api_alpha.utils.rnb_doc import build_schema_dict
+from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import rnb_doc
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
@@ -273,33 +275,33 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "constructed,demolished",
-                    }, {
+                    },
+                    {
                         "name": "cle_interop_ban",
                         "in": "query",
                         "description": "Filtre les bâtiments associés à cette clé d'interopérabilité BAN.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "94067_7115_00073",
-                    }, {
+                    },
+                    {
                         "name": "bb",
                         "in": "query",
                         "description": (
-                           "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box"
-                           "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
-                           "Le format est <code>nw_lat,nw_lng,se_lat,se_lng</code> où : <br/>"
-                           "<ul>"
-                           "<li><b>nw_lat</b> : latitude du point Nord Ouest de la bounding box</li>"
-                           "<li><b>nw_lng</b> : longitude du point Nord Ouest de la bounding box</li>"
-                           "<li><b>se_lat</b> : latitude du point Sud Est de la bounding box</li>"
-                           "<li><b>se_lng</b> : longitude du point Sud Est de la bounding box</li>"
+                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box"
+                            "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
+                            "Le format est <code>nw_lat,nw_lng,se_lat,se_lng</code> où : <br/>"
+                            "<ul>"
+                            "<li><b>nw_lat</b> : latitude du point Nord Ouest de la bounding box</li>"
+                            "<li><b>nw_lng</b> : longitude du point Nord Ouest de la bounding box</li>"
+                            "<li><b>se_lat</b> : latitude du point Sud Est de la bounding box</li>"
+                            "<li><b>se_lng</b> : longitude du point Sud Est de la bounding box</li>"
                             "</ul><br />"
                         ),
                         "required": False,
                         "schema": {"type": "string"},
-                        "example": "48.845782,2.424525,48.839201,2.434158"
+                        "example": "48.845782,2.424525,48.839201,2.434158",
                     },
-
-
                 ],
                 "responses": {
                     "200": {
@@ -313,13 +315,13 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
                                             "type": "string",
                                             "description": "<br />URL de la page de résultats suivante<br />",
                                             "nullable": True,
-                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1"
+                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1",
                                         },
                                         "previous": {
                                             "type": "string",
                                             "description": "<br />URL de la page de résultats précédente<br />",
                                             "nullable": True,
-                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR"
+                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR",
                                         },
                                         "results": {
                                             "type": "array",
@@ -1165,7 +1167,9 @@ def get_schema(request):
     import yaml
 
     schema_dict = build_schema_dict()
-    schema_yml = yaml.dump(schema_dict, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    schema_yml = yaml.dump(
+        schema_dict, default_flow_style=False, allow_unicode=True, sort_keys=False
+    )
 
     response = HttpResponse(schema_yml, content_type="application/x-yaml")
     response["Content-Disposition"] = 'attachment; filename="schema.yml"'
