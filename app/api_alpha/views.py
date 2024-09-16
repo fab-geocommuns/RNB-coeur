@@ -76,7 +76,7 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             "get": {
                 "summary": "Identification de bâtiment",
                 "description": (
-                    "Ce endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat."
+                    "Ce endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
                 ),
                 "operationId": "guessBuilding",
                 "parameters": [
@@ -129,7 +129,13 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
                                                         "type": "number",
                                                         "description": "Score de correspondance entre la requête et le bâtiment",
                                                         "example": 0.8,
+                                                    },
+                                                    "sub_scores": {
+                                                        "type": "object",
+                                                        "description": "Liste des scores intermédiaires. Leur somme est égale au score principal."
+
                                                     }
+
                                                 }
                                             }
                                         ]
