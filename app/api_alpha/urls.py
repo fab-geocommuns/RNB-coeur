@@ -3,13 +3,12 @@ from django.urls import path
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
 
-from api_alpha.views import AdsTokenView
+from api_alpha.views import AdsTokenView, DiffView
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
 from api_alpha.views import BuildingViewSet
 from api_alpha.views import ContributionsViewSet
-from api_alpha.views import get_diff
 from api_alpha.views import get_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
@@ -31,7 +30,7 @@ urlpatterns = [
     path("stats", get_stats),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
-    path("buildings/diff/", get_diff),
+    path("buildings/diff/", DiffView.as_view()),
     path("ads/token/", AdsTokenView.as_view()),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),

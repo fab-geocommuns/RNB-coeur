@@ -918,122 +918,116 @@ def get_stats(request):
     return response
 
 
-@extend_schema(
-    tags=["Bâtiment"],
-    operation_id="get_building_diff",
-    summary="Obtenir les dernières modifications",
-    description=(
-        "Filtre les modifications apportées au RNB ayant eu lieu strictement après un datetime. "
-        "Les données sont retournées au format CSV. "
-        "Les modifications listées sont de trois types : create, update et delete. "
-        "Les modifications sont triées par rnb_id puis par date de modification croissante. "
-        "Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. "
-        "Par exemple, une création (create) suivie d'une mise à jour (update). "
-    ),
-    auth=[],
-    parameters=[
-        OpenApiParameter(
-            "since",
-            str,
-            OpenApiParameter.QUERY,
-            description=(
-                "Date et heure à partir de laquelle les modifications sont retournées.<br/>\n"
-                "Au format ISO 8601.<br/><br/>\n"
-                'Si un "+" est présent dans la date, il doit être encodé en %2B.<br/>\n'
-                "2024-04-02 15:29:44.26+01 => 2024-04-02 15:29:44.26%2B01<br/><br/>\n"
-                "Seules les dates après le 1er avril 2024 sont acceptées.<br/>\n"
-                "Une date inférieure reviendrait à télécharger l'intégralité de la base de données.<br/>\n"
-                "Ce qui peut être fait via https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/.<br/>\n"
+
+
+
+class DiffView(APIView):
+
+    @rnb_doc({
+        "get": {
+            "summary": "Différences depuis une date donnée.",
+            "description": (
+                    "Liste l'ensemble des modifications apportées au RNB depuis une date données. Génère un fichier CSV. "
+                    "Les modifications listées sont de trois types : create, update et delete. "
+                    "Les modifications sont triées par rnb_id puis par date de modification croissante. "
+                    "Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. "
+                    "Par exemple, une création (create) suivie d'une mise à jour (update). "
             ),
-            examples=[
-                OpenApiExample("Exemple 1", value="2024-04-02T00:00:00Z"),
-                OpenApiExample("Exemple 2", value="2024-04-02 15:29:44.267%2B01"),
-            ],
-        ),
-    ],
-    responses={
-        200: OpenApiResponse(
-            response=OpenApiTypes.STR,
-            examples=[
-                OpenApiExample(
-                    name="Exemple",
-                    value=(
-                        "action,rnb_id,status,sys_period,point,shape,addresses_id,ext_ids\n"
-                        'create,QBAAG16VCJWA,constructed,"[2024-04-02,)",POINT(3.584410393780201 49.52799819019749),,02191_0020_00003,\n'
-                        'update,QBAAG16VCJWA,constructed,"[2024-04-03,)",POINT(3.584410393780201 49.52799819019749),,02191_0020_00003,\n'
+            "operationId": "getDiff",
+            "parameters": [
+                {
+                    "name": "since",
+                    "in": "query",
+                    "description": (
+                            "Date et heure à partir de laquelle les modifications sont retournées. Le format est ISO 8601. <br />"
+                            "Seules les dates après le 1er avril 2024 sont acceptées.<br/>"
+                            "Une date antérieure reviendrait à télécharger l'intégralité de la base de données (l'ensemble de la base est <a href='https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/'>disponible ici</a>). "
                     ),
-                )
+                    "required": True,
+                    "schema": {"type": "string"},
+                    "example": "2024-04-02T00:00:00Z",
+                }
             ],
-        ),
-        400: {
-            "description": "Le paramètre 'since' est manquant ou incorrect",
-        },
-        404: {
-            "description": "Aucune modification trouvée pour les critères donnés",
-        },
-    },
-)
-@api_view(["GET"])
-def get_diff(request):
-    # the day the quantity of data will be too big, we could stream the response
-    # see https://docs.djangoproject.com/en/5.0/howto/outputting-csv/#streaming-csv-files
+            "responses": {
+                "200": {
+                    "description": "Fichier CSV listant l'ensemble des opérations ayant modifié le RNB depuis la date indiquée.",
+                    "content": {
+                        "text/csv": {
+                            "schema": {"type": "string"},
+                            "example": (
+                                    "action,rnb_id,status,sys_period,point,shape,addresses_id,ext_ids\n"
+                                    'create,QBAAG16VCJWA,constructed,"[2024-04-02,)",POINT(3.584410393780201 49.52799819019749),,02191_0020_00003,\n'
+                                    'update,QBAAG16VCJWA,constructed,"[2024-04-03,)",POINT(3.584410393780201 49.52799819019749),,02191_0020_00003,\n'
+                            )
+                        }
+                    },
+                }
+            }
+        }
+    })
+    def get(self, request):
+        # the day the quantity of data will be too big, we could stream the response
+        # see https://docs.djangoproject.com/en/5.0/howto/outputting-csv/#streaming-csv-files
 
-    since_input = request.GET.get("since", "")
-    # parse since to a timestamp
-    since = parse_datetime(since_input)
+        since_input = request.GET.get("since", "")
+        # parse since to a timestamp
+        since = parse_datetime(since_input)
 
-    if since is None:
-        return HttpResponse("The 'since' parameter is missing or incorrect", status=400)
+        if since is None:
+            return HttpResponse("The 'since' parameter is missing or incorrect", status=400)
 
-    # nobody should download the whole database
-    if since < parse_datetime("2024-04-01T00:00:00Z"):
-        return HttpResponse(
-            "The 'since' parameter must be after 2024-04-01T00:00:00Z",
-            status=400,
-        )
-
-    with connection.cursor() as cursor:
-        sql_query = sql.SQL(
-            """
-            COPY (
-                select
-                CASE
-                    WHEN event_type = 'deletion' THEN 'delete'
-                    WHEN event_type = 'update' THEN 'update'
-                    WHEN event_type = 'split' and not is_active THEN 'delete'
-                    WHEN event_type = 'split' and is_active THEN 'create'
-                    WHEN event_type = 'merge' and not is_active THEN 'delete'
-                    WHEN event_type = 'merge' and is_active THEN 'create'
-                    ELSE 'create'
-                END as action,
-                rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
-            ) TO STDOUT WITH CSV HEADER
-            """
-        ).format(t=sql.Literal(since.isoformat()))
-
-        file_output = io.StringIO()
-        with transaction.atomic():
-            cursor.copy_expert(sql_query, file_output)
-            most_recent_modification_query = sql.SQL(
-                """
-                select max(lower(sys_period)) from batid_building_with_history
-                """
+        # nobody should download the whole database
+        if since < parse_datetime("2024-04-01T00:00:00Z"):
+            return HttpResponse(
+                "The 'since' parameter must be after 2024-04-01T00:00:00Z",
+                status=400,
             )
-            cursor.execute(most_recent_modification_query)
 
-        # most recent modification datetime is used in the filename
-        # so the user knows what "since" parameter he should use next time
-        most_recent_modification = cursor.fetchone()[0]
-        most_recent_modification = most_recent_modification.isoformat(sep="T")
+        with connection.cursor() as cursor:
+            sql_query = sql.SQL(
+                """
+                COPY (
+                    select
+                    CASE
+                        WHEN event_type = 'deletion' THEN 'delete'
+                        WHEN event_type = 'update' THEN 'update'
+                        WHEN event_type = 'split' and not is_active THEN 'delete'
+                        WHEN event_type = 'split' and is_active THEN 'create'
+                        WHEN event_type = 'merge' and not is_active THEN 'delete'
+                        WHEN event_type = 'merge' and is_active THEN 'create'
+                        ELSE 'create'
+                    END as action,
+                    rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
+                ) TO STDOUT WITH CSV HEADER
+                """
+            ).format(t=sql.Literal(since.isoformat()))
 
-        file_output.seek(0)
-        response = HttpResponse(
-            file_output.getvalue(), content_type="text/csv", status=200
-        )
-        response[
-            "Content-Disposition"
-        ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
-        return response
+            file_output = io.StringIO()
+            with transaction.atomic():
+                cursor.copy_expert(sql_query, file_output)
+                most_recent_modification_query = sql.SQL(
+                    """
+                    select max(lower(sys_period)) from batid_building_with_history
+                    """
+                )
+                cursor.execute(most_recent_modification_query)
+
+            # most recent modification datetime is used in the filename
+            # so the user knows what "since" parameter he should use next time
+            most_recent_modification = cursor.fetchone()[0]
+            most_recent_modification = most_recent_modification.isoformat(sep="T")
+
+            file_output.seek(0)
+            response = HttpResponse(
+                file_output.getvalue(), content_type="text/csv", status=200
+            )
+            response[
+                "Content-Disposition"
+            ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+            return response
+
+
+
 
 
 @extend_schema(exclude=True)
