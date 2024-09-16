@@ -71,6 +71,80 @@ class RNBLoggingMixin(LoggingMixin):
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Identification de bâtiment",
+                "description": (
+                    "Ce endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat."
+                ),
+                "operationId": "guessBuilding",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "in": "query",
+                        "description": "Adresse du bâtiment",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "1 rue de la paix, Mérignac",
+                    },
+                    {
+                        "name": "point",
+                        "in": "query",
+                        "description": "Coordonnées GPS du bâtiment. Format : <code>lat,lng</code>.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "44.84114313595151,-0.5705289444867035",
+                    },
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "description": "Nom du bâtiment. Est transmis à un géocoder OSM (<a href='https://github.com/komoot/photon'>Photon</a>).",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "Notre Dame de Paris",
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Numéro de page pour la pagination",
+                        "required": False,
+                        "schema": {"type": "integer"},
+                        "example": 1,
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste des bâtiments identifiés triés par score descendant.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "allOf": [
+                                            {"$ref": "#/components/schemas/Building"},
+                                            {
+                                                "type": "object",
+                                                "properties": {
+                                                    "score": {
+                                                        "type": "number",
+                                                        "description": "Score de correspondance entre la requête et le bâtiment",
+                                                        "example": 0.8,
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "type": "array",
+
+                                }
+                            }
+                        },
+                    }
+                }
+
+            }
+        }
+    )
     def get(self, request, *args, **kwargs):
         search = BuildingGuess()
         search.set_params_from_url(**request.query_params.dict())
