@@ -31,12 +31,12 @@ def build_schema_dict():
             "title": "API du Référentiel National des Bâtiments",
             "version": "alpha",
         },
-       "servers": [
-           {
+        "servers": [
+            {
                 "url": settings.URL,
-                "description": "API du Référentiel National des Bâtiments"
-           }
-       ],
+                "description": "API du Référentiel National des Bâtiments",
+            }
+        ],
         "paths": _get_paths(),
         "components": _get_components(),
     }
@@ -58,61 +58,58 @@ def _get_components() -> dict:
     return {
         "schemas": {
             "BuildingAddress": {
-              "type": "object",
-              "properties": {
-                  "id": {
-                    "type": "string",
-                    "description": "Identifiant de l'adresse au sein de la Base Adresse Nationale (BAN)",
-                    "example": "02191_0020_00003"
-                  },
-                  "source": {
-                     "type": "string",
-                    "description": "Source du lien bâtiment ↔ adresse",
-                      "example": "bdnb"
-                  },
-                  "street_number": {
-                    "type": "string",
-                    "description": "Numéro de la voie",
-                    "example": "3",
-                    "nullable": True
-
-                  },
-                  "street_rep": {
-                    "type": "string",
-                    "description": "Indice de répétition du numéro de la voie",
-                    "example": "bis",
-                    "nullable": True
-                  },
-                  "street_type": {
-                    "type": "string",
-                    "description": "Type de la voie",
-                    "example": "rue",
-                    "nullable": True
-                  },
-                  "street_name": {
-                      "type": "string",
-                      "description": "Nom de la voie",
-                      "example": "de l'église",
-                      "nullable": True
-                  },
-                  "city_name": {
-                    "type": "string",
-                    "description": "Nom de la commune",
-                    "example": "Chivy-lès-Étouvelles"
-                  },
-                  "city_zipcode": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Identifiant de l'adresse au sein de la Base Adresse Nationale (BAN)",
+                        "example": "02191_0020_00003",
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "Source du lien bâtiment ↔ adresse",
+                        "example": "bdnb",
+                    },
+                    "street_number": {
+                        "type": "string",
+                        "description": "Numéro de la voie",
+                        "example": "3",
+                        "nullable": True,
+                    },
+                    "street_rep": {
+                        "type": "string",
+                        "description": "Indice de répétition du numéro de la voie",
+                        "example": "bis",
+                        "nullable": True,
+                    },
+                    "street_type": {
+                        "type": "string",
+                        "description": "Type de la voie",
+                        "example": "rue",
+                        "nullable": True,
+                    },
+                    "street_name": {
+                        "type": "string",
+                        "description": "Nom de la voie",
+                        "example": "de l'église",
+                        "nullable": True,
+                    },
+                    "city_name": {
+                        "type": "string",
+                        "description": "Nom de la commune",
+                        "example": "Chivy-lès-Étouvelles",
+                    },
+                    "city_zipcode": {
                         "type": "string",
                         "description": "Code postal de la commune",
-                        "example": "02000"
-
-                  },
-                  "city_insee_code": {
-                    "type": "string",
-                      "description": "Code INSEE de la commune",
-                        "example": "02191"
-                  },
-
-              }
+                        "example": "02000",
+                    },
+                    "city_insee_code": {
+                        "type": "string",
+                        "description": "Code INSEE de la commune",
+                        "example": "02191",
+                    },
+                },
             },
             "Building": {
                 "type": "object",
@@ -120,7 +117,7 @@ def _get_components() -> dict:
                     "rnb_id": {
                         "type": "string",
                         "description": "Identifiant unique du bâtiment dans le RNB",
-                        "example": "PG46YY6YWCX8"
+                        "example": "PG46YY6YWCX8",
                     },
                     "status": {
                         "type": "string",
@@ -132,61 +129,52 @@ def _get_components() -> dict:
                         "type": "object",
                         "description": "Coordonnées géographiques du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84.",
                         "properties": {
-                            "type": {
-                                "type": "string",
-                                "example": "Point"
-                            },
+                            "type": {"type": "string", "example": "Point"},
                             "coordinates": {
                                 "type": "array",
-                                "items": {
-                                    "type": "number"
-                                },
-                                "example": [-0.570505392116188, 44.841034137099996]
-                            }
-                        }
+                                "items": {"type": "number"},
+                                "example": [-0.570505392116188, 44.841034137099996],
+                            },
+                        },
                     },
                     "addresses": {
                         "type": "array",
                         "description": "Liste des adresses du bâtiment",
-                        "items": {
-                            "$ref": "#/components/schemas/BuildingAddress"
-                        }
+                        "items": {"$ref": "#/components/schemas/BuildingAddress"},
                     },
                     "ext_ids": {
-                            "type": "array",
-                            "description": "Le ou les identifiants de ce bâtiments au sein de la BD Topo et de la BDNB",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "id": {
-                                        "type": "string",
-                                        "description": "Identifiant de ce bâtiment au sein de la BD Topo ou de la BDNB",
-                                        "example": "bdnb-bc-3B85-TYM9-FDSX"
-                                    },
-                                    "source": {
-                                        "type": "string",
-                                        "description": "Base de donnée contenant de l'identifiant",
-                                        "example": "bdnb"
-                                    },
-                                    "source_version": {
-                                        "type": "string",
-                                        "description": "Version de la base de donnée contenant l'identifiant",
-                                        "example": "2023_01",
-                                        "nullable": True
-                                    },
-                                    "created_at": {
-                                        "type": "string",
-                                        "description": "Date de création du lien entre l'identifiant RNB et l'identfiant externe",
-                                        "example": "2023-12-07T13:20:58.310444+00:00"
-                                    }
-                                }
-                            }
-                        }
-
-                    }
-                }
+                        "type": "array",
+                        "description": "Le ou les identifiants de ce bâtiments au sein de la BD Topo et de la BDNB",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "description": "Identifiant de ce bâtiment au sein de la BD Topo ou de la BDNB",
+                                    "example": "bdnb-bc-3B85-TYM9-FDSX",
+                                },
+                                "source": {
+                                    "type": "string",
+                                    "description": "Base de donnée contenant de l'identifiant",
+                                    "example": "bdnb",
+                                },
+                                "source_version": {
+                                    "type": "string",
+                                    "description": "Version de la base de donnée contenant l'identifiant",
+                                    "example": "2023_01",
+                                    "nullable": True,
+                                },
+                                "created_at": {
+                                    "type": "string",
+                                    "description": "Date de création du lien entre l'identifiant RNB et l'identfiant externe",
+                                    "example": "2023-12-07T13:20:58.310444+00:00",
+                                },
+                            },
+                        },
+                    },
                 },
-
+            },
+        },
     }
 
 
@@ -208,8 +196,6 @@ def _get_endpoints() -> list:
 def _add_fn_doc(path, fn, schema_paths) -> dict:
 
     if hasattr(fn, "_in_rnb_doc"):
-
-
 
         if path not in schema_paths:
             schema_paths[path] = {}
