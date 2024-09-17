@@ -30,8 +30,9 @@ def list_light_buildings_france(start_dpt=None, end_dpt=None):
 
 
 def list_light_buildings(dpt, folder_name):
+    print(f"Remove light buildings, processing {dpt}")
     src_name = "bdtopo"
-    src_params = bdtopo_src_params(dpt, "2024-09-12")
+    src_params = bdtopo_src_params(dpt, "2024-06-15")
     src = Source(src_name)
     for param, value in src_params.items():
         src.set_param(param, value)
