@@ -1,7 +1,5 @@
 from django.urls import include
 from django.urls import path
-from drf_spectacular.views import SpectacularAPIView
-from drf_spectacular.views import SpectacularRedocView
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
 
@@ -11,7 +9,8 @@ from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
 from api_alpha.views import BuildingViewSet
 from api_alpha.views import ContributionsViewSet
-from api_alpha.views import get_diff
+from api_alpha.views import DiffView
+from api_alpha.views import get_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
 from api_alpha.views import GetVectorTileView
@@ -28,14 +27,11 @@ router.register(r"ads", ADSViewSet)
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
     # YOUR PATTERNS
-    path("schema/", SpectacularAPIView.as_view(), name="schema"),
-    path(
-        "schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"
-    ),
+    path("schema/", get_schema, name="schema"),
     path("stats", get_stats),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
-    path("buildings/diff/", get_diff),
+    path("buildings/diff/", DiffView.as_view()),
     path("ads/token/", AdsTokenView.as_view()),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),

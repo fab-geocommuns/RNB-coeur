@@ -210,6 +210,8 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# URL of the project
+URL = os.environ.get("URL")
 
 # Bat ID custom settings
 MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))
