@@ -1,3 +1,5 @@
+import os
+import shutil
 from concurrent.futures import ThreadPoolExecutor
 
 import geopandas as gpd
@@ -13,14 +15,21 @@ from batid.services.imports.import_bdtopo import bdtopo_src_params
 from batid.services.source import Source
 
 
-def remove_light_buildings_france(username, fix_id, start_dpt=None, end_dpt=None):
+def list_light_buildings_france(start_dpt=None, end_dpt=None):
     dpts = dpts_list(start_dpt, end_dpt)
+    folder_name = "data_fix_remove_light_buildings"
+
+    # delete the folder if it already exists
+    if os.path.exists(folder_name):
+        shutil.rmtree(folder_name)
+
+    os.makedirs(folder_name)
 
     for dpt in dpts:
-        remove_light_buildings(dpt, username, fix_id)
+        list_light_buildings(dpt, folder_name)
 
 
-def remove_light_buildings(dpt, username, fix_id):
+def list_light_buildings(dpt, folder_name):
     src_name = "bdtopo"
     src_params = bdtopo_src_params(dpt, "2024-09-12")
     src = Source(src_name)
@@ -31,12 +40,18 @@ def remove_light_buildings(dpt, username, fix_id):
     src.remove_archive()
     bd_topo_path = src.find(src.filename)
 
-    remove_buildings(bd_topo_path, username, fix_id)
-
+    rnb_ids_to_remove = buildings_to_remove(bd_topo_path)
+    save_results_as_file(rnb_ids_to_remove, dpt, folder_name)
     src.remove_uncompressed_folder()
 
 
-def remove_buildings(bd_topo_path, username, fix_id, max_workers=10):
+def save_results_as_file(rnb_ids_to_remove, dpt, folder_name):
+    df = pd.DataFrame(rnb_ids_to_remove, columns=["rnb_id"])
+    file_path = os.path.join(folder_name, f"{dpt}.csv")
+    df.to_csv(file_path, index=False)
+
+
+def buildings_to_remove(bd_topo_path, max_workers=10):
     df = gpd.read_file(bd_topo_path)
     # select only columns of interest
     df = df[["ID", "IDS_RNB", "LEGER", "geometry"]]
@@ -98,11 +113,23 @@ def remove_buildings(bd_topo_path, username, fix_id, max_workers=10):
         df_with_match[df_with_match["match"].apply(len) > 0]["match"].explode().unique()
     )
 
+    return rnb_ids_to_remove
+
+
+def remove_light_buildings(folder_name, username, fix_id):
+    # read all the csv files in the folder and concatenate them in a single dataframe
+    all_files = os.listdir(folder_name)
+    dfs = [pd.read_csv(os.path.join(folder_name, f)) for f in all_files]
+    df = pd.concat(dfs)
+
     # remove the buildings as a transaction
     with transaction.atomic():
         user = User.objects.get(username=username)
-        fix = DataFix.objects.get(id=fix_id)
+        DataFix.objects.get(id=fix_id)
 
-        for rnb_id in rnb_ids_to_remove:
+        for rnb_id in df["rnb_id"]:
             building = Building.objects.get(rnb_id=rnb_id)
             building.soft_delete(user, {"source": "data_fix", "id": fix_id})
+
+        # if transaction is successful, remove the folder
+        transaction.on_commit(lambda: shutil.rmtree(folder_name))

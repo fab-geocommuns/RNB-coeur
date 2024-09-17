@@ -1,10 +1,15 @@
+import os
+import shutil
+
 import geopandas as gpd
 from django.contrib.auth.models import User
 from django.test import TransactionTestCase
 
 from batid.models import Building
 from batid.models import DataFix
-from batid.services.data_fix.remove_light_buildings import remove_buildings
+from batid.services.data_fix.remove_light_buildings import buildings_to_remove
+from batid.services.data_fix.remove_light_buildings import remove_light_buildings
+from batid.services.data_fix.remove_light_buildings import save_results_as_file
 
 # we use TransactionTestCase beacause of the ThreadPoolExecutor use
 class TestRemoveLightBuildings(TransactionTestCase):
@@ -33,8 +38,24 @@ class TestRemoveLightBuildings(TransactionTestCase):
             text="Oh oh, nous avons importé des bâtiments légers alors que nous n'aurions pas dû",
         )
 
-        remove_buildings(bd_topo_path, user.username, datafix.id, max_workers=1)
+        buildings = buildings_to_remove(bd_topo_path, max_workers=1)
 
+        self.assertEqual(len(buildings), 3)
+
+        # create a folder to save the results
+        folder_name = "test_remove_light_buildings"
+
+        if os.path.exists(folder_name):
+            shutil.rmtree(folder_name)
+        os.makedirs(folder_name)
+
+        save_results_as_file(buildings, "33", folder_name)
+        remove_light_buildings(folder_name, user.username, datafix.id)
+
+        # folder should be deleted if transaction succeeded
+        self.assertFalse(os.path.exists(folder_name))
+
+        # database should be updated
         # if you need to really understand the test case, open the fixtures files in QGIS
 
         # 1 is referenced in the bdtopo by A but does not intersect it

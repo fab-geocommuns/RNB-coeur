@@ -11,7 +11,10 @@ from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.candidate import Inspector
 from batid.services.data_fix.remove_light_buildings import (
-    remove_light_buildings_france as remove_light_buildings_france_job,
+    list_light_buildings_france as list_light_buildings_france_job,
+)
+from batid.services.data_fix.remove_light_buildings import (
+    remove_light_buildings as remove_light_buildings_job,
 )
 from batid.services.data_gouv_publication import publish
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
@@ -190,9 +193,16 @@ def opendata_publish_department(dept):
     return "done"
 
 
+# two tasks to remove light buildings
+# first, list the light buildings and save the results in a folder
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
-def remove_light_buildings_france(username, fix_id, start_dpt, end_dpt):
-    remove_light_buildings_france_job(
-        username, fix_id, start_dpt=start_dpt, end_dpt=end_dpt
-    )
+def list_light_buildings_france(start_dpt, end_dpt):
+    list_light_buildings_france_job(start_dpt=start_dpt, end_dpt=end_dpt)
+    return "done"
+
+
+# second, remove the light buildings
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def remove_light_buildings(folder_name, username, fix_id):
+    remove_light_buildings_job(folder_name, username, fix_id)
     return "done"
