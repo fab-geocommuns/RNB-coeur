@@ -32,6 +32,7 @@ pandas = "~2.2.2"
 Fiona = "~1.9.6"
 djangorestframework = "~3.15.2"
 geopandas = "^1.0.1"
+openapi-spec-validator = "^0.7.1"
 
 [tool.poetry.group.dev.dependencies]
 moto = "^5.0.9"
