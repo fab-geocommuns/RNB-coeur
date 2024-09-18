@@ -12,6 +12,7 @@ from api_alpha.views import ContributionsViewSet
 from api_alpha.views import DiffView
 from api_alpha.views import get_schema
 from api_alpha.views import get_stats
+from api_alpha.views import get_streaming_test
 from api_alpha.views import get_tile_shape
 from api_alpha.views import GetVectorTileView
 
@@ -37,5 +38,6 @@ urlpatterns = [
     path("login/", auth_views.obtain_auth_token),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", GetVectorTileView.as_view()),
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
+    path("streaming_test", get_streaming_test),
     # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
