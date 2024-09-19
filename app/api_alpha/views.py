@@ -1,7 +1,5 @@
-import csv
 import json
 import os
-import sys
 from base64 import b64encode
 from datetime import datetime
 
@@ -917,33 +915,6 @@ def get_stats(request):
     return response
 
 
-def get_streaming_test(request):
-    from django.http import StreamingHttpResponse
-
-    class Echo:
-        """An object that implements just the write method of the file-like
-        interface.
-        """
-
-        def write(self, value):
-            """Write the value by returning it, instead of storing in a buffer."""
-            # sleep for 1 sec
-            import time
-
-            time.sleep(1)
-            print(value)
-            return value
-
-    rows = (["Row {}".format(idx), str(idx)] for idx in range(30))
-    pseudo_buffer = Echo()
-    writer = csv.writer(pseudo_buffer)
-    return StreamingHttpResponse(
-        (writer.writerow(row) for row in rows),
-        content_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="somefilename.csv"'},
-    )
-
-
 class DiffView(APIView):
     @rnb_doc(
         {
@@ -1025,6 +996,7 @@ class DiffView(APIView):
             # This is the parent process
             # the parent will only read data coming from the child process, we can close w
             os.close(w)
+            # data coming from the child process arrives here
             r = os.fdopen(r)
             return StreamingHttpResponse(
                 r,
@@ -1062,75 +1034,11 @@ class DiffView(APIView):
                     end=sql.Literal(most_recent_modification),
                 )
                 # the data coming from the query is streamed to the file descriptor w
-                # and will be received by the parent process
+                # and will be received by the parent process as a stream
                 cursor.copy_expert(sql_query, w)
             w.close()
             # the child process is terminated
-            sys.exit(0)
-
-    # def get(self, request):
-    #     # the day the quantity of data will be too big, we could stream the response
-    #     # see https://docs.djangoproject.com/en/5.0/howto/outputting-csv/#streaming-csv-files
-
-    #     print("old method!")
-    #     since_input = request.GET.get("since", "")
-    #     # parse since to a timestamp
-    #     since = parse_datetime(since_input)
-
-    #     if since is None:
-    #         return HttpResponse(
-    #             "The 'since' parameter is missing or incorrect", status=400
-    #         )
-
-    #     # nobody should download the whole database
-    #     # if since < parse_datetime("2024-04-01T00:00:00Z"):
-    #     #     return HttpResponse(
-    #     #         "The 'since' parameter must be after 2024-04-01T00:00:00Z",
-    #     #         status=400,
-    #     #     )
-
-    #     with connection.cursor() as cursor:
-    #         sql_query = sql.SQL(
-    #             """
-    #             COPY (
-    #                 select
-    #                 CASE
-    #                     WHEN event_type = 'deletion' THEN 'delete'
-    #                     WHEN event_type = 'update' THEN 'update'
-    #                     WHEN event_type = 'split' and not is_active THEN 'delete'
-    #                     WHEN event_type = 'split' and is_active THEN 'create'
-    #                     WHEN event_type = 'merge' and not is_active THEN 'delete'
-    #                     WHEN event_type = 'merge' and is_active THEN 'create'
-    #                     ELSE 'create'
-    #                 END as action,
-    #                 rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
-    #             ) TO STDOUT WITH CSV HEADER
-    #             """
-    #         ).format(t=sql.Literal(since.isoformat()))
-
-    #         file_output = io.StringIO()
-    #         with transaction.atomic():
-    #             cursor.copy_expert(sql_query, file_output)
-    #             most_recent_modification_query = sql.SQL(
-    #                 """
-    #                 select max(lower(sys_period)) from batid_building_with_history
-    #                 """
-    #             )
-    #             cursor.execute(most_recent_modification_query)
-
-    #         # most recent modification datetime is used in the filename
-    #         # so the user knows what "since" parameter he should use next time
-    #         most_recent_modification = cursor.fetchone()[0]
-    #         most_recent_modification = most_recent_modification.isoformat(sep="T")
-
-    #         file_output.seek(0)
-    #         response = HttpResponse(
-    #             file_output.getvalue(), content_type="text/csv", status=200
-    #         )
-    #         response[
-    #             "Content-Disposition"
-    #         ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
-    #         return response
+            os._exit(0)
 
 
 @extend_schema(exclude=True)
