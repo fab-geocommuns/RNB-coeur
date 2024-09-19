@@ -59,13 +59,15 @@ class TestRemoveLightBuildings(TransactionTestCase):
         # if you need to really understand the test case, open the fixtures files in QGIS
 
         # 1 is referenced in the bdtopo by A but does not intersect it
+        # 11 is referenced in the bdtopo by A and intersects it but has no neighbors
         # 3 is referenced in the bdtopo by C but is not included in C (it is bigger)
         # 6 is referenced in the bdtopo by E and is included in E, but E is not a light building
+        # 20, 21, 22 are not referenced in the bdtopo and are just here to be neighbors
         active_rnb_ids = [
             b.rnb_id for b in Building.objects.filter(is_active=True).all()
         ]
         active_rnb_ids.sort()
-        self.assertEqual(active_rnb_ids, ["1", "3", "6"])
+        self.assertEqual(active_rnb_ids, ["1", "11", "20", "21", "22", "3", "6"])
 
         # 2 is referenced in the bdtopo by B and is included in B, and B is a light building
         # case of two rnb_ids linked to one bdtopo building:

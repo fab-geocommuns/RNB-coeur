@@ -85,15 +85,28 @@ def buildings_to_remove(bd_topo_path, max_workers=10):
         matching_rnb_ids = []
 
         for rnb_id in rnb_ids_list:
-            sql = f"""select
-            ST_AREA(ST_INTERSECTION(shape,
-            ST_GeomFromText('{geometry}', 4326))) / NULLIF(ST_AREA(shape), 0) > 0.9
-            from batid_building where rnb_id = '{rnb_id}'"""
+            sql = f"""
+                select
+                    ST_AREA(ST_INTERSECTION(bb2.shape,
+                    ST_GeomFromText('{geometry}', 4326))) / NULLIF(ST_AREA(bb2.shape), 0) > 0.9 as contained,
+                    count(bb.rnb_id) as neighbors_count
+                from
+                    batid_building bb
+                left join batid_building bb2 on
+                    true
+                where
+                    bb2.rnb_id = '{rnb_id}'
+                    and bb.rnb_id != '{rnb_id}'
+                    and ST_DWITHIN(bb.shape, bb2.shape, 0.0)
+                group by
+                    contained;
+            """
 
             cursor.execute(sql)
             results = cursor.fetchone()
 
-            if results and results[0]:
+            if results and results[0] and results[1] > 0:
+                # rnb is contained in bd topo building and has neighbor(s)
                 matching_rnb_ids.append(rnb_id)
 
         return matching_rnb_ids
