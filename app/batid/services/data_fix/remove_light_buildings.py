@@ -31,6 +31,7 @@ def list_light_buildings_france(start_dpt=None, end_dpt=None):
 
 def list_light_buildings(dpt, folder_name):
     print(f"Remove light buildings, processing {dpt}")
+    print(f"Downloading bdtopo for {dpt}")
     src_name = "bdtopo"
     src_params = bdtopo_src_params(dpt, "2024-06-15")
     src = Source(src_name)
@@ -41,7 +42,9 @@ def list_light_buildings(dpt, folder_name):
     src.remove_archive()
     bd_topo_path = src.find(src.filename)
 
+    print(f"Finding light buildings for {dpt}")
     rnb_ids_to_remove = buildings_to_remove(bd_topo_path)
+    print("saving results as a file")
     save_results_as_file(rnb_ids_to_remove, dpt, folder_name)
     src.remove_uncompressed_folder()
 
@@ -53,6 +56,7 @@ def save_results_as_file(rnb_ids_to_remove, dpt, folder_name):
 
 
 def buildings_to_remove(bd_topo_path, max_workers=50):
+    print("Reading bdtopo")
     df = gpd.read_file(bd_topo_path)
     # select only columns of interest
     df = df[["ID", "IDS_RNB", "LEGER", "geometry"]]
@@ -113,6 +117,7 @@ def buildings_to_remove(bd_topo_path, max_workers=50):
 
     # the function applied to each small dataframe, that is multi-threaded
     def match_df(df):
+        print("Matching a batch of buildings")
         df_copy = df.copy()
         df_copy["match"] = df_copy.apply(match, axis=1)
         return df_copy
