@@ -195,14 +195,14 @@ def opendata_publish_department(dept):
 
 # two tasks to remove light buildings
 # first, list the light buildings and save the results in a folder
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 0})
 def list_light_buildings_france(start_dpt=None, end_dpt=None):
     list_light_buildings_france_job(start_dpt=start_dpt, end_dpt=end_dpt)
     return "done"
 
 
 # second, remove the light buildings
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 0})
 def remove_light_buildings(folder_name, username, fix_id):
     remove_light_buildings_job(folder_name, username, fix_id)
     return "done"
