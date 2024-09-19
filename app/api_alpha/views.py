@@ -918,13 +918,14 @@ class DiffView(APIView):
     @rnb_doc(
         {
             "get": {
-                "summary": "Différences depuis une date donnée.",
+                "summary": "Différences depuis une date donnée",
                 "description": (
-                    "Liste l'ensemble des modifications apportées au RNB depuis une date données. Génère un fichier CSV. "
-                    "Les modifications listées sont de trois types : create, update et delete. "
-                    "Les modifications sont triées par rnb_id puis par date de modification croissante. "
-                    "Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. "
-                    "Par exemple, une création (create) suivie d'une mise à jour (update). "
+                    "Liste l'ensemble des modifications apportées au RNB depuis une date données. Génère un fichier CSV. Voici les points importants à retenir : <br />"
+                    "<ul>"
+                    "<li>Les modifications listées sont de trois types : create, update et delete</li>"
+                    "<li>Les modifications sont triées par rnb_id puis par date de modification croissante</li>"
+                    "<li>Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. Par exemple, une création (create) suivie d'une mise à jour (update)</li>"
+                    "</ul>"
                 ),
                 "operationId": "getDiff",
                 "parameters": [
@@ -948,9 +949,7 @@ class DiffView(APIView):
                             "text/csv": {
                                 "schema": {"type": "string"},
                                 "example": (
-                                    "action,rnb_id,status,sys_period,point,shape,addresses_id,ext_ids\n"
-                                    'create,QBAAG16VCJWA,constructed,"[2024-04-02,)",POINT(3.584410393780201 49.52799819019749),,02191_0020_00003,\n'
-                                    'update,QBAAG16VCJWA,constructed,"[2024-04-03,)",POINT(3.584410393780201 49.52799819019749),,02191_0020_00003,\n'
+                                    "action,rnb_id,status,sys_period,point,shape,addresses_id,ext_ids"
                                 ),
                             }
                         },
