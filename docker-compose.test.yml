@@ -25,6 +25,7 @@ services:
       - WAIT_HOSTS=db:5432 rabbitmq:5672 redis:6379
       - WAIT_BEFORE=8
       - MATTERMOST_NOTIFICATIONS=0
+      - URL=http://dummy.fake
     build:
       args:
         - WITH_DEV_DEPENDENCIES=true
