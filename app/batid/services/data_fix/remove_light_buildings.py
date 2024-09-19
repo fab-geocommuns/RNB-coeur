@@ -52,7 +52,7 @@ def save_results_as_file(rnb_ids_to_remove, dpt, folder_name):
     df.to_csv(file_path, index=False)
 
 
-def buildings_to_remove(bd_topo_path, max_workers=10):
+def buildings_to_remove(bd_topo_path, max_workers=50):
     df = gpd.read_file(bd_topo_path)
     # select only columns of interest
     df = df[["ID", "IDS_RNB", "LEGER", "geometry"]]
