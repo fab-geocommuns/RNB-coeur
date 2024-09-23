@@ -988,9 +988,10 @@ class DiffView(APIView):
         # file descriptors r, w for reading and writing
         r, w = os.pipe()
         # the process is forked
+        # would it be possible to avoid creating a new process
+        # and keep the streaming feature?
+        # https://stackoverflow.com/questions/78998534/stream-data-from-postgres-to-http-request-using-django-streaminghttpresponse?noredirect=1#comment139290268_78998534
         processid = os.fork()
-
-        # https://www.tutorialspoint.com/python/os_pipe.htm
 
         if processid:
             # This is the parent process
