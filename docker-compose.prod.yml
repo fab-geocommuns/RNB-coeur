@@ -25,6 +25,7 @@ services:
       - ./.env.rnb.prod
       - ./.env.worker.prod
       - ./.env.sentry.prod
+      - ./.env.s3_backup.prod
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000 --threads 6 --workers 6
     volumes:
       - ./source_data:/home/app/source_data
