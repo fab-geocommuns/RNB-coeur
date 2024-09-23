@@ -25,7 +25,6 @@ services:
       - ./.env.rnb.staging
       - ./.env.worker.staging
       - ./.env.sentry.staging
-      - ./.env.s3_backup.staging
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000 --threads 6 --workers 6
     volumes:
       - ./source_data:/home/app/source_data
@@ -48,7 +47,6 @@ services:
       - ./.env.worker.staging
       - ./.env.rnb.staging
       - ./.env.sentry.staging
-      - ./.env.s3_backup.staging
   rabbitmq:
     extends:
       file: common-services.yml

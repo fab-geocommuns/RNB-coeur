@@ -14,7 +14,6 @@ services:
       - ./.env.app.dev
       - ./.env.worker.dev
       - ./.env.rnb.dev
-      - ./.env.s3_backup.dev
     build:
       args:
         - WITH_DEV_DEPENDENCIES=true
