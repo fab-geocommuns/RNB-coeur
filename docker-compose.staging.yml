@@ -47,7 +47,6 @@ services:
       - ./.env.worker.staging
       - ./.env.rnb.staging
       - ./.env.sentry.staging
-
   rabbitmq:
     extends:
       file: common-services.yml
