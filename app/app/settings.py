@@ -222,7 +222,7 @@ VCTR_TILES_MAX_ZOOM = 18
 
 # Mattermost
 MATTERMOST_NOTIFICATIONS = (
-    True if int(os.environ.get("MATTERMOST_NOTIFICATIONS")) == 1 else False
+    True if os.environ.get("MATTERMOST_NOTIFICATIONS") == "true" else False
 )
 
 sentry_dsn = os.environ.get("SENTRY_DSN", None)
