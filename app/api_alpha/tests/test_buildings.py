@@ -254,7 +254,7 @@ class BuildingsEndpointsTest(APITestCase):
 
         self.assertEqual(r.json(), expected)
 
-    def test_non_active_buildings_are_excluded(self):
+    def test_non_active_buildings_are_excluded_from_list(self):
         building = Building.objects.get(rnb_id="BDGSRNBBIDID")
 
         r = self.client.get("/api/alpha/buildings/")
@@ -267,6 +267,15 @@ class BuildingsEndpointsTest(APITestCase):
         r = self.client.get("/api/alpha/buildings/")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(len(r.json()["results"]), 1)
+
+    def test_non_active_building_individual_request_ok(self):
+        Building.objects.create(
+            rnb_id="XXX", point=GEOSGeometry("POINT (0 0)"), is_active=False
+        )
+        r = self.client.get("/api/alpha/buildings/XXX/")
+        self.assertEqual(r.status_code, 200)
+        result = r.json()
+        self.assertEqual(result["is_active"], False)
 
 
 class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):

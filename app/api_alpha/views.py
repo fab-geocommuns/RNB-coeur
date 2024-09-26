@@ -9,9 +9,9 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.db import connection
 from django.db import transaction
-from django.http import Http404
 from django.http import HttpResponse
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
@@ -311,11 +311,8 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     # pagination_class = PageNumberPagination
 
     def get_object(self):
-        try:
-            qs = list_bdgs({"user": self.request.user, "status": "all"})
-            return qs.get(rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
-        except Building.DoesNotExist:
-            raise Http404
+        qs = list_bdgs({"user": self.request.user, "status": "all"}, only_active=False)
+        return get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
 
     def get_queryset(self):
         query_params = self.request.query_params.dict()

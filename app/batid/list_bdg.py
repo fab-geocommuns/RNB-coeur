@@ -6,9 +6,12 @@ from batid.models import City
 from batid.services.bdg_status import BuildingStatus
 
 
-def list_bdgs(params) -> QuerySet:
+def list_bdgs(params, only_active=True) -> QuerySet:
 
-    qs = Building.objects.all().filter(is_active=True)
+    qs = Building.objects.all()
+
+    if only_active:
+        qs = qs.filter(is_active=True)
 
     # By default, we sort on id since the column is indexed
     qs = qs.order_by("id")
