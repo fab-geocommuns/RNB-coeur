@@ -11,8 +11,8 @@ from django.db import connection
 from django.db import transaction
 from django.http import HttpResponse
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
 from django.http import StreamingHttpResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
@@ -958,9 +958,9 @@ class DiffView(APIView):
     )
     def get(self, request):
 
-    # Alternative idea:
-    # In case the streaming solution becomes a problem (might be because of the process fork or any other reason), here is another idea for avoiding relying too heavily on the database:
-    # Since the list of modifications between two dates is static, we could precalculate large time chunks (eg: one each month) and save those results in CSV files. When the diff endpoint is requested, we could assemble some of those large CSV chunks into one, add remaining rows to complete the time period by fetching them from db and finally serve the combined file. 
+        # Alternative idea:
+        # In case the streaming solution becomes a problem (might be because of the process fork or any other reason), here is another idea for avoiding relying too heavily on the database:
+        # Since the list of modifications between two dates is static, we could precalculate large time chunks (eg: one each month) and save those results in CSV files. When the diff endpoint is requested, we could assemble some of those large CSV chunks into one, add remaining rows to complete the time period by fetching them from db and finally serve the combined file.
 
         since_input = request.GET.get("since", "")
         # parse since to a timestamp
