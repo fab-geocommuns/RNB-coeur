@@ -146,6 +146,8 @@ class TestGuesser(TransactionTestCase):
 
     def test_work_file_creation(self):
 
+        self.maxDiff = None
+
         # Verify the file has been created during the setup
         self.assertTrue(os.path.exists(self.WORK_FILE))
 
@@ -162,7 +164,7 @@ class TestGuesser(TransactionTestCase):
                         "name": "Random urban place",
                         "address": "75 Rue Malbec, 33800 Bordeaux",
                     },
-                    "matches": "",
+                    "matches": [],
                     "match_reason": None,
                     "finished_steps": [],
                 },
@@ -174,7 +176,7 @@ class TestGuesser(TransactionTestCase):
                         "name": "Random rural place",
                         "address": "5 Rue des Deux Fermés, 02210 Beugneux",
                     },
-                    "matches": "",
+                    "matches": [],
                     "match_reason": None,
                     "finished_steps": [],
                 },
