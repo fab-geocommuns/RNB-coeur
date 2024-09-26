@@ -503,14 +503,7 @@ class GeocodeAddressHandler(AbstractHandler):
         address = re.sub(r"\s+", " ", address)
 
         # Remove any comma or space or both at the start of the address
-        forbidden_starting_chars = [",", " ", "."]
-        while True:
-
-            if address[0] in forbidden_starting_chars:
-                for char in forbidden_starting_chars:
-                    address = address.lstrip(char)
-            else:
-                break
+        address = address.lstrip(",. ")
 
         return address
 
