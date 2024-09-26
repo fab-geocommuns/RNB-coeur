@@ -88,6 +88,6 @@ def __validate_point(lat, lng):
         raise ValueError("lng is required")
 
     if not isinstance(lat, float):
-        raise ValueError("lat must be a float")
+        raise ValueError(f"lat must be a float, given value = {lat}")
     if not isinstance(lng, float):
-        raise ValueError("lng must be a float")
+        raise ValueError(f"lng must be a float, given value = {lng}")
