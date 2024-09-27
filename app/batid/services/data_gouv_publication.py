@@ -56,6 +56,8 @@ def sql_query(code_area):
     else:
         filter_condition = f"WHERE code_dept = '{code_area}'"
 
+    # If one day, we want to optimize performance:
+    # we could do only one query to get all the national data and then split this data into departments files using the `code_dept` instead of doing 98 or more queries
     sql = f"""
     COPY (
     with data_gouv_publication as (SELECT bdg.rnb_id AS rnb_id, ST_AsEWKT(bdg.point) AS point, ST_AsEWKT(bdg.shape) AS shape, status, bdg.ext_ids AS ext_ids,
