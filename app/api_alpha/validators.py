@@ -8,6 +8,11 @@ def ads_validate_rnbid(rnb_id):
     if not Building.objects.filter(rnb_id=rnb_id).exists():
         raise serializers.ValidationError(f'Building "{rnb_id}" does not exist.')
 
+def bdg_is_active(rnb_id: str):
+
+    if Building.objects.filter(rnb_id=rnb_id, is_active=False).exists():
+        raise serializers.ValidationError(f'Building "{rnb_id}" is not active.')
+
 
 class BdgInADSValidator:
     def __call__(self, value):
