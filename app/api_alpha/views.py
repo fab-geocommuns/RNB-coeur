@@ -57,7 +57,7 @@ from batid.services.closest_bdg import get_closest_from_point
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.vector_tiles import tile_sql
+from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
 from batid.utils.constants import ADS_GROUP_NAME
 
@@ -795,8 +795,25 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
+class ADSVectorTileView(APIView):
 
-class GetVectorTileView(APIView):
+    def get(self, request, x, y, z):
+        # Check the request zoom level
+        if int(z) >= 16:
+            tile_dict = url_params_to_tile(x, y, z)
+            sql = bdgs_tiles_sql(tile_dict, "shape")
+
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+                tile_file = cursor.fetchone()[0]
+
+            return HttpResponse(
+                tile_file, content_type="application/vnd.mapbox-vector-tile"
+            )
+        else:
+            return HttpResponse(status=204)
+
+class BuildingsVectorTileView(APIView):
     @extend_schema(
         tags=["Tile"],
         operation_id="get_vector_tile",
@@ -843,7 +860,7 @@ class GetVectorTileView(APIView):
         # Check the request zoom level
         if int(z) >= 16:
             tile_dict = url_params_to_tile(x, y, z)
-            sql = tile_sql(tile_dict, "point")
+            sql = bdgs_tiles_sql(tile_dict, "point")
 
             with connection.cursor() as cursor:
                 cursor.execute(sql)
@@ -860,7 +877,7 @@ def get_tile_shape(request, x, y, z):
     # Check the request zoom level
     if int(z) >= 16:
         tile_dict = url_params_to_tile(x, y, z)
-        sql = tile_sql(tile_dict, "shape")
+        sql = bdgs_tiles_sql(tile_dict, "shape")
 
         with connection.cursor() as cursor:
             cursor.execute(sql)

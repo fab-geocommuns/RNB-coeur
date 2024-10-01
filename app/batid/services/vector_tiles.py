@@ -60,7 +60,7 @@ def envelopeToBoundsSQL(env):
 
 # Generate a SQL query to pull a tile worth of MVT data
 # from the table of interest.
-def envelopeToSQL(env, geometry_column):
+def envelopeToBuildingsSQL(env, geometry_column):
     params = {
         "table": Building._meta.db_table,
         "srid": str(4326),
@@ -102,12 +102,12 @@ def url_params_to_tile(x, y, z):
     return tile
 
 
-def tile_sql(tile, data_type):
+def bdgs_tiles_sql(tile, data_type):
     env = tileToEnvelope(tile)
     if data_type == "shape":
         geometry_column = "shape"
     elif data_type == "point":
         geometry_column = "point"
-    sql = envelopeToSQL(env, geometry_column)
+    sql = envelopeToBuildingsSQL(env, geometry_column)
 
     return sql
