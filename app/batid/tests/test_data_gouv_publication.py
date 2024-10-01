@@ -185,7 +185,7 @@ class TestDataGouvPublication(TestCase):
         with open(f"{directory_name}/RNB_{area}.csv", "r") as f:
             content = f.read()
             self.assertIn(
-                "rnb_id;point;shape;status;ext_ids;addresses\n",
+                "rnb_id;point;shape;status;ext_ids;addresses;addresses_ban_cle_interop\n",
                 content,
             )
             self.assertIn("BDG-CONSTR", content)
@@ -195,6 +195,7 @@ class TestDataGouvPublication(TestCase):
             self.assertIn("some_source", content)
             self.assertIn("75005", content)
             self.assertIn("scipion", content)
+            self.assertIn("75105_8884_00004", content)
             # check none address is null and not [""]
             self.assertNotIn('[""]', content)
             self.assertNotIn("93100", content)
