@@ -801,7 +801,7 @@ class ADSVectorTileView(APIView):
         # Check the request zoom level
         if int(z) >= 16:
             tile_dict = url_params_to_tile(x, y, z)
-            sql = bdgs_tiles_sql(tile_dict, "shape")
+            sql = ads_tiles_sql(tile_dict, "shape")
 
             with connection.cursor() as cursor:
                 cursor.execute(sql)
