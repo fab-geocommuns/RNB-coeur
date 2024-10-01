@@ -1,8 +1,6 @@
 from django.db import connection
-
 from batid.models import Contribution
 from batid.utils.db import dictfetchall
-from django.contrib.auth.models import User
 
 
 def export_format() -> list:
