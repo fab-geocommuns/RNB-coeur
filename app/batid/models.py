@@ -9,6 +9,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex
+from django.db import transaction
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
@@ -143,6 +144,7 @@ class Building(BuildingAbstract):
     def point_lng(self):
         return self.point_geojson()["coordinates"][0]
 
+    @transaction.atomic
     def soft_delete(self, user, event_origin):
         """it is not expected to hard delete anything in the RNB, as it would break our capacity to audit its history.
         This soft delete method is used to mark a building as inactive, with an event_type "delete"
@@ -153,6 +155,8 @@ class Building(BuildingAbstract):
         self.event_user = user
         self.event_origin = event_origin
         self.save()
+
+
 
     def update(self, user, event_origin, status, addresses_id):
         self.event_type = "update"
