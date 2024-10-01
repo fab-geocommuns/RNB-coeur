@@ -1,6 +1,8 @@
-from django.test import TestCase
+import datetime
 
-from batid.models import Address
+from django.test import TestCase, TransactionTestCase
+
+from batid.models import Address, Contribution
 from batid.models import Building
 from batid.models import User
 
@@ -104,3 +106,78 @@ class TestBuilding(TestCase):
                 str(e),
                 f"Cannot merge inactive buildings.",
             )
+
+    def test_soft_delete(self):
+        """
+        Simplest test of the soft delete
+        :return:
+        """
+        bdg = Building.objects.create(
+            rnb_id="AAA",
+            shape="POINT(0 0)"
+        )
+
+        user = User.objects.create_user(username="dummy")
+
+        # Contribution.objects.create(
+        #     rnb_id="AAA",
+        #     status="pending",
+        #     text="dummy"
+        # )
+
+        bdg.soft_delete(user, {'k': 'v'})
+        bdg.refresh_from_db()
+
+        self.assertEqual(bdg.is_active, False)
+        self.assertEqual(bdg.event_user, user)
+        self.assertEqual(bdg.event_type, "delete")
+        self.assertEqual(bdg.event_origin, {'k': 'v'})
+        self.assertIsNotNone(bdg.event_id)
+
+
+    def test_soft_delete_with_contributions(self):
+        """
+        Test the soft delete with contributions
+        """
+        bdg = Building.objects.create(
+            rnb_id="AAA",
+            shape="POINT(0 0)"
+        )
+
+        user = User.objects.create_user(username="dummy")
+
+        # This is pending, it must be refused after soft_delete
+        contrib_pending =Contribution.objects.create(
+            rnb_id="AAA",
+            status="pending",
+            text="dummy"
+        )
+
+        # This is already fixed. It must keep its status
+        contrib_fixed = Contribution.objects.create(
+            rnb_id="AAA",
+            status="fixed",
+            text="fixed dummy"
+        )
+
+        # This is pending but on another building. It must keep its status
+        # This is pending, it must be refused after soft_delete
+        contrib_other_bdg = Contribution.objects.create(
+            rnb_id="AAA",
+            status="pending",
+            text="dummy"
+        )
+
+        bdg.soft_delete(user, {'k': 'v'})
+        # contrib_pending.refresh_from_db()
+        # contrib_fixed.refresh_from_db()
+
+        # Check the first contrib has changed after the soft_delete
+        self.assertEqual(contrib_pending.status, "refused")
+        self.assertEqual(contrib_pending.review_user, user)
+        self.assertEqual(contrib_pending.review_comment, "Ce signalement a été refusé suite à la suppression du bâtiment AAA.")
+        self.assertIsInstance(contrib_pending.reviewed_at, datetime.datetime)
+
+
+
+

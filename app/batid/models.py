@@ -145,7 +145,7 @@ class Building(BuildingAbstract):
         return self.point_geojson()["coordinates"][0]
 
     @transaction.atomic
-    def soft_delete(self, user, event_origin):
+    def soft_delete(self, user: User, event_origin):
         """it is not expected to hard delete anything in the RNB, as it would break our capacity to audit its history.
         This soft delete method is used to mark a building as inactive, with an event_type "delete"
         """
@@ -156,7 +156,15 @@ class Building(BuildingAbstract):
         self.event_origin = event_origin
         self.save()
 
+        self._refuse_pending_contributions(self.rnb_id, user)
 
+    def _refuse_pending_contributions(self, user: User):
+
+        msg = f"Ce signalement a été refusé suite à la désactivation du bâtiment {self.rnb_id}."
+        contributions = Contribution.objects.filter(rnb_id=self.rnb_id, status="pending")
+
+        for c in contributions:
+            c.refuse(user, msg)
 
     def update(self, user, event_origin, status, addresses_id):
         self.event_type = "update"
