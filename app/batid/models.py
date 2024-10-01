@@ -156,15 +156,9 @@ class Building(BuildingAbstract):
         self.event_origin = event_origin
         self.save()
 
-        self._refuse_pending_contributions(self.rnb_id, user)
+        self._refuse_pending_contributions(user)
 
-    def _refuse_pending_contributions(self, user: User):
 
-        msg = f"Ce signalement a été refusé suite à la désactivation du bâtiment {self.rnb_id}."
-        contributions = Contribution.objects.filter(rnb_id=self.rnb_id, status="pending")
-
-        for c in contributions:
-            c.refuse(user, msg)
 
     def update(self, user, event_origin, status, addresses_id):
         self.event_type = "update"
@@ -174,6 +168,14 @@ class Building(BuildingAbstract):
         self.addresses_id = addresses_id
         self.status = status
         self.save()
+
+    def _refuse_pending_contributions(self, user: User):
+
+        msg = f"Ce signalement a été refusé suite à la désactivation du bâtiment {self.rnb_id}."
+        contributions = Contribution.objects.filter(rnb_id=self.rnb_id, status="pending")
+
+        for c in contributions:
+            c.refuse(user, msg)
 
     @staticmethod
     def merge(buildings: list, user, event_origin, status, addresses_id):

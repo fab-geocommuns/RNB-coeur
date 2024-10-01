@@ -109,8 +109,7 @@ class TestBuilding(TestCase):
 
     def test_soft_delete(self):
         """
-        Simplest test of the soft delete
-        :return:
+        Simplest test of the soft delete.
         """
         bdg = Building.objects.create(
             rnb_id="AAA",
@@ -118,12 +117,6 @@ class TestBuilding(TestCase):
         )
 
         user = User.objects.create_user(username="dummy")
-
-        # Contribution.objects.create(
-        #     rnb_id="AAA",
-        #     status="pending",
-        #     text="dummy"
-        # )
 
         bdg.soft_delete(user, {'k': 'v'})
         bdg.refresh_from_db()
@@ -137,7 +130,7 @@ class TestBuilding(TestCase):
 
     def test_soft_delete_with_contributions(self):
         """
-        Test the soft delete with contributions
+        Test some scenario with contributions linked (or not) to soft deleted building.
         """
         bdg = Building.objects.create(
             rnb_id="AAA",
@@ -163,20 +156,27 @@ class TestBuilding(TestCase):
         # This is pending but on another building. It must keep its status
         # This is pending, it must be refused after soft_delete
         contrib_other_bdg = Contribution.objects.create(
-            rnb_id="AAA",
+            rnb_id="BBB",
             status="pending",
             text="dummy"
         )
 
         bdg.soft_delete(user, {'k': 'v'})
-        # contrib_pending.refresh_from_db()
-        # contrib_fixed.refresh_from_db()
 
         # Check the first contrib has changed after the soft_delete
+        contrib_pending.refresh_from_db()
         self.assertEqual(contrib_pending.status, "refused")
         self.assertEqual(contrib_pending.review_user, user)
-        self.assertEqual(contrib_pending.review_comment, "Ce signalement a été refusé suite à la suppression du bâtiment AAA.")
-        self.assertIsInstance(contrib_pending.reviewed_at, datetime.datetime)
+        self.assertEqual(contrib_pending.review_comment, "Ce signalement a été refusé suite à la désactivation du bâtiment AAA.")
+        self.assertIsInstance(contrib_pending.status_changed_at, datetime.datetime)
+
+        # Check the fixed contributions is still fixed
+        contrib_fixed.refresh_from_db()
+        self.assertEqual(contrib_fixed.status, "fixed")
+
+        # Check the other building contribution is still pending
+        contrib_other_bdg.refresh_from_db()
+        self.assertEqual(contrib_other_bdg.status, "pending")
 
 
 
