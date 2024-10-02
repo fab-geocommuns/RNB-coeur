@@ -1,5 +1,5 @@
-import io
 import json
+import os
 from base64 import b64encode
 from datetime import datetime
 
@@ -9,9 +9,10 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.db import connection
 from django.db import transaction
-from django.http import Http404
 from django.http import HttpResponse
 from django.http import JsonResponse
+from django.http import StreamingHttpResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
@@ -311,11 +312,8 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     # pagination_class = PageNumberPagination
 
     def get_object(self):
-        try:
-            qs = list_bdgs({"user": self.request.user, "status": "all"})
-            return qs.get(rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
-        except Building.DoesNotExist:
-            raise Http404
+        qs = list_bdgs({"user": self.request.user, "status": "all"}, only_active=False)
+        return get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
 
     def get_queryset(self):
         query_params = self.request.query_params.dict()
@@ -959,8 +957,10 @@ class DiffView(APIView):
         }
     )
     def get(self, request):
-        # the day the quantity of data will be too big, we could stream the response
-        # see https://docs.djangoproject.com/en/5.0/howto/outputting-csv/#streaming-csv-files
+
+        # Alternative idea:
+        # In case the streaming solution becomes a problem (might be because of the process fork or any other reason), here is another idea for avoiding relying too heavily on the database:
+        # Since the list of modifications between two dates is static, we could precalculate large time chunks (eg: one each month) and save those results in CSV files. When the diff endpoint is requested, we could assemble some of those large CSV chunks into one, add remaining rows to complete the time period by fetching them from db and finally serve the combined file.
 
         since_input = request.GET.get("since", "")
         # parse since to a timestamp
@@ -970,56 +970,78 @@ class DiffView(APIView):
             return HttpResponse(
                 "The 'since' parameter is missing or incorrect", status=400
             )
-
         # nobody should download the whole database
-        if since < parse_datetime("2024-04-01T00:00:00Z"):
+        elif since < parse_datetime("2024-04-01T00:00:00Z"):
             return HttpResponse(
                 "The 'since' parameter must be after 2024-04-01T00:00:00Z",
                 status=400,
             )
 
         with connection.cursor() as cursor:
-            sql_query = sql.SQL(
+            most_recent_modification_query = sql.SQL(
                 """
-                COPY (
-                    select
-                    CASE
-                        WHEN event_type = 'deletion' THEN 'delete'
-                        WHEN event_type = 'update' THEN 'update'
-                        WHEN event_type = 'split' and not is_active THEN 'delete'
-                        WHEN event_type = 'split' and is_active THEN 'create'
-                        WHEN event_type = 'merge' and not is_active THEN 'delete'
-                        WHEN event_type = 'merge' and is_active THEN 'create'
-                        ELSE 'create'
-                    END as action,
-                    rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
-                ) TO STDOUT WITH CSV HEADER
+                select max(lower(sys_period)) from batid_building_with_history
                 """
-            ).format(t=sql.Literal(since.isoformat()))
-
-            file_output = io.StringIO()
-            with transaction.atomic():
-                cursor.copy_expert(sql_query, file_output)
-                most_recent_modification_query = sql.SQL(
-                    """
-                    select max(lower(sys_period)) from batid_building_with_history
-                    """
-                )
-                cursor.execute(most_recent_modification_query)
-
-            # most recent modification datetime is used in the filename
-            # so the user knows what "since" parameter he should use next time
+            )
+            cursor.execute(most_recent_modification_query)
             most_recent_modification = cursor.fetchone()[0]
             most_recent_modification = most_recent_modification.isoformat(sep="T")
 
-            file_output.seek(0)
-            response = HttpResponse(
-                file_output.getvalue(), content_type="text/csv", status=200
+        # file descriptors r, w for reading and writing
+        r, w = os.pipe()
+        # the process is forked
+        # would it be possible to avoid creating a new process
+        # and keep the streaming feature?
+        # https://stackoverflow.com/questions/78998534/stream-data-from-postgres-to-http-request-using-django-streaminghttpresponse?noredirect=1#comment139290268_78998534
+        processid = os.fork()
+
+        if processid:
+            # This is the parent process
+            # the parent will only read data coming from the child process, we can close w
+            os.close(w)
+            # data coming from the child process arrives here
+            r = os.fdopen(r)
+            return StreamingHttpResponse(
+                r,
+                content_type="text/csv",
+                headers={
+                    "Content-Disposition": f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+                },
             )
-            response[
-                "Content-Disposition"
-            ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
-            return response
+        else:
+            # This is the child process
+            # the child will only write data, we can close r
+            os.close(r)
+            w = os.fdopen(w, "w")
+
+            with connection.cursor() as cursor:
+                sql_query = sql.SQL(
+                    """
+                    COPY (
+                        select
+                        CASE
+                            WHEN event_type = 'deletion' THEN 'delete'
+                            WHEN event_type = 'update' THEN 'update'
+                            WHEN event_type = 'split' and not is_active THEN 'delete'
+                            WHEN event_type = 'split' and is_active THEN 'create'
+                            WHEN event_type = 'merge' and not is_active THEN 'delete'
+                            WHEN event_type = 'merge' and is_active THEN 'create'
+                            ELSE 'create'
+                        END as action,
+                        rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb
+                        where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone order by rnb_id, lower(sys_period)
+                    ) TO STDOUT WITH CSV HEADER
+                    """
+                ).format(
+                    start=sql.Literal(since.isoformat()),
+                    end=sql.Literal(most_recent_modification),
+                )
+                # the data coming from the query is streamed to the file descriptor w
+                # and will be received by the parent process as a stream
+                cursor.copy_expert(sql_query, w)
+            w.close()
+            # the child process is terminated
+            os._exit(0)
 
 
 @extend_schema(exclude=True)
