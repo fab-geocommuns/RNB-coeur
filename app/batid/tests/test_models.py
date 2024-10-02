@@ -144,7 +144,6 @@ class TestBuilding(TestCase):
         )
 
         # This is pending but on another building. It must keep its status
-        # This is pending, it must be refused after soft_delete
         contrib_other_bdg = Contribution.objects.create(
             rnb_id="BBB", status="pending", text="dummy"
         )
