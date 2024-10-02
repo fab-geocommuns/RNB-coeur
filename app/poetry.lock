@@ -1183,7 +1183,7 @@ files = [
 name = "geopandas"
 version = "1.0.1"
 description = "Geographic pandas extensions"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.9"
 files = [
@@ -2933,7 +2933,7 @@ windows-terminal = ["colorama (>=0.4.6)"]
 name = "pyogrio"
 version = "0.9.0"
 description = "Vectorized spatial vector file format I/O using GDAL/OGR"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.8"
 files = [
@@ -3067,7 +3067,7 @@ test = ["coverage[toml] (>=5.2)", "hypothesis", "pytest (>=6.0)", "pytest-benchm
 name = "pyproj"
 version = "3.6.1"
 description = "Python interface to PROJ (cartographic projections and coordinate transformations library)"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.9"
 files = [
@@ -3788,7 +3788,7 @@ tornado = ["tornado (>=5)"]
 name = "shapely"
 version = "2.0.5"
 description = "Manipulation and analysis of geometric objects"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
@@ -4245,4 +4245,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "3.12.4"
-content-hash = "5044eef5287a2ebd941b64305618a7abcb6975edc9c8d5e151e2f91ad7856dcb"
+content-hash = "4f8a60c3dfe6e866bd719ee4bc38cb5ae9f8bfc59c189da256536819e5940ed5"
