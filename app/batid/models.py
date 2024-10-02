@@ -147,7 +147,7 @@ class Building(BuildingAbstract):
     @transaction.atomic
     def soft_delete(self, user: User, event_origin):
         """
-        IMPORTANT NOTICE : this method must be used only in the case the building was never meant to be in the RNB.
+        IMPORTANT NOTICE: this method must only be used in the case the building was never meant to be in the RNB.
         eg: some trees were visually considered as a building and added to the RNB.
         ----
         It is not expected to hard delete anything in the RNB, as it would break our capacity to audit its history.
