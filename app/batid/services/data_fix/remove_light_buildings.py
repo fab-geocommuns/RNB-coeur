@@ -93,7 +93,8 @@ def buildings_to_remove(bd_topo_path, max_workers=50):
                 with contained as (
                 select
                     ST_AREA(ST_INTERSECTION(bb.shape,
-                    ST_GeomFromText('{geometry}', 4326))) / NULLIF(ST_AREA(bb.shape), 0) > 0.9 as contained
+                    ST_GeomFromText('{geometry}', 4326))) / NULLIF(ST_AREA(bb.shape), 0) > 0.9 as contained,
+                    ST_AREA(bb.shape, False) as surface
                 from
                     batid_building bb
                 where
@@ -109,14 +110,18 @@ def buildings_to_remove(bd_topo_path, max_workers=50):
                     bb2.rnb_id = '{rnb_id}'
                     and bb.rnb_id != '{rnb_id}'
                     and ST_DWITHIN(bb.shape, bb2.shape, 0.0)
-                ) select contained, count from contained, neighbors;
+                ) select contained, count, surface from contained, neighbors;
             """
 
             cursor.execute(sql)
             results = cursor.fetchone()
 
-            if results and results[0] and results[1] > 0:
-                # rnb is contained in bd topo building and has neighbor(s)
+            if results and results[0] and results[1] > 0 and results[2] < 40:
+                # rnb is contained in bd topo building + has neighbor(s) + has a small (<40m²) surface
+                # explanation:
+                #   - stand alone light buildings are more likely to be real buildings
+                #   - big buildings are more likely to be real buildings
+                #   - we prefer to miss some buildings during the cleaning, than over cleaning.
                 matching_rnb_ids.append(rnb_id)
 
         return matching_rnb_ids
