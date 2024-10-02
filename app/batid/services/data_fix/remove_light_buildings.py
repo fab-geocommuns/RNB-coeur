@@ -19,11 +19,8 @@ def list_light_buildings_france(start_dpt=None, end_dpt=None):
     dpts = dpts_list(start_dpt, end_dpt)
     folder_name = "data_fix_remove_light_buildings"
 
-    # delete the folder if it already exists
-    if os.path.exists(folder_name):
-        shutil.rmtree(folder_name)
-
-    os.makedirs(folder_name)
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
 
     for dpt in dpts:
         list_light_buildings(dpt, folder_name)
