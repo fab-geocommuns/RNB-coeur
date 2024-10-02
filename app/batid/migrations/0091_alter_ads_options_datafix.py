@@ -8,7 +8,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0089_department_subdivided"),
+        ("batid", "0090_auto_20240927_0829.py"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
