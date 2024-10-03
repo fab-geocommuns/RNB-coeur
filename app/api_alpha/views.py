@@ -57,7 +57,8 @@ from batid.services.closest_bdg import get_closest_from_point
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.vector_tiles import bdgs_tiles_sql, ads_tiles_sql
+from batid.services.vector_tiles import ads_tiles_sql
+from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
 from batid.utils.constants import ADS_GROUP_NAME
 
@@ -795,8 +796,8 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
-class ADSVectorTileView(APIView):
 
+class ADSVectorTileView(APIView):
     def get(self, request, x, y, z):
 
         # might do : include a minimum zoom level as it is done for buildings

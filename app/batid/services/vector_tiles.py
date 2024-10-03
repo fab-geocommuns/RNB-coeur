@@ -1,4 +1,5 @@
-from batid.models import Building, BuildingADS
+from batid.models import Building
+from batid.models import BuildingADS
 from batid.services.bdg_status import BuildingStatus
 
 
@@ -57,13 +58,14 @@ def envelopeToBoundsSQL(env):
     )
     return sql_tmpl.format(**env)
 
+
 def envelopeToADSSQL(env):
 
     params = {
         "table": BuildingADS._meta.db_table,
         "srid": str(4326),
         "attrColumns": "ads.file_number as file_number, t.operation ",
-        "geomColumn": "shape"
+        "geomColumn": "shape",
     }
 
     tbl = params.copy()
@@ -77,14 +79,15 @@ def envelopeToADSSQL(env):
             ),
             mvtgeom AS (
                 SELECT ST_AsMVTGeom(ST_Transform(t.{geomColumn}, 3857), bounds.b2d) AS geom,
-                       {attrColumns} 
-                FROM {table} t 
-                LEFT JOIN batid_ads ads ON t.ads_id = ads.id, bounds 
+                       {attrColumns}
+                FROM {table} t
+                LEFT JOIN batid_ads ads ON t.ads_id = ads.id, bounds
                 WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
             )
             SELECT ST_AsMVT(mvtgeom.*) FROM mvtgeom
         """
     return sql_tmpl.format(**tbl)
+
 
 # Generate a SQL query to pull a tile worth of MVT data
 # from the table of interest.
@@ -139,6 +142,7 @@ def bdgs_tiles_sql(tile, data_type):
     sql = envelopeToBuildingsSQL(env, geometry_column)
 
     return sql
+
 
 def ads_tiles_sql(tile):
     env = tileToEnvelope(tile)
