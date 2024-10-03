@@ -1,5 +1,6 @@
 from django.urls import include
 from django.urls import path
+from django.urls import re_path
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
 
@@ -7,19 +8,22 @@ from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
-from api_alpha.views import BuildingViewSet
 from api_alpha.views import ContributionsViewSet
 from api_alpha.views import DiffView
 from api_alpha.views import get_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
+from api_alpha.views import GetBuilding
 from api_alpha.views import GetVectorTileView
+from api_alpha.views import ListBuildings
+
+# from api_alpha.views import BuildingViewSet
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
 # router.register(r"buildings/guess", BuildingGuessView, basename="guess")
 router.register(r"contributions", ContributionsViewSet)
-router.register(r"buildings", BuildingViewSet)
+# router.register(r"buildings", BuildingViewSet)
 # router.register(r"ads/batch", ADSBatchViewSet)
 router.register(r"ads", ADSViewSet)
 
@@ -29,9 +33,12 @@ urlpatterns = [
     # YOUR PATTERNS
     path("schema/", get_schema, name="schema"),
     path("stats", get_stats),
+    path("buildings/", ListBuildings.as_view()),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
     path("buildings/diff/", DiffView.as_view()),
+    # rnb_id parameter should be a string of 12 characters
+    re_path(r"buildings/(?P<rnb_id>[0-9a-zA-Z]{12})/", GetBuilding.as_view()),
     path("ads/token/", AdsTokenView.as_view()),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
