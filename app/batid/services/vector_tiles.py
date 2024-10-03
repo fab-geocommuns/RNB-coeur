@@ -62,7 +62,7 @@ def envelopeToADSSQL(env):
     params = {
         "table": BuildingADS._meta.db_table,
         "srid": str(4326),
-        "attrColumns": "id",
+        "attrColumns": "ads.file_number as file_number, t.operation ",
         "geomColumn": "shape"
     }
 
@@ -77,8 +77,9 @@ def envelopeToADSSQL(env):
             ),
             mvtgeom AS (
                 SELECT ST_AsMVTGeom(ST_Transform(t.{geomColumn}, 3857), bounds.b2d) AS geom,
-                       {attrColumns}
-                FROM {table} t, bounds
+                       {attrColumns} 
+                FROM {table} t 
+                LEFT JOIN batid_ads ads ON t.ads_id = ads.id, bounds 
                 WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
             )
             SELECT ST_AsMVT(mvtgeom.*) FROM mvtgeom

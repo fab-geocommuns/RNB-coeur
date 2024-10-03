@@ -57,7 +57,7 @@ from batid.services.closest_bdg import get_closest_from_point
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.vector_tiles import bdgs_tiles_sql
+from batid.services.vector_tiles import bdgs_tiles_sql, ads_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
 from batid.utils.constants import ADS_GROUP_NAME
 
@@ -798,20 +798,19 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 class ADSVectorTileView(APIView):
 
     def get(self, request, x, y, z):
-        # Check the request zoom level
-        if int(z) >= 16:
-            tile_dict = url_params_to_tile(x, y, z)
-            sql = ads_tiles_sql(tile_dict, "shape")
 
-            with connection.cursor() as cursor:
-                cursor.execute(sql)
-                tile_file = cursor.fetchone()[0]
+        # might do : include a minimum zoom level as it is done for buildings
+        tile_dict = url_params_to_tile(x, y, z)
+        sql = ads_tiles_sql(tile_dict)
 
-            return HttpResponse(
-                tile_file, content_type="application/vnd.mapbox-vector-tile"
-            )
-        else:
-            return HttpResponse(status=204)
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            tile_file = cursor.fetchone()[0]
+
+        return HttpResponse(
+            tile_file, content_type="application/vnd.mapbox-vector-tile"
+        )
+
 
 class BuildingsVectorTileView(APIView):
     @extend_schema(
