@@ -9,6 +9,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex
+from django.db import transaction
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
@@ -143,8 +144,13 @@ class Building(BuildingAbstract):
     def point_lng(self):
         return self.point_geojson()["coordinates"][0]
 
-    def soft_delete(self, user, event_origin):
-        """it is not expected to hard delete anything in the RNB, as it would break our capacity to audit its history.
+    @transaction.atomic
+    def soft_delete(self, user: User, event_origin):
+        """
+        IMPORTANT NOTICE: this method must only be used in the case the building was never meant to be in the RNB.
+        eg: some trees were visually considered as a building and added to the RNB.
+        ----
+        It is not expected to hard delete anything in the RNB, as it would break our capacity to audit its history.
         This soft delete method is used to mark a building as inactive, with an event_type "delete"
         """
         self.event_type = "delete"
@@ -154,6 +160,8 @@ class Building(BuildingAbstract):
         self.event_origin = event_origin
         self.save()
 
+        self._refuse_pending_contributions(user)
+
     def update(self, user, event_origin, status, addresses_id):
         self.event_type = "update"
         self.event_id = uuid.uuid4()
@@ -162,6 +170,16 @@ class Building(BuildingAbstract):
         self.addresses_id = addresses_id
         self.status = status
         self.save()
+
+    def _refuse_pending_contributions(self, user: User):
+
+        msg = f"Ce signalement a été refusé suite à la désactivation du bâtiment {self.rnb_id}."
+        contributions = Contribution.objects.filter(
+            rnb_id=self.rnb_id, status="pending"
+        )
+
+        for c in contributions:
+            c.refuse(user, msg)
 
     @staticmethod
     def merge(buildings: list, user, event_origin, status, addresses_id):
@@ -462,3 +480,21 @@ class Contribution(models.Model):
         self.review_comment = review_comment
         self.review_user = user
         self.save()
+
+
+class DataFix(models.Model):
+    """
+    Sometimes we need to fix the data in the RNB.
+    We identify a problem, run queries to find the corresponding buildings
+    and then fix them.
+    """
+
+    # a message explaining the problem and the associated fix
+    # the text will be displayed to our users
+    # and should be written in French.
+    # ex : "Suppression des bâtiments légers importés par erreur"
+    text = models.TextField(null=True)
+    # the user who created the fix
+    user = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)

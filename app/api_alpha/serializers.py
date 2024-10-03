@@ -5,6 +5,7 @@ from api_alpha.services import BuildingADS as BuildingADSLogic
 from api_alpha.services import can_manage_ads_in_request
 from api_alpha.validators import ads_validate_rnbid
 from api_alpha.validators import ADSValidator
+from api_alpha.validators import bdg_is_active
 from api_alpha.validators import BdgInADSValidator
 from batid.models import Address
 from batid.models import ADS
@@ -20,6 +21,10 @@ class RNBIdField(serializers.CharField):
 
 
 class ContributionSerializer(serializers.ModelSerializer):
+
+    # Add a validator to check if the building is active
+    rnb_id = serializers.CharField(validators=[bdg_is_active])
+
     class Meta:
         model = Contribution
         fields = ["rnb_id", "text", "email"]

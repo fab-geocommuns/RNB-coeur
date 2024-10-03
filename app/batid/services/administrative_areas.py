@@ -142,12 +142,7 @@ def dpts_list(start: Optional[str] = None, end: Optional[str] = None):
 
     all = dpt_list_metropole() + dpt_list_overseas()
 
-    start_idx = 0
-    if start:
-        start_idx = all.index(start)
-
-    end_idx = len(all)
-    if end:
-        end_idx = all.index(end) + 1
+    start_idx = all.index(start) if start else 0
+    end_idx = all.index(end) + 1 if end else len(all)
 
     return all[start_idx:end_idx]
