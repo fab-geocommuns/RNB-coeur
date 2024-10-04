@@ -4,6 +4,7 @@ from base64 import b64encode
 from datetime import datetime
 
 import requests
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.db import connection
@@ -38,13 +39,17 @@ from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
 
 from api_alpha.permissions import ADSPermission
+from api_alpha.permissions import ReadOnly
+from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers import ADSSerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingSerializer
+from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.utils.rnb_doc import build_schema_dict
+from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import rnb_doc
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
@@ -401,7 +406,9 @@ class ListBuildings(RNBLoggingMixin, APIView):
         return paginator.get_paginated_response(serializer.data)
 
 
-class GetBuilding(APIView):
+class SingleBuilding(APIView):
+    permission_classes = [ReadOnly | RNBContributorPermission]
+
     @rnb_doc(
         {
             "get": {
@@ -439,6 +446,19 @@ class GetBuilding(APIView):
         serializer = BuildingSerializer(building)
 
         return Response(serializer.data)
+
+    def patch(self, request, rnb_id):
+        serializer = BuildingUpdateSerializer(data=request.data)
+        if serializer.is_valid():
+            data = serializer.data
+            print(data)
+            user = request.user
+            building = Building.objects.get(rnb_id=rnb_id)
+
+            if data["not_a_building"] == True:
+                building.soft_delete(user, {"source": "coucou"})
+
+        return HttpResponse("coucou c'est mis à jour !")
 
 
 class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):

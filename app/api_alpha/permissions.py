@@ -1,6 +1,8 @@
 import copy
 
+from django.contrib.auth.models import Group
 from rest_framework import permissions
+from rest_framework.permissions import SAFE_METHODS
 
 from batid.services.ads import can_manage_ads
 
@@ -87,3 +89,20 @@ class ADSPermission(permissions.DjangoModelPermissions):
 #         raise exceptions.PermissionDenied(detail="You can not edit ADS in this city.")
 #
 #     return city
+
+
+def is_in_group(user, group_name):
+    try:
+        return Group.objects.get(name=group_name).user_set.filter(id=user.id).exists()
+    except Group.DoesNotExist:
+        return False
+
+
+class RNBContributorPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return is_in_group(request.user, "Contributors")
+
+
+class ReadOnly(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.method in SAFE_METHODS

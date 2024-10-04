@@ -12,6 +12,7 @@ from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Contribution
+from batid.services.bdg_status import BuildingStatus
 from batid.services.rnb_id import clean_rnb_id
 
 
@@ -163,6 +164,39 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
             return value
         except:
             raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+
+
+class BuildingUpdateSerializer(serializers.Serializer):
+    not_a_building = serializers.BooleanField(required=False)
+    status = serializers.ChoiceField(
+        choices=BuildingStatus.ALL_TYPES_KEYS, required=False
+    )
+    addresses_cle_interop = serializers.ListField(
+        child=serializers.CharField(min_length=5, max_length=30),
+        allow_empty=True,
+        required=False,
+    )
+
+    def validate(self, data):
+        print(data)
+        if data.get("not_a_building") is not None and (
+            data.get("status") is not None
+            or data.get("addresses_cle_interop") is not None
+        ):
+            raise serializers.ValidationError(
+                "you need to either set not_a_building or set status/addresses, not both at the same time"
+            )
+        if (
+            data.get("not_a_building") is None
+            and data.get("status") is None
+            and data.get("addresses_cle_interop") is None
+        ):
+            raise serializers.ValidationError("empty arguments in the request body")
+
+        if data.get("not_a_building") == False:
+            raise serializers.ValidationError("you can only set not_a_building to True")
+
+        return data
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):
