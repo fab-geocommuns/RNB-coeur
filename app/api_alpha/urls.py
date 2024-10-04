@@ -17,32 +17,24 @@ from api_alpha.views import GetBuilding
 from api_alpha.views import GetVectorTileView
 from api_alpha.views import ListBuildings
 
-# from api_alpha.views import BuildingViewSet
-
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
-# router.register(r"buildings/guess", BuildingGuessView, basename="guess")
 router.register(r"contributions", ContributionsViewSet)
-# router.register(r"buildings", BuildingViewSet)
-# router.register(r"ads/batch", ADSBatchViewSet)
 router.register(r"ads", ADSViewSet)
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
-    # YOUR PATTERNS
     path("schema/", get_schema, name="schema"),
     path("stats", get_stats),
     path("buildings/", ListBuildings.as_view()),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
     path("buildings/diff/", DiffView.as_view()),
-    # rnb_id parameter should be a string of 12 characters
     re_path(r"buildings/(?P<rnb_id>[0-9a-zA-Z]{12})/", GetBuilding.as_view()),
     path("ads/token/", AdsTokenView.as_view()),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", GetVectorTileView.as_view()),
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
-    # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]

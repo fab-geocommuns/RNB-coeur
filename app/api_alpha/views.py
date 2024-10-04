@@ -301,6 +301,94 @@ class BuildingCursorPagination(BasePagination):
 
 
 class ListBuildings(RNBLoggingMixin, APIView):
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Liste des batiments",
+                "description": (
+                    "Ce endpoint permet de récupérer une liste paginée de bâtiments. "
+                    "Des filtres, notamment par code INSEE de la commune, sont disponibles. NB : l'URL se termine nécessairement par un slash (/)."
+                ),
+                "operationId": "listBuildings",
+                "parameters": [
+                    {
+                        "name": "insee_code",
+                        "in": "query",
+                        "description": "Filtre les bâtiments dont l'emprise au sol est située dans les limites géographiques de la commune ayant ce code INSEE.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "75101",
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "constructed,demolished",
+                    },
+                    {
+                        "name": "cle_interop_ban",
+                        "in": "query",
+                        "description": "Filtre les bâtiments associés à cette clé d'interopérabilité BAN.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "94067_7115_00073",
+                    },
+                    {
+                        "name": "bb",
+                        "in": "query",
+                        "description": (
+                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box"
+                            "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
+                            "Le format est <code>nw_lat,nw_lng,se_lat,se_lng</code> où : <br/>"
+                            "<ul>"
+                            "<li><b>nw_lat</b> : latitude du point Nord Ouest de la bounding box</li>"
+                            "<li><b>nw_lng</b> : longitude du point Nord Ouest de la bounding box</li>"
+                            "<li><b>se_lat</b> : latitude du point Sud Est de la bounding box</li>"
+                            "<li><b>se_lng</b> : longitude du point Sud Est de la bounding box</li>"
+                            "</ul><br />"
+                        ),
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "48.845782,2.424525,48.839201,2.434158",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste paginée de bâtiments",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "next": {
+                                            "type": "string",
+                                            "description": "<br />URL de la page de résultats suivante<br />",
+                                            "nullable": True,
+                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1",
+                                        },
+                                        "previous": {
+                                            "type": "string",
+                                            "description": "<br />URL de la page de résultats précédente<br />",
+                                            "nullable": True,
+                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR",
+                                        },
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Building",
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    }
+                },
+            },
+        },
+    )
     def get(self, request):
         query_params = request.query_params.dict()
         query_params["user"] = request.user
@@ -314,172 +402,43 @@ class ListBuildings(RNBLoggingMixin, APIView):
 
 
 class GetBuilding(APIView):
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Consultation d'un bâtiment",
+                "description": "Ce endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
+                "operationId": "getBuilding",
+                "parameters": [
+                    {
+                        "name": "rnb_id",
+                        "in": "path",
+                        "description": "Identifiant unique du bâtiment dans le RNB",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "PG46YY6YWCX8",
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Détails du bâtiment",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Building",
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    )
     def get(self, request, rnb_id):
         qs = list_bdgs({"user": request.user, "status": "all"}, only_active=False)
         building = get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
         serializer = BuildingSerializer(building)
 
         return Response(serializer.data)
-
-
-# class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
-#     queryset = Building.objects.all().filter(is_active=True)
-#     serializer_class = BuildingSerializer
-#     http_method_names = ["get", "patch"]
-#     lookup_field = "rnb_id"
-
-#     pagination_class = BuildingCursorPagination
-#     # pagination_class = PageNumberPagination
-
-#     def get_object(self):
-#         qs = list_bdgs({"user": self.request.user, "status": "all"}, only_active=False)
-#         return get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
-
-
-#     def get_queryset(self):
-#         query_params = self.request.query_params.dict()
-#         query_params["user"] = self.request.user
-
-#         qs = list_bdgs(query_params)
-
-#         return qs
-
-#     @rnb_doc(
-#         {
-#             "get": {
-#                 "summary": "Liste des batiments",
-#                 "description": (
-#                     "Ce endpoint permet de récupérer une liste paginée de bâtiments. "
-#                     "Des filtres, notamment par code INSEE de la commune, sont disponibles. NB : l'URL se termine nécessairement par un slash (/)."
-#                 ),
-#                 "operationId": "listBuildings",
-#                 "parameters": [
-#                     {
-#                         "name": "insee_code",
-#                         "in": "query",
-#                         "description": "Filtre les bâtiments dont l'emprise au sol est située dans les limites géographiques de la commune ayant ce code INSEE.",
-#                         "required": False,
-#                         "schema": {"type": "string"},
-#                         "example": "75101",
-#                     },
-#                     {
-#                         "name": "status",
-#                         "in": "query",
-#                         "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />",
-#                         "required": False,
-#                         "schema": {"type": "string"},
-#                         "example": "constructed,demolished",
-#                     },
-#                     {
-#                         "name": "cle_interop_ban",
-#                         "in": "query",
-#                         "description": "Filtre les bâtiments associés à cette clé d'interopérabilité BAN.",
-#                         "required": False,
-#                         "schema": {"type": "string"},
-#                         "example": "94067_7115_00073",
-#                     },
-#                     {
-#                         "name": "bb",
-#                         "in": "query",
-#                         "description": (
-#                             "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box"
-#                             "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
-#                             "Le format est <code>nw_lat,nw_lng,se_lat,se_lng</code> où : <br/>"
-#                             "<ul>"
-#                             "<li><b>nw_lat</b> : latitude du point Nord Ouest de la bounding box</li>"
-#                             "<li><b>nw_lng</b> : longitude du point Nord Ouest de la bounding box</li>"
-#                             "<li><b>se_lat</b> : latitude du point Sud Est de la bounding box</li>"
-#                             "<li><b>se_lng</b> : longitude du point Sud Est de la bounding box</li>"
-#                             "</ul><br />"
-#                         ),
-#                         "required": False,
-#                         "schema": {"type": "string"},
-#                         "example": "48.845782,2.424525,48.839201,2.434158",
-#                     },
-#                 ],
-#                 "responses": {
-#                     "200": {
-#                         "description": "Liste paginée de bâtiments",
-#                         "content": {
-#                             "application/json": {
-#                                 "schema": {
-#                                     "type": "object",
-#                                     "properties": {
-#                                         "next": {
-#                                             "type": "string",
-#                                             "description": "<br />URL de la page de résultats suivante<br />",
-#                                             "nullable": True,
-#                                             "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1",
-#                                         },
-#                                         "previous": {
-#                                             "type": "string",
-#                                             "description": "<br />URL de la page de résultats précédente<br />",
-#                                             "nullable": True,
-#                                             "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR",
-#                                         },
-#                                         "results": {
-#                                             "type": "array",
-#                                             "items": {
-#                                                 "$ref": "#/components/schemas/Building",
-#                                             },
-#                                         },
-#                                     },
-#                                 }
-#                             }
-#                         },
-#                     }
-#                 },
-#             },
-#         },
-#     )
-#     def list(self, request, *args, **kwargs):
-#         """
-#         Renvoie une liste paginée de bâtiments. Des filtres (notamment par code INSEE de la commune) sont disponibles.
-#         """
-#         return super().list(request, *args, **kwargs)
-
-#     @rnb_doc(
-#         {
-#             "get": {
-#                 "summary": "Consultation d'un bâtiment",
-#                 "description": "Ce endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
-#                 "operationId": "getBuilding",
-#                 "parameters": [
-#                     {
-#                         "name": "rnb_id",
-#                         "in": "path",
-#                         "description": "Identifiant unique du bâtiment dans le RNB",
-#                         "required": True,
-#                         "schema": {"type": "string"},
-#                         "example": "PG46YY6YWCX8",
-#                     }
-#                 ],
-#                 "responses": {
-#                     "200": {
-#                         "description": "Détails du bâtiment",
-#                         "content": {
-#                             "application/json": {
-#                                 "schema": {
-#                                     "$ref": "#/components/schemas/Building",
-#                                 }
-#                             }
-#                         },
-#                     }
-#                 },
-#             }
-#         }
-#     )
-#     def retrieve(self, request, *args, **kwargs):
-#         """
-#         Renvoie les détails d'un bâtiment spécifique identifié par son RNB ID.
-#         """
-#         return super().retrieve(request, *args, **kwargs)
-
-#     def partial_update(self, request, *args, **kwargs):
-#         """
-#         Modifier un bâtiment existant dans le RNB
-#         """
-#         return super().partial_update(request, *args, **kwargs)
 
 
 class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
