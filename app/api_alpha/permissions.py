@@ -16,7 +16,7 @@ class ADSPermission(permissions.DjangoModelPermissions):
     def has_permission(self, request, view):
 
         # Everybody can list and retrieve ADS
-        if view.action in ['list', 'retrieve']:
+        if view.action in ["list", "retrieve"]:
             return True
 
         # For others actions, we need to be authenticated and have the rights
@@ -30,7 +30,7 @@ class ADSPermission(permissions.DjangoModelPermissions):
             return True
 
         # Everybody can read ADS
-        if view.action in ['retrieve']:
+        if view.action in ["retrieve"]:
             return True
 
         # For others actions, we need to be authenticated and have the rights
