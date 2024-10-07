@@ -41,6 +41,9 @@
 .env.s3_backup.import
 .env.s3_backup.sandbox
 
+# Mac OS files
+.DS_Store
+
 # Jupyter notebooks trash
 app/.Trash-0/*
 
