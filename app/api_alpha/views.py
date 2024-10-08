@@ -451,14 +451,35 @@ class SingleBuilding(APIView):
         serializer = BuildingUpdateSerializer(data=request.data)
         if serializer.is_valid():
             data = serializer.data
-            print(data)
             user = request.user
             building = Building.objects.get(rnb_id=rnb_id)
 
-            if data["not_a_building"] == True:
-                building.soft_delete(user, {"source": "coucou"})
+            with transaction.atomic():
+                contribution = Contribution(
+                    rnb_id=rnb_id,
+                    text=data["comment"],
+                    status="fixed",
+                    status_changed_at=datetime.now(),
+                    review_user=user,
+                )
+                contribution.save()
 
-        return HttpResponse("coucou c'est mis à jour !")
+                event_origin = {
+                    "source": "contribution",
+                    "contribution_id": contribution.id,
+                }
+
+                if data["not_a_building"] == True:
+                    # a building that is not a building is soft deleted from the base
+                    building.soft_delete(user, event_origin)
+                else:
+                    status = data.get("status")
+                    addresses_cle_interop = data.get("addresses_cle_interop")
+
+                    building.update(user, event_origin, status, addresses_cle_interop)
+
+        # request is successful, no content to send back
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):

@@ -163,12 +163,20 @@ class Building(BuildingAbstract):
         self._refuse_pending_contributions(user)
 
     def update(self, user, event_origin, status, addresses_id):
+        if status is None and addresses_id is None:
+            raise Exception("Missing data to update the building")
+
         self.event_type = "update"
         self.event_id = uuid.uuid4()
         self.event_user = user
         self.event_origin = event_origin
-        self.addresses_id = addresses_id
-        self.status = status
+
+        if addresses_id is not None:
+            self.addresses_id = addresses_id
+
+        if status is not None:
+            self.status = status
+
         self.save()
 
     def _refuse_pending_contributions(self, user: User):
