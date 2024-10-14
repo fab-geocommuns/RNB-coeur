@@ -176,6 +176,7 @@ class BuildingUpdateSerializer(serializers.Serializer):
         allow_empty=True,
         required=False,
     )
+    comment = serializers.CharField(min_length=4, required=True)
 
     def validate(self, data):
         if data.get("not_a_building") is not None and (

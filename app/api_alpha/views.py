@@ -23,7 +23,7 @@ from drf_spectacular.utils import extend_schema
 from drf_spectacular.utils import OpenApiResponse
 from psycopg2 import sql
 from rest_framework import mixins
-from rest_framework import status
+from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
@@ -447,9 +447,69 @@ class SingleBuilding(APIView):
 
         return Response(serializer.data)
 
+    @rnb_doc(
+        {
+            "patch": {
+                "summary": "Mise à jour ou désactivation d'un bâtiment",
+                "description": "Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB. Il permet de mettre à jour un bâtiment existant (statut, adresses) ou bien de le désactiver s'il s'avère qu'il ne devrait pas faire partir du RNB (par exemple un arbre qui serait repertorié comme un bâtiment du RNB). Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver.",
+                "operationId": "patchBuilding",
+                "parameters": [
+                    {
+                        "name": "rnb_id",
+                        "in": "path",
+                        "description": "Identifiant unique du bâtiment dans le RNB",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "PG46YY6YWCX8",
+                    }
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "comment": {
+                                        "type": "string",
+                                        "description": "Texte justifiant la modification en cours et qui sera publique",
+                                    },
+                                    "not_a_building": {
+                                        "type": "boolean",
+                                        "description": "Une seule valeure est autorisée : True. Signifie que le bâtiment est désactivé, car sa présence dans le RNB est une erreur. Ne permet pas de signaler une démolition, qui se fait plutôt par une mise à jour du statut.",
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "description": "Changement du statut du bâtiment.",
+                                    },
+                                    "addresses_cle_interop": {
+                                        "type": "list",
+                                        "description": "Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.",
+                                    },
+                                },
+                                "required": ["comment"],
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "200": {
+                        "description": "Détails du bâtiment",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Building",
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    )
     def patch(self, request, rnb_id):
         serializer = BuildingUpdateSerializer(data=request.data)
-        if serializer.is_valid():
+        if serializer.is_valid(raise_exception=True):
             data = serializer.data
             user = request.user
             building = Building.objects.get(rnb_id=rnb_id)
@@ -469,7 +529,7 @@ class SingleBuilding(APIView):
                     "contribution_id": contribution.id,
                 }
 
-                if data["not_a_building"] == True:
+                if data.get("not_a_building") == True:
                     # a building that is not a building is soft deleted from the base
                     building.soft_delete(user, event_origin)
                 else:
@@ -478,8 +538,8 @@ class SingleBuilding(APIView):
 
                     building.update(user, event_origin, status, addresses_cle_interop)
 
-        # request is successful, no content to send back
-        return Response(status=status.HTTP_204_NO_CONTENT)
+            # request is successful, no content to send back
+            return Response(status=http_status.HTTP_204_NO_CONTENT)
 
 
 class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):

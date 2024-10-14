@@ -99,8 +99,10 @@ def is_in_group(user, group_name):
 
 
 class RNBContributorPermission(permissions.BasePermission):
+    group_name = "Contributors"
+
     def has_permission(self, request, view):
-        return is_in_group(request.user, "Contributors")
+        return is_in_group(request.user, self.group_name)
 
 
 class ReadOnly(permissions.BasePermission):
