@@ -153,31 +153,37 @@ class Building(BuildingAbstract):
         It is not expected to hard delete anything in the RNB, as it would break our capacity to audit its history.
         This soft delete method is used to mark a building as inactive, with an event_type "delete"
         """
-        self.event_type = "delete"
-        self.is_active = False
-        self.event_id = uuid.uuid4()
-        self.event_user = user
-        self.event_origin = event_origin
-        self.save()
+        if self.is_active:
+            self.event_type = "delete"
+            self.is_active = False
+            self.event_id = uuid.uuid4()
+            self.event_user = user
+            self.event_origin = event_origin
+            self.save()
 
-        self._refuse_pending_contributions(user)
+            self._refuse_pending_contributions(user)
+        else:
+            print(f"Cannot soft-delete an inactive building: {self.rnb_id}")
 
     def update(self, user, event_origin, status, addresses_id):
         if status is None and addresses_id is None:
             raise Exception("Missing data to update the building")
 
-        self.event_type = "update"
-        self.event_id = uuid.uuid4()
-        self.event_user = user
-        self.event_origin = event_origin
+        if self.is_active:
+            self.event_type = "update"
+            self.event_id = uuid.uuid4()
+            self.event_user = user
+            self.event_origin = event_origin
 
-        if addresses_id is not None:
-            self.addresses_id = addresses_id
+            if addresses_id is not None:
+                self.addresses_id = addresses_id
 
-        if status is not None:
-            self.status = status
+            if status is not None:
+                self.status = status
 
-        self.save()
+            self.save()
+        else:
+            print(f"Cannot update an inactive building: {self.rnb_id}")
 
     def _refuse_pending_contributions(self, user: User):
 

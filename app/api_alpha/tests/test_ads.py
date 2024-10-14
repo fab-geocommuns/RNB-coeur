@@ -223,7 +223,7 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
         r = self.client.get(
             "/api/alpha/ads/ADS-GRENOBLE/", content_type="application/json"
         )
-        self.assertEqual(r.status_code, 403)
+        self.assertEqual(r.status_code, 200)
 
 
 class ADSEndpointsWithAuthTest(APITestCase):
@@ -1325,11 +1325,11 @@ class ADSEnpointsNoAuthTest(APITestCase):
 
     def test_ads_root(self):
         r = self.client.get("/api/alpha/ads/")
-        self.assertEqual(r.status_code, 401)
+        self.assertEqual(r.status_code, 200)
 
     def test_ads_detail(self):
         r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE-BDG/")
-        self.assertEqual(r.status_code, 401)
+        self.assertEqual(r.status_code, 200)
 
     def test_ads_cant_delete(self):
         r = self.client.delete("/api/alpha/ads/ADS-TEST-DELETE/")

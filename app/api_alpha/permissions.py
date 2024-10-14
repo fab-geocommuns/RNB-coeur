@@ -17,17 +17,28 @@ class ADSPermission(permissions.DjangoModelPermissions):
 
     def has_permission(self, request, view):
 
+        # Everybody can list and retrieve ADS
+        if view.action in ["list", "retrieve"]:
+            return True
+
+        # For others actions, we need to be authenticated and have the rights
         return request.user.is_authenticated and super().has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
 
+        # You are superuser? Please, be our guest
+        # Superuser -> all permissions
+        if request.user.is_authenticated and request.user.is_superuser:
+            return True
+
+        # Everybody can read ADS
+        if view.action in ["retrieve"]:
+            return True
+
+        # For others actions, we need to be authenticated and have the rights
         # Not authenticated users -> no permission
         if not request.user.is_authenticated:
             return False
-
-        # Super user -> all permissions
-        if request.user.is_authenticated and request.user.is_superuser:
-            return True
 
         # User does not have permission to perform this action (DjangoModelPermissions) -> no permission
         if not super().has_object_permission(request, view, obj):

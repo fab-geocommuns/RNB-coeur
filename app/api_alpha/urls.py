@@ -5,15 +5,16 @@ from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
 
 from api_alpha.views import AdsTokenView
+from api_alpha.views import ADSVectorTileView
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
+from api_alpha.views import BuildingsVectorTileView
 from api_alpha.views import ContributionsViewSet
 from api_alpha.views import DiffView
 from api_alpha.views import get_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
-from api_alpha.views import GetVectorTileView
 from api_alpha.views import ListBuildings
 from api_alpha.views import SingleBuilding
 
@@ -36,8 +37,9 @@ urlpatterns = [
         SingleBuilding.as_view(),
     ),
     path("ads/token/", AdsTokenView.as_view()),
+    path("ads/tiles/<int:x>/<int:y>/<int:z>.pbf", ADSVectorTileView.as_view()),
     path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
-    path("tiles/<int:x>/<int:y>/<int:z>.pbf", GetVectorTileView.as_view()),
+    path("tiles/<int:x>/<int:y>/<int:z>.pbf", BuildingsVectorTileView.as_view()),
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
 ]
