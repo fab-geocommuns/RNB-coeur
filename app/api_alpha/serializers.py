@@ -178,7 +178,6 @@ class BuildingUpdateSerializer(serializers.Serializer):
     )
 
     def validate(self, data):
-        print(data)
         if data.get("not_a_building") is not None and (
             data.get("status") is not None
             or data.get("addresses_cle_interop") is not None
