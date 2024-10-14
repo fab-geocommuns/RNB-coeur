@@ -235,24 +235,24 @@ class BuildingsEndpointsTest(APITestCase):
 
         self.assertDictEqual(r.json(), expected)
 
-    # def test_one_bdg_with_dash(self):
-    #     r = self.client.get("/api/alpha/buildings/BDGS-RNBB-IDID/")
-    #     # r = self.client.get("/api/alpha/buildings/BDGSRNBBIDID/")
-    #     self.assertEqual(r.status_code, 200)
+    def test_one_bdg_with_dash(self):
+        r = self.client.get("/api/alpha/buildings/BDGS-RNBB-IDID/")
+        # r = self.client.get("/api/alpha/buildings/BDGSRNBBIDID/")
+        self.assertEqual(r.status_code, 200)
 
-    #     expected = {
-    #         "ext_ids": None,
-    #         "rnb_id": "BDGSRNBBIDID",
-    #         "status": "constructed",
-    #         "point": {
-    #             "type": "Point",
-    #             "coordinates": [1.065566787499344, 46.634163236377134],
-    #         },
-    #         "addresses": [],
-    #         "is_active": True,
-    #     }
+        expected = {
+            "ext_ids": None,
+            "rnb_id": "BDGSRNBBIDID",
+            "status": "constructed",
+            "point": {
+                "type": "Point",
+                "coordinates": [1.065566787499344, 46.634163236377134],
+            },
+            "addresses": [],
+            "is_active": True,
+        }
 
-    #     self.assertEqual(r.json(), expected)
+        self.assertEqual(r.json(), expected)
 
     def test_non_active_buildings_are_excluded_from_list(self):
         building = Building.objects.get(rnb_id="BDGSRNBBIDID")
