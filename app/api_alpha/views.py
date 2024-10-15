@@ -452,7 +452,16 @@ class SingleBuilding(APIView):
         {
             "patch": {
                 "summary": "Mise à jour ou désactivation d'un bâtiment",
-                "description": "Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB. Il permet de mettre à jour un bâtiment existant (statut, adresses) ou bien de le désactiver s'il s'avère qu'il ne devrait pas faire partir du RNB (par exemple un arbre qui serait repertorié comme un bâtiment du RNB). Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver.",
+                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB. Il permet de mettre à jour un bâtiment existant (status, addresses_cle_interop) ou bien de le désactiver (not_a_building) s'il s'avère qu'il ne devrait pas faire partir du RNB (par exemple un arbre qui serait repertorié comme un bâtiment du RNB).
+                <br/><br/>
+                Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver.
+                <br/><br/>
+                Exemples valides: <br/>
+                <ul>
+                    <li>{"comment": "faux bâtiment", "not_a_building": True}</li>
+                    <li>{"comment": "bâtiment démoli", "status": "demolished"}</li>
+                    <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": [75105_8884_00004]}</li>
+                </ul>""",
                 "operationId": "patchBuilding",
                 "parameters": [
                     {
@@ -473,7 +482,7 @@ class SingleBuilding(APIView):
                                 "properties": {
                                     "comment": {
                                         "type": "string",
-                                        "description": "Texte justifiant la modification en cours et qui sera publique",
+                                        "description": """Texte associé à la modification et la justifiant. <br /><br />Exemple : "Ce n'est pas un bâtiment mais un arbre." """,
                                     },
                                     "not_a_building": {
                                         "type": "boolean",
@@ -481,11 +490,11 @@ class SingleBuilding(APIView):
                                     },
                                     "status": {
                                         "type": "string",
-                                        "description": "Changement du statut du bâtiment.",
+                                        "description": f"Mise à jour du statut du bâtiment. Les valeurs possibles sont : <br /> {get_status_html_list()}<br />",
                                     },
                                     "addresses_cle_interop": {
                                         "type": "list",
-                                        "description": "Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.",
+                                        "description": "Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: [75105_8884_00004, 75105_8884_00006]",
                                     },
                                 },
                                 "required": ["comment"],
@@ -494,15 +503,8 @@ class SingleBuilding(APIView):
                     },
                 },
                 "responses": {
-                    "200": {
-                        "description": "Détails du bâtiment",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Building",
-                                }
-                            }
-                        },
+                    "204": {
+                        "description": "Pas de contenu attendu dans la réponse en cas de succès",
                     }
                 },
             }
