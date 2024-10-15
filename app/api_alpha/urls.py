@@ -21,8 +21,8 @@ router = routers.DefaultRouter()
 # router.register(r"buildings/guess", BuildingGuessView, basename="guess")
 router.register(r"contributions", ContributionsViewSet)
 router.register(r"buildings", BuildingViewSet)
-# router.register(r"ads/batch", ADSBatchViewSet)
 router.register(r"ads", ADSViewSet)
+
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
@@ -35,9 +35,20 @@ urlpatterns = [
     path("buildings/diff/", DiffView.as_view()),
     path("ads/token/", AdsTokenView.as_view()),
     path("ads/tiles/<int:x>/<int:y>/<int:z>.pbf", ADSVectorTileView.as_view()),
-    path("", include(router.urls)),
     path("login/", auth_views.obtain_auth_token),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", BuildingsVectorTileView.as_view()),
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
     # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
+
+
+# The /ads/ prefix is blocked by the adblockers
+# We create two sets of URLs to serve ADS on urls without /ads/ prefix
+# They will be used on the website but do not have to be in the documentation
+urlpatterns.append(
+    path("permis/tiles/<int:x>/<int:y>/<int:z>.pbf", ADSVectorTileView.as_view())
+)
+router.register(r"permis", ADSViewSet, basename="permis")
+
+# Add the router URLs to the urlpatterns
+urlpatterns.append(path("", include(router.urls)))
