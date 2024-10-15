@@ -797,11 +797,6 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
-
-class PermisViewSet(ADSViewSet):
-    pass
-
-
 class ADSVectorTileView(APIView):
     def get(self, request, x, y, z):
 
