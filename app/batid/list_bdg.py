@@ -6,9 +6,12 @@ from batid.models import City
 from batid.services.bdg_status import BuildingStatus
 
 
-def list_bdgs(params) -> QuerySet:
+def list_bdgs(params, only_active=True) -> QuerySet:
 
-    qs = Building.objects.all().filter(is_active=True)
+    qs = Building.objects.all()
+
+    if only_active:
+        qs = qs.filter(is_active=True)
 
     # By default, we sort on id since the column is indexed
     qs = qs.order_by("id")
@@ -60,6 +63,11 @@ def list_bdgs(params) -> QuerySet:
         city = City.objects.get(code_insee=insee_code)
         qs = qs.filter(shape__intersects=city.shape)
         # We have to order by created_at to avoid pagination issues on geographic queries
+        qs = qs.order_by("created_at")
+
+    cle_interop_ban = params.get("cle_interop_ban", None)
+    if cle_interop_ban:
+        qs = qs.filter(addresses_read_only__id=cle_interop_ban)
         qs = qs.order_by("created_at")
 
     return qs

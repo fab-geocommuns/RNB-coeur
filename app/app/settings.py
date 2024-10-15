@@ -210,6 +210,8 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# URL of the project
+URL = os.environ.get("URL")
 
 # Bat ID custom settings
 MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))
@@ -220,9 +222,10 @@ VCTR_TILES_MAX_ZOOM = 18
 
 # Mattermost
 MATTERMOST_NOTIFICATIONS = (
-    True if os.environ.get("MATTERMOST_NOTIFICATIONS") == 1 else False
+    True
+    if os.environ.get("MATTERMOST_NOTIFICATIONS") in ("true", "1", "True")
+    else False
 )
-
 
 sentry_dsn = os.environ.get("SENTRY_DSN", None)
 if sentry_dsn:

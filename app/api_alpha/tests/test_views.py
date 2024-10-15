@@ -6,6 +6,7 @@ from unittest import mock
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase
 from django.utils.http import urlencode
+from freezegun import freeze_time
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
@@ -102,7 +103,7 @@ class DiffTest(TransactionTestCase):
 
         self.assertEqual(r.status_code, 200)
         # parse the CSV response
-        diff_text = r.content.decode("utf-8")
+        diff_text = get_content_from_streaming_response(r)
         reader = csv.reader(io.StringIO(diff_text))
 
         # check the CSV header
@@ -186,7 +187,7 @@ class DiffTest(TransactionTestCase):
 
         self.assertEqual(r.status_code, 200)
         # parse the CSV response
-        diff_text = r.content.decode("utf-8")
+        diff_text = get_content_from_streaming_response(r)
         reader = csv.reader(io.StringIO(diff_text))
 
         _headers = next(reader)
@@ -232,9 +233,9 @@ class DiffTest(TransactionTestCase):
 
         r = self.client.get(url)
 
+        diff_text = get_content_from_streaming_response(r)
         self.assertEqual(r.status_code, 200)
-        # parse the CSV response
-        diff_text = r.content.decode("utf-8")
+
         reader = csv.reader(io.StringIO(diff_text))
 
         _headers = next(reader)
@@ -329,6 +330,7 @@ class ContributionTest(APITestCase):
             r.json(), {"rnb_id": "1", "text": "test", "email": "loulou@email.fr"}
         )
 
+    @freeze_time("2024-08-05")
     def test_ranking(self):
         from batid.models import Department_subdivided
 
@@ -450,3 +452,10 @@ class ContributionTest(APITestCase):
         # you cannot access a contribution after it has been created
         # I was expecting a 405, but DRF is returning a 404
         self.assertEqual(r.status_code, 404)
+
+
+def get_content_from_streaming_response(response):
+    # streaming response content is a generator stored in streaming_content
+    content = list(response.streaming_content)
+    # each element of the list is a byte string, that we need to decode
+    return "".join([b.decode("utf-8") for b in content])

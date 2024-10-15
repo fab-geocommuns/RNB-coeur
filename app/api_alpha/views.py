@@ -1,15 +1,19 @@
-import io
 import json
+import os
 from base64 import b64encode
+from datetime import datetime
 
 import requests
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.db import connection
 from django.db import transaction
-from django.http import Http404
 from django.http import HttpResponse
 from django.http import JsonResponse
+from django.http import StreamingHttpResponse
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
@@ -23,7 +27,6 @@ from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
-from rest_framework.decorators import api_view
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
@@ -42,6 +45,9 @@ from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
+from api_alpha.utils.rnb_doc import build_schema_dict
+from api_alpha.utils.rnb_doc import get_status_html_list
+from api_alpha.utils.rnb_doc import rnb_doc
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
@@ -51,7 +57,8 @@ from batid.services.closest_bdg import get_closest_from_point
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.vector_tiles import tile_sql
+from batid.services.vector_tiles import ads_tiles_sql
+from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
 from batid.utils.constants import ADS_GROUP_NAME
 
@@ -67,110 +74,81 @@ class RNBLoggingMixin(LoggingMixin):
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
-    @extend_schema(
-        tags=["Bâtiment"],
-        operation_id="guess_building",
-        summary="Identification de bâtiment",
-        description=(
-            "Ce endpoint permet de trouver un ou plusieurs bâtiments correspondant à une série de critères. "
-            "Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat."
-        ),
-        auth=[],
-        parameters=[
-            OpenApiParameter(
-                name="address",
-                description=(
-                    "Utilise les geocoders de la Base Adresse Nationale et d'Open Street Map pour tenter "
-                    "de géolocaliser l'adresse indiquée."
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Identification de bâtiment",
+                "description": (
+                    "Ce endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
                 ),
-                required=False,
-                type=str,
-                examples=[
-                    OpenApiExample(
-                        "Exemple d'adresse", value="10 rue de la paix, Mérignac"
-                    )
+                "operationId": "guessBuilding",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "in": "query",
+                        "description": "Adresse du bâtiment",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "1 rue de la paix, Mérignac",
+                    },
+                    {
+                        "name": "point",
+                        "in": "query",
+                        "description": "Coordonnées GPS du bâtiment. Format : <code>lat,lng</code>.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "44.84114313595151,-0.5705289444867035",
+                    },
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "description": "Nom du bâtiment. Est transmis à un géocoder OSM (<a href='https://github.com/komoot/photon'>Photon</a>).",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "Notre Dame de Paris",
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Numéro de page pour la pagination",
+                        "required": False,
+                        "schema": {"type": "integer"},
+                        "example": 1,
+                    },
                 ],
-            ),
-            OpenApiParameter(
-                name="name",
-                description=(
-                    "Utilise un geocoder Open Street Map pour tenter de géolocaliser le lieu donné."
-                ),
-                required=False,
-                type=str,
-                examples=[
-                    OpenApiExample("Exemple de lieu", value="Notre Dame de Paris")
-                ],
-            ),
-            OpenApiParameter(
-                name="point",
-                description=(
-                    "Favorise les bâtiments en fonction de leur position par rapport au point indiqué "
-                    "(latitude et longitude séparées par une virgule)."
-                ),
-                required=False,
-                type=str,
-                examples=[
-                    OpenApiExample(
-                        "Exemple de point",
-                        value="44.84114313595151,-0.5705289444867035",
-                    )
-                ],
-            ),
-            OpenApiParameter(
-                name="page",
-                description="Pagination des résultats de recherche.",
-                required=False,
-                type=int,
-                default=1,
-                examples=[OpenApiExample("Page par défaut", value=1)],
-            ),
-        ],
-        responses={
-            200: OpenApiResponse(
-                response=GuessBuildingSerializer(many=True),
-                examples=[
-                    OpenApiExample(
-                        name="Exemple",
-                        value={
-                            "rnb_id": "QBAAG16VCJWA",
-                            "score": 0.753986390,
-                            "status": "constructed",
-                            "point": {
-                                "type": "Point",
-                                "coordinates": [
-                                    3.584410393780201,
-                                    49.52799819019749,
-                                ],
-                            },
-                            "addresses": [
-                                {
-                                    "id": "02191_0020_00003",
-                                    "source": "bdnb",
-                                    "street_number": "3",
-                                    "street_rep": "",
-                                    "street_name": "de l'eglise",
-                                    "street_type": "rue",
-                                    "city_name": "Chivy-lès-Étouvelles",
-                                    "city_zipcode": "02000",
-                                    "city_insee_code": "02191",
+                "responses": {
+                    "200": {
+                        "description": "Liste des bâtiments identifiés triés par score descendant.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "allOf": [
+                                            {"$ref": "#/components/schemas/Building"},
+                                            {
+                                                "type": "object",
+                                                "properties": {
+                                                    "score": {
+                                                        "type": "number",
+                                                        "description": "Score de correspondance entre la requête et le bâtiment",
+                                                        "example": 0.8,
+                                                    },
+                                                    "sub_scores": {
+                                                        "type": "object",
+                                                        "description": "Liste des scores intermédiaires. Leur somme est égale au score principal.",
+                                                    },
+                                                },
+                                            },
+                                        ]
+                                    },
+                                    "type": "array",
                                 }
-                            ],
-                            "ext_ids": [
-                                {
-                                    "id": "bdnb-bc-3B85-TYM9-FDSX",
-                                    "source": "bdnb",
-                                    "created_at": "2023-12-07T13:20:58.310444+00:00",
-                                    "source_version": "2023_01",
-                                }
-                            ],
+                            }
                         },
-                    )
-                ],
-            ),
-            400: {"description": "Requête invalide"},
-            404: {"description": "Bâtiment non trouvé"},
-        },
+                    }
+                },
+            }
+        }
     )
     def get(self, request, *args, **kwargs):
         search = BuildingGuess()
@@ -335,11 +313,8 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     # pagination_class = PageNumberPagination
 
     def get_object(self):
-        try:
-            qs = list_bdgs({"user": self.request.user, "status": "all"})
-            return qs.get(rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
-        except Building.DoesNotExist:
-            raise Http404
+        qs = list_bdgs({"user": self.request.user, "status": "all"}, only_active=False)
+        return get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
 
     def get_queryset(self):
         query_params = self.request.query_params.dict()
@@ -349,158 +324,92 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
         return qs
 
-    @extend_schema(
-        tags=["Bâtiment"],
-        operation_id="list_buildings",
-        summary="Liste et recherche de bâtiments",
-        description=(
-            "Ce endpoint permet de récupérer une liste paginée de bâtiments. "
-            "Des filtres, notamment par code INSEE de la commune, sont disponibles."
-        ),
-        auth=[],
-        parameters=[
-            OpenApiParameter(
-                "bb",
-                str,
-                OpenApiParameter.QUERY,
-                description=(
-                    "Filtre les bâtiments grâce à une bounding box.<br/>\n"
-                    "Le format est nw_lat,nw_lng,se_lat,se_lng avec :<br/>\n"
-                    "• nw_lat : latitude du point Nord Ouest<br/>\n"
-                    "• nw_lng : longitude du point Nord Ouest<br/>\n"
-                    "• se_lat : latitude du point Sud Est<br/>\n"
-                    "• se_lng : longitude du point Sud Est<br/>\n"
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Liste des batiments",
+                "description": (
+                    "Ce endpoint permet de récupérer une liste paginée de bâtiments. "
+                    "Des filtres, notamment par code INSEE de la commune, sont disponibles. NB : l'URL se termine nécessairement par un slash (/)."
                 ),
-                examples=[
-                    OpenApiExample(
-                        "Exemple 1", value="48.845782,2.424525,48.839201,2.434158"
-                    )
+                "operationId": "listBuildings",
+                "parameters": [
+                    {
+                        "name": "insee_code",
+                        "in": "query",
+                        "description": "Filtre les bâtiments dont l'emprise au sol est située dans les limites géographiques de la commune ayant ce code INSEE.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "75101",
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "constructed,demolished",
+                    },
+                    {
+                        "name": "cle_interop_ban",
+                        "in": "query",
+                        "description": "Filtre les bâtiments associés à cette clé d'interopérabilité BAN.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "94067_7115_00073",
+                    },
+                    {
+                        "name": "bb",
+                        "in": "query",
+                        "description": (
+                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box"
+                            "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
+                            "Le format est <code>nw_lat,nw_lng,se_lat,se_lng</code> où : <br/>"
+                            "<ul>"
+                            "<li><b>nw_lat</b> : latitude du point Nord Ouest de la bounding box</li>"
+                            "<li><b>nw_lng</b> : longitude du point Nord Ouest de la bounding box</li>"
+                            "<li><b>se_lat</b> : latitude du point Sud Est de la bounding box</li>"
+                            "<li><b>se_lng</b> : longitude du point Sud Est de la bounding box</li>"
+                            "</ul><br />"
+                        ),
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "48.845782,2.424525,48.839201,2.434158",
+                    },
                 ],
-            ),
-            OpenApiParameter(
-                "status",
-                str,
-                OpenApiParameter.QUERY,
-                enum=[
-                    "constructed",
-                    "ongoingChange",
-                    "notUsable",
-                    "demolished",
-                    "constructionProject",
-                    "canceledConstructionProject",
-                ],
-                description=(
-                    "Filtre les bâtiments par statut.<br/><br/>\n"
-                    "• constructed : Bâtiment construit<br/>\n"
-                    "• ongoingChange : En cours de modification<br/>\n"
-                    "• notUsable : Non utilisable (ex : une ruine)<br/>\n"
-                    "• demolished : Démoli<br/>\n"
-                    "Statuts réservés aux instructeurs d’autorisation du droit des sols.<br/><br/>\n"
-                    "• constructionProject : Bâtiment en projet<br/>\n"
-                    "• canceledConstructionProject : Projet de bâtiment annulé"
-                ),
-                examples=[
-                    OpenApiExample(
-                        "Exemple 1",
-                        summary="Liste les bâtiments construits",
-                        value="constructed",
-                    ),
-                    OpenApiExample(
-                        "Exemple 2",
-                        summary="Liste les bâtiments construits ou démolis",
-                        value="constructed,demolished",
-                    ),
-                ],
-            ),
-            OpenApiParameter(
-                "insee_code",
-                str,
-                OpenApiParameter.QUERY,
-                description="Filtre les bâtiments grâce au code INSEE d'une commune.",
-                examples=[
-                    OpenApiExample(
-                        "Liste les bâtiments de la commune de Talence", value="33522"
-                    )
-                ],
-            ),
-        ],
-        responses={
-            200: OpenApiResponse(
-                response=BuildingSerializer(many=True),
-                examples=[
-                    OpenApiExample(
-                        name="Exemple",
-                        value=[
-                            {
-                                "rnb_id": "QBAAG16VCJWA",
-                                "status": "constructed",
-                                "point": {
-                                    "type": "Point",
-                                    "coordinates": [
-                                        3.584410393780201,
-                                        49.52799819019749,
-                                    ],
-                                },
-                                "addresses": [
-                                    {
-                                        "id": "02191_0020_00003",
-                                        "source": "bdnb",
-                                        "street_number": "3",
-                                        "street_rep": "",
-                                        "street_name": "de l'eglise",
-                                        "street_type": "rue",
-                                        "city_name": "Chivy-lès-Étouvelles",
-                                        "city_zipcode": "02000",
-                                        "city_insee_code": "02191",
-                                    }
-                                ],
-                                "ext_ids": [
-                                    {
-                                        "id": "bdnb-bc-3B85-TYM9-FDSX",
-                                        "source": "bdnb",
-                                        "created_at": "2023-12-07T13:20:58.310444+00:00",
-                                        "source_version": "2023_01",
-                                    }
-                                ],
-                            },
-                            {
-                                "rnb_id": "FXFJZNZYGTED",
-                                "status": "constructed",
-                                "point": {
-                                    "type": "Point",
-                                    "coordinates": [
-                                        5.775791408470412,
-                                        45.256939624268206,
-                                    ],
-                                },
-                                "addresses": [
-                                    {
-                                        "id": "02191_0020_00005",
-                                        "source": "bdnb",
-                                        "street_number": "5",
-                                        "street_rep": "",
-                                        "street_name": "de l'eglise",
-                                        "street_type": "rue",
-                                        "city_name": "Chivy-lès-Étouvelles",
-                                        "city_zipcode": "02000",
-                                        "city_insee_code": "02191",
-                                    }
-                                ],
-                                "ext_ids": [
-                                    {
-                                        "id": "bdnb-bc-3B86-TYM9-FRTS",
-                                        "source": "bdnb",
-                                        "created_at": "2023-12-07T13:25:58.310444+00:00",
-                                        "source_version": "2023_01",
-                                    }
-                                ],
-                            },
-                        ],
-                    )
-                ],
-            ),
-            400: {"description": "Requête invalide"},
-            404: {"description": "Bâtiment non trouvé"},
+                "responses": {
+                    "200": {
+                        "description": "Liste paginée de bâtiments",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "next": {
+                                            "type": "string",
+                                            "description": "<br />URL de la page de résultats suivante<br />",
+                                            "nullable": True,
+                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1",
+                                        },
+                                        "previous": {
+                                            "type": "string",
+                                            "description": "<br />URL de la page de résultats précédente<br />",
+                                            "nullable": True,
+                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR",
+                                        },
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Building",
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    }
+                },
+            },
         },
     )
     def list(self, request, *args, **kwargs):
@@ -509,65 +418,36 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         """
         return super().list(request, *args, **kwargs)
 
-    @extend_schema(
-        tags=["Bâtiment"],
-        operation_id="get_building",
-        summary="Consultation d'un bâtiment",
-        description=(
-            "Ce endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. "
-            "L'API renvoie les informations détaillées telles que l'ID du bâtiment, le statut, la géolocalisation, "
-            "les adresses associées et les identifiants externes."
-        ),
-        auth=[],
-        parameters=[
-            OpenApiParameter(
-                name="rnb_id",
-                description="Identifiant RNB du bâtiment",
-                required=True,
-                type=str,
-                location=OpenApiParameter.PATH,
-            )
-        ],
-        responses={
-            200: OpenApiResponse(
-                response=BuildingSerializer,
-                examples=[
-                    OpenApiExample(
-                        name="Exemple",
-                        value={
-                            "rnb_id": "QBAAG16VCJWA",
-                            "status": "constructed",
-                            "point": {
-                                "type": "Point",
-                                "coordinates": [3.584410393780201, 49.52799819019749],
-                            },
-                            "addresses": [
-                                {
-                                    "id": "02191_0020_00003",
-                                    "source": "bdnb",
-                                    "street_number": "3",
-                                    "street_rep": "",
-                                    "street_name": "de l'eglise",
-                                    "street_type": "rue",
-                                    "city_name": "Chivy-lès-Étouvelles",
-                                    "city_zipcode": "02000",
-                                    "city_insee_code": "02191",
-                                }
-                            ],
-                            "ext_ids": [
-                                {
-                                    "id": "bdnb-bc-3B85-TYM9-FDSX",
-                                    "source": "bdnb",
-                                    "created_at": "2023-12-07T13:20:58.310444+00:00",
-                                    "source_version": "2023_01",
-                                }
-                            ],
-                        },
-                    )
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Consultation d'un bâtiment",
+                "description": "Ce endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
+                "operationId": "getBuilding",
+                "parameters": [
+                    {
+                        "name": "rnb_id",
+                        "in": "path",
+                        "description": "Identifiant unique du bâtiment dans le RNB",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "PG46YY6YWCX8",
+                    }
                 ],
-            ),
-            404: {"description": "Bâtiment non trouvé"},
-        },
+                "responses": {
+                    "200": {
+                        "description": "Détails du bâtiment",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Building",
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
     )
     def retrieve(self, request, *args, **kwargs):
         """
@@ -917,7 +797,23 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-class GetVectorTileView(APIView):
+class ADSVectorTileView(APIView):
+    def get(self, request, x, y, z):
+
+        # might do : include a minimum zoom level as it is done for buildings
+        tile_dict = url_params_to_tile(x, y, z)
+        sql = ads_tiles_sql(tile_dict)
+
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            tile_file = cursor.fetchone()[0]
+
+        return HttpResponse(
+            tile_file, content_type="application/vnd.mapbox-vector-tile"
+        )
+
+
+class BuildingsVectorTileView(APIView):
     @extend_schema(
         tags=["Tile"],
         operation_id="get_vector_tile",
@@ -964,7 +860,7 @@ class GetVectorTileView(APIView):
         # Check the request zoom level
         if int(z) >= 16:
             tile_dict = url_params_to_tile(x, y, z)
-            sql = tile_sql(tile_dict, "point")
+            sql = bdgs_tiles_sql(tile_dict, "point")
 
             with connection.cursor() as cursor:
                 cursor.execute(sql)
@@ -981,7 +877,7 @@ def get_tile_shape(request, x, y, z):
     # Check the request zoom level
     if int(z) >= 16:
         tile_dict = url_params_to_tile(x, y, z)
-        sql = tile_sql(tile_dict, "shape")
+        sql = bdgs_tiles_sql(tile_dict, "shape")
 
         with connection.cursor() as cursor:
             cursor.execute(sql)
@@ -1033,122 +929,136 @@ def get_stats(request):
     return response
 
 
-@extend_schema(
-    tags=["Bâtiment"],
-    operation_id="get_building_diff",
-    summary="Obtenir les dernières modifications",
-    description=(
-        "Filtre les modifications apportées au RNB ayant eu lieu strictement après un datetime. "
-        "Les données sont retournées au format CSV. "
-        "Les modifications listées sont de trois types : create, update et delete. "
-        "Les modifications sont triées par rnb_id puis par date de modification croissante. "
-        "Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. "
-        "Par exemple, une création (create) suivie d'une mise à jour (update). "
-    ),
-    auth=[],
-    parameters=[
-        OpenApiParameter(
-            "since",
-            str,
-            OpenApiParameter.QUERY,
-            description=(
-                "Date et heure à partir de laquelle les modifications sont retournées.<br/>\n"
-                "Au format ISO 8601.<br/><br/>\n"
-                'Si un "+" est présent dans la date, il doit être encodé en %2B.<br/>\n'
-                "2024-04-02 15:29:44.26+01 => 2024-04-02 15:29:44.26%2B01<br/><br/>\n"
-                "Seules les dates après le 1er avril 2024 sont acceptées.<br/>\n"
-                "Une date inférieure reviendrait à télécharger l'intégralité de la base de données.<br/>\n"
-                "Ce qui peut être fait via https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/.<br/>\n"
-            ),
-            examples=[
-                OpenApiExample("Exemple 1", value="2024-04-02T00:00:00Z"),
-                OpenApiExample("Exemple 2", value="2024-04-02 15:29:44.267%2B01"),
-            ],
-        ),
-    ],
-    responses={
-        200: OpenApiResponse(
-            response=OpenApiTypes.STR,
-            examples=[
-                OpenApiExample(
-                    name="Exemple",
-                    value=(
-                        "action,rnb_id,status,sys_period,point,shape,addresses_id,ext_ids\n"
-                        'create,QBAAG16VCJWA,constructed,"[2024-04-02,)",POINT(3.584410393780201 49.52799819019749),,02191_0020_00003,\n'
-                        'update,QBAAG16VCJWA,constructed,"[2024-04-03,)",POINT(3.584410393780201 49.52799819019749),,02191_0020_00003,\n'
-                    ),
-                )
-            ],
-        ),
-        400: {
-            "description": "Le paramètre 'since' est manquant ou incorrect",
-        },
-        404: {
-            "description": "Aucune modification trouvée pour les critères donnés",
-        },
-    },
-)
-@api_view(["GET"])
-def get_diff(request):
-    # the day the quantity of data will be too big, we could stream the response
-    # see https://docs.djangoproject.com/en/5.0/howto/outputting-csv/#streaming-csv-files
+class DiffView(APIView):
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Différences depuis une date donnée",
+                "description": (
+                    "Liste l'ensemble des modifications apportées au RNB depuis une date données. Génère un fichier CSV. Voici les points importants à retenir : <br />"
+                    "<ul>"
+                    "<li>Les modifications listées sont de trois types : create, update et delete</li>"
+                    "<li>Les modifications sont triées par rnb_id puis par date de modification croissante</li>"
+                    "<li>Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. Par exemple, une création (create) suivie d'une mise à jour (update)</li>"
+                    "</ul>"
+                ),
+                "operationId": "getDiff",
+                "parameters": [
+                    {
+                        "name": "since",
+                        "in": "query",
+                        "description": (
+                            "Date et heure à partir de laquelle les modifications sont retournées. Le format est ISO 8601. <br />"
+                            "Seules les dates après le 1er avril 2024 sont acceptées.<br/>"
+                            "Une date antérieure reviendrait à télécharger l'intégralité de la base de données (l'ensemble de la base est <a href='https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/'>disponible ici</a>). "
+                        ),
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "2024-04-02T00:00:00Z",
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Fichier CSV listant l'ensemble des opérations ayant modifié le RNB depuis la date indiquée.",
+                        "content": {
+                            "text/csv": {
+                                "schema": {"type": "string"},
+                                "example": (
+                                    "action,rnb_id,status,sys_period,point,shape,addresses_id,ext_ids"
+                                ),
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    )
+    def get(self, request):
 
-    since_input = request.GET.get("since", "")
-    # parse since to a timestamp
-    since = parse_datetime(since_input)
+        # Alternative idea:
+        # In case the streaming solution becomes a problem (might be because of the process fork or any other reason), here is another idea for avoiding relying too heavily on the database:
+        # Since the list of modifications between two dates is static, we could precalculate large time chunks (eg: one each month) and save those results in CSV files. When the diff endpoint is requested, we could assemble some of those large CSV chunks into one, add remaining rows to complete the time period by fetching them from db and finally serve the combined file.
 
-    if since is None:
-        return HttpResponse("The 'since' parameter is missing or incorrect", status=400)
+        since_input = request.GET.get("since", "")
+        # parse since to a timestamp
+        since = parse_datetime(since_input)
 
-    # nobody should download the whole database
-    if since < parse_datetime("2024-04-01T00:00:00Z"):
-        return HttpResponse(
-            "The 'since' parameter must be after 2024-04-01T00:00:00Z",
-            status=400,
-        )
+        if since is None:
+            return HttpResponse(
+                "The 'since' parameter is missing or incorrect", status=400
+            )
+        # nobody should download the whole database
+        elif since < parse_datetime("2024-04-01T00:00:00Z"):
+            return HttpResponse(
+                "The 'since' parameter must be after 2024-04-01T00:00:00Z",
+                status=400,
+            )
 
-    with connection.cursor() as cursor:
-        sql_query = sql.SQL(
-            """
-            COPY (
-                select
-                CASE
-                    WHEN event_type = 'deletion' THEN 'delete'
-                    WHEN event_type = 'update' THEN 'update'
-                    WHEN event_type = 'split' and not is_active THEN 'delete'
-                    WHEN event_type = 'split' and is_active THEN 'create'
-                    WHEN event_type = 'merge' and not is_active THEN 'delete'
-                    WHEN event_type = 'merge' and is_active THEN 'create'
-                    ELSE 'create'
-                END as action,
-                rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
-            ) TO STDOUT WITH CSV HEADER
-            """
-        ).format(t=sql.Literal(since.isoformat()))
-
-        file_output = io.StringIO()
-        with transaction.atomic():
-            cursor.copy_expert(sql_query, file_output)
+        with connection.cursor() as cursor:
             most_recent_modification_query = sql.SQL(
                 """
                 select max(lower(sys_period)) from batid_building_with_history
                 """
             )
             cursor.execute(most_recent_modification_query)
+            most_recent_modification = cursor.fetchone()[0]
+            most_recent_modification = most_recent_modification.isoformat(sep="T")
 
-        # most recent modification datetime is used in the filename
-        # so the user knows what "since" parameter he should use next time
-        most_recent_modification = cursor.fetchone()[0]
-        most_recent_modification = most_recent_modification.isoformat(sep="T")
+        # file descriptors r, w for reading and writing
+        r, w = os.pipe()
+        # the process is forked
+        # would it be possible to avoid creating a new process
+        # and keep the streaming feature?
+        # https://stackoverflow.com/questions/78998534/stream-data-from-postgres-to-http-request-using-django-streaminghttpresponse?noredirect=1#comment139290268_78998534
+        processid = os.fork()
 
-        file_output.seek(0)
-        response = HttpResponse(
-            file_output.getvalue(), content_type="text/csv", status=200
-        )
-        response[
-            "Content-Disposition"
-        ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
-        return response
+        if processid:
+            # This is the parent process
+            # the parent will only read data coming from the child process, we can close w
+            os.close(w)
+            # data coming from the child process arrives here
+            r = os.fdopen(r)
+            return StreamingHttpResponse(
+                r,
+                content_type="text/csv",
+                headers={
+                    "Content-Disposition": f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+                },
+            )
+        else:
+            # This is the child process
+            # the child will only write data, we can close r
+            os.close(r)
+            w = os.fdopen(w, "w")
+
+            with connection.cursor() as cursor:
+                sql_query = sql.SQL(
+                    """
+                    COPY (
+                        select
+                        CASE
+                            WHEN event_type = 'deletion' THEN 'delete'
+                            WHEN event_type = 'update' THEN 'update'
+                            WHEN event_type = 'split' and not is_active THEN 'delete'
+                            WHEN event_type = 'split' and is_active THEN 'create'
+                            WHEN event_type = 'merge' and not is_active THEN 'delete'
+                            WHEN event_type = 'merge' and is_active THEN 'create'
+                            ELSE 'create'
+                        END as action,
+                        rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb
+                        where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone order by rnb_id, lower(sys_period)
+                    ) TO STDOUT WITH CSV HEADER
+                    """
+                ).format(
+                    start=sql.Literal(since.isoformat()),
+                    end=sql.Literal(most_recent_modification),
+                )
+                # the data coming from the query is streamed to the file descriptor w
+                # and will be received by the parent process as a stream
+                cursor.copy_expert(sql_query, w)
+            w.close()
+            # the child process is terminated
+            os._exit(0)
 
 
 @extend_schema(exclude=True)
@@ -1180,7 +1090,8 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         departement = departement_ranking()
         city = city_ranking()
         all_contributions = Contribution.objects.filter(
-            status__in=["fixed", "pending"]
+            status__in=["fixed", "pending"],
+            created_at__lt=timezone.make_aware(datetime(2024, 9, 4)),
         ).count()
         data = {
             "individual": individual,
@@ -1207,7 +1118,11 @@ def get_contributor_count_and_rank(email):
 
 def individual_ranking():
     rawSql = """
-    select count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null and email != '' and status != 'refused' group by email order by count desc;
+    select count(*) as count, rank() over(order by count(*) desc)
+    from batid_contribution
+    where email is not null and email != '' and status != 'refused' and created_at < '2024-09-04'
+    group by email
+    order by count desc;
     """
 
     with connection.cursor() as cursor:
@@ -1222,7 +1137,7 @@ def departement_ranking():
     from batid_contribution c
     left join batid_building b on c.rnb_id = b.rnb_id
     left join batid_department_subdivided d on ST_Contains(d.shape, b.point)
-    where c.status != 'refused'
+    where c.status != 'refused' and c.created_at < '2024-09-04'
     group by d.code, d.name
     order by count_dpt desc, d.code asc;
     """
@@ -1239,7 +1154,7 @@ def city_ranking():
     from batid_contribution c
     inner join batid_building b on c.rnb_id = b.rnb_id
     inner join batid_city city on ST_Contains(city.shape, b.point)
-    where c.status != 'refused'
+    where c.status != 'refused' and c.created_at < '2024-09-04'
     group by city.code_insee, city.name
     order by count_city desc, city.code_insee asc;
     """
@@ -1320,3 +1235,18 @@ class TokenScheme(OpenApiAuthenticationExtension):
             "Exemple:\n\n"
             "`Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b`",
         }
+
+
+def get_schema(request):
+
+    import yaml
+
+    schema_dict = build_schema_dict()
+    schema_yml = yaml.dump(
+        schema_dict, default_flow_style=False, allow_unicode=True, sort_keys=False
+    )
+
+    response = HttpResponse(schema_yml, content_type="application/x-yaml")
+    response["Content-Disposition"] = 'attachment; filename="schema.yml"'
+
+    return response

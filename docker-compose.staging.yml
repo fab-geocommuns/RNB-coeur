@@ -32,6 +32,7 @@ services:
       - VIRTUAL_HOST=staging.rnb-api.beta.gouv.fr
       - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=staging.rnb-api.beta.gouv.fr
+      - URL=https://staging.rnb-api.beta.gouv.fr
 
   worker:
     extends:
@@ -46,7 +47,6 @@ services:
       - ./.env.worker.staging
       - ./.env.rnb.staging
       - ./.env.sentry.staging
-
   rabbitmq:
     extends:
       file: common-services.yml

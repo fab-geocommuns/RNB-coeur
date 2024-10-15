@@ -4,6 +4,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
+from batid.models import Address
 from batid.models import Building
 from batid.models import Organization
 from batid.models import User
@@ -139,6 +140,66 @@ class BuildingsEndpointsTest(APITestCase):
         # No building should be returned
         self.assertEqual(len(r.json()["results"]), 0)
 
+    def test_bdg_with_cle_interop_ban(self):
+        cle_interop_ban = "33522_2620_00021"
+        Address.objects.create(id=cle_interop_ban)
+        Address.objects.create(id="123")
+
+        bdg = Building.objects.create(
+            rnb_id="XXX",
+            point=GEOSGeometry("POINT(0 0)"),
+            addresses_id=[cle_interop_ban],
+        )
+
+        # other buildings
+        Building.objects.create(rnb_id="YYY", addresses_id=["123"])
+        Building.objects.create(rnb_id="ZZZ", addresses_id=[])
+
+        r = self.client.get(f"/api/alpha/buildings/?cle_interop_ban={cle_interop_ban}")
+        self.assertEqual(r.status_code, 200)
+
+        expected = {
+            "previous": None,
+            "next": None,
+            "results": [
+                {
+                    "addresses": [
+                        {
+                            "id": "33522_2620_00021",
+                            "source": "",
+                            "street_number": None,
+                            "street_rep": None,
+                            "street_name": None,
+                            "street_type": None,
+                            "city_name": None,
+                            "city_zipcode": None,
+                            "city_insee_code": None,
+                        }
+                    ],
+                    "ext_ids": None,
+                    "status": "constructed",
+                    "point": {
+                        "coordinates": [0.0, 0.0],
+                        "type": "Point",
+                    },
+                    "rnb_id": "XXX",
+                    "is_active": True,
+                }
+            ],
+        }
+
+        data = r.json()
+
+        self.assertEqual(len(data["results"]), 1)
+        self.assertDictEqual(data, expected)
+
+        bdg.is_active = False
+        bdg.save()
+
+        r = self.client.get(f"/api/alpha/buildings/?cle_interop_ban={cle_interop_ban}")
+        # No building should be returned
+        self.assertEqual(len(r.json()["results"]), 0)
+
     def test_buildings_root(self):
         r = self.client.get("/api/alpha/buildings/")
         self.assertEqual(r.status_code, 200)
@@ -193,7 +254,7 @@ class BuildingsEndpointsTest(APITestCase):
 
         self.assertEqual(r.json(), expected)
 
-    def test_non_active_buildings_are_excluded(self):
+    def test_non_active_buildings_are_excluded_from_list(self):
         building = Building.objects.get(rnb_id="BDGSRNBBIDID")
 
         r = self.client.get("/api/alpha/buildings/")
@@ -206,6 +267,15 @@ class BuildingsEndpointsTest(APITestCase):
         r = self.client.get("/api/alpha/buildings/")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(len(r.json()["results"]), 1)
+
+    def test_non_active_building_individual_request_ok(self):
+        Building.objects.create(
+            rnb_id="XXX", point=GEOSGeometry("POINT (0 0)"), is_active=False
+        )
+        r = self.client.get("/api/alpha/buildings/XXX/")
+        self.assertEqual(r.status_code, 200)
+        result = r.json()
+        self.assertEqual(result["is_active"], False)
 
 
 class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
