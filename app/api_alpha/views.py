@@ -505,7 +505,6 @@ class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
             raise ParseError({"errors": "No data in the request."})
 
 
-
 class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     queryset = ADS.objects.all()
     serializer_class = ADSSerializer

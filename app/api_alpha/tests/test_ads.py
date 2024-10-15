@@ -1336,7 +1336,6 @@ class ADSEnpointsNoAuthTest(APITestCase):
 
         self.assertEqual(r.status_code, 401)
 
-
     # Adblockers are blocking requests where "ads" is in the URL
     # We created a new endpoint to provide the ADS data on the website
 
