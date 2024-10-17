@@ -452,13 +452,13 @@ class SingleBuilding(APIView):
         {
             "patch": {
                 "summary": "Mise à jour ou désactivation d'un bâtiment",
-                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB. Il permet de mettre à jour un bâtiment existant (status, addresses_cle_interop) ou bien de le désactiver (not_a_building) s'il s'avère qu'il ne devrait pas faire partir du RNB (par exemple un arbre qui serait repertorié comme un bâtiment du RNB).
+                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB. Il permet de mettre à jour un bâtiment existant (status, addresses_cle_interop) ou bien de le désactiver (is_active) s'il s'avère qu'il ne devrait pas faire partir du RNB (par exemple un arbre qui serait repertorié comme un bâtiment du RNB).
                 <br/><br/>
                 Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver.
                 <br/><br/>
                 Exemples valides: <br/>
                 <ul>
-                    <li>{"comment": "faux bâtiment", "not_a_building": True}</li>
+                    <li>{"comment": "faux bâtiment", "is_active": False}</li>
                     <li>{"comment": "bâtiment démoli", "status": "demolished"}</li>
                     <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": [75105_8884_00004]}</li>
                 </ul>""",
@@ -484,7 +484,7 @@ class SingleBuilding(APIView):
                                         "type": "string",
                                         "description": """Texte associé à la modification et la justifiant. <br /><br />Exemple : "Ce n'est pas un bâtiment mais un arbre." """,
                                     },
-                                    "not_a_building": {
+                                    "is_active": {
                                         "type": "boolean",
                                         "description": "Une seule valeure est autorisée : True. Signifie que le bâtiment est désactivé, car sa présence dans le RNB est une erreur. Ne permet pas de signaler une démolition, qui se fait plutôt par une mise à jour du statut.",
                                     },
@@ -532,9 +532,9 @@ class SingleBuilding(APIView):
                     "contribution_id": contribution.id,
                 }
 
-                if data.get("not_a_building") == True:
+                if data.get("is_active") == False:
                     # a building that is not a building is soft deleted from the base
-                    building.soft_delete(user, event_origin)
+                    building.deactivate(user, event_origin)
                 else:
                     status = data.get("status")
                     addresses_cle_interop = data.get("addresses_cle_interop")

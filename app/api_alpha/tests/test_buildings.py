@@ -461,7 +461,7 @@ class BuildingPatchTest(APITestCase):
 
     def test_update_a_building_permission(self):
         data = {
-            "not_a_building": True,
+            "is_active": False,
             "comment": "ce n'est pas un batiment, mais un bosquet",
         }
 
@@ -497,7 +497,7 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(r.status_code, 400)
 
         # not a building
-        data = {"not_a_building": True, "comment": "not a building"}
+        data = {"is_active": False, "comment": "not a building"}
         r = self.client.patch(
             f"/api/alpha/buildings/{self.rnb_id}/",
             data=json.dumps(data),
@@ -567,7 +567,7 @@ class BuildingPatchTest(APITestCase):
 
         # can either deactivate or update
         data = {
-            "not_a_building": True,
+            "is_active": False,
             "status": "demolished",
             "comment": "je fais nimp je suis un fou",
         }
@@ -578,10 +578,10 @@ class BuildingPatchTest(APITestCase):
         )
         self.assertEqual(r.status_code, 400)
 
-    def test_not_a_building(self):
+    def test_deactivate(self):
         self.user.groups.add(self.group)
         comment = "not a building"
-        data = {"not_a_building": True, "comment": comment}
+        data = {"is_active": False, "comment": comment}
         r = self.client.patch(
             f"/api/alpha/buildings/{self.rnb_id}/",
             data=json.dumps(data),

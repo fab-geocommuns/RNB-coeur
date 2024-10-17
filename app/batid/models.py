@@ -145,13 +145,14 @@ class Building(BuildingAbstract):
         return self.point_geojson()["coordinates"][0]
 
     @transaction.atomic
-    def soft_delete(self, user: User, event_origin):
+    def deactivate(self, user: User, event_origin):
         """
         IMPORTANT NOTICE: this method must only be used in the case the building was never meant to be in the RNB.
         eg: some trees were visually considered as a building and added to the RNB.
         ----
         It is not expected to hard delete anything in the RNB, as it would break our capacity to audit its history.
-        This soft delete method is used to mark a building as inactive, with an event_type "delete"
+        This deactivate method is used to mark a RNB_ID as inactive, with an associated event_type "delete"
+        TO DO event_type "delete" should also be renamed "deactivate" in the future
         """
         if self.is_active:
             self.event_type = "delete"

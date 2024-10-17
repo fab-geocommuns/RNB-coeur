@@ -167,7 +167,7 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
 
 
 class BuildingUpdateSerializer(serializers.Serializer):
-    not_a_building = serializers.BooleanField(required=False)
+    is_active = serializers.BooleanField(required=False)
     status = serializers.ChoiceField(
         choices=BuildingStatus.ALL_TYPES_KEYS, required=False
     )
@@ -179,22 +179,22 @@ class BuildingUpdateSerializer(serializers.Serializer):
     comment = serializers.CharField(min_length=4, required=True)
 
     def validate(self, data):
-        if data.get("not_a_building") is not None and (
+        if data.get("is_active") is not None and (
             data.get("status") is not None
             or data.get("addresses_cle_interop") is not None
         ):
             raise serializers.ValidationError(
-                "you need to either set not_a_building or set status/addresses, not both at the same time"
+                "you need to either set is_active or set status/addresses, not both at the same time"
             )
         if (
-            data.get("not_a_building") is None
+            data.get("is_active") is None
             and data.get("status") is None
             and data.get("addresses_cle_interop") is None
         ):
             raise serializers.ValidationError("empty arguments in the request body")
 
-        if data.get("not_a_building") == False:
-            raise serializers.ValidationError("you can only set not_a_building to True")
+        if data.get("is_active") == True:
+            raise serializers.ValidationError("you can only set is_active to False")
 
         return data
 
