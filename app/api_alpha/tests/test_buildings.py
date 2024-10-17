@@ -1,11 +1,14 @@
 import json
 
+from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
+from api_alpha.permissions import RNBContributorPermission
 from batid.models import Address
 from batid.models import Building
+from batid.models import Contribution
 from batid.models import Organization
 from batid.models import User
 from batid.tests.helpers import create_bdg
@@ -270,9 +273,9 @@ class BuildingsEndpointsTest(APITestCase):
 
     def test_non_active_building_individual_request_ok(self):
         Building.objects.create(
-            rnb_id="XXX", point=GEOSGeometry("POINT (0 0)"), is_active=False
+            rnb_id="XXXXYYYYZZZZ", point=GEOSGeometry("POINT (0 0)"), is_active=False
         )
-        r = self.client.get("/api/alpha/buildings/XXX/")
+        r = self.client.get("/api/alpha/buildings/XXXXYYYYZZZZ/")
         self.assertEqual(r.status_code, 200)
         result = r.json()
         self.assertEqual(result["is_active"], False)
@@ -437,3 +440,195 @@ class BuildingClosestViewTest(APITestCase):
 
         self.assertEqual(r.status_code, 200)
         self.assertDictEqual(r.json(), {"message": "No building found in the area"})
+
+
+class BuildingPatchTest(APITestCase):
+    def setUp(self) -> None:
+        self.user = User.objects.create_user(
+            first_name="Robert", last_name="Dylan", username="bob"
+        )
+
+        token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+
+        self.rnb_id = "XXXXYYYYZZZZ"
+        self.building = Building.objects.create(rnb_id=self.rnb_id)
+        self.group, created = Group.objects.get_or_create(
+            name=RNBContributorPermission.group_name
+        )
+        self.adr1 = Address.objects.create(id="cle_interop_1")
+        self.adr2 = Address.objects.create(id="cle_interop_2")
+
+    def test_update_a_building_permission(self):
+        data = {
+            "is_active": False,
+            "comment": "ce n'est pas un batiment, mais un bosquet",
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 403)
+
+        self.user.groups.add(self.group)
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+
+    def test_update_a_building_parameters(self):
+        self.user.groups.add(self.group)
+
+        # empty data
+        data = {}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+
+        # not a building
+        data = {"is_active": False, "comment": "not a building"}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+
+        # update status ok
+        data = {"status": "demolished", "comment": "démoli"}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+
+        # update status : unauthorized status
+        data = {"status": "painted_black", "comment": "peint en noir"}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+
+        # update status and addresses
+
+        data = {
+            "status": "constructed",
+            "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+            "comment": "mise à jour status et adresses",
+        }
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+
+        # comment is mandatory
+        data = {
+            "status": "constructed",
+            "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+            "comment": "",
+        }
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 400)
+
+        data = {
+            "status": "constructed",
+            "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+        }
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 400)
+
+        # can either deactivate or update
+        data = {
+            "is_active": False,
+            "status": "demolished",
+            "comment": "je fais nimp je suis un fou",
+        }
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_deactivate(self):
+        self.user.groups.add(self.group)
+        comment = "not a building"
+        data = {"is_active": False, "comment": comment}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.building.refresh_from_db()
+        contributions = Contribution.objects.all()
+        contribution = contributions[0]
+
+        self.assertEqual(self.building.event_type, "delete")
+        self.assertEqual(
+            self.building.event_origin,
+            {"source": "contribution", "contribution_id": contribution.id},
+        )
+        self.assertEqual(contribution.status, "fixed")
+        self.assertEqual(contribution.text, comment)
+        self.assertEqual(contribution.review_user, self.user)
+
+    def test_update_building(self):
+        self.user.groups.add(self.group)
+        comment = "maj du batiment"
+        data = {
+            "status": "notUsable",
+            "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+            "comment": comment,
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.building.refresh_from_db()
+        contributions = Contribution.objects.all()
+        contribution = contributions[0]
+
+        self.assertEqual(self.building.event_type, "update")
+        self.assertEqual(self.building.status, "notUsable")
+        self.assertEqual(self.building.addresses_id, [self.adr1.id, self.adr2.id])
+        self.assertEqual(
+            self.building.event_origin,
+            {"source": "contribution", "contribution_id": contribution.id},
+        )
+        self.assertEqual(contribution.status, "fixed")
+        self.assertEqual(contribution.text, comment)
+        self.assertEqual(contribution.review_user, self.user)

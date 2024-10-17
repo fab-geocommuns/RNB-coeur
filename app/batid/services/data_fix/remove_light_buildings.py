@@ -164,7 +164,7 @@ def remove_light_buildings(folder_name, username, fix_id):
 
         for rnb_id in df["rnb_id"]:
             building = Building.objects.get(rnb_id=rnb_id)
-            building.soft_delete(user, {"source": "data_fix", "id": fix_id})
+            building.deactivate(user, {"source": "data_fix", "id": fix_id})
 
         # if transaction is successful, remove the folder
         transaction.on_commit(lambda: shutil.rmtree(folder_name))

@@ -108,7 +108,7 @@ class TestBuilding(TestCase):
                 f"Cannot merge inactive buildings.",
             )
 
-    def test_soft_delete(self):
+    def test_deactivate(self):
         """
         Simplest test of the soft delete.
         """
@@ -116,7 +116,7 @@ class TestBuilding(TestCase):
 
         user = User.objects.create_user(username="dummy")
 
-        bdg.soft_delete(user, {"k": "v"})
+        bdg.deactivate(user, {"k": "v"})
         bdg.refresh_from_db()
 
         self.assertFalse(bdg.is_active)
@@ -125,13 +125,13 @@ class TestBuilding(TestCase):
         self.assertEqual(bdg.event_origin, {"k": "v"})
         self.assertIsNotNone(bdg.event_id)
 
-    def test_no_soft_delete_inactive_buildings(self):
+    def test_no_deactivate_inactive_buildings(self):
         """
         An inactive building soft-delete is ignored.
         """
         bdg = Building.objects.create(rnb_id="AAA", shape="POINT(0 0)", is_active=False)
         user = User.objects.create_user(username="dummy")
-        bdg.soft_delete(user, {"k": "v"})
+        bdg.deactivate(user, {"k": "v"})
         bdg.refresh_from_db()
 
         # nothing has changed
@@ -141,7 +141,7 @@ class TestBuilding(TestCase):
         self.assertIsNone(bdg.event_origin)
         self.assertIsNone(bdg.event_id)
 
-    def test_soft_delete_with_contributions(self):
+    def test_deactivate_with_contributions(self):
         """
         Test some scenario with contributions linked (or not) to soft deleted building.
         """
@@ -149,7 +149,7 @@ class TestBuilding(TestCase):
 
         user = User.objects.create_user(username="dummy")
 
-        # This is pending, it must be refused after soft_delete
+        # This is pending, it must be refused after deactivation
         contrib_pending = Contribution.objects.create(
             rnb_id="AAA", status="pending", text="dummy"
         )
@@ -164,9 +164,9 @@ class TestBuilding(TestCase):
             rnb_id="BBB", status="pending", text="dummy"
         )
 
-        bdg.soft_delete(user, {"k": "v"})
+        bdg.deactivate(user, {"k": "v"})
 
-        # Check the first contrib has changed after the soft_delete
+        # Check the first contrib has changed after the deactivation
         contrib_pending.refresh_from_db()
         self.assertEqual(contrib_pending.status, "refused")
         self.assertEqual(contrib_pending.review_user, user)
