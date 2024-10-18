@@ -452,7 +452,12 @@ class SingleBuilding(APIView):
         {
             "patch": {
                 "summary": "Mise à jour ou désactivation d'un bâtiment",
-                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB. Il permet de mettre à jour un bâtiment existant (status, addresses_cle_interop) ou bien de le désactiver (is_active) s'il s'avère qu'il ne devrait pas faire partir du RNB (par exemple un arbre qui serait repertorié comme un bâtiment du RNB).
+                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
+                Il permet de :
+                <ul>
+                    <li> mettre à jour un bâtiment existant (status, addresses_cle_interop)</li>
+                    <li> de le désactiver (is_active) s'il s'avère qu'il ne devrait pas faire partir du RNB. Par exemple un arbre qui aurait été par erreur repertorié comme un bâtiment du RNB.</li>
+                </ul>
                 <br/><br/>
                 Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver.
                 <br/><br/>
@@ -486,7 +491,7 @@ class SingleBuilding(APIView):
                                     },
                                     "is_active": {
                                         "type": "boolean",
-                                        "description": "Une seule valeure est autorisée : True. Signifie que le bâtiment est désactivé, car sa présence dans le RNB est une erreur. Ne permet pas de signaler une démolition, qui se fait plutôt par une mise à jour du statut.",
+                                        "description": "Une seule valeure est autorisée : False. Signifie que le bâtiment est désactivé, car sa présence dans le RNB est une erreur. Ne permet pas de signaler une démolition, qui se fait plutôt par une mise à jour du statut.",
                                     },
                                     "status": {
                                         "type": "string",
