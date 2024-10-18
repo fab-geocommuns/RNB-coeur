@@ -7,7 +7,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0089_department_subdivided"),
+        ("batid", "0091_alter_ads_options_datafix"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
