@@ -223,7 +223,7 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
         r = self.client.get(
             "/api/alpha/ads/ADS-GRENOBLE/", content_type="application/json"
         )
-        self.assertEqual(r.status_code, 403)
+        self.assertEqual(r.status_code, 200)
 
 
 class ADSEndpointsWithAuthTest(APITestCase):
@@ -1317,7 +1317,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
 class ADSEnpointsNoAuthTest(APITestCase):
     def setUp(self) -> None:
-        grenoble = create_grenoble()
+        create_grenoble()
 
         ADS.objects.create(file_number="ADS-TEST-UPDATE-BDG", decided_at="2025-01-01")
 
@@ -1325,13 +1325,24 @@ class ADSEnpointsNoAuthTest(APITestCase):
 
     def test_ads_root(self):
         r = self.client.get("/api/alpha/ads/")
-        self.assertEqual(r.status_code, 401)
+        self.assertEqual(r.status_code, 200)
 
     def test_ads_detail(self):
         r = self.client.get("/api/alpha/ads/ADS-TEST-UPDATE-BDG/")
-        self.assertEqual(r.status_code, 401)
+        self.assertEqual(r.status_code, 200)
 
     def test_ads_cant_delete(self):
         r = self.client.delete("/api/alpha/ads/ADS-TEST-DELETE/")
 
         self.assertEqual(r.status_code, 401)
+
+    # Adblockers are blocking requests where "ads" is in the URL
+    # We created a new endpoint to provide the ADS data on the website
+
+    def test_permis_root(self):
+        r = self.client.get("/api/alpha/permis/")
+        self.assertEqual(r.status_code, 200)
+
+    def test_permis_detail(self):
+        r = self.client.get("/api/alpha/permis/ADS-TEST-UPDATE-BDG/")
+        self.assertEqual(r.status_code, 200)
