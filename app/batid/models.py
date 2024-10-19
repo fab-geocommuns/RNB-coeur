@@ -260,6 +260,7 @@ class Building(BuildingAbstract):
             # lower is used to create an index on the start of the time range
             Index(Lower("sys_period"), name="bdg_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_event_type_idx"),
+            GinIndex(fields=["parent_buildings"], name="bdg_parent_buildings_idx"),
         ]
 
 
@@ -293,6 +294,7 @@ class BuildingHistoryOnly(BuildingAbstract):
             models.Index(fields=("status",), name="bdg_history_status_idx"),
             Index(Lower("sys_period"), name="bdg_hist_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_history_event_type_idx"),
+            GinIndex(fields=["parent_buildings"], name="bdg_hist_parent_buildings_idx"),
         ]
 
 
