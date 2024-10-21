@@ -136,6 +136,9 @@ class Building(BuildingAbstract):
         return json.loads(self.point.transform(4326, clone=True).geojson)
 
     def shape_geojson(self):
+        if not self.shape:
+            return None
+
         # todo : is there a better way to go from a GeometryField to geojson dict ?
         # We are doing points > dict > json str > dict. It is inefficient.
         return json.loads(self.shape.transform(4326, clone=True).geojson)
