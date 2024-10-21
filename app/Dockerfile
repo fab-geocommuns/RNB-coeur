@@ -4,7 +4,8 @@ WORKDIR /app
 
 RUN apt-get update && \
     apt-get install --yes libgdal-dev && \
-    apt-get install --no-install-suggests --no-install-recommends --yes pipx
+    apt-get install --no-install-suggests --no-install-recommends --yes pipx && \
+    apt-get install --yes --fix-missing graphviz
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -12,6 +13,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     # by default venv path would be set in /root folder and that would creates permission issues
     POETRY_VIRTUALENVS_PATH="/python_venv" \
     PATH="/root/.local/bin:${PATH}"
+
+
 
 RUN pipx install poetry==${POETRY_VERSION}
 
@@ -30,6 +33,9 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 RUN useradd --no-create-home --system --uid 1000 --user-group worker
 
 FROM base as app_web
+
+
+
 COPY entrypoint.sh ./
 ENTRYPOINT ["./entrypoint.sh"]
 
