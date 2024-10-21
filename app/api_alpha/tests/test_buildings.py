@@ -2,7 +2,6 @@ import json
 
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
-from numpy.ma.core import shape
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
@@ -249,7 +248,7 @@ class BuildingsEndpointsTest(APITestCase):
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
                     },
-                    'shape': {
+                    "shape": {
                         "coordinates": [
                             [
                                 [
@@ -295,13 +294,19 @@ class BuildingsEndpointsTest(APITestCase):
                 "type": "Point",
                 "coordinates": [1.065566787499344, 46.634163236377134],
             },
-            'shape': {
-                'type': 'MultiPolygon',
-                'coordinates': [[[[1.065470595587726, 46.63423852982024],
-                                  [1.065454930919401, 46.634105152847496],
-                                  [1.065664837466102, 46.63409009413692],
-                                  [1.065677369200159, 46.63422131990677],
-                                  [1.065470595587726, 46.63423852982024]]]]
+            "shape": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [1.065470595587726, 46.63423852982024],
+                            [1.065454930919401, 46.634105152847496],
+                            [1.065664837466102, 46.63409009413692],
+                            [1.065677369200159, 46.63422131990677],
+                            [1.065470595587726, 46.63423852982024],
+                        ]
+                    ]
+                ],
             },
             "addresses": [],
             "is_active": True,
@@ -367,7 +372,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
                     },
-                    'shape': {
+                    "shape": {
                         "coordinates": [
                             [
                                 [
