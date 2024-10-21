@@ -144,7 +144,7 @@ def _get_components() -> dict:
                             "type": {
                                 "type": "string",
                                 "enum": ["Point", "Polygon", "MultiPolygon"],
-                                "example": "Point"
+                                "example": "Point",
                             },
                             "coordinates": {
                                 "type": "array",
@@ -153,26 +153,31 @@ def _get_components() -> dict:
                                         {
                                             "type": "array",
                                             "description": "Coordonnées pour un Point",
-                                            "items": {
-                                                "type": "number"
-                                            },
-                                            "example": [-0.570505392116188, 44.841034137099996]
+                                            "items": {"type": "number"},
+                                            "example": [
+                                                -0.570505392116188,
+                                                44.841034137099996,
+                                            ],
                                         },
                                         {
                                             "type": "array",
                                             "description": "Coordonnées pour un Polygon",
                                             "items": {
                                                 "type": "array",
-                                                "items": {
-                                                    "type": "number"
-                                                }
+                                                "items": {"type": "number"},
                                             },
                                             "example": [
                                                 [
-                                                    [-0.570505392116188, 44.841034137099996],
-                                                    [-0.570505392116188, 44.841034137099996]
+                                                    [
+                                                        -0.570505392116188,
+                                                        44.841034137099996,
+                                                    ],
+                                                    [
+                                                        -0.570505392116188,
+                                                        44.841034137099996,
+                                                    ],
                                                 ]
-                                            ]
+                                            ],
                                         },
                                         {
                                             "type": "array",
@@ -181,20 +186,24 @@ def _get_components() -> dict:
                                                 "type": "array",
                                                 "items": {
                                                     "type": "array",
-                                                    "items": {
-                                                        "type": "number"
-                                                    }
-                                                }
+                                                    "items": {"type": "number"},
+                                                },
                                             },
                                             "example": [
                                                 [
                                                     [
-                                                        [-0.570505392116188, 44.841034137099996],
-                                                        [-0.570505392116188, 44.841034137099996]
+                                                        [
+                                                            -0.570505392116188,
+                                                            44.841034137099996,
+                                                        ],
+                                                        [
+                                                            -0.570505392116188,
+                                                            44.841034137099996,
+                                                        ],
                                                     ]
                                                 ]
-                                            ]
-                                        }
+                                            ],
+                                        },
                                     ]
                                 },
                             },
