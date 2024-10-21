@@ -77,6 +77,17 @@ class BuildingSerializer(serializers.ModelSerializer):
                             ]
                         }""",
     )
+    shape = serializers.DictField(
+        source="shape_geojson",
+        read_only=True,
+        help_text="""{
+                            "type": "Polygon",
+                            "coordinates": [[
+                                [100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
+                                [100.0, 1.0], [100.0, 0.0]
+                             ]]
+                        }""",
+    )
     addresses = AddressSerializer(
         many=True, read_only=True, source="addresses_read_only"
     )
@@ -88,6 +99,7 @@ class BuildingSerializer(serializers.ModelSerializer):
             "rnb_id",
             "status",
             "point",
+            "shape",
             "addresses",
             "ext_ids",
             "is_active",

@@ -16,8 +16,9 @@ from batid.tests.helpers import create_grenoble
 
 
 class BuildingsEndpointsTest(APITestCase):
-    def setUp(self) -> None:
+    maxDiff = None
 
+    def setUp(self) -> None:
         coords = {
             "coordinates": [
                 [
@@ -97,6 +98,22 @@ class BuildingsEndpointsTest(APITestCase):
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
+                    "shape": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [5.721187072129851, 45.18439363812283],
+                                    [5.721094925229238, 45.184330511384644],
+                                    [5.721122483180295, 45.184274061453465],
+                                    [5.721241326846666, 45.18428316628476],
+                                    [5.721244771590875, 45.184325048490564],
+                                    [5.721269745984984, 45.18433718825423],
+                                    [5.721187072129851, 45.18439363812283],
+                                ]
+                            ]
+                        ],
+                    },
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
                 }
@@ -123,6 +140,22 @@ class BuildingsEndpointsTest(APITestCase):
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
+                    },
+                    "shape": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [5.721187072129851, 45.18439363812283],
+                                    [5.721094925229238, 45.184330511384644],
+                                    [5.721122483180295, 45.184274061453465],
+                                    [5.721241326846666, 45.18428316628476],
+                                    [5.721244771590875, 45.184325048490564],
+                                    [5.721269745984984, 45.18433718825423],
+                                    [5.721187072129851, 45.18439363812283],
+                                ]
+                            ]
+                        ],
                     },
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
@@ -185,6 +218,7 @@ class BuildingsEndpointsTest(APITestCase):
                         "coordinates": [0.0, 0.0],
                         "type": "Point",
                     },
+                    "shape": None,
                     "rnb_id": "XXX",
                     "is_active": True,
                 }
@@ -219,6 +253,20 @@ class BuildingsEndpointsTest(APITestCase):
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
                     },
+                    "shape": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [1.065470595587726, 46.63423852982024],
+                                    [1.065454930919401, 46.634105152847496],
+                                    [1.065664837466102, 46.63409009413692],
+                                    [1.065677369200159, 46.63422131990677],
+                                    [1.065470595587726, 46.63423852982024],
+                                ]
+                            ]
+                        ],
+                    },
                     "addresses": [],
                     "is_active": True,
                 },
@@ -229,6 +277,22 @@ class BuildingsEndpointsTest(APITestCase):
                     "point": {
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
+                    },
+                    "shape": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [5.721187072129851, 45.18439363812283],
+                                    [5.721094925229238, 45.184330511384644],
+                                    [5.721122483180295, 45.184274061453465],
+                                    [5.721241326846666, 45.18428316628476],
+                                    [5.721244771590875, 45.184325048490564],
+                                    [5.721269745984984, 45.18433718825423],
+                                    [5.721187072129851, 45.18439363812283],
+                                ]
+                            ]
+                        ],
                     },
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
@@ -250,6 +314,20 @@ class BuildingsEndpointsTest(APITestCase):
             "point": {
                 "type": "Point",
                 "coordinates": [1.065566787499344, 46.634163236377134],
+            },
+            "shape": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [1.065470595587726, 46.63423852982024],
+                            [1.065454930919401, 46.634105152847496],
+                            [1.065664837466102, 46.63409009413692],
+                            [1.065677369200159, 46.63422131990677],
+                            [1.065470595587726, 46.63423852982024],
+                        ]
+                    ]
+                ],
             },
             "addresses": [],
             "is_active": True,
@@ -315,6 +393,20 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
                     },
+                    "shape": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [1.065470595587726, 46.63423852982024],
+                                    [1.065454930919401, 46.634105152847496],
+                                    [1.065664837466102, 46.63409009413692],
+                                    [1.065677369200159, 46.63422131990677],
+                                    [1.065470595587726, 46.63423852982024],
+                                ]
+                            ]
+                        ],
+                    },
                     "addresses": [],
                     "is_active": True,
                 },
@@ -325,6 +417,20 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                     "point": {
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
+                    },
+                    "shape": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [1.065470595587726, 46.63423852982024],
+                                    [1.065454930919401, 46.634105152847496],
+                                    [1.065664837466102, 46.63409009413692],
+                                    [1.065677369200159, 46.63422131990677],
+                                    [1.065470595587726, 46.63423852982024],
+                                ]
+                            ]
+                        ],
                     },
                     "addresses": [],
                     "is_active": True,
@@ -337,11 +443,29 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                         "coordinates": [5.721181338205954, 45.18433384981944],
                         "type": "Point",
                     },
+                    "shape": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [5.721187072129851, 45.18439363812283],
+                                    [5.721094925229238, 45.184330511384644],
+                                    [5.721122483180295, 45.184274061453465],
+                                    [5.721241326846666, 45.18428316628476],
+                                    [5.721244771590875, 45.184325048490564],
+                                    [5.721269745984984, 45.18433718825423],
+                                    [5.721187072129851, 45.18439363812283],
+                                ]
+                            ]
+                        ],
+                    },
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
                 },
             ],
         }
+
+        print(data)
 
         self.assertEqual(len(data["results"]), 3)
         self.assertDictEqual(data, expected)
