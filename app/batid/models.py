@@ -135,6 +135,11 @@ class Building(BuildingAbstract):
         # We are doing points > dict > json str > dict. It is inefficient.
         return json.loads(self.point.transform(4326, clone=True).geojson)
 
+    def shape_geojson(self):
+        # todo : is there a better way to go from a GeometryField to geojson dict ?
+        # We are doing points > dict > json str > dict. It is inefficient.
+        return json.loads(self.shape.transform(4326, clone=True).geojson)
+
     def ads_geojson(self):
         return json.loads(self.point.transform(4326, clone=True).geojson)
 
