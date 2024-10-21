@@ -5,12 +5,14 @@ from api_alpha.services import BuildingADS as BuildingADSLogic
 from api_alpha.services import can_manage_ads_in_request
 from api_alpha.validators import ads_validate_rnbid
 from api_alpha.validators import ADSValidator
+from api_alpha.validators import bdg_is_active
 from api_alpha.validators import BdgInADSValidator
 from batid.models import Address
 from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Contribution
+from batid.services.bdg_status import BuildingStatus
 from batid.services.rnb_id import clean_rnb_id
 
 
@@ -20,6 +22,10 @@ class RNBIdField(serializers.CharField):
 
 
 class ContributionSerializer(serializers.ModelSerializer):
+
+    # Add a validator to check if the building is active
+    rnb_id = serializers.CharField(validators=[bdg_is_active])
+
     class Meta:
         model = Contribution
         fields = ["rnb_id", "text", "email"]
@@ -158,6 +164,39 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
             return value
         except:
             raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+
+
+class BuildingUpdateSerializer(serializers.Serializer):
+    is_active = serializers.BooleanField(required=False)
+    status = serializers.ChoiceField(
+        choices=BuildingStatus.ALL_TYPES_KEYS, required=False
+    )
+    addresses_cle_interop = serializers.ListField(
+        child=serializers.CharField(min_length=5, max_length=30),
+        allow_empty=True,
+        required=False,
+    )
+    comment = serializers.CharField(min_length=4, required=True)
+
+    def validate(self, data):
+        if data.get("is_active") is not None and (
+            data.get("status") is not None
+            or data.get("addresses_cle_interop") is not None
+        ):
+            raise serializers.ValidationError(
+                "you need to either set is_active or set status/addresses, not both at the same time"
+            )
+        if (
+            data.get("is_active") is None
+            and data.get("status") is None
+            and data.get("addresses_cle_interop") is None
+        ):
+            raise serializers.ValidationError("empty arguments in the request body")
+
+        if data.get("is_active") == True:
+            raise serializers.ValidationError("you can only set is_active to False")
+
+        return data
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):

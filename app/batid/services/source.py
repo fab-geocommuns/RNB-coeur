@@ -40,7 +40,7 @@ class Source:
                 "filename": "buffer.csv",
             },
             "bdtopo": {
-                "url": "https://data.geopf.fr/telechargement/download/BDTOPO/BDTOPO_3-3_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}/BDTOPO_3-3_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}.7z",
+                "url": "https://data.geopf.fr/telechargement/download/BDTOPO/BDTOPO_3-4_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}/BDTOPO_3-4_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}.7z",
                 "filename": "BATIMENT.shp",
             },
             "bdnb_2023_01": {
