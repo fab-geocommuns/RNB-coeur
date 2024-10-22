@@ -208,6 +208,14 @@ CELERY_BEAT_SCHEDULE = {
             minute=0, hour=0, day_of_month=15, month_of_year="1,4,7,10"
         ),
     },
+    "auto_import_bdtopo_once": {
+        "task": "batid.tasks.queue_full_bdtopo_import",
+        # plan a one shot import to be sure it works in production
+        # We will have to remove this task after it has run once
+        "schedule": crontab(
+            minute=0, hour=0, day_of_month=24, month_of_year="10"
+        ),
+    },
 }
 
 # URL of the project
