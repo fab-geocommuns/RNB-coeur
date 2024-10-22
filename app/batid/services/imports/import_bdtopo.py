@@ -9,8 +9,8 @@ from typing import Optional
 
 import fiona
 import psycopg2
-from celery import Signature
 from celery import group
+from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import WKTWriter
 from django.db import connection
