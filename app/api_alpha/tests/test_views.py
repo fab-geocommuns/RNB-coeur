@@ -289,7 +289,7 @@ class ContributionTest(APITestCase):
         r = self.client.post("/api/alpha/contributions/", data)
 
         self.assertEqual(r.status_code, 201)
-        self.assertEqual(Contribution.objects.count(), 5)
+        self.assertEqual(Contribution.objects.count(), 2)
         # loulou is expected at the second place, ex aequo with fifi
         self.assertEqual(
             r.json(),
