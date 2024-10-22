@@ -202,7 +202,7 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=7, minute=0, day_of_week=6),
     },
     "import_bdtopo": {
-        "task": "queue_full_bdtopo_import",
+        "task": "batid.tasks.queue_full_bdtopo_import",
         # 15 april, 15 july, 15 october, 15 january
         "schedule": crontab(
             minute=0, hour=0, day_of_month=15, month_of_year="1,4,7,10"
