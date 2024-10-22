@@ -1165,35 +1165,11 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
         if serializer.is_valid():
             serializer.save()
-            if request.query_params.get("ranking") == "true" and request.data.get(
-                "email"
-            ):
-                count, rank = get_contributor_count_and_rank(request.data.get("email"))
-                response = dict(serializer.data)
-                response["contributor_count"] = count
-                response["contributor_rank"] = rank
-                return Response(response, status=201)
-            else:
-                return Response(serializer.data, status=201)
+            return Response(serializer.data, status=201)
         else:
             return Response(serializer.errors, status=400)
 
-    @action(detail=False, methods=["get"])
-    def ranking(self, request, *args, **kwargs):
-        individual = individual_ranking()
-        departement = departement_ranking()
-        city = city_ranking()
-        all_contributions = Contribution.objects.filter(
-            status__in=["fixed", "pending"],
-            created_at__lt=timezone.make_aware(datetime(2024, 9, 4)),
-        ).count()
-        data = {
-            "individual": individual,
-            "city": city,
-            "departement": departement,
-            "global": all_contributions,
-        }
-        return Response(data, status=200)
+
 
 
 def get_contributor_count_and_rank(email):
