@@ -13,7 +13,6 @@ from django.http import HttpResponse
 from django.http import JsonResponse
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
@@ -23,10 +22,9 @@ from drf_spectacular.utils import extend_schema
 from drf_spectacular.utils import OpenApiResponse
 from psycopg2 import sql
 from rest_framework import mixins
-from rest_framework import status
+from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import action
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
@@ -39,10 +37,13 @@ from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
 
 from api_alpha.permissions import ADSPermission
+from api_alpha.permissions import ReadOnly
+from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers import ADSSerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingSerializer
+from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.utils.rnb_doc import build_schema_dict
@@ -303,27 +304,7 @@ class BuildingCursorPagination(BasePagination):
         return b64encode(cursor.encode("ascii")).decode("ascii")
 
 
-class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
-    queryset = Building.objects.all().filter(is_active=True)
-    serializer_class = BuildingSerializer
-    http_method_names = ["get"]
-    lookup_field = "rnb_id"
-
-    pagination_class = BuildingCursorPagination
-    # pagination_class = PageNumberPagination
-
-    def get_object(self):
-        qs = list_bdgs({"user": self.request.user, "status": "all"}, only_active=False)
-        return get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
-
-    def get_queryset(self):
-        query_params = self.request.query_params.dict()
-        query_params["user"] = self.request.user
-
-        qs = list_bdgs(query_params)
-
-        return qs
-
+class ListBuildings(RNBLoggingMixin, APIView):
     @rnb_doc(
         {
             "get": {
@@ -412,11 +393,20 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
             },
         },
     )
-    def list(self, request, *args, **kwargs):
-        """
-        Renvoie une liste paginée de bâtiments. Des filtres (notamment par code INSEE de la commune) sont disponibles.
-        """
-        return super().list(request, *args, **kwargs)
+    def get(self, request):
+        query_params = request.query_params.dict()
+        query_params["user"] = request.user
+        buildings = list_bdgs(query_params)
+        paginator = BuildingCursorPagination()
+
+        paginated_buildings = paginator.paginate_queryset(buildings, request)
+        serializer = BuildingSerializer(paginated_buildings, many=True)
+
+        return paginator.get_paginated_response(serializer.data)
+
+
+class SingleBuilding(APIView):
+    permission_classes = [ReadOnly | RNBContributorPermission]
 
     @rnb_doc(
         {
@@ -449,11 +439,113 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
             }
         }
     )
-    def retrieve(self, request, *args, **kwargs):
-        """
-        Renvoie les détails d'un bâtiment spécifique identifié par son RNB ID.
-        """
-        return super().retrieve(request, *args, **kwargs)
+    def get(self, request, rnb_id):
+        qs = list_bdgs({"user": request.user, "status": "all"}, only_active=False)
+        building = get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
+        serializer = BuildingSerializer(building)
+
+        return Response(serializer.data)
+
+    @rnb_doc(
+        {
+            "patch": {
+                "summary": "Mise à jour ou désactivation d'un bâtiment",
+                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
+                Il permet de :
+                <ul>
+                    <li> mettre à jour un bâtiment existant (status, addresses_cle_interop)</li>
+                    <li> de le désactiver (is_active) s'il s'avère qu'il ne devrait pas faire partir du RNB. Par exemple un arbre qui aurait été par erreur repertorié comme un bâtiment du RNB.</li>
+                </ul>
+                <br/><br/>
+                Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver.
+                <br/><br/>
+                Exemples valides: <br/>
+                <ul>
+                    <li>{"comment": "faux bâtiment", "is_active": False}</li>
+                    <li>{"comment": "bâtiment démoli", "status": "demolished"}</li>
+                    <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": [75105_8884_00004]}</li>
+                </ul>""",
+                "operationId": "patchBuilding",
+                "parameters": [
+                    {
+                        "name": "rnb_id",
+                        "in": "path",
+                        "description": "Identifiant unique du bâtiment dans le RNB",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "PG46YY6YWCX8",
+                    }
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "comment": {
+                                        "type": "string",
+                                        "description": """Texte associé à la modification et la justifiant. <br /><br />Exemple : "Ce n'est pas un bâtiment mais un arbre." """,
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "description": "Une seule valeure est autorisée : False. Signifie que le bâtiment est désactivé, car sa présence dans le RNB est une erreur. Ne permet pas de signaler une démolition, qui se fait plutôt par une mise à jour du statut.",
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "description": f"Mise à jour du statut du bâtiment. Les valeurs possibles sont : <br /> {get_status_html_list()}<br />",
+                                    },
+                                    "addresses_cle_interop": {
+                                        "type": "list",
+                                        "description": "Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: [75105_8884_00004, 75105_8884_00006]",
+                                    },
+                                },
+                                "required": ["comment"],
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "204": {
+                        "description": "Pas de contenu attendu dans la réponse en cas de succès",
+                    }
+                },
+            }
+        }
+    )
+    def patch(self, request, rnb_id):
+        serializer = BuildingUpdateSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            data = serializer.data
+            user = request.user
+            building = Building.objects.get(rnb_id=rnb_id)
+
+            with transaction.atomic():
+                contribution = Contribution(
+                    rnb_id=rnb_id,
+                    text=data["comment"],
+                    status="fixed",
+                    status_changed_at=datetime.now(),
+                    review_user=user,
+                )
+                contribution.save()
+
+                event_origin = {
+                    "source": "contribution",
+                    "contribution_id": contribution.id,
+                }
+
+                if data.get("is_active") == False:
+                    # a building that is not a building is soft deleted from the base
+                    building.deactivate(user, event_origin)
+                else:
+                    status = data.get("status")
+                    addresses_cle_interop = data.get("addresses_cle_interop")
+
+                    building.update(user, event_origin, status, addresses_cle_interop)
+
+            # request is successful, no content to send back
+            return Response(status=http_status.HTTP_204_NO_CONTENT)
 
 
 class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
@@ -1071,35 +1163,9 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
         if serializer.is_valid():
             serializer.save()
-            if request.query_params.get("ranking") == "true" and request.data.get(
-                "email"
-            ):
-                count, rank = get_contributor_count_and_rank(request.data.get("email"))
-                response = dict(serializer.data)
-                response["contributor_count"] = count
-                response["contributor_rank"] = rank
-                return Response(response, status=201)
-            else:
-                return Response(serializer.data, status=201)
+            return Response(serializer.data, status=201)
         else:
             return Response(serializer.errors, status=400)
-
-    @action(detail=False, methods=["get"])
-    def ranking(self, request, *args, **kwargs):
-        individual = individual_ranking()
-        departement = departement_ranking()
-        city = city_ranking()
-        all_contributions = Contribution.objects.filter(
-            status__in=["fixed", "pending"],
-            created_at__lt=timezone.make_aware(datetime(2024, 9, 4)),
-        ).count()
-        data = {
-            "individual": individual,
-            "city": city,
-            "departement": departement,
-            "global": all_contributions,
-        }
-        return Response(data, status=200)
 
 
 def get_contributor_count_and_rank(email):
