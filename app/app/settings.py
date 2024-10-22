@@ -212,7 +212,7 @@ CELERY_BEAT_SCHEDULE = {
         "tasks": "batid.tasks.renew_stats",
         # everyday at 3am
         "schedule": crontab(hour=3, minute=0),
-    }
+    },
 }
 
 # URL of the project

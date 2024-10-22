@@ -80,7 +80,6 @@ def convert_bdtopo(src_params, bulk_launch_uuid=None):
     return "done"
 
 
-
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_full_bdtopo_import(
@@ -207,7 +206,6 @@ def list_light_buildings_france(start_dpt=None, end_dpt=None):
 def remove_light_buildings(folder_name, username, fix_id):
     remove_light_buildings_job(folder_name, username, fix_id)
     return "done"
-
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})

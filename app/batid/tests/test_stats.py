@@ -6,8 +6,13 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from batid.models import Building
-from batid.services.stats import get_path, all_stats, set_stat, clear_stats, fetch_stats, get_stat, \
-    ACTIVE_BUILDING_COUNT
+from batid.services.stats import ACTIVE_BUILDING_COUNT
+from batid.services.stats import all_stats
+from batid.services.stats import clear_stats
+from batid.services.stats import fetch_stats
+from batid.services.stats import get_path
+from batid.services.stats import get_stat
+from batid.services.stats import set_stat
 
 
 class AbstractStatTests(ABC, TestCase):
@@ -20,7 +25,9 @@ class AbstractStatTests(ABC, TestCase):
     def setUp(cls):
         cls.patcher = patch("batid.services.source.Source.default_ref")
         cls.mock_ref = cls.patcher.start()
-        cls.mock_ref.return_value = {"cached_stats": {"filename": "test_cached_stats.json"}}
+        cls.mock_ref.return_value = {
+            "cached_stats": {"filename": "test_cached_stats.json"}
+        }
 
     def tearDown(cls):
         # Stop the patcher (https://docs.python.org/3/library/unittest.mock.html#patch-methods-start-and-stop)
@@ -29,9 +36,7 @@ class AbstractStatTests(ABC, TestCase):
         clear_stats()
 
 
-
 class TestStatsHelper(AbstractStatTests):
-
     def test_create_if_needed(self):
 
         # Remove the file
@@ -48,7 +53,6 @@ class TestStatsHelper(AbstractStatTests):
         self.assertTrue(os.path.exists(src_path))
         self.assertEqual(stats, {})
 
-
     def test_set_one_key(self):
 
         # Start from empty slate
@@ -61,7 +65,6 @@ class TestStatsHelper(AbstractStatTests):
         stats = all_stats()
         self.assertEqual(stats["life_meaning"]["value"], 42)
         self.assertIsInstance(stats["life_meaning"]["calculated_at"], datetime)
-
 
     def test_update_one_key(self):
 
@@ -84,7 +87,6 @@ class TestStatsHelper(AbstractStatTests):
 
         # Verify the calculated_at has been updated
         self.assertGreater(second_calculated_at, first_calculated_at)
-
 
     def test_get_stat(self):
 
@@ -124,7 +126,6 @@ class TestStatsHelper(AbstractStatTests):
 
 
 class TestStatsFetching(AbstractStatTests):
-
     def setUp(self):
 
         super().setUp()
@@ -140,7 +141,3 @@ class TestStatsFetching(AbstractStatTests):
         fetch_stats()
         stat = get_stat(ACTIVE_BUILDING_COUNT)
         self.assertEqual(stat["value"], 2)
-
-
-
-

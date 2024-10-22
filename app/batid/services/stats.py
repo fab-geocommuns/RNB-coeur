@@ -8,6 +8,7 @@ from batid.services.source import Source
 
 ACTIVE_BUILDING_COUNT = "active_building_count"
 
+
 def all_stats():
 
     src = _get_source()
@@ -26,7 +27,7 @@ def all_stats():
         return data
 
 
-def get_stat(key:str):
+def get_stat(key: str):
 
     if not isinstance(key, str):
         raise ValueError("Key must be a string")
@@ -35,18 +36,15 @@ def get_stat(key:str):
 
     return stats.get(key, None)
 
-def set_stat(key:str, value):
+
+def set_stat(key: str, value):
 
     if not isinstance(key, str):
         raise ValueError("Key must be a string")
 
-
     stats = all_stats()
 
-    stats[key] = {
-        "value": value,
-        "calculated_at": datetime.now()
-    }
+    stats[key] = {"value": value, "calculated_at": datetime.now()}
 
     src = _get_source()
 
@@ -56,11 +54,14 @@ def set_stat(key:str, value):
 
     return
 
+
 def _get_source():
     return Source("cached_stats")
 
+
 def get_path():
     return _get_source().path
+
 
 def clear_stats():
     src = _get_source()
@@ -70,10 +71,13 @@ def clear_stats():
 
     return
 
+
 def _convert_str_to_dates(data):
     for key in data:
         if "calculated_at" in data[key]:
-            data[key]["calculated_at"] = datetime.fromisoformat(data[key]["calculated_at"])
+            data[key]["calculated_at"] = datetime.fromisoformat(
+                data[key]["calculated_at"]
+            )
 
     return data
 
@@ -84,6 +88,7 @@ def _convert_dates_to_str(data):
             data[key]["calculated_at"] = data[key]["calculated_at"].isoformat()
 
     return data
+
 
 def fetch_stats():
 
