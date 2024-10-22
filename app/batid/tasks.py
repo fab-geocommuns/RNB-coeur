@@ -214,10 +214,9 @@ def renew_stats():
     """
     This task is in charge of calculating some stats displayed on https://rnb.beta.gouv.fr/stats
     It is too expensive to calculate them on the fly, so we calculate them once a day and store them in a file
-    :return:
     """
 
-    from batid.services.stats import fetch_stats
+    from batid.services.stats import compute_stats
 
-    fetch_stats()
+    compute_stats()
     return "done"

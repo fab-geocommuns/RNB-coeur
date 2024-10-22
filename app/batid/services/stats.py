@@ -90,7 +90,7 @@ def _convert_dates_to_str(data):
     return data
 
 
-def fetch_stats():
+def compute_stats():
 
     # Active building count
     count = Building.objects.filter(is_active=True).count()

@@ -9,7 +9,7 @@ from batid.models import Building
 from batid.services.stats import ACTIVE_BUILDING_COUNT
 from batid.services.stats import all_stats
 from batid.services.stats import clear_stats
-from batid.services.stats import fetch_stats
+from batid.services.stats import compute_stats
 from batid.services.stats import get_path
 from batid.services.stats import get_stat
 from batid.services.stats import set_stat
@@ -138,6 +138,6 @@ class TestStatsFetching(AbstractStatTests):
 
     def test_active_building_count(self):
 
-        fetch_stats()
+        compute_stats()
         stat = get_stat(ACTIVE_BUILDING_COUNT)
         self.assertEqual(stat["value"], 2)
