@@ -2,10 +2,12 @@ import os
 
 from django.test import TestCase
 
-from batid.services.stats import get_path, all_stats, set_stat, clear_stats
+from batid.models import Building
+from batid.services.stats import get_path, all_stats, set_stat, clear_stats, fetch_stats, get_stat, \
+    ACTIVE_BUILDING_COUNT
 
 
-class TestStats(TestCase):
+class TestStatsHelper(TestCase):
 
     def test_create_if_needed(self):
 
@@ -55,10 +57,25 @@ class TestStats(TestCase):
         self.assertDictEqual(stats, {"life_meaning": 43})
 
 
+    def test_get_stat(self):
+
+        # Start from empty slate
+        clear_stats()
+
+        # Set one value
+        set_stat("life_meaning", 42)
+
+        # Read it
+        value = get_stat("life_meaning")
+        self.assertEqual(value, 42)
+
     def test_key_must_be_str(self):
 
         # Start from empty slate
         clear_stats()
+
+        # ##################
+        # Write test
 
         # Try to set a non-string key
         with self.assertRaises(ValueError):
@@ -67,3 +84,31 @@ class TestStats(TestCase):
         # Check the file is still empty
         stats = all_stats()
         self.assertEqual(stats, {})
+
+        # ##################
+        # Read test
+
+        # Try to read a non-string key
+        with self.assertRaises(ValueError):
+            get_stat(42)
+
+
+class TestStatsFetching(TestCase):
+
+    def setUp(self):
+
+        # Data for testing active building count
+        Building.objects.all().delete()
+        Building.objects.create(rnb_id="1234", is_active=True)
+        Building.objects.create(rnb_id="ABCD", is_active=True)
+        Building.objects.create(rnb_id="WXYZ", is_active=False)
+
+    def test_active_building_count(self):
+
+        fetch_stats()
+        self.assertEqual(get_stat(ACTIVE_BUILDING_COUNT), 2)
+
+
+
+
+

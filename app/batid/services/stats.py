@@ -1,8 +1,11 @@
 import json
 import os.path
 
+from batid.models import Building
 from batid.services.source import Source
 
+
+ACTIVE_BUILDING_COUNT = "active_building_count"
 
 def all_stats():
 
@@ -15,6 +18,15 @@ def all_stats():
     # Read and return
     with open(src.path, "r") as f:
         return json.load(f)
+
+def get_stat(key:str):
+
+    if not isinstance(key, str):
+        raise ValueError("Key must be a string")
+
+    stats = all_stats()
+
+    return stats.get(key, None)
 
 def set_stat(key:str, value):
 
@@ -46,3 +58,10 @@ def clear_stats():
         os.remove(src.path)
 
     return
+
+
+def fetch_stats():
+
+    # Active building count
+    count = Building.objects.filter(is_active=True).count()
+    set_stat(ACTIVE_BUILDING_COUNT, count)
