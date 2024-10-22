@@ -52,6 +52,7 @@ class Source:
                 "filename": "commune_insee.csv",
             },
             "export": {"filename": "export-{{city}}-{{date}}.geojson"},
+            "cached_stats": {"filename": "cached_stats.json"},
         }
 
     def set_param(self, p_key, p_val):
