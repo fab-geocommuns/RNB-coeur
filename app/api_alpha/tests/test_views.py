@@ -6,14 +6,11 @@ from unittest import mock
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase
 from django.utils.http import urlencode
-from freezegun import freeze_time
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
 from batid.models import Building
 from batid.models import Contribution
-from batid.tests.helpers import create_grenoble
-from batid.tests.helpers import create_paris
 
 
 class StatsTest(APITestCase):
@@ -299,8 +296,6 @@ class ContributionTest(APITestCase):
                 "email": "loulou@email.fr",
             },
         )
-
-
 
     # @freeze_time("2024-08-05")
     # def test_ranking(self):
