@@ -208,6 +208,11 @@ CELERY_BEAT_SCHEDULE = {
             minute=0, hour=0, day_of_month=15, month_of_year="1,4,7,10"
         ),
     },
+    "fetch_stats": {
+        "tasks": "batid.tasks.renew_stats",
+        # everyday at 3am
+        "schedule": crontab(hour=3, minute=0),
+    }
 }
 
 # URL of the project

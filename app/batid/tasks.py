@@ -80,6 +80,7 @@ def convert_bdtopo(src_params, bulk_launch_uuid=None):
     return "done"
 
 
+
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_full_bdtopo_import(
@@ -205,4 +206,20 @@ def list_light_buildings_france(start_dpt=None, end_dpt=None):
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 0})
 def remove_light_buildings(folder_name, username, fix_id):
     remove_light_buildings_job(folder_name, username, fix_id)
+    return "done"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def renew_stats():
+
+    """
+    This task is in charge of calculating some stats displayed on https://rnb.beta.gouv.fr/stats
+    It is too expensive to calculate them on the fly, so we calculate them once a day and store them in a file
+    :return:
+    """
+
+    from batid.services.stats import fetch_stats
+
+    fetch_stats()
     return "done"
