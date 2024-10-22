@@ -20,8 +20,6 @@ def bdg_is_active(rnb_id: str):
         raise serializers.ValidationError(f'Building "{rnb_id}" is not active.')
 
 
-
-
 class BdgInADSValidator:
     def __call__(self, value):
 
