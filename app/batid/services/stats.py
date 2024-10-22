@@ -1,5 +1,6 @@
 import json
 import os.path
+from datetime import datetime
 
 from batid.models import Building
 from batid.services.source import Source
@@ -17,7 +18,13 @@ def all_stats():
 
     # Read and return
     with open(src.path, "r") as f:
-        return json.load(f)
+        raw_data = json.load(f)
+
+        # JSON does not handle dates, so we convert them back to datetime
+        data = _convert_str_to_dates(raw_data)
+
+        return data
+
 
 def get_stat(key:str):
 
@@ -36,11 +43,15 @@ def set_stat(key:str, value):
 
     stats = all_stats()
 
-    stats[key] = value
+    stats[key] = {
+        "value": value,
+        "calculated_at": datetime.now()
+    }
 
     src = _get_source()
 
     with open(src.path, "w") as f:
+        stats = _convert_dates_to_str(stats)
         json.dump(stats, f)
 
     return
@@ -59,6 +70,20 @@ def clear_stats():
 
     return
 
+def _convert_str_to_dates(data):
+    for key in data:
+        if "calculated_at" in data[key]:
+            data[key]["calculated_at"] = datetime.fromisoformat(data[key]["calculated_at"])
+
+    return data
+
+
+def _convert_dates_to_str(data):
+    for key in data:
+        if "calculated_at" in data[key]:
+            data[key]["calculated_at"] = data[key]["calculated_at"].isoformat()
+
+    return data
 
 def fetch_stats():
 

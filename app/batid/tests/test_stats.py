@@ -1,4 +1,7 @@
 import os
+from abc import ABC
+from datetime import datetime
+from unittest.mock import patch
 
 from django.test import TestCase
 
@@ -7,7 +10,27 @@ from batid.services.stats import get_path, all_stats, set_stat, clear_stats, fet
     ACTIVE_BUILDING_COUNT
 
 
-class TestStatsHelper(TestCase):
+class AbstractStatTests(ABC, TestCase):
+
+    """
+    This abstract class is made to mock the cached_stat file path in all tests.
+    This way, we do not risk to write in the real file.
+    """
+
+    def setUp(cls):
+        cls.patcher = patch("batid.services.source.Source.default_ref")
+        cls.mock_ref = cls.patcher.start()
+        cls.mock_ref.return_value = {"cached_stats": {"filename": "test_cached_stats.json"}}
+
+    def tearDown(cls):
+        # Stop the patcher (https://docs.python.org/3/library/unittest.mock.html#patch-methods-start-and-stop)
+        cls.patcher.stop()
+        # Remove the tmp stat file
+        clear_stats()
+
+
+
+class TestStatsHelper(AbstractStatTests):
 
     def test_create_if_needed(self):
 
@@ -36,7 +59,8 @@ class TestStatsHelper(TestCase):
 
         # Read it
         stats = all_stats()
-        self.assertDictEqual(stats, {"life_meaning": 42})
+        self.assertEqual(stats["life_meaning"]["value"], 42)
+        self.assertIsInstance(stats["life_meaning"]["calculated_at"], datetime)
 
 
     def test_update_one_key(self):
@@ -48,13 +72,18 @@ class TestStatsHelper(TestCase):
         set_stat("life_meaning", 42)
         # Check the value
         stats = all_stats()
-        self.assertDictEqual(stats, {"life_meaning": 42})
+        self.assertEqual(stats["life_meaning"]["value"], 42)
+        first_calculated_at = stats["life_meaning"]["calculated_at"]
 
         # Update the value
         set_stat("life_meaning", 43)
         # Check again the value
         stats = all_stats()
-        self.assertDictEqual(stats, {"life_meaning": 43})
+        self.assertEqual(stats["life_meaning"]["value"], 43)
+        second_calculated_at = stats["life_meaning"]["calculated_at"]
+
+        # Verify the calculated_at has been updated
+        self.assertGreater(second_calculated_at, first_calculated_at)
 
 
     def test_get_stat(self):
@@ -66,8 +95,9 @@ class TestStatsHelper(TestCase):
         set_stat("life_meaning", 42)
 
         # Read it
-        value = get_stat("life_meaning")
-        self.assertEqual(value, 42)
+        stat = get_stat("life_meaning")
+        self.assertEqual(stat["value"], 42)
+        self.assertIsInstance(stat["calculated_at"], datetime)
 
     def test_key_must_be_str(self):
 
@@ -93,9 +123,11 @@ class TestStatsHelper(TestCase):
             get_stat(42)
 
 
-class TestStatsFetching(TestCase):
+class TestStatsFetching(AbstractStatTests):
 
     def setUp(self):
+
+        super().setUp()
 
         # Data for testing active building count
         Building.objects.all().delete()
@@ -106,8 +138,8 @@ class TestStatsFetching(TestCase):
     def test_active_building_count(self):
 
         fetch_stats()
-        self.assertEqual(get_stat(ACTIVE_BUILDING_COUNT), 2)
-
+        stat = get_stat(ACTIVE_BUILDING_COUNT)
+        self.assertEqual(stat["value"], 2)
 
 
 

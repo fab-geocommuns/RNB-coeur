@@ -209,7 +209,7 @@ def remove_light_buildings(folder_name, username, fix_id):
     return "done"
 
 
-@notify_if_error
+
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def renew_stats():
 
