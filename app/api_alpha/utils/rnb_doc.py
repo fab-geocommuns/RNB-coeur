@@ -139,7 +139,7 @@ def _get_components() -> dict:
                     },
                     "shape": {
                         "type": "object",
-                        "description": "Géométrie du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84. Elle peut être un multipolygone, un polygone, un point ou null",
+                        "description": "Géométrie du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84. Elle peut être un multipolygone, un polygone ou un point et correspond notre meilleure connaissance de la réalité:",
                         "properties": {
                             "type": {
                                 "type": "string",
