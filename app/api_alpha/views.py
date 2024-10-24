@@ -2,6 +2,7 @@ import json
 import os
 from base64 import b64encode
 from datetime import datetime
+from datetime import timedelta
 
 import requests
 from django.conf import settings
@@ -56,8 +57,11 @@ from batid.models import Contribution
 from batid.models import Organization
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.guess_bdg import BuildingGuess
+from batid.services.mattermost import notify_tech
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
+from batid.services.stats import ACTIVE_BUILDING_COUNT
+from batid.services.stats import get_stat as get_cached_stat
 from batid.services.vector_tiles import ads_tiles_sql
 from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
@@ -1008,8 +1012,16 @@ def get_stats(request):
     contributions_count = Contribution.objects.count()
     data_gouv_publication_count = get_data_gouv_publication_count()
 
+    # Get the cached value of the building count
+    bdg_count = get_cached_stat(ACTIVE_BUILDING_COUNT)
+    # check the "computed_at" date is not too old
+    if bdg_count["computed_at"] < datetime.now() - timedelta(days=2):
+        # if it is, we warn the tech channel
+        notify_tech(f"Le calcul du nombre de bâtiments disponible dans le cache est trop vieux. Il date de {bdg_count["computed_at"].isoformat()}")
+
+
     data = {
-        "building_counts": building_counts,
+        "building_counts": bdg_count["value"],
         "api_calls_since_2024_count": api_calls_since_2024_count,
         "contributions_count": contributions_count,
         "data_gouv_publication_count": data_gouv_publication_count,
