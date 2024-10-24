@@ -88,6 +88,7 @@ services:
       redis:
         condition: service_healthy
     container_name: celery_beat
+    restart: unless-stopped
 
   rabbitmq:
     restart: unless-stopped
