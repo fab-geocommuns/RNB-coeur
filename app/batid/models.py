@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
+import requests
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import GEOSGeometry
@@ -185,6 +186,7 @@ class Building(BuildingAbstract):
             self.event_origin = event_origin
 
             if addresses_id is not None:
+                Address.add_addresses_to_db_if_needed(addresses_id)
                 self.addresses_id = addresses_id
 
             if status is not None:
@@ -419,6 +421,65 @@ class Address(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @staticmethod
+    def add_addresses_to_db_if_needed(addresses_id):
+        """given a list of "clés d'interopérabilité BAN", we add those addresses to our Address table if they don't exist yet."""
+        for address_id in addresses_id:
+            Address.add_address_to_db_if_needed(address_id)
+
+    @staticmethod
+    def add_address_to_db_if_needed(address_id):
+        if Address.objects.filter(id=address_id).exists():
+            return
+        else:
+            Address.add_new_address_from_ban_api(address_id)
+
+    @staticmethod
+    def add_new_address_from_ban_api(address_id):
+        base_url = "https://plateforme.adresse.data.gouv.fr/lookup/"
+        url = f"{base_url}{address_id}"
+
+        r = requests.get(base_url)
+
+        if r.status_code == 200:
+            data = r.json()
+            Address.create_new_address(data)
+        elif r.status_code == 404:
+            raise UnknownBANCleInterop
+        else:
+            raise BANAPIDown
+
+    @staticmethod
+    def create_new_address(data):
+        # TODO
+        if data["position"] == None:
+            return
+
+        Address.objects.create(
+            id=data["cleInterop"],
+            source="ban",
+            point=f'POINT ({data["position"]["coordinates"][0]} {data["position"]["coordinates"][1]})'
+            if data["position"]["type"] == "Point"
+            else None,
+            street_number=data["numero"],
+            street_rep=data["suffixe"],
+            street_name=data["voie"]["nomVoie"],
+            street_type=None,
+            city_name=None,
+            city_zipcode=None,
+            city_insee_code=None,
+            created_at=None,
+            updated_at=None,
+        )
+
+
+class UnknownBANCleInterop(Exception):
+    """this "clé d'interopérabilité" is not found in the BAN"""
+
+
+class BANAPIDown(Exception):
+    pass
 
 
 class Organization(models.Model):
