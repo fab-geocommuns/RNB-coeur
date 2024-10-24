@@ -1,7 +1,8 @@
 import json
 import os
 from base64 import b64encode
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 
 import requests
 from django.conf import settings
@@ -59,9 +60,8 @@ from batid.services.guess_bdg import BuildingGuess
 from batid.services.mattermost import notify_tech
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.stats import get_stat as get_cached_stat
 from batid.services.stats import ACTIVE_BUILDING_COUNT
-
+from batid.services.stats import get_stat as get_cached_stat
 from batid.services.vector_tiles import ads_tiles_sql
 from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile

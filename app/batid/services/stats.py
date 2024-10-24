@@ -75,9 +75,7 @@ def clear_stats():
 def _convert_str_to_dates(data):
     for key in data:
         if "computed_at" in data[key]:
-            data[key]["computed_at"] = datetime.fromisoformat(
-                data[key]["computed_at"]
-            )
+            data[key]["computed_at"] = datetime.fromisoformat(data[key]["computed_at"])
 
     return data
 

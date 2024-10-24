@@ -42,11 +42,9 @@ class StatsTest(APITestCase):
         get_mock.return_value.status_code = 200
         get_mock.return_value.json.return_value = {"total": 12}
 
-
         r = self.client.get("/api/alpha/stats")
         self.assertEqual(r.status_code, 200)
         results = r.json()
-
 
         self.assertEqual(results["building_counts"], 2)
         self.assertLess(results["building_counts"], 4)
