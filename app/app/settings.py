@@ -201,18 +201,18 @@ CELERY_BEAT_SCHEDULE = {
         # saturday at 7am
         "schedule": crontab(hour=7, minute=0, day_of_week=6),
     },
+    "compute_stats": {
+        "task": "batid.tasks.renew_stats",
+        # everyday at 3am
+        "schedule": crontab(hour=3, minute=0),
+    },
     "import_bdtopo": {
         "task": "queue_full_bdtopo_import",
         # 15 april, 15 july, 15 october, 15 january
         "schedule": crontab(
             minute=0, hour=0, day_of_month=15, month_of_year="1,4,7,10"
         ),
-    },
-    "fetch_stats": {
-        "tasks": "batid.tasks.renew_stats",
-        # everyday at 3am
-        "schedule": crontab(hour=3, minute=0),
-    },
+    }
 }
 
 # URL of the project
