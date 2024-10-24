@@ -10,6 +10,7 @@ from typing import Optional
 import fiona
 import psycopg2
 from celery import Signature
+from celery import group
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import WKTWriter
 from django.db import connection
@@ -18,6 +19,7 @@ from django.db import transaction
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import Candidate
+from batid.services.candidate import create_inspection_tasks
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
@@ -61,9 +63,9 @@ def create_bdtopo_dpt_import_tasks(
     tasks.append(convert_task)
 
     # Those inspections are commented out for now since we want to verify the created candidates first
-    # inspect_tasks = create_inspection_tasks()
-    # inspect_group = group(*inspect_tasks)
-    # tasks.append(inspect_group)
+    inspect_tasks = create_inspection_tasks()
+    inspect_group = group(*inspect_tasks)
+    tasks.append(inspect_group)
 
     return tasks
 
@@ -210,7 +212,7 @@ def _bdtopo_dpt_projection(dpt: str) -> str:
     return projs.get(dpt, default_proj)
 
 
-def bdtopo_recente_release_date(before: Optional[date] = None) -> str:
+def bdtopo_recent_release_date(before: Optional[date] = None) -> str:
 
     # If no date is provided, we use the current date
     if before is None:

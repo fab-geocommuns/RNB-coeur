@@ -19,7 +19,7 @@ from batid.services.data_fix.remove_light_buildings import (
 from batid.services.data_gouv_publication import publish
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
-from batid.services.imports.import_bdtopo import bdtopo_recente_release_date
+from batid.services.imports.import_bdtopo import bdtopo_recent_release_date
 from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
 from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
 from batid.services.imports.import_cities import import_etalab_cities
@@ -99,9 +99,9 @@ def queue_full_bdtopo_import(
     if released_before:
         # date str to date object
         before_date = datetime.strptime(released_before, "%Y-%m-%d").date()
-        release_date = bdtopo_recente_release_date(before_date)
+        release_date = bdtopo_recent_release_date(before_date)
     else:
-        release_date = bdtopo_recente_release_date()
+        release_date = bdtopo_recent_release_date()
 
     tasks = create_bdtopo_full_import_tasks(dpts, release_date)
 
