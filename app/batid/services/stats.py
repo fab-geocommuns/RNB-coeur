@@ -44,7 +44,7 @@ def set_stat(key: str, value):
 
     stats = all_stats()
 
-    stats[key] = {"value": value, "calculated_at": datetime.now()}
+    stats[key] = {"value": value, "computed_at": datetime.now()}
 
     src = _get_source()
 
@@ -74,18 +74,16 @@ def clear_stats():
 
 def _convert_str_to_dates(data):
     for key in data:
-        if "calculated_at" in data[key]:
-            data[key]["calculated_at"] = datetime.fromisoformat(
-                data[key]["calculated_at"]
-            )
+        if "computed_at" in data[key]:
+            data[key]["computed_at"] = datetime.fromisoformat(data[key]["computed_at"])
 
     return data
 
 
 def _convert_dates_to_str(data):
     for key in data:
-        if "calculated_at" in data[key]:
-            data[key]["calculated_at"] = data[key]["calculated_at"].isoformat()
+        if "computed_at" in data[key]:
+            data[key]["computed_at"] = data[key]["computed_at"].isoformat()
 
     return data
 

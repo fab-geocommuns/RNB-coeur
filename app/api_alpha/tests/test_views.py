@@ -11,14 +11,25 @@ from rest_framework_tracking.models import APIRequestLog
 
 from batid.models import Building
 from batid.models import Contribution
+from batid.services.stats import compute_stats
 
 
 class StatsTest(APITestCase):
+    @mock.patch("batid.services.source.Source.default_ref")
     @mock.patch("api_alpha.views.requests.get")
-    def test_stats(self, get_mock):
-        # create 2 buldings
-        Building.objects.create(rnb_id="1")
-        Building.objects.create(rnb_id="2")
+    def test_stats(self, get_mock, default_src_ref_mock):
+
+        # Mock the path to the cached stats file
+        default_src_ref_mock.return_value = {
+            "cached_stats": {"filename": "test_cached_stats.json"}
+        }
+
+        # create buildings for building count
+        Building.objects.create(rnb_id="1", is_active=True)
+        Building.objects.create(rnb_id="2", is_active=True)
+        Building.objects.create(rnb_id="3", is_active=False)
+        # trigger the stats computation for building count
+        compute_stats()
 
         # create one contribution
         Contribution.objects.create()
@@ -27,18 +38,15 @@ class StatsTest(APITestCase):
         APIRequestLog.objects.create(requested_at="2023-01-01T00:00:00Z")
         APIRequestLog.objects.create(requested_at="2024-01-02T00:00:00Z")
 
-        # # count the number of buildings to update the estimate in the DB
-        Building.objects.count()
-
+        # mock the data.gouv API
         get_mock.return_value.status_code = 200
         get_mock.return_value.json.return_value = {"total": 12}
 
         r = self.client.get("/api/alpha/stats")
-
         self.assertEqual(r.status_code, 200)
         results = r.json()
-        # assert building_counts is in a range, because it's an estimate
-        self.assertGreaterEqual(results["building_counts"], -2)
+
+        self.assertEqual(results["building_counts"], 2)
         self.assertLess(results["building_counts"], 4)
         self.assertEqual(results["api_calls_since_2024_count"], 1)
         self.assertEqual(results["contributions_count"], 1)
