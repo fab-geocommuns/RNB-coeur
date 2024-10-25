@@ -14,6 +14,8 @@ from django.db import transaction
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
+from batid.exceptions import BANAPIDown
+from batid.exceptions import BANUnknownCleInterop
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
@@ -408,9 +410,7 @@ class Plot(models.Model):
 class Address(models.Model):
     id = models.CharField(max_length=40, primary_key=True, db_index=True)
     source = models.CharField(max_length=10, null=False)  # BAN or other origin
-
     point = models.PointField(null=True, spatial_index=True, srid=4326)
-
     street_number = models.CharField(max_length=10, null=True)
     street_rep = models.CharField(max_length=100, null=True)
     street = models.CharField(max_length=200, null=True)
@@ -436,49 +436,37 @@ class Address(models.Model):
 
     @staticmethod
     def add_new_address_from_ban_api(address_id):
-        base_url = "https://plateforme.adresse.data.gouv.fr/lookup/"
-        url = f"{base_url}{address_id}"
+        BAN_API_URL = "https://plateforme.adresse.data.gouv.fr/lookup/"
 
-        r = requests.get(base_url)
+        url = f"{BAN_API_URL}{address_id}"
+        r = requests.get(url)
 
         if r.status_code == 200:
             data = r.json()
-            Address.create_new_address(data)
+            Address.save_new_address(data)
         elif r.status_code == 404:
-            raise UnknownBANCleInterop
+            raise BANUnknownCleInterop
         else:
             raise BANAPIDown
 
     @staticmethod
-    def create_new_address(data):
-        # TODO
-        if data["position"] == None:
-            return
+    def save_new_address(data):
+        if data["position"]["type"] != "Point":
+            raise Exception(
+                f'BAN address position type not handled: {data["position"]["type"]}'
+            )
 
         Address.objects.create(
             id=data["cleInterop"],
             source="ban",
-            point=f'POINT ({data["position"]["coordinates"][0]} {data["position"]["coordinates"][1]})'
-            if data["position"]["type"] == "Point"
-            else None,
+            point=f'POINT ({data["position"]["coordinates"][0]} {data["position"]["coordinates"][1]})',
             street_number=data["numero"],
             street_rep=data["suffixe"],
-            street_name=data["voie"]["nomVoie"],
-            street_type=None,
-            city_name=None,
-            city_zipcode=None,
-            city_insee_code=None,
-            created_at=None,
-            updated_at=None,
+            street=data["voie"]["nomVoie"],
+            city_name=data["commune"]["nom"],
+            city_zipcode=data["codePostal"],
+            city_insee_code=data["commune"]["code"],
         )
-
-
-class UnknownBANCleInterop(Exception):
-    """this "clé d'interopérabilité" is not found in the BAN"""
-
-
-class BANAPIDown(Exception):
-    pass
 
 
 class Organization(models.Model):
