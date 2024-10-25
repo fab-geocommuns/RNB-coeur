@@ -411,8 +411,6 @@ class Address(models.Model):
 
     street_number = models.CharField(max_length=10, null=True)
     street_rep = models.CharField(max_length=100, null=True)
-    street_name = models.CharField(max_length=100, null=True)
-    street_type = models.CharField(max_length=100, null=True)
     street = models.CharField(max_length=200, null=True)
     city_name = models.CharField(max_length=100, null=True)
     city_zipcode = models.CharField(max_length=5, null=True)

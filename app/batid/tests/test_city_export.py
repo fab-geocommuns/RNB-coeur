@@ -19,8 +19,7 @@ class TestCityExport(TestCase):
         address_1 = Address.objects.create(
             id="ban_id_1",
             street_number="1",
-            street_name="de la paix",
-            street_type="rue",
+            street="rue de la paix",
             city_name="Grenoble",
             city_zipcode="12345",
             city_insee_code="38185",
@@ -28,8 +27,7 @@ class TestCityExport(TestCase):
         address_2 = Address.objects.create(
             id="ban_id_2",
             street_number="2",
-            street_name="de la paix",
-            street_type="rue",
+            street="rue de la paix",
             city_name="Grenoble",
             city_zipcode="12345",
             city_insee_code="38185",
