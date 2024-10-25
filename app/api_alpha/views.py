@@ -473,7 +473,7 @@ class SingleBuilding(APIView):
                 <ul>
                     <li>{"comment": "faux bâtiment", "is_active": False}</li>
                     <li>{"comment": "bâtiment démoli", "status": "demolished"}</li>
-                    <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": [75105_8884_00004]}</li>
+                    <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}</li>
                 </ul>""",
                 "operationId": "patchBuilding",
                 "parameters": [
