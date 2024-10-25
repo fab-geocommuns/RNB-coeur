@@ -82,16 +82,10 @@ def _get_components() -> dict:
                         "example": "bis",
                         "nullable": True,
                     },
-                    "street_type": {
-                        "type": "string",
-                        "description": "Type de la voie",
-                        "example": "rue",
-                        "nullable": True,
-                    },
-                    "street_name": {
+                    "street": {
                         "type": "string",
                         "description": "Nom de la voie",
-                        "example": "de l'église",
+                        "example": "rue de l'église",
                         "nullable": True,
                     },
                     "city_name": {
