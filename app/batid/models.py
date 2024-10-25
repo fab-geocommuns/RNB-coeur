@@ -15,6 +15,7 @@ from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
 from batid.exceptions import BANAPIDown
+from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
@@ -451,15 +452,13 @@ class Address(models.Model):
 
     @staticmethod
     def save_new_address(data):
-        if data["position"]["type"] != "Point":
-            raise Exception(
-                f'BAN address position type not handled: {data["position"]["type"]}'
-            )
+        if data["type"] != "numero":
+            raise BANBadResultType
 
         Address.objects.create(
             id=data["cleInterop"],
             source="ban",
-            point=f'POINT ({data["position"]["coordinates"][0]} {data["position"]["coordinates"][1]})',
+            point=f'POINT ({data["lon"]} {data["lat"]})',
             street_number=data["numero"],
             street_rep=data["suffixe"],
             street=data["voie"]["nomVoie"],

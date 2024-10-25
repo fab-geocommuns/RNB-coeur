@@ -38,6 +38,7 @@ from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
 
+from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.permissions import ADSPermission
 from api_alpha.permissions import ReadOnly
@@ -52,8 +53,9 @@ from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import rnb_doc
-from app.batid.exceptions import BANAPIDown
-from app.batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import BANAPIDown
+from batid.exceptions import BANBadResultType
+from batid.exceptions import BANUnknownCleInterop
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
@@ -559,6 +561,10 @@ class SingleBuilding(APIView):
                     except BANUnknownCleInterop:
                         raise NotFound(
                             detail="Cle d'intéropérabilité not found on the BAN API"
+                        )
+                    except BANBadResultType:
+                        raise BadRequest(
+                            detail="BAN result has not the expected type (must be 'numero')"
                         )
 
             # request is successful, no content to send back
