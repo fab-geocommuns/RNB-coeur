@@ -26,6 +26,7 @@ from rest_framework import mixins
 from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
@@ -1294,6 +1295,17 @@ class AdsTokenView(APIView):
         except json.JSONDecodeError:
             return HttpResponse("Invalid JSON", status=400)
 
+
+class RNBAuthToken(ObtainAuthToken):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        token = Token.objects.get(key=response.data['token'])
+        user = token.user
+        return Response({
+            'token': token.key,
+            'username': user.username,
+            'groups': [group.name for group in user.groups.all()]
+        })
 
 class TokenScheme(OpenApiAuthenticationExtension):
     target_class = "rest_framework.authentication.TokenAuthentication"

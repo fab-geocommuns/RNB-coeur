@@ -4,7 +4,7 @@ from django.urls import re_path
 from rest_framework import routers
 from rest_framework.authtoken import views as auth_views
 
-from api_alpha.views import AdsTokenView
+from api_alpha.views import AdsTokenView, RNBAuthToken
 from api_alpha.views import ADSVectorTileView
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingClosestView
@@ -39,7 +39,7 @@ urlpatterns = [
     ),
     path("ads/token/", AdsTokenView.as_view()),
     path("ads/tiles/<int:x>/<int:y>/<int:z>.pbf", ADSVectorTileView.as_view()),
-    path("login/", auth_views.obtain_auth_token),
+    path("login/", RNBAuthToken.as_view()),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", BuildingsVectorTileView.as_view()),
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
 ]
