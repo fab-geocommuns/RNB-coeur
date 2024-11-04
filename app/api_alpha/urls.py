@@ -2,9 +2,8 @@ from django.urls import include
 from django.urls import path
 from django.urls import re_path
 from rest_framework import routers
-from rest_framework.authtoken import views as auth_views
 
-from api_alpha.views import AdsTokenView, RNBAuthToken
+from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSVectorTileView
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingClosestView
@@ -16,6 +15,7 @@ from api_alpha.views import get_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
 from api_alpha.views import ListBuildings
+from api_alpha.views import RNBAuthToken
 from api_alpha.views import SingleBuilding
 
 # Routers provide an easy way of automatically determining the URL conf.

@@ -1299,13 +1299,16 @@ class AdsTokenView(APIView):
 class RNBAuthToken(ObtainAuthToken):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        token = Token.objects.get(key=response.data['token'])
+        token = Token.objects.get(key=response.data["token"])
         user = token.user
-        return Response({
-            'token': token.key,
-            'username': user.username,
-            'groups': [group.name for group in user.groups.all()]
-        })
+        return Response(
+            {
+                "token": token.key,
+                "username": user.username,
+                "groups": [group.name for group in user.groups.all()],
+            }
+        )
+
 
 class TokenScheme(OpenApiAuthenticationExtension):
     target_class = "rest_framework.authentication.TokenAuthentication"
