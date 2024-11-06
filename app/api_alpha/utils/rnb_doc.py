@@ -82,16 +82,10 @@ def _get_components() -> dict:
                         "example": "bis",
                         "nullable": True,
                     },
-                    "street_type": {
-                        "type": "string",
-                        "description": "Type de la voie",
-                        "example": "rue",
-                        "nullable": True,
-                    },
-                    "street_name": {
+                    "street": {
                         "type": "string",
                         "description": "Nom de la voie",
-                        "example": "de l'église",
+                        "example": "rue de l'église",
                         "nullable": True,
                     },
                     "city_name": {
@@ -134,6 +128,78 @@ def _get_components() -> dict:
                                 "type": "array",
                                 "items": {"type": "number"},
                                 "example": [-0.570505392116188, 44.841034137099996],
+                            },
+                        },
+                    },
+                    "shape": {
+                        "type": "object",
+                        "description": "Géométrie du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84. Elle peut être un multipolygone, un polygone ou un point et correspond notre meilleure connaissance de la réalité:",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["Point", "Polygon", "MultiPolygon"],
+                                "example": "Point",
+                            },
+                            "coordinates": {
+                                "type": "array",
+                                "items": {
+                                    "oneOf": [
+                                        {
+                                            "type": "array",
+                                            "description": "Coordonnées pour un Point",
+                                            "items": {"type": "number"},
+                                            "example": [
+                                                -0.570505392116188,
+                                                44.841034137099996,
+                                            ],
+                                        },
+                                        {
+                                            "type": "array",
+                                            "description": "Coordonnées pour un Polygon",
+                                            "items": {
+                                                "type": "array",
+                                                "items": {"type": "number"},
+                                            },
+                                            "example": [
+                                                [
+                                                    [
+                                                        -0.570505392116188,
+                                                        44.841034137099996,
+                                                    ],
+                                                    [
+                                                        -0.570505392116188,
+                                                        44.841034137099996,
+                                                    ],
+                                                ]
+                                            ],
+                                        },
+                                        {
+                                            "type": "array",
+                                            "description": "Coordonnées pour un MultiPolygon",
+                                            "items": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "array",
+                                                    "items": {"type": "number"},
+                                                },
+                                            },
+                                            "example": [
+                                                [
+                                                    [
+                                                        [
+                                                            -0.570505392116188,
+                                                            44.841034137099996,
+                                                        ],
+                                                        [
+                                                            -0.570505392116188,
+                                                            44.841034137099996,
+                                                        ],
+                                                    ]
+                                                ]
+                                            ],
+                                        },
+                                    ]
+                                },
                             },
                         },
                     },

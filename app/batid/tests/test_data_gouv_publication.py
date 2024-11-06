@@ -127,7 +127,7 @@ class TestDataGouvPublication(TestCase):
             source="BAN",
             point=geom_bdg_paris.point_on_surface,
             street_number="4",
-            street_name="rue scipion",
+            street="rue scipion",
             city_name="Paris",
             city_zipcode="75005",
         )
@@ -155,7 +155,7 @@ class TestDataGouvPublication(TestCase):
             source="BAN",
             point=geom_bdg_montreuil.point_on_surface,
             street_number="50",
-            street_name="boulevard de chanzy",
+            street="boulevard de chanzy",
             city_name="Montreuil",
             city_zipcode="93100",
         )

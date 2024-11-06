@@ -64,7 +64,7 @@ class TestStatsHelper(AbstractStatTests):
         # Read it
         stats = all_stats()
         self.assertEqual(stats["life_meaning"]["value"], 42)
-        self.assertIsInstance(stats["life_meaning"]["calculated_at"], datetime)
+        self.assertIsInstance(stats["life_meaning"]["computed_at"], datetime)
 
     def test_update_one_key(self):
 
@@ -76,17 +76,17 @@ class TestStatsHelper(AbstractStatTests):
         # Check the value
         stats = all_stats()
         self.assertEqual(stats["life_meaning"]["value"], 42)
-        first_calculated_at = stats["life_meaning"]["calculated_at"]
+        first_computed_at = stats["life_meaning"]["computed_at"]
 
         # Update the value
         set_stat("life_meaning", 43)
         # Check again the value
         stats = all_stats()
         self.assertEqual(stats["life_meaning"]["value"], 43)
-        second_calculated_at = stats["life_meaning"]["calculated_at"]
+        second_computed_at = stats["life_meaning"]["computed_at"]
 
-        # Verify the calculated_at has been updated
-        self.assertGreater(second_calculated_at, first_calculated_at)
+        # Verify the computed_at has been updated
+        self.assertGreater(second_computed_at, first_computed_at)
 
     def test_get_stat(self):
 
@@ -99,7 +99,7 @@ class TestStatsHelper(AbstractStatTests):
         # Read it
         stat = get_stat("life_meaning")
         self.assertEqual(stat["value"], 42)
-        self.assertIsInstance(stat["calculated_at"], datetime)
+        self.assertIsInstance(stat["computed_at"], datetime)
 
     def test_key_must_be_str(self):
 

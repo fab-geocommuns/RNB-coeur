@@ -39,8 +39,7 @@ class AddressSerializer(serializers.ModelSerializer):
             "source",
             "street_number",
             "street_rep",
-            "street_name",
-            "street_type",
+            "street",
             "city_name",
             "city_zipcode",
             "city_insee_code",
@@ -50,8 +49,7 @@ class AddressSerializer(serializers.ModelSerializer):
             "source": {"help_text": "bdnb"},
             "street_number": {"help_text": "3"},
             "street_rep": {"help_text": ""},
-            "street_name": {"help_text": "de l'eglise"},
-            "street_type": {"help_text": "rue"},
+            "street": {"help_text": "rue de l'eglise"},
             "city_name": {"help_text": "Chivy-lès-Étouvelles"},
             "city_zipcode": {"help_text": "02000"},
             "city_insee_code": {"help_text": "02191"},
@@ -77,6 +75,17 @@ class BuildingSerializer(serializers.ModelSerializer):
                             ]
                         }""",
     )
+    shape = serializers.DictField(
+        source="shape_geojson",
+        read_only=True,
+        help_text="""{
+                            "type": "Polygon",
+                            "coordinates": [[
+                                [100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
+                                [100.0, 1.0], [100.0, 0.0]
+                             ]]
+                        }""",
+    )
     addresses = AddressSerializer(
         many=True, read_only=True, source="addresses_read_only"
     )
@@ -88,6 +97,7 @@ class BuildingSerializer(serializers.ModelSerializer):
             "rnb_id",
             "status",
             "point",
+            "shape",
             "addresses",
             "ext_ids",
             "is_active",
