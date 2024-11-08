@@ -70,8 +70,7 @@ def sql_query(code_area):
             concat_ws(' ',
                 NULLIF(addr.street_number, ''),
                 NULLIF(addr.street_rep, ''),
-                NULLIF(addr.street_type, ''),
-                NULLIF(addr.street_name, ''),
+                NULLIF(addr.street, ''),
                 NULLIF(addr.city_zipcode, ''),
                 NULLIF(addr.city_name, '')
             )

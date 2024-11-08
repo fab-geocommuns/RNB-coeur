@@ -467,7 +467,7 @@ class SingleBuilding(APIView):
                 <ul>
                     <li>{"comment": "faux bâtiment", "is_active": False}</li>
                     <li>{"comment": "bâtiment démoli", "status": "demolished"}</li>
-                    <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": [75105_8884_00004]}</li>
+                    <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}</li>
                 </ul>""",
                 "operationId": "patchBuilding",
                 "parameters": [
@@ -501,7 +501,7 @@ class SingleBuilding(APIView):
                                     },
                                     "addresses_cle_interop": {
                                         "type": "list",
-                                        "description": "Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: [75105_8884_00004, 75105_8884_00006]",
+                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
                                     },
                                 },
                                 "required": ["comment"],
@@ -1017,8 +1017,9 @@ def get_stats(request):
     # check the "computed_at" date is not too old
     if bdg_count["computed_at"] < datetime.now() - timedelta(days=2):
         # if it is, we warn the tech channel
-        notify_tech(f"Le calcul du nombre de bâtiments disponible dans le cache est trop vieux. Il date de {bdg_count["computed_at"].isoformat()}")
-
+        notify_tech(
+            f'Le calcul du nombre de bâtiments disponible dans le cache est trop vieux. Il date de {bdg_count["computed_at"].isoformat()}'
+        )
 
     data = {
         "building_counts": bdg_count["value"],
