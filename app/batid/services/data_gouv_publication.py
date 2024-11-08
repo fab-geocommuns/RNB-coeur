@@ -52,36 +52,39 @@ def file_path(directory_name, code_area):
 
 def sql_query(code_area):
     if code_area == "nat":
-        filter_condition = ""
+        dpt_where = ""
+        dpt_join = ""
     else:
-        filter_condition = f"WHERE code_dept = '{code_area}'"
+        dpt_where = f" AND dpt.code = '{code_area}'"
+        dpt_join = " LEFT JOIN batid_department_subdivided AS dpt ON ST_Intersects(dpt.shape, bdg.point)"
 
-    # If one day, we want to optimize performance:
-    # we could do only one query to get all the national data and then split this data into departments files using the `code_dept` instead of doing 98 or more queries
+
     sql = f"""
     COPY (
-    with data_gouv_publication as (SELECT bdg.rnb_id AS rnb_id, ST_AsEWKT(bdg.point) AS point, ST_AsEWKT(bdg.shape) AS shape, status, bdg.ext_ids AS ext_ids,
-            json_agg(
-                concat_ws(' ',
-                    NULLIF(addr.street_number, ''),
-                    NULLIF(addr.street_rep, ''),
-                    NULLIF(addr.street_type, ''),
-                    NULLIF(addr.street_name, ''),
-                    NULLIF(addr.city_zipcode, ''),
-                    NULLIF(addr.city_name, '')
-                )
-            ) AS addresses,
-            bdg.addresses_id,
-            dept.code AS code_dept
-            FROM batid_building bdg
-            LEFT JOIN batid_buildingaddressesreadonly bdg_addr ON bdg_addr.building_id = bdg.id
-            LEFT JOIN batid_address addr ON addr.id = bdg_addr.address_id
-            LEFT JOIN batid_department AS dept ON ST_Intersects(dept.shape, bdg.point)
-            WHERE is_active
-            GROUP BY bdg.rnb_id, bdg.point, bdg.shape, bdg.status, bdg.ext_ids, bdg.addresses_id, dept.code
-        )
-        SELECT rnb_id, point, shape, status, ext_ids, NULLIF(addresses::text, '[\"\"]') AS addresses, addresses_id as addresses_ban_cle_interop FROM data_gouv_publication {filter_condition}
-    ) TO STDOUT WITH CSV HEADER DELIMITER ';'
+        select bdg.rnb_id as rnb_id,
+        ST_AsEWKT(bdg.point) as point,
+        ST_AsEWKT(bdg.shape) as shape,
+        bdg.status as status,
+        bdg.ext_ids as ext_ids,
+        json_agg(
+            concat_ws(' ',
+                NULLIF(addr.street_number, ''),
+                NULLIF(addr.street_rep, ''),
+                NULLIF(addr.street_type, ''),
+                NULLIF(addr.street_name, ''),
+                NULLIF(addr.city_zipcode, ''),
+                NULLIF(addr.city_name, '')
+            )
+        ) as addresses,
+        bdg.addresses_id as addresses_ban_cle_interop
+        FROM batid_building bdg
+        LEFT JOIN batid_buildingaddressesreadonly bdg_addr ON bdg_addr.building_id = bdg.id
+        LEFT JOIN batid_address addr ON addr.id = bdg_addr.address_id 
+        {dpt_join}
+        WHERE is_active 
+        {dpt_where}
+        GROUP BY bdg.rnb_id, bdg.point, bdg.shape, bdg.status, bdg.ext_ids, bdg.addresses_id
+    )  TO STDOUT WITH CSV HEADER DELIMITER ';'
     """
 
     return sql

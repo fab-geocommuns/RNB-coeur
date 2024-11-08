@@ -9,9 +9,8 @@ from django.test import TestCase
 from freezegun import freeze_time
 from moto import mock_aws
 
-from batid.models import Address
+from batid.models import Address, Department_subdivided
 from batid.models import Building
-from batid.models import Department
 from batid.services.data_gouv_publication import cleanup_directory
 from batid.services.data_gouv_publication import create_archive
 from batid.services.data_gouv_publication import create_csv
@@ -63,16 +62,16 @@ def get_department_75_geom():
     coords = {
         "coordinates": [
             [
-                [
+
                     [2.238184771496691, 48.90857365031127],
                     [2.238184771496691, 48.812797283252735],
                     [2.425226858137023, 48.812797283252735],
                     [2.425226858137023, 48.90857365031127],
                     [2.238184771496691, 48.90857365031127],
-                ]
+
             ]
         ],
-        "type": "MultiPolygon",
+        "type": "Polygon",
     }
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
@@ -82,16 +81,16 @@ def get_department_93_geom():
     coords = {
         "coordinates": [
             [
-                [
+
                     [2.426210394796641, 48.90890218742271],
                     [2.426210394796641, 48.84215900551669],
                     [2.5026701757286105, 48.84215900551669],
                     [2.5026701757286105, 48.90890218742271],
                     [2.426210394796641, 48.90890218742271],
-                ]
+
             ]
         ],
-        "type": "MultiPolygon",
+        "type": "Polygon",
     }
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
@@ -111,13 +110,13 @@ def get_resources():
 class TestDataGouvPublication(TestCase):
     def test_archive_creation_deletion(self):
         geom_bdg_paris = get_geom_paris()
-        Department.objects.create(
+        Department_subdivided.objects.create(
             code="75",
             name="Paris",
             shape=get_department_75_geom(),
         )
         geom_bdg_montreuil = get_geom_montreuil()
-        Department.objects.create(
+        Department_subdivided.objects.create(
             code="93",
             name="Est",
             shape=get_department_93_geom(),
@@ -138,6 +137,7 @@ class TestDataGouvPublication(TestCase):
             status="constructed",
             ext_ids={"some_source": "1234"},
             addresses_id=[address_Paris.id],
+            is_active=True
         )
         building.save()
 
