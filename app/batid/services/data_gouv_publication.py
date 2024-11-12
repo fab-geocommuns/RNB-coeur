@@ -66,23 +66,24 @@ def sql_query(code_area):
         ST_AsEWKT(bdg.shape) as shape,
         bdg.status as status,
         bdg.ext_ids as ext_ids,
-        json_agg(
-            concat_ws(' ',
-                NULLIF(addr.street_number, ''),
-                NULLIF(addr.street_rep, ''),
-                NULLIF(addr.street, ''),
-                NULLIF(addr.city_zipcode, ''),
-                NULLIF(addr.city_name, '')
-            )
-        ) as addresses,
-        bdg.addresses_id as addresses_ban_cle_interop
+        coalesce(json_agg(
+             json_build_object(
+                    'cle_interop_ban', addr.id, 
+                    'street_number', addr.street_number,
+                    'street_rep', addr.street_rep,
+                    'street', addr.street,
+                    'city_zipcode', addr.city_zipcode,
+                    'city_name', addr.city_name
+                )
+            
+        ) FILTER (WHERE addr.id IS NOT NULL), '[]'::json) AS addresses
         FROM batid_building bdg
         LEFT JOIN batid_buildingaddressesreadonly bdg_addr ON bdg_addr.building_id = bdg.id
         LEFT JOIN batid_address addr ON addr.id = bdg_addr.address_id 
         {dpt_join}
         WHERE is_active 
         {dpt_where}
-        GROUP BY bdg.rnb_id, bdg.point, bdg.shape, bdg.status, bdg.ext_ids, bdg.addresses_id
+        GROUP BY bdg.rnb_id, bdg.point, bdg.shape, bdg.status, bdg.ext_ids
     )  TO STDOUT WITH CSV HEADER DELIMITER ';'
     """
 
