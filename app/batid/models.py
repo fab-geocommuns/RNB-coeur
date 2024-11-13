@@ -205,6 +205,40 @@ class Building(BuildingAbstract):
             c.refuse(user, msg)
 
     @staticmethod
+    def create_new(
+        user: User | None,
+        event_origin: dict | None,
+        status: str,
+        addresses_id: list,
+        shape: GEOSGeometry,
+        ext_ids: list,
+    ):
+        if (
+            not event_origin
+            or not status
+            or addresses_id is None
+            or not shape
+            or ext_ids is None
+        ):
+            raise Exception("Missing information to create a new building")
+
+        point = shape if shape.geom_type == "Point" else shape.point_on_surface
+
+        return Building.objects.create(
+            rnb_id=generate_rnb_id(),
+            point=point,
+            shape=shape,
+            ext_ids=ext_ids,
+            event_origin=event_origin,
+            status=status,
+            event_id=uuid.uuid4(),
+            event_type="creation",
+            event_user=user,
+            is_active=True,
+            addresses_id=addresses_id,
+        )
+
+    @staticmethod
     def merge(buildings: list, user, event_origin, status, addresses_id):
         from batid.utils.geo import merge_contiguous_shapes
 
