@@ -80,7 +80,7 @@ class TestCityExport(TestCase):
         bdg.addresses_id = [address_1.id, address_2.id]
 
         # Add some attributes
-        bdg.ext_ids = Building.add_ext_ids(
+        bdg.ext_ids = Building.add_ext_id(
             bdg.ext_ids, "bdtopo", "v1", "BAT_BDTOPO_2", ext_id_date.isoformat()
         )
 

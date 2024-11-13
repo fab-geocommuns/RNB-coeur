@@ -157,8 +157,8 @@ class Building(BuildingAbstract):
         event_origin: dict | None,
         status: str | None,
         addresses_id: list | None,
-        ext_ids: list | None,
-        shape: GEOSGeometry | None,
+        ext_ids: list | None = None,
+        shape: GEOSGeometry | None = None,
     ):
         if (
             status is None

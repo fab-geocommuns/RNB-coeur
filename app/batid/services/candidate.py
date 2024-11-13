@@ -160,10 +160,17 @@ class Inspector:
 
     def decide_update(self):
         bdg = Building.objects.get(id=self.matching_bdgs[0].id)
-        has_changed, bdg = self.calc_bdg_update(bdg)
+        changes = self.calc_bdg_update(bdg)
 
-        if has_changed:
-            bdg.save()
+        if changes:
+            bdg.update(
+                user=None,
+                event_origin=changes.get("event_origin"),
+                status=None,
+                addresses_id=changes.get("addresses_id"),
+                ext_ids=changes.get("ext_ids"),
+                shape=changes.get("shape"),
+            )
             self.candidate.inspection_details = {
                 "decision": "update",
                 "rnb_id": bdg.rnb_id,
@@ -175,8 +182,8 @@ class Inspector:
             }
         self.candidate.save()
 
-    def calc_bdg_update(self, bdg: Building):
-        has_changed = False
+    def calc_bdg_update(self, bdg: Building) -> dict:
+        changes = {}
 
         # ##############################
         # PROPERTIES
@@ -191,13 +198,13 @@ class Inspector:
             self.candidate.source_version,
             self.candidate.source_id,
         ):
-            bdg.add_ext_id(
+            changes["ext_ids"] = Building.add_ext_id(
+                bdg.ext_ids,
                 self.candidate.source,
                 self.candidate.source_version,
                 self.candidate.source_id,
                 self.candidate.created_at.isoformat(),
             )
-            has_changed = True
 
         # ##
         # Prop : shape
@@ -205,8 +212,7 @@ class Inspector:
             shape_family(self.candidate.shape) == "poly"
             and shape_family(bdg.shape) == "point"
         ):
-            bdg.shape = self.candidate.shape.clone()
-            has_changed = True
+            changes["shape"] = self.candidate.shape.clone()
 
         # ##############################
         # ADDRESSES
@@ -217,14 +223,15 @@ class Inspector:
         bdg_addresses = sort_handle_null(bdg.addresses_id)
         candidate_addresses = sort_handle_null(self.candidate.address_keys)
         if bdg_addresses != candidate_addresses and candidate_addresses:
-            has_changed = True
             # concatenate the two lists and remove duplicates
-            bdg.addresses_id = list(set(bdg_addresses + candidate_addresses))
+            changes["addresses_id"] = list(set(bdg_addresses + candidate_addresses))
 
-        if has_changed:
-            bdg.event_origin = self.candidate.created_by
+        if len(changes) > 0:
+            changes["event_origin"] = self.candidate.created_by
 
-        return has_changed, bdg
+        # return an empty dict if nothing has changed
+        # or a dict of changes
+        return changes
 
 
 def add_addresses_to_building(bdg: Building, add_keys):

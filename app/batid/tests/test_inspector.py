@@ -44,6 +44,7 @@ class TestInspectorBdgCreate(TestCase):
             source_id="bdnb_1",
             address_keys=["add_1", "add_2"],
             is_light=False,
+            created_by={"id": 46, "source": "import"},
         )
 
         # Create the addresses
@@ -935,6 +936,7 @@ class NonExistingAddress(TransactionTestCase):
             source_id="bdnb_1",
             address_keys=["add_1"],
             is_light=False,
+            created_by={"id": 1, "source": "import"},
         )
 
         i = Inspector()
