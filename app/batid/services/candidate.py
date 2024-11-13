@@ -166,12 +166,15 @@ class Inspector:
 
         if has_changed:
             bdg.save()
-
-        # Finally, we update the candidate
-        self.candidate.inspection_details = {
-            "decision": "update",
-            "rnb_id": bdg.rnb_id,
-        }
+            self.candidate.inspection_details = {
+                "decision": "update",
+                "rnb_id": bdg.rnb_id,
+            }
+        else:
+            self.candidate.inspection_details = {
+                "decision": "refusal",
+                "reason": "nothing_to_update",
+            }
         self.candidate.save()
 
     def calc_bdg_update(self, bdg: Building):
@@ -215,7 +218,7 @@ class Inspector:
 
         bdg_addresses = sort_handle_null(bdg.addresses_id)
         candidate_addresses = sort_handle_null(self.candidate.address_keys)
-        if bdg_addresses != candidate_addresses:
+        if bdg_addresses != candidate_addresses and candidate_addresses:
             has_changed = True
             # concatenate the two lists and remove duplicates
             bdg.addresses_id = list(set(bdg_addresses + candidate_addresses))
