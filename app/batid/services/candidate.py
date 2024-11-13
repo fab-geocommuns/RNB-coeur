@@ -12,7 +12,6 @@ from django.db import transaction
 from batid.models import Building
 from batid.models import Candidate
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
-from batid.services.rnb_id import generate_rnb_id
 
 
 class Inspector:
@@ -149,8 +148,7 @@ class Inspector:
 
     def decide_creation(self):
         # We build the new building
-        bdg = new_bdg_from_candidate(self.candidate)
-        bdg.save()
+        bdg = create_building_from_candidate(self.candidate)
 
         # Finally, we update the candidate
         self.candidate.inspection_details = {
@@ -316,23 +314,23 @@ def compute_shape_area(shape):
     return row[0]
 
 
-def new_bdg_from_candidate(c: Candidate) -> Building:
-    point = c.shape if c.shape.geom_type == "Point" else c.shape.point_on_surface
-
-    b = Building()
-    b.rnb_id = generate_rnb_id()
-    b.shape = c.shape
-    b.point = point
-    b.event_origin = c.created_by
-    b.ext_ids = [
-        {
-            "source": c.source,
-            "source_version": c.source_version,
-            "id": c.source_id,
-            "created_at": c.created_at.isoformat(),
-        }
-    ]
-    b.addresses_id = c.address_keys
+def create_building_from_candidate(c: Candidate) -> Building:
+    b = Building.create_new(
+        # should we add a user here?
+        user=None,
+        event_origin=c.created_by,
+        status="constructed",
+        addresses_id=c.address_keys or [],
+        shape=c.shape,
+        ext_ids=[
+            {
+                "source": c.source,
+                "source_version": c.source_version,
+                "id": c.source_id,
+                "created_at": c.created_at.isoformat(),
+            }
+        ],
+    )
 
     return b
 
