@@ -2,6 +2,7 @@ from datetime import date
 
 from django.test import TransactionTestCase
 
+from app.batid.models import Building
 from batid.services.imports.import_bdtopo import _known_bdtopo_id
 from batid.services.imports.import_bdtopo import bdtopo_recente_release_date
 from batid.tests.helpers import create_default_bdg
@@ -23,14 +24,22 @@ class KnownId(TransactionTestCase):
     def setUp(self):
 
         bdg = create_default_bdg("RNB_ID")
-        bdg.add_ext_id("bdtopo", "2024-03-15", "ID", "2024-05-24")
+        bdg.ext_ids = Building.add_ext_id(
+            [], "bdtopo", "2024-03-15", "ID", "2024-05-24"
+        )
         bdg.save()
 
         bdg = create_default_bdg("RNB_ID2")
-        bdg.add_ext_id("other_source", "2024-03-15", "ID3", "2024-05-24")
+        bdg.ext_ids = Building.add_ext_id(
+            [], "other_source", "2024-03-15", "ID3", "2024-05-24"
+        )
+        bdg.save()
 
         bdg = create_default_bdg("RNB_ID3")
-        bdg.add_ext_id("bdtopo", "2024-03-15", "ID5", "2024-05-24")
+        bdg.ext_ids = Building.add_ext_id(
+            [], "bdtopo", "2024-03-15", "ID5", "2024-05-24"
+        )
+        bdg.save()
 
     def test(self):
 

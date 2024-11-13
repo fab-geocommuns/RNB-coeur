@@ -114,7 +114,9 @@ class TestInspectorBdgUpdate(TestCase):
             [2.349804906833981, 48.85789205519228],
         ]
         b = create_bdg("EXISTING", coords)
-        b.add_ext_id("bdnb", "7.2", "bdnb_previous", datetime.now().isoformat())
+        b.ext_ids = Building.add_ext_id(
+            b.ext_ids, "bdnb", "7.2", "bdnb_previous", datetime.now().isoformat()
+        )
         b.save()
 
         # Create a candidate for the merge
