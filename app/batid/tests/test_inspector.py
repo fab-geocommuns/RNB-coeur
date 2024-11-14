@@ -291,6 +291,18 @@ class InspectorMergeBuilding(TestCase):
         self.assertEqual(building.event_type, "creation")
 
 
+class InspectTest(TestCase):
+    bdgs_data = None
+    candidates_data = None
+
+    def setUp(self):
+        # Install buildings
+        data_to_bdg(self.bdgs_data)
+
+        # Install candidates
+        data_to_candidate(self.candidates_data)
+
+
 class TestHalvishCover(InspectTest):
     """
     We the the case where the candidate partially cover an existing building. Not enough to consider it as the same building but enought to be ambiguous.
