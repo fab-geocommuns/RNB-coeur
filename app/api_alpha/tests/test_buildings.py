@@ -1,4 +1,5 @@
 import json
+from unittest import mock
 
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
@@ -755,3 +756,145 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
+
+    @mock.patch("batid.models.requests.get")
+    def test_new_address(self, get_mock):
+        get_mock.return_value.status_code = 200
+        cle_interop = "33063_9115_00012_bis"
+        get_mock.return_value.json.return_value = {
+            "type": "numero",
+            "numero": 12,
+            "suffixe": "bis",
+            "lon": -0.581012,
+            "lat": 44.845842,
+            "codePostal": "33000",
+            "cleInterop": cle_interop,
+            "voie": {
+                "nomVoie": "Rue Turenne",
+            },
+            "commune": {
+                "nom": "Bordeaux",
+                "code": "33063",
+            },
+        }
+
+        self.user.groups.add(self.group)
+        comment = "maj du batiment avec une adresse BAN toute fraiche"
+        data = {
+            "addresses_cle_interop": [cle_interop],
+            "comment": comment,
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+
+        get_mock.assert_called_with(
+            f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
+        )
+
+        address = Address.objects.get(id=cle_interop)
+
+        self.assertEqual(address.source, "ban")
+        self.assertEqual(address.point.wkt, "POINT (-0.581012 44.845842)")
+        self.assertEqual(address.street_number, "12")
+        self.assertEqual(address.street_rep, "bis")
+        self.assertEqual(address.street, "Rue Turenne")
+        self.assertEqual(address.city_name, "Bordeaux")
+        self.assertEqual(address.city_zipcode, "33000")
+        self.assertEqual(address.city_insee_code, "33063")
+
+    @mock.patch("batid.models.requests.get")
+    def test_new_address_BAN_is_down(self, get_mock):
+        get_mock.return_value.status_code = 500
+        cle_interop = "33063_9115_00012_bis"
+        get_mock.return_value.json.return_value = {
+            "details": "Oooops",
+        }
+
+        self.user.groups.add(self.group)
+        comment = "maj du batiment avec une adresse BAN toute fraiche"
+        data = {
+            "addresses_cle_interop": [cle_interop],
+            "comment": comment,
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 503)
+        get_mock.assert_called_with(
+            f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
+        )
+
+    @mock.patch("batid.models.requests.get")
+    def test_new_address_BAN_unknown_id(self, get_mock):
+        get_mock.return_value.status_code = 404
+        cle_interop = "33063_9115_00012_bis"
+        get_mock.return_value.json.return_value = {
+            "details": "what is this id?",
+        }
+
+        self.user.groups.add(self.group)
+        comment = "maj du batiment avec une adresse BAN toute fraiche"
+        data = {
+            "addresses_cle_interop": [cle_interop],
+            "comment": comment,
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 404)
+        get_mock.assert_called_with(
+            f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
+        )
+
+    @mock.patch("batid.models.requests.get")
+    def test_new_address_not_good_type(self, get_mock):
+        get_mock.return_value.status_code = 200
+        cle_interop = "33063_9115"
+        get_mock.return_value.json.return_value = {
+            "type": "rue",
+            "numero": "",
+            "suffixe": "",
+            "lon": -0.581012,
+            "lat": 44.845842,
+            "codePostal": "33000",
+            "cleInterop": cle_interop,
+            "voie": {
+                "nomVoie": "Rue Turenne",
+            },
+            "commune": {
+                "nom": "Bordeaux",
+                "code": "33063",
+            },
+        }
+
+        self.user.groups.add(self.group)
+        comment = "maj du batiment avec une adresse de type voie"
+        data = {
+            "addresses_cle_interop": [cle_interop],
+            "comment": comment,
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+        get_mock.assert_called_with(
+            f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
+        )
