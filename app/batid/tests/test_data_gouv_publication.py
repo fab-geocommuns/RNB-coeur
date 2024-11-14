@@ -10,8 +10,9 @@ from django.test import TestCase
 from freezegun import freeze_time
 from moto import mock_aws
 
-from batid.models import Address, Department_subdivided
+from batid.models import Address
 from batid.models import Building
+from batid.models import Department_subdivided
 from batid.services.data_gouv_publication import cleanup_directory
 from batid.services.data_gouv_publication import create_archive
 from batid.services.data_gouv_publication import create_csv
@@ -63,13 +64,11 @@ def get_department_75_geom():
     coords = {
         "coordinates": [
             [
-
-                    [2.238184771496691, 48.90857365031127],
-                    [2.238184771496691, 48.812797283252735],
-                    [2.425226858137023, 48.812797283252735],
-                    [2.425226858137023, 48.90857365031127],
-                    [2.238184771496691, 48.90857365031127],
-
+                [2.238184771496691, 48.90857365031127],
+                [2.238184771496691, 48.812797283252735],
+                [2.425226858137023, 48.812797283252735],
+                [2.425226858137023, 48.90857365031127],
+                [2.238184771496691, 48.90857365031127],
             ]
         ],
         "type": "Polygon",
@@ -82,13 +81,11 @@ def get_department_93_geom():
     coords = {
         "coordinates": [
             [
-
-                    [2.426210394796641, 48.90890218742271],
-                    [2.426210394796641, 48.84215900551669],
-                    [2.5026701757286105, 48.84215900551669],
-                    [2.5026701757286105, 48.90890218742271],
-                    [2.426210394796641, 48.90890218742271],
-
+                [2.426210394796641, 48.90890218742271],
+                [2.426210394796641, 48.84215900551669],
+                [2.5026701757286105, 48.84215900551669],
+                [2.5026701757286105, 48.90890218742271],
+                [2.426210394796641, 48.90890218742271],
             ]
         ],
         "type": "Polygon",
@@ -149,7 +146,6 @@ class TestDataGouvPublication(TestCase):
             city_zipcode="75020",
         )
 
-
         # Building 1: should be in CSV
         Building.objects.create(
             rnb_id="BDG-CONSTR",
@@ -158,9 +154,8 @@ class TestDataGouvPublication(TestCase):
             status="constructed",
             ext_ids={"some_source": "1234"},
             addresses_id=[address_paris_1.id],
-            is_active=True
+            is_active=True,
         )
-
 
         # Building 2: is inactive, should not be in the csv
         Building.objects.create(
@@ -170,9 +165,8 @@ class TestDataGouvPublication(TestCase):
             status="constructed",
             ext_ids={"some_source": "1234"},
             addresses_id=[address_paris_1.id],
-            is_active=False
+            is_active=False,
         )
-
 
         # Building 3: without address
         Building.objects.create(
@@ -193,7 +187,6 @@ class TestDataGouvPublication(TestCase):
             addresses_id=[address_paris_1.id, address_paris_2.id],
         )
 
-
         address_Montreuil = Address.objects.create(
             id="93048_1450_00050",
             source="BAN",
@@ -212,7 +205,6 @@ class TestDataGouvPublication(TestCase):
             addresses_id=[address_paris_1.id, address_Montreuil.id],
         )
 
-
         area = "75"
         directory_name = create_directory(area)
 
@@ -226,14 +218,7 @@ class TestDataGouvPublication(TestCase):
         self.assertEqual(len(files), 1)
 
         # Expected values
-        expected_keys = [
-            "rnb_id",
-            "point",
-            "shape",
-            "status",
-            "ext_ids",
-            "addresses"
-        ]
+        expected_keys = ["rnb_id", "point", "shape", "status", "ext_ids", "addresses"]
         expected_len = 3
         expected_rows = [
             {
@@ -242,8 +227,16 @@ class TestDataGouvPublication(TestCase):
                 "shape": "SRID=4326;POLYGON((2.353721421744524 48.83801408684721,2.35382782105961 48.83790774339977,2.353989390389472 48.83797518073416,2.3538810207165 48.83809708645475,2.353721421744524 48.83801408684721))",
                 "status": "constructed",
                 "ext_ids": {"some_source": "1234"},
-                "addresses": [{"cle_interop_ban": "75105_8884_00004", "street_number": "4", "street_rep": None,
-                               "street": "rue scipion", "city_zipcode": "75005", "city_name": "Paris"}]
+                "addresses": [
+                    {
+                        "cle_interop_ban": "75105_8884_00004",
+                        "street_number": "4",
+                        "street_rep": None,
+                        "street": "rue scipion",
+                        "city_zipcode": "75005",
+                        "city_name": "Paris",
+                    }
+                ],
             },
             {
                 "rnb_id": "BDG2-PARIS",
@@ -251,7 +244,7 @@ class TestDataGouvPublication(TestCase):
                 "shape": "SRID=4326;POLYGON((2.353721421744524 48.83801408684721,2.35382782105961 48.83790774339977,2.353989390389472 48.83797518073416,2.3538810207165 48.83809708645475,2.353721421744524 48.83801408684721))",
                 "status": "constructed",
                 "ext_ids": {"some_source": "5678"},
-                "addresses": []
+                "addresses": [],
             },
             {
                 "rnb_id": "BDG-MANY-ADD",
@@ -259,17 +252,30 @@ class TestDataGouvPublication(TestCase):
                 "shape": "SRID=4326;POLYGON((2.353721421744524 48.83801408684721,2.35382782105961 48.83790774339977,2.353989390389472 48.83797518073416,2.3538810207165 48.83809708645475,2.353721421744524 48.83801408684721))",
                 "status": "constructed",
                 "ext_ids": {"some_source": "9999"},
-                "addresses": [{"cle_interop_ban": "75105_8884_00004", "street_number": "4", "street_rep": None,
-                               "street": "rue scipion", "city_zipcode": "75005", "city_name": "Paris"},
-                              {"cle_interop_ban": "75105_8884_00005", "street_number": "6", "street_rep": None,
-                               "street": "rue hello", "city_zipcode": "75020", "city_name": "Paris"}]
-            }
+                "addresses": [
+                    {
+                        "cle_interop_ban": "75105_8884_00004",
+                        "street_number": "4",
+                        "street_rep": None,
+                        "street": "rue scipion",
+                        "city_zipcode": "75005",
+                        "city_name": "Paris",
+                    },
+                    {
+                        "cle_interop_ban": "75105_8884_00005",
+                        "street_number": "6",
+                        "street_rep": None,
+                        "street": "rue hello",
+                        "city_zipcode": "75020",
+                        "city_name": "Paris",
+                    },
+                ],
+            },
         ]
         expected_rows = sorted(expected_rows, key=lambda x: x["rnb_id"])
 
         # open the file and check the content
         with open(f"{directory_name}/RNB_{area}.csv", "r") as f:
-
 
             # For the sake of test, we sort both rows and expected rows
             reader = csv.DictReader(f, delimiter=";")
