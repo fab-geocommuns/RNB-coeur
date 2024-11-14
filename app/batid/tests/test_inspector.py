@@ -273,7 +273,96 @@ class InspectorMergeBuilding(TestCase):
             source_id="bdtopo_1",
             source_version="2023_01",
             # typical case : empty address incoming from the BDTOPO
-            address_keys=[],
+            address_keys=None,
+            is_light=False,
+        )
+
+        # we expect the candidate to be refused, because it contains no new information about the building.
+        i = Inspector()
+        i.inspect()
+        c.refresh_from_db()
+        self.assertTrue(
+            c.inspection_details
+            == {"decision": "refusal", "reason": "nothing_to_update"}
+        )
+
+        # the building has not been updated (no new entry in the BuildingWithHistory view)
+        buildings = BuildingWithHistory.objects.filter(rnb_id=rnb_id).all()
+        self.assertEqual(len(buildings), 1)
+        building = buildings[0]
+        self.assertEqual(building.event_type, "creation")
+
+    def test_all_addresses_are_known(self):
+        # Create an address
+        Address.objects.create(
+            id="add_1",
+            source="ban",
+            point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
+            street_number="39",
+            street="rue de Rivoli",
+            city_name="Paris",
+            city_zipcode="75004",
+            city_insee_code="75104",
+        )
+
+        Address.objects.create(
+            id="add_2",
+            source="ban",
+            point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
+            street_number="40",
+            street="rue de Rivoli",
+            city_name="Paris",
+            city_zipcode="75004",
+            city_insee_code="75104",
+        )
+
+        Address.objects.create(
+            id="add_3",
+            source="ban",
+            point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
+            street_number="40",
+            street="rue de Rivoli",
+            city_name="Paris",
+            city_zipcode="75004",
+            city_insee_code="75104",
+        )
+
+        # we create a building
+        shape = coords_to_mp_geom(
+            [
+                [2.349804906833981, 48.85789205519228],
+                [2.349701279442314, 48.85786369735885],
+                [2.3496535925009994, 48.85777922711969],
+                [2.349861764341199, 48.85773095834841],
+                [2.3499452164882086, 48.857847406681174],
+                [2.349804906833981, 48.85789205519228],
+            ]
+        )
+
+        b = Building.create_new(
+            user=None,
+            event_origin={"source": "import"},
+            status="constructed",
+            addresses_id=["add_1", "add_2", "add_3"],
+            shape=shape,
+            ext_ids=[
+                {
+                    "id": "bdtopo_1",
+                    "source": "bdtopo",
+                    "created_at": "2023-12-10T19:42:40.038998+00:00",
+                    "source_version": "2023_01",
+                }
+            ],
+        )
+        rnb_id = b.rnb_id
+
+        c = Candidate.objects.create(
+            shape=shape,
+            source="bdtopo",
+            source_id="bdtopo_1",
+            source_version="2023_01",
+            # candidate contains only addresses already associated to the building
+            address_keys=["add_3", "add_1"],
             is_light=False,
         )
 
