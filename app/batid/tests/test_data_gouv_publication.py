@@ -203,7 +203,7 @@ class TestDataGouvPublication(TestCase):
             city_name="Montreuil",
             city_zipcode="93100",
         )
-        building = Building.objects.create(
+        Building.objects.create(
             rnb_id="BDG-2-CONSTR",
             shape=geom_bdg_montreuil,
             point=geom_bdg_montreuil.point_on_surface,
@@ -289,33 +289,6 @@ class TestDataGouvPublication(TestCase):
 
             # Finally, check the content of the rows
             self.assertListEqual(rows, expected_rows)
-
-
-
-
-
-
-
-
-
-
-
-
-
-            # self.assertIn("BDG-CONSTR", content)
-            # self.assertIn("POLYGON", content)
-            # self.assertIn("POINT", content)
-            # self.assertIn("constructed", content)
-            # self.assertIn("some_source", content)
-            # self.assertIn("75005", content)
-            # self.assertIn("scipion", content)
-            # self.assertIn("75105_8884_00004", content)
-            # # check none address is null and not [""]
-            # self.assertNotIn('[""]', content)
-            # self.assertNotIn("93100", content)
-            # self.assertNotIn("chanzy", content)
-
-
 
         (archive_path, archive_size, archive_sha1) = create_archive(
             directory_name, area
