@@ -58,7 +58,6 @@ def sql_query(code_area):
         dpt_where = f" AND dpt.code = '{code_area}'"
         dpt_join = " LEFT JOIN batid_department_subdivided AS dpt ON ST_Intersects(dpt.shape, bdg.point)"
 
-
     sql = f"""
     COPY (
         select bdg.rnb_id as rnb_id,
@@ -68,20 +67,20 @@ def sql_query(code_area):
         bdg.ext_ids as ext_ids,
         coalesce(json_agg(
              json_build_object(
-                    'cle_interop_ban', addr.id, 
+                    'cle_interop_ban', addr.id,
                     'street_number', addr.street_number,
                     'street_rep', addr.street_rep,
                     'street', addr.street,
                     'city_zipcode', addr.city_zipcode,
                     'city_name', addr.city_name
                 )
-            
+
         ) FILTER (WHERE addr.id IS NOT NULL), '[]'::json) AS addresses
         FROM batid_building bdg
         LEFT JOIN batid_buildingaddressesreadonly bdg_addr ON bdg_addr.building_id = bdg.id
-        LEFT JOIN batid_address addr ON addr.id = bdg_addr.address_id 
+        LEFT JOIN batid_address addr ON addr.id = bdg_addr.address_id
         {dpt_join}
-        WHERE is_active 
+        WHERE is_active
         {dpt_where}
         GROUP BY bdg.rnb_id, bdg.point, bdg.shape, bdg.status, bdg.ext_ids
     )  TO STDOUT WITH CSV HEADER DELIMITER ';'
