@@ -27,6 +27,7 @@ from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
@@ -38,6 +39,8 @@ from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
 
+from api_alpha.exceptions import BadRequest
+from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.permissions import ADSPermission
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
@@ -51,6 +54,9 @@ from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import rnb_doc
+from batid.exceptions import BANAPIDown
+from batid.exceptions import BANBadResultType
+from batid.exceptions import BANUnknownCleInterop
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
@@ -547,7 +553,20 @@ class SingleBuilding(APIView):
                     status = data.get("status")
                     addresses_cle_interop = data.get("addresses_cle_interop")
 
-                    building.update(user, event_origin, status, addresses_cle_interop)
+                    try:
+                        building.update(
+                            user, event_origin, status, addresses_cle_interop
+                        )
+                    except BANAPIDown:
+                        raise ServiceUnavailable(detail="BAN API is currently down")
+                    except BANUnknownCleInterop:
+                        raise NotFound(
+                            detail="Cle d'intéropérabilité not found on the BAN API"
+                        )
+                    except BANBadResultType:
+                        raise BadRequest(
+                            detail="BAN result has not the expected type (must be 'numero')"
+                        )
 
             # request is successful, no content to send back
             return Response(status=http_status.HTTP_204_NO_CONTENT)
