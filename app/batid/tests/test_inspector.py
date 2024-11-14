@@ -94,6 +94,9 @@ class TestInspectorBdgCreate(TestCase):
         self.assertEqual(b.ext_ids[0]["source_version"], "7.2")
         self.assertEqual(b.ext_ids[0]["id"], "bdnb_1")
 
+        self.assertEqual(b.event_type, "creation")
+        self.assertIsNotNone(b.event_id)
+
         # check the candidate inspection_details is set
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "creation")
@@ -205,6 +208,9 @@ class TestInspectorBdgUpdate(TestCase):
         self.assertEqual(b.ext_ids[2]["source_version"], None)
         self.assertEqual(b.ext_ids[2]["id"], "bdtopo_1")
 
+        self.assertEqual(b.event_type, "update")
+        self.assertIsNotNone(b.event_id)
+
         # Check the candidate inspection_details is set
         first_candidate = Candidate.objects.all().order_by("inspected_at").first()
         second_candidate = Candidate.objects.all().order_by("inspected_at").last()
@@ -242,11 +248,12 @@ class InspectorMergeBuilding(TestCase):
             ]
         )
 
-        b = Building.objects.create(
-            rnb_id="EXISTING",
-            shape=shape,
-            point=shape.point_on_surface,
+        b = Building.create_new(
+            user=None,
+            event_origin={"source": "import"},
+            status="constructed",
             addresses_id=["add_1"],
+            shape=shape,
             ext_ids=[
                 {
                     "id": "bdtopo_1",
@@ -256,13 +263,14 @@ class InspectorMergeBuilding(TestCase):
                 }
             ],
         )
+        rnb_id = b.rnb_id
 
         c = Candidate.objects.create(
             shape=shape,
             source="bdtopo",
             source_id="bdtopo_1",
             source_version="2023_01",
-            # empty address incoming from the BDTOPO
+            # typical case : empty address incoming from the BDTOPO
             address_keys=[],
             is_light=False,
         )
@@ -277,8 +285,10 @@ class InspectorMergeBuilding(TestCase):
         )
 
         # the building has not been updated (no new entry in the BuildingWithHistory view)
-        buildings = BuildingWithHistory.objects.filter(rnb_id="EXISTING").all()
+        buildings = BuildingWithHistory.objects.filter(rnb_id=rnb_id).all()
         self.assertEqual(len(buildings), 1)
+        building = buildings[0]
+        self.assertEqual(building.event_type, "creation")
 
 
 class InspectTest(TestCase):
