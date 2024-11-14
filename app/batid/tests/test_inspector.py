@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from unittest import mock
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
@@ -10,6 +11,7 @@ from django.db.utils import IntegrityError
 from django.test import TestCase
 from django.test import TransactionTestCase
 
+from batid.exceptions import BANUnknownCleInterop
 from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingImport
@@ -961,7 +963,16 @@ class NonExistingAddress(TransactionTestCase):
         # no building should have been created
         self.assertEqual(Building.objects.all().count(), 0)
 
-    def test_non_existing_address_raises_during_update(self):
+    @mock.patch("batid.models.requests.get")
+    def test_non_existing_address_raises_during_update(self, get_mock):
+        # a non existing address will be checked on the BAN API.
+        # if the BAN API doesn't know it, the inspection will crash.
+
+        get_mock.return_value.status_code = 404
+        get_mock.return_value.json.return_value = {
+            "details": "what is this id?",
+        }
+
         shape = coords_to_mp_geom(
             [
                 [2.349804906833981, 48.85789205519228],
@@ -986,7 +997,7 @@ class NonExistingAddress(TransactionTestCase):
         )
 
         i = Inspector()
-        with self.assertRaises(IntegrityError) as exinfo:
+        with self.assertRaises(BANUnknownCleInterop) as exinfo:
             i.inspect()
             # check handle_bdgs_updates is in the stacktrace
             # ie the candidate was supposed to update a building
