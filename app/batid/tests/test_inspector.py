@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 
 from django.contrib.gis.geos import GEOSGeometry
@@ -12,7 +11,6 @@ from django.test import TransactionTestCase
 
 from batid.models import Address
 from batid.models import Building
-from batid.models import BuildingImport
 from batid.models import BuildingWithHistory
 from batid.models import Candidate
 from batid.services.candidate import Inspector
@@ -868,49 +866,6 @@ class TestCandidateOnTwoMatchingBdgs(InspectTest):
         c = Candidate.objects.all().first()
         self.assertEqual(c.inspection_details["decision"], "refusal")
         self.assertEqual(c.inspection_details["reason"], "ambiguous_overlap")
-
-
-def data_to_candidate(data):
-    b_import = BuildingImport.objects.create(
-        departement="33",
-        import_source="dummy",
-        building_created_count=0,
-        building_updated_count=0,
-        building_refused_count=0,
-        candidate_created_count=0,
-    )
-
-    for d in data:
-        shape = GEOSGeometry(json.dumps(d["geometry"]))
-        shape.srid = 4326
-
-        Candidate.objects.create(
-            shape=shape,
-            source=d["source"],
-            source_id=d["id"],
-            is_light=False,
-            created_by={"source": "import", "id": b_import.id},
-        )
-
-
-def data_to_bdg(data):
-    for d in data:
-        shape = GEOSGeometry(json.dumps(d["geometry"]))
-        shape.srid = 4326
-
-        b = Building.objects.create(
-            rnb_id=generate_rnb_id(),
-            shape=shape,
-            ext_ids=[
-                {
-                    "source": d["source"],
-                    "id": d["id"],
-                    "created_at": datetime.now().isoformat(),
-                }
-            ],
-            point=shape.point_on_surface,
-            status="constructed",
-        )
 
 
 # we need to use TransactionTestCase because we are testing thez proper rollback of the transactions during the inspection
