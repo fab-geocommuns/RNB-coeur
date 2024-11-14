@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
+import requests
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import GEOSGeometry
@@ -13,6 +14,9 @@ from django.db import transaction
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
+from batid.exceptions import BANAPIDown
+from batid.exceptions import BANBadResultType
+from batid.exceptions import BANUnknownCleInterop
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
@@ -175,6 +179,7 @@ class Building(BuildingAbstract):
             self.event_origin = event_origin
 
             if addresses_id is not None:
+                Address.add_addresses_to_db_if_needed(addresses_id)
                 self.addresses_id = addresses_id
 
             if status is not None:
@@ -461,9 +466,7 @@ class Plot(models.Model):
 class Address(models.Model):
     id = models.CharField(max_length=40, primary_key=True, db_index=True)
     source = models.CharField(max_length=10, null=False)  # BAN or other origin
-
     point = models.PointField(null=True, spatial_index=True, srid=4326)
-
     street_number = models.CharField(max_length=10, null=True)
     street_rep = models.CharField(max_length=100, null=True)
     street = models.CharField(max_length=200, null=True)
@@ -473,6 +476,51 @@ class Address(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @staticmethod
+    def add_addresses_to_db_if_needed(addresses_id):
+        """given a list of "clés d'interopérabilité BAN", we add those addresses to our Address table if they don't exist yet."""
+        for address_id in addresses_id:
+            Address.add_address_to_db_if_needed(address_id)
+
+    @staticmethod
+    def add_address_to_db_if_needed(address_id):
+        if Address.objects.filter(id=address_id).exists():
+            return
+        else:
+            Address.add_new_address_from_ban_api(address_id)
+
+    @staticmethod
+    def add_new_address_from_ban_api(address_id):
+        BAN_API_URL = "https://plateforme.adresse.data.gouv.fr/lookup/"
+
+        url = f"{BAN_API_URL}{address_id}"
+        r = requests.get(url)
+
+        if r.status_code == 200:
+            data = r.json()
+            Address.save_new_address(data)
+        elif r.status_code == 404:
+            raise BANUnknownCleInterop
+        else:
+            raise BANAPIDown
+
+    @staticmethod
+    def save_new_address(data):
+        if data["type"] != "numero":
+            raise BANBadResultType
+
+        Address.objects.create(
+            id=data["cleInterop"],
+            source="ban",
+            point=f'POINT ({data["lon"]} {data["lat"]})',
+            street_number=data["numero"],
+            street_rep=data["suffixe"],
+            street=data["voie"]["nomVoie"],
+            city_name=data["commune"]["nom"],
+            city_zipcode=data["codePostal"],
+            city_insee_code=data["commune"]["code"],
+        )
 
 
 class Organization(models.Model):
