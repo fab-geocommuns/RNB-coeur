@@ -217,16 +217,14 @@ class Inspector:
         # ##############################
         # ADDRESSES
         # Handle change in addresses
-        def sort_handle_null(lst):
-            return sorted(lst) if lst else []
+        bdg_addresses = set(bdg.addresses_id or [])
+        candidate_addresses = set(self.candidate.address_keys or [])
 
-        bdg_addresses = sort_handle_null(bdg.addresses_id)
-        candidate_addresses = sort_handle_null(self.candidate.address_keys)
-        if bdg_addresses != candidate_addresses and candidate_addresses:
-            # concatenate the two lists and remove duplicates
-            changes["addresses_id"] = list(set(bdg_addresses + candidate_addresses))
+        if candidate_addresses - bdg_addresses:
+            # update the addresses with the new ones
+            changes["addresses_id"] = list(bdg_addresses | candidate_addresses)
 
-        if len(changes) > 0:
+        if changes:
             changes["event_origin"] = self.candidate.created_by
 
         # return an empty dict if nothing has changed
