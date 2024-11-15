@@ -299,7 +299,12 @@ def update_resource_metadata(
             "format": format,
             "filesize": archive_size,
             "checksum": {"type": "sha1", "value": archive_sha1},
-            "last_modified": str(datetime.now()),
+            "extras": {
+                # This "analysis:last-modified-at" key is not documented in the data.gouv.fr API documentation
+                # but we can see here : https://github.com/opendatateam/udata/blob/13810fa64b76b316cd84dc2cc7dff7c3e7d6df4b/udata/core/dataset/models.py#L373
+                # that we can use it to update the last modification date of the resource if it is a "remote" file
+                "analysis:last-modified-at": str(datetime.now())
+            },
         },
     )
 
