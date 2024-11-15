@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 from datetime import datetime
@@ -11,7 +12,7 @@ from moto import mock_aws
 
 from batid.models import Address
 from batid.models import Building
-from batid.models import Department
+from batid.models import Department_subdivided
 from batid.services.data_gouv_publication import cleanup_directory
 from batid.services.data_gouv_publication import create_archive
 from batid.services.data_gouv_publication import create_csv
@@ -63,16 +64,14 @@ def get_department_75_geom():
     coords = {
         "coordinates": [
             [
-                [
-                    [2.238184771496691, 48.90857365031127],
-                    [2.238184771496691, 48.812797283252735],
-                    [2.425226858137023, 48.812797283252735],
-                    [2.425226858137023, 48.90857365031127],
-                    [2.238184771496691, 48.90857365031127],
-                ]
+                [2.238184771496691, 48.90857365031127],
+                [2.238184771496691, 48.812797283252735],
+                [2.425226858137023, 48.812797283252735],
+                [2.425226858137023, 48.90857365031127],
+                [2.238184771496691, 48.90857365031127],
             ]
         ],
-        "type": "MultiPolygon",
+        "type": "Polygon",
     }
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
@@ -82,16 +81,14 @@ def get_department_93_geom():
     coords = {
         "coordinates": [
             [
-                [
-                    [2.426210394796641, 48.90890218742271],
-                    [2.426210394796641, 48.84215900551669],
-                    [2.5026701757286105, 48.84215900551669],
-                    [2.5026701757286105, 48.90890218742271],
-                    [2.426210394796641, 48.90890218742271],
-                ]
+                [2.426210394796641, 48.90890218742271],
+                [2.426210394796641, 48.84215900551669],
+                [2.5026701757286105, 48.84215900551669],
+                [2.5026701757286105, 48.90890218742271],
+                [2.426210394796641, 48.90890218742271],
             ]
         ],
-        "type": "MultiPolygon",
+        "type": "Polygon",
     }
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
@@ -110,19 +107,26 @@ def get_resources():
 
 class TestDataGouvPublication(TestCase):
     def test_archive_creation_deletion(self):
+
+        self.maxDiff = None
+
         geom_bdg_paris = get_geom_paris()
-        Department.objects.create(
+        geom_bdg_montreuil = get_geom_montreuil()
+
+        # Departements
+        Department_subdivided.objects.create(
             code="75",
             name="Paris",
             shape=get_department_75_geom(),
         )
-        geom_bdg_montreuil = get_geom_montreuil()
-        Department.objects.create(
+        Department_subdivided.objects.create(
             code="93",
             name="Est",
             shape=get_department_93_geom(),
         )
-        address_Paris = Address.objects.create(
+
+        # Address
+        address_paris_1 = Address.objects.create(
             id="75105_8884_00004",
             source="BAN",
             point=geom_bdg_paris.point_on_surface,
@@ -131,23 +135,56 @@ class TestDataGouvPublication(TestCase):
             city_name="Paris",
             city_zipcode="75005",
         )
-        building = Building.objects.create(
+
+        address_paris_2 = Address.objects.create(
+            id="75105_8884_00005",
+            source="BAN",
+            point=geom_bdg_paris.point_on_surface,
+            street_number="6",
+            street="rue hello",
+            city_name="Paris",
+            city_zipcode="75020",
+        )
+
+        # Building 1: should be in CSV
+        Building.objects.create(
             rnb_id="BDG-CONSTR",
             shape=geom_bdg_paris,
             point=geom_bdg_paris.point_on_surface,
             status="constructed",
             ext_ids={"some_source": "1234"},
-            addresses_id=[address_Paris.id],
+            addresses_id=[address_paris_1.id],
+            is_active=True,
         )
-        building.save()
 
-        # building without address
-        building = Building.objects.create(
+        # Building 2: is inactive, should not be in the csv
+        Building.objects.create(
+            rnb_id="BDG-INACTIVE",
+            shape=geom_bdg_paris,
+            point=geom_bdg_paris.point_on_surface,
+            status="constructed",
+            ext_ids={"some_source": "1234"},
+            addresses_id=[address_paris_1.id],
+            is_active=False,
+        )
+
+        # Building 3: without address
+        Building.objects.create(
             rnb_id="BDG2-PARIS",
             shape=geom_bdg_paris,
             point=geom_bdg_paris.point_on_surface,
             status="constructed",
             ext_ids={"some_source": "5678"},
+        )
+
+        # Building 4: many addresses
+        Building.objects.create(
+            rnb_id="BDG-MANY-ADD",
+            shape=geom_bdg_paris,
+            point=geom_bdg_paris.point_on_surface,
+            status="constructed",
+            ext_ids={"some_source": "9999"},
+            addresses_id=[address_paris_1.id, address_paris_2.id],
         )
 
         address_Montreuil = Address.objects.create(
@@ -159,15 +196,14 @@ class TestDataGouvPublication(TestCase):
             city_name="Montreuil",
             city_zipcode="93100",
         )
-        building = Building.objects.create(
+        Building.objects.create(
             rnb_id="BDG-2-CONSTR",
             shape=geom_bdg_montreuil,
             point=geom_bdg_montreuil.point_on_surface,
             status="constructed",
             ext_ids={"some_source": "987"},
-            addresses_id=[address_Paris.id, address_Montreuil.id],
+            addresses_id=[address_paris_1.id, address_Montreuil.id],
         )
-        building.save()
 
         area = "75"
         directory_name = create_directory(area)
@@ -181,25 +217,84 @@ class TestDataGouvPublication(TestCase):
         files = os.listdir(directory_name)
         self.assertEqual(len(files), 1)
 
+        # Expected values
+        expected_keys = ["rnb_id", "point", "shape", "status", "ext_ids", "addresses"]
+        expected_len = 3
+        expected_rows = [
+            {
+                "rnb_id": "BDG-CONSTR",
+                "point": "SRID=4326;POINT(2.353856491181528 48.837994633790686)",
+                "shape": "SRID=4326;POLYGON((2.353721421744524 48.83801408684721,2.35382782105961 48.83790774339977,2.353989390389472 48.83797518073416,2.3538810207165 48.83809708645475,2.353721421744524 48.83801408684721))",
+                "status": "constructed",
+                "ext_ids": {"some_source": "1234"},
+                "addresses": [
+                    {
+                        "cle_interop_ban": "75105_8884_00004",
+                        "street_number": "4",
+                        "street_rep": None,
+                        "street": "rue scipion",
+                        "city_zipcode": "75005",
+                        "city_name": "Paris",
+                    }
+                ],
+            },
+            {
+                "rnb_id": "BDG2-PARIS",
+                "point": "SRID=4326;POINT(2.353856491181528 48.837994633790686)",
+                "shape": "SRID=4326;POLYGON((2.353721421744524 48.83801408684721,2.35382782105961 48.83790774339977,2.353989390389472 48.83797518073416,2.3538810207165 48.83809708645475,2.353721421744524 48.83801408684721))",
+                "status": "constructed",
+                "ext_ids": {"some_source": "5678"},
+                "addresses": [],
+            },
+            {
+                "rnb_id": "BDG-MANY-ADD",
+                "point": "SRID=4326;POINT(2.353856491181528 48.837994633790686)",
+                "shape": "SRID=4326;POLYGON((2.353721421744524 48.83801408684721,2.35382782105961 48.83790774339977,2.353989390389472 48.83797518073416,2.3538810207165 48.83809708645475,2.353721421744524 48.83801408684721))",
+                "status": "constructed",
+                "ext_ids": {"some_source": "9999"},
+                "addresses": [
+                    {
+                        "cle_interop_ban": "75105_8884_00004",
+                        "street_number": "4",
+                        "street_rep": None,
+                        "street": "rue scipion",
+                        "city_zipcode": "75005",
+                        "city_name": "Paris",
+                    },
+                    {
+                        "cle_interop_ban": "75105_8884_00005",
+                        "street_number": "6",
+                        "street_rep": None,
+                        "street": "rue hello",
+                        "city_zipcode": "75020",
+                        "city_name": "Paris",
+                    },
+                ],
+            },
+        ]
+        expected_rows = sorted(expected_rows, key=lambda x: x["rnb_id"])
+
         # open the file and check the content
         with open(f"{directory_name}/RNB_{area}.csv", "r") as f:
-            content = f.read()
-            self.assertIn(
-                "rnb_id;point;shape;status;ext_ids;addresses;addresses_ban_cle_interop\n",
-                content,
-            )
-            self.assertIn("BDG-CONSTR", content)
-            self.assertIn("POLYGON", content)
-            self.assertIn("POINT", content)
-            self.assertIn("constructed", content)
-            self.assertIn("some_source", content)
-            self.assertIn("75005", content)
-            self.assertIn("scipion", content)
-            self.assertIn("75105_8884_00004", content)
-            # check none address is null and not [""]
-            self.assertNotIn('[""]', content)
-            self.assertNotIn("93100", content)
-            self.assertNotIn("chanzy", content)
+
+            # For the sake of test, we sort both rows and expected rows
+            reader = csv.DictReader(f, delimiter=";")
+            rows = sorted(list(reader), key=lambda x: x["rnb_id"])
+
+            # We have to convert JSON string in the CSV to compare the values to expected values
+            # This is also an implicit test of the JSON good serialization
+            for row in rows:
+                row["addresses"] = json.loads(row["addresses"])
+                row["ext_ids"] = json.loads(row["ext_ids"])
+
+            # First, check all keys
+            self.assertListEqual(list(reader.fieldnames), expected_keys)
+
+            # Then, check the length of the rows
+            self.assertEqual(len(rows), expected_len)
+
+            # Finally, check the content of the rows
+            self.assertListEqual(rows, expected_rows)
 
         (archive_path, archive_size, archive_sha1) = create_archive(
             directory_name, area
