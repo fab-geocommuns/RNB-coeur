@@ -505,10 +505,7 @@ class TestDataGouvPublication(TestCase):
                 "format": format,
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "extras": {
-                    "analysis:last-modified-at": str(datetime.now())
-                }
-
+                "extras": {"analysis:last-modified-at": str(datetime.now())},
             },
         )
 
@@ -555,10 +552,7 @@ class TestDataGouvPublication(TestCase):
                 "format": format,
                 "filesize": archive_size,
                 "checksum": {"type": "sha1", "value": archive_sha1},
-                "extras": {
-                    "analysis:last-modified-at": str(datetime.now())
-                }
-
+                "extras": {"analysis:last-modified-at": str(datetime.now())},
             },
         )
 
