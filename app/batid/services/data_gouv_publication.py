@@ -284,6 +284,9 @@ def update_resource_metadata(
         "Content-Type": "application/json",
     }
 
+    print(f"Updating resource {resource_id} in dataset {dataset_id}")
+    print(f"Update URL: {update_url}")
+
     response = requests.put(
         update_url,
         headers=headers,
