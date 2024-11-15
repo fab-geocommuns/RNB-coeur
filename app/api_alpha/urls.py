@@ -2,7 +2,6 @@ from django.urls import include
 from django.urls import path
 from django.urls import re_path
 from rest_framework import routers
-from rest_framework.authtoken import views as auth_views
 
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSVectorTileView
@@ -16,6 +15,7 @@ from api_alpha.views import get_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
 from api_alpha.views import ListBuildings
+from api_alpha.views import RNBAuthToken
 from api_alpha.views import SingleBuilding
 
 # Routers provide an easy way of automatically determining the URL conf.
@@ -39,7 +39,7 @@ urlpatterns = [
     ),
     path("ads/token/", AdsTokenView.as_view()),
     path("ads/tiles/<int:x>/<int:y>/<int:z>.pbf", ADSVectorTileView.as_view()),
-    path("login/", auth_views.obtain_auth_token),
+    path("login/", RNBAuthToken.as_view()),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", BuildingsVectorTileView.as_view()),
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
 ]
