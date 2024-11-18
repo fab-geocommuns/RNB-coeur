@@ -29,7 +29,7 @@ class Command(BaseCommand):
 
 def enqueue_tasks(strate, starting_code=None):
     if strate == "country":
-        app.send_task("batid.tasks.opendata_publish_national")
+        app.send_task("batid.tasks.publish_datagouv_national")
     elif strate == "department":
         dpts = dpts_list()
 
@@ -37,4 +37,4 @@ def enqueue_tasks(strate, starting_code=None):
             dpts = dpts[dpts.index(starting_code) :]
 
         for dept in dpts:
-            app.send_task("batid.tasks.opendata_publish_department", args=[dept])
+            app.send_task("batid.tasks.publish_datagouv_dpt", args=[dept])

@@ -8,7 +8,10 @@ from zipfile import ZipFile
 
 import boto3
 import requests
+from celery import Signature
 from django.db import connection
+
+from batid.services.administrative_areas import dpts_list
 
 
 def publish(areas_list):
@@ -316,3 +319,18 @@ def update_resource_metadata(
 
 def cleanup_directory(directory_name):
     shutil.rmtree(directory_name)
+
+
+def get_area_publish_task(area: str):
+
+    if area == "nat":
+        return Signature("batid.tasks.publish_datagouv_national", immutable=True)
+
+    if area in dpts_list():
+        return Signature(
+            "batid.tasks.publish_datagouv_dpt", args=[area], immutable=True
+        )
+
+    raise ValueError(
+        f"Unknown area: {area}. It must be either 'nat' or a department code. '{area}' given."
+    )
