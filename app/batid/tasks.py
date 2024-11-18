@@ -16,7 +16,7 @@ from batid.services.data_fix.remove_light_buildings import (
 from batid.services.data_fix.remove_light_buildings import (
     remove_light_buildings as remove_light_buildings_job,
 )
-from batid.services.data_gouv_publication import publish
+from batid.services.data_gouv_publication import publish, get_area_publish_task
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
 from batid.services.imports.import_bdtopo import bdtopo_recente_release_date
@@ -193,9 +193,19 @@ def publish_datagouv_dpt(dept):
     return "done"
 
 
+@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def publish_datagouv_all():
-    pass
+    notify_tech(
+        f"Starting data.gouv.fr publication for all departments and national data."
+    )
+
+    areas = ["nat"] + dpts_list()
+    tasks = [get_area_publish_task(area) for area in areas]
+
+    chain(*tasks)()
+
+    return f"Queued {len(tasks)} tasks"
 
 
 
