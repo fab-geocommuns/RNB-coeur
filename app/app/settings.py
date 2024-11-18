@@ -216,9 +216,8 @@ CELERY_BEAT_SCHEDULE = {
     "publish_data_gouv": {
         "task": "batid.tasks.publish_datagouv_all",
         # once a week, saturday at 3am
-        "schedule": crontab(hour=3, minute=0, day_of_week=6)
-    }
-
+        "schedule": crontab(hour=3, minute=0, day_of_week=6),
+    },
 }
 
 # URL of the project

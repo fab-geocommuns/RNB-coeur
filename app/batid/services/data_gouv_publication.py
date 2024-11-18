@@ -5,9 +5,10 @@ import shutil
 from datetime import datetime
 from zipfile import ZIP_DEFLATED
 from zipfile import ZipFile
-from celery import Signature
+
 import boto3
 import requests
+from celery import Signature
 from django.db import connection
 
 from batid.services.administrative_areas import dpts_list
@@ -326,6 +327,10 @@ def get_area_publish_task(area: str):
         return Signature("batid.tasks.publish_datagouv_national", immutable=True)
 
     if area in dpts_list():
-        return Signature("batid.tasks.publish_datagouv_dpt", args=[area], immutable=True)
+        return Signature(
+            "batid.tasks.publish_datagouv_dpt", args=[area], immutable=True
+        )
 
-    raise ValueError(f"Unknown area: {area}. It must be either 'nat' or a department code. '{area}' given.")
+    raise ValueError(
+        f"Unknown area: {area}. It must be either 'nat' or a department code. '{area}' given."
+    )

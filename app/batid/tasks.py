@@ -16,7 +16,8 @@ from batid.services.data_fix.remove_light_buildings import (
 from batid.services.data_fix.remove_light_buildings import (
     remove_light_buildings as remove_light_buildings_job,
 )
-from batid.services.data_gouv_publication import publish, get_area_publish_task
+from batid.services.data_gouv_publication import get_area_publish_task
+from batid.services.data_gouv_publication import publish
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
 from batid.services.imports.import_bdtopo import bdtopo_recente_release_date
@@ -206,8 +207,6 @@ def publish_datagouv_all():
     chain(*tasks)()
 
     return f"Queued {len(tasks)} tasks"
-
-
 
 
 # two tasks to remove light buildings
