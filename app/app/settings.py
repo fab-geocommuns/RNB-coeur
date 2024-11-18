@@ -213,7 +213,11 @@ CELERY_BEAT_SCHEDULE = {
             minute=0, hour=0, day_of_month=15, month_of_year="1,4,7,10"
         ),
     },
-    "export_data_gouv": {}
+    "publish_data_gouv": {
+        "task": "batid.tasks.publish_datagouv_all",
+        # once a week, saturday at 3am
+        "schedule": crontab(hour=3, minute=0, day_of_week=6)
+    }
 
 }
 
