@@ -182,15 +182,22 @@ def populate_addresses_id_field():
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
-def opendata_publish_national():
+def publish_datagouv_national():
     publish(["nat"])
     return "done"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
-def opendata_publish_department(dept):
+def publish_datagouv_dpt(dept):
     publish([dept])
     return "done"
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def publish_datagouv_all():
+    pass
+
+
 
 
 # two tasks to remove light buildings
