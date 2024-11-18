@@ -200,7 +200,7 @@ def publish_datagouv_all():
         f"Starting data.gouv.fr publication for all departments and national data."
     )
 
-    areas = ["nat"] + dpts_list()
+    areas = dpts_list() + ["nat"]
     tasks = [get_area_publish_task(area) for area in areas]
 
     chain(*tasks)()
