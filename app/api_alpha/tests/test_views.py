@@ -5,13 +5,15 @@ from unittest import mock
 
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
-from django.test import TransactionTestCase, TestCase
+from django.test import TransactionTestCase
 from django.utils.http import urlencode
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
-from batid.models import Building, Organization, Address
+from batid.models import Address
+from batid.models import Building
 from batid.models import Contribution
+from batid.models import Organization
 from batid.services.stats import compute_stats
 
 
@@ -58,11 +60,12 @@ class StatsTest(APITestCase):
 
 
 class DiffTest(TransactionTestCase):
-
     def setUp(self):
         # We need a user for all building operations
         # We also need an organization for transparency
-        user = User.objects.create_user(first_name="Marcella", last_name="Paviollon", username="marcella")
+        user = User.objects.create_user(
+            first_name="Marcella", last_name="Paviollon", username="marcella"
+        )
         org = Organization.objects.create(name="Mairie Marseille")
         org.users.add(user)
 
@@ -75,7 +78,6 @@ class DiffTest(TransactionTestCase):
 
         # Get the user
         user = User.objects.get(username="marcella")
-
 
         coords = {
             "coordinates": [
@@ -95,12 +97,28 @@ class DiffTest(TransactionTestCase):
 
         # #############
         # First building
-        b1 = Building.objects.create(rnb_id="1", ext_ids=[{"source": "test", "source_version": "11_2024", "id": "1", "created_at": "2024-08-05T00:00:00Z"}], addresses_id=["ADDRESS_ID_1"])
+        b1 = Building.objects.create(
+            rnb_id="1",
+            ext_ids=[
+                {
+                    "source": "test",
+                    "source_version": "11_2024",
+                    "id": "1",
+                    "created_at": "2024-08-05T00:00:00Z",
+                }
+            ],
+            addresses_id=["ADDRESS_ID_1"],
+        )
         # reload the buildings to get the sys_period
         treshold = Building.objects.get(rnb_id="1").sys_period.lower
 
         # We update its status
-        b1.update(status="demolished", user=user, event_origin="dummy_origin", addresses_id=["ADDRESS_ID_2", "ADDRESS_ID_3"])
+        b1.update(
+            status="demolished",
+            user=user,
+            event_origin="dummy_origin",
+            addresses_id=["ADDRESS_ID_2", "ADDRESS_ID_3"],
+        )
 
         # #############
         # Second building
@@ -113,14 +131,12 @@ class DiffTest(TransactionTestCase):
         )
         # We do nothing else on the second building
 
-
         # #############
         # Third building
         b3 = Building.objects.create(
             rnb_id="3", shape=geom, point=geom.point_on_surface, status="constructed"
         )
         b3.deactivate(user=user, event_origin="dummy_origin")
-
 
         # we want all the diff since the creation of b1 (excluded)
         params = urlencode({"since": treshold.isoformat()})
@@ -148,11 +164,9 @@ class DiffTest(TransactionTestCase):
                 "ext_ids",
                 "parent_buildings",
                 "event_id",
-                "event_type"
+                "event_type",
             ],
         )
-
-
 
         # check the CSV content
         rows = list(reader)
@@ -163,9 +177,20 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[0]["rnb_id"], b1.rnb_id)
         self.assertEqual(rows[0]["status"], "demolished")
         self.assertEqual(rows[0]["is_active"], "1")
-        self.assertListEqual(json.loads(rows[0]["ext_ids"]), [{"source": "test", "source_version": "11_2024", "id": "1", "created_at": "2024-08-05T00:00:00Z"}])
-        self.assertListEqual(json.loads(rows[0]["addresses_id"]), ["ADDRESS_ID_2", "ADDRESS_ID_3"])
-
+        self.assertListEqual(
+            json.loads(rows[0]["ext_ids"]),
+            [
+                {
+                    "source": "test",
+                    "source_version": "11_2024",
+                    "id": "1",
+                    "created_at": "2024-08-05T00:00:00Z",
+                }
+            ],
+        )
+        self.assertListEqual(
+            json.loads(rows[0]["addresses_id"]), ["ADDRESS_ID_2", "ADDRESS_ID_3"]
+        )
 
         self.assertEqual(rows[1]["action"], "create")
         self.assertEqual(rows[1]["rnb_id"], b2.rnb_id)
@@ -234,15 +259,13 @@ class DiffTest(TransactionTestCase):
         # reload the buildings to get the sys_period
         treshold = Building.objects.get(rnb_id="t").sys_period.lower
 
-
-        b3 = Building.merge([b1, b2],
-                            user=user,
-                            event_origin="dummy_origin",
-                            addresses_id=["ADDRESS_ID_1", "ADDRESS_ID_2"],
-                            status="constructed")
-
-
-
+        b3 = Building.merge(
+            [b1, b2],
+            user=user,
+            event_origin="dummy_origin",
+            addresses_id=["ADDRESS_ID_1", "ADDRESS_ID_2"],
+            status="constructed",
+        )
 
         # we want all the diff since the creation of b1 (excluded)
         params = urlencode({"since": treshold.isoformat()})
@@ -257,8 +280,6 @@ class DiffTest(TransactionTestCase):
         reader = csv.DictReader(io.StringIO(diff_text))
         rows = list(reader)
 
-
-
         self.assertEqual(len(rows), 3)
 
         # #####
@@ -270,7 +291,7 @@ class DiffTest(TransactionTestCase):
         self.assertListEqual(json.loads(rows[0]["addresses_id"]), ["ADDRESS_ID_1"])
         self.assertListEqual(json.loads(rows[0]["ext_ids"]), [])
         self.assertEqual(rows[0]["parent_buildings"], "")
-        self.assertEqual(rows[0]["event_type"], 'merge')
+        self.assertEqual(rows[0]["event_type"], "merge")
 
         # #####
         # second parent
@@ -281,7 +302,7 @@ class DiffTest(TransactionTestCase):
         self.assertListEqual(json.loads(rows[1]["addresses_id"]), ["ADDRESS_ID_2"])
         self.assertListEqual(json.loads(rows[1]["ext_ids"]), [])
         self.assertEqual(rows[1]["parent_buildings"], "")
-        self.assertEqual(rows[1]["event_type"], 'merge')
+        self.assertEqual(rows[1]["event_type"], "merge")
         # event_id: we check the three rows share the same event_id
         self.assertEqual(rows[1]["event_id"], rows[0]["event_id"])
 
@@ -291,13 +312,16 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[2]["rnb_id"], b3.rnb_id)
         self.assertEqual(rows[2]["status"], "constructed")
         self.assertEqual(rows[2]["is_active"], "1")
-        self.assertListEqual(json.loads(rows[2]["addresses_id"]), ["ADDRESS_ID_1", "ADDRESS_ID_2"])
+        self.assertListEqual(
+            json.loads(rows[2]["addresses_id"]), ["ADDRESS_ID_1", "ADDRESS_ID_2"]
+        )
         self.assertListEqual(json.loads(rows[2]["ext_ids"]), [])
-        self.assertListEqual(json.loads(rows[2]["parent_buildings"]), [b1.rnb_id, b2.rnb_id])
-        self.assertEqual(rows[2]["event_type"], 'merge')
+        self.assertListEqual(
+            json.loads(rows[2]["parent_buildings"]), [b1.rnb_id, b2.rnb_id]
+        )
+        self.assertEqual(rows[2]["event_type"], "merge")
         # event_id: we check the three rows share the same event_id
         self.assertEqual(rows[2]["event_id"], rows[0]["event_id"])
-
 
     def test_diff_split(self):
 

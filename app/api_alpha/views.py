@@ -1172,17 +1172,17 @@ class DiffView(APIView):
                             WHEN event_type = 'merge' and is_active THEN 'create'
                             ELSE 'create'
                         END as action,
-                        rnb_id, 
-                        status, 
-                        is_active::int, 
-                        sys_period, 
-                        ST_AsEWKT(point) as point, 
-                        ST_AsEWKT(shape) as shape, 
-                        to_json(addresses_id) as addresses_id, 
+                        rnb_id,
+                        status,
+                        is_active::int,
+                        sys_period,
+                        ST_AsEWKT(point) as point,
+                        ST_AsEWKT(shape) as shape,
+                        to_json(addresses_id) as addresses_id,
                         COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
-                        parent_buildings, 
-                        event_id, 
-                        event_type 
+                        parent_buildings,
+                        event_id,
+                        event_type
                         FROM batid_building_with_history bb
                         where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone order by rnb_id, lower(sys_period)
                     ) TO STDOUT WITH CSV HEADER

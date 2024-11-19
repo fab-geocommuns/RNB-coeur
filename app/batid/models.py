@@ -155,7 +155,6 @@ class Building(BuildingAbstract):
         else:
             print(f"Cannot deactivate an inactive building: {self.rnb_id}")
 
-
     def update(
         self,
         user: User | None,
