@@ -95,29 +95,6 @@ class Building(BuildingAbstract):
         through="BuildingAddressesReadOnly",
     )
 
-    def add_ext_id(
-        self, source: str, source_version: Optional[str], id: str, created_at: str
-    ):
-        # Get the format
-        ext_id = {
-            "source": source,
-            "source_version": source_version,
-            "id": id,
-            "created_at": created_at,
-        }
-        # Validate the content
-        validate_one_ext_id(ext_id)
-
-        # Init if necessary
-        if not self.ext_ids:
-            self.ext_ids = []
-
-        # Append
-        self.ext_ids.append(ext_id)
-
-        # Sort by created_at
-        self.ext_ids = sorted(self.ext_ids, key=lambda k: k["created_at"])
-
     def contains_ext_id(
         self, source: str, source_version: Optional[str], id: str
     ) -> bool:
@@ -177,8 +154,21 @@ class Building(BuildingAbstract):
         else:
             print(f"Cannot soft-delete an inactive building: {self.rnb_id}")
 
-    def update(self, user, event_origin, status, addresses_id):
-        if status is None and addresses_id is None:
+    def update(
+        self,
+        user: User | None,
+        event_origin: dict | None,
+        status: str | None,
+        addresses_id: list | None,
+        ext_ids: list | None = None,
+        shape: GEOSGeometry | None = None,
+    ):
+        if (
+            status is None
+            and addresses_id is None
+            and ext_ids is None
+            and shape is not None
+        ):
             raise Exception("Missing data to update the building")
 
         if self.is_active:
@@ -194,6 +184,13 @@ class Building(BuildingAbstract):
             if status is not None:
                 self.status = status
 
+            if ext_ids is not None:
+                self.ext_ids = ext_ids
+
+            if shape is not None:
+                self.shape = shape
+                self.point = shape.point_on_surface
+
             self.save()
         else:
             print(f"Cannot update an inactive building: {self.rnb_id}")
@@ -207,6 +204,64 @@ class Building(BuildingAbstract):
 
         for c in contributions:
             c.refuse(user, msg)
+
+    @staticmethod
+    def add_ext_id(
+        existing_ext_ids: list | None,
+        source: str,
+        source_version: Optional[str],
+        id: str,
+        created_at: str,
+    ) -> list[dict]:
+        ext_id = {
+            "source": source,
+            "source_version": source_version,
+            "id": id,
+            "created_at": created_at,
+        }
+
+        validate_one_ext_id(ext_id)
+
+        if not existing_ext_ids:
+            existing_ext_ids = []
+
+        existing_ext_ids.append(ext_id)
+        new_ext_ids = sorted(existing_ext_ids, key=lambda k: k["created_at"])
+        return new_ext_ids
+
+    @staticmethod
+    def create_new(
+        user: User | None,
+        event_origin: dict | None,
+        status: str,
+        addresses_id: list,
+        shape: GEOSGeometry,
+        ext_ids: list,
+    ):
+        if (
+            not event_origin
+            or not status
+            or addresses_id is None
+            or not shape
+            or ext_ids is None
+        ):
+            raise Exception("Missing information to create a new building")
+
+        point = shape if shape.geom_type == "Point" else shape.point_on_surface
+
+        return Building.objects.create(
+            rnb_id=generate_rnb_id(),
+            point=point,
+            shape=shape,
+            ext_ids=ext_ids,
+            event_origin=event_origin,
+            status=status,
+            event_id=uuid.uuid4(),
+            event_type="creation",
+            event_user=user,
+            is_active=True,
+            addresses_id=addresses_id,
+        )
 
     @staticmethod
     def merge(buildings: list, user, event_origin, status, addresses_id):

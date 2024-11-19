@@ -5,6 +5,7 @@ import os
 from django.test import TestCase
 
 from batid.models import Address
+from batid.models import Building
 from batid.services.building import export_city
 from batid.tests.helpers import create_bdg
 from batid.tests.helpers import create_grenoble
@@ -53,8 +54,12 @@ class TestCityExport(TestCase):
         bdg.addresses_id = [address_1.id]
 
         # Add some attributes
-        bdg.add_ext_id("bdtopo", "v1", "BAT_BDTOPO_1", ext_id_date.isoformat())
-        bdg.add_ext_id("bdnb", "v8", "BAT_BDNB_1", ext_id_date.isoformat())
+        bdg.ext_ids = Building.add_ext_id(
+            bdg.ext_ids, "bdtopo", "v1", "BAT_BDTOPO_1", ext_id_date.isoformat()
+        )
+        bdg.ext_ids = Building.add_ext_id(
+            bdg.ext_ids, "bdnb", "v8", "BAT_BDNB_1", ext_id_date.isoformat()
+        )
 
         bdg.status = "constructed"
         bdg.save()
@@ -75,7 +80,9 @@ class TestCityExport(TestCase):
         bdg.addresses_id = [address_1.id, address_2.id]
 
         # Add some attributes
-        bdg.add_ext_id("bdtopo", "v1", "BAT_BDTOPO_2", ext_id_date.isoformat())
+        bdg.ext_ids = Building.add_ext_id(
+            bdg.ext_ids, "bdtopo", "v1", "BAT_BDTOPO_2", ext_id_date.isoformat()
+        )
 
         bdg.status = "constructed"
         bdg.save()

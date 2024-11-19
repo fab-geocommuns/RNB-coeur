@@ -12,7 +12,6 @@ from django.db import transaction
 from batid.models import Building
 from batid.models import Candidate
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
-from batid.services.rnb_id import generate_rnb_id
 
 
 class Inspector:
@@ -149,8 +148,7 @@ class Inspector:
 
     def decide_creation(self):
         # We build the new building
-        bdg = new_bdg_from_candidate(self.candidate)
-        bdg.save()
+        bdg = create_building_from_candidate(self.candidate)
 
         # Finally, we update the candidate
         self.candidate.inspection_details = {
@@ -162,20 +160,30 @@ class Inspector:
 
     def decide_update(self):
         bdg = Building.objects.get(id=self.matching_bdgs[0].id)
-        has_changed, bdg = self.calc_bdg_update(bdg)
+        changes = self.calc_bdg_update(bdg)
 
-        if has_changed:
-            bdg.save()
-
-        # Finally, we update the candidate
-        self.candidate.inspection_details = {
-            "decision": "update",
-            "rnb_id": bdg.rnb_id,
-        }
+        if changes:
+            bdg.update(
+                user=None,
+                event_origin=changes.get("event_origin"),
+                status=None,
+                addresses_id=changes.get("addresses_id"),
+                ext_ids=changes.get("ext_ids"),
+                shape=changes.get("shape"),
+            )
+            self.candidate.inspection_details = {
+                "decision": "update",
+                "rnb_id": bdg.rnb_id,
+            }
+        else:
+            self.candidate.inspection_details = {
+                "decision": "refusal",
+                "reason": "nothing_to_update",
+            }
         self.candidate.save()
 
-    def calc_bdg_update(self, bdg: Building):
-        has_changed = False
+    def calc_bdg_update(self, bdg: Building) -> dict:
+        changes = {}
 
         # ##############################
         # PROPERTIES
@@ -190,13 +198,13 @@ class Inspector:
             self.candidate.source_version,
             self.candidate.source_id,
         ):
-            bdg.add_ext_id(
+            changes["ext_ids"] = Building.add_ext_id(
+                bdg.ext_ids,
                 self.candidate.source,
                 self.candidate.source_version,
                 self.candidate.source_id,
                 self.candidate.created_at.isoformat(),
             )
-            has_changed = True
 
         # ##
         # Prop : shape
@@ -204,26 +212,24 @@ class Inspector:
             shape_family(self.candidate.shape) == "poly"
             and shape_family(bdg.shape) == "point"
         ):
-            bdg.shape = self.candidate.shape.clone()
-            has_changed = True
+            changes["shape"] = self.candidate.shape.clone()
 
         # ##############################
         # ADDRESSES
         # Handle change in addresses
-        def sort_handle_null(lst):
-            return sorted(lst) if lst else []
+        bdg_addresses = set(bdg.addresses_id or [])
+        candidate_addresses = set(self.candidate.address_keys or [])
 
-        bdg_addresses = sort_handle_null(bdg.addresses_id)
-        candidate_addresses = sort_handle_null(self.candidate.address_keys)
-        if bdg_addresses != candidate_addresses:
-            has_changed = True
-            # concatenate the two lists and remove duplicates
-            bdg.addresses_id = list(set(bdg_addresses + candidate_addresses))
+        if candidate_addresses - bdg_addresses:
+            # update the addresses with the new ones
+            changes["addresses_id"] = list(bdg_addresses | candidate_addresses)
 
-        if has_changed:
-            bdg.event_origin = self.candidate.created_by
+        if changes:
+            changes["event_origin"] = self.candidate.created_by
 
-        return has_changed, bdg
+        # return an empty dict if nothing has changed
+        # or a dict of changes
+        return changes
 
 
 def add_addresses_to_building(bdg: Building, add_keys):
@@ -313,23 +319,23 @@ def compute_shape_area(shape):
     return row[0]
 
 
-def new_bdg_from_candidate(c: Candidate) -> Building:
-    point = c.shape if c.shape.geom_type == "Point" else c.shape.point_on_surface
-
-    b = Building()
-    b.rnb_id = generate_rnb_id()
-    b.shape = c.shape
-    b.point = point
-    b.event_origin = c.created_by
-    b.ext_ids = [
-        {
-            "source": c.source,
-            "source_version": c.source_version,
-            "id": c.source_id,
-            "created_at": c.created_at.isoformat(),
-        }
-    ]
-    b.addresses_id = c.address_keys
+def create_building_from_candidate(c: Candidate) -> Building:
+    b = Building.create_new(
+        # should we add a user here?
+        user=None,
+        event_origin=c.created_by,
+        status="constructed",
+        addresses_id=c.address_keys or [],
+        shape=c.shape,
+        ext_ids=[
+            {
+                "source": c.source,
+                "source_version": c.source_version,
+                "id": c.source_id,
+                "created_at": c.created_at.isoformat(),
+            }
+        ],
+    )
 
     return b
 

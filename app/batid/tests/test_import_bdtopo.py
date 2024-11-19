@@ -19,7 +19,13 @@ class ImportBDTopo(TransactionTestCase):
 
         # Create a bdg with a bdtopo ID also present in the file. It should be skipped
         bdg = create_default_bdg("RNB_ID")
-        bdg.add_ext_id("bdtopo", "2023-09-15", "BATIMENT0000000301182075", "2024-03-15")
+        bdg.ext_ids = Building.add_ext_id(
+            bdg.ext_ids,
+            "bdtopo",
+            "2023-09-15",
+            "BATIMENT0000000301182075",
+            "2024-03-15",
+        )
         bdg.save()
 
     @patch("batid.services.imports.import_bdtopo.Source.find")
