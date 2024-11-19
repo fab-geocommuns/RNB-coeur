@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from unittest import mock
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
@@ -10,9 +11,11 @@ from django.db.utils import IntegrityError
 from django.test import TestCase
 from django.test import TransactionTestCase
 
+from batid.exceptions import BANUnknownCleInterop
 from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingImport
+from batid.models import BuildingWithHistory
 from batid.models import Candidate
 from batid.services.candidate import Inspector
 from batid.services.rnb_id import generate_rnb_id
@@ -43,6 +46,7 @@ class TestInspectorBdgCreate(TestCase):
             source_id="bdnb_1",
             address_keys=["add_1", "add_2"],
             is_light=False,
+            created_by={"id": 46, "source": "import"},
         )
 
         # Create the addresses
@@ -92,6 +96,9 @@ class TestInspectorBdgCreate(TestCase):
         self.assertEqual(b.ext_ids[0]["source_version"], "7.2")
         self.assertEqual(b.ext_ids[0]["id"], "bdnb_1")
 
+        self.assertEqual(b.event_type, "creation")
+        self.assertIsNotNone(b.event_id)
+
         # check the candidate inspection_details is set
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "creation")
@@ -113,7 +120,9 @@ class TestInspectorBdgUpdate(TestCase):
             [2.349804906833981, 48.85789205519228],
         ]
         b = create_bdg("EXISTING", coords)
-        b.add_ext_id("bdnb", "7.2", "bdnb_previous", datetime.now().isoformat())
+        b.ext_ids = Building.add_ext_id(
+            b.ext_ids, "bdnb", "7.2", "bdnb_previous", datetime.now().isoformat()
+        )
         b.save()
 
         # Create a candidate for the merge
@@ -201,6 +210,9 @@ class TestInspectorBdgUpdate(TestCase):
         self.assertEqual(b.ext_ids[2]["source_version"], None)
         self.assertEqual(b.ext_ids[2]["id"], "bdtopo_1")
 
+        self.assertEqual(b.event_type, "update")
+        self.assertIsNotNone(b.event_id)
+
         # Check the candidate inspection_details is set
         first_candidate = Candidate.objects.all().order_by("inspected_at").first()
         second_candidate = Candidate.objects.all().order_by("inspected_at").last()
@@ -210,6 +222,164 @@ class TestInspectorBdgUpdate(TestCase):
 
         self.assertEqual(second_candidate.inspection_details["decision"], "update")
         self.assertEqual(second_candidate.inspection_details["rnb_id"], b.rnb_id)
+
+
+class InspectorMergeBuilding(TestCase):
+    def test_empty_incoming_address(self):
+        # Create an address
+        Address.objects.create(
+            id="add_1",
+            source="ban",
+            point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
+            street_number="39",
+            street="rue de Rivoli",
+            city_name="Paris",
+            city_zipcode="75004",
+            city_insee_code="75104",
+        )
+
+        # we create a building
+        shape = coords_to_mp_geom(
+            [
+                [2.349804906833981, 48.85789205519228],
+                [2.349701279442314, 48.85786369735885],
+                [2.3496535925009994, 48.85777922711969],
+                [2.349861764341199, 48.85773095834841],
+                [2.3499452164882086, 48.857847406681174],
+                [2.349804906833981, 48.85789205519228],
+            ]
+        )
+
+        b = Building.create_new(
+            user=None,
+            event_origin={"source": "import"},
+            status="constructed",
+            addresses_id=["add_1"],
+            shape=shape,
+            ext_ids=[
+                {
+                    "id": "bdtopo_1",
+                    "source": "bdtopo",
+                    "created_at": "2023-12-10T19:42:40.038998+00:00",
+                    "source_version": "2023_01",
+                }
+            ],
+        )
+        rnb_id = b.rnb_id
+
+        c = Candidate.objects.create(
+            shape=shape,
+            source="bdtopo",
+            source_id="bdtopo_1",
+            source_version="2023_01",
+            # typical case : empty address incoming from the BDTOPO
+            address_keys=None,
+            is_light=False,
+        )
+
+        # we expect the candidate to be refused, because it contains no new information about the building.
+        i = Inspector()
+        i.inspect()
+        c.refresh_from_db()
+        self.assertTrue(
+            c.inspection_details
+            == {"decision": "refusal", "reason": "nothing_to_update"}
+        )
+
+        # the building has not been updated (no new entry in the BuildingWithHistory view)
+        buildings = BuildingWithHistory.objects.filter(rnb_id=rnb_id).all()
+        self.assertEqual(len(buildings), 1)
+        building = buildings[0]
+        self.assertEqual(building.event_type, "creation")
+
+    def test_all_addresses_are_known(self):
+        # Create an address
+        Address.objects.create(
+            id="add_1",
+            source="ban",
+            point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
+            street_number="39",
+            street="rue de Rivoli",
+            city_name="Paris",
+            city_zipcode="75004",
+            city_insee_code="75104",
+        )
+
+        Address.objects.create(
+            id="add_2",
+            source="ban",
+            point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
+            street_number="40",
+            street="rue de Rivoli",
+            city_name="Paris",
+            city_zipcode="75004",
+            city_insee_code="75104",
+        )
+
+        Address.objects.create(
+            id="add_3",
+            source="ban",
+            point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
+            street_number="40",
+            street="rue de Rivoli",
+            city_name="Paris",
+            city_zipcode="75004",
+            city_insee_code="75104",
+        )
+
+        # we create a building
+        shape = coords_to_mp_geom(
+            [
+                [2.349804906833981, 48.85789205519228],
+                [2.349701279442314, 48.85786369735885],
+                [2.3496535925009994, 48.85777922711969],
+                [2.349861764341199, 48.85773095834841],
+                [2.3499452164882086, 48.857847406681174],
+                [2.349804906833981, 48.85789205519228],
+            ]
+        )
+
+        b = Building.create_new(
+            user=None,
+            event_origin={"source": "import"},
+            status="constructed",
+            addresses_id=["add_1", "add_2", "add_3"],
+            shape=shape,
+            ext_ids=[
+                {
+                    "id": "bdtopo_1",
+                    "source": "bdtopo",
+                    "created_at": "2023-12-10T19:42:40.038998+00:00",
+                    "source_version": "2023_01",
+                }
+            ],
+        )
+        rnb_id = b.rnb_id
+
+        c = Candidate.objects.create(
+            shape=shape,
+            source="bdtopo",
+            source_id="bdtopo_1",
+            source_version="2023_01",
+            # candidate contains only addresses already associated to the building
+            address_keys=["add_3", "add_1"],
+            is_light=False,
+        )
+
+        # we expect the candidate to be refused, because it contains no new information about the building.
+        i = Inspector()
+        i.inspect()
+        c.refresh_from_db()
+        self.assertTrue(
+            c.inspection_details
+            == {"decision": "refusal", "reason": "nothing_to_update"}
+        )
+
+        # the building has not been updated (no new entry in the BuildingWithHistory view)
+        buildings = BuildingWithHistory.objects.filter(rnb_id=rnb_id).all()
+        self.assertEqual(len(buildings), 1)
+        building = buildings[0]
+        self.assertEqual(building.event_type, "creation")
 
 
 class InspectTest(TestCase):
@@ -867,6 +1037,7 @@ class NonExistingAddress(TransactionTestCase):
             source_id="bdnb_1",
             address_keys=["add_1"],
             is_light=False,
+            created_by={"id": 1, "source": "import"},
         )
 
         i = Inspector()
@@ -881,7 +1052,16 @@ class NonExistingAddress(TransactionTestCase):
         # no building should have been created
         self.assertEqual(Building.objects.all().count(), 0)
 
-    def test_non_existing_address_raises_during_update(self):
+    @mock.patch("batid.models.requests.get")
+    def test_non_existing_address_raises_during_update(self, get_mock):
+        # a non existing address will be checked on the BAN API.
+        # if the BAN API doesn't know it, the inspection will crash.
+
+        get_mock.return_value.status_code = 404
+        get_mock.return_value.json.return_value = {
+            "details": "what is this id?",
+        }
+
         shape = coords_to_mp_geom(
             [
                 [2.349804906833981, 48.85789205519228],
@@ -906,7 +1086,7 @@ class NonExistingAddress(TransactionTestCase):
         )
 
         i = Inspector()
-        with self.assertRaises(IntegrityError) as exinfo:
+        with self.assertRaises(BANUnknownCleInterop) as exinfo:
             i.inspect()
             # check handle_bdgs_updates is in the stacktrace
             # ie the candidate was supposed to update a building
