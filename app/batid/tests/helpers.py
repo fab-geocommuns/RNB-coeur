@@ -1144,9 +1144,7 @@ def create_bdg(rnb_id, coords_list):
     geom = coords_to_mp_geom(coords_list)
 
     return Building.objects.create(
-        rnb_id=rnb_id,
-        shape=geom,
-        point=geom.point_on_surface,
+        rnb_id=rnb_id, shape=geom, point=geom.point_on_surface, event_type="creation"
     )
 
 
