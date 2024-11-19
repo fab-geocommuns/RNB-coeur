@@ -547,7 +547,7 @@ class SingleBuilding(APIView):
                 }
 
                 if data.get("is_active") == False:
-                    # a building that is not a building is soft deleted from the base
+                    # a building that is not a building has its RNB ID deactivated from the base
                     building.deactivate(user, event_origin)
                 else:
                     status = data.get("status")

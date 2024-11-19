@@ -162,9 +162,8 @@ class Building(BuildingAbstract):
         IMPORTANT NOTICE: this method must only be used in the case the building was never meant to be in the RNB.
         eg: some trees were visually considered as a building and added to the RNB.
         ----
-        It is not expected to hard delete anything in the RNB, as it would break our capacity to audit its history.
-        This deactivate method is used to mark a RNB_ID as inactive, with an associated event_type "delete"
-        TO DO event_type "delete" should also be renamed "deactivate" in the future
+        It is not expected to delete anything in the RNB, as it would break our capacity to audit its history.
+        This deactivate method is used to mark a RNB_ID as inactive, with an associated event_type "deactivation"
         """
         if self.is_active:
             self.event_type = "deactivation"
