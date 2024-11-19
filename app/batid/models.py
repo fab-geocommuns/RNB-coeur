@@ -49,19 +49,19 @@ class BuildingAbstract(models.Model):
     # the possible event types
     # creation: the building is created for the first time
     # update: some fields of an existing building are modified
-    # deletion: the building is deleted, because it had no reason to be in the RNB in the first place
-    # WARNING : a deletion is different from a real building demolition, which would be a change of the status (a thus an event_type: update).
+    # deactivation: the rnb id is deactivated, because the corresponding building had no reason to be in the RNB in the first place
+    # WARNING : a deactivation is different from a real building demolition, which would be a change of the status (a thus an event_type: update).
     # merge: two or more buildings are merged into one
     # split: one building is split into two or more
     event_type = models.CharField(
         choices=[
             ("creation", "creation"),
             ("update", "update"),
-            ("deletion", "deletion"),
+            ("deactivation", "deactivation"),
             ("merge", "merge"),
             ("split", "split"),
         ],
-        max_length=10,
+        max_length=12,
         null=True,
     )
     # the user at the origin of the event
@@ -139,12 +139,11 @@ class Building(BuildingAbstract):
         IMPORTANT NOTICE: this method must only be used in the case the building was never meant to be in the RNB.
         eg: some trees were visually considered as a building and added to the RNB.
         ----
-        It is not expected to hard delete anything in the RNB, as it would break our capacity to audit its history.
-        This deactivate method is used to mark a RNB_ID as inactive, with an associated event_type "delete"
-        TO DO event_type "delete" should also be renamed "deactivate" in the future
+        It is not expected to delete anything in the RNB, as it would break our capacity to audit its history.
+        This deactivate method is used to mark a RNB_ID as inactive, with an associated event_type "deactivation"
         """
         if self.is_active:
-            self.event_type = "delete"
+            self.event_type = "deactivation"
             self.is_active = False
             self.event_id = uuid.uuid4()
             self.event_user = user

@@ -80,9 +80,9 @@ class TestRemoveLightBuildings(TransactionTestCase):
         inactive_rnb_ids.sort()
         self.assertEqual(inactive_rnb_ids, ["2", "4", "5"])
 
-        # check that a deleted building has all the information expected
+        # check that a deactivated building has all the information expected
         b = Building.objects.get(rnb_id="2")
         self.assertEqual(b.is_active, False)
-        self.assertEqual(b.event_type, "delete")
+        self.assertEqual(b.event_type, "deactivation")
         self.assertEqual(b.event_origin, {"source": "data_fix", "id": datafix.id})
         self.assertEqual(b.event_user, user)

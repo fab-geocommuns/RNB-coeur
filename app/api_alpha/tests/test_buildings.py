@@ -717,7 +717,7 @@ class BuildingPatchTest(APITestCase):
         contributions = Contribution.objects.all()
         contribution = contributions[0]
 
-        self.assertEqual(self.building.event_type, "delete")
+        self.assertEqual(self.building.event_type, "deactivation")
         self.assertEqual(
             self.building.event_origin,
             {"source": "contribution", "contribution_id": contribution.id},
