@@ -176,9 +176,9 @@ class Building(BuildingAbstract):
 
             self._refuse_pending_contributions(user)
         else:
-            print(f"Cannot soft-delete an inactive building: {self.rnb_id}")
+            print(f"Cannot deactivate an inactive building: {self.rnb_id}")
 
-    def update(self, user, event_origin, status, addresses_id):
+    def update(self, user, event_origin, status = None, addresses_id = None):
         if status is None and addresses_id is None:
             raise Exception("Missing data to update the building")
 
