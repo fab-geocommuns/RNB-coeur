@@ -65,8 +65,8 @@ def squash_history(rnb_id):
                     # stop looping, time to squash
                     break
 
-            # at least 2 identical lines have been detected, let's squash
             if j > i + 1:
+                # at least 2 identical lines have been detected, let's squash
                 squash_building_versions(
                     building_versions, start_index=i, end_index=j - 1
                 )
@@ -111,7 +111,7 @@ def building_identicals(b1, b2) -> bool:
 
 
 def squash_building_versions(building_versions, start_index, end_index):
-    # modify the last row
+    # modify the last row because it is possibly the current version of the building
     lower = building_versions[start_index].sys_period.lower
     building = building_versions[end_index]
     building.sys_period = DateTimeTZRange(lower=lower, upper=building.sys_period.upper)
