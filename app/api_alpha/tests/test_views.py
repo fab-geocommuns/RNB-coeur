@@ -95,9 +95,9 @@ class DiffTest(TransactionTestCase):
         b1.event_type = "update"
         b1.save()
 
-        # soft delete a building
+        # deactivate a building
         b3.is_active = False
-        b3.event_type = "deletion"
+        b3.event_type = "deactivation"
         b3.save()
 
         # we want all the diff since the the creation of b1 (excluded)

@@ -110,7 +110,7 @@ class TestBuilding(TestCase):
 
     def test_deactivate(self):
         """
-        Simplest test of the soft delete.
+        Simplest test of deactivation.
         """
         bdg = Building.objects.create(rnb_id="AAA", shape="POINT(0 0)")
 
@@ -121,13 +121,13 @@ class TestBuilding(TestCase):
 
         self.assertFalse(bdg.is_active)
         self.assertEqual(bdg.event_user, user)
-        self.assertEqual(bdg.event_type, "delete")
+        self.assertEqual(bdg.event_type, "deactivation")
         self.assertEqual(bdg.event_origin, {"k": "v"})
         self.assertIsNotNone(bdg.event_id)
 
     def test_no_deactivate_inactive_buildings(self):
         """
-        An inactive building soft-delete is ignored.
+        An inactive building deactivation is ignored.
         """
         bdg = Building.objects.create(rnb_id="AAA", shape="POINT(0 0)", is_active=False)
         user = User.objects.create_user(username="dummy")
@@ -143,7 +143,7 @@ class TestBuilding(TestCase):
 
     def test_deactivate_with_contributions(self):
         """
-        Test some scenario with contributions linked (or not) to soft deleted building.
+        Test some scenario with contributions linked (or not) to deactivated building.
         """
         bdg = Building.objects.create(rnb_id="AAA", shape="POINT(0 0)")
 

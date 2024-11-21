@@ -36,6 +36,7 @@ class TemporalTableCase(TestCase):
         self.assertEqual(len(building_history_only), 1)
 
     def test_delete_building(self):
+        # we check that the temporal table works properly, even if deleting a building like that is NEVER expected.
         building = Building.objects.create(rnb_id="XYZ")
         building.delete()
 

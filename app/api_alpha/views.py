@@ -547,7 +547,7 @@ class SingleBuilding(APIView):
                 }
 
                 if data.get("is_active") == False:
-                    # a building that is not a building is soft deleted from the base
+                    # a building that is not a building has its RNB ID deactivated from the base
                     building.deactivate(user, event_origin)
                 else:
                     status = data.get("status")
@@ -1162,7 +1162,7 @@ class DiffView(APIView):
                     COPY (
                         select
                         CASE
-                            WHEN event_type = 'deletion' THEN 'delete'
+                            WHEN event_type = 'deactivation' THEN 'delete'
                             WHEN event_type = 'update' THEN 'update'
                             WHEN event_type = 'split' and not is_active THEN 'delete'
                             WHEN event_type = 'split' and is_active THEN 'create'
@@ -1171,7 +1171,8 @@ class DiffView(APIView):
                             ELSE 'create'
                         END as action,
                         rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb
-                        where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone order by rnb_id, lower(sys_period)
+                        where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone
+                        order by rnb_id, lower(sys_period)
                     ) TO STDOUT WITH CSV HEADER
                     """
                 ).format(

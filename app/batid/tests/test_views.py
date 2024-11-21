@@ -57,7 +57,7 @@ class TestContributionsViews(TestCase):
 
         # Check that the building has been deleted
         building.refresh_from_db()
-        self.assertEqual(building.event_type, "delete")
+        self.assertEqual(building.event_type, "deactivation")
         self.assertIsNotNone(building.event_id)
         self.assertFalse(building.is_active)
         self.assertEqual(building.event_user, self.superuser)
