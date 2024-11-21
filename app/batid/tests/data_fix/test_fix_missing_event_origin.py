@@ -7,7 +7,7 @@ from batid.services.data_fix.fill_empty_event_origin import buildings_diff_field
 from batid.services.data_fix.fill_empty_event_origin import fix
 
 
-class FixMissingEventOrigin(TransactionTestCase):
+class FixMissingEventOriginTest(TransactionTestCase):
     def test_fill_empty_event_origin(self):
 
         rnb_id_1 = insert_building_history_1()
