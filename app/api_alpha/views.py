@@ -2,6 +2,7 @@ import json
 import os
 from base64 import b64encode
 from datetime import datetime
+from datetime import timedelta
 
 import requests
 from django.conf import settings
@@ -25,6 +26,8 @@ from rest_framework import mixins
 from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
@@ -36,6 +39,8 @@ from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
 
+from api_alpha.exceptions import BadRequest
+from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.permissions import ADSPermission
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
@@ -49,6 +54,9 @@ from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import rnb_doc
+from batid.exceptions import BANAPIDown
+from batid.exceptions import BANBadResultType
+from batid.exceptions import BANUnknownCleInterop
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
@@ -56,8 +64,11 @@ from batid.models import Contribution
 from batid.models import Organization
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.guess_bdg import BuildingGuess
+from batid.services.mattermost import notify_tech
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
+from batid.services.stats import ACTIVE_BUILDING_COUNT
+from batid.services.stats import get_stat as get_cached_stat
 from batid.services.vector_tiles import ads_tiles_sql
 from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
@@ -463,7 +474,7 @@ class SingleBuilding(APIView):
                 <ul>
                     <li>{"comment": "faux bâtiment", "is_active": False}</li>
                     <li>{"comment": "bâtiment démoli", "status": "demolished"}</li>
-                    <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": [75105_8884_00004]}</li>
+                    <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}</li>
                 </ul>""",
                 "operationId": "patchBuilding",
                 "parameters": [
@@ -497,7 +508,7 @@ class SingleBuilding(APIView):
                                     },
                                     "addresses_cle_interop": {
                                         "type": "list",
-                                        "description": "Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: [75105_8884_00004, 75105_8884_00006]",
+                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
                                     },
                                 },
                                 "required": ["comment"],
@@ -536,13 +547,26 @@ class SingleBuilding(APIView):
                 }
 
                 if data.get("is_active") == False:
-                    # a building that is not a building is soft deleted from the base
+                    # a building that is not a building has its RNB ID deactivated from the base
                     building.deactivate(user, event_origin)
                 else:
                     status = data.get("status")
                     addresses_cle_interop = data.get("addresses_cle_interop")
 
-                    building.update(user, event_origin, status, addresses_cle_interop)
+                    try:
+                        building.update(
+                            user, event_origin, status, addresses_cle_interop
+                        )
+                    except BANAPIDown:
+                        raise ServiceUnavailable(detail="BAN API is currently down")
+                    except BANUnknownCleInterop:
+                        raise NotFound(
+                            detail="Cle d'intéropérabilité not found on the BAN API"
+                        )
+                    except BANBadResultType:
+                        raise BadRequest(
+                            detail="BAN result has not the expected type (must be 'numero')"
+                        )
 
             # request is successful, no content to send back
             return Response(status=http_status.HTTP_204_NO_CONTENT)
@@ -1008,8 +1032,17 @@ def get_stats(request):
     contributions_count = Contribution.objects.count()
     data_gouv_publication_count = get_data_gouv_publication_count()
 
+    # Get the cached value of the building count
+    bdg_count = get_cached_stat(ACTIVE_BUILDING_COUNT)
+    # check the "computed_at" date is not too old
+    if bdg_count["computed_at"] < datetime.now() - timedelta(days=2):
+        # if it is, we warn the tech channel
+        notify_tech(
+            f'Le calcul du nombre de bâtiments disponible dans le cache est trop vieux. Il date de {bdg_count["computed_at"].isoformat()}'
+        )
+
     data = {
-        "building_counts": building_counts,
+        "building_counts": bdg_count["value"],
         "api_calls_since_2024_count": api_calls_since_2024_count,
         "contributions_count": contributions_count,
         "data_gouv_publication_count": data_gouv_publication_count,
@@ -1129,7 +1162,7 @@ class DiffView(APIView):
                     COPY (
                         select
                         CASE
-                            WHEN event_type = 'deletion' THEN 'delete'
+                            WHEN event_type = 'deactivation' THEN 'delete'
                             WHEN event_type = 'update' THEN 'update'
                             WHEN event_type = 'split' and not is_active THEN 'delete'
                             WHEN event_type = 'split' and is_active THEN 'create'
@@ -1138,7 +1171,8 @@ class DiffView(APIView):
                             ELSE 'create'
                         END as action,
                         rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb
-                        where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone order by rnb_id, lower(sys_period)
+                        where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone
+                        order by rnb_id, lower(sys_period)
                     ) TO STDOUT WITH CSV HEADER
                     """
                 ).format(
@@ -1280,6 +1314,20 @@ class AdsTokenView(APIView):
                 return JsonResponse({"created_users": users})
         except json.JSONDecodeError:
             return HttpResponse("Invalid JSON", status=400)
+
+
+class RNBAuthToken(ObtainAuthToken):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        token = Token.objects.get(key=response.data["token"])
+        user = token.user
+        return Response(
+            {
+                "token": token.key,
+                "username": user.username,
+                "groups": [group.name for group in user.groups.all()],
+            }
+        )
 
 
 class TokenScheme(OpenApiAuthenticationExtension):

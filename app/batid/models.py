@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
+import requests
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import GEOSGeometry
@@ -13,6 +14,9 @@ from django.db import transaction
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
+from batid.exceptions import BANAPIDown
+from batid.exceptions import BANBadResultType
+from batid.exceptions import BANUnknownCleInterop
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
@@ -45,19 +49,19 @@ class BuildingAbstract(models.Model):
     # the possible event types
     # creation: the building is created for the first time
     # update: some fields of an existing building are modified
-    # deletion: the building is deleted, because it had no reason to be in the RNB in the first place
-    # WARNING : a deletion is different from a real building demolition, which would be a change of the status (a thus an event_type: update).
+    # deactivation: the rnb id is deactivated, because the corresponding building had no reason to be in the RNB in the first place
+    # WARNING : a deactivation is different from a real building demolition, which would be a change of the status (a thus an event_type: update).
     # merge: two or more buildings are merged into one
     # split: one building is split into two or more
     event_type = models.CharField(
         choices=[
             ("creation", "creation"),
             ("update", "update"),
-            ("deletion", "deletion"),
+            ("deactivation", "deactivation"),
             ("merge", "merge"),
             ("split", "split"),
         ],
-        max_length=10,
+        max_length=12,
         null=True,
     )
     # the user at the origin of the event
@@ -90,29 +94,6 @@ class Building(BuildingAbstract):
         related_name="buildings_read_only",
         through="BuildingAddressesReadOnly",
     )
-
-    def add_ext_id(
-        self, source: str, source_version: Optional[str], id: str, created_at: str
-    ):
-        # Get the format
-        ext_id = {
-            "source": source,
-            "source_version": source_version,
-            "id": id,
-            "created_at": created_at,
-        }
-        # Validate the content
-        validate_one_ext_id(ext_id)
-
-        # Init if necessary
-        if not self.ext_ids:
-            self.ext_ids = []
-
-        # Append
-        self.ext_ids.append(ext_id)
-
-        # Sort by created_at
-        self.ext_ids = sorted(self.ext_ids, key=lambda k: k["created_at"])
 
     def contains_ext_id(
         self, source: str, source_version: Optional[str], id: str
@@ -158,12 +139,11 @@ class Building(BuildingAbstract):
         IMPORTANT NOTICE: this method must only be used in the case the building was never meant to be in the RNB.
         eg: some trees were visually considered as a building and added to the RNB.
         ----
-        It is not expected to hard delete anything in the RNB, as it would break our capacity to audit its history.
-        This deactivate method is used to mark a RNB_ID as inactive, with an associated event_type "delete"
-        TO DO event_type "delete" should also be renamed "deactivate" in the future
+        It is not expected to delete anything in the RNB, as it would break our capacity to audit its history.
+        This deactivate method is used to mark a RNB_ID as inactive, with an associated event_type "deactivation"
         """
         if self.is_active:
-            self.event_type = "delete"
+            self.event_type = "deactivation"
             self.is_active = False
             self.event_id = uuid.uuid4()
             self.event_user = user
@@ -174,8 +154,21 @@ class Building(BuildingAbstract):
         else:
             print(f"Cannot soft-delete an inactive building: {self.rnb_id}")
 
-    def update(self, user, event_origin, status, addresses_id):
-        if status is None and addresses_id is None:
+    def update(
+        self,
+        user: User | None,
+        event_origin: dict | None,
+        status: str | None,
+        addresses_id: list | None,
+        ext_ids: list | None = None,
+        shape: GEOSGeometry | None = None,
+    ):
+        if (
+            status is None
+            and addresses_id is None
+            and ext_ids is None
+            and shape is not None
+        ):
             raise Exception("Missing data to update the building")
 
         if self.is_active:
@@ -185,10 +178,18 @@ class Building(BuildingAbstract):
             self.event_origin = event_origin
 
             if addresses_id is not None:
+                Address.add_addresses_to_db_if_needed(addresses_id)
                 self.addresses_id = addresses_id
 
             if status is not None:
                 self.status = status
+
+            if ext_ids is not None:
+                self.ext_ids = ext_ids
+
+            if shape is not None:
+                self.shape = shape
+                self.point = shape.point_on_surface
 
             self.save()
         else:
@@ -203,6 +204,64 @@ class Building(BuildingAbstract):
 
         for c in contributions:
             c.refuse(user, msg)
+
+    @staticmethod
+    def add_ext_id(
+        existing_ext_ids: list | None,
+        source: str,
+        source_version: Optional[str],
+        id: str,
+        created_at: str,
+    ) -> list[dict]:
+        ext_id = {
+            "source": source,
+            "source_version": source_version,
+            "id": id,
+            "created_at": created_at,
+        }
+
+        validate_one_ext_id(ext_id)
+
+        if not existing_ext_ids:
+            existing_ext_ids = []
+
+        existing_ext_ids.append(ext_id)
+        new_ext_ids = sorted(existing_ext_ids, key=lambda k: k["created_at"])
+        return new_ext_ids
+
+    @staticmethod
+    def create_new(
+        user: User | None,
+        event_origin: dict | None,
+        status: str,
+        addresses_id: list,
+        shape: GEOSGeometry,
+        ext_ids: list,
+    ):
+        if (
+            not event_origin
+            or not status
+            or addresses_id is None
+            or not shape
+            or ext_ids is None
+        ):
+            raise Exception("Missing information to create a new building")
+
+        point = shape if shape.geom_type == "Point" else shape.point_on_surface
+
+        return Building.objects.create(
+            rnb_id=generate_rnb_id(),
+            point=point,
+            shape=shape,
+            ext_ids=ext_ids,
+            event_origin=event_origin,
+            status=status,
+            event_id=uuid.uuid4(),
+            event_type="creation",
+            event_user=user,
+            is_active=True,
+            addresses_id=addresses_id,
+        )
 
     @staticmethod
     def merge(buildings: list, user, event_origin, status, addresses_id):
@@ -406,19 +465,61 @@ class Plot(models.Model):
 class Address(models.Model):
     id = models.CharField(max_length=40, primary_key=True, db_index=True)
     source = models.CharField(max_length=10, null=False)  # BAN or other origin
-
     point = models.PointField(null=True, spatial_index=True, srid=4326)
-
     street_number = models.CharField(max_length=10, null=True)
     street_rep = models.CharField(max_length=100, null=True)
-    street_name = models.CharField(max_length=100, null=True)
-    street_type = models.CharField(max_length=100, null=True)
+    street = models.CharField(max_length=200, null=True)
     city_name = models.CharField(max_length=100, null=True)
     city_zipcode = models.CharField(max_length=5, null=True)
     city_insee_code = models.CharField(max_length=5, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @staticmethod
+    def add_addresses_to_db_if_needed(addresses_id):
+        """given a list of "clés d'interopérabilité BAN", we add those addresses to our Address table if they don't exist yet."""
+        for address_id in addresses_id:
+            Address.add_address_to_db_if_needed(address_id)
+
+    @staticmethod
+    def add_address_to_db_if_needed(address_id):
+        if Address.objects.filter(id=address_id).exists():
+            return
+        else:
+            Address.add_new_address_from_ban_api(address_id)
+
+    @staticmethod
+    def add_new_address_from_ban_api(address_id):
+        BAN_API_URL = "https://plateforme.adresse.data.gouv.fr/lookup/"
+
+        url = f"{BAN_API_URL}{address_id}"
+        r = requests.get(url)
+
+        if r.status_code == 200:
+            data = r.json()
+            Address.save_new_address(data)
+        elif r.status_code == 404:
+            raise BANUnknownCleInterop
+        else:
+            raise BANAPIDown
+
+    @staticmethod
+    def save_new_address(data):
+        if data["type"] != "numero":
+            raise BANBadResultType
+
+        Address.objects.create(
+            id=data["cleInterop"],
+            source="ban",
+            point=f'POINT ({data["lon"]} {data["lat"]})',
+            street_number=data["numero"],
+            street_rep=data["suffixe"],
+            street=data["voie"]["nomVoie"],
+            city_name=data["commune"]["nom"],
+            city_zipcode=data["codePostal"],
+            city_insee_code=data["commune"]["code"],
+        )
 
 
 class Organization(models.Model):
