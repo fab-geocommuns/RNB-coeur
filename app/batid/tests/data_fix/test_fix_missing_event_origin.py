@@ -36,7 +36,8 @@ class FixMissingEventOriginTest(TransactionTestCase):
             .order_by("sys_period")
         )
 
-        fix(1)
+        # we set a small batch size, to check the loop is working properly
+        fix(batch_size=1)
 
         # three versions have been squashed together
         fixed_buildings_1 = (

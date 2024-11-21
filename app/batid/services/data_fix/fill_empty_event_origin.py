@@ -22,6 +22,7 @@ def fix(batch_size):
             break
         else:
             rnb_id_cut = buildings[-1].rnb_id
+            print(f"cleaning db, currently fixing {rnb_id_cut}")
 
         with transaction.atomic():
             with connection.cursor() as cursor:
