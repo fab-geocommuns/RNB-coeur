@@ -151,12 +151,11 @@ class Guesser:
 
         df = pd.json_normalize(data, sep="_")
 
-
         reasons = df[df["match_reason"] == match_reason]
 
         # count how many rows have a input_ext_id column
 
-        reasons =  reasons[sample_cols]
+        reasons = reasons[sample_cols]
 
         print(reasons.sample(sample_size))
 
