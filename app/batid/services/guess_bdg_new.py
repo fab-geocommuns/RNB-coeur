@@ -71,7 +71,7 @@ class Guesser:
             if changed_batch:
                 self.guesses.update(batch)
 
-    def _guesses_to_batches(self, batch_size: int = 500):
+    def _guesses_to_batches(self, batch_size: int = 5000):
         print("- converting guesses to batches")
         batches = []
         batch = {}
@@ -145,14 +145,18 @@ class Guesser:
         self,
         match_reason: str,
         sample_size: int = 10,
-        sample_cols: list = ("input_ext_id", "match_rnb_id", "match_reason"),
+        sample_cols: list = ["input_ext_id", "matches", "match_reason"],
     ):
         data = list(self.guesses.values())
 
         df = pd.json_normalize(data, sep="_")
 
+
         reasons = df[df["match_reason"] == match_reason]
-        reasons = reasons[sample_cols]
+
+        # count how many rows have a input_ext_id column
+
+        reasons =  reasons[sample_cols]
 
         print(reasons.sample(sample_size))
 
@@ -437,7 +441,9 @@ class GeocodeAddressHandler(AbstractHandler):
         else:
             qs = Building.objects.all()
 
-        bdgs = qs.filter(addresses_id__contains=[ban_id])
+        # The old version of the query before the "bdg_addresses_id_idx" index disappeared
+        # bdgs = qs.filter(addresses_id__contains=[ban_id])
+        bdgs = qs.filter(addresses_read_only__id=ban_id)
 
         if bdgs.count() > 0:
             guess["matches"] = bdgs
