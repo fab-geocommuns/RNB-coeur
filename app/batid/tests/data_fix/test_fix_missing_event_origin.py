@@ -1,6 +1,6 @@
 from django.test import TransactionTestCase
 
-from batid.models import Address
+from batid.models import Address, BuildingHistoryOnly
 from batid.models import Building
 from batid.models import BuildingWithHistory
 from batid.services.data_fix.fill_empty_event_origin import buildings_diff_fields
@@ -86,7 +86,7 @@ def insert_building_history_1():
         is_active=True,
     )
 
-    # 1st update
+    # 1st update, we add an ext_id, change the event_origin and fill addresses_id
     b.ext_ids = [
         {
             "id": "bdnb-bc-SSW2-CGZB-QYUT",
@@ -105,7 +105,7 @@ def insert_building_history_1():
     b.addresses_id = ["51250_0027_00007", "51250_0027_00008"]
     b.save()
 
-    # 2nd update
+    # 2nd update, we add another ext_id, change the event_origin and change the addresses_id order
     b.ext_ids = [
         {
             "id": "bdnb-bc-SSW2-CGZB-QYUT",
@@ -130,11 +130,11 @@ def insert_building_history_1():
     b.addresses_id = ["51250_0027_00008", "51250_0027_00007"]
     b.save()
 
-    # 3rd update
+    # 3rd update, nothing but event_origin
     b.event_origin = {"id": 468, "source": "import"}
     b.save()
 
-    # 4th update
+    # 4th update, nothing but event_origin
     b.event_origin = {"id": 523, "source": "import"}
     b.save()
 
@@ -142,6 +142,11 @@ def insert_building_history_1():
 
 
 def assertions_for_building_1(self, initial_buildings, fixed_buildings):
+
+    # We expect 3 rows to be squashed together, reducing the version count from 5 to 3
+    self.assertEqual(len(initial_buildings), 5)
+    self.assertEqual(len(fixed_buildings), 3)
+
     [v0, v1, v2, v3, v4] = initial_buildings
     [f0, f1, f2] = fixed_buildings
 
@@ -155,6 +160,7 @@ def assertions_for_building_1(self, initial_buildings, fixed_buildings):
     # the ranges of v2, v3, v4 should have been squashed
     self.assertEqual(f2.sys_period.lower, v2.sys_period.lower)
     self.assertEqual(f2.sys_period.upper, v4.sys_period.upper)
+
     # but nothing else should avec changed.
     self.assertEqual(buildings_diff_fields(v2, f2), set(["event_type"]))
 
@@ -181,6 +187,8 @@ def assertions_for_building_2(self, initial_buildings, fixed_buildings):
     [v0] = initial_buildings
     [f0] = fixed_buildings
 
+    # The event type should have been filled with "creation"
+    self.assertEqual(f0.event_type, "creation")
     self.assertEqual(buildings_diff_fields(v0, f0), set(["event_type"]))
 
 
@@ -265,3 +273,7 @@ def assertions_for_building_4(self, initial_buildings, fixed_buildings):
     self.assertEqual(buildings_diff_fields(v0, f0), set([]))
 
     self.assertEqual(buildings_diff_fields(v1, f1), set([]))
+
+
+# todo : faire un test où un bâtiment doit avoir event_type complété pour ses premières lignes et a été modifié ensuite
+# todo : tester de façon extensive la fonction building_identicals()

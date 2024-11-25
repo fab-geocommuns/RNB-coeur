@@ -56,7 +56,7 @@ def squash_history(rnb_id):
         j = i + 1
 
         if building_versions[i].event_type is None:
-            # we only consider squashing building versions with empty event_origin
+            # we only consider squashing building versions with empty event_type
             while j < n:
                 if building_identicals(building_versions[i], building_versions[j]):
                     # we keep looping, to see if next version is also identical
@@ -128,7 +128,7 @@ def fill_events(rnb_id):
         BuildingHistoryOnly.objects.all().filter(rnb_id=rnb_id).order_by("sys_period")
     ) + list(Building.objects.all().filter(rnb_id=rnb_id).order_by("sys_period"))
 
-    for (i, building_version) in enumerate(building_versions):
+    for i, building_version in enumerate(building_versions):
         # we only write event types if it is currently empty
         if building_version.event_type is None:
             if i == 0:
