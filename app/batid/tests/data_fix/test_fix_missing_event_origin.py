@@ -289,11 +289,13 @@ class IdenticalBdgVersionsDetection(TestCase):
         b1 = Building(rnb_id="rnb_id_1")
         b2 = Building(rnb_id="rnb_id_2")
         self.assertEqual(buildings_diff_fields(b1, b2), set(["rnb_id"]))
+        self.assertFalse(building_identicals(b1, b2))
 
     def test_rnb_id_identical(self):
         b1 = Building(rnb_id="rnb_id")
         b2 = Building(rnb_id="rnb_id")
         self.assertEqual(buildings_diff_fields(b1, b2), set([]))
+        self.assertTrue(building_identicals(b1, b2))
 
     def test_point_not_identical(self):
 
@@ -303,6 +305,7 @@ class IdenticalBdgVersionsDetection(TestCase):
         b1 = Building(point=p1)
         b2 = Building(point=p2)
         self.assertEqual(buildings_diff_fields(b1, b2), set(["point"]))
+        self.assertFalse(building_identicals(b1, b2))
 
     def test_point_identical(self):
 
@@ -312,6 +315,7 @@ class IdenticalBdgVersionsDetection(TestCase):
         b1 = Building(point=p1)
         b2 = Building(point=p2)
         self.assertEqual(buildings_diff_fields(b1, b2), set([]))
+        self.assertTrue(building_identicals(b1, b2))
 
     def test_shape_not_identical(self):
 
@@ -326,6 +330,7 @@ class IdenticalBdgVersionsDetection(TestCase):
         b2 = Building(shape=s2)
 
         self.assertEqual(buildings_diff_fields(b1, b2), set(["shape"]))
+        self.assertFalse(building_identicals(b1, b2))
 
     def test_shape_identical(self):
         s1 = GEOSGeometry(
@@ -339,11 +344,23 @@ class IdenticalBdgVersionsDetection(TestCase):
         b2 = Building(shape=s2)
 
         self.assertEqual(buildings_diff_fields(b1, b2), set([]))
+        self.assertTrue(building_identicals(b1, b2))
 
     def test_parents_not_identical(self):
         b1 = Building(parent_buildings=["parent1", "parent2"])
         b2 = Building(parent_buildings=["parent1", "parent3"])
+
         self.assertEqual(buildings_diff_fields(b1, b2), set(["parent_buildings"]))
+        self.assertFalse(building_identicals(b1, b2))
+
+        # One is empty (we test that the order is not important)
+        b3 = Building(parent_buildings=[])
+
+        self.assertEqual(buildings_diff_fields(b1, b3), set(["parent_buildings"]))
+        self.assertFalse(building_identicals(b1, b3))
+
+        self.assertEqual(buildings_diff_fields(b3, b1), set(["parent_buildings"]))
+        self.assertFalse(building_identicals(b3, b1))
 
     def test_parents_identical(self):
 
@@ -351,7 +368,22 @@ class IdenticalBdgVersionsDetection(TestCase):
         b1 = Building(parent_buildings=["parent1", "parent2"])
         b2 = Building(parent_buildings=["parent1", "parent2"])
         self.assertEqual(buildings_diff_fields(b1, b2), set([]))
+        self.assertTrue(building_identicals(b1, b2))
 
         # Different order
         b3 = Building(parent_buildings=["parent2", "parent1"])
         self.assertEqual(buildings_diff_fields(b1, b3), set([]))
+        self.assertTrue(building_identicals(b1, b3))
+
+        # Both null
+        b4 = Building(parent_buildings=None)
+        b5 = Building()
+        self.assertEqual(buildings_diff_fields(b4, b5), set([]))
+        self.assertTrue(building_identicals(b4, b5))
+
+    def test_ext_id_not_identical(self):
+        b1 = Building(ext_ids=[{"id": "id1", "source": "source1"}])
+        b2 = Building(ext_ids=[{"id": "id2", "source": "source1"}])
+
+        self.assertEqual(buildings_diff_fields(b1, b2), set(["ext_ids"]))
+        self.assertFalse(building_identicals(b1, b2))
