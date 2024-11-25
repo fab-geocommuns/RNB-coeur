@@ -18,16 +18,6 @@ def fetch_departments_refs() -> dict:
     return requests.get(url).json()
 
 
-def dpt_codes() -> set:
-    # this function is used in few places and should be replaced with dpts_list()
-    metro = {str(i).zfill(2) for i in range(1, 96)}
-    metro.add("2A")
-    metro.add("2B")
-    metro.remove("20")
-    outre_mer = set(["971", "972", "973", "974", "976"])
-    return metro.union(outre_mer)
-
-
 def dpt_list_metropole():
     return [
         "01",
