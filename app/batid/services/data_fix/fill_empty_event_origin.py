@@ -95,7 +95,9 @@ def buildings_diff_fields(b1, b2) -> set:
 
     diff = set()
     for key in b1.keys():
-        if type(b1[key]) == dict:
+        if type(b1[key]) != type(b2[key]):
+            diff.add(key)
+        elif type(b1[key]) == dict or type(b1[key]) == list:
             # order is not important in rnb lists
             # duplicates are not expected
             if set(b1[key]) != set(b2[key]):
