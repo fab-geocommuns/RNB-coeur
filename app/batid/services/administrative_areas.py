@@ -120,8 +120,11 @@ def dpt_list_metropole():
 
 
 def dpt_list_overseas():
-    return ["971", "972", "973", "974", "975", "976", "977", "978"]
+    return ["971", "972", "973", "974", "976"]
 
+# COM = Collectivité d'outre-mer
+def com_list():
+    return ["975", "977", "978", "986", "987"]
 
 def dpts_list(start: Optional[str] = None, end: Optional[str] = None):
     """
@@ -130,9 +133,28 @@ def dpts_list(start: Optional[str] = None, end: Optional[str] = None):
     :return: list of departments in France
     """
 
-    all = dpt_list_metropole() + dpt_list_overseas()
+    all = dpt_list_metropole() + dpt_list_overseas() + com_list()
 
     start_idx = all.index(start) if start else 0
     end_idx = all.index(end) + 1 if end else len(all)
 
     return all[start_idx:end_idx]
+
+def get_com_name(code: str) -> str:
+    # We hard code this list, since those names are not avaialbe via fetch_departments_refs()
+    # Those territories are not in https://geo.api.gouv.fr/departements (they are not departments)
+
+    if code not in com_list():
+        raise ValueError(f"{code} is not a COM code")
+
+    names = {
+        "975": "Saint-Pierre-et-Miquelon",
+        "977": "Saint-Barthélemy",
+        "978": "Saint-Martin",
+        "986": "Wallis-et-Futuna",
+        "987": "Polynésie française",
+    }
+
+    return names[code]
+
+
