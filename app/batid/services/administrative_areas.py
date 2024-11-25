@@ -13,11 +13,6 @@ def fetch_dpt_cities_geojson(dpt: str) -> dict:
     return requests.get(url).json()
 
 
-def fetch_departments_refs() -> dict:
-    url = "https://geo.api.gouv.fr/departements"
-    return requests.get(url).json()
-
-
 def _dpt_names() -> dict:
     return {
         "01": "Ain",

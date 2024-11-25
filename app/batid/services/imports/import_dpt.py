@@ -5,15 +5,18 @@ from django.contrib.gis.geos import MultiPolygon
 from django.db import connection
 
 from batid.models import Department, Department_subdivided
-from batid.services.administrative_areas import fetch_departments_refs
+
 from batid.services.administrative_areas import fetch_dpt_cities_geojson
 
 
 def import_etalab_dpts() -> None:
-    dpts = fetch_departments_refs()
 
     for dpt in dpts:
         cities = fetch_dpt_cities_geojson(dpt["code"])
+
+        if not cities["features"]:
+            print(f"No cities found for {dpt['code']}")
+            continue
 
         polys = []
 
@@ -51,7 +54,3 @@ def import_etalab_dpts() -> None:
 
 def import_one_department(code: str):
     pass
-
-
-
-
