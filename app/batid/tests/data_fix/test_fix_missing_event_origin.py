@@ -1,9 +1,13 @@
-from django.test import TransactionTestCase
+from django.contrib.gis.geos import GEOSGeometry
+from django.test import TransactionTestCase, TestCase
 
 from batid.models import Address, BuildingHistoryOnly
 from batid.models import Building
 from batid.models import BuildingWithHistory
-from batid.services.data_fix.fill_empty_event_origin import buildings_diff_fields
+from batid.services.data_fix.fill_empty_event_origin import (
+    buildings_diff_fields,
+    building_identicals,
+)
 from batid.services.data_fix.fill_empty_event_origin import fix
 
 
@@ -277,3 +281,77 @@ def assertions_for_building_4(self, initial_buildings, fixed_buildings):
 
 # todo : faire un test où un bâtiment doit avoir event_type complété pour ses premières lignes et a été modifié ensuite
 # todo : tester de façon extensive la fonction building_identicals()
+
+
+class IdenticalBdgVersionsDetection(TestCase):
+
+    def test_rnb_id_not_identical(self):
+        b1 = Building(rnb_id="rnb_id_1")
+        b2 = Building(rnb_id="rnb_id_2")
+        self.assertEqual(buildings_diff_fields(b1, b2), set(["rnb_id"]))
+
+    def test_rnb_id_identical(self):
+        b1 = Building(rnb_id="rnb_id")
+        b2 = Building(rnb_id="rnb_id")
+        self.assertEqual(buildings_diff_fields(b1, b2), set([]))
+
+    def test_point_not_identical(self):
+
+        p1 = GEOSGeometry("POINT (3.702711216191982 49.30480507711158)")
+        p2 = GEOSGeometry("POINT (3.702711216191982 49.30480507711157)")
+
+        b1 = Building(point=p1)
+        b2 = Building(point=p2)
+        self.assertEqual(buildings_diff_fields(b1, b2), set(["point"]))
+
+    def test_point_identical(self):
+
+        p1 = GEOSGeometry("POINT (3.702711216191982 49.30480507711158)")
+        p2 = GEOSGeometry("POINT (3.702711216191982 49.30480507711158)")
+
+        b1 = Building(point=p1)
+        b2 = Building(point=p2)
+        self.assertEqual(buildings_diff_fields(b1, b2), set([]))
+
+    def test_shape_not_identical(self):
+
+        s1 = GEOSGeometry(
+            "MULTIPOLYGON (((3.702622150150296 49.304784015647726, 3.702693383202145 49.3048663059031, 3.702798693694756 49.30482613857543, 3.702734346050333 49.30474470727255, 3.702622150150296 49.304784015647726)))"
+        )
+        s2 = GEOSGeometry(
+            "POLYGON ((3.702622150150296 49.304784015647726, 3.702693383202145 49.3048663059031, 3.702798693694756 49.30482613857543, 3.702734346050333 49.30474470727255, 3.702622150150296 49.304784015647726))"
+        )
+
+        b1 = Building(shape=s1)
+        b2 = Building(shape=s2)
+
+        self.assertEqual(buildings_diff_fields(b1, b2), set(["shape"]))
+
+    def test_shape_identical(self):
+        s1 = GEOSGeometry(
+            "MULTIPOLYGON (((3.702622150150296 49.304784015647726, 3.702693383202145 49.3048663059031, 3.702798693694756 49.30482613857543, 3.702734346050333 49.30474470727255, 3.702622150150296 49.304784015647726)))"
+        )
+        s2 = GEOSGeometry(
+            "MULTIPOLYGON (((3.702622150150296 49.304784015647726, 3.702693383202145 49.3048663059031, 3.702798693694756 49.30482613857543, 3.702734346050333 49.30474470727255, 3.702622150150296 49.304784015647726)))"
+        )
+
+        b1 = Building(shape=s1)
+        b2 = Building(shape=s2)
+
+        self.assertEqual(buildings_diff_fields(b1, b2), set([]))
+
+    def test_parents_not_identical(self):
+        b1 = Building(parent_buildings=["parent1", "parent2"])
+        b2 = Building(parent_buildings=["parent1", "parent3"])
+        self.assertEqual(buildings_diff_fields(b1, b2), set(["parent_buildings"]))
+
+    def test_parents_identical(self):
+
+        # Same order
+        b1 = Building(parent_buildings=["parent1", "parent2"])
+        b2 = Building(parent_buildings=["parent1", "parent2"])
+        self.assertEqual(buildings_diff_fields(b1, b2), set([]))
+
+        # Different order
+        b3 = Building(parent_buildings=["parent2", "parent1"])
+        self.assertEqual(buildings_diff_fields(b1, b3), set([]))
