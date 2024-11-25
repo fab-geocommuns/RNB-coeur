@@ -1,16 +1,13 @@
 from django.test import TestCase
 
-from batid.services.administrative_areas import (
-    dpt_list_metropole,
-    dpt_list_overseas,
-    com_list,
-    dpts_list,
-    dpt_name,
-)
+from batid.services.administrative_areas import com_list
+from batid.services.administrative_areas import dpt_list_metropole
+from batid.services.administrative_areas import dpt_list_overseas
+from batid.services.administrative_areas import dpt_name
+from batid.services.administrative_areas import dpts_list
 
 
 class AdminAreas(TestCase):
-
     def test(self):
 
         metropole_list = dpt_list_metropole()

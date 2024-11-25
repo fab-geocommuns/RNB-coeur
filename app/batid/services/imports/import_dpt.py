@@ -4,14 +4,12 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.db import connection
 
-from batid.models import Department, Department_subdivided
-
-from batid.services.administrative_areas import (
-    fetch_dpt_cities_geojson,
-    dpts_list,
-    validate_dpt_code,
-    dpt_name,
-)
+from batid.models import Department
+from batid.models import Department_subdivided
+from batid.services.administrative_areas import dpt_name
+from batid.services.administrative_areas import dpts_list
+from batid.services.administrative_areas import fetch_dpt_cities_geojson
+from batid.services.administrative_areas import validate_dpt_code
 
 
 def import_etalab_dpts() -> None:
