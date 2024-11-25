@@ -1,6 +1,6 @@
 from django.test import TransactionTestCase
 
-from batid.models import Address, BuildingHistoryOnly
+from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingWithHistory
 from batid.services.data_fix.fill_empty_event_origin import buildings_diff_fields
