@@ -1,12 +1,12 @@
 from django.contrib.gis.geos import GEOSGeometry
-from django.test import TestCase
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, TestCase
 
 from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingWithHistory
 from batid.services.data_fix.fill_empty_event_origin import (
     buildings_diff_fields,
+    building_identicals,
 )
 from batid.services.data_fix.fill_empty_event_origin import fix
 
@@ -280,10 +280,10 @@ def assertions_for_building_4(self, initial_buildings, fixed_buildings):
 
 
 # todo : faire un test où un bâtiment doit avoir event_type complété pour ses premières lignes et a été modifié ensuite
-# todo : tester de façon extensive la fonction building_identicals()
 
 
 class IdenticalBdgVersionsDetection(TestCase):
+
     def test_rnb_id_not_identical(self):
         b1 = Building(rnb_id="rnb_id_1")
         b2 = Building(rnb_id="rnb_id_2")
@@ -386,3 +386,138 @@ class IdenticalBdgVersionsDetection(TestCase):
 
         self.assertEqual(buildings_diff_fields(b1, b2), set(["ext_ids"]))
         self.assertFalse(building_identicals(b1, b2))
+
+        # One is empty
+        b3 = Building(ext_ids=[])
+        self.assertEqual(buildings_diff_fields(b1, b3), set(["ext_ids"]))
+        self.assertFalse(building_identicals(b1, b3))
+
+        # One is null
+        b4 = Building(ext_ids=None)
+        self.assertEqual(buildings_diff_fields(b1, b4), set(["ext_ids"]))
+        self.assertFalse(building_identicals(b1, b4))
+
+        # One has an extra ext_id
+        b5 = Building(
+            ext_ids=[
+                {"id": "id1", "source": "source1"},
+                {"id": "id1", "source": "source2"},
+            ]
+        )
+        self.assertEqual(buildings_diff_fields(b1, b5), set(["ext_ids"]))
+        self.assertFalse(building_identicals(b1, b5))
+
+    def test_ext_id_identical(self):
+
+        # Same order
+        b1 = Building(
+            ext_ids=[
+                {"id": "id1", "source": "source1"},
+                {"id": "id2", "source": "source1"},
+            ]
+        )
+        b2 = Building(
+            ext_ids=[
+                {"id": "id1", "source": "source1"},
+                {"id": "id2", "source": "source1"},
+            ]
+        )
+        self.assertEqual(buildings_diff_fields(b1, b2), set([]))
+        self.assertTrue(building_identicals(b1, b2))
+
+        # Different order
+        b3 = Building(
+            ext_ids=[
+                {"id": "id2", "source": "source1"},
+                {"id": "id1", "source": "source1"},
+            ]
+        )
+        self.assertEqual(buildings_diff_fields(b1, b3), set([]))
+        self.assertTrue(building_identicals(b1, b3))
+
+    def test_is_active_not_identical(self):
+        b1 = Building(is_active=True)
+        b2 = Building(is_active=False)
+        self.assertEqual(buildings_diff_fields(b1, b2), set(["is_active"]))
+        self.assertFalse(building_identicals(b1, b2))
+
+    def test_is_active_identical(self):
+
+        # Both True
+        b1 = Building(is_active=True)
+        b2 = Building(is_active=True)
+        self.assertEqual(buildings_diff_fields(b1, b2), set([]))
+        self.assertTrue(building_identicals(b1, b2))
+
+        # Both False
+        b3 = Building(is_active=False)
+        b4 = Building(is_active=False)
+        self.assertEqual(buildings_diff_fields(b3, b4), set([]))
+        self.assertTrue(building_identicals(b3, b4))
+
+    def test_addresses_id_identical(self):
+
+        # Same order
+        b1 = Building(addresses_id=["id1", "id2"])
+        b2 = Building(addresses_id=["id1", "id2"])
+        self.assertEqual(buildings_diff_fields(b1, b2), set([]))
+        self.assertTrue(building_identicals(b1, b2))
+
+        # Different order
+        b3 = Building(addresses_id=["id2", "id1"])
+        self.assertEqual(buildings_diff_fields(b1, b3), set([]))
+        self.assertTrue(building_identicals(b1, b3))
+
+        # Both null
+        b4 = Building(addresses_id=None)
+        b5 = Building()
+        self.assertEqual(buildings_diff_fields(b4, b5), set([]))
+        self.assertTrue(building_identicals(b4, b5))
+
+    def test_addresses_id_not_identical(self):
+
+        b1 = Building(addresses_id=["id1", "id2"])
+        b2 = Building(addresses_id=["id1", "id3"])
+        self.assertEqual(buildings_diff_fields(b1, b2), set(["addresses_id"]))
+        self.assertFalse(building_identicals(b1, b2))
+
+        # One is empty
+        b3 = Building(addresses_id=[])
+        self.assertEqual(buildings_diff_fields(b1, b3), set(["addresses_id"]))
+        self.assertFalse(building_identicals(b1, b3))
+
+        # One is null
+        b4 = Building(addresses_id=None)
+        self.assertEqual(buildings_diff_fields(b1, b4), set(["addresses_id"]))
+        self.assertFalse(building_identicals(b1, b4))
+
+        # One has an extra address_id
+        b5 = Building(addresses_id=["id1", "id2", "id3"])
+        self.assertEqual(buildings_diff_fields(b1, b5), set(["addresses_id"]))
+        self.assertFalse(building_identicals(b1, b5))
+
+    def test_event_id_not_identical(self):
+
+        b1 = Building(event_id="id1")
+        b2 = Building(event_id="id2")
+        self.assertEqual(buildings_diff_fields(b1, b2), set(["event_id"]))
+        self.assertFalse(building_identicals(b1, b2))
+
+    def test_event_id_identical(self):
+
+        b1 = Building(event_id="id1")
+        b2 = Building(event_id="id1")
+        self.assertEqual(buildings_diff_fields(b1, b2), set([]))
+        self.assertTrue(building_identicals(b1, b2))
+
+    def test_event_type_not_identical(self):
+
+        b1 = Building(event_type="type1")
+        b2 = Building(event_type="type2")
+        self.assertEqual(buildings_diff_fields(b1, b2), set(["event_type"]))
+        self.assertFalse(building_identicals(b1, b2))
+
+        # One is null
+        b3 = Building(event_type=None)
+        self.assertEqual(buildings_diff_fields(b1, b3), set(["event_type"]))
+        self.assertFalse(building_identicals(b1, b3))

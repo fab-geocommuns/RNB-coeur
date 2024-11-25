@@ -95,13 +95,26 @@ def buildings_diff_fields(b1, b2) -> set:
 
     diff = set()
     for key in b1.keys():
+        # Two different types > not identical
         if type(b1[key]) != type(b2[key]):
             diff.add(key)
+        # First we handle dicts
         elif type(b1[key]) == dict:
             # order is not important in rnb lists
             # duplicates are not expected
             if set(b1[key]) != set(b2[key]):
                 diff.add(key)
+
+        # We have a special case for ext_ids which are list of dicts
+        elif type(b1[key]) == list and key == "ext_ids":
+            # order is not important for the RNB but they still should be sorted to be compared in Python
+
+            sorted1 = sorted(b1[key], key=lambda x: x["id"])
+            sorted2 = sorted(b2[key], key=lambda x: x["id"])
+
+            if sorted1 != sorted2:
+                diff.add(key)
+
         elif type(b1[key]) == list:
             if sorted(b1[key]) != sorted(b2[key]):
                 diff.add(key)
