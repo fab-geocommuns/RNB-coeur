@@ -1,13 +1,12 @@
 from django.contrib.gis.geos import GEOSGeometry
-from django.test import TransactionTestCase, TestCase
+from django.test import TestCase
+from django.test import TransactionTestCase
 
 from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingWithHistory
-from batid.services.data_fix.fill_empty_event_origin import (
-    buildings_diff_fields,
-    building_identicals,
-)
+from batid.services.data_fix.fill_empty_event_origin import building_identicals
+from batid.services.data_fix.fill_empty_event_origin import buildings_diff_fields
 from batid.services.data_fix.fill_empty_event_origin import fix
 
 
@@ -283,7 +282,6 @@ def assertions_for_building_4(self, initial_buildings, fixed_buildings):
 
 
 class IdenticalBdgVersionsDetection(TestCase):
-
     def test_rnb_id_not_identical(self):
         b1 = Building(rnb_id="rnb_id_1")
         b2 = Building(rnb_id="rnb_id_2")
