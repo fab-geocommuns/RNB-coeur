@@ -255,3 +255,7 @@ def dpts_list(start: Optional[str] = None, end: Optional[str] = None):
 
 def dpt_name(code: str) -> str:
     return _dpt_names()[code]
+
+
+def validate_dpt_code(code: str):
+    return code in dpts_list()
