@@ -74,7 +74,7 @@ class DiffTest(TransactionTestCase):
         Address.objects.create(id="ADDRESS_ID_2")
         Address.objects.create(id="ADDRESS_ID_3")
 
-    def test_diff_create_update_delete(self):
+    def test_diff_create_update_deactivate(self):
 
         # Get the user
         user = User.objects.get(username="marcella")

@@ -1164,7 +1164,6 @@ class DiffView(APIView):
                         CASE
                             WHEN event_type = 'delete' THEN 'deactivate'
                             WHEN event_type = 'deactivation' THEN 'deactivate'
-                            WHEN event_type = 'deactivation' THEN 'deactivate'
                             WHEN event_type = 'update' THEN 'update'
                             WHEN event_type = 'split' and not is_active THEN 'deactivate'
                             WHEN event_type = 'split' and is_active THEN 'create'
