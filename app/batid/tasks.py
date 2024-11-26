@@ -31,6 +31,9 @@ from batid.services.imports.import_dpt import import_etalab_dpts
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
 )
+from batid.services.data_fix.delete_to_deactivate import (
+    delete_to_deactivate as delete_to_deactivate_job,
+)
 from batid.services.mattermost import notify_if_error
 from batid.services.mattermost import notify_tech
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
@@ -226,7 +229,6 @@ def remove_light_buildings(folder_name, username, fix_id):
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def renew_stats():
-
     """
     This task is in charge of calculating some stats displayed on https://rnb.beta.gouv.fr/stats
     It is too expensive to calculate them on the fly, so we calculate them once a day and store them in a file
@@ -235,4 +237,10 @@ def renew_stats():
     from batid.services.stats import compute_stats
 
     compute_stats()
+    return "done"
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def delete_to_deactivate():
+    delete_to_deactivate_job()
     return "done"
