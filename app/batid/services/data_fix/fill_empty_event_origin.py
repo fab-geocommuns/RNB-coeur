@@ -108,7 +108,6 @@ def buildings_diff_fields(b1, b2) -> set:
         # We have a special case for ext_ids which are list of dicts
         elif type(b1[key]) == list and key == "ext_ids":
             # order is not important for the RNB but they still should be sorted to be compared in Python
-
             sorted1 = sorted(b1[key], key=lambda x: x["id"])
             sorted2 = sorted(b2[key], key=lambda x: x["id"])
 

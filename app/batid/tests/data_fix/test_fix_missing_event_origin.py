@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
 from django.test import TransactionTestCase
@@ -17,6 +18,7 @@ class FixMissingEventOriginTest(TransactionTestCase):
         rnb_id_2 = insert_building_history_2()
         rnb_id_3 = insert_building_history_3()
         rnb_id_4 = insert_building_history_4()
+        rnb_id_5 = insert_building_history_5()
 
         initial_buildings_1 = list(
             BuildingWithHistory.objects.all()
@@ -68,6 +70,31 @@ class FixMissingEventOriginTest(TransactionTestCase):
         assertions_for_building_2(self, initial_buildings_2, fixed_buildings_2)
         assertions_for_building_3(self, initial_buildings_3, fixed_buildings_3)
         assertions_for_building_4(self, initial_buildings_4, fixed_buildings_4)
+        self.assertions_for_building_5(rnb_id_5)
+
+    def assertions_for_building_5(self, child_rnb_id):
+        # The child should be untouched
+        child_history = BuildingWithHistory.objects.filter(rnb_id=child_rnb_id)
+        self.assertEqual(len(child_history), 1)
+
+        # Assert parent 1
+        p1_history = BuildingWithHistory.objects.filter(rnb_id="PARENT_1").order_by(
+            "sys_period"
+        )
+        # We have only 3 versions remaining. Initially we had 5 (4 written in test + merge)
+        self.assertEqual(len(p1_history), 3)
+        self.assertEqual(p1_history[0].event_type, "creation")
+        self.assertEqual(p1_history[1].event_type, "update")
+        self.assertEqual(p1_history[2].event_type, "merge")
+
+        # Assert parent 2
+        p2_history = BuildingWithHistory.objects.filter(rnb_id="PARENT_2").order_by(
+            "sys_period"
+        )
+        # We have only 2 versions remaining. Initially we had 3 (2 written in test + merge)
+        self.assertEqual(len(p2_history), 2)
+        self.assertEqual(p2_history[0].event_type, "creation")
+        self.assertEqual(p2_history[1].event_type, "merge")
 
 
 def insert_building_history_1():
@@ -279,6 +306,94 @@ def assertions_for_building_4(self, initial_buildings, fixed_buildings):
 
 
 # todo : faire un test où un bâtiment doit avoir event_type complété pour ses premières lignes et a été modifié ensuite
+
+
+def insert_building_history_5():
+    # This is a merge case. We will have two buildings with missing event_type, then we merge them.
+    # We will check the two parent and the child
+
+    # ##########
+    # Parent 1 is created as it would with a buggy import
+    rnb_id_1 = "PARENT_1"
+    parent_1 = Building.objects.create(
+        rnb_id=rnb_id_1,
+        point="POINT (3.702711216191982 49.30480507711158)",
+        created_at="2023-12-11 04:00:35.005 +0100",
+        updated_at="2023-12-11 04:00:35.005 +0100",
+        shape="MULTIPOLYGON (((3.702622150150296 49.304784015647726, 3.702693383202145 49.3048663059031, 3.702798693694756 49.30482613857543, 3.702734346050333 49.30474470727255, 3.702622150150296 49.304784015647726)))",
+        ext_ids=[
+            {
+                "id": "bdnb-bc-SSW2-CGZB-QYUT",
+                "source": "bdnb",
+                "created_at": "2023-12-09T23:01:05.518305+00:00",
+                "source_version": "2023_01",
+            }
+        ],
+        event_origin={"id": 151, "source": "import"},
+        status="constructed",
+        is_active=True,
+    )
+
+    # Then it is updated with a new ext_id and a new event_origin but without event_type
+    new_ext_ids = [
+        {
+            "id": "bdnb-bc-SSW2-CGZB-QYUT",
+            "source": "bdnb",
+            "created_at": "2023-12-09T23:01:05.518305+00:00",
+            "source_version": "2023_01",
+        },
+        {
+            "id": "bdtopo_id",
+            "source": "bdtopo",
+            "created_at": "2023-12-09T23:01:05.518305+00:00",
+            "source_version": "Q3_2024",
+        },
+    ]
+    parent_1.ext_ids = new_ext_ids
+
+    parent_1.event_origin = {"id": 152, "source": "import"}
+    parent_1.save()
+
+    # Then it is "updated" with the same data, still w/o event_type.
+    parent_1.event_origin = {"id": 153, "source": "import"}
+
+    # ##########
+    # Parent 2 is created as it would with a buggy import
+    rnb_id_2 = "PARENT_2"
+    parent_2 = Building.objects.create(
+        rnb_id=rnb_id_2,
+        point="POINT (3.702711216191983 49.30480507711159)",
+        created_at="2023-12-11 04:00:35.005 +0100",
+        updated_at="2023-12-11 04:00:35.005 +0100",
+        shape="MULTIPOLYGON (((3.702622150150296 49.304784015647726, 3.702693383202145 49.3048663059031, 3.702798693694756 49.30482613857543, 3.702734346050333 49.30474470727255, 3.702622150150296 49.304784015647726)))",
+        ext_ids=[
+            {
+                "id": "bdnb_2",
+                "source": "bdnb",
+                "created_at": "2023-12-09T23:01:05.518305+00:00",
+                "source_version": "2023_01",
+            }
+        ],
+        event_origin={"id": 151, "source": "import"},
+        status="constructed",
+        is_active=True,
+    )
+
+    # Then it is "updated" with the same data, still w/o event_type.
+    parent_2.event_origin = {"id": 153, "source": "import"}
+
+    # ##########
+    # The merge occurs
+    user = User.objects.create_user(username="test_user", password="test_password")
+    child = Building.merge(
+        [parent_1, parent_2],
+        user=user,
+        event_origin={"dummy": "dummy"},
+        status="constructed",
+        addresses_id=[],
+    )
+
+    return child.rnb_id
 
 
 class IdenticalBdgVersionsDetection(TestCase):
