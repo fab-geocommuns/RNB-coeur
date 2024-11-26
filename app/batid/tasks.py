@@ -10,6 +10,9 @@ from batid.services.building import export_city as export_city_job
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.candidate import Inspector
+from batid.services.data_fix.delete_to_deactivate import (
+    delete_to_deactivate as delete_to_deactivate_job,
+)
 from batid.services.data_fix.remove_light_buildings import (
     list_light_buildings_france as list_light_buildings_france_job,
 )
@@ -30,9 +33,6 @@ from batid.services.imports.import_dgfip_ads import (
 from batid.services.imports.import_dpt import import_etalab_dpts
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
-)
-from batid.services.data_fix.delete_to_deactivate import (
-    delete_to_deactivate as delete_to_deactivate_job,
 )
 from batid.services.mattermost import notify_if_error
 from batid.services.mattermost import notify_tech

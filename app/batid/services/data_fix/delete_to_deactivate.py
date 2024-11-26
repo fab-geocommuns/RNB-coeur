@@ -1,4 +1,6 @@
-from django.db import transaction, connection
+from django.db import connection
+from django.db import transaction
+
 from batid.models import Building
 
 
@@ -6,7 +8,7 @@ def delete_to_deactivate():
     disable_trigger_sql = f"ALTER TABLE {Building._meta.db_table} DISABLE TRIGGER building_versioning_trigger;"
     update_building_sql = f"""
         WITH select_bdgs AS (
-            SELECT id FROM {Building._meta.db_table} 
+            SELECT id FROM {Building._meta.db_table}
             WHERE event_type = 'delete' OR event_type = 'deletion'
             LIMIT 1000
         )

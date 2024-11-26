@@ -1,11 +1,11 @@
 from django.test import TransactionTestCase
 
-from batid.models import Building, BuildingWithHistory
+from batid.models import Building
+from batid.models import BuildingWithHistory
 from batid.services.data_fix.delete_to_deactivate import delete_to_deactivate
 
 
 class DeleteToDeactivate(TransactionTestCase):
-
     def setUp(self):
 
         Building.objects.create(rnb_id="TRIGGER_ONE", event_type=None)
