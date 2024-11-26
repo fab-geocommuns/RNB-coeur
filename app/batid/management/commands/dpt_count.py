@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 
 from batid.models import Building
 from batid.models import Department
-from batid.services.administrative_areas import dpt_codes
+from batid.services.administrative_areas import dpts_list
 
 
 class Command(BaseCommand):
@@ -10,7 +10,7 @@ class Command(BaseCommand):
         parser.add_argument("--dpt", type=str, default="all")
 
     def handle(self, *args, **options):
-        codes = dpt_codes() if options["dpt"] == "all" else options["dpt"].split(",")
+        codes = dpts_list() if options["dpt"] == "all" else options["dpt"].split(",")
 
         for code in codes:
             dpt = Department.objects.get(code=code)
