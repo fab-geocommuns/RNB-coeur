@@ -26,8 +26,9 @@ def delete_to_deactivate(batch_size=1000):
             with connection.cursor() as cursor:
 
                 cursor.execute(disable_trigger_sql)
-                cursor.execute(update_building_sql)
-                cursor.execute(enable_trigger_sql)
 
+                cursor.execute(update_building_sql)
                 # Check if we have to continue the loop
                 loop_again = cursor.rowcount > 0
+
+                cursor.execute(enable_trigger_sql)
