@@ -30,7 +30,7 @@ class DeleteToDeactivate(TransactionTestCase):
         # #####
         # Verify the change of event_type is made w/o triggering the trigger
 
-        delete_to_deactivate()
+        delete_to_deactivate(batch_size=1)
 
         # Test we have the right number of buildings of each event_type
         self.assertEqual(Building.objects.filter(event_type="deactivation").count(), 2)
