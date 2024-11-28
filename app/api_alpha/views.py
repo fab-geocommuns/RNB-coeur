@@ -189,9 +189,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                     {
                         "name": "point",
                         "in": "query",
-                        "description": (
-                            "Latitude et longitude, séparées par un virgule, du point de recherche.",
-                        ),
+                        "description": "Latitude et longitude, séparées par une virgule, du point de recherche.",
                         "required": True,
                         "schema": {"type": "string"},
                         "example": "44.8201164915397,-0.5717449803671368",
@@ -205,7 +203,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                         "example": 1000,
                     },
                 ],
-                "response": {
+                "responses": {
                     "200": {
                         "description": "Liste paginée des bâtiments les plus proches du point donné",
                         "content": {
