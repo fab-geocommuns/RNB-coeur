@@ -55,7 +55,14 @@ class BuildingAbstract(models.Model):
     # WARNING : a deactivation is different from a real building demolition, which would be a change of the status (a thus an event_type: update).
     # merge: two or more buildings are merged into one
     # split: one building is split into two or more
-    EVENT_TYPES = ["creation", "update", "deactivation", "merge", "split"]
+    EVENT_TYPES = [
+        "creation",
+        "update",
+        "deactivation",
+        "reactivation",
+        "merge",
+        "split",
+    ]
     event_type = models.CharField(
         choices=[(e, e) for e in EVENT_TYPES],
         max_length=12,
