@@ -203,9 +203,6 @@ class BuildingUpdateSerializer(serializers.Serializer):
         ):
             raise serializers.ValidationError("empty arguments in the request body")
 
-        if data.get("is_active") == True:
-            raise serializers.ValidationError("you can only set is_active to False")
-
         return data
 
 
