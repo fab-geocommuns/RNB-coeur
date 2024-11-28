@@ -178,7 +178,6 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         return Response(serializer.data)
 
 
-@extend_schema(exclude=True)
 class BuildingClosestView(RNBLoggingMixin, APIView):
     def get(self, request, *args, **kwargs):
         query_serializer = BuildingClosestQuerySerializer(data=request.query_params)
