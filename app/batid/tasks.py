@@ -127,7 +127,7 @@ def queue_full_plots_import(
     dpt_end: Optional[str] = None,
 ):
     notify_tech(
-        f"Queuing full plots (cadastre) import tasks.  Dpt start: {dpt_start}, dpt end: {dpt_end}.  Released before: {released_before}"
+        f"Queuing full plots (cadastre) import tasks.  Dpt start: {dpt_start}, dpt end: {dpt_end}."
     )
 
     tasks = create_plots_full_import_tasks(dpts_list(dpt_start, dpt_end))

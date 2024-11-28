@@ -10,6 +10,7 @@ from django.contrib.gis.geos import MultiPolygon
 from django.db import connection, transaction
 
 from batid.models import Plot
+from batid.services.administrative_areas import dpt_list_metropole, dpt_list_overseas
 from batid.services.source import Source
 
 
@@ -69,6 +70,11 @@ def _feature_to_row(feature):
     now = datetime.now(timezone.utc)
 
     return [feature["id"], multi_poly.hexewkb.decode("ascii"), f"{now}", f"{now}"]
+
+
+def etalab_dpt_list() -> list:
+
+    return dpt_list_metropole() + dpt_list_overseas()
 
 
 def create_plots_full_import_tasks(dpt_lists: list) -> list:
