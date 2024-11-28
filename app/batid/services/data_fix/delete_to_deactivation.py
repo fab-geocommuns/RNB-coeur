@@ -4,7 +4,7 @@ from django.db import transaction
 from batid.models import Building
 
 
-def delete_to_deactivate(batch_size=1000):
+def delete_to_deactivation(batch_size=1000):
     disable_trigger_sql = f"ALTER TABLE {Building._meta.db_table} DISABLE TRIGGER building_versioning_trigger;"
     update_building_sql = f"""
         WITH select_bdgs AS (
