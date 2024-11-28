@@ -192,16 +192,13 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
             lng = float(lng)
             radius = int(radius)
 
-            qs = get_closest_from_point(lat, lng, radius)
-            bdg = qs.first()
+            # Get results and paginate
+            bdgs = get_closest_from_point(lat, lng, radius)
+            paginator = BuildingCursorPagination()
+            paginated_bdgs = paginator.paginate_queryset(bdgs, request)
+            serializer = BuildingClosestSerializer(paginated_bdgs, many=True)
 
-            if isinstance(bdg, Building):
-                serializer = BuildingClosestSerializer(bdg)
-                return Response(serializer.data)
-            else:
-                return Response(
-                    {"message": "No building found in the area"}, status=200
-                )
+            return paginator.get_paginated_response(serializer.data)
 
         else:
             # Invalid data, return validation errors
