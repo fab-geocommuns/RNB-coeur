@@ -33,6 +33,7 @@ from batid.services.imports.import_dgfip_ads import (
 from batid.services.imports.import_dpt import import_etalab_dpts
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
+    create_plots_full_import_tasks,
 )
 from batid.services.mattermost import notify_if_error
 from batid.services.mattermost import notify_tech
@@ -117,6 +118,22 @@ def queue_full_bdtopo_import(
 def import_plots(dpt):
     import_etalab_plots_job(dpt)
     return "done"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_full_plots_import(
+    dpt_start: Optional[str] = None,
+    dpt_end: Optional[str] = None,
+):
+    notify_tech(
+        f"Queuing full plots (cadastre) import tasks.  Dpt start: {dpt_start}, dpt end: {dpt_end}.  Released before: {released_before}"
+    )
+
+    tasks = create_plots_full_import_tasks(dpts_list(dpt_start, dpt_end))
+
+    chain(*tasks)()
+    return f"Queued {len(tasks)} tasks"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
