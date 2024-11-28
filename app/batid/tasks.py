@@ -10,6 +10,9 @@ from batid.services.building import export_city as export_city_job
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.candidate import Inspector
+from batid.services.data_fix.delete_to_deactivation import (
+    delete_to_deactivation as delete_to_deactivation_job,
+)
 from batid.services.data_fix.remove_light_buildings import (
     list_light_buildings_france as list_light_buildings_france_job,
 )
@@ -226,7 +229,6 @@ def remove_light_buildings(folder_name, username, fix_id):
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def renew_stats():
-
     """
     This task is in charge of calculating some stats displayed on https://rnb.beta.gouv.fr/stats
     It is too expensive to calculate them on the fly, so we calculate them once a day and store them in a file
@@ -235,4 +237,10 @@ def renew_stats():
     from batid.services.stats import compute_stats
 
     compute_stats()
+    return "done"
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def delete_to_deactivation(batch_size=10000):
+    delete_to_deactivation_job(batch_size)
     return "done"
