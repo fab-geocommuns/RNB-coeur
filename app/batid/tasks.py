@@ -242,5 +242,5 @@ def renew_stats():
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def delete_to_deactivation():
-    delete_to_deactivation_job()
+    delete_to_deactivation_job(10000)
     return "done"
