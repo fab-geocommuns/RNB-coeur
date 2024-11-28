@@ -472,7 +472,6 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
 
 
 class BuildingClosestViewTest(APITestCase):
-
     def test_closest(self):
 
         # It should be first in the results
