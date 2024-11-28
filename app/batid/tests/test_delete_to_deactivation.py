@@ -2,7 +2,7 @@ from django.test import TransactionTestCase
 
 from batid.models import Building
 from batid.models import BuildingWithHistory
-from batid.services.data_fix.delete_to_deactivate import delete_to_deactivate
+from batid.services.data_fix.delete_to_deactivation import delete_to_deactivation
 
 
 class DeleteToDeactivate(TransactionTestCase):
@@ -15,7 +15,7 @@ class DeleteToDeactivate(TransactionTestCase):
 
         Building.objects.create(rnb_id="TRIGGER_TWO", event_type="creation")
 
-    def test_delete_to_deactivate(self):
+    def test_delete_to_deactivation(self):
 
         # #######
         # Verify the trigger works before
@@ -30,7 +30,7 @@ class DeleteToDeactivate(TransactionTestCase):
         # #####
         # Verify the change of event_type is made w/o triggering the trigger
 
-        delete_to_deactivate(batch_size=1)
+        delete_to_deactivation(batch_size=1)
 
         # Test we have the right number of buildings of each event_type
         self.assertEqual(Building.objects.filter(event_type="deactivation").count(), 2)
