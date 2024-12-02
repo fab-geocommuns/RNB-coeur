@@ -1162,15 +1162,27 @@ class DiffView(APIView):
                     COPY (
                         select
                         CASE
-                            WHEN event_type = 'deactivation' THEN 'delete'
+                            WHEN event_type = 'delete' THEN 'deactivate'
+                            WHEN event_type = 'deactivation' THEN 'deactivate'
                             WHEN event_type = 'update' THEN 'update'
-                            WHEN event_type = 'split' and not is_active THEN 'delete'
+                            WHEN event_type = 'split' and not is_active THEN 'deactivate'
                             WHEN event_type = 'split' and is_active THEN 'create'
-                            WHEN event_type = 'merge' and not is_active THEN 'delete'
+                            WHEN event_type = 'merge' and not is_active THEN 'deactivate'
                             WHEN event_type = 'merge' and is_active THEN 'create'
                             ELSE 'create'
                         END as action,
-                        rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb
+                        rnb_id,
+                        status,
+                        is_active::int,
+                        sys_period,
+                        ST_AsEWKT(point) as point,
+                        ST_AsEWKT(shape) as shape,
+                        to_json(addresses_id) as addresses_id,
+                        COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
+                        parent_buildings,
+                        event_id,
+                        event_type
+                        FROM batid_building_with_history bb
                         where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone
                         order by rnb_id, lower(sys_period)
                     ) TO STDOUT WITH CSV HEADER
