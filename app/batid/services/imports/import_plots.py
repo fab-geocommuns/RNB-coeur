@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from datetime import timezone
 from io import StringIO
-
+from celery import Signature
 import ijson
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
@@ -77,5 +77,26 @@ def etalab_dpt_list() -> list:
     return dpt_list_metropole() + dpt_list_overseas()
 
 
-def create_plots_full_import_tasks(dpt_lists: list) -> list:
-    pass
+def create_plots_full_import_tasks(dpt_list: list) -> list:
+
+    tasks = []
+
+    for dpt in dpt_list:
+
+        # Download the plots
+        dl_task = Signature(
+            "batid.tasks.dl_source",
+            args=["plot", {}],
+            immutable=True,
+        )
+        tasks.append(dl_task)
+
+        # Import the plots
+        import_task = Signature(
+            "batid.tasks.import_plots",
+            args=[dpt],
+            immutable=True,
+        )
+        tasks.append(import_task)
+
+    return tasks

@@ -30,7 +30,7 @@ class Source:
 
     def default_ref(self) -> dict:
         return {
-            "plot": {
+            "": {
                 "folder": "plots",
                 "url": "https://cadastre.data.gouv.fr/data/etalab-cadastre/latest/geojson/departements/{{dpt}}/cadastre-{{dpt}}-parcelles.json.gz",
                 "filename": "cadastre-{{dpt}}-parcelles.json",

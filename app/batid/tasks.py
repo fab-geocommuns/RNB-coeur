@@ -5,7 +5,7 @@ from celery import chain
 from celery import shared_task
 
 from batid.models import AsyncSignal
-from batid.services.administrative_areas import dpts_list
+from batid.services.administrative_areas import dpts_list, slice_dpts
 from batid.services.building import export_city as export_city_job
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
@@ -34,6 +34,7 @@ from batid.services.imports.import_dpt import import_etalab_dpts
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
     create_plots_full_import_tasks,
+    etalab_dpt_list,
 )
 from batid.services.mattermost import notify_if_error
 from batid.services.mattermost import notify_tech
@@ -114,6 +115,7 @@ def queue_full_bdtopo_import(
     return f"Queued {len(tasks)} tasks"
 
 
+@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_plots(dpt):
     import_etalab_plots_job(dpt)
@@ -130,7 +132,10 @@ def queue_full_plots_import(
         f"Queuing full plots (cadastre) import tasks.  Dpt start: {dpt_start}, dpt end: {dpt_end}."
     )
 
-    tasks = create_plots_full_import_tasks(dpts_list(dpt_start, dpt_end))
+    all_plots_dpts = etalab_dpt_list()
+    dpts = slice_dpts(all_plots_dpts, dpt_start, dpt_end)
+
+    tasks = create_plots_full_import_tasks(dpts)
 
     chain(*tasks)()
     return f"Queued {len(tasks)} tasks"

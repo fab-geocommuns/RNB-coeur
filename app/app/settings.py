@@ -215,7 +215,7 @@ CELERY_BEAT_SCHEDULE = {
         ),
     },
     "import_plots": {
-        "task": "???",
+        "task": "batid.tasks.queue_full_plots_import",
         # january 31, april 30, july 31, november 30,
         "schedule": crontab(
             minute=0, hour=0, day_of_month="30", month_of_year="1,4,7,11"
