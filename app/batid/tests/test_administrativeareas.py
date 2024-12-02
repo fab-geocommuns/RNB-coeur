@@ -1,10 +1,12 @@
 from django.test import TestCase
 
-from batid.services.administrative_areas import com_list, validate_dpt_code, slice_dpts
+from batid.services.administrative_areas import com_list
 from batid.services.administrative_areas import dpt_list_metropole
 from batid.services.administrative_areas import dpt_list_overseas
 from batid.services.administrative_areas import dpt_name
 from batid.services.administrative_areas import dpts_list
+from batid.services.administrative_areas import slice_dpts
+from batid.services.administrative_areas import validate_dpt_code
 
 
 class AdminAreas(TestCase):

@@ -4,14 +4,17 @@ import os
 from datetime import datetime
 from datetime import timezone
 from io import StringIO
-from celery import Signature
+
 import ijson
+from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
-from django.db import connection, transaction
+from django.db import connection
+from django.db import transaction
 
 from batid.models import Plot
-from batid.services.administrative_areas import dpt_list_metropole, dpt_list_overseas
+from batid.services.administrative_areas import dpt_list_metropole
+from batid.services.administrative_areas import dpt_list_overseas
 from batid.services.source import Source
 
 

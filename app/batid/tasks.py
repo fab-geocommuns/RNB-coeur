@@ -5,7 +5,8 @@ from celery import chain
 from celery import shared_task
 
 from batid.models import AsyncSignal
-from batid.services.administrative_areas import dpts_list, slice_dpts
+from batid.services.administrative_areas import dpts_list
+from batid.services.administrative_areas import slice_dpts
 from batid.services.building import export_city as export_city_job
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
@@ -31,10 +32,10 @@ from batid.services.imports.import_dgfip_ads import (
     import_dgfip_ads_achievements as import_dgfip_ads_achievements_job,
 )
 from batid.services.imports.import_dpt import import_etalab_dpts
+from batid.services.imports.import_plots import create_plots_full_import_tasks
+from batid.services.imports.import_plots import etalab_dpt_list
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
-    create_plots_full_import_tasks,
-    etalab_dpt_list,
 )
 from batid.services.mattermost import notify_if_error
 from batid.services.mattermost import notify_tech
