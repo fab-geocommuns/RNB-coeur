@@ -1,5 +1,6 @@
 import csv
 import json
+import os
 from datetime import datetime
 from datetime import timezone
 from io import StringIO
@@ -34,6 +35,9 @@ def import_etalab_plots(dpt: str):
             print("saving plots")
             _save_plots(plots)
             print("plots saved")
+
+        # remove the file
+        os.remove(src.path)
 
 
 def _save_plots(rows):
@@ -86,7 +90,7 @@ def create_plots_full_import_tasks(dpt_list: list) -> list:
         # Download the plots
         dl_task = Signature(
             "batid.tasks.dl_source",
-            args=["plot", {}],
+            args=["plot", {"dpt": dpt}],
             immutable=True,
         )
         tasks.append(dl_task)
