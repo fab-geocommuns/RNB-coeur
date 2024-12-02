@@ -156,7 +156,7 @@ class Building(BuildingAbstract):
 
             self._refuse_pending_contributions(user)
         else:
-            print(f"Cannot soft-delete an inactive building: {self.rnb_id}")
+            print(f"Cannot deactivate an inactive building: {self.rnb_id}")
 
     def update(
         self,
@@ -173,6 +173,7 @@ class Building(BuildingAbstract):
             and ext_ids is None
             and shape is not None
         ):
+
             raise Exception("Missing data to update the building")
 
         if self.is_active:
