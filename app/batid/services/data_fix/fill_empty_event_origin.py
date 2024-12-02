@@ -97,11 +97,12 @@ def buildings_diff_fields(b1, b2) -> set:
 
     diff = set()
     for key in b1.keys():
-        # Two different types > not identical
+        # Two different types means buildings are not identical
         if type(b1[key]) != type(b2[key]):
             diff.add(key)
         # First we handle dicts
         elif type(b1[key]) == dict:
+
             # order is not important in rnb lists
             # duplicates are not expected
             if set(b1[key]) != set(b2[key]):
