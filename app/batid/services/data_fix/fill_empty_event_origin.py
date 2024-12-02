@@ -97,7 +97,7 @@ def buildings_diff_fields(b1, b2) -> set:
 
     diff = set()
     for key in b1.keys():
-        # Two different types > not identical
+        # Two different types means buildings are not identical
         if type(b1[key]) != type(b2[key]):
             diff.add(key)
         # We have a special case for ext_ids which are list of dicts
