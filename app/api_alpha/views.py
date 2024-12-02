@@ -183,7 +183,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Bâtiments les plus proches d'un point",
-                "description": "Ce endpoint permet d'obtenir une liste paginées des bâtiments présent dans un rayon donné autour d'un point donné. Les bâtiments sont triés par distance croissante par rapport au point donné. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments présents dans un rayon donné autour d'un point donné. Les bâtiments sont triés par distance croissante par rapport au point donné. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "closestBuildings",
                 "parameters": [
                     {
