@@ -160,6 +160,10 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
     def validate_radius(self, value):
         if value < 0:
             raise serializers.ValidationError("Radius must be positive")
+
+        if value > 1000:
+            raise serializers.ValidationError("Radius must be less than 1000 meters")
+
         return value
 
     # todo : si ouverture à usage externe, utiliser une validation du point plus complète. Exemple dispo dans BuildingGuessParams.__validate_point_from_url()
