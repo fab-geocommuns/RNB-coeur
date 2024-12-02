@@ -45,9 +45,18 @@
 app/.Trash-0/*
 
 # Some data in notebook
+/app/notebooks/rapprochements/AccesLibre/*.csv
 /app/notebooks/rapprochements/histologe/*.csv
 /app/notebooks/rapprochements/histologe/*.json
 /app/notebooks/rapprochements/dataTourisme/data/
+/app/notebooks/rapprochements/**/*.csv
+/app/notebooks/rapprochements/**/*.json
+/app/notebooks/rapprochements/**/*.cpg
+/app/notebooks/rapprochements/**/*.dbf
+/app/notebooks/rapprochements/**/*.prj
+/app/notebooks/rapprochements/**/*.shp
+/app/notebooks/rapprochements/**/*.shx
+/app/notebooks/rapprochements/**/*.xlsx
 
 # Remove files in data folder since they are used for importing default data
 source_data/
