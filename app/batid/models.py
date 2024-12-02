@@ -143,16 +143,39 @@ class Building(BuildingAbstract):
         This deactivate method is used to mark a RNB_ID as inactive, with an associated event_type "deactivation"
         """
         if self.is_active:
+            event_id = uuid.uuid4()
             self.event_type = "deactivation"
             self.is_active = False
+            self.event_id = event_id
+            self.event_user = user
+            self.event_origin = event_origin
+            self.save()
+
+            self._refuse_pending_contributions(user, event_id)
+        else:
+            print(f"Cannot  an inactive building: {self.rnb_id}")
+
+    @transaction.atomic
+    def reactivate(self, user: User, event_origin):
+        """
+        This method allows a user to undo a RNB ID deactivation made by mistake.
+        We may add some checks in the future, like only allowing to reactivate a recently deactivated ID.
+        """
+        if self.is_active == False and self.event_type == "deactivation":
+            previous_event_id = self.event_id
+
+            self.event_type = "reactivation"
+            self.is_active = True
             self.event_id = uuid.uuid4()
             self.event_user = user
             self.event_origin = event_origin
             self.save()
 
-            self._refuse_pending_contributions(user)
+            self._reset_linked_contributions(user, previous_event_id)
         else:
-            print(f"Cannot soft-delete an inactive building: {self.rnb_id}")
+            print(
+                f"Cannot reactivate RNB ID : {self.rnb_id}. Can only reactivate a previously deactivated RNB ID."
+            )
 
     def update(
         self,
@@ -195,15 +218,20 @@ class Building(BuildingAbstract):
         else:
             print(f"Cannot update an inactive building: {self.rnb_id}")
 
-    def _refuse_pending_contributions(self, user: User):
+    def _refuse_pending_contributions(self, user: User, event_id):
 
         msg = f"Ce signalement a été refusé suite à la désactivation du bâtiment {self.rnb_id}."
         contributions = Contribution.objects.filter(
-            rnb_id=self.rnb_id, status="pending"
+            rnb_id=self.rnb_id, status="pending", signalement=True
         )
 
         for c in contributions:
-            c.refuse(user, msg)
+            c.refuse(user, msg, status_updated_by_event_id=event_id)
+
+    def _reset_linked_contributions(self, user: User, event_id):
+        contributions = Contribution.objects.filter(status_updated_by_event_id=event_id)
+        for c in contributions:
+            c.reset_pending()
 
     @staticmethod
     def add_ext_id(
@@ -574,6 +602,9 @@ class Contribution(models.Model):
     email = models.EmailField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # is it a "signalement" (a modification proposal) or a direct data modification?
+    signalement = models.BooleanField(null=False, db_index=True, default=True)
+    # useful for signalements
     status = models.CharField(
         choices=[("pending", "pending"), ("fixed", "fixed"), ("refused", "refused")],
         max_length=10,
@@ -586,6 +617,8 @@ class Contribution(models.Model):
     review_user = models.ForeignKey(
         User, on_delete=models.PROTECT, null=True, blank=True
     )
+    # if an event on a Building (eg a deactivation) updates the status of a "signalement" (eg status set to refused).
+    status_updated_by_event_id = models.UUIDField(null=True, db_index=True)
 
     def fix(self, user, review_comment=""):
         if self.status != "pending":
@@ -597,7 +630,7 @@ class Contribution(models.Model):
         self.review_user = user
         self.save()
 
-    def refuse(self, user, review_comment=""):
+    def refuse(self, user, review_comment="", status_updated_by_event_id=None):
         if self.status != "pending":
             raise ValueError("Contribution is not pending.")
 
@@ -605,6 +638,19 @@ class Contribution(models.Model):
         self.status_changed_at = datetime.now()
         self.review_comment = review_comment
         self.review_user = user
+        self.status_updated_by_event_id = status_updated_by_event_id
+        self.save()
+
+    def reset_pending(self):
+        """
+        A signalement has been refused because its underlying building has been deactivated.
+        The building is finally reactivated => we reset the signalement to a pending status.
+        """
+        self.status = "pending"
+        self.status_changed_at = None
+        self.review_comment = None
+        self.review_user = None
+        self.status_updated_by_event_id = None
         self.save()
 
 
