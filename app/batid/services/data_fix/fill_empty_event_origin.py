@@ -7,7 +7,7 @@ from batid.models import Building
 from batid.models import BuildingHistoryOnly
 
 
-def fix(batch_size):
+def fix(batch_size=10000):
 
     n = 1
     rnb_id_cut = "0"
