@@ -162,6 +162,9 @@ def insert_building_history_1():
 
     # 3rd update, nothing but event_origin
     b.event_origin = {"id": 468, "source": "import"}
+    # (order is not imortant)
+    b.addresses_id = ["51250_0027_00007", "51250_0027_00008"]
+
     b.save()
 
     # 4th update, nothing but event_origin
