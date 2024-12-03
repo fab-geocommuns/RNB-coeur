@@ -1,7 +1,8 @@
 from django.contrib.gis.geos import Polygon
-from django.db.models import QuerySet
+from django.contrib.postgres.aggregates import ArrayAgg
+from django.db.models import QuerySet, OuterRef, Subquery
 
-from batid.models import Building
+from batid.models import Building, Plot
 from batid.models import City
 from batid.services.bdg_status import BuildingStatus
 
@@ -70,4 +71,34 @@ def list_bdgs(params, only_active=True) -> QuerySet:
         qs = qs.filter(addresses_read_only__id=cle_interop_ban)
         qs = qs.order_by("created_at")
 
+    # #######################
+    # With plots (adding plots ids to the buildings
+    with_plots = params.get("withPlots", None)
+    if with_plots == "1":
+
+        # Subquery to get the plots ids
+        subquery = (
+            Plot.objects.filter(shape__intersects=OuterRef("shape"))
+            .order_by()
+            .values("id")
+        )
+        qs = qs.annotate(plots=SubqueryArrayAgg(subquery, "id"))
+
     return qs
+
+
+class SubqueryAggregate(Subquery):
+    # https://code.djangoproject.com/ticket/10060
+    template = '(SELECT %(function)s(_agg."%(column)s") FROM (%(subquery)s) _agg)'
+
+    def __init__(self, queryset, column, output_field=None, **extra):
+        if not output_field:
+            # infer output_field from field type
+            output_field = queryset.model._meta.get_field(column)
+        super().__init__(
+            queryset, output_field, column=column, function=self.function, **extra
+        )
+
+
+class SubqueryArrayAgg(SubqueryAggregate):
+    function = "ARRAY_AGG"

@@ -1,10 +1,11 @@
 import json
 
+from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
 
 from batid.list_bdg import list_bdgs
-from batid.models import Building
+from batid.models import Building, Plot
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.tests.helpers import create_bdg
 from batid.tests.helpers import create_grenoble
@@ -228,3 +229,102 @@ class SearchCityTestCase(TestCase):
         qs = list_bdgs({"insee_code": "38185"})
 
         self.assertEqual(len(list(qs)), 2)
+
+
+class SearchWithPlots(TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.bdg_on_both_plots = None
+
+    def setUp(self):
+
+        # The two plots are side by side
+
+        Plot.objects.create(
+            id="one",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [
+                                    [0.9105774090996306, 44.84936803275076],
+                                    [0.9102857535320368, 44.84879419445585],
+                                    [0.9104349726604539, 44.84847040607977],
+                                    [0.9109969204173751, 44.848225799624316],
+                                    [0.9112463293299982, 44.84857273425834],
+                                    [0.9113505129542716, 44.84894428770244],
+                                    [0.9113883978533295, 44.84920168780678],
+                                    [0.9105774090996306, 44.84936803275076],
+                                ]
+                            ]
+                        ],
+                        "type": "MultiPolygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        Plot.objects.create(
+            id="two",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [
+                                    [0.910571664716457, 44.84936946559145],
+                                    [0.9103209027180412, 44.84944151365943],
+                                    [0.9100424249191121, 44.84885483391221],
+                                    [0.9102799889177788, 44.84879588489878],
+                                    [0.910571664716457, 44.84936946559145],
+                                ]
+                            ]
+                        ],
+                        "type": "MultiPolygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        self.bdg_on_both_plots = Building.create_new(
+            user=None,
+            event_origin={"dummy": "dummy"},
+            status="constructed",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [0.9104005886575237, 44.84928501664322],
+                                [0.9102901511915604, 44.84910387339187],
+                                [0.9105699884996739, 44.84904017453093],
+                                [0.910669195036661, 44.84922264503825],
+                                [0.9104005886575237, 44.84928501664322],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+    def test_bdg_on_both_plots(self):
+        qs = list_bdgs({"withPlots": "1"})
+
+        self.assertEqual(len(list(qs)), 1)
+
+        bdg = qs.first()
+        count = qs.count()
+
+        self.assertEqual(bdg.rnb_id, self.bdg_on_both_plots.rnb_id)
+        self.assertEqual(count, 1)
+
+        self.assertListEqual(["one", "two"], bdg.plots)

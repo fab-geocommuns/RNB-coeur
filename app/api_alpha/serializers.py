@@ -87,7 +87,6 @@ class BuildingSerializer(serializers.ModelSerializer):
             "addresses",
             "ext_ids",
             "is_active",
-            "plots",
         ]
 
 
