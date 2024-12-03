@@ -67,24 +67,10 @@ class BuildingSerializer(serializers.ModelSerializer):
     point = serializers.DictField(
         source="point_geojson",
         read_only=True,
-        help_text="""{
-                            "type": "Point",
-                            "coordinates": [
-                                3.584410393780201,
-                                49.52799819019749
-                            ]
-                        }""",
     )
     shape = serializers.DictField(
         source="shape_geojson",
         read_only=True,
-        help_text="""{
-                            "type": "Polygon",
-                            "coordinates": [[
-                                [100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
-                                [100.0, 1.0], [100.0, 0.0]
-                             ]]
-                        }""",
     )
     addresses = AddressSerializer(
         many=True, read_only=True, source="addresses_read_only"
@@ -101,12 +87,8 @@ class BuildingSerializer(serializers.ModelSerializer):
             "addresses",
             "ext_ids",
             "is_active",
+            "plots",
         ]
-        extra_kwargs = {
-            "rnb_id": {"help_text": "QBAAG16VCJWA"},
-            "status": {"help_text": "constructed"},
-            "is_active": {"help_text": "true"},
-        }
 
 
 class GuessBuildingSerializer(serializers.ModelSerializer):
