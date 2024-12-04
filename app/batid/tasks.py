@@ -10,6 +10,9 @@ from batid.services.building import export_city as export_city_job
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.candidate import Inspector
+from batid.services.data_fix.fill_empty_event_origin import (
+    fix as fix_fill_empty_event_origin,
+)
 from batid.services.data_fix.remove_light_buildings import (
     list_light_buildings_france as list_light_buildings_france_job,
 )
@@ -238,6 +241,12 @@ def renew_stats():
     from batid.services.stats import compute_stats
 
     compute_stats()
+    return "done"
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def fill_empty_event_origin(batch_size=10000):
+    fix_fill_empty_event_origin(batch_size)
     return "done"
 
 
