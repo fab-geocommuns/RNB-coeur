@@ -122,8 +122,8 @@ def queue_full_bdtopo_import(
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_plots(dpt):
-    import_etalab_plots_job(dpt)
+def import_plots(dpt: str, release_date: str):
+    import_etalab_plots_job(dpt, release_date)
     return "done"
 
 

@@ -19,17 +19,18 @@ from batid.services.administrative_areas import dpt_list_overseas
 from batid.services.source import Source
 
 
-def import_etalab_plots(dpt: str):
+def import_etalab_plots(dpt: str, release_date: str):
     """Import plots from Etalab"""
     print("---- Importing Etalab plots ----")
 
     src = Source("plot")
     src.set_param("dpt", dpt)
+    src.set_param("date", release_date)
 
     with open(src.path) as f:
         features = ijson.items(f, "features.item", use_float=True)
 
-        plots = map(_feature_to_row, features)
+        plots = map(_feature_to_row, features, release_date)
 
         with transaction.atomic():
             print("deleting plots with id starting with", dpt)
@@ -54,7 +55,7 @@ def _save_plots(rows):
         cursor.copy_from(
             f,
             Plot._meta.db_table,
-            columns=("id", "shape", "created_at", "updated_at"),
+            columns=("id", "shape", "created_at", "updated_at", "source_version"),
             sep=",",
         )
 
@@ -63,7 +64,7 @@ def polygon_to_multipolygon(polygon):
     return MultiPolygon(polygon)
 
 
-def _feature_to_row(feature):
+def _feature_to_row(feature: dict, release_date: str):
     if feature["geometry"]["type"] not in ["Polygon", "MultiPolygon"]:
         raise ValueError(f"Unexpected geometry type: {feature['geometry']['type']}")
 
@@ -77,7 +78,13 @@ def _feature_to_row(feature):
 
     now = datetime.now(timezone.utc)
 
-    return [feature["id"], multi_poly.hexewkb.decode("ascii"), f"{now}", f"{now}"]
+    return [
+        feature["id"],
+        multi_poly.hexewkb.decode("ascii"),
+        f"{now}",
+        f"{now}",
+        f"{release_date}",
+    ]
 
 
 def etalab_dpt_list() -> list:
@@ -85,7 +92,7 @@ def etalab_dpt_list() -> list:
     return dpt_list_metropole() + dpt_list_overseas()
 
 
-def create_plots_full_import_tasks(dpt_list: list) -> list:
+def create_plots_full_import_tasks(dpt_list: list, release_date: str) -> list:
 
     tasks = []
 
@@ -94,7 +101,7 @@ def create_plots_full_import_tasks(dpt_list: list) -> list:
         # Download the plots
         dl_task = Signature(
             "batid.tasks.dl_source",
-            args=["plot", {"dpt": dpt}],
+            args=["plot", {"dpt": dpt, "date": release_date}],
             immutable=True,
         )
         tasks.append(dl_task)
@@ -102,7 +109,7 @@ def create_plots_full_import_tasks(dpt_list: list) -> list:
         # Import the plots
         import_task = Signature(
             "batid.tasks.import_plots",
-            args=[dpt],
+            args=[dpt, release_date],
             immutable=True,
         )
         tasks.append(import_task)
