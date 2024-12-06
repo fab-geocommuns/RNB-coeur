@@ -29,11 +29,9 @@ from batid.services.imports.import_dgfip_ads import (
     import_dgfip_ads_achievements as import_dgfip_ads_achievements_job,
 )
 from batid.services.imports.import_dpt import import_etalab_dpts
-from batid.services.imports.import_plots import (
-    create_plots_full_import_tasks,
-    etalab_recent_release_date,
-)
+from batid.services.imports.import_plots import create_plots_full_import_tasks
 from batid.services.imports.import_plots import etalab_dpt_list
+from batid.services.imports.import_plots import etalab_recent_release_date
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
 )
