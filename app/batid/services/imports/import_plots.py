@@ -30,7 +30,10 @@ def import_etalab_plots(dpt: str, release_date: str):
     with open(src.path) as f:
         features = ijson.items(f, "features.item", use_float=True)
 
-        plots = map(_feature_to_row, features, release_date)
+        plots = list(map(_feature_to_row, features))
+
+        for idx, plot in enumerate(plots):
+            plots[idx].append(release_date)
 
         with transaction.atomic():
             print("deleting plots with id starting with", dpt)
@@ -42,7 +45,7 @@ def import_etalab_plots(dpt: str, release_date: str):
             print("plots saved")
 
         # remove the file
-        os.remove(src.path)
+        # os.remove(src.path)
 
 
 def _save_plots(rows):
@@ -64,7 +67,7 @@ def polygon_to_multipolygon(polygon):
     return MultiPolygon(polygon)
 
 
-def _feature_to_row(feature: dict, release_date: str):
+def _feature_to_row(feature: dict):
     if feature["geometry"]["type"] not in ["Polygon", "MultiPolygon"]:
         raise ValueError(f"Unexpected geometry type: {feature['geometry']['type']}")
 
@@ -83,7 +86,6 @@ def _feature_to_row(feature: dict, release_date: str):
         multi_poly.hexewkb.decode("ascii"),
         f"{now}",
         f"{now}",
-        f"{release_date}",
     ]
 
 
