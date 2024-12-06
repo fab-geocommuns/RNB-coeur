@@ -213,6 +213,13 @@ CELERY_BEAT_SCHEDULE = {
             minute=0, hour=0, day_of_month=15, month_of_year="1,4,7,10"
         ),
     },
+    "import_plots": {
+        "task": "batid.tasks.queue_full_plots_import",
+        # january 31, april 30, july 31, november 30,
+        "schedule": crontab(
+            minute=0, hour=0, day_of_month="30", month_of_year="1,4,7,11"
+        ),
+    },
     "publish_data_gouv": {
         "task": "batid.tasks.publish_datagouv_all",
         # once a week, saturday at 3am
