@@ -77,12 +77,13 @@ def list_bdgs(params, only_active=True) -> QuerySet:
     if with_plots == "1":
 
         # Subquery to get the plots ids
-        subquery = (
-            Plot.objects.filter(shape__intersects=OuterRef("shape"))
-            .order_by()
-            .values("id")
+        # subquery = Plot.objects.filter(shape__intersects=OuterRef("shape")).values("id")
+        # qs = qs.annotate(plots=SubqueryArrayAgg(subquery, "id"))
+
+        subquery = Plot.objects.raw(
+            "SELECT id FROM batid_plot WHERE id = 'one'",
         )
-        qs = qs.annotate(plots=SubqueryArrayAgg(subquery, "id"))
+        qs = qs.annotate(plots=Subquery(subquery))
 
     return qs
 

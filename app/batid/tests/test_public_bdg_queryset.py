@@ -237,6 +237,7 @@ class SearchWithPlots(TestCase):
         super().__init__(*args, **kwargs)
 
         self.bdg_on_both_plots = None
+        self.bdg_not_covered_enough = None
 
     def setUp(self):
 
@@ -313,6 +314,30 @@ class SearchWithPlots(TestCase):
                     }
                 ),
                 srid=4326,
+            ),
+        )
+
+        self.bdg_not_covered_enough = Building.create_new(
+            user=None,
+            event_origin={"dummy": "dummy"},
+            status="constructed",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [0.9101392761545242, 44.849463423418655],
+                                [0.9103279421314028, 44.849432783031574],
+                                [0.9103827965568883, 44.84963842685542],
+                                [0.9101484185592597, 44.84964255150933],
+                                [0.9101392761545242, 44.849463423418655],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
             ),
         )
 
