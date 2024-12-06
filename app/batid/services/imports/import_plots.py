@@ -1,9 +1,10 @@
 import csv
 import json
 import os
-from datetime import datetime
+from datetime import datetime, date
 from datetime import timezone
 from io import StringIO
+from typing import Optional
 
 import ijson
 from celery import Signature
@@ -107,6 +108,25 @@ def create_plots_full_import_tasks(dpt_list: list) -> list:
         tasks.append(import_task)
 
     return tasks
+
+
+def etalab_recent_release_date(before: Optional[date] = None) -> str:
+    # If no date is provided, we use the current date
+    if before is None:
+        before = datetime.now().date()
+
+    # First we get an ordred list of all release dates
+    release_dates = sorted(
+        [
+            datetime.strptime(date, "%Y-%m-%d").date()
+            for date in _etalab_releases_dates()
+        ]
+    )
+
+    for idx, date in enumerate(release_dates):
+        if date >= before:
+            # Return the previous release date
+            return release_dates[idx - 1].strftime("%Y-%m-%d")
 
 
 def _etalab_releases_dates() -> list:
