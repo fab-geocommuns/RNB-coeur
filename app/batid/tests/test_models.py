@@ -1,5 +1,6 @@
 import datetime
 
+from django.db.utils import IntegrityError
 from django.test import TestCase
 
 from batid.models import Address
@@ -183,3 +184,16 @@ class TestBuilding(TestCase):
         # Check the other building contribution is still pending
         contrib_other_bdg.refresh_from_db()
         self.assertEqual(contrib_other_bdg.status, "pending")
+
+    def test_building_event_types(self):
+        # you can't save whatever imaginary event type in the DB
+        with self.assertRaises(IntegrityError):
+            Building.objects.create(rnb_id="XYZ", event_type="new!")
+
+    def test_update_building_event_types(self):
+        b = Building.objects.create(rnb_id="XYZ", event_type="creation")
+
+        with self.assertRaises(IntegrityError):
+            # that type does not exist
+            b.event_type = "spawn"
+            b.save()

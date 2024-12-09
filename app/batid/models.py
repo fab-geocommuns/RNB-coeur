@@ -11,6 +11,8 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import transaction
+from django.db.models import CheckConstraint
+from django.db.models import Q
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
@@ -53,14 +55,16 @@ class BuildingAbstract(models.Model):
     # WARNING : a deactivation is different from a real building demolition, which would be a change of the status (a thus an event_type: update).
     # merge: two or more buildings are merged into one
     # split: one building is split into two or more
+    EVENT_TYPES = [
+        "creation",
+        "update",
+        "deactivation",
+        "reactivation",
+        "merge",
+        "split",
+    ]
     event_type = models.CharField(
-        choices=[
-            ("creation", "creation"),
-            ("update", "update"),
-            ("deactivation", "deactivation"),
-            ("merge", "merge"),
-            ("split", "split"),
-        ],
+        choices=[(e, e) for e in EVENT_TYPES],
         max_length=12,
         null=True,
     )
@@ -192,6 +196,7 @@ class Building(BuildingAbstract):
             and ext_ids is None
             and shape is not None
         ):
+
             raise Exception("Missing data to update the building")
 
         if self.is_active:
@@ -356,6 +361,13 @@ class Building(BuildingAbstract):
             Index(Lower("sys_period"), name="bdg_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_event_type_idx"),
             GinIndex(fields=["parent_buildings"], name="bdg_parent_buildings_idx"),
+        ]
+        constraints = [
+            # a DB level constraint on the authorized values for the event_type columns
+            CheckConstraint(
+                check=Q(event_type__in=BuildingAbstract.EVENT_TYPES),
+                name="valid_event_type_check",
+            )
         ]
 
 

@@ -178,13 +178,78 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         return Response(serializer.data)
 
 
-@extend_schema(exclude=True)
 class BuildingClosestView(RNBLoggingMixin, APIView):
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Bâtiments les plus proches d'un point",
+                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments présents dans un rayon donné autour d'un point donné. Les bâtiments sont triés par distance croissante par rapport au point donné. NB : l'URL se termine nécessairement par un slash (/).",
+                "operationId": "closestBuildings",
+                "parameters": [
+                    {
+                        "name": "point",
+                        "in": "query",
+                        "description": "Latitude et longitude, séparées par une virgule, du point de recherche.",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "44.8201164915397,-0.5717449803671368",
+                    },
+                    {
+                        "name": "radius",
+                        "in": "query",
+                        "description": "Rayon de recherche en mètres, autour du point. Compris entre 0 et 1000 mètres.",
+                        "required": True,
+                        "schema": {"type": "integer"},
+                        "example": 1000,
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste paginée des bâtiments les plus proches du point donné",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "next": {
+                                            "type": "string",
+                                            "description": "URL de la page de résultats suivante",
+                                            "nullable": True,
+                                        },
+                                        "previous": {
+                                            "type": "string",
+                                            "description": "URL de la page de résultats précédente",
+                                            "nullable": True,
+                                        },
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/Building"
+                                                    },
+                                                    {
+                                                        "type": "number",
+                                                        "name": "distance",
+                                                        "description": "Distance en mètres entre le bâtiment et le point donné",
+                                                        "example": 6.78,
+                                                    },
+                                                ]
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    )
     def get(self, request, *args, **kwargs):
         query_serializer = BuildingClosestQuerySerializer(data=request.query_params)
 
         if query_serializer.is_valid():
-            # todo : si ouverture du endpoint au public : ne permettre de voir que les bâtiments dont le statut est public et qui représente un bâtiment réel (cf `BuildingStatus.REAL_BUILDINGS_STATUS`)
 
             point = request.query_params.get("point")
             radius = request.query_params.get("radius")
@@ -193,16 +258,13 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
             lng = float(lng)
             radius = int(radius)
 
-            qs = get_closest_from_point(lat, lng, radius)
-            bdg = qs.first()
+            # Get results and paginate
+            bdgs = get_closest_from_point(lat, lng, radius)
+            paginator = BuildingCursorPagination()
+            paginated_bdgs = paginator.paginate_queryset(bdgs, request)
+            serializer = BuildingClosestSerializer(paginated_bdgs, many=True)
 
-            if isinstance(bdg, Building):
-                serializer = BuildingClosestSerializer(bdg)
-                return Response(serializer.data)
-            else:
-                return Response(
-                    {"message": "No building found in the area"}, status=200
-                )
+            return paginator.get_paginated_response(serializer.data)
 
         else:
             # Invalid data, return validation errors
@@ -1169,15 +1231,27 @@ class DiffView(APIView):
                     COPY (
                         select
                         CASE
-                            WHEN event_type = 'deactivation' THEN 'delete'
+                            WHEN event_type = 'delete' THEN 'deactivate'
+                            WHEN event_type = 'deactivation' THEN 'deactivate'
                             WHEN event_type = 'update' THEN 'update'
-                            WHEN event_type = 'split' and not is_active THEN 'delete'
+                            WHEN event_type = 'split' and not is_active THEN 'deactivate'
                             WHEN event_type = 'split' and is_active THEN 'create'
-                            WHEN event_type = 'merge' and not is_active THEN 'delete'
+                            WHEN event_type = 'merge' and not is_active THEN 'deactivate'
                             WHEN event_type = 'merge' and is_active THEN 'create'
                             ELSE 'create'
                         END as action,
-                        rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb
+                        rnb_id,
+                        status,
+                        is_active::int,
+                        sys_period,
+                        ST_AsEWKT(point) as point,
+                        ST_AsEWKT(shape) as shape,
+                        to_json(addresses_id) as addresses_id,
+                        COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
+                        parent_buildings,
+                        event_id,
+                        event_type
+                        FROM batid_building_with_history bb
                         where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone
                         order by rnb_id, lower(sys_period)
                     ) TO STDOUT WITH CSV HEADER

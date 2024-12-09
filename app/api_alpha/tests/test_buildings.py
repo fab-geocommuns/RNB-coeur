@@ -473,70 +473,212 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
 
 class BuildingClosestViewTest(APITestCase):
     def test_closest(self):
-        coords = {
-            "coordinates": [
-                [
-                    [
-                        [1.0654705955877262, 46.63423852982024],
-                        [1.065454930919401, 46.634105152847496],
-                        [1.0656648374661017, 46.63409009413692],
-                        [1.0656773692001593, 46.63422131990677],
-                        [1.0654705955877262, 46.63423852982024],
-                    ]
-                ]
-            ],
-            "type": "MultiPolygon",
-        }
-        geom = GEOSGeometry(json.dumps(coords), srid=4326)
 
-        b_1 = Building.objects.create(
-            rnb_id="building_1",
-            shape=geom,
-            point=geom.point_on_surface,
+        # It should be first in the results
+        closest_bdg = Building.create_new(
+            user=None,
+            event_origin="test",
+            status="constructed",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5682035663317322, 44.83085542749811],
+                                [-0.56843602659049, 44.83031112933102],
+                                [-0.5673438323587163, 44.83007299726728],
+                                [-0.5671003025640005, 44.83061468086615],
+                                [-0.5682035663317322, 44.83085542749811],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
         )
 
-        coords_2 = {
-            "coordinates": [
-                [
-                    [
-                        [1.1654705955877262, 46.63423852982024],
-                        [1.165454930919401, 46.634105152847496],
-                        [1.1656648374661017, 46.63409009413692],
-                        [1.1656773692001593, 46.63422131990677],
-                        [1.1654705955877262, 46.63423852982024],
-                    ]
-                ]
-            ],
-            "type": "MultiPolygon",
-        }
-        geom_2 = GEOSGeometry(json.dumps(coords_2), srid=4326)
-
-        b_2 = Building.objects.create(
-            rnb_id="building_2",
-            shape=geom_2,
-            point=geom_2.point_on_surface,
+        # It should appear second in the results
+        further_bdg = Building.create_new(
+            user=None,
+            event_origin="test",
+            status="constructed",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5683373823683553, 44.83085611997467],
+                                [-0.5685621443934679, 44.83091091343829],
+                                [-0.5688395850185373, 44.83040282659957],
+                                [-0.568530537234011, 44.83032561693295],
+                                [-0.5683373823683553, 44.83085611997467],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
         )
 
-        # request on the building
+        # We create many buildings to test pagination
+        # They are in range and should appear in the results
+        for i in range(20):
+            Building.create_new(
+                user=None,
+                status="constructed",
+                event_origin="test",
+                addresses_id=[],
+                ext_ids=[],
+                shape=GEOSGeometry(
+                    json.dumps(
+                        {
+                            "coordinates": [
+                                [
+                                    [-0.5690889303904783, 44.83086359181351],
+                                    [-0.5692329185634151, 44.83090842282704],
+                                    [-0.5693593472030045, 44.83084615752156],
+                                    [-0.5691767280571298, 44.83073407980169],
+                                    [-0.5690889303904783, 44.83086359181351],
+                                ]
+                            ],
+                            "type": "Polygon",
+                        }
+                    ),
+                    srid=4326,
+                ),
+            )
+
+        # One deactivated building, in radius range
+        # It should not appear in the results
+        deactivated_bdg = Building.create_new(
+            user=None,
+            status="constructed",
+            event_origin="test",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.568078311510078, 44.83092439844569],
+                                [-0.5678527488539089, 44.831017565877204],
+                                [-0.5680411308524356, 44.83105623910677],
+                                [-0.568078311510078, 44.83092439844569],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+        deactivated_bdg.deactivate(user=None, event_origin="test")
+
+        # One demolished building, in radius range
+        # It should not appear in the results
+        demolished_bdg = Building.create_new(
+            user=None,
+            status="demolished",
+            event_origin="test",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5679742056692021, 44.83088396724915],
+                                [-0.5677833449604464, 44.830852325423905],
+                                [-0.5678056533552933, 44.830931429955456],
+                                [-0.5679742056692021, 44.83088396724915],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        # One building way too far
+        # It should not appear in the results
+        very_far_bdg = Building.create_new(
+            user=None,
+            status="constructed",
+            event_origin="test",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [2.3389792007339736, 48.84729730300006],
+                                [2.3389049893044103, 48.84727559802761],
+                                [2.3388839169221853, 48.84722917347267],
+                                [2.338912318827653, 48.84718274887467],
+                                [2.338959044543145, 48.847165867191706],
+                                [2.3390250102591494, 48.84717069053036],
+                                [2.339064406450433, 48.84719179263064],
+                                [2.3390891435943217, 48.84722615888933],
+                                [2.3390772331180756, 48.84726534845461],
+                                [2.3390479150212116, 48.847286450515014],
+                                [2.339014932163707, 48.847299714662796],
+                                [2.3389792007339736, 48.84729730300006],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
         r = self.client.get(
-            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=10"
+            "/api/alpha/buildings/closest/?point=44.83045932150495,-0.5675637291200246&radius=1000"
         )
+
         self.assertEqual(r.status_code, 200)
 
         data = r.json()
-        self.assertEqual(data["rnb_id"], "building_1")
-        self.assertEqual(data["distance"], 0.0)
 
-        # request next to the building, 1e-5 difference is about 1m
-        lat = 46.63423852982024 + 0.00001
-        r = self.client.get(
-            f"/api/alpha/buildings/closest/?point={lat},1.0654705955877262&radius=10"
-        )
-        data = r.json()
-        self.assertEqual(data["rnb_id"], "building_1")
+        # Check that the closest building is first
+        self.assertEqual(data["results"][0]["rnb_id"], closest_bdg.rnb_id)
 
-        self.assertGreater(data["distance"], 1.0)
-        self.assertLess(data["distance"], 2.0)
+        # Check that the further building is second
+        self.assertEqual(data["results"][1]["rnb_id"], further_bdg.rnb_id)
+
+        # Check there is a "next" url
+        self.assertIsNotNone(data["next"])
+
+        # Check there is no "previous" url
+        self.assertIsNone(data["previous"])
+
+        # Get all RNB IDs (in both pages of result)
+        second_page_data = self.client.get(data["next"]).json()
+
+        first_page = [building["rnb_id"] for building in data["results"]]
+        second_page = [building["rnb_id"] for building in second_page_data["results"]]
+
+        all_rnb_ids = first_page + second_page
+
+        self.assertEqual(len(all_rnb_ids), 22)
+
+        # Check that the deactivated building is not in the results
+        self.assertNotIn(deactivated_bdg.rnb_id, all_rnb_ids)
+
+        # Check that the demolished building is not in the results
+        self.assertNotIn(demolished_bdg.rnb_id, all_rnb_ids)
+
+        # Check the very far building is not in the results
+        self.assertNotIn(very_far_bdg.rnb_id, all_rnb_ids)
 
     def test_closest_invalid_query_params(self):
         r = self.client.get(
@@ -557,13 +699,21 @@ class BuildingClosestViewTest(APITestCase):
         r = self.client.get("/api/alpha/buildings/closest/?radius=10")
         self.assertEqual(r.status_code, 400)
 
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=2000"
+        )
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get("/api/alpha/buildings/closest/?point=999,999&radius=-10")
+        self.assertEqual(r.status_code, 400)
+
     def test_closest_no_building(self):
         r = self.client.get(
             "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=10"
         )
 
         self.assertEqual(r.status_code, 200)
-        self.assertDictEqual(r.json(), {"message": "No building found in the area"})
+        self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
 
 
 class BuildingPatchTest(APITestCase):
