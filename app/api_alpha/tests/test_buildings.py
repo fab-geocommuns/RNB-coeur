@@ -890,6 +890,44 @@ class BuildingPatchTest(APITestCase):
             signalement=True,
             status="fixed",
         )
+        c3 = Contribution.objects.create(
+            rnb_id=self.building.rnb_id,
+            text="modif",
+            signalement=False,
+            status="fixed",
+        )
+
+        other_building = Building.create_new(
+            user=None,
+            status="constructed",
+            event_origin="test",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5690889303904783, 44.83086359181351],
+                                [-0.5692329185634151, 44.83090842282704],
+                                [-0.5693593472030045, 44.83084615752156],
+                                [-0.5691767280571298, 44.83073407980169],
+                                [-0.5690889303904783, 44.83086359181351],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        c4 = Contribution.objects.create(
+            rnb_id=other_building.rnb_id,
+            text="l'adresse est fausse",
+            signalement=True,
+            status="pending",
+        )
 
         # start with a deactivation
         self.building.deactivate(
@@ -903,8 +941,16 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(self.building.event_type, "deactivation")
         c1.refresh_from_db()
         c2.refresh_from_db()
+        c3.refresh_from_db()
+        c4.refresh_from_db()
+        # updated contribution
         self.assertEqual(c1.status, "refused")
+        # this is how the link is done
+        self.assertEqual(c1.status_updated_by_event_id, self.building.event_id)
+        # untouched contributions
         self.assertEqual(c2.status, "fixed")
+        self.assertEqual(c3.status, "fixed")
+        self.assertEqual(c4.status, "pending")
 
         # then reactivate
         self.building.reactivate(self.user, {"source": "contribution", "id": 2})
@@ -918,8 +964,29 @@ class BuildingPatchTest(APITestCase):
         # signalements closed by deactivation are reset to "pending"
         c1.refresh_from_db()
         c2.refresh_from_db()
+        c3.refresh_from_db()
+        c4.refresh_from_db()
+
+        # reset contribution status
         self.assertEqual(c1.status, "pending")
+        # untouched contributions
         self.assertEqual(c2.status, "fixed")
+        self.assertEqual(c3.status, "fixed")
+        self.assertEqual(c4.status, "pending")
+
+    def test_cannot_reactivate_everything(self):
+        with self.assertRaises(Exception) as e:
+            # the building is active
+            self.building.reactivate()
+
+        # now we set the building as if it has been deactivated during a merge
+        self.building.event_type = "merge"
+        self.building.is_active = False
+        self.building.save()
+
+        with self.assertRaises(Exception) as e:
+            # not active, but not deactivated by a "deactivation" event
+            self.building.reactivate()
 
     def test_update_building(self):
         self.user.groups.add(self.group)
