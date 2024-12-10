@@ -157,7 +157,7 @@ class Building(BuildingAbstract):
 
             self._refuse_pending_contributions(user, event_id)
         else:
-            print(f"Cannot  an inactive building: {self.rnb_id}")
+            print(f"Cannot deactivate an inactive building: {self.rnb_id}")
 
     @transaction.atomic
     def reactivate(self, user: User, event_origin):
