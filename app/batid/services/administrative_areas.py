@@ -245,12 +245,25 @@ def dpts_list(start: Optional[str] = None, end: Optional[str] = None):
     :return: list of departments in France
     """
 
-    all = dpt_list_metropole() + dpt_list_overseas() + com_list()
+    all_dpts = dpt_list_metropole() + dpt_list_overseas() + com_list()
 
-    start_idx = all.index(start) if start else 0
-    end_idx = all.index(end) + 1 if end else len(all)
+    return slice_dpts(all_dpts, start, end)
 
-    return all[start_idx:end_idx]
+
+def slice_dpts(
+    initial_list: list, start: Optional[str] = None, end: Optional[str] = None
+):
+
+    if start and start not in initial_list:
+        raise ValueError(f"Invalid start department code: {start}")
+
+    if end and end not in initial_list:
+        raise ValueError(f"Invalid end department code: {end}")
+
+    start_idx = initial_list.index(start) if start else 0
+    end_idx = initial_list.index(end) + 1 if end else len(initial_list)
+
+    return initial_list[start_idx:end_idx]
 
 
 def dpt_name(code: str) -> str:
