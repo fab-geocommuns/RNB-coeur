@@ -969,6 +969,10 @@ class BuildingPatchTest(APITestCase):
 
         # reset contribution status
         self.assertEqual(c1.status, "pending")
+        self.assertIsNone(c1.status_changed_at)
+        self.assertIsNone(c1.status_updated_by_event_id)
+        self.assertIsNone(c1.review_user)
+        self.assertIsNone(c1.review_comment)
         # untouched contributions
         self.assertEqual(c2.status, "fixed")
         self.assertEqual(c3.status, "fixed")
