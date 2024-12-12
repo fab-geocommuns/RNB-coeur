@@ -105,7 +105,7 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
 
     def dispatch(self, request, *args, **kwargs):
         if kwargs.get("path", "").startswith("metabase/"):
-            kwargs["path"] = kwargs["path"][len("metabase/"):]
+            kwargs["path"] = kwargs["path"][len("metabase/") :]
         return super().dispatch(request, *args, **kwargs)
 
     @classmethod
