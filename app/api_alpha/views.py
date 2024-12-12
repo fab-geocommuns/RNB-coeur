@@ -3,6 +3,7 @@ import os
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
+from typing import Any
 
 import requests
 from django.conf import settings
@@ -351,15 +352,13 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
     )
     def get(self, request, *args, **kwargs):
         query_serializer = BuildingAddressQuerySerializer(data=request.query_params)
-        response = {
+        infos: dict[str, Any] = {
             "cle_interop_ban": None,
             "score_ban": None,
             "status": None,
-            "results": None,
         }
 
         if query_serializer.is_valid():
-            response = {}
             q = request.query_params.get("q")
 
             if q:
@@ -370,27 +369,29 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                 cle_interop_ban = best_result["cle_interop_ban"]
                 score = best_result["score"]
 
-                response["cle_interop_ban"] = cle_interop_ban
-                response["score_ban"] = score
+                infos["cle_interop_ban"] = cle_interop_ban
+                infos["score_ban"] = score
 
                 if cle_interop_ban is None:
-                    response["status"] = "geocoding_failed"
-                    return Response(response)
+                    infos["status"] = "geocoding_failed"
+                    return Response(infos)
                 if score is not None and score < min_score:
-                    response["status"] = "score_is_too_low"
-                    return Response(response)
+                    infos["status"] = "score_is_too_low"
+                    return Response(infos)
             else:
                 cle_interop_ban = request.query_params.get("cle_interop_ban")
-                response["cle_interop_ban"] = cle_interop_ban
+                infos["cle_interop_ban"] = cle_interop_ban
 
-            response["status"] = "ok"
+            infos["status"] = "ok"
             buildings = Building.objects.filter(is_active=True).filter(
                 addresses_read_only__id=cle_interop_ban
             )
-            serialized_buildings = BuildingSerializer(buildings, many=True)
-            response["results"] = serialized_buildings.data
 
-            return Response(response)
+            paginator = BuildingAddressCursorPagination()
+            paginated_bdgs = paginator.paginate_queryset(buildings, request)
+            serialized_buildings = BuildingSerializer(paginated_bdgs, many=True)
+
+            return paginator.get_paginated_response(serialized_buildings.data, infos)
         else:
             # Invalid data, return validation errors
             return Response(query_serializer.errors, status=400)
@@ -500,6 +501,20 @@ class BuildingCursorPagination(BasePagination):
     def encode_cursor(self, cursor):
 
         return b64encode(cursor.encode("ascii")).decode("ascii")
+
+
+class BuildingAddressCursorPagination(BuildingCursorPagination):
+    def get_paginated_response(self, data, infos):
+        return Response(
+            {
+                "next": self.get_next_link(),
+                "previous": self.get_previous_link(),
+                "status": infos["status"],
+                "cle_interop_ban": infos["cle_interop_ban"],
+                "score_ban": infos["score_ban"],
+                "results": data,
+            }
+        )
 
 
 class ListBuildings(RNBLoggingMixin, APIView):
