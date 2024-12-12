@@ -279,13 +279,13 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Identification de bâtiments par leur adresse",
-                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments ayant une certaine adresse. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments associés à une adresse. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "address",
                 "parameters": [
                     {
                         "name": "q",
                         "in": "query",
-                        "description": "Liste les bâtiments du RNB associés à cette adresse. L'adresse fournie est recherchée dans la BAN afin de récupérer la clé d'interopérabilité associée. C'est via cette clé que sont filtrés les bâtiments.",
+                        "description": "Liste les bâtiments du RNB associés à cette adresse. L'adresse fournie est recherchée dans la BAN afin de récupérer la clé d'interopérabilité associée. C'est via cette clé que sont filtrés les bâtiments. Si le geocodage échoue aucun résultat n'est renvoyé et le champ 'status' de la réponse contient 'geocoding_no_results'",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "4 rue scipion, 75005 Paris",
@@ -293,7 +293,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                     {
                         "name": "min_score",
                         "in": "query",
-                        "description": "Score minimal attendu du géocodage BAN. Si le score est strictement inférieur à cette limite, aucun résultat n'est renvoyé et le champ 'status' de la réponse contient 'score_too_low'",
+                        "description": "Score minimal attendu du géocodage BAN. Si le score est strictement inférieur à cette limite, aucun résultat n'est renvoyé et le champ 'status' de la réponse contient 'geocoding_score_is_too_low'",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "4 rue scipion, 75005 Paris",
@@ -328,15 +328,21 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                                         "cle_interop_ban": {
                                             "type": "string",
                                             "description": "Clé d'interopérabilité BAN utilisée pour lister les bâtiments",
-                                            "nullable": False,
+                                            "nullable": True,
                                         },
                                         "status": {
                                             "type": "string",
-                                            "description": "'score_too_low' si le géocodage BAN renvoie un score inférieur à 'min_score', 'ok' sinon",
+                                            "description": "'geocoding_score_is_too_low' si le géocodage BAN renvoie un score inférieur à 'min_score'. 'geocoding_no_results' si le géocodage ne renvoie pas de résultats. 'ok' sinon",
+                                            "nullable": False,
+                                        },
+                                        "score_ban": {
+                                            "type": "float",
+                                            "description": "Si un géocodage a lieu, renvoie le score du meilleur résultat, celui qui est utilisé pour lister les bâtiments. Ce score doit être supérieur à 'min_score' pour que des bâtiments soient renvoyés.",
                                             "nullable": False,
                                         },
                                         "results": {
                                             "type": "array",
+                                            "nullable": True,
                                             "items": {
                                                 "$ref": "#/components/schemas/Building"
                                             },
@@ -360,6 +366,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
 
         if query_serializer.is_valid():
             q = request.query_params.get("q")
+            paginator = BuildingAddressCursorPagination()
 
             if q:
                 # 0.8 is the default value
@@ -373,11 +380,11 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                 infos["score_ban"] = score
 
                 if cle_interop_ban is None:
-                    infos["status"] = "geocoding_failed"
-                    return Response(infos)
+                    infos["status"] = "geocoding_no_results"
+                    return paginator.get_paginated_response(None, infos)
                 if score is not None and score < min_score:
-                    infos["status"] = "score_is_too_low"
-                    return Response(infos)
+                    infos["status"] = "geocoding_score_is_too_low"
+                    return paginator.get_paginated_response(None, infos)
             else:
                 cle_interop_ban = request.query_params.get("cle_interop_ban")
                 infos["cle_interop_ban"] = cle_interop_ban
@@ -386,8 +393,6 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
             buildings = Building.objects.filter(is_active=True).filter(
                 addresses_read_only__id=cle_interop_ban
             )
-
-            paginator = BuildingAddressCursorPagination()
             paginated_bdgs = paginator.paginate_queryset(buildings, request)
             serialized_buildings = BuildingSerializer(paginated_bdgs, many=True)
 
