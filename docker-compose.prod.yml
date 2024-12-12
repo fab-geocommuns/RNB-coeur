@@ -79,6 +79,13 @@ services:
     env_file:
       - ./.env.worker.prod
 
+  metabase:
+    extends:
+      file: common-services.yml
+      service: metabase
+    env_file:
+      - ./.env.metabase.prod
+
 volumes:
   certs:
   vhost:
