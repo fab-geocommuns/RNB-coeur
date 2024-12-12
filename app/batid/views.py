@@ -91,6 +91,24 @@ class FlowerProxyView(UserPassesTestMixin, ProxyView):
         return re_path(r"^(?P<path>{}.*)$".format(cls.url_prefix), cls.as_view())
 
 
+class MetabaseProxyView(UserPassesTestMixin, ProxyView):
+    upstream = "http://metabase:{}".format(os.environ.get("METABASE_PORT", "5555"))
+    rewrite = ((r"^/metabase/", r"/"),)
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def get_request_headers(self):
+        headers = super().get_request_headers()
+        if self.request.user.is_authenticated:
+            headers["X-Remote-User"] = self.request.user.email
+        return headers
+
+    @classmethod
+    def as_url(cls):
+        return re_path(r"^/?metabase/(?P<path>.*)$", cls.as_view())
+
+
 def contribution(request, contribution_id):
     if not request.user.is_superuser:
         return HttpResponseForbidden()

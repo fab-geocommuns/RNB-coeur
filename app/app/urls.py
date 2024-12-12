@@ -17,7 +17,7 @@ from django.contrib import admin
 from django.urls import include
 from django.urls import path
 
-from batid.views import contribution
+from batid.views import contribution, MetabaseProxyView
 from batid.views import delete_building
 from batid.views import FlowerProxyView
 from batid.views import merge_buildings
@@ -29,6 +29,7 @@ urlpatterns = [
     path("api/alpha/", include("api_alpha.urls")),
     path("admin/", admin.site.urls),
     FlowerProxyView.as_url(),
+    MetabaseProxyView.as_url(),
     path("contribution/fix/<int:contribution_id>", contribution),
     path("contribution/fix/delete", delete_building, name="delete_building"),
     path("contribution/fix/refuse", refuse_contribution, name="refuse_contribution"),
