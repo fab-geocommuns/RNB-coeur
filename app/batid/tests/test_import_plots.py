@@ -17,7 +17,7 @@ class ImportPlotsTestCase(TestCase):
         source_instance.path = helpers.fixture_path("cadastre_extract.json")
 
         # launch the import
-        import_plots.import_etalab_plots("75")
+        import_plots.import_etalab_plots("75", "2024-12-13")
 
         self.assertEqual(Plot.objects.count(), 3)
 
