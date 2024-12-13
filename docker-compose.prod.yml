@@ -24,6 +24,7 @@ services:
       - ./.env.app.prod
       - ./.env.rnb.prod
       - ./.env.worker.prod
+      - ./.env.metabase.prod
       - ./.env.sentry.prod
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000 --threads 6 --workers 6
     volumes:
