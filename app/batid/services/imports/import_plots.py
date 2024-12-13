@@ -1,15 +1,20 @@
 import csv
 import json
+import os
 from datetime import datetime
 from datetime import timezone
 from io import StringIO
 
 import ijson
+from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.db import connection
+from django.db import transaction
 
 from batid.models import Plot
+from batid.services.administrative_areas import dpt_list_metropole
+from batid.services.administrative_areas import dpt_list_overseas
 from batid.services.source import Source
 
 
@@ -19,33 +24,26 @@ def import_etalab_plots(dpt: str):
 
     src = Source("plot")
     src.set_param("dpt", dpt)
-    batch_size = 10000
 
     with open(src.path) as f:
         features = ijson.items(f, "features.item", use_float=True)
 
-        batch = []
-        c = 0
-        for plot in features:
-            c += 1
+        plots = map(_feature_to_row, features)
 
-            batch.append(plot)
+        with transaction.atomic():
+            print("deleting plots with id starting with", dpt)
+            Plot.objects.filter(id__startswith=dpt).delete()
+            print("plots deleted")
 
-            if len(batch) >= batch_size:
-                __handle_batch(batch)
-                batch = []
+            print("saving plots")
+            _save_plots(plots)
+            print("plots saved")
 
-        # Final batch
-        __handle_batch(batch)
-
-
-def __handle_batch(batch):
-    print("-- converting and saving batch")
-    rows = map(_feature_to_row, batch)
-    __save_batch(rows)
+        # remove the file
+        os.remove(src.path)
 
 
-def __save_batch(rows):
+def _save_plots(rows):
     f = StringIO()
     writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
     writer.writerows(rows)
@@ -79,3 +77,33 @@ def _feature_to_row(feature):
     now = datetime.now(timezone.utc)
 
     return [feature["id"], multi_poly.hexewkb.decode("ascii"), f"{now}", f"{now}"]
+
+
+def etalab_dpt_list() -> list:
+
+    return dpt_list_metropole() + dpt_list_overseas()
+
+
+def create_plots_full_import_tasks(dpt_list: list) -> list:
+
+    tasks = []
+
+    for dpt in dpt_list:
+
+        # Download the plots
+        dl_task = Signature(
+            "batid.tasks.dl_source",
+            args=["plot", {"dpt": dpt}],
+            immutable=True,
+        )
+        tasks.append(dl_task)
+
+        # Import the plots
+        import_task = Signature(
+            "batid.tasks.import_plots",
+            args=[dpt],
+            immutable=True,
+        )
+        tasks.append(import_task)
+
+    return tasks
