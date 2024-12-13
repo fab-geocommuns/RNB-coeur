@@ -92,7 +92,7 @@ class FlowerProxyView(UserPassesTestMixin, ProxyView):
 
 
 class MetabaseProxyView(UserPassesTestMixin, ProxyView):
-    upstream = "http://metabase:{}".format(os.environ.get("METABASE_PORT", "5555"))
+    upstream = "http://metabase:{}".format(os.environ.get("METABASE_PORT", "3000"))
 
     def test_func(self):
         return self.request.user.is_superuser
