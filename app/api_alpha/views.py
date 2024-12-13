@@ -229,10 +229,15 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                                                         "$ref": "#/components/schemas/Building"
                                                     },
                                                     {
-                                                        "type": "number",
-                                                        "name": "distance",
-                                                        "description": "Distance en mètres entre le bâtiment et le point donné",
-                                                        "example": 6.78,
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "distance": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 6.78,
+                                                                "description": "Distance en mètres entre le bâtiment et le point donné",
+                                                            },
+                                                        },
                                                     },
                                                 ]
                                             },
@@ -462,7 +467,14 @@ class ListBuildings(RNBLoggingMixin, APIView):
                                         "results": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/components/schemas/Building",
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/Building"
+                                                    },
+                                                    {
+                                                        "$ref": "#/components/schemas/BuildingWPlots"
+                                                    },
+                                                ]
                                             },
                                         },
                                     },
@@ -529,7 +541,10 @@ class SingleBuilding(APIView):
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Building",
+                                    "allOf": [
+                                        {"$ref": "#/components/schemas/Building"},
+                                        {"$ref": "#/components/schemas/BuildingWPlots"},
+                                    ]
                                 }
                             }
                         },
