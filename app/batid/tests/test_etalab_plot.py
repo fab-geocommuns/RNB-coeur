@@ -14,4 +14,4 @@ class ReleaseDate(TestCase):
 
         # Test on the day of a new release
         release = etalab_recent_release_date(date(2025, 7, 1))
-        self.assertEqual(release, "2024-04-01")
+        self.assertEqual(release, "2025-04-01")
