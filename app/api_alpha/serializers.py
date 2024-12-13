@@ -64,7 +64,6 @@ class ExtIdSerializer(serializers.Serializer):
 
 
 class BuildingSerializer(serializers.ModelSerializer):
-
     def __init__(self, *args, **kwargs):
 
         # We have to intercept the with_plots arguments before passing to the parent class

@@ -1,24 +1,21 @@
-from django.contrib.gis.db.models.functions import Area
 from django.contrib.gis.geos import Polygon
-from django.contrib.postgres.aggregates import ArrayAgg
-from django.db.models import (
-    QuerySet,
-    OuterRef,
-    Subquery,
-    Case,
-    When,
-    Func,
-    ExpressionWrapper,
-    Value,
-    CharField,
-    FloatField,
-    F,
-)
-from django.db.models.functions import Concat
-from django.db.models.lookups import Exact, In
+from django.db.models import Case
+from django.db.models import CharField
+from django.db.models import ExpressionWrapper
+from django.db.models import F
+from django.db.models import FloatField
+from django.db.models import Func
+from django.db.models import OuterRef
+from django.db.models import QuerySet
+from django.db.models import Subquery
+from django.db.models import Value
+from django.db.models import When
+from django.db.models.lookups import Exact
+from django.db.models.lookups import In
 
-from batid.models import Building, Plot
+from batid.models import Building
 from batid.models import City
+from batid.models import Plot
 from batid.services.bdg_status import BuildingStatus
 
 

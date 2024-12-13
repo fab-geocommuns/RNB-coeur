@@ -1,11 +1,11 @@
 import json
 
-from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
 
 from batid.list_bdg import list_bdgs
-from batid.models import Building, Plot
+from batid.models import Building
+from batid.models import Plot
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.tests.helpers import create_bdg
 from batid.tests.helpers import create_grenoble
@@ -232,7 +232,6 @@ class SearchCityTestCase(TestCase):
 
 
 class SearchWithPlots(TestCase):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

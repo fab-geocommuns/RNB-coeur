@@ -7,10 +7,11 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from api_alpha.permissions import RNBContributorPermission
-from batid.models import Address, Plot
+from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import Organization
+from batid.models import Plot
 from batid.models import User
 from batid.tests.helpers import create_bdg
 from batid.tests.helpers import create_grenoble
@@ -1049,7 +1050,6 @@ class BuildingPatchTest(APITestCase):
 
 
 class BuildingsWithPlots(APITestCase):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bdg_one = None
