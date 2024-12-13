@@ -64,6 +64,19 @@ class ExtIdSerializer(serializers.Serializer):
 
 
 class BuildingSerializer(serializers.ModelSerializer):
+
+    def __init__(self, *args, **kwargs):
+
+        # We have to intercept the with_plots arguments before passing to the parent class
+        with_plots = kwargs.pop("with_plots", False)
+
+        # Trigger the parent class init
+        super().__init__(*args, **kwargs)
+
+        # If with_plots is False, we remove the plots field from the fields list
+        if not with_plots:
+            self.fields.pop("plots")
+
     point = serializers.DictField(
         source="point_geojson",
         read_only=True,
@@ -76,6 +89,7 @@ class BuildingSerializer(serializers.ModelSerializer):
         many=True, read_only=True, source="addresses_read_only"
     )
     ext_ids = ExtIdSerializer(many=True, read_only=True)
+    plots = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Building
@@ -87,6 +101,7 @@ class BuildingSerializer(serializers.ModelSerializer):
             "addresses",
             "ext_ids",
             "is_active",
+            "plots",
         ]
 
 

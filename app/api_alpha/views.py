@@ -468,12 +468,20 @@ class ListBuildings(RNBLoggingMixin, APIView):
     )
     def get(self, request):
         query_params = request.query_params.dict()
+
+        # add user to query params
         query_params["user"] = request.user
         buildings = list_bdgs(query_params)
         paginator = BuildingCursorPagination()
 
+        # check if we need to include plots
+        with_plots = request.query_params.get("withPlots", False)
+
+        # paginate
         paginated_buildings = paginator.paginate_queryset(buildings, request)
-        serializer = BuildingSerializer(paginated_buildings, many=True)
+        serializer = BuildingSerializer(
+            paginated_buildings, with_plots=with_plots, many=True
+        )
 
         return paginator.get_paginated_response(serializer.data)
 
