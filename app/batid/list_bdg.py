@@ -91,8 +91,6 @@ def list_bdgs(params, only_active=True) -> QuerySet:
     with_plots = params.get("withPlots", None)
     if with_plots == "1":
 
-        bdg_cover_ratio_func = Func()
-
         # Subquery to get the plots ids and the bdg_cover_ratio
         # This quite a big nested query. Here is the breakdwon:
         # - We filter the plots that intersects the building shape

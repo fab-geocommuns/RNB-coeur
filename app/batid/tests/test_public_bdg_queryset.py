@@ -237,7 +237,9 @@ class SearchWithPlots(TestCase):
         super().__init__(*args, **kwargs)
 
         self.bdg_on_both_plots = None
-        self.bdg_not_covered_enough = None
+        self.bdg_minuscule_corner = None
+        self.bdg_point = None
+        self.bdg_point_on_exact_corner = None
 
     def setUp(self):
 
@@ -317,7 +319,7 @@ class SearchWithPlots(TestCase):
             ),
         )
 
-        self.bdg_not_covered_enough = Building.create_new(
+        self.bdg_minuscule_corner = Building.create_new(
             user=None,
             event_origin={"dummy": "dummy"},
             status="constructed",
@@ -341,15 +343,97 @@ class SearchWithPlots(TestCase):
             ),
         )
 
-    def test_bdg_on_both_plots(self):
-        qs = list_bdgs({"withPlots": "1"})
+        self.bdg_point = Building.create_new(
+            user=None,
+            event_origin={"dummy": "dummy"},
+            status="constructed",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [0.9104898999294733, 44.8489512225878],
+                        "type": "Point",
+                    }
+                )
+            ),
+        )
 
-        print(qs.query)
+        # This building is on the exact corner of one of the plot
+        self.bdg_point_on_exact_corner = Building.create_new(
+            user=None,
+            event_origin={"dummy": "dummy"},
+            status="constructed",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [0.9105774090996306, 44.84936803275076],
+                        "type": "Point",
+                    }
+                )
+            ),
+        )
+
+    def test_bdg_on_both_plots(self):
+        qs = list_bdgs({"withPlots": "1"}).filter(rnb_id=self.bdg_on_both_plots.rnb_id)
+
+        # Check there is only one building
+        count = qs.count()
+        self.assertEqual(count, 1)
 
         bdg = qs.first()
+
+        bdg_plots_ids = [plot["id"] for plot in bdg.plots]
+        self.assertListEqual(["one", "two"], bdg_plots_ids)
+
+        self.assertAlmostEqual(bdg.plots[0]["bdg_cover_ratio"], 0.52, delta=0.01)
+        self.assertAlmostEqual(bdg.plots[1]["bdg_cover_ratio"], 0.44, delta=0.01)
+
+    def test_minuscule_intersection(self):
+        qs = list_bdgs({"withPlots": "1"}).filter(
+            rnb_id=self.bdg_minuscule_corner.rnb_id
+        )
+
+        # Check there is only one building
         count = qs.count()
+        self.assertEqual(count, 1)
 
-        self.assertEqual(bdg.rnb_id, self.bdg_on_both_plots.rnb_id)
-        self.assertEqual(count, 2)
+        bdg = qs.first()
 
-        self.assertListEqual(["one", "two"], bdg.plots)
+        bdg_plots_ids = [plot["id"] for plot in bdg.plots]
+        self.assertListEqual(["two"], bdg_plots_ids)
+        self.assertAlmostEqual(bdg.plots[0]["bdg_cover_ratio"], 0.0016, delta=0.0001)
+
+    def test_bdg_point(self):
+        """
+        When checking for building with point the intersecting ratio is always 1
+
+        """
+
+        qs = list_bdgs({"withPlots": "1"}).filter(rnb_id=self.bdg_point.rnb_id)
+
+        # Check there is only one building
+        count = qs.count()
+        self.assertEqual(count, 1)
+
+        bdg = qs.first()
+        bdg_plots_ids = [plot["id"] for plot in bdg.plots]
+        self.assertListEqual(["one"], bdg_plots_ids)
+        self.assertEqual(bdg.plots[0]["bdg_cover_ratio"], 1.0)
+
+    def test_bdg_point_on_exact_corner(self):
+
+        qs = list_bdgs({"withPlots": "1"}).filter(
+            rnb_id=self.bdg_point_on_exact_corner.rnb_id
+        )
+
+        # Check there is only one building
+        count = qs.count()
+        self.assertEqual(count, 1)
+
+        bdg = qs.first()
+        bdg_plots_ids = [plot["id"] for plot in bdg.plots]
+        self.assertListEqual(["one"], bdg_plots_ids)
+        self.assertEqual(bdg.plots[0]["bdg_cover_ratio"], 1.0)
