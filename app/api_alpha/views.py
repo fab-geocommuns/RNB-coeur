@@ -285,7 +285,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                     {
                         "name": "q",
                         "in": "query",
-                        "description": "Liste les bâtiments du RNB associés à cette adresse. L'adresse fournie est recherchée dans la BAN afin de récupérer la clé d'interopérabilité associée. C'est via cette clé que sont filtrés les bâtiments. Si le geocodage échoue aucun résultat n'est renvoyé et le champ 'status' de la réponse contient 'geocoding_no_results'",
+                        "description": "Liste les bâtiments du RNB associés à cette adresse. L'adresse fournie est recherchée dans la BAN afin de récupérer la clé d'interopérabilité associée. C'est via cette clé que sont filtrés les bâtiments. Si le geocodage échoue aucun résultat n'est renvoyé et le champ 'status' de la réponse contient 'geocoding_no_result'",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "4 rue scipion, 75005 Paris",
@@ -295,8 +295,8 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": "Score minimal attendu du géocodage BAN. Si le score est strictement inférieur à cette limite, aucun résultat n'est renvoyé et le champ 'status' de la réponse contient 'geocoding_score_is_too_low'",
                         "required": False,
-                        "schema": {"type": "string"},
-                        "example": "4 rue scipion, 75005 Paris",
+                        "schema": {"type": "float"},
+                        "example": "0.9",
                     },
                     {
                         "name": "cle_interop_ban",
@@ -332,12 +332,12 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                                         },
                                         "status": {
                                             "type": "string",
-                                            "description": "'geocoding_score_is_too_low' si le géocodage BAN renvoie un score inférieur à 'min_score'. 'geocoding_no_results' si le géocodage ne renvoie pas de résultats. 'ok' sinon",
+                                            "description": "'geocoding_score_is_too_low' si le géocodage BAN renvoie un score inférieur à 'min_score'. 'geocoding_no_result' si le géocodage ne renvoie pas de résultats. 'ok' sinon",
                                             "nullable": False,
                                         },
                                         "score_ban": {
                                             "type": "float",
-                                            "description": "Si un géocodage a lieu, renvoie le score du meilleur résultat, celui qui est utilisé pour lister les bâtiments. Ce score doit être supérieur à 'min_score' pour que des bâtiments soient renvoyés.",
+                                            "description": "Si un géocodage a lieu, renvoie le score du meilleur résultat, celui utilisé pour lister les bâtiments. Ce score doit être supérieur à 'min_score' pour que des bâtiments soient renvoyés.",
                                             "nullable": False,
                                         },
                                         "results": {
@@ -380,7 +380,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                 infos["score_ban"] = score
 
                 if cle_interop_ban is None:
-                    infos["status"] = "geocoding_no_results"
+                    infos["status"] = "geocoding_no_result"
                     return paginator.get_paginated_response(None, infos)
                 if score is not None and score < min_score:
                     infos["status"] = "geocoding_score_is_too_low"

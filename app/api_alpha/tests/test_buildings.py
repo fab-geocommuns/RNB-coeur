@@ -886,7 +886,7 @@ class BuildingAddressViewTest(APITestCase):
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertEqual(data["cle_interop_ban"], None)
-        self.assertEqual(data["status"], "geocoding_no_results")
+        self.assertEqual(data["status"], "geocoding_no_result")
         self.assertEqual(data["score_ban"], None)
         self.assertEqual(data["results"], None)
 
