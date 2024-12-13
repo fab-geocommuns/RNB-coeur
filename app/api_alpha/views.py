@@ -430,6 +430,14 @@ class ListBuildings(RNBLoggingMixin, APIView):
                         "schema": {"type": "string"},
                         "example": "48.845782,2.424525,48.839201,2.434158",
                     },
+                    {
+                        "name": "withPlots",
+                        "in": "query",
+                        "description": "Inclure les parcelles intersectant les bâtiments de la réponse. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "1",
+                    },
                 ],
                 "responses": {
                     "200": {
@@ -469,13 +477,15 @@ class ListBuildings(RNBLoggingMixin, APIView):
     def get(self, request):
         query_params = request.query_params.dict()
 
+        # check if we need to include plots
+        with_plots_param = request.query_params.get("withPlots", None)
+        with_plots = True if with_plots_param == "1" else False
+        query_params["with_plots"] = with_plots
+
         # add user to query params
         query_params["user"] = request.user
         buildings = list_bdgs(query_params)
         paginator = BuildingCursorPagination()
-
-        # check if we need to include plots
-        with_plots = request.query_params.get("withPlots", False)
 
         # paginate
         paginated_buildings = paginator.paginate_queryset(buildings, request)
@@ -521,9 +531,17 @@ class SingleBuilding(APIView):
         }
     )
     def get(self, request, rnb_id):
-        qs = list_bdgs({"user": request.user, "status": "all"}, only_active=False)
+
+        # check if we need to include plots
+        with_plots_param = request.query_params.get("withPlots", False)
+        with_plots = True if with_plots_param == "1" else False
+
+        qs = list_bdgs(
+            {"user": request.user, "status": "all", "with_plots": with_plots},
+            only_active=False,
+        )
         building = get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
-        serializer = BuildingSerializer(building)
+        serializer = BuildingSerializer(building, with_plots=with_plots)
 
         return Response(serializer.data)
 

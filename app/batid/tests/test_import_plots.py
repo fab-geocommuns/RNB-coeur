@@ -12,9 +12,17 @@ from batid.models import Plot
 class ImportPlotsTestCase(TestCase):
     @patch("batid.services.imports.import_plots.Source")
     def test_import_plot_data(self, sourceMock):
+
+        bu_fixture_path = helpers.fixture_path("cadastre_extract_data.json")
+        fixture_path = helpers.fixture_path("cadastre_extract_copy.json")
+
+        # We have to make a copy of the origin file since the import process will delete the source file
+        with open(bu_fixture_path, "r") as f, open(fixture_path, "w") as f_copy:
+            f_copy.write(f.read())
+
         # set up the source mock to return a path to our local fixture
         source_instance = sourceMock.return_value
-        source_instance.path = helpers.fixture_path("cadastre_extract.json")
+        source_instance.path = fixture_path
 
         # launch the import
         import_plots.import_etalab_plots("75")

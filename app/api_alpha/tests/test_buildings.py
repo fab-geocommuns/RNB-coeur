@@ -465,8 +465,6 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
             ],
         }
 
-        print(data)
-
         self.assertEqual(len(data["results"]), 3)
         self.assertDictEqual(data, expected)
 
@@ -1159,9 +1157,137 @@ class BuildingsWithPlots(APITestCase):
         )
 
     def test_with_plots(self):
+
+        expected_w_plots = {
+            "next": None,
+            "previous": None,
+            "results": [
+                {
+                    "rnb_id": self.bdg_one.rnb_id,
+                    "status": "constructed",
+                    "point": {
+                        "type": "Point",
+                        "coordinates": [0.910481632368284, 44.84916325921506],
+                    },
+                    "shape": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [0.910400588657524, 44.84928501664322],
+                                [0.91029015119156, 44.84910387339187],
+                                [0.910569988499674, 44.84904017453093],
+                                [0.910669195036661, 44.84922264503825],
+                                [0.910400588657524, 44.84928501664322],
+                            ]
+                        ],
+                    },
+                    "addresses": [],
+                    "ext_ids": [],
+                    "is_active": True,
+                    "plots": [
+                        {"id": "one", "bdg_cover_ratio": 0.529665644404105},
+                        {"id": "two", "bdg_cover_ratio": 0.4490196151882506},
+                    ],
+                },
+                {
+                    "rnb_id": self.bdg_two.rnb_id,
+                    "status": "constructed",
+                    "point": {
+                        "type": "Point",
+                        "coordinates": [0.910251599012782, 44.84955092513704],
+                    },
+                    "shape": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [0.910139276154524, 44.849463423418655],
+                                [0.910327942131403, 44.849432783031574],
+                                [0.910382796556888, 44.84963842685542],
+                                [0.91014841855926, 44.84964255150933],
+                                [0.910139276154524, 44.849463423418655],
+                            ]
+                        ],
+                    },
+                    "addresses": [],
+                    "ext_ids": [],
+                    "is_active": True,
+                    "plots": [{"id": "two", "bdg_cover_ratio": 0.0016624281607746448}],
+                },
+            ],
+        }
+
+        # ###############
+        # First we check with "withPlots" parameter
         r = self.client.get("/api/alpha/buildings/?withPlots=1")
         self.assertEqual(r.status_code, 200)
 
         data = r.json()
+        self.assertDictEqual(data, expected_w_plots)
 
-        print(data)
+        # ###############
+        # Then we test the same request without the "withPlots" parameter
+        expected_wo_plots = expected_w_plots.copy()
+        for bdg in expected_wo_plots["results"]:
+            bdg.pop("plots")
+
+        r = self.client.get("/api/alpha/buildings/")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_wo_plots)
+
+        # ###############
+        # Finally, we test the request with "withPlots=0"
+        r = self.client.get("/api/alpha/buildings/?withPlots=0")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_wo_plots)
+
+    def test_single_bdg(self):
+
+        expected_w_plots = {
+            "rnb_id": self.bdg_one.rnb_id,
+            "status": "constructed",
+            "point": {
+                "type": "Point",
+                "coordinates": [0.910481632368284, 44.84916325921506],
+            },
+            "shape": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [0.910400588657524, 44.84928501664322],
+                        [0.91029015119156, 44.84910387339187],
+                        [0.910569988499674, 44.84904017453093],
+                        [0.910669195036661, 44.84922264503825],
+                        [0.910400588657524, 44.84928501664322],
+                    ]
+                ],
+            },
+            "addresses": [],
+            "ext_ids": [],
+            "is_active": True,
+            "plots": [
+                {"id": "one", "bdg_cover_ratio": 0.529665644404105},
+                {"id": "two", "bdg_cover_ratio": 0.4490196151882506},
+            ],
+        }
+
+        # First we test with "withPlots" parameter = 1
+        r = self.client.get(f"/api/alpha/buildings/{self.bdg_one.rnb_id}/?withPlots=1")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_w_plots)
+
+        # Then we test without the "withPlots" parameter
+        expected_wo_plots = expected_w_plots.copy()
+        expected_wo_plots.pop("plots")
+        r = self.client.get(f"/api/alpha/buildings/{self.bdg_one.rnb_id}/")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_wo_plots)
+
+        # Finally, we test with "withPlots=0"
+        r = self.client.get(f"/api/alpha/buildings/{self.bdg_one.rnb_id}/?withPlots=0")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_wo_plots)

@@ -377,7 +377,9 @@ class SearchWithPlots(TestCase):
         )
 
     def test_bdg_on_both_plots(self):
-        qs = list_bdgs({"withPlots": "1"}).filter(rnb_id=self.bdg_on_both_plots.rnb_id)
+        qs = list_bdgs({"with_plots": True}).filter(
+            rnb_id=self.bdg_on_both_plots.rnb_id
+        )
 
         # Check there is only one building
         count = qs.count()
@@ -392,7 +394,7 @@ class SearchWithPlots(TestCase):
         self.assertAlmostEqual(bdg.plots[1]["bdg_cover_ratio"], 0.44, delta=0.01)
 
     def test_minuscule_intersection(self):
-        qs = list_bdgs({"withPlots": "1"}).filter(
+        qs = list_bdgs({"with_plots": True}).filter(
             rnb_id=self.bdg_minuscule_corner.rnb_id
         )
 
@@ -412,7 +414,7 @@ class SearchWithPlots(TestCase):
 
         """
 
-        qs = list_bdgs({"withPlots": "1"}).filter(rnb_id=self.bdg_point.rnb_id)
+        qs = list_bdgs({"with_plots": True}).filter(rnb_id=self.bdg_point.rnb_id)
 
         # Check there is only one building
         count = qs.count()
@@ -425,7 +427,7 @@ class SearchWithPlots(TestCase):
 
     def test_bdg_point_on_exact_corner(self):
 
-        qs = list_bdgs({"withPlots": "1"}).filter(
+        qs = list_bdgs({"with_plots": True}).filter(
             rnb_id=self.bdg_point_on_exact_corner.rnb_id
         )
 
