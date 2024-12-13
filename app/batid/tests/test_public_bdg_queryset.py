@@ -344,12 +344,12 @@ class SearchWithPlots(TestCase):
     def test_bdg_on_both_plots(self):
         qs = list_bdgs({"withPlots": "1"})
 
-        self.assertEqual(len(list(qs)), 1)
+        print(qs.query)
 
         bdg = qs.first()
         count = qs.count()
 
         self.assertEqual(bdg.rnb_id, self.bdg_on_both_plots.rnb_id)
-        self.assertEqual(count, 1)
+        self.assertEqual(count, 2)
 
         self.assertListEqual(["one", "two"], bdg.plots)

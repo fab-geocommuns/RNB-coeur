@@ -1,6 +1,21 @@
+from django.contrib.gis.db.models.functions import Area
 from django.contrib.gis.geos import Polygon
 from django.contrib.postgres.aggregates import ArrayAgg
-from django.db.models import QuerySet, OuterRef, Subquery
+from django.db.models import (
+    QuerySet,
+    OuterRef,
+    Subquery,
+    Case,
+    When,
+    Func,
+    ExpressionWrapper,
+    Value,
+    CharField,
+    FloatField,
+    F,
+)
+from django.db.models.functions import Concat
+from django.db.models.lookups import Exact, In
 
 from batid.models import Building, Plot
 from batid.models import City
@@ -76,30 +91,73 @@ def list_bdgs(params, only_active=True) -> QuerySet:
     with_plots = params.get("withPlots", None)
     if with_plots == "1":
 
-        # Subquery to get the plots ids
-        # subquery = Plot.objects.filter(shape__intersects=OuterRef("shape")).values("id")
-        # qs = qs.annotate(plots=SubqueryArrayAgg(subquery, "id"))
+        bdg_cover_ratio_func = Func()
 
-        subquery = Plot.objects.raw(
-            "SELECT id FROM batid_plot WHERE id = 'one'",
+        # Subquery to get the plots ids and the bdg_cover_ratio
+        # This quite a big nested query. Here is the breakdwon:
+        # - We filter the plots that intersects the building shape
+        # - We annotate the bdg_cover_ratio field with the ratio of the building shape that is covered by the plot
+        # - We use a Case statement to handle the different geometry types (Point, Polygon)
+        # - We use a subquery to get the plots ids and the bdg_cover_ratio
+        # - We make an array of them in the "plot" field in the main query (PlotsAggSubquery)
+        subquery = (
+            Plot.objects.filter(shape__intersects=OuterRef("shape"))
+            .annotate(
+                bdg_cover_ratio=Case(
+                    # When the building shape is a point, the intersecting ratio is 1 (we hard code it since SQL returns 0 instead of 1)
+                    When(
+                        Exact(
+                            Func(OuterRef("shape"), function="ST_GeometryType"),
+                            "ST_Point",
+                        ),
+                        then=Value(1.0),
+                    ),
+                    # When the building shape is a polygon or a multipolygon, we calculate the intersecting ratio
+                    When(
+                        In(
+                            Func(
+                                OuterRef("shape"),
+                                function="ST_GeometryType",
+                                output_field=CharField(),
+                            ),
+                            ("ST_Polygon", "ST_MultiPolygon"),
+                        ),
+                        then=(
+                            # This is the formula to calculate the intersecting ratio
+                            ExpressionWrapper(
+                                (
+                                    # We get the area of the intersection between the building shape and the plot shape
+                                    Func(
+                                        Func(
+                                            OuterRef("shape"),
+                                            F("shape"),
+                                            function="ST_Intersection",
+                                        ),
+                                        function="ST_Area",
+                                        output_field=FloatField(),
+                                    )
+                                    # We divide it ...
+                                    /
+                                    # ... by the area of the building shape
+                                    Func(
+                                        OuterRef("shape"),
+                                        function="ST_Area",
+                                        output_field=FloatField(),
+                                    )
+                                ),
+                                output_field=FloatField(),
+                            )
+                        ),
+                    ),
+                    default=Value(0.0),
+                )
+            )
+            .values("id", "bdg_cover_ratio")
         )
-        qs = qs.annotate(plots=Subquery(subquery))
+        qs = qs.annotate(plots=PlotsAggSubquery(subquery))
 
     return qs
 
 
-class SubqueryAggregate(Subquery):
-    # https://code.djangoproject.com/ticket/10060
-    template = '(SELECT %(function)s(_agg."%(column)s") FROM (%(subquery)s) _agg)'
-
-    def __init__(self, queryset, column, output_field=None, **extra):
-        if not output_field:
-            # infer output_field from field type
-            output_field = queryset.model._meta.get_field(column)
-        super().__init__(
-            queryset, output_field, column=column, function=self.function, **extra
-        )
-
-
-class SubqueryArrayAgg(SubqueryAggregate):
-    function = "ARRAY_AGG"
+class PlotsAggSubquery(Subquery):
+    template = "(SELECT json_agg(json_build_object('id', _agg.id, 'bdg_cover_ratio', _agg.bdg_cover_ratio)) FROM (%(subquery)s) _agg)"
