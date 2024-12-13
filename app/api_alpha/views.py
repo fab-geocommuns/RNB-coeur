@@ -513,7 +513,15 @@ class SingleBuilding(APIView):
                         "required": True,
                         "schema": {"type": "string"},
                         "example": "PG46YY6YWCX8",
-                    }
+                    },
+                    {
+                        "name": "withPlots",
+                        "in": "query",
+                        "description": "Inclure les parcelles intersectant le bâtiment. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment par cette parcelle.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "1",
+                    },
                 ],
                 "responses": {
                     "200": {
