@@ -470,6 +470,8 @@ class Plot(models.Model):
     id = models.CharField(max_length=40, primary_key=True, db_index=True)
     shape = models.MultiPolygonField(null=True, srid=4326)
 
+    source_version = models.CharField(max_length=20, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
