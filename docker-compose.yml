@@ -74,8 +74,6 @@ services:
       service: metabase
     env_file:
       - ./.env.metabase.dev
-    ports:
-      - '3000:3000'
 
 volumes:
   postgres_data:
