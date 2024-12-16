@@ -105,14 +105,15 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
         return headers
 
     def dispatch(self, request, *args, **kwargs):
-        kwargs['path'] = kwargs.get('path') or ''
-        if kwargs['path'].startswith("/"):
-            kwargs['path'] = kwargs['path'][1:]
+        kwargs["path"] = kwargs.get("path") or ""
+        if kwargs["path"].startswith("/"):
+            kwargs["path"] = kwargs["path"][1:]
         return super().dispatch(request, *args, **kwargs)
 
     @classmethod
     def as_url(cls):
-        return re_path(r'^metabase(?P<path>/.*)?$', cls.as_view())
+        return re_path(r"^metabase(?P<path>/.*)?$", cls.as_view())
+
 
 def contribution(request, contribution_id):
     if not request.user.is_superuser:
