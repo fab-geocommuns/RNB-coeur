@@ -7,14 +7,16 @@ from batid.models import Building
 from batid.models import BuildingHistoryOnly
 
 
-def fix(batch_size=10000):
+def fix(from_rnb_id, to_rnb_id, batch_size=10000):
 
     n = 1
-    rnb_id_cut = "0"
+
+    rnb_id_cut = "0" if from_rnb_id is None else from_rnb_id
+    end_condition = "" if to_rnb_id is None else f"and rnb_id <= '{to_rnb_id}'"
 
     while n > 0:
         buildings = Building.objects.raw(
-            f"select id, rnb_id from batid_building bb where rnb_id > '{rnb_id_cut}' order by rnb_id limit {batch_size};"
+            f"select id, rnb_id from batid_building bb where rnb_id > '{rnb_id_cut}' {end_condition} order by rnb_id limit {batch_size};"
         )
         n = len(buildings)
 
@@ -23,7 +25,7 @@ def fix(batch_size=10000):
         else:
             rnb_id_cut = buildings[-1].rnb_id
             print(
-                f"cleaning db, currently fixing from {buildings[0].rnb_id } to {rnb_id_cut}"
+                f"cleaning db from {from_rnb_id} to {to_rnb_id}, currently fixing from {buildings[0].rnb_id } to {rnb_id_cut}"
             )
 
         with transaction.atomic():

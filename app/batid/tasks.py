@@ -245,8 +245,8 @@ def renew_stats():
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
-def fill_empty_event_origin(batch_size=10000):
-    fix_fill_empty_event_origin(batch_size)
+def fill_empty_event_origin(from_rnb_id=None, to_rnb_id=None, batch_size=10000):
+    fix_fill_empty_event_origin(from_rnb_id, to_rnb_id, batch_size)
     return "done"
 
 

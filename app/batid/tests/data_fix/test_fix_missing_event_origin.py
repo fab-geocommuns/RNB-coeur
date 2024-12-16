@@ -42,7 +42,9 @@ class FixMissingEventOriginTest(TransactionTestCase):
         )
 
         # we set a small batch size, to check the loop is working properly
-        fix(batch_size=1)
+        fix(from_rnb_id=None, to_rnb_id="2", batch_size=1)
+        fix(from_rnb_id="2", to_rnb_id="BUILDING_4", batch_size=1)
+        fix(from_rnb_id="BUILDING_4", to_rnb_id=None, batch_size=1)
 
         # three versions have been squashed together
         fixed_buildings_1 = (
