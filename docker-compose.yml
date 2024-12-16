@@ -68,6 +68,15 @@ services:
     env_file:
       - ./.env.worker.dev
 
+  metabase:
+    extends:
+      file: common-services.yml
+      service: metabase
+    env_file:
+      - ./.env.metabase.dev
+    ports:
+      - '3000:3000'
+
 volumes:
   postgres_data:
   rabbitmq_data:

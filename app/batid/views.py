@@ -93,6 +93,7 @@ class FlowerProxyView(UserPassesTestMixin, ProxyView):
 
 class MetabaseProxyView(UserPassesTestMixin, ProxyView):
     upstream = "http://metabase:{}".format(os.environ.get("METABASE_PORT", "3000"))
+    add_x_forwarded = True
 
     def test_func(self):
         return self.request.user.is_superuser
@@ -104,14 +105,14 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
         return headers
 
     def dispatch(self, request, *args, **kwargs):
-        if kwargs.get("path", "").startswith("metabase/"):
-            kwargs["path"] = kwargs["path"][len("metabase/") :]
+        kwargs['path'] = kwargs.get('path') or ''
+        if kwargs['path'].startswith("/"):
+            kwargs['path'] = kwargs['path'][1:]
         return super().dispatch(request, *args, **kwargs)
 
     @classmethod
     def as_url(cls):
-        return re_path(r"^metabase/(?P<path>.*)$", cls.as_view())
-
+        return re_path(r'^metabase(?P<path>/.*)?$', cls.as_view())
 
 def contribution(request, contribution_id):
     if not request.user.is_superuser:
