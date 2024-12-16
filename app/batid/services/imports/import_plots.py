@@ -21,7 +21,9 @@ from batid.services.source import Source
 
 def import_etalab_plots(dpt: str, release_date: str):
     """Import plots from Etalab"""
-    print("---- Importing Etalab plots ----")
+    print(
+        f"---- Importing Etalab plots for departement {dpt} - release date {release_date} ----"
+    )
 
     src = Source("plot")
     src.set_param("dpt", dpt)
@@ -32,15 +34,15 @@ def import_etalab_plots(dpt: str, release_date: str):
 
         plots = list(map(_feature_to_row, features))
 
-        for idx, plot in enumerate(plots):
-            plots[idx].append(release_date)
+        for plot in plots:
+            plot.append(release_date)
 
         with transaction.atomic():
             print("deleting plots with id starting with", dpt)
             Plot.objects.filter(id__startswith=dpt).delete()
             print("plots deleted")
 
-            print("saving plots")
+            print(f"saving plots for departement {dpt}")
             _save_plots(plots)
             print("plots saved")
 
