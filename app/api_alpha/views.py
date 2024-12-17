@@ -285,7 +285,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                     {
                         "name": "q",
                         "in": "query",
-                        "description": "Adresse texte non structurée. L'adresse fournie est recherchée dans la BAN afin de récupérer la clé d'interopérabilité associée. C'est via cette clé que sont filtrés les bâtiments. Si le geocodage échoue aucun résultat n'est renvoyé et le champ 'status' de la réponse contient 'geocoding_no_result'",
+                        "description": "Adresse texte non structurée. L'adresse fournie est recherchée dans la BAN afin de récupérer la clé d'interopérabilité associée. C'est via cette clé que sont filtrés les bâtiments. Si le geocodage échoue aucun résultat n'est renvoyé et le champ **status** de la réponse contient **geocoding_no_result**",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "4 rue scipion, 75005 Paris",
@@ -293,7 +293,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                     {
                         "name": "min_score",
                         "in": "query",
-                        "description": "Score minimal attendu du géocodage BAN. Valeur par défaut : 0.8. Si le score est strictement inférieur à cette limite, aucun résultat n'est renvoyé et le champ 'status' de la réponse contient 'geocoding_score_is_too_low'",
+                        "description": "Score minimal attendu du géocodage BAN. Valeur par défaut : **0.8**. Si le score est strictement inférieur à cette limite, aucun résultat n'est renvoyé et le champ **status** de la réponse contient **geocoding_score_is_too_low**",
                         "required": False,
                         "schema": {"type": "float"},
                         "example": "0.9",
