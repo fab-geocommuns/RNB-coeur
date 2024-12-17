@@ -8,7 +8,10 @@ from zipfile import ZipFile
 
 import boto3
 import requests
+from celery import Signature
 from django.db import connection
+
+from batid.services.administrative_areas import dpts_list
 
 
 def publish(areas_list):
@@ -50,12 +53,48 @@ def file_path(directory_name, code_area):
     return directory_name + "/RNB_" + str(code_area)
 
 
+def sql_query(code_area):
+    if code_area == "nat":
+        dpt_where = ""
+        dpt_join = ""
+    else:
+        dpt_where = f" AND dpt.code = '{code_area}'"
+        dpt_join = " LEFT JOIN batid_department_subdivided AS dpt ON ST_Intersects(dpt.shape, bdg.point)"
+
+    sql = f"""
+    COPY (
+        select bdg.rnb_id as rnb_id,
+        ST_AsEWKT(bdg.point) as point,
+        ST_AsEWKT(bdg.shape) as shape,
+        bdg.status as status,
+        bdg.ext_ids as ext_ids,
+        coalesce(json_agg(
+             json_build_object(
+                    'cle_interop_ban', addr.id,
+                    'street_number', addr.street_number,
+                    'street_rep', addr.street_rep,
+                    'street', addr.street,
+                    'city_zipcode', addr.city_zipcode,
+                    'city_name', addr.city_name
+                )
+
+        ) FILTER (WHERE addr.id IS NOT NULL), '[]'::json) AS addresses
+        FROM batid_building bdg
+        LEFT JOIN batid_buildingaddressesreadonly bdg_addr ON bdg_addr.building_id = bdg.id
+        LEFT JOIN batid_address addr ON addr.id = bdg_addr.address_id
+        {dpt_join}
+        WHERE is_active
+        {dpt_where}
+        GROUP BY bdg.rnb_id, bdg.point, bdg.shape, bdg.status, bdg.ext_ids
+    )  TO STDOUT WITH CSV HEADER DELIMITER ';'
+    """
+
+    return sql
+
+
 def create_csv(directory_name, code_area):
     with connection.cursor() as cursor:
-        if code_area == "nat":
-            sql = "COPY (SELECT rnb_id, point, shape, status, ext_ids, NULLIF(addresses::text, '[\"\"]') AS addresses, code_dept FROM opendata.data_gouv_publication) TO STDOUT WITH CSV HEADER DELIMITER ';'"
-        else:
-            sql = f"COPY (SELECT rnb_id, point, shape, status, ext_ids, NULLIF(addresses::text, '[\"\"]') AS addresses FROM opendata.data_gouv_publication WHERE code_dept = '{code_area}') TO STDOUT WITH CSV HEADER DELIMITER ';'"
+        sql = sql_query(code_area)
 
         with open(f"{file_path(directory_name, code_area)}.csv", "w") as fp:
             cursor.copy_expert(sql, fp)
@@ -248,6 +287,9 @@ def update_resource_metadata(
         "Content-Type": "application/json",
     }
 
+    print(f"Updating resource {resource_id} in dataset {dataset_id}")
+    print(f"Update URL: {update_url}")
+
     response = requests.put(
         update_url,
         headers=headers,
@@ -260,7 +302,12 @@ def update_resource_metadata(
             "format": format,
             "filesize": archive_size,
             "checksum": {"type": "sha1", "value": archive_sha1},
-            "last_modified": str(datetime.now()),
+            "extras": {
+                # This "analysis:last-modified-at" key is not documented in the data.gouv.fr API documentation
+                # but we can see here : https://github.com/opendatateam/udata/blob/13810fa64b76b316cd84dc2cc7dff7c3e7d6df4b/udata/core/dataset/models.py#L373
+                # that we can use it to update the last modification date of the resource if it is a "remote" file
+                "analysis:last-modified-at": str(datetime.now())
+            },
         },
     )
 
@@ -272,3 +319,18 @@ def update_resource_metadata(
 
 def cleanup_directory(directory_name):
     shutil.rmtree(directory_name)
+
+
+def get_area_publish_task(area: str):
+
+    if area == "nat":
+        return Signature("batid.tasks.publish_datagouv_national", immutable=True)
+
+    if area in dpts_list():
+        return Signature(
+            "batid.tasks.publish_datagouv_dpt", args=[area], immutable=True
+        )
+
+    raise ValueError(
+        f"Unknown area: {area}. It must be either 'nat' or a department code. '{area}' given."
+    )

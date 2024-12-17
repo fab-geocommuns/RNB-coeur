@@ -40,7 +40,7 @@ class Source:
                 "filename": "buffer.csv",
             },
             "bdtopo": {
-                "url": "https://data.geopf.fr/telechargement/download/BDTOPO/BDTOPO_3-3_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}/BDTOPO_3-3_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}.7z",
+                "url": "https://data.geopf.fr/telechargement/download/BDTOPO/BDTOPO_3-4_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}/BDTOPO_3-4_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}.7z",
                 "filename": "BATIMENT.shp",
             },
             "bdnb_2023_01": {
@@ -52,6 +52,7 @@ class Source:
                 "filename": "commune_insee.csv",
             },
             "export": {"filename": "export-{{city}}-{{date}}.geojson"},
+            "cached_stats": {"filename": "cached_stats.json"},
         }
 
     def set_param(self, p_key, p_val):

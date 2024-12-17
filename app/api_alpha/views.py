@@ -1,7 +1,8 @@
-import io
 import json
+import os
 from base64 import b64encode
 from datetime import datetime
+from datetime import timedelta
 
 import requests
 from django.conf import settings
@@ -11,8 +12,8 @@ from django.db import connection
 from django.db import transaction
 from django.http import HttpResponse
 from django.http import JsonResponse
+from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
@@ -22,10 +23,11 @@ from drf_spectacular.utils import extend_schema
 from drf_spectacular.utils import OpenApiResponse
 from psycopg2 import sql
 from rest_framework import mixins
-from rest_framework import status
+from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import action
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
@@ -37,16 +39,24 @@ from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
 
+from api_alpha.exceptions import BadRequest
+from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.permissions import ADSPermission
+from api_alpha.permissions import ReadOnly
+from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers import ADSSerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingSerializer
+from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import rnb_doc
+from batid.exceptions import BANAPIDown
+from batid.exceptions import BANBadResultType
+from batid.exceptions import BANUnknownCleInterop
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
@@ -54,9 +64,13 @@ from batid.models import Contribution
 from batid.models import Organization
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.guess_bdg import BuildingGuess
+from batid.services.mattermost import notify_tech
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.vector_tiles import tile_sql
+from batid.services.stats import ACTIVE_BUILDING_COUNT
+from batid.services.stats import get_stat as get_cached_stat
+from batid.services.vector_tiles import ads_tiles_sql
+from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
 from batid.utils.constants import ADS_GROUP_NAME
 
@@ -164,13 +178,78 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         return Response(serializer.data)
 
 
-@extend_schema(exclude=True)
 class BuildingClosestView(RNBLoggingMixin, APIView):
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Bâtiments les plus proches d'un point",
+                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments présents dans un rayon donné autour d'un point donné. Les bâtiments sont triés par distance croissante par rapport au point donné. NB : l'URL se termine nécessairement par un slash (/).",
+                "operationId": "closestBuildings",
+                "parameters": [
+                    {
+                        "name": "point",
+                        "in": "query",
+                        "description": "Latitude et longitude, séparées par une virgule, du point de recherche.",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "44.8201164915397,-0.5717449803671368",
+                    },
+                    {
+                        "name": "radius",
+                        "in": "query",
+                        "description": "Rayon de recherche en mètres, autour du point. Compris entre 0 et 1000 mètres.",
+                        "required": True,
+                        "schema": {"type": "integer"},
+                        "example": 1000,
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste paginée des bâtiments les plus proches du point donné",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "next": {
+                                            "type": "string",
+                                            "description": "URL de la page de résultats suivante",
+                                            "nullable": True,
+                                        },
+                                        "previous": {
+                                            "type": "string",
+                                            "description": "URL de la page de résultats précédente",
+                                            "nullable": True,
+                                        },
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/Building"
+                                                    },
+                                                    {
+                                                        "type": "number",
+                                                        "name": "distance",
+                                                        "description": "Distance en mètres entre le bâtiment et le point donné",
+                                                        "example": 6.78,
+                                                    },
+                                                ]
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    )
     def get(self, request, *args, **kwargs):
         query_serializer = BuildingClosestQuerySerializer(data=request.query_params)
 
         if query_serializer.is_valid():
-            # todo : si ouverture du endpoint au public : ne permettre de voir que les bâtiments dont le statut est public et qui représente un bâtiment réel (cf `BuildingStatus.REAL_BUILDINGS_STATUS`)
 
             point = request.query_params.get("point")
             radius = request.query_params.get("radius")
@@ -179,16 +258,13 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
             lng = float(lng)
             radius = int(radius)
 
-            qs = get_closest_from_point(lat, lng, radius)
-            bdg = qs.first()
+            # Get results and paginate
+            bdgs = get_closest_from_point(lat, lng, radius)
+            paginator = BuildingCursorPagination()
+            paginated_bdgs = paginator.paginate_queryset(bdgs, request)
+            serializer = BuildingClosestSerializer(paginated_bdgs, many=True)
 
-            if isinstance(bdg, Building):
-                serializer = BuildingClosestSerializer(bdg)
-                return Response(serializer.data)
-            else:
-                return Response(
-                    {"message": "No building found in the area"}, status=200
-                )
+            return paginator.get_paginated_response(serializer.data)
 
         else:
             # Invalid data, return validation errors
@@ -301,27 +377,7 @@ class BuildingCursorPagination(BasePagination):
         return b64encode(cursor.encode("ascii")).decode("ascii")
 
 
-class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
-    queryset = Building.objects.all().filter(is_active=True)
-    serializer_class = BuildingSerializer
-    http_method_names = ["get"]
-    lookup_field = "rnb_id"
-
-    pagination_class = BuildingCursorPagination
-    # pagination_class = PageNumberPagination
-
-    def get_object(self):
-        qs = list_bdgs({"user": self.request.user, "status": "all"}, only_active=False)
-        return get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
-
-    def get_queryset(self):
-        query_params = self.request.query_params.dict()
-        query_params["user"] = self.request.user
-
-        qs = list_bdgs(query_params)
-
-        return qs
-
+class ListBuildings(RNBLoggingMixin, APIView):
     @rnb_doc(
         {
             "get": {
@@ -410,11 +466,20 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
             },
         },
     )
-    def list(self, request, *args, **kwargs):
-        """
-        Renvoie une liste paginée de bâtiments. Des filtres (notamment par code INSEE de la commune) sont disponibles.
-        """
-        return super().list(request, *args, **kwargs)
+    def get(self, request):
+        query_params = request.query_params.dict()
+        query_params["user"] = request.user
+        buildings = list_bdgs(query_params)
+        paginator = BuildingCursorPagination()
+
+        paginated_buildings = paginator.paginate_queryset(buildings, request)
+        serializer = BuildingSerializer(paginated_buildings, many=True)
+
+        return paginator.get_paginated_response(serializer.data)
+
+
+class SingleBuilding(APIView):
+    permission_classes = [ReadOnly | RNBContributorPermission]
 
     @rnb_doc(
         {
@@ -447,11 +512,126 @@ class BuildingViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
             }
         }
     )
-    def retrieve(self, request, *args, **kwargs):
-        """
-        Renvoie les détails d'un bâtiment spécifique identifié par son RNB ID.
-        """
-        return super().retrieve(request, *args, **kwargs)
+    def get(self, request, rnb_id):
+        qs = list_bdgs({"user": request.user, "status": "all"}, only_active=False)
+        building = get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
+        serializer = BuildingSerializer(building)
+
+        return Response(serializer.data)
+
+    @rnb_doc(
+        {
+            "patch": {
+                "summary": "Mise à jour ou désactivation d'un bâtiment",
+                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
+                Il permet de :
+                <ul>
+                    <li> mettre à jour un bâtiment existant (status, addresses_cle_interop)</li>
+                    <li> de le désactiver (is_active) s'il s'avère qu'il ne devrait pas faire partir du RNB. Par exemple un arbre qui aurait été par erreur repertorié comme un bâtiment du RNB.</li>
+                </ul>
+                <br/><br/>
+                Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver.
+                <br/><br/>
+                Exemples valides: <br/>
+                <ul>
+                    <li>{"comment": "faux bâtiment", "is_active": False}</li>
+                    <li>{"comment": "bâtiment démoli", "status": "demolished"}</li>
+                    <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}</li>
+                </ul>""",
+                "operationId": "patchBuilding",
+                "parameters": [
+                    {
+                        "name": "rnb_id",
+                        "in": "path",
+                        "description": "Identifiant unique du bâtiment dans le RNB",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "PG46YY6YWCX8",
+                    }
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "comment": {
+                                        "type": "string",
+                                        "description": """Texte associé à la modification et la justifiant. <br /><br />Exemple : "Ce n'est pas un bâtiment mais un arbre." """,
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "description": "Une seule valeure est autorisée : False. Signifie que le bâtiment est désactivé, car sa présence dans le RNB est une erreur. Ne permet pas de signaler une démolition, qui se fait plutôt par une mise à jour du statut.",
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "description": f"Mise à jour du statut du bâtiment. Les valeurs possibles sont : <br /> {get_status_html_list()}<br />",
+                                    },
+                                    "addresses_cle_interop": {
+                                        "type": "list",
+                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
+                                    },
+                                },
+                                "required": ["comment"],
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "204": {
+                        "description": "Pas de contenu attendu dans la réponse en cas de succès",
+                    }
+                },
+            }
+        }
+    )
+    def patch(self, request, rnb_id):
+        serializer = BuildingUpdateSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            data = serializer.data
+            user = request.user
+            building = Building.objects.get(rnb_id=rnb_id)
+
+            with transaction.atomic():
+                contribution = Contribution(
+                    rnb_id=rnb_id,
+                    text=data["comment"],
+                    status="fixed",
+                    status_changed_at=datetime.now(),
+                    review_user=user,
+                )
+                contribution.save()
+
+                event_origin = {
+                    "source": "contribution",
+                    "contribution_id": contribution.id,
+                }
+
+                if data.get("is_active") == False:
+                    # a building that is not a building has its RNB ID deactivated from the base
+                    building.deactivate(user, event_origin)
+                else:
+                    status = data.get("status")
+                    addresses_cle_interop = data.get("addresses_cle_interop")
+
+                    try:
+                        building.update(
+                            user, event_origin, status, addresses_cle_interop
+                        )
+                    except BANAPIDown:
+                        raise ServiceUnavailable(detail="BAN API is currently down")
+                    except BANUnknownCleInterop:
+                        raise NotFound(
+                            detail="Cle d'intéropérabilité not found on the BAN API"
+                        )
+                    except BANBadResultType:
+                        raise BadRequest(
+                            detail="BAN result has not the expected type (must be 'numero')"
+                        )
+
+            # request is successful, no content to send back
+            return Response(status=http_status.HTTP_204_NO_CONTENT)
 
 
 class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
@@ -795,7 +975,23 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-class GetVectorTileView(APIView):
+class ADSVectorTileView(APIView):
+    def get(self, request, x, y, z):
+
+        # might do : include a minimum zoom level as it is done for buildings
+        tile_dict = url_params_to_tile(x, y, z)
+        sql = ads_tiles_sql(tile_dict)
+
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            tile_file = cursor.fetchone()[0]
+
+        return HttpResponse(
+            tile_file, content_type="application/vnd.mapbox-vector-tile"
+        )
+
+
+class BuildingsVectorTileView(APIView):
     @extend_schema(
         tags=["Tile"],
         operation_id="get_vector_tile",
@@ -842,7 +1038,7 @@ class GetVectorTileView(APIView):
         # Check the request zoom level
         if int(z) >= 16:
             tile_dict = url_params_to_tile(x, y, z)
-            sql = tile_sql(tile_dict, "point")
+            sql = bdgs_tiles_sql(tile_dict, "point")
 
             with connection.cursor() as cursor:
                 cursor.execute(sql)
@@ -859,7 +1055,7 @@ def get_tile_shape(request, x, y, z):
     # Check the request zoom level
     if int(z) >= 16:
         tile_dict = url_params_to_tile(x, y, z)
-        sql = tile_sql(tile_dict, "shape")
+        sql = bdgs_tiles_sql(tile_dict, "shape")
 
         with connection.cursor() as cursor:
             cursor.execute(sql)
@@ -898,8 +1094,17 @@ def get_stats(request):
     contributions_count = Contribution.objects.count()
     data_gouv_publication_count = get_data_gouv_publication_count()
 
+    # Get the cached value of the building count
+    bdg_count = get_cached_stat(ACTIVE_BUILDING_COUNT)
+    # check the "computed_at" date is not too old
+    if bdg_count["computed_at"] < datetime.now() - timedelta(days=2):
+        # if it is, we warn the tech channel
+        notify_tech(
+            f'Le calcul du nombre de bâtiments disponible dans le cache est trop vieux. Il date de {bdg_count["computed_at"].isoformat()}'
+        )
+
     data = {
-        "building_counts": building_counts,
+        "building_counts": bdg_count["value"],
         "api_calls_since_2024_count": api_calls_since_2024_count,
         "contributions_count": contributions_count,
         "data_gouv_publication_count": data_gouv_publication_count,
@@ -956,8 +1161,10 @@ class DiffView(APIView):
         }
     )
     def get(self, request):
-        # the day the quantity of data will be too big, we could stream the response
-        # see https://docs.djangoproject.com/en/5.0/howto/outputting-csv/#streaming-csv-files
+
+        # Alternative idea:
+        # In case the streaming solution becomes a problem (might be because of the process fork or any other reason), here is another idea for avoiding relying too heavily on the database:
+        # Since the list of modifications between two dates is static, we could precalculate large time chunks (eg: one each month) and save those results in CSV files. When the diff endpoint is requested, we could assemble some of those large CSV chunks into one, add remaining rows to complete the time period by fetching them from db and finally serve the combined file.
 
         since_input = request.GET.get("since", "")
         # parse since to a timestamp
@@ -967,56 +1174,91 @@ class DiffView(APIView):
             return HttpResponse(
                 "The 'since' parameter is missing or incorrect", status=400
             )
-
         # nobody should download the whole database
-        if since < parse_datetime("2024-04-01T00:00:00Z"):
+        elif since < parse_datetime("2024-04-01T00:00:00Z"):
             return HttpResponse(
                 "The 'since' parameter must be after 2024-04-01T00:00:00Z",
                 status=400,
             )
 
         with connection.cursor() as cursor:
-            sql_query = sql.SQL(
+            most_recent_modification_query = sql.SQL(
                 """
-                COPY (
-                    select
-                    CASE
-                        WHEN event_type = 'deletion' THEN 'delete'
-                        WHEN event_type = 'update' THEN 'update'
-                        WHEN event_type = 'split' and not is_active THEN 'delete'
-                        WHEN event_type = 'split' and is_active THEN 'create'
-                        WHEN event_type = 'merge' and not is_active THEN 'delete'
-                        WHEN event_type = 'merge' and is_active THEN 'create'
-                        ELSE 'create'
-                    END as action,
-                    rnb_id, status, sys_period, ST_AsEWKT(point) as point, ST_AsEWKT(shape) as shape, addresses_id, ext_ids from batid_building_with_history bb where lower(sys_period) > {t}::timestamp with time zone order by rnb_id, lower(sys_period)
-                ) TO STDOUT WITH CSV HEADER
+                select max(lower(sys_period)) from batid_building_with_history
                 """
-            ).format(t=sql.Literal(since.isoformat()))
-
-            file_output = io.StringIO()
-            with transaction.atomic():
-                cursor.copy_expert(sql_query, file_output)
-                most_recent_modification_query = sql.SQL(
-                    """
-                    select max(lower(sys_period)) from batid_building_with_history
-                    """
-                )
-                cursor.execute(most_recent_modification_query)
-
-            # most recent modification datetime is used in the filename
-            # so the user knows what "since" parameter he should use next time
+            )
+            cursor.execute(most_recent_modification_query)
             most_recent_modification = cursor.fetchone()[0]
             most_recent_modification = most_recent_modification.isoformat(sep="T")
 
-            file_output.seek(0)
-            response = HttpResponse(
-                file_output.getvalue(), content_type="text/csv", status=200
+        # file descriptors r, w for reading and writing
+        r, w = os.pipe()
+        # the process is forked
+        # would it be possible to avoid creating a new process
+        # and keep the streaming feature?
+        # https://stackoverflow.com/questions/78998534/stream-data-from-postgres-to-http-request-using-django-streaminghttpresponse?noredirect=1#comment139290268_78998534
+        processid = os.fork()
+
+        if processid:
+            # This is the parent process
+            # the parent will only read data coming from the child process, we can close w
+            os.close(w)
+            # data coming from the child process arrives here
+            r = os.fdopen(r)
+            return StreamingHttpResponse(
+                r,
+                content_type="text/csv",
+                headers={
+                    "Content-Disposition": f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+                },
             )
-            response[
-                "Content-Disposition"
-            ] = f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
-            return response
+        else:
+            # This is the child process
+            # the child will only write data, we can close r
+            os.close(r)
+            w = os.fdopen(w, "w")
+
+            with connection.cursor() as cursor:
+                sql_query = sql.SQL(
+                    """
+                    COPY (
+                        select
+                        CASE
+                            WHEN event_type = 'delete' THEN 'deactivate'
+                            WHEN event_type = 'deactivation' THEN 'deactivate'
+                            WHEN event_type = 'update' THEN 'update'
+                            WHEN event_type = 'split' and not is_active THEN 'deactivate'
+                            WHEN event_type = 'split' and is_active THEN 'create'
+                            WHEN event_type = 'merge' and not is_active THEN 'deactivate'
+                            WHEN event_type = 'merge' and is_active THEN 'create'
+                            ELSE 'create'
+                        END as action,
+                        rnb_id,
+                        status,
+                        is_active::int,
+                        sys_period,
+                        ST_AsEWKT(point) as point,
+                        ST_AsEWKT(shape) as shape,
+                        to_json(addresses_id) as addresses_id,
+                        COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
+                        parent_buildings,
+                        event_id,
+                        event_type
+                        FROM batid_building_with_history bb
+                        where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone
+                        order by rnb_id, lower(sys_period)
+                    ) TO STDOUT WITH CSV HEADER
+                    """
+                ).format(
+                    start=sql.Literal(since.isoformat()),
+                    end=sql.Literal(most_recent_modification),
+                )
+                # the data coming from the query is streamed to the file descriptor w
+                # and will be received by the parent process as a stream
+                cursor.copy_expert(sql_query, w)
+            w.close()
+            # the child process is terminated
+            os._exit(0)
 
 
 @extend_schema(exclude=True)
@@ -1029,35 +1271,9 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
         if serializer.is_valid():
             serializer.save()
-            if request.query_params.get("ranking") == "true" and request.data.get(
-                "email"
-            ):
-                count, rank = get_contributor_count_and_rank(request.data.get("email"))
-                response = dict(serializer.data)
-                response["contributor_count"] = count
-                response["contributor_rank"] = rank
-                return Response(response, status=201)
-            else:
-                return Response(serializer.data, status=201)
+            return Response(serializer.data, status=201)
         else:
             return Response(serializer.errors, status=400)
-
-    @action(detail=False, methods=["get"])
-    def ranking(self, request, *args, **kwargs):
-        individual = individual_ranking()
-        departement = departement_ranking()
-        city = city_ranking()
-        all_contributions = Contribution.objects.filter(
-            status__in=["fixed", "pending"],
-            created_at__lt=timezone.make_aware(datetime(2024, 9, 4)),
-        ).count()
-        data = {
-            "individual": individual,
-            "city": city,
-            "departement": departement,
-            "global": all_contributions,
-        }
-        return Response(data, status=200)
 
 
 def get_contributor_count_and_rank(email):
@@ -1172,6 +1388,20 @@ class AdsTokenView(APIView):
                 return JsonResponse({"created_users": users})
         except json.JSONDecodeError:
             return HttpResponse("Invalid JSON", status=400)
+
+
+class RNBAuthToken(ObtainAuthToken):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        token = Token.objects.get(key=response.data["token"])
+        user = token.user
+        return Response(
+            {
+                "token": token.key,
+                "username": user.username,
+                "groups": [group.name for group in user.groups.all()],
+            }
+        )
 
 
 class TokenScheme(OpenApiAuthenticationExtension):

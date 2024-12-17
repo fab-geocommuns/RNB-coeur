@@ -14,6 +14,8 @@ from django.urls import re_path
 from revproxy.views import ProxyView
 
 from app.celery import app as celery_app
+from batid.exceptions import BANAPIDown
+from batid.exceptions import BANUnknownCleInterop
 from batid.models import Building
 from batid.models import Contribution
 from batid.services.ads import export_format as ads_export_format
@@ -134,7 +136,7 @@ def delete_building(request):
                 return HttpResponseBadRequest("Cannot delete an inactive building.")
             # start a transaction
             with transaction.atomic():
-                building.soft_delete(
+                building.deactivate(
                     request.user,
                     {"source": "contribution", "contribution_id": contribution_id},
                 )
@@ -214,10 +216,16 @@ def update_building(request):
                     )
 
                     contribution.fix(request.user, review_comment)
-            except Exception as e:
+            except BANAPIDown as e:
                 return HttpResponseBadRequest(
-                    "Could not update the building. It is likely that this address does not exist yet in our database."
+                    "Could not update the building. There is a new address to save but BAN API is currently down."
                 )
+            except BANUnknownCleInterop as e:
+                return HttpResponseBadRequest(
+                    "Could not update the building. The given clé d'interopérabilité was not found on the BAN API."
+                )
+            except Exception as e:
+                return HttpResponseBadRequest("Could not update the building.")
 
             return render(
                 request,

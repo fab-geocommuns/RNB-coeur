@@ -57,7 +57,7 @@ class TestContributionsViews(TestCase):
 
         # Check that the building has been deleted
         building.refresh_from_db()
-        self.assertEqual(building.event_type, "delete")
+        self.assertEqual(building.event_type, "deactivation")
         self.assertIsNotNone(building.event_id)
         self.assertFalse(building.is_active)
         self.assertEqual(building.event_user, self.superuser)
@@ -151,7 +151,7 @@ class TestContributionsViews(TestCase):
         create_superuser_and_login(self)
 
         rnb_id = "1234"
-        building = Building.objects.create(rnb_id=rnb_id, event_type="create")
+        building = Building.objects.create(rnb_id=rnb_id, event_type="creation")
 
         contribution = Contribution.objects.create(
             rnb_id=rnb_id, text="Ce bâtiment n'existe pas"
@@ -170,7 +170,7 @@ class TestContributionsViews(TestCase):
 
         # Check that the building has not been modified.
         building.refresh_from_db()
-        self.assertEqual(building.event_type, "create")
+        self.assertEqual(building.event_type, "creation")
         self.assertIsNone(building.event_id)
         self.assertTrue(building.is_active)
         self.assertIsNone(building.event_user)
@@ -204,7 +204,7 @@ class TestContributionsViews(TestCase):
 
         rnb_id = "1234"
         building = Building.objects.create(
-            rnb_id=rnb_id, event_type="create", status="constructed"
+            rnb_id=rnb_id, event_type="creation", status="constructed"
         )
 
         address_1 = Address.objects.create(id="1")
@@ -249,7 +249,7 @@ class TestContributionsViews(TestCase):
 
         rnb_id = "1234"
         building = Building.objects.create(
-            rnb_id=rnb_id, event_type="create", status="constructed"
+            rnb_id=rnb_id, event_type="creation", status="constructed"
         )
 
         contribution = Contribution.objects.create(
@@ -295,7 +295,7 @@ class TestContributionsViews(TestCase):
         rnb_id_1 = "123"
         building_1 = Building.objects.create(
             rnb_id=rnb_id_1,
-            event_type="create",
+            event_type="creation",
             status="constructed",
             addresses_id=[address_1.id],
             shape="POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
@@ -304,7 +304,7 @@ class TestContributionsViews(TestCase):
         rnb_id_2 = "456"
         building_2 = Building.objects.create(
             rnb_id=rnb_id_2,
-            event_type="create",
+            event_type="creation",
             status="constructed",
             addresses_id=[address_2.id],
             shape="POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))",
@@ -372,7 +372,7 @@ class TestContributionsViews(TestCase):
         rnb_id_1 = "123"
         Building.objects.create(
             rnb_id=rnb_id_1,
-            event_type="create",
+            event_type="creation",
             status="constructed",
             addresses_id=[address_1.id],
             shape="POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
@@ -381,7 +381,7 @@ class TestContributionsViews(TestCase):
         rnb_id_2 = "456"
         Building.objects.create(
             rnb_id=rnb_id_2,
-            event_type="create",
+            event_type="creation",
             status="constructed",
             shape="POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))",
         )

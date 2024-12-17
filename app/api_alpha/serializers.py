@@ -5,12 +5,14 @@ from api_alpha.services import BuildingADS as BuildingADSLogic
 from api_alpha.services import can_manage_ads_in_request
 from api_alpha.validators import ads_validate_rnbid
 from api_alpha.validators import ADSValidator
+from api_alpha.validators import bdg_is_active
 from api_alpha.validators import BdgInADSValidator
 from batid.models import Address
 from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Contribution
+from batid.services.bdg_status import BuildingStatus
 from batid.services.rnb_id import clean_rnb_id
 
 
@@ -20,6 +22,10 @@ class RNBIdField(serializers.CharField):
 
 
 class ContributionSerializer(serializers.ModelSerializer):
+
+    # Add a validator to check if the building is active
+    rnb_id = serializers.CharField(validators=[bdg_is_active])
+
     class Meta:
         model = Contribution
         fields = ["rnb_id", "text", "email"]
@@ -33,8 +39,7 @@ class AddressSerializer(serializers.ModelSerializer):
             "source",
             "street_number",
             "street_rep",
-            "street_name",
-            "street_type",
+            "street",
             "city_name",
             "city_zipcode",
             "city_insee_code",
@@ -44,8 +49,7 @@ class AddressSerializer(serializers.ModelSerializer):
             "source": {"help_text": "bdnb"},
             "street_number": {"help_text": "3"},
             "street_rep": {"help_text": ""},
-            "street_name": {"help_text": "de l'eglise"},
-            "street_type": {"help_text": "rue"},
+            "street": {"help_text": "rue de l'eglise"},
             "city_name": {"help_text": "Chivy-lès-Étouvelles"},
             "city_zipcode": {"help_text": "02000"},
             "city_insee_code": {"help_text": "02191"},
@@ -71,6 +75,17 @@ class BuildingSerializer(serializers.ModelSerializer):
                             ]
                         }""",
     )
+    shape = serializers.DictField(
+        source="shape_geojson",
+        read_only=True,
+        help_text="""{
+                            "type": "Polygon",
+                            "coordinates": [[
+                                [100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
+                                [100.0, 1.0], [100.0, 0.0]
+                             ]]
+                        }""",
+    )
     addresses = AddressSerializer(
         many=True, read_only=True, source="addresses_read_only"
     )
@@ -82,6 +97,7 @@ class BuildingSerializer(serializers.ModelSerializer):
             "rnb_id",
             "status",
             "point",
+            "shape",
             "addresses",
             "ext_ids",
             "is_active",
@@ -144,6 +160,10 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
     def validate_radius(self, value):
         if value < 0:
             raise serializers.ValidationError("Radius must be positive")
+
+        if value > 1000:
+            raise serializers.ValidationError("Radius must be less than 1000 meters")
+
         return value
 
     # todo : si ouverture à usage externe, utiliser une validation du point plus complète. Exemple dispo dans BuildingGuessParams.__validate_point_from_url()
@@ -158,6 +178,39 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
             return value
         except:
             raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+
+
+class BuildingUpdateSerializer(serializers.Serializer):
+    is_active = serializers.BooleanField(required=False)
+    status = serializers.ChoiceField(
+        choices=BuildingStatus.ALL_TYPES_KEYS, required=False
+    )
+    addresses_cle_interop = serializers.ListField(
+        child=serializers.CharField(min_length=5, max_length=30),
+        allow_empty=True,
+        required=False,
+    )
+    comment = serializers.CharField(min_length=4, required=True)
+
+    def validate(self, data):
+        if data.get("is_active") is not None and (
+            data.get("status") is not None
+            or data.get("addresses_cle_interop") is not None
+        ):
+            raise serializers.ValidationError(
+                "you need to either set is_active or set status/addresses, not both at the same time"
+            )
+        if (
+            data.get("is_active") is None
+            and data.get("status") is None
+            and data.get("addresses_cle_interop") is None
+        ):
+            raise serializers.ValidationError("empty arguments in the request body")
+
+        if data.get("is_active") == True:
+            raise serializers.ValidationError("you can only set is_active to False")
+
+        return data
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):

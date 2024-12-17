@@ -1,6 +1,8 @@
 import copy
 
+from django.contrib.auth.models import Group
 from rest_framework import permissions
+from rest_framework.permissions import SAFE_METHODS
 
 from batid.services.ads import can_manage_ads
 
@@ -15,17 +17,28 @@ class ADSPermission(permissions.DjangoModelPermissions):
 
     def has_permission(self, request, view):
 
+        # Everybody can list and retrieve ADS
+        if view.action in ["list", "retrieve"]:
+            return True
+
+        # For others actions, we need to be authenticated and have the rights
         return request.user.is_authenticated and super().has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
 
+        # You are superuser? Please, be our guest
+        # Superuser -> all permissions
+        if request.user.is_authenticated and request.user.is_superuser:
+            return True
+
+        # Everybody can read ADS
+        if view.action in ["retrieve"]:
+            return True
+
+        # For others actions, we need to be authenticated and have the rights
         # Not authenticated users -> no permission
         if not request.user.is_authenticated:
             return False
-
-        # Super user -> all permissions
-        if request.user.is_authenticated and request.user.is_superuser:
-            return True
 
         # User does not have permission to perform this action (DjangoModelPermissions) -> no permission
         if not super().has_object_permission(request, view, obj):
@@ -87,3 +100,22 @@ class ADSPermission(permissions.DjangoModelPermissions):
 #         raise exceptions.PermissionDenied(detail="You can not edit ADS in this city.")
 #
 #     return city
+
+
+def is_in_group(user, group_name):
+    try:
+        return Group.objects.get(name=group_name).user_set.filter(id=user.id).exists()
+    except Group.DoesNotExist:
+        return False
+
+
+class RNBContributorPermission(permissions.BasePermission):
+    group_name = "Contributors"
+
+    def has_permission(self, request, view):
+        return is_in_group(request.user, self.group_name)
+
+
+class ReadOnly(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.method in SAFE_METHODS
