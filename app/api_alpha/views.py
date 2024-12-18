@@ -45,6 +45,7 @@ from api_alpha.permissions import ADSPermission
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers import ADSSerializer
+from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingPlotSerializer
 from api_alpha.serializers import BuildingSerializer
