@@ -810,7 +810,7 @@ class BuildingPlotViewTest(APITestCase):
         r = self.client.get("/api/alpha/buildings/plot/coucou/")
         self.assertEqual(r.status_code, 404)
         res = r.json()
-        self.assertEqual(res["detail"], "plot id coucou is unknown to the RNB")
+        self.assertEqual(res["detail"], "Plot unknown")
 
 
 class BuildingPatchTest(APITestCase):
