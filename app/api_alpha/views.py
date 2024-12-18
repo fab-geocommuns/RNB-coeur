@@ -336,8 +336,8 @@ class BuildingPlotView(RNBLoggingMixin, APIView):
     def get(self, request, plot_id, *args, **kwargs):
         try:
             bdgs = get_buildings_on_plot(plot_id)
-        except PlotUnknown as e:
-            raise NotFound(e)
+        except PlotUnknown:
+            raise NotFound("Plot unknown")
 
         paginator = BuildingCursorPagination()
         paginated_bdgs = paginator.paginate_queryset(bdgs, request)
