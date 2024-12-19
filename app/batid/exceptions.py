@@ -8,3 +8,7 @@ class BANAPIDown(Exception):
 
 class BANBadResultType(Exception):
     """BAN result has not the expected type (ie 'voie' instead of 'numero')"""
+
+
+class ContributionFixTooBroad(Exception):
+    """The criteria given to select contributions are not specific enough"""
