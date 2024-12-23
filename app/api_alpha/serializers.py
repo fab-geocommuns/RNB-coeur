@@ -180,6 +180,33 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
             raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
 
 
+class BuildingAddressQuerySerializer(serializers.Serializer):
+    q = serializers.CharField(required=False)
+    min_score = serializers.FloatField(required=False)
+    cle_interop_ban = serializers.CharField(required=False)
+
+    def validate_min_score(self, min_score):
+        if min_score < 0 or min_score > 1:
+            raise serializers.ValidationError("min_score must be between 0. and 1.0")
+        return min_score
+
+    def validate(self, data):
+        # one (and only one) field is required
+        if (data.get("q") is None and data.get("cle_interop_ban") is None) or (
+            data.get("q") is not None and data.get("cle_interop_ban") is not None
+        ):
+            raise serializers.ValidationError(
+                "you need to either set 'q' or 'cle_interop_ban'."
+            )
+
+        if data.get("cle_interop_ban") and data.get("min_score"):
+            raise serializers.ValidationError(
+                "'min_score' is only relevant with a text address"
+            )
+
+        return data
+
+
 class BuildingUpdateSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(required=False)
     status = serializers.ChoiceField(
