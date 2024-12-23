@@ -17,7 +17,7 @@ class ImportPlotsTestCase(TestCase):
         source_instance.path = helpers.fixture_path("cadastre_extract.json")
 
         # launch the import
-        import_plots.import_etalab_plots("75")
+        import_plots.import_etalab_plots("75", "2024-12-13")
 
         self.assertEqual(Plot.objects.count(), 3)
 
@@ -34,6 +34,7 @@ class ImportPlotsTestCase(TestCase):
             ).count(),
             1,
         )
+        self.assertEqual(plot_1.source_version, "2024-12-13")
 
         plot_2 = Plot.objects.get(id="380010000A0142")
         self.assertEqual(plot_2.shape.geom_type, "MultiPolygon")
@@ -46,8 +47,10 @@ class ImportPlotsTestCase(TestCase):
             ).count(),
             1,
         )
+        self.assertEqual(plot_2.source_version, "2024-12-13")
 
         # this one is interesting because its shape is invalid
         # and has to be buffered
         plot_3 = Plot.objects.get(id="010080000A0382")
         self.assertEqual(plot_3.shape.geom_type, "MultiPolygon")
+        self.assertEqual(plot_3.source_version, "2024-12-13")
