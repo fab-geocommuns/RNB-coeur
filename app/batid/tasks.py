@@ -11,6 +11,9 @@ from batid.services.building import export_city as export_city_job
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.candidate import Inspector
+from batid.services.data_fix.fill_empty_event_origin import (
+    fix as fix_fill_empty_event_origin,
+)
 from batid.services.data_fix.remove_light_buildings import (
     list_light_buildings_france as list_light_buildings_france_job,
 )
@@ -31,6 +34,7 @@ from batid.services.imports.import_dgfip_ads import (
 from batid.services.imports.import_dpt import import_etalab_dpts
 from batid.services.imports.import_plots import create_plots_full_import_tasks
 from batid.services.imports.import_plots import etalab_dpt_list
+from batid.services.imports.import_plots import etalab_recent_release_date
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
 )
@@ -119,8 +123,8 @@ def queue_full_bdtopo_import(
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_plots(dpt):
-    import_etalab_plots_job(dpt)
+def import_plots(dpt: str, release_date: str):
+    import_etalab_plots_job(dpt, release_date)
     return "done"
 
 
@@ -129,15 +133,24 @@ def import_plots(dpt):
 def queue_full_plots_import(
     dpt_start: Optional[str] = None,
     dpt_end: Optional[str] = None,
+    released_before: Optional[str] = None,
 ):
     notify_tech(
-        f"Queuing full plots (cadastre) import tasks.  Dpt start: {dpt_start}, dpt end: {dpt_end}."
+        f"Queuing full plots (cadastre) import tasks.  Dpt start: {dpt_start}, dpt end: {dpt_end}.  Released before: {released_before}"
     )
 
     all_plots_dpts = etalab_dpt_list()
     dpts = slice_dpts(all_plots_dpts, dpt_start, dpt_end)
 
-    tasks = create_plots_full_import_tasks(dpts)
+    # Default release date to most recent one
+    if released_before:
+        # date str to date object
+        before_date = datetime.strptime(released_before, "%Y-%m-%d").date()
+        release_date = etalab_recent_release_date(before_date)
+    else:
+        release_date = etalab_recent_release_date()
+
+    tasks = create_plots_full_import_tasks(dpts, release_date)
 
     chain(*tasks)()
     return f"Queued {len(tasks)} tasks"
@@ -261,6 +274,12 @@ def renew_stats():
     from batid.services.stats import compute_stats
 
     compute_stats()
+    return "done"
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def fill_empty_event_origin(from_rnb_id=None, to_rnb_id=None, batch_size=10000):
+    fix_fill_empty_event_origin(from_rnb_id, to_rnb_id, batch_size)
     return "done"
 
 

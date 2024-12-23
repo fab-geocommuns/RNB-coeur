@@ -32,7 +32,7 @@ class Source:
         return {
             "plot": {
                 "folder": "plots",
-                "url": "https://cadastre.data.gouv.fr/data/etalab-cadastre/latest/geojson/departements/{{dpt}}/cadastre-{{dpt}}-parcelles.json.gz",
+                "url": "https://cadastre.data.gouv.fr/data/etalab-cadastre/{{date}}/geojson/departements/{{dpt}}/cadastre-{{dpt}}-parcelles.json.gz",
                 "filename": "cadastre-{{dpt}}-parcelles.json",
             },
             "bdnb_7_buffer": {
