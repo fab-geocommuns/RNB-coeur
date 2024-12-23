@@ -440,7 +440,10 @@ class ListBuildings(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": "Inclure les parcelles intersectant les bâtiments de la réponse. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment.",
                         "required": False,
-                        "schema": {"type": "string"},
+                        "schema": {
+                            "type": "boolean",
+                            "default": False,
+                        },
                         "example": "1",
                     },
                 ],
@@ -557,7 +560,7 @@ class SingleBuilding(APIView):
 
         # check if we need to include plots
         with_plots_param = request.query_params.get("withPlots", False)
-        with_plots = True if with_plots_param == "1" else False
+        with_plots = with_plots_param == "1"
 
         qs = list_bdgs(
             {"user": request.user, "status": "all", "with_plots": with_plots},
