@@ -105,6 +105,30 @@ def _get_components() -> dict:
                     },
                 },
             },
+            "BuildingWPlots": {
+                "type": "object",
+                "properties": {
+                    "plots": {
+                        "type": "array",
+                        "description": "Liste des parcelles cadastrales intersectant le bâtiment. Disponible si le paramètre <pre>withPlots=1</pre> est intégré à l'URL de requête. NB: il s'agit d'un croisement géométrique et non d'une donnée fiscale. Il arrive parfois qu'un bâtiment intersecte une mauvaise parcelle du fait d'un décalage géographique entre les bâtiments du cadastre et ceux du RNB. Nous fournissons avec chaque parcelle cadastrale le taux d'intersection du bâtiment avec celle-ci. Les parcelles intersectant largement un bâtiment sont plus susceptibles d'être réellement associées à ce bâtiment d'un point de vue fiscal.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "description": "Identifiant de la parcelle.",
+                                    "example": "01402000AB0051",
+                                },
+                                "bdg_cover_ratio": {
+                                    "type": "number",
+                                    "description": "Taux d'intersection du bâtiment par la parcelle. Ce taux est compris entre 0 et 1. Un taux de 1 signifie que la parcelle couvre entièrement le bâtiment.",
+                                    "example": 0.403,
+                                },
+                            },
+                        },
+                    }
+                },
+            },
             "Building": {
                 "type": "object",
                 "properties": {
