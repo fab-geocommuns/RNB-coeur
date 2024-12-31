@@ -1,5 +1,6 @@
-from batid.models import Building, Plot
+from batid.models import Building
 from batid.models import BuildingADS
+from batid.models import Plot
 from batid.services.bdg_status import BuildingStatus
 
 
