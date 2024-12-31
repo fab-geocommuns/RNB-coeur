@@ -11,6 +11,7 @@ from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import Organization
+from batid.models import Plot
 from batid.models import User
 from batid.tests.helpers import create_bdg
 from batid.tests.helpers import create_grenoble
@@ -464,8 +465,6 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                 },
             ],
         }
-
-        print(data)
 
         self.assertEqual(len(data["results"]), 3)
         self.assertDictEqual(data, expected)
@@ -1223,3 +1222,247 @@ class BuildingPatchTest(APITestCase):
         get_mock.assert_called_with(
             f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
         )
+
+
+class BuildingsWithPlots(APITestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bdg_one = None
+        self.bdg_two = None
+
+    def setUp(self):
+        # The two plots are side by side
+
+        Plot.objects.create(
+            id="one",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [
+                                    [0.9105774090996306, 44.84936803275076],
+                                    [0.9102857535320368, 44.84879419445585],
+                                    [0.9104349726604539, 44.84847040607977],
+                                    [0.9109969204173751, 44.848225799624316],
+                                    [0.9112463293299982, 44.84857273425834],
+                                    [0.9113505129542716, 44.84894428770244],
+                                    [0.9113883978533295, 44.84920168780678],
+                                    [0.9105774090996306, 44.84936803275076],
+                                ]
+                            ]
+                        ],
+                        "type": "MultiPolygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        Plot.objects.create(
+            id="two",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [
+                                    [0.910571664716457, 44.84936946559145],
+                                    [0.9103209027180412, 44.84944151365943],
+                                    [0.9100424249191121, 44.84885483391221],
+                                    [0.9102799889177788, 44.84879588489878],
+                                    [0.910571664716457, 44.84936946559145],
+                                ]
+                            ]
+                        ],
+                        "type": "MultiPolygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        self.bdg_one = Building.create_new(
+            user=None,
+            event_origin={"dummy": "dummy"},
+            status="constructed",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [0.9104005886575237, 44.84928501664322],
+                                [0.9102901511915604, 44.84910387339187],
+                                [0.9105699884996739, 44.84904017453093],
+                                [0.910669195036661, 44.84922264503825],
+                                [0.9104005886575237, 44.84928501664322],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        self.bdg_two = Building.create_new(
+            user=None,
+            event_origin={"dummy": "dummy"},
+            status="constructed",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [0.9101392761545242, 44.849463423418655],
+                                [0.9103279421314028, 44.849432783031574],
+                                [0.9103827965568883, 44.84963842685542],
+                                [0.9101484185592597, 44.84964255150933],
+                                [0.9101392761545242, 44.849463423418655],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+        )
+
+    def test_with_plots(self):
+
+        expected_w_plots = {
+            "next": None,
+            "previous": None,
+            "results": [
+                {
+                    "rnb_id": self.bdg_one.rnb_id,
+                    "status": "constructed",
+                    "point": {
+                        "type": "Point",
+                        "coordinates": [0.910481632368284, 44.84916325921506],
+                    },
+                    "shape": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [0.910400588657524, 44.84928501664322],
+                                [0.91029015119156, 44.84910387339187],
+                                [0.910569988499674, 44.84904017453093],
+                                [0.910669195036661, 44.84922264503825],
+                                [0.910400588657524, 44.84928501664322],
+                            ]
+                        ],
+                    },
+                    "addresses": [],
+                    "ext_ids": [],
+                    "is_active": True,
+                    "plots": [
+                        {"id": "one", "bdg_cover_ratio": 0.529665644404105},
+                        {"id": "two", "bdg_cover_ratio": 0.4490196151882506},
+                    ],
+                },
+                {
+                    "rnb_id": self.bdg_two.rnb_id,
+                    "status": "constructed",
+                    "point": {
+                        "type": "Point",
+                        "coordinates": [0.910251599012782, 44.84955092513704],
+                    },
+                    "shape": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [0.910139276154524, 44.849463423418655],
+                                [0.910327942131403, 44.849432783031574],
+                                [0.910382796556888, 44.84963842685542],
+                                [0.91014841855926, 44.84964255150933],
+                                [0.910139276154524, 44.849463423418655],
+                            ]
+                        ],
+                    },
+                    "addresses": [],
+                    "ext_ids": [],
+                    "is_active": True,
+                    "plots": [{"id": "two", "bdg_cover_ratio": 0.0016624281607746448}],
+                },
+            ],
+        }
+
+        # ###############
+        # First we check with "withPlots" parameter
+        r = self.client.get("/api/alpha/buildings/?withPlots=1")
+        self.assertEqual(r.status_code, 200)
+
+        data = r.json()
+        self.assertDictEqual(data, expected_w_plots)
+
+        # ###############
+        # Then we test the same request without the "withPlots" parameter
+        expected_wo_plots = expected_w_plots.copy()
+        for bdg in expected_wo_plots["results"]:
+            bdg.pop("plots")
+
+        r = self.client.get("/api/alpha/buildings/")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_wo_plots)
+
+        # ###############
+        # Finally, we test the request with "withPlots=0"
+        r = self.client.get("/api/alpha/buildings/?withPlots=0")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_wo_plots)
+
+    def test_single_bdg(self):
+
+        expected_w_plots = {
+            "rnb_id": self.bdg_one.rnb_id,
+            "status": "constructed",
+            "point": {
+                "type": "Point",
+                "coordinates": [0.910481632368284, 44.84916325921506],
+            },
+            "shape": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [0.910400588657524, 44.84928501664322],
+                        [0.91029015119156, 44.84910387339187],
+                        [0.910569988499674, 44.84904017453093],
+                        [0.910669195036661, 44.84922264503825],
+                        [0.910400588657524, 44.84928501664322],
+                    ]
+                ],
+            },
+            "addresses": [],
+            "ext_ids": [],
+            "is_active": True,
+            "plots": [
+                {"id": "one", "bdg_cover_ratio": 0.529665644404105},
+                {"id": "two", "bdg_cover_ratio": 0.4490196151882506},
+            ],
+        }
+
+        # First we test with "withPlots" parameter = 1
+        r = self.client.get(f"/api/alpha/buildings/{self.bdg_one.rnb_id}/?withPlots=1")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_w_plots)
+
+        # Then we test without the "withPlots" parameter
+        expected_wo_plots = expected_w_plots.copy()
+        expected_wo_plots.pop("plots")
+        r = self.client.get(f"/api/alpha/buildings/{self.bdg_one.rnb_id}/")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_wo_plots)
+
+        # Finally, we test with "withPlots=0"
+        r = self.client.get(f"/api/alpha/buildings/{self.bdg_one.rnb_id}/?withPlots=0")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_wo_plots)

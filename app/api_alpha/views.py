@@ -232,10 +232,15 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                                                         "$ref": "#/components/schemas/Building"
                                                     },
                                                     {
-                                                        "type": "number",
-                                                        "name": "distance",
-                                                        "description": "Distance en mètres entre le bâtiment et le point donné",
-                                                        "example": 6.78,
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "distance": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 6.78,
+                                                                "description": "Distance en mètres entre le bâtiment et le point donné",
+                                                            },
+                                                        },
                                                     },
                                                 ]
                                             },
@@ -575,6 +580,17 @@ class ListBuildings(RNBLoggingMixin, APIView):
                         "schema": {"type": "string"},
                         "example": "48.845782,2.424525,48.839201,2.434158",
                     },
+                    {
+                        "name": "withPlots",
+                        "in": "query",
+                        "description": "Inclure les parcelles intersectant les bâtiments de la réponse. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment.",
+                        "required": False,
+                        "schema": {
+                            "type": "boolean",
+                            "default": False,
+                        },
+                        "example": "1",
+                    },
                 ],
                 "responses": {
                     "200": {
@@ -599,7 +615,14 @@ class ListBuildings(RNBLoggingMixin, APIView):
                                         "results": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/components/schemas/Building",
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/Building"
+                                                    },
+                                                    {
+                                                        "$ref": "#/components/schemas/BuildingWPlots"
+                                                    },
+                                                ]
                                             },
                                         },
                                     },
@@ -613,12 +636,22 @@ class ListBuildings(RNBLoggingMixin, APIView):
     )
     def get(self, request):
         query_params = request.query_params.dict()
+
+        # check if we need to include plots
+        with_plots_param = request.query_params.get("withPlots", None)
+        with_plots = True if with_plots_param == "1" else False
+        query_params["with_plots"] = with_plots
+
+        # add user to query params
         query_params["user"] = request.user
         buildings = list_bdgs(query_params)
         paginator = BuildingCursorPagination()
 
+        # paginate
         paginated_buildings = paginator.paginate_queryset(buildings, request)
-        serializer = BuildingSerializer(paginated_buildings, many=True)
+        serializer = BuildingSerializer(
+            paginated_buildings, with_plots=with_plots, many=True
+        )
 
         return paginator.get_paginated_response(serializer.data)
 
@@ -640,7 +673,15 @@ class SingleBuilding(APIView):
                         "required": True,
                         "schema": {"type": "string"},
                         "example": "PG46YY6YWCX8",
-                    }
+                    },
+                    {
+                        "name": "withPlots",
+                        "in": "query",
+                        "description": "Inclure les parcelles intersectant le bâtiment. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment par cette parcelle.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "1",
+                    },
                 ],
                 "responses": {
                     "200": {
@@ -648,7 +689,10 @@ class SingleBuilding(APIView):
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Building",
+                                    "allOf": [
+                                        {"$ref": "#/components/schemas/Building"},
+                                        {"$ref": "#/components/schemas/BuildingWPlots"},
+                                    ]
                                 }
                             }
                         },
@@ -658,9 +702,17 @@ class SingleBuilding(APIView):
         }
     )
     def get(self, request, rnb_id):
-        qs = list_bdgs({"user": request.user, "status": "all"}, only_active=False)
+
+        # check if we need to include plots
+        with_plots_param = request.query_params.get("withPlots", False)
+        with_plots = with_plots_param == "1"
+
+        qs = list_bdgs(
+            {"user": request.user, "status": "all", "with_plots": with_plots},
+            only_active=False,
+        )
         building = get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
-        serializer = BuildingSerializer(building)
+        serializer = BuildingSerializer(building, with_plots=with_plots)
 
         return Response(serializer.data)
 
