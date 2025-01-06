@@ -21,6 +21,7 @@ from batid.views import contribution
 from batid.views import delete_building
 from batid.views import FlowerProxyView
 from batid.views import merge_buildings
+from batid.views import MetabaseProxyView
 from batid.views import refuse_contribution
 from batid.views import update_building
 
@@ -29,6 +30,7 @@ urlpatterns = [
     path("api/alpha/", include("api_alpha.urls")),
     path("admin/", admin.site.urls),
     FlowerProxyView.as_url(),
+    MetabaseProxyView.as_url(),
     path("contribution/fix/<int:contribution_id>", contribution),
     path("contribution/fix/delete", delete_building, name="delete_building"),
     path("contribution/fix/refuse", refuse_contribution, name="refuse_contribution"),
