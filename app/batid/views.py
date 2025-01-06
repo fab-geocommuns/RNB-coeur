@@ -94,8 +94,16 @@ class FlowerProxyView(UserPassesTestMixin, ProxyView):
 class MetabaseProxyView(UserPassesTestMixin, ProxyView):
     upstream = "http://metabase:{}".format(os.environ.get("METABASE_PORT", "3000"))
     add_x_forwarded = True
+    allowed_urls = [
+        "/metabase/public/dashboard/", # HTML pages of public dashboards
+        "/metabase/app/dist/", # Static resources of metabase (JS scripts)
+        "/metabase/api/session/properties", # App properties
+        "/metabase/api/public/" # Public APIs
+    ]
 
     def test_func(self):
+        if any(self.request.path.startswith(allowed_url) for allowed_url in self.allowed_urls):
+            return True
         return self.request.user.is_superuser
 
     def get_request_headers(self):
