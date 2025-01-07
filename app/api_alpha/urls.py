@@ -8,6 +8,7 @@ from api_alpha.views import ADSVectorTileView
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
+from api_alpha.views import BuildingPlotView
 from api_alpha.views import BuildingsVectorTileView
 from api_alpha.views import ContributionsViewSet
 from api_alpha.views import DiffView
@@ -32,6 +33,7 @@ urlpatterns = [
     path("buildings/", ListBuildings.as_view()),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
+    path("buildings/plot/<str:plot_id>/", BuildingPlotView.as_view()),
     path("buildings/diff/", DiffView.as_view()),
     re_path(
         r"buildings/(?P<rnb_id>[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4})/",
