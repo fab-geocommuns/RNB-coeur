@@ -11,4 +11,4 @@ class BANBadResultType(Exception):
 
 
 class PlotUnknown(Exception):
-    """The given plot id is not in our database"""
+    """The given plot id is not in the RNB database"""
