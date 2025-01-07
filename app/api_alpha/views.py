@@ -377,7 +377,10 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                 # 0.8 is the default value
                 min_score = float(request.query_params.get("min_score", 0.8))
                 geocoder = BanGeocoder()
-                best_result = geocoder.cle_interop_ban_best_result({"q": q})
+                try:
+                    best_result = geocoder.cle_interop_ban_best_result({"q": q})
+                except BANAPIDown:
+                    raise ServiceUnavailable(detail="BAN API is currently down")
                 cle_interop_ban = best_result["cle_interop_ban"]
                 score = best_result["score"]
 

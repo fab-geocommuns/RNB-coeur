@@ -889,6 +889,15 @@ class BuildingAddressViewTest(APITestCase):
         self.assertEqual(data["score_ban"], None)
         self.assertEqual(data["results"], None)
 
+    @mock.patch("api_alpha.views.requests.get")
+    def test_address_ban_5XX(self, get_mock):
+        get_mock.return_value.status_code = 500
+        q = "1 route de Toulouse"
+        get_mock.return_value.json.return_value = {"status": "error"}
+
+        r = self.client.get(f"/api/alpha/buildings/address/?q={q}")
+        self.assertEqual(r.status_code, 503)
+
 
 class BuildingPatchTest(APITestCase):
     def setUp(self) -> None:
