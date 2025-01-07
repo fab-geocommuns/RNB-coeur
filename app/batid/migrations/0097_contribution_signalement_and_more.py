@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="contribution",
-            name="signalement",
+            name="report",
             field=models.BooleanField(db_index=True, default=True),
         ),
         migrations.AddField(

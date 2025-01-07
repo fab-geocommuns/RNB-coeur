@@ -227,7 +227,7 @@ class Building(BuildingAbstract):
 
         msg = f"Ce signalement a été refusé suite à la désactivation du bâtiment {self.rnb_id}."
         contributions = Contribution.objects.filter(
-            rnb_id=self.rnb_id, status="pending", signalement=True
+            rnb_id=self.rnb_id, status="pending", report=True
         )
 
         for c in contributions:
@@ -614,9 +614,9 @@ class Contribution(models.Model):
     email = models.EmailField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
-    # is it a "signalement" (a modification proposal) or a direct data modification?
-    signalement = models.BooleanField(null=False, db_index=True, default=True)
-    # useful for signalements
+    # is it a user report (a modification proposal or "signalement" in French) or a direct data modification?
+    report = models.BooleanField(null=False, db_index=True, default=True)
+    # useful for reports (signalements)
     status = models.CharField(
         choices=[("pending", "pending"), ("fixed", "fixed"), ("refused", "refused")],
         max_length=10,

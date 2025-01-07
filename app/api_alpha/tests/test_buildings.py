@@ -881,19 +881,19 @@ class BuildingPatchTest(APITestCase):
         c1 = Contribution.objects.create(
             rnb_id=self.building.rnb_id,
             text="ruine",
-            signalement=True,
+            report=True,
             status="pending",
         )
         c2 = Contribution.objects.create(
             rnb_id=self.building.rnb_id,
             text="l'adresse est fausse",
-            signalement=True,
+            report=True,
             status="fixed",
         )
         c3 = Contribution.objects.create(
             rnb_id=self.building.rnb_id,
             text="modif",
-            signalement=False,
+            report=False,
             status="fixed",
         )
 
@@ -925,7 +925,7 @@ class BuildingPatchTest(APITestCase):
         c4 = Contribution.objects.create(
             rnb_id=other_building.rnb_id,
             text="l'adresse est fausse",
-            signalement=True,
+            report=True,
             status="pending",
         )
 
@@ -961,7 +961,7 @@ class BuildingPatchTest(APITestCase):
         self.assertTrue(event_id_2 is not None)
         self.assertNotEqual(event_id_1, event_id_2)
         self.assertEqual(self.building.event_type, "reactivation")
-        # signalements closed by deactivation are reset to "pending"
+        # signalements (reports) closed by deactivation are reset to "pending"
         c1.refresh_from_db()
         c2.refresh_from_db()
         c3.refresh_from_db()
