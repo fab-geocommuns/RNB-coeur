@@ -1532,7 +1532,7 @@ class BuildingsWithPlots(APITestCase):
         def list_buildings():
             self.client.get("/api/alpha/buildings/")
 
-        # 1 for the query, 1 to log the call in rest_framework_tracking_apirequestlog
+        # 1 for the buildings, 1 for the related addresses, 1 to log the call in rest_framework_tracking_apirequestlog
         self.assertNumQueries(3, list_buildings)
 
     def test_single_bdg(self):
