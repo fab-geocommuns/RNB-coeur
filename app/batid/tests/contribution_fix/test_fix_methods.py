@@ -88,30 +88,16 @@ class FixMethodTest(TransactionTestCase):
             "nous pouvons faire confiance à cet utilisateur, c'est ma mère."
         )
 
-        fix_contributions_deactivate(
-            self.user, "c'est un bosquet", None, review_comment
-        )
-
-        fixed_contributions = Contribution.objects.filter(status="fixed").order_by(
-            "rnb_id"
-        )
-        self.assertEqual(
-            [c.rnb_id for c in fixed_contributions],
-            ["building_1", "building_2", "building_4"],
-        )
+        with self.assertRaises(ContributionFixTooBroad):
+            fix_contributions_deactivate(
+                self.user, "c'est un bosquet", None, review_comment
+            )
 
     def test_bulk_deactivate_email_only(self):
         email = "contact@jardin.fr"
 
-        fix_contributions_deactivate(self.user, None, email, "c'est ok")
-
-        fixed_contributions = Contribution.objects.filter(status="fixed").order_by(
-            "rnb_id"
-        )
-        self.assertEqual(
-            [c.rnb_id for c in fixed_contributions],
-            ["building_1", "building_2", "building_3"],
-        )
+        with self.assertRaises(ContributionFixTooBroad):
+            fix_contributions_deactivate(self.user, None, email, "c'est ok")
 
     def test_bulk_deactivate_nothing(self):
         with self.assertRaises(ContributionFixTooBroad):
