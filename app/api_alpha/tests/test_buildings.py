@@ -1522,6 +1522,19 @@ class BuildingsWithPlots(APITestCase):
         data = r.json()
         self.assertDictEqual(data, expected_wo_plots)
 
+    def test_no_n_plus_1_query(self):
+        Address.objects.create(id="add_1")
+        Building.objects.create(rnb_id="A", addresses_id=["add_1"], point="POINT(0 0)")
+
+        Address.objects.create(id="add_2")
+        Building.objects.create(rnb_id="B", addresses_id=["add_2"], point="POINT(0 0)")
+
+        def list_buildings():
+            self.client.get("/api/alpha/buildings/")
+
+        # 1 for the query, 1 to log the call in rest_framework_tracking_apirequestlog
+        self.assertNumQueries(3, list_buildings)
+
     def test_single_bdg(self):
 
         expected_w_plots = {
