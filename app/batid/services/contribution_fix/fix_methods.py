@@ -9,17 +9,16 @@ def _fix_contributions_with_action(
     user, contribution_message, contribution_email, review_comment, review_action
 ):
     """perform an action on all the buildings linked to the corresponding contributions"""
-    if not contribution_message and not contribution_email:
+    if not contribution_message or not contribution_email:
         raise ContributionFixTooBroad(
-            "you cannot perform a contribution fix without specifying a message or an email."
+            "you cannot perform a contribution fix without specifying a message and an email"
         )
 
-    contributions = Contribution.objects.filter(status="pending")
-
-    if contribution_message:
-        contributions = contributions.filter(text=contribution_message)
-    if contribution_email:
-        contributions = contributions.filter(email=contribution_email)
+    contributions = (
+        Contribution.objects.filter(status="pending")
+        .filter(text=contribution_message)
+        .filter(email=contribution_email)
+    )
 
     with transaction.atomic():
         for contribution in contributions:
