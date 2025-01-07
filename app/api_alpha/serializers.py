@@ -202,6 +202,28 @@ class BuildingAddressQuerySerializer(serializers.Serializer):
         return data
 
 
+class BuildingPlotSerializer(serializers.ModelSerializer):
+    bdg_cover_ratio = serializers.SerializerMethodField()
+    point = serializers.DictField(source="point_geojson", read_only=True)
+    addresses = AddressSerializer(
+        many=True, read_only=True, source="addresses_read_only"
+    )
+
+    def get_bdg_cover_ratio(self, obj):
+        return obj.bdg_cover_ratio
+
+    class Meta:
+        model = Building
+        fields = [
+            "rnb_id",
+            "bdg_cover_ratio",
+            "status",
+            "point",
+            "addresses",
+            "ext_ids",
+        ]
+
+
 class BuildingUpdateSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(required=False)
     status = serializers.ChoiceField(
