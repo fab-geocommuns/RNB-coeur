@@ -47,6 +47,7 @@ from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers import ADSSerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
+from api_alpha.serializers import BuildingPlotSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
@@ -57,11 +58,13 @@ from api_alpha.utils.rnb_doc import rnb_doc
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import PlotUnknown
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import Organization
+from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.mattermost import notify_tech
@@ -229,10 +232,15 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                                                         "$ref": "#/components/schemas/Building"
                                                     },
                                                     {
-                                                        "type": "number",
-                                                        "name": "distance",
-                                                        "description": "Distance en mètres entre le bâtiment et le point donné",
-                                                        "example": 6.78,
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "distance": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 6.78,
+                                                                "description": "Distance en mètres entre le bâtiment et le point donné",
+                                                            },
+                                                        },
                                                     },
                                                 ]
                                             },
@@ -269,6 +277,79 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
         else:
             # Invalid data, return validation errors
             return Response(query_serializer.errors, status=400)
+
+
+class BuildingPlotView(RNBLoggingMixin, APIView):
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Bâtiments sur une parcelle cadastrale",
+                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments présents sur une parcelle cadastrale. Les bâtiments sont triés par taux de recouvrement décroissant entre le bâtiment et la parcelle (le bâtiment entièrement sur une parcelle arrive avant celui à moitié sur la parcelle). La méthode de filtrage est purement géométrique et ne tient pas compte du lien fiscal entre le bâtiment et la parcelle. Des faux positifs sont donc possibles. NB : l'URL se termine nécessairement par un slash (/).",
+                "operationId": "plotBuildings",
+                "parameters": [
+                    {
+                        "name": "plot_id",
+                        "in": "path",
+                        "description": "Identifiant de la parcelle cadastrale.",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "01402000AB0051",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste paginée des bâtiments présents sur la parcelle cadastrale",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "next": {
+                                            "type": "string",
+                                            "description": "URL de la page de résultats suivante",
+                                            "nullable": True,
+                                        },
+                                        "previous": {
+                                            "type": "string",
+                                            "description": "URL de la page de résultats précédente",
+                                            "nullable": True,
+                                        },
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/Building"
+                                                    },
+                                                    {
+                                                        "type": "number",
+                                                        "name": "bdg_cover_ratio",
+                                                        "description": "Taux d'intersection entre le bâtiment et la parcelle. Ce taux est compris entre 0 et 1. Un taux de 1 signifie que la parcelle couvre entièrement le bâtiment.",
+                                                        "example": 0.65,
+                                                    },
+                                                ]
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    )
+    def get(self, request, plot_id, *args, **kwargs):
+        try:
+            bdgs = get_buildings_on_plot(plot_id)
+        except PlotUnknown:
+            raise NotFound("Plot unknown")
+
+        paginator = BuildingCursorPagination()
+        paginated_bdgs = paginator.paginate_queryset(bdgs, request)
+        serializer = BuildingPlotSerializer(paginated_bdgs, many=True)
+
+        return paginator.get_paginated_response(serializer.data)
 
 
 class BuildingCursorPagination(BasePagination):
@@ -430,6 +511,17 @@ class ListBuildings(RNBLoggingMixin, APIView):
                         "schema": {"type": "string"},
                         "example": "48.845782,2.424525,48.839201,2.434158",
                     },
+                    {
+                        "name": "withPlots",
+                        "in": "query",
+                        "description": "Inclure les parcelles intersectant les bâtiments de la réponse. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment.",
+                        "required": False,
+                        "schema": {
+                            "type": "boolean",
+                            "default": False,
+                        },
+                        "example": "1",
+                    },
                 ],
                 "responses": {
                     "200": {
@@ -454,7 +546,14 @@ class ListBuildings(RNBLoggingMixin, APIView):
                                         "results": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/components/schemas/Building",
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/Building"
+                                                    },
+                                                    {
+                                                        "$ref": "#/components/schemas/BuildingWPlots"
+                                                    },
+                                                ]
                                             },
                                         },
                                     },
@@ -468,12 +567,22 @@ class ListBuildings(RNBLoggingMixin, APIView):
     )
     def get(self, request):
         query_params = request.query_params.dict()
+
+        # check if we need to include plots
+        with_plots_param = request.query_params.get("withPlots", None)
+        with_plots = True if with_plots_param == "1" else False
+        query_params["with_plots"] = with_plots
+
+        # add user to query params
         query_params["user"] = request.user
         buildings = list_bdgs(query_params)
         paginator = BuildingCursorPagination()
 
+        # paginate
         paginated_buildings = paginator.paginate_queryset(buildings, request)
-        serializer = BuildingSerializer(paginated_buildings, many=True)
+        serializer = BuildingSerializer(
+            paginated_buildings, with_plots=with_plots, many=True
+        )
 
         return paginator.get_paginated_response(serializer.data)
 
@@ -495,7 +604,15 @@ class SingleBuilding(APIView):
                         "required": True,
                         "schema": {"type": "string"},
                         "example": "PG46YY6YWCX8",
-                    }
+                    },
+                    {
+                        "name": "withPlots",
+                        "in": "query",
+                        "description": "Inclure les parcelles intersectant le bâtiment. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment par cette parcelle.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "1",
+                    },
                 ],
                 "responses": {
                     "200": {
@@ -503,7 +620,10 @@ class SingleBuilding(APIView):
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Building",
+                                    "allOf": [
+                                        {"$ref": "#/components/schemas/Building"},
+                                        {"$ref": "#/components/schemas/BuildingWPlots"},
+                                    ]
                                 }
                             }
                         },
@@ -513,9 +633,17 @@ class SingleBuilding(APIView):
         }
     )
     def get(self, request, rnb_id):
-        qs = list_bdgs({"user": request.user, "status": "all"}, only_active=False)
+
+        # check if we need to include plots
+        with_plots_param = request.query_params.get("withPlots", False)
+        with_plots = with_plots_param == "1"
+
+        qs = list_bdgs(
+            {"user": request.user, "status": "all", "with_plots": with_plots},
+            only_active=False,
+        )
         building = get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
-        serializer = BuildingSerializer(building)
+        serializer = BuildingSerializer(building, with_plots=with_plots)
 
         return Response(serializer.data)
 

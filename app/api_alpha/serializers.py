@@ -64,32 +64,31 @@ class ExtIdSerializer(serializers.Serializer):
 
 
 class BuildingSerializer(serializers.ModelSerializer):
+    def __init__(self, *args, **kwargs):
+
+        # We have to intercept the with_plots arguments before passing to the parent class
+        with_plots = kwargs.pop("with_plots", False)
+
+        # Trigger the parent class init
+        super().__init__(*args, **kwargs)
+
+        # If with_plots is False, we remove the plots field from the fields list
+        if not with_plots:
+            self.fields.pop("plots")
+
     point = serializers.DictField(
         source="point_geojson",
         read_only=True,
-        help_text="""{
-                            "type": "Point",
-                            "coordinates": [
-                                3.584410393780201,
-                                49.52799819019749
-                            ]
-                        }""",
     )
     shape = serializers.DictField(
         source="shape_geojson",
         read_only=True,
-        help_text="""{
-                            "type": "Polygon",
-                            "coordinates": [[
-                                [100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
-                                [100.0, 1.0], [100.0, 0.0]
-                             ]]
-                        }""",
     )
     addresses = AddressSerializer(
         many=True, read_only=True, source="addresses_read_only"
     )
     ext_ids = ExtIdSerializer(many=True, read_only=True)
+    plots = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Building
@@ -101,12 +100,8 @@ class BuildingSerializer(serializers.ModelSerializer):
             "addresses",
             "ext_ids",
             "is_active",
+            "plots",
         ]
-        extra_kwargs = {
-            "rnb_id": {"help_text": "QBAAG16VCJWA"},
-            "status": {"help_text": "constructed"},
-            "is_active": {"help_text": "true"},
-        }
 
 
 class GuessBuildingSerializer(serializers.ModelSerializer):
@@ -178,6 +173,28 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
             return value
         except:
             raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+
+
+class BuildingPlotSerializer(serializers.ModelSerializer):
+    bdg_cover_ratio = serializers.SerializerMethodField()
+    point = serializers.DictField(source="point_geojson", read_only=True)
+    addresses = AddressSerializer(
+        many=True, read_only=True, source="addresses_read_only"
+    )
+
+    def get_bdg_cover_ratio(self, obj):
+        return obj.bdg_cover_ratio
+
+    class Meta:
+        model = Building
+        fields = [
+            "rnb_id",
+            "bdg_cover_ratio",
+            "status",
+            "point",
+            "addresses",
+            "ext_ids",
+        ]
 
 
 class BuildingUpdateSerializer(serializers.Serializer):
