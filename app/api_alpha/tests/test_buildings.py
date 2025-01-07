@@ -715,6 +715,190 @@ class BuildingClosestViewTest(APITestCase):
         self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
 
 
+class BuildingAddressViewTest(APITestCase):
+    def setUp(self):
+        self.cle_interop_ban_1 = "33522_2620_00021"
+        self.address_1 = Address.objects.create(id=self.cle_interop_ban_1)
+        self.cle_interop_ban_2 = "33522_2620_00022"
+        self.address_2 = Address.objects.create(id=self.cle_interop_ban_2)
+        self.cle_interop_ban_3 = "33522_2620_00023"
+        self.address_3 = Address.objects.create(id=self.cle_interop_ban_3)
+
+        self.building_1 = Building.create_new(
+            user=None,
+            event_origin="test",
+            status="constructed",
+            addresses_id=[self.cle_interop_ban_1, self.cle_interop_ban_2],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5682035663317322, 44.83085542749811],
+                                [-0.56843602659049, 44.83031112933102],
+                                [-0.5673438323587163, 44.83007299726728],
+                                [-0.5671003025640005, 44.83061468086615],
+                                [-0.5682035663317322, 44.83085542749811],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        self.building_2 = Building.create_new(
+            user=None,
+            event_origin="test",
+            status="constructed",
+            addresses_id=[self.cle_interop_ban_1],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5682035663317322, 44.83085542749811],
+                                [-0.56843602659049, 44.83031112933102],
+                                [-0.5673438323587163, 44.83007299726728],
+                                [-0.5671003025640005, 44.83061468086615],
+                                [-0.5682035663317322, 44.83085542749811],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+    def test_allowed_parameters(self):
+        r = self.client.get("/api/alpha/buildings/address/")
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get("/api/alpha/buildings/address/?min_score=0.7")
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get(
+            f"/api/alpha/buildings/address/?min_score=0.7&cle_interop_ban={self.cle_interop_ban_1}"
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_by_cle_interop(self):
+        # 2 buildings
+        r = self.client.get(
+            f"/api/alpha/buildings/address/?cle_interop_ban={self.cle_interop_ban_1}"
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_1)
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["score_ban"], None)
+        self.assertEqual(
+            [r["rnb_id"] for r in data["results"]],
+            [self.building_1.rnb_id, self.building_2.rnb_id],
+        )
+
+        # 1 building
+        r = self.client.get(
+            f"/api/alpha/buildings/address/?cle_interop_ban={self.cle_interop_ban_2}"
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_2)
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["score_ban"], None)
+        self.assertEqual(
+            [r["rnb_id"] for r in data["results"]], [self.building_1.rnb_id]
+        )
+
+        # 0 building
+        r = self.client.get(
+            f"/api/alpha/buildings/address/?cle_interop_ban={self.cle_interop_ban_3}"
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_3)
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["score_ban"], None)
+        self.assertEqual(data["results"], [])
+
+        # cle_interop_ban unknown
+        r = self.client.get(f"/api/alpha/buildings/address/?cle_interop_ban=coucou")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], "coucou")
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["score_ban"], None)
+        self.assertEqual(data["results"], [])
+
+    @mock.patch("api_alpha.views.requests.get")
+    def test_by_address(self, get_mock):
+        get_mock.return_value.status_code = 200
+        q = "8 Boulevard du Port 95000 Cergy"
+
+        get_mock.return_value.json.return_value = {
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "label": f"{q}",
+                        "score": 0.85,
+                        "id": f"{self.cle_interop_ban_1}",
+                        "type": "housenumber",
+                    },
+                }
+            ]
+        }
+
+        # 2 buildings
+        r = self.client.get(f"/api/alpha/buildings/address/?q={q}")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_1)
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["score_ban"], 0.85)
+        self.assertEqual(
+            [r["rnb_id"] for r in data["results"]],
+            [self.building_1.rnb_id, self.building_2.rnb_id],
+        )
+
+        # custom and high min_score => no results
+        r = self.client.get(f"/api/alpha/buildings/address/?q={q}&min_score=0.9")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_1)
+        self.assertEqual(data["status"], "geocoding_score_is_too_low")
+        self.assertEqual(data["score_ban"], 0.85)
+        self.assertEqual(data["results"], None)
+
+    @mock.patch("api_alpha.views.requests.get")
+    def test_address_not_found_on_ban(self, get_mock):
+        get_mock.return_value.status_code = 200
+        q = "lkjlkjlkjlkj"
+        get_mock.return_value.json.return_value = {"features": []}
+
+        # no building found
+        r = self.client.get(f"/api/alpha/buildings/address/?q={q}")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], None)
+        self.assertEqual(data["status"], "geocoding_no_result")
+        self.assertEqual(data["score_ban"], None)
+        self.assertEqual(data["results"], None)
+
+    @mock.patch("api_alpha.views.requests.get")
+    def test_address_ban_5XX(self, get_mock):
+        get_mock.return_value.status_code = 500
+        q = "1 route de Toulouse"
+        get_mock.return_value.json.return_value = {"status": "error"}
+
+        r = self.client.get(f"/api/alpha/buildings/address/?q={q}")
+        self.assertEqual(r.status_code, 503)
+
+
 class BuildingPlotViewTest(APITestCase):
     def test_buildings_on_plot(self):
         Plot.objects.create(

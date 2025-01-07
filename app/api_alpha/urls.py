@@ -6,6 +6,7 @@ from rest_framework import routers
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSVectorTileView
 from api_alpha.views import ADSViewSet
+from api_alpha.views import BuildingAddressView
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
 from api_alpha.views import BuildingPlotView
@@ -33,6 +34,7 @@ urlpatterns = [
     path("buildings/", ListBuildings.as_view()),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
+    path("buildings/address/", BuildingAddressView.as_view()),
     path("buildings/plot/<str:plot_id>/", BuildingPlotView.as_view()),
     path("buildings/diff/", DiffView.as_view()),
     re_path(
