@@ -12,3 +12,7 @@ class BANBadResultType(Exception):
 
 class ContributionFixTooBroad(Exception):
     """The criteria given to select contributions are not specific enough"""
+
+    
+class PlotUnknown(Exception):
+    """The given plot id is not in the RNB database"""
