@@ -38,7 +38,7 @@ class BuildingGuess:
         # Filters
         # ###################
 
-        selects = ["b.id", "b.rnb_id"]
+        selects = ["b.id", "b.rnb_id", "b.status", "b.ext_ids"]
         wheres = ["is_active = TRUE"]
         joins = []
         group_by = None
