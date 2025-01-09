@@ -53,6 +53,7 @@ def __get_qs(lat, lng, radius):
         .order_by("distance")
     )
 
+    qs = qs.prefetch_related("addresses_read_only")
     return qs
 
 
