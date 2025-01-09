@@ -23,7 +23,8 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.utils import OpenApiResponse
 from psycopg2 import sql
-from rest_framework import mixins, status
+from rest_framework import mixins
+from rest_framework import status
 from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
