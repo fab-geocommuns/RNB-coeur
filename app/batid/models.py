@@ -333,7 +333,13 @@ class Building(BuildingAbstract):
             Index(Lower("sys_period"), name="bdg_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_event_type_idx"),
             GinIndex(fields=["parent_buildings"], name="bdg_parent_buildings_idx"),
-            models.Index(fields=("is_active", "status",), name="batid_building_active_status"),
+            models.Index(
+                fields=(
+                    "is_active",
+                    "status",
+                ),
+                name="batid_building_active_status",
+            ),
         ]
         constraints = [
             # a DB level constraint on the authorized values for the event_type columns
