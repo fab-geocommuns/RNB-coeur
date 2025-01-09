@@ -23,7 +23,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.utils import OpenApiResponse
 from psycopg2 import sql
-from rest_framework import mixins
+from rest_framework import mixins, status
 from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
@@ -172,13 +172,12 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         search = BuildingGuess()
         search.set_params_from_url(**request.query_params.dict())
 
-        qs = search.get_queryset()
-
         if not search.is_valid():
             return Response(
                 {"errors": search.errors}, status=status.HTTP_400_BAD_REQUEST
             )
 
+        qs = search.get_queryset()
         serializer = GuessBuildingSerializer(qs, many=True)
 
         return Response(serializer.data)
