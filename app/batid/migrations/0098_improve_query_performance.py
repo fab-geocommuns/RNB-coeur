@@ -8,9 +8,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # custom sql
         migrations.RunSQL(
-            # destroy index
             """
                 CREATE INDEX batid_building_is_active_status ON batid_building(is_active, status);
             """,
