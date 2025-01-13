@@ -798,19 +798,21 @@ class SingleBuilding(APIView):
     @rnb_doc(
         {
             "patch": {
-                "summary": "Mise à jour ou désactivation d'un bâtiment",
+                "summary": "Mise à jour ou désactivation/réactivation d'un bâtiment",
                 "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
                 Il permet de :
                 <ul>
                     <li> mettre à jour un bâtiment existant (status, addresses_cle_interop)</li>
-                    <li> de le désactiver (is_active) s'il s'avère qu'il ne devrait pas faire partir du RNB. Par exemple un arbre qui aurait été par erreur repertorié comme un bâtiment du RNB.</li>
+                    <li> de désactiver son RNB ID (is_active) s'il s'avère qu'il ne devrait pas faire partir du RNB. Par exemple un arbre qui aurait été par erreur repertorié comme un bâtiment du RNB.</li>
+                    <li> de réactiver un RNB ID, si celui-ci a été désactivé par erreur.</li>
                 </ul>
                 <br/><br/>
-                Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver.
+                Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver/réactiver.
                 <br/><br/>
                 Exemples valides: <br/>
                 <ul>
                     <li>{"comment": "faux bâtiment", "is_active": False}</li>
+                    <li>{"comment": "RNB ID désactivé par erreur, on le réactive", "is_active": True}</li>
                     <li>{"comment": "bâtiment démoli", "status": "demolished"}</li>
                     <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}</li>
                 </ul>""",
@@ -838,7 +840,9 @@ class SingleBuilding(APIView):
                                     },
                                     "is_active": {
                                         "type": "boolean",
-                                        "description": "Une seule valeure est autorisée : False. Signifie que le bâtiment est désactivé, car sa présence dans le RNB est une erreur. Ne permet pas de signaler une démolition, qui se fait plutôt par une mise à jour du statut.",
+                                        "description": """False : le RNB ID est désactivé, car sa présence dans le RNB est une erreur. Ne permet pas de signaler une démolition, qui doit se faire par une mise à jour du statut.
+                                                          True : le RNB ID est réactivé. À utiliser uniquement pour annuler une désactivation accidentelle.
+                                            """,
                                     },
                                     "status": {
                                         "type": "string",
@@ -887,6 +891,9 @@ class SingleBuilding(APIView):
                 if data.get("is_active") == False:
                     # a building that is not a building has its RNB ID deactivated from the base
                     building.deactivate(user, event_origin)
+                elif data.get("is_active") == True:
+                    # a building is reactivated, after a deactivation that should not have
+                    building.reactivate(user, event_origin)
                 else:
                     status = data.get("status")
                     addresses_cle_interop = data.get("addresses_cle_interop")
