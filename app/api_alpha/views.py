@@ -3,6 +3,7 @@ import os
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
+from typing import Any
 
 import requests
 from django.conf import settings
@@ -23,6 +24,7 @@ from drf_spectacular.utils import extend_schema
 from drf_spectacular.utils import OpenApiResponse
 from psycopg2 import sql
 from rest_framework import mixins
+from rest_framework import status
 from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
@@ -45,6 +47,7 @@ from api_alpha.permissions import ADSPermission
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers import ADSSerializer
+from api_alpha.serializers import BuildingAddressQuerySerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingPlotSerializer
@@ -66,6 +69,7 @@ from batid.models import Contribution
 from batid.models import Organization
 from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
+from batid.services.geocoders import BanGeocoder
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.mattermost import notify_tech
 from batid.services.rnb_id import clean_rnb_id
@@ -169,13 +173,12 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         search = BuildingGuess()
         search.set_params_from_url(**request.query_params.dict())
 
-        qs = search.get_queryset()
-
         if not search.is_valid():
             return Response(
                 {"errors": search.errors}, status=status.HTTP_400_BAD_REQUEST
             )
 
+        qs = search.get_queryset()
         serializer = GuessBuildingSerializer(qs, many=True)
 
         return Response(serializer.data)
@@ -352,6 +355,137 @@ class BuildingPlotView(RNBLoggingMixin, APIView):
         return paginator.get_paginated_response(serializer.data)
 
 
+class BuildingAddressView(RNBLoggingMixin, APIView):
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Identification de bâtiments par leur adresse",
+                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments associés à une adresse. NB : l'URL se termine nécessairement par un slash (/).",
+                "operationId": "address",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Adresse texte non structurée. L'adresse fournie est recherchée dans la BAN afin de récupérer la clé d'interopérabilité associée. C'est via cette clé que sont filtrés les bâtiments. Si le geocodage échoue aucun résultat n'est renvoyé et le champ **status** de la réponse contient **geocoding_no_result**",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "4 rue scipion, 75005 Paris",
+                    },
+                    {
+                        "name": "min_score",
+                        "in": "query",
+                        "description": "Score minimal attendu du géocodage BAN. Valeur par défaut : **0.8**. Si le score est strictement inférieur à cette limite, aucun résultat n'est renvoyé et le champ **status** de la réponse contient **geocoding_score_is_too_low**",
+                        "required": False,
+                        "schema": {"type": "float"},
+                        "example": "0.9",
+                    },
+                    {
+                        "name": "cle_interop_ban",
+                        "in": "query",
+                        "description": "Clé d'interopérabilité BAN. Si vous êtes en possession d'une clé d'interoperabilité, il est plus efficace de faire une recherche grâce à elle que via une adresse textuelle.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "75105_8884_00004",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste paginée des bâtiments associés à l'adresse donnée.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "next": {
+                                            "type": "string",
+                                            "description": "URL de la page de résultats suivante",
+                                            "nullable": True,
+                                        },
+                                        "previous": {
+                                            "type": "string",
+                                            "description": "URL de la page de résultats précédente",
+                                            "nullable": True,
+                                        },
+                                        "cle_interop_ban": {
+                                            "type": "string",
+                                            "description": "Clé d'interopérabilité BAN utilisée pour lister les bâtiments",
+                                            "nullable": True,
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "description": "'geocoding_score_is_too_low' si le géocodage BAN renvoie un score inférieur à 'min_score'. 'geocoding_no_result' si le géocodage ne renvoie pas de résultats. 'ok' sinon",
+                                            "nullable": False,
+                                        },
+                                        "score_ban": {
+                                            "type": "float",
+                                            "description": "Si un géocodage a lieu, renvoie le score du meilleur résultat, celui utilisé pour lister les bâtiments. Ce score doit être supérieur à 'min_score' pour que des bâtiments soient renvoyés.",
+                                            "nullable": False,
+                                        },
+                                        "results": {
+                                            "type": "array",
+                                            "nullable": True,
+                                            "items": {
+                                                "$ref": "#/components/schemas/Building"
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        query_serializer = BuildingAddressQuerySerializer(data=request.query_params)
+        infos: dict[str, Any] = {
+            "cle_interop_ban": None,
+            "score_ban": None,
+            "status": None,
+        }
+
+        if query_serializer.is_valid():
+            q = request.query_params.get("q")
+            paginator = BuildingAddressCursorPagination()
+
+            if q:
+                # 0.8 is the default value
+                min_score = float(request.query_params.get("min_score", 0.8))
+                geocoder = BanGeocoder()
+                try:
+                    best_result = geocoder.cle_interop_ban_best_result({"q": q})
+                except BANAPIDown:
+                    raise ServiceUnavailable(detail="BAN API is currently down")
+                cle_interop_ban = best_result["cle_interop_ban"]
+                score = best_result["score"]
+
+                infos["cle_interop_ban"] = cle_interop_ban
+                infos["score_ban"] = score
+
+                if cle_interop_ban is None:
+                    infos["status"] = "geocoding_no_result"
+                    return paginator.get_paginated_response(None, infos)
+                if score is not None and score < min_score:
+                    infos["status"] = "geocoding_score_is_too_low"
+                    return paginator.get_paginated_response(None, infos)
+            else:
+                cle_interop_ban = request.query_params.get("cle_interop_ban")
+                infos["cle_interop_ban"] = cle_interop_ban
+
+            infos["status"] = "ok"
+            buildings = Building.objects.filter(is_active=True).filter(
+                addresses_read_only__id=cle_interop_ban
+            )
+            paginated_bdgs = paginator.paginate_queryset(buildings, request)
+            serialized_buildings = BuildingSerializer(paginated_bdgs, many=True)
+
+            return paginator.get_paginated_response(serialized_buildings.data, infos)
+        else:
+            # Invalid data, return validation errors
+            return Response(query_serializer.errors, status=400)
+
+
 class BuildingCursorPagination(BasePagination):
     page_size = 20
 
@@ -456,6 +590,20 @@ class BuildingCursorPagination(BasePagination):
     def encode_cursor(self, cursor):
 
         return b64encode(cursor.encode("ascii")).decode("ascii")
+
+
+class BuildingAddressCursorPagination(BuildingCursorPagination):
+    def get_paginated_response(self, data, infos):
+        return Response(
+            {
+                "next": self.get_next_link(),
+                "previous": self.get_previous_link(),
+                "status": infos["status"],
+                "cle_interop_ban": infos["cle_interop_ban"],
+                "score_ban": infos["score_ban"],
+                "results": data,
+            }
+        )
 
 
 class ListBuildings(RNBLoggingMixin, APIView):
