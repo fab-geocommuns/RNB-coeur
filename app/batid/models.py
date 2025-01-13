@@ -194,7 +194,7 @@ class Building(BuildingAbstract):
             status is None
             and addresses_id is None
             and ext_ids is None
-            and shape is not None
+            and shape is None
         ):
 
             raise Exception("Missing data to update the building")

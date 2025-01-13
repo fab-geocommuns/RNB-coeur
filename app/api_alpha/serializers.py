@@ -253,6 +253,7 @@ class BuildingUpdateSerializer(serializers.Serializer):
         if data.get("is_active") is not None and (
             data.get("status") is not None
             or data.get("addresses_cle_interop") is not None
+            or data.get("shape") is not None
         ):
             raise serializers.ValidationError(
                 "you need to either set is_active or set status/addresses, not both at the same time"
@@ -261,6 +262,7 @@ class BuildingUpdateSerializer(serializers.Serializer):
             data.get("is_active") is None
             and data.get("status") is None
             and data.get("addresses_cle_interop") is None
+            and data.get("shape") is None
         ):
             raise serializers.ValidationError("empty arguments in the request body")
 

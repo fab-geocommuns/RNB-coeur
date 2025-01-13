@@ -1335,6 +1335,7 @@ class BuildingPatchTest(APITestCase):
         data = {
             "status": "notUsable",
             "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
             "comment": comment,
         }
 
@@ -1356,9 +1357,56 @@ class BuildingPatchTest(APITestCase):
             self.building.event_origin,
             {"source": "contribution", "contribution_id": contribution.id},
         )
+        g = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
+        self.assertEqual(self.building.shape.wkt, g.wkt)
+        self.assertTrue(g.contains(self.building.point))
         self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
+
+    def test_update_building_shape_hex(self):
+        self.user.groups.add(self.group)
+        comment = "maj du batiment"
+        wkt = "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))"
+        g = GEOSGeometry(wkt)
+        data = {
+            "shape": g.hex.decode(),
+            "comment": comment,
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.building.refresh_from_db()
+
+        self.assertEqual(self.building.shape.wkt, wkt)
+        self.assertTrue(g.contains(self.building.point))
+
+    def test_update_building_shape_point(self):
+        self.user.groups.add(self.group)
+        comment = "maj du batiment"
+        wkt = "POINT (1 1)"
+        g = GEOSGeometry(wkt)
+        data = {
+            "shape": g.wkt,
+            "comment": comment,
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.building.refresh_from_db()
+
+        self.assertEqual(self.building.shape.wkt, wkt)
+        self.assertEqual(self.building.point, self.building.shape)
 
     @mock.patch("batid.models.requests.get")
     def test_new_address(self, get_mock):
