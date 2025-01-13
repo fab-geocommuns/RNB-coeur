@@ -1,3 +1,4 @@
+from django.contrib.gis.geos import GEOSGeometry
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -234,7 +235,19 @@ class BuildingUpdateSerializer(serializers.Serializer):
         allow_empty=True,
         required=False,
     )
+    shape = serializers.CharField(required=False)
     comment = serializers.CharField(min_length=4, required=True)
+
+    def validate_shape(self, shape):
+        try:
+            g = GEOSGeometry(shape)
+            if not g.valid:
+                raise Exception
+        except:
+            raise serializers.ValidationError(
+                "the given shape could not be parsed or is not valid"
+            )
+        return shape
 
     def validate(self, data):
         if data.get("is_active") is not None and (

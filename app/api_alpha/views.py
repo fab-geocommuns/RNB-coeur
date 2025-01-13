@@ -897,10 +897,15 @@ class SingleBuilding(APIView):
                 else:
                     status = data.get("status")
                     addresses_cle_interop = data.get("addresses_cle_interop")
+                    shape = data.get("shape")
 
                     try:
                         building.update(
-                            user, event_origin, status, addresses_cle_interop
+                            user,
+                            event_origin,
+                            status,
+                            addresses_cle_interop,
+                            shape=shape,
                         )
                     except BANAPIDown:
                         raise ServiceUnavailable(detail="BAN API is currently down")
