@@ -902,7 +902,9 @@ class SingleBuilding(APIView):
                 else:
                     status = data.get("status")
                     addresses_cle_interop = data.get("addresses_cle_interop")
-                    shape = GEOSGeometry(data.get("shape"))
+                    shape = (
+                        GEOSGeometry(data.get("shape")) if data.get("shape") else None
+                    )
 
                     try:
                         building.update(

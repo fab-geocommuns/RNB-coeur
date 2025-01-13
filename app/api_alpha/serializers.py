@@ -239,6 +239,9 @@ class BuildingUpdateSerializer(serializers.Serializer):
     comment = serializers.CharField(min_length=4, required=True)
 
     def validate_shape(self, shape):
+        if shape is None:
+            return None
+
         try:
             g = GEOSGeometry(shape)
             if not g.valid:
