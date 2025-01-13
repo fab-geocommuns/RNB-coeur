@@ -1,3 +1,5 @@
+import math
+
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -170,6 +172,10 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
             lat, lng = value.split(",")
             lat = float(lat)
             lng = float(lng)
+
+            if math.isnan(lat) or math.isnan(lng):
+                raise ValueError
+
             return value
         except:
             raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")

@@ -706,6 +706,12 @@ class BuildingClosestViewTest(APITestCase):
         r = self.client.get("/api/alpha/buildings/closest/?point=999,999&radius=-10")
         self.assertEqual(r.status_code, 400)
 
+        r = self.client.get("/api/alpha/buildings/closest/?point=NaN,1.0&radius=10")
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get("/api/alpha/buildings/closest/?point=1.0,NaN&radius=10")
+        self.assertEqual(r.status_code, 400)
+
     def test_closest_no_building(self):
         r = self.client.get(
             "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=10"
