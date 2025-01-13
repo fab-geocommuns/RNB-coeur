@@ -177,11 +177,13 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             return Response(
                 {"errors": search.errors}, status=status.HTTP_400_BAD_REQUEST
             )
+        try:
+            qs = search.get_queryset()
+            serializer = GuessBuildingSerializer(qs, many=True)
 
-        qs = search.get_queryset()
-        serializer = GuessBuildingSerializer(qs, many=True)
-
-        return Response(serializer.data)
+            return Response(serializer.data)
+        except BANAPIDown:
+            raise ServiceUnavailable(detail="BAN API is currently down")
 
 
 class BuildingClosestView(RNBLoggingMixin, APIView):

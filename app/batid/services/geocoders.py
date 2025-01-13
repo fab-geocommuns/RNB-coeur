@@ -16,7 +16,10 @@ class BanGeocoder:
 
         response = requests.get(self.GEOCODE_URL, params=params)
 
-        return response
+        if response.status_code == 200:
+            return response
+        else:
+            raise BANAPIDown
 
     def reverse(self, lat: float, lng: float) -> requests.Response:
         url = self.REVERSE_URL.format(lat=lat, lng=lng)
@@ -26,22 +29,18 @@ class BanGeocoder:
 
     def cle_interop_ban_best_result(self, params: dict):
         response = self.geocode(params)
+        results = response.json()
 
-        if response.status_code == 200:
-            results = response.json()
+        if "features" in results and results["features"]:
+            best = results["features"][0]
 
-            if "features" in results and results["features"]:
-                best = results["features"][0]
+            if best["properties"]["type"] == "housenumber":
+                return {
+                    "cle_interop_ban": best["properties"]["id"],
+                    "score": best["properties"]["score"],
+                }
 
-                if best["properties"]["type"] == "housenumber":
-                    return {
-                        "cle_interop_ban": best["properties"]["id"],
-                        "score": best["properties"]["score"],
-                    }
-
-            return {"cle_interop_ban": None, "score": None}
-        else:
-            raise BANAPIDown
+        return {"cle_interop_ban": None, "score": None}
 
 
 class BanBatchGeocoder:
