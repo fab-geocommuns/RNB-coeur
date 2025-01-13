@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0097_plot_source_version"),
+        ("batid", "0098_building_batid_building_active_status"),
     ]
 
     operations = [
