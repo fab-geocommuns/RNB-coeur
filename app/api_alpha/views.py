@@ -9,6 +9,7 @@ import requests
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.db import transaction
 from django.http import HttpResponse
@@ -804,7 +805,7 @@ class SingleBuilding(APIView):
                 "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
                 Il permet de :
                 <ul>
-                    <li> mettre à jour un bâtiment existant (status, addresses_cle_interop)</li>
+                    <li> mettre à jour un bâtiment existant (status, addresses_cle_interop, shape)</li>
                     <li> de désactiver son RNB ID (is_active) s'il s'avère qu'il ne devrait pas faire partir du RNB. Par exemple un arbre qui aurait été par erreur repertorié comme un bâtiment du RNB.</li>
                     <li> de réactiver un RNB ID, si celui-ci a été désactivé par erreur.</li>
                 </ul>
@@ -854,6 +855,10 @@ class SingleBuilding(APIView):
                                         "type": "list",
                                         "description": """Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
                                     },
+                                    "shape": {
+                                        "type": "string",
+                                        "description": """Géométrie du bâtiment au format WKT ou HEX. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
+                                    },
                                 },
                                 "required": [],
                             }
@@ -899,10 +904,17 @@ class SingleBuilding(APIView):
                 else:
                     status = data.get("status")
                     addresses_cle_interop = data.get("addresses_cle_interop")
+                    shape = (
+                        GEOSGeometry(data.get("shape")) if data.get("shape") else None
+                    )
 
                     try:
                         building.update(
-                            user, event_origin, status, addresses_cle_interop
+                            user,
+                            event_origin,
+                            status,
+                            addresses_cle_interop,
+                            shape=shape,
                         )
                     except BANAPIDown:
                         raise ServiceUnavailable(detail="BAN API is currently down")
