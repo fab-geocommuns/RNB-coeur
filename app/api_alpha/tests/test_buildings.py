@@ -1213,6 +1213,122 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
 
+    def test_reactivate(self):
+        self.assertTrue(self.building.is_active)
+        c1 = Contribution.objects.create(
+            rnb_id=self.building.rnb_id,
+            text="ruine",
+            report=True,
+            status="pending",
+        )
+        c2 = Contribution.objects.create(
+            rnb_id=self.building.rnb_id,
+            text="l'adresse est fausse",
+            report=True,
+            status="fixed",
+        )
+        c3 = Contribution.objects.create(
+            rnb_id=self.building.rnb_id,
+            text="modif",
+            report=False,
+            status="fixed",
+        )
+
+        other_building = Building.create_new(
+            user=None,
+            status="constructed",
+            event_origin="test",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5690889303904783, 44.83086359181351],
+                                [-0.5692329185634151, 44.83090842282704],
+                                [-0.5693593472030045, 44.83084615752156],
+                                [-0.5691767280571298, 44.83073407980169],
+                                [-0.5690889303904783, 44.83086359181351],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        c4 = Contribution.objects.create(
+            rnb_id=other_building.rnb_id,
+            text="l'adresse est fausse",
+            report=True,
+            status="pending",
+        )
+
+        # start with a deactivation
+        self.building.deactivate(
+            self.user, event_origin={"source": "contribution", "id": 1}
+        )
+        self.building.refresh_from_db()
+
+        self.assertFalse(self.building.is_active)
+        event_id_1 = self.building.event_id
+        self.assertTrue(event_id_1 is not None)
+        self.assertEqual(self.building.event_type, "deactivation")
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        c3.refresh_from_db()
+        c4.refresh_from_db()
+        # updated contribution
+        self.assertEqual(c1.status, "refused")
+        # this is how the link is done
+        self.assertEqual(c1.status_updated_by_event_id, self.building.event_id)
+        # untouched contributions
+        self.assertEqual(c2.status, "fixed")
+        self.assertEqual(c3.status, "fixed")
+        self.assertEqual(c4.status, "pending")
+
+        # then reactivate
+        self.building.reactivate(self.user, {"source": "contribution", "id": 2})
+        self.building.refresh_from_db()
+
+        self.assertTrue(self.building.is_active)
+        event_id_2 = self.building.event_id
+        self.assertTrue(event_id_2 is not None)
+        self.assertNotEqual(event_id_1, event_id_2)
+        self.assertEqual(self.building.event_type, "reactivation")
+        # signalements (reports) closed by deactivation are reset to "pending"
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        c3.refresh_from_db()
+        c4.refresh_from_db()
+
+        # reset contribution status
+        self.assertEqual(c1.status, "pending")
+        self.assertIsNone(c1.status_changed_at)
+        self.assertIsNone(c1.status_updated_by_event_id)
+        self.assertIsNone(c1.review_user)
+        self.assertIsNone(c1.review_comment)
+        # untouched contributions
+        self.assertEqual(c2.status, "fixed")
+        self.assertEqual(c3.status, "fixed")
+        self.assertEqual(c4.status, "pending")
+
+    def test_cannot_reactivate_everything(self):
+        with self.assertRaises(Exception) as e:
+            # the building is active
+            self.building.reactivate()
+
+        # now we set the building as if it has been deactivated during a merge
+        self.building.event_type = "merge"
+        self.building.is_active = False
+        self.building.save()
+
+        with self.assertRaises(Exception) as e:
+            # not active, but not deactivated by a "deactivation" event
+            self.building.reactivate()
+
     def test_update_building(self):
         self.user.groups.add(self.group)
         comment = "maj du batiment"
