@@ -1,3 +1,4 @@
+from django.contrib.gis.geos import GEOSGeometry
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -252,6 +253,34 @@ class BuildingUpdateSerializer(serializers.Serializer):
             raise serializers.ValidationError("empty arguments in the request body")
 
         return data
+
+
+class BuildingCreateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=BuildingStatus.ALL_TYPES_KEYS, required=True
+    )
+    addresses_cle_interop = serializers.ListField(
+        child=serializers.CharField(min_length=5, max_length=30),
+        allow_empty=True,
+        required=False,
+    )
+    shape = serializers.CharField(required=True)
+    comment = serializers.CharField(required=False, allow_blank=True)
+
+    # TO DO : factoriser cette fonction qui est écrit en double
+    def validate_shape(self, shape):
+        if shape is None:
+            return None
+
+        try:
+            g = GEOSGeometry(shape)
+            if not g.valid:
+                raise Exception
+        except:
+            raise serializers.ValidationError(
+                "the given shape could not be parsed or is not valid"
+            )
+        return shape
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):

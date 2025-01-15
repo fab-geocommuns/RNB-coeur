@@ -3,12 +3,14 @@ import os
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from typing import Any
 
 import requests
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.db import transaction
 from django.http import HttpResponse
@@ -50,6 +52,7 @@ from api_alpha.serializers import ADSSerializer
 from api_alpha.serializers import BuildingAddressQuerySerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
+from api_alpha.serializers import BuildingCreateSerializer
 from api_alpha.serializers import BuildingPlotSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import BuildingUpdateSerializer
@@ -917,6 +920,115 @@ class SingleBuilding(APIView):
 
             # request is successful, no content to send back
             return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Création d'un bâtiment",
+                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
+                Il permet de créer un bâtiment dans le RNB ainsi que le RNB ID associé.
+                """,
+                "operationId": "postBuilding",
+                "parameters": [],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "comment": {
+                                        "type": "string",
+                                        "description": """Commentaire optionnel associé à la création du bâtiment""",
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "description": f"Statut du bâtiment. Les valeurs possibles sont : <br /> {get_status_html_list()}<br />",
+                                    },
+                                    "addresses_cle_interop": {
+                                        "type": "list",
+                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiments. Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
+                                    },
+                                    "shape": {
+                                        "type": "string",
+                                        "description": """Géométrie du bâtiment au format WKT ou HEX. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
+                                    },
+                                },
+                                "required": ["status", "shape"],
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "200": {
+                        "description": "Détails du bâtiment nouvellement créé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {"$ref": "#/components/schemas/Building"},
+                                        {"$ref": "#/components/schemas/BuildingWPlots"},
+                                    ]
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    )
+    def post(self, request, rnb_id):
+        serializer = BuildingCreateSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            data = serializer.data
+            user = request.user
+
+            with transaction.atomic():
+                # create a contribution
+                contribution = Contribution(
+                    text=data.get("comment"),
+                    status="fixed",
+                    status_changed_at=datetime.now(timezone.utc),
+                    report=False,
+                    review_user=user,
+                )
+                contribution.save()
+
+                event_origin = {
+                    "source": "contribution",
+                    "contribution_id": contribution.id,
+                }
+
+                status = data.get("status")
+                addresses_cle_interop = data.get("addresses_cle_interop")
+                shape = GEOSGeometry(data.get("shape"))
+
+                try:
+                    created_building = Building.create_new(
+                        user=user,
+                        event_origin=event_origin,
+                        status=status,
+                        addresses_id=addresses_cle_interop,
+                        shape=shape,
+                        ext_ids=[],
+                    )
+                except BANAPIDown:
+                    raise ServiceUnavailable(detail="BAN API is currently down")
+                except BANUnknownCleInterop:
+                    raise NotFound(
+                        detail="Cle d'intéropérabilité not found on the BAN API"
+                    )
+                except BANBadResultType:
+                    raise BadRequest(
+                        detail="BAN result has not the expected type (must be 'numero')"
+                    )
+
+                # update the contribution now that the rnb_id is known
+                contribution.rnb_id = created_building.rnb_id
+                contribution.save()
+
+            serializer = BuildingSerializer(created_building, with_plots=True)
+            return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
 class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
