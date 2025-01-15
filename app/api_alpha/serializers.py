@@ -234,7 +234,7 @@ class BuildingUpdateSerializer(serializers.Serializer):
         allow_empty=True,
         required=False,
     )
-    comment = serializers.CharField(min_length=4, required=True)
+    comment = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, data):
         if data.get("is_active") is not None and (

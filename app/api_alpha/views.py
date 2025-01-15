@@ -855,7 +855,7 @@ class SingleBuilding(APIView):
                                         "description": """Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
                                     },
                                 },
-                                "required": ["comment"],
+                                "required": [],
                             }
                         }
                     },
@@ -878,7 +878,7 @@ class SingleBuilding(APIView):
             with transaction.atomic():
                 contribution = Contribution(
                     rnb_id=rnb_id,
-                    text=data["comment"],
+                    text=data.get("comment"),
                     status="fixed",
                     status_changed_at=datetime.now(),
                     review_user=user,
