@@ -236,7 +236,7 @@ class BuildingUpdateSerializer(serializers.Serializer):
         required=False,
     )
     shape = serializers.CharField(required=False)
-    comment = serializers.CharField(min_length=4, required=True)
+    comment = serializers.CharField(required=False, allow_blank=True)
 
     def validate_shape(self, shape):
         if shape is None:

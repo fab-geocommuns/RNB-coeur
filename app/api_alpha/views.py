@@ -178,11 +178,13 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             return Response(
                 {"errors": search.errors}, status=status.HTTP_400_BAD_REQUEST
             )
+        try:
+            qs = search.get_queryset()
+            serializer = GuessBuildingSerializer(qs, many=True)
 
-        qs = search.get_queryset()
-        serializer = GuessBuildingSerializer(qs, many=True)
-
-        return Response(serializer.data)
+            return Response(serializer.data)
+        except BANAPIDown:
+            raise ServiceUnavailable(detail="BAN API is currently down")
 
 
 class BuildingClosestView(RNBLoggingMixin, APIView):
@@ -858,7 +860,7 @@ class SingleBuilding(APIView):
                                         "description": """Géométrie du bâtiment au format WKT ou HEX. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
                                     },
                                 },
-                                "required": ["comment"],
+                                "required": [],
                             }
                         }
                     },
@@ -881,7 +883,7 @@ class SingleBuilding(APIView):
             with transaction.atomic():
                 contribution = Contribution(
                     rnb_id=rnb_id,
-                    text=data["comment"],
+                    text=data.get("comment"),
                     status="fixed",
                     status_changed_at=datetime.now(),
                     review_user=user,

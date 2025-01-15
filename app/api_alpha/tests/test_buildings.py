@@ -1138,7 +1138,6 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(r.status_code, 400)
 
         # update status and addresses
-
         data = {
             "status": "constructed",
             "addresses_cle_interop": [self.adr1.id, self.adr2.id],
@@ -1152,7 +1151,7 @@ class BuildingPatchTest(APITestCase):
 
         self.assertEqual(r.status_code, 204)
 
-        # comment is mandatory
+        # comment is not mandatory
         data = {
             "status": "constructed",
             "addresses_cle_interop": [self.adr1.id, self.adr2.id],
@@ -1163,7 +1162,7 @@ class BuildingPatchTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 204)
 
         data = {
             "status": "constructed",
@@ -1174,7 +1173,7 @@ class BuildingPatchTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 204)
 
         # can either deactivate or update
         data = {
