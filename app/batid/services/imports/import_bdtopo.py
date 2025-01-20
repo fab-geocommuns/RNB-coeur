@@ -37,6 +37,11 @@ def create_bdtopo_full_import_tasks(dpt_list: list, release_date: str) -> list:
         dpt_tasks = create_bdtopo_dpt_import_tasks(dpt, release_date, bulk_launch_uuid)
         tasks.extend(dpt_tasks)
 
+    # Those inspections are commented out for now since we want to verify the created candidates first
+    # inspect_tasks = create_inspection_tasks()
+    # inspect_group = group(*inspect_tasks)
+    # tasks.append(inspect_group)
+
     return tasks
 
 
@@ -61,11 +66,6 @@ def create_bdtopo_dpt_import_tasks(
         immutable=True,
     )
     tasks.append(convert_task)
-
-    # Those inspections are commented out for now since we want to verify the created candidates first
-    inspect_tasks = create_inspection_tasks()
-    inspect_group = group(*inspect_tasks)
-    tasks.append(inspect_group)
 
     return tasks
 
