@@ -1016,8 +1016,8 @@ def data_to_bdg(data):
 
 
 # we need to use TransactionTestCase because we are testing thez proper rollback of the transactions during the inspection
-@mock.patch("batid.models.requests.get")
 class NonExistingAddress(TransactionTestCase):
+    @mock.patch("batid.models.requests.get")
     def test_non_existing_address_raises(self, get_mock):
         """
         When an address is not found in the database, an error is raised
