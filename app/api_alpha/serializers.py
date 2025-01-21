@@ -225,6 +225,21 @@ class BuildingPlotSerializer(serializers.ModelSerializer):
         ]
 
 
+def shape_is_valid(shape):
+    if shape is None:
+        return None
+
+    try:
+        g = GEOSGeometry(shape)
+        if not g.valid:
+            raise Exception
+    except:
+        raise serializers.ValidationError(
+            "the given shape could not be parsed or is not valid"
+        )
+    return shape
+
+
 class BuildingUpdateSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(required=False)
     status = serializers.ChoiceField(
@@ -235,22 +250,8 @@ class BuildingUpdateSerializer(serializers.Serializer):
         allow_empty=True,
         required=False,
     )
-    shape = serializers.CharField(required=False)
+    shape = serializers.CharField(required=False, validators=[shape_is_valid])
     comment = serializers.CharField(required=False, allow_blank=True)
-
-    def validate_shape(self, shape):
-        if shape is None:
-            return None
-
-        try:
-            g = GEOSGeometry(shape)
-            if not g.valid:
-                raise Exception
-        except:
-            raise serializers.ValidationError(
-                "the given shape could not be parsed or is not valid"
-            )
-        return shape
 
     def validate(self, data):
         if data.get("is_active") is not None and (
@@ -281,23 +282,8 @@ class BuildingCreateSerializer(serializers.Serializer):
         allow_empty=True,
         required=False,
     )
-    shape = serializers.CharField(required=True)
+    shape = serializers.CharField(required=True, validators=[shape_is_valid])
     comment = serializers.CharField(required=False, allow_blank=True)
-
-    # TO DO : factoriser cette fonction qui est écrit en double
-    def validate_shape(self, shape):
-        if shape is None:
-            return None
-
-        try:
-            g = GEOSGeometry(shape)
-            if not g.valid:
-                raise Exception
-        except:
-            raise serializers.ValidationError(
-                "the given shape could not be parsed or is not valid"
-            )
-        return shape
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):
