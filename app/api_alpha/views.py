@@ -1292,17 +1292,20 @@ class ADSVectorTileView(APIView):
 class PlotsVectorTileView(APIView):
     def get(self, request, x, y, z):
 
-        # might do : include a minimum zoom level as it is done for buildings
-        tile_dict = url_params_to_tile(x, y, z)
-        sql = plots_tiles_sql(tile_dict)
+        if int(z) >= 16:
 
-        with connection.cursor() as cursor:
-            cursor.execute(sql)
-            tile_file = cursor.fetchone()[0]
+            tile_dict = url_params_to_tile(x, y, z)
+            sql = plots_tiles_sql(tile_dict)
 
-        return HttpResponse(
-            tile_file, content_type="application/vnd.mapbox-vector-tile"
-        )
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+                tile_file = cursor.fetchone()[0]
+
+            return HttpResponse(
+                tile_file, content_type="application/vnd.mapbox-vector-tile"
+            )
+        else:
+            return HttpResponse(status=204)
 
 
 class BuildingsVectorTileView(APIView):
