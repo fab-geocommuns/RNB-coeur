@@ -11,6 +11,7 @@ from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import Organization
+from batid.models import Plot
 from batid.models import User
 from batid.tests.helpers import create_bdg
 from batid.tests.helpers import create_grenoble
@@ -465,8 +466,6 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
             ],
         }
 
-        print(data)
-
         self.assertEqual(len(data["results"]), 3)
         self.assertDictEqual(data, expected)
 
@@ -715,6 +714,344 @@ class BuildingClosestViewTest(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
 
+    def test_closes_no_n_plus_1(self):
+        Building.create_new(
+            user=None,
+            event_origin="test",
+            status="constructed",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5682035663317322, 44.83085542749811],
+                                [-0.56843602659049, 44.83031112933102],
+                                [-0.5673438323587163, 44.83007299726728],
+                                [-0.5671003025640005, 44.83061468086615],
+                                [-0.5682035663317322, 44.83085542749811],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+        Building.create_new(
+            user=None,
+            event_origin="test",
+            status="constructed",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5682035663317322, 44.83085542749811],
+                                [-0.56843602659049, 44.83031112933102],
+                                [-0.5673438323587163, 44.83007299726728],
+                                [-0.5671003025640005, 44.83061468086615],
+                                [-0.5682035663317322, 44.83085542749811],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        def closest():
+            self.client.get(
+                "/api/alpha/buildings/closest/?point=44.83045932150495,-0.5675637291200246&radius=1000"
+            )
+
+        # would be 5 if N+1 was there
+        self.assertNumQueries(4, closest)
+
+
+class BuildingAddressViewTest(APITestCase):
+    def setUp(self):
+        self.cle_interop_ban_1 = "33522_2620_00021"
+        self.address_1 = Address.objects.create(id=self.cle_interop_ban_1)
+        self.cle_interop_ban_2 = "33522_2620_00022"
+        self.address_2 = Address.objects.create(id=self.cle_interop_ban_2)
+        self.cle_interop_ban_3 = "33522_2620_00023"
+        self.address_3 = Address.objects.create(id=self.cle_interop_ban_3)
+
+        self.building_1 = Building.create_new(
+            user=None,
+            event_origin="test",
+            status="constructed",
+            addresses_id=[self.cle_interop_ban_1, self.cle_interop_ban_2],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5682035663317322, 44.83085542749811],
+                                [-0.56843602659049, 44.83031112933102],
+                                [-0.5673438323587163, 44.83007299726728],
+                                [-0.5671003025640005, 44.83061468086615],
+                                [-0.5682035663317322, 44.83085542749811],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        self.building_2 = Building.create_new(
+            user=None,
+            event_origin="test",
+            status="constructed",
+            addresses_id=[self.cle_interop_ban_1],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5682035663317322, 44.83085542749811],
+                                [-0.56843602659049, 44.83031112933102],
+                                [-0.5673438323587163, 44.83007299726728],
+                                [-0.5671003025640005, 44.83061468086615],
+                                [-0.5682035663317322, 44.83085542749811],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+    def test_allowed_parameters(self):
+        r = self.client.get("/api/alpha/buildings/address/")
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get("/api/alpha/buildings/address/?min_score=0.7")
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get(
+            f"/api/alpha/buildings/address/?min_score=0.7&cle_interop_ban={self.cle_interop_ban_1}"
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_by_cle_interop(self):
+        # 2 buildings
+        r = self.client.get(
+            f"/api/alpha/buildings/address/?cle_interop_ban={self.cle_interop_ban_1}"
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_1)
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["score_ban"], None)
+        self.assertEqual(
+            [r["rnb_id"] for r in data["results"]],
+            [self.building_1.rnb_id, self.building_2.rnb_id],
+        )
+
+        # 1 building
+        r = self.client.get(
+            f"/api/alpha/buildings/address/?cle_interop_ban={self.cle_interop_ban_2}"
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_2)
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["score_ban"], None)
+        self.assertEqual(
+            [r["rnb_id"] for r in data["results"]], [self.building_1.rnb_id]
+        )
+
+        # 0 building
+        r = self.client.get(
+            f"/api/alpha/buildings/address/?cle_interop_ban={self.cle_interop_ban_3}"
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_3)
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["score_ban"], None)
+        self.assertEqual(data["results"], [])
+
+        # cle_interop_ban unknown
+        r = self.client.get(f"/api/alpha/buildings/address/?cle_interop_ban=coucou")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], "coucou")
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["score_ban"], None)
+        self.assertEqual(data["results"], [])
+
+    @mock.patch("api_alpha.views.requests.get")
+    def test_by_address(self, get_mock):
+        get_mock.return_value.status_code = 200
+        q = "8 Boulevard du Port 95000 Cergy"
+
+        get_mock.return_value.json.return_value = {
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "label": f"{q}",
+                        "score": 0.85,
+                        "id": f"{self.cle_interop_ban_1}",
+                        "type": "housenumber",
+                    },
+                }
+            ]
+        }
+
+        # 2 buildings
+        r = self.client.get(f"/api/alpha/buildings/address/?q={q}")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_1)
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["score_ban"], 0.85)
+        self.assertEqual(
+            [r["rnb_id"] for r in data["results"]],
+            [self.building_1.rnb_id, self.building_2.rnb_id],
+        )
+
+        # custom and high min_score => no results
+        r = self.client.get(f"/api/alpha/buildings/address/?q={q}&min_score=0.9")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_1)
+        self.assertEqual(data["status"], "geocoding_score_is_too_low")
+        self.assertEqual(data["score_ban"], 0.85)
+        self.assertEqual(data["results"], None)
+
+    @mock.patch("api_alpha.views.requests.get")
+    def test_address_not_found_on_ban(self, get_mock):
+        get_mock.return_value.status_code = 200
+        q = "lkjlkjlkjlkj"
+        get_mock.return_value.json.return_value = {"features": []}
+
+        # no building found
+        r = self.client.get(f"/api/alpha/buildings/address/?q={q}")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["cle_interop_ban"], None)
+        self.assertEqual(data["status"], "geocoding_no_result")
+        self.assertEqual(data["score_ban"], None)
+        self.assertEqual(data["results"], None)
+
+    @mock.patch("api_alpha.views.requests.get")
+    def test_address_ban_5XX(self, get_mock):
+        get_mock.return_value.status_code = 500
+        q = "1 route de Toulouse"
+        get_mock.return_value.json.return_value = {"status": "error"}
+
+        r = self.client.get(f"/api/alpha/buildings/address/?q={q}")
+        self.assertEqual(r.status_code, 503)
+
+
+class BuildingPlotViewTest(APITestCase):
+    def test_buildings_on_plot(self):
+        Plot.objects.create(
+            id="plot_1", shape="MULTIPOLYGON(((0 0, 0 1, 1 1, 1 0, 0 0)))"
+        )
+        Plot.objects.create(
+            id="plot_2", shape="MULTIPOLYGON(((1 1, 1 2, 2 2, 2 1, 1 1)))"
+        )
+
+        # inside plot 1
+        building_1 = Building.objects.create(
+            rnb_id="building_1",
+            shape="POLYGON((0 0, 0 0.5, 0.5 0.5, 0.5 0, 0 0))",
+            status="demolished",
+        )
+        building_1.point = building_1.shape.point_on_surface
+        building_1.save()
+        # inside plot 1 but inactive
+        building_2 = Building.objects.create(
+            rnb_id="building_2",
+            shape="POLYGON((0 0, 0 0.5, 0.5 0.5, 0.5 0, 0 0))",
+            is_active=False,
+        )
+        building_2.point = building_2.shape.point_on_surface
+        building_2.save()
+
+        # # partially on plot_1 and plot_2
+        building_3 = Building.objects.create(
+            rnb_id="building_3",
+            shape="POLYGON((0.5 0.5, 0.5 1.5, 1.5 1.5, 1.5 0.5, 0.5 0.5))",
+            is_active=True,
+        )
+        building_3.point = building_3.shape.point_on_surface
+        building_3.save()
+
+        # # plot_1 and plot_2 are completely inside building_4 and _5
+        building_4 = Building.objects.create(
+            rnb_id="building_4", shape="POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))"
+        )
+        building_4.point = building_4.shape.point_on_surface
+        building_4.save()
+        # (but this one is inactive)
+        building_5 = Building.objects.create(
+            rnb_id="building_5",
+            shape="POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))",
+            is_active=False,
+        )
+        building_5.point = building_5.shape.point_on_surface
+        building_5.save()
+
+        # building_6 is a point
+        building_6 = Building.objects.create(
+            rnb_id="building_6", shape="POINT(0.5 0.5)", point="POINT(0.5 0.5)"
+        )
+
+        r = self.client.get("/api/alpha/buildings/plot/plot_1/")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+
+        [r1, r2, r3, r4] = data["results"]
+        self.assertEqual(r1["rnb_id"], building_1.rnb_id)
+        # building_1 is 100% included in the plot
+        self.assertEqual(r1["bdg_cover_ratio"], 1.0)
+
+        self.assertEqual(r2["rnb_id"], building_6.rnb_id)
+        # building_6 is 100% included in the plot, it's a point!
+        self.assertEqual(r1["bdg_cover_ratio"], 1.0)
+
+        self.assertEqual(r3["rnb_id"], building_3.rnb_id)
+        # building_3 is 25% included in the plot
+        self.assertEqual(r3["bdg_cover_ratio"], 0.25)
+
+        self.assertEqual(r4["rnb_id"], building_4.rnb_id)
+        # building_4 is 25% included in the plot
+        self.assertEqual(r4["bdg_cover_ratio"], 0.25)
+
+        r = self.client.get("/api/alpha/buildings/plot/plot_2/")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+
+        [r1, r2] = data["results"]
+        self.assertEqual(r1["rnb_id"], building_3.rnb_id)
+        # building_1 is 100% included in the plot
+        self.assertEqual(r1["bdg_cover_ratio"], 0.25)
+
+        self.assertEqual(r2["rnb_id"], building_4.rnb_id)
+        # building_3 is 25% included in the plot
+        self.assertEqual(r2["bdg_cover_ratio"], 0.25)
+
+    def test_buildings_on_unknown_plot(self):
+        r = self.client.get("/api/alpha/buildings/plot/coucou/")
+        self.assertEqual(r.status_code, 404)
+        res = r.json()
+        self.assertEqual(res["detail"], "Plot unknown")
+
 
 class BuildingPatchTest(APITestCase):
     def setUp(self) -> None:
@@ -801,7 +1138,6 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(r.status_code, 400)
 
         # update status and addresses
-
         data = {
             "status": "constructed",
             "addresses_cle_interop": [self.adr1.id, self.adr2.id],
@@ -815,7 +1151,7 @@ class BuildingPatchTest(APITestCase):
 
         self.assertEqual(r.status_code, 204)
 
-        # comment is mandatory
+        # comment is not mandatory
         data = {
             "status": "constructed",
             "addresses_cle_interop": [self.adr1.id, self.adr2.id],
@@ -826,7 +1162,7 @@ class BuildingPatchTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 204)
 
         data = {
             "status": "constructed",
@@ -837,7 +1173,7 @@ class BuildingPatchTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 204)
 
         # can either deactivate or update
         data = {
@@ -876,12 +1212,129 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
 
+    def test_reactivate(self):
+        self.assertTrue(self.building.is_active)
+        c1 = Contribution.objects.create(
+            rnb_id=self.building.rnb_id,
+            text="ruine",
+            report=True,
+            status="pending",
+        )
+        c2 = Contribution.objects.create(
+            rnb_id=self.building.rnb_id,
+            text="l'adresse est fausse",
+            report=True,
+            status="fixed",
+        )
+        c3 = Contribution.objects.create(
+            rnb_id=self.building.rnb_id,
+            text="modif",
+            report=False,
+            status="fixed",
+        )
+
+        other_building = Building.create_new(
+            user=None,
+            status="constructed",
+            event_origin="test",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5690889303904783, 44.83086359181351],
+                                [-0.5692329185634151, 44.83090842282704],
+                                [-0.5693593472030045, 44.83084615752156],
+                                [-0.5691767280571298, 44.83073407980169],
+                                [-0.5690889303904783, 44.83086359181351],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        c4 = Contribution.objects.create(
+            rnb_id=other_building.rnb_id,
+            text="l'adresse est fausse",
+            report=True,
+            status="pending",
+        )
+
+        # start with a deactivation
+        self.building.deactivate(
+            self.user, event_origin={"source": "contribution", "id": 1}
+        )
+        self.building.refresh_from_db()
+
+        self.assertFalse(self.building.is_active)
+        event_id_1 = self.building.event_id
+        self.assertTrue(event_id_1 is not None)
+        self.assertEqual(self.building.event_type, "deactivation")
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        c3.refresh_from_db()
+        c4.refresh_from_db()
+        # updated contribution
+        self.assertEqual(c1.status, "refused")
+        # this is how the link is done
+        self.assertEqual(c1.status_updated_by_event_id, self.building.event_id)
+        # untouched contributions
+        self.assertEqual(c2.status, "fixed")
+        self.assertEqual(c3.status, "fixed")
+        self.assertEqual(c4.status, "pending")
+
+        # then reactivate
+        self.building.reactivate(self.user, {"source": "contribution", "id": 2})
+        self.building.refresh_from_db()
+
+        self.assertTrue(self.building.is_active)
+        event_id_2 = self.building.event_id
+        self.assertTrue(event_id_2 is not None)
+        self.assertNotEqual(event_id_1, event_id_2)
+        self.assertEqual(self.building.event_type, "reactivation")
+        # signalements (reports) closed by deactivation are reset to "pending"
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        c3.refresh_from_db()
+        c4.refresh_from_db()
+
+        # reset contribution status
+        self.assertEqual(c1.status, "pending")
+        self.assertIsNone(c1.status_changed_at)
+        self.assertIsNone(c1.status_updated_by_event_id)
+        self.assertIsNone(c1.review_user)
+        self.assertIsNone(c1.review_comment)
+        # untouched contributions
+        self.assertEqual(c2.status, "fixed")
+        self.assertEqual(c3.status, "fixed")
+        self.assertEqual(c4.status, "pending")
+
+    def test_cannot_reactivate_everything(self):
+        with self.assertRaises(Exception) as e:
+            # the building is active
+            self.building.reactivate()
+
+        # now we set the building as if it has been deactivated during a merge
+        self.building.event_type = "merge"
+        self.building.is_active = False
+        self.building.save()
+
+        with self.assertRaises(Exception) as e:
+            # not active, but not deactivated by a "deactivation" event
+            self.building.reactivate()
+
     def test_update_building(self):
         self.user.groups.add(self.group)
         comment = "maj du batiment"
         data = {
             "status": "notUsable",
             "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
             "comment": comment,
         }
 
@@ -903,9 +1356,56 @@ class BuildingPatchTest(APITestCase):
             self.building.event_origin,
             {"source": "contribution", "contribution_id": contribution.id},
         )
+        g = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
+        self.assertEqual(self.building.shape.wkt, g.wkt)
+        self.assertTrue(g.contains(self.building.point))
         self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
+
+    def test_update_building_shape_hex(self):
+        self.user.groups.add(self.group)
+        comment = "maj du batiment"
+        wkt = "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))"
+        g = GEOSGeometry(wkt)
+        data = {
+            "shape": g.hex.decode(),
+            "comment": comment,
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.building.refresh_from_db()
+
+        self.assertEqual(self.building.shape.wkt, wkt)
+        self.assertTrue(g.contains(self.building.point))
+
+    def test_update_building_shape_point(self):
+        self.user.groups.add(self.group)
+        comment = "maj du batiment"
+        wkt = "POINT (1 1)"
+        g = GEOSGeometry(wkt)
+        data = {
+            "shape": g.wkt,
+            "comment": comment,
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.building.refresh_from_db()
+
+        self.assertEqual(self.building.shape.wkt, wkt)
+        self.assertEqual(self.building.point, self.building.shape)
 
     @mock.patch("batid.models.requests.get")
     def test_new_address(self, get_mock):
@@ -1048,3 +1548,260 @@ class BuildingPatchTest(APITestCase):
         get_mock.assert_called_with(
             f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
         )
+
+
+class BuildingsWithPlots(APITestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bdg_one = None
+        self.bdg_two = None
+
+    def setUp(self):
+        # The two plots are side by side
+
+        Plot.objects.create(
+            id="one",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [
+                                    [0.9105774090996306, 44.84936803275076],
+                                    [0.9102857535320368, 44.84879419445585],
+                                    [0.9104349726604539, 44.84847040607977],
+                                    [0.9109969204173751, 44.848225799624316],
+                                    [0.9112463293299982, 44.84857273425834],
+                                    [0.9113505129542716, 44.84894428770244],
+                                    [0.9113883978533295, 44.84920168780678],
+                                    [0.9105774090996306, 44.84936803275076],
+                                ]
+                            ]
+                        ],
+                        "type": "MultiPolygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        Plot.objects.create(
+            id="two",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [
+                                    [0.910571664716457, 44.84936946559145],
+                                    [0.9103209027180412, 44.84944151365943],
+                                    [0.9100424249191121, 44.84885483391221],
+                                    [0.9102799889177788, 44.84879588489878],
+                                    [0.910571664716457, 44.84936946559145],
+                                ]
+                            ]
+                        ],
+                        "type": "MultiPolygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        self.bdg_one = Building.create_new(
+            user=None,
+            event_origin={"dummy": "dummy"},
+            status="constructed",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [0.9104005886575237, 44.84928501664322],
+                                [0.9102901511915604, 44.84910387339187],
+                                [0.9105699884996739, 44.84904017453093],
+                                [0.910669195036661, 44.84922264503825],
+                                [0.9104005886575237, 44.84928501664322],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        self.bdg_two = Building.create_new(
+            user=None,
+            event_origin={"dummy": "dummy"},
+            status="constructed",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [0.9101392761545242, 44.849463423418655],
+                                [0.9103279421314028, 44.849432783031574],
+                                [0.9103827965568883, 44.84963842685542],
+                                [0.9101484185592597, 44.84964255150933],
+                                [0.9101392761545242, 44.849463423418655],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+        )
+
+    def test_with_plots(self):
+
+        expected_w_plots = {
+            "next": None,
+            "previous": None,
+            "results": [
+                {
+                    "rnb_id": self.bdg_one.rnb_id,
+                    "status": "constructed",
+                    "point": {
+                        "type": "Point",
+                        "coordinates": [0.910481632368284, 44.84916325921506],
+                    },
+                    "shape": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [0.910400588657524, 44.84928501664322],
+                                [0.91029015119156, 44.84910387339187],
+                                [0.910569988499674, 44.84904017453093],
+                                [0.910669195036661, 44.84922264503825],
+                                [0.910400588657524, 44.84928501664322],
+                            ]
+                        ],
+                    },
+                    "addresses": [],
+                    "ext_ids": [],
+                    "is_active": True,
+                    "plots": [
+                        {"id": "one", "bdg_cover_ratio": 0.529665644404105},
+                        {"id": "two", "bdg_cover_ratio": 0.4490196151882506},
+                    ],
+                },
+                {
+                    "rnb_id": self.bdg_two.rnb_id,
+                    "status": "constructed",
+                    "point": {
+                        "type": "Point",
+                        "coordinates": [0.910251599012782, 44.84955092513704],
+                    },
+                    "shape": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [0.910139276154524, 44.849463423418655],
+                                [0.910327942131403, 44.849432783031574],
+                                [0.910382796556888, 44.84963842685542],
+                                [0.91014841855926, 44.84964255150933],
+                                [0.910139276154524, 44.849463423418655],
+                            ]
+                        ],
+                    },
+                    "addresses": [],
+                    "ext_ids": [],
+                    "is_active": True,
+                    "plots": [{"id": "two", "bdg_cover_ratio": 0.0016624281607746448}],
+                },
+            ],
+        }
+
+        # ###############
+        # First we check with "withPlots" parameter
+        r = self.client.get("/api/alpha/buildings/?withPlots=1")
+        self.assertEqual(r.status_code, 200)
+
+        data = r.json()
+        self.assertDictEqual(data, expected_w_plots)
+
+        # ###############
+        # Then we test the same request without the "withPlots" parameter
+        expected_wo_plots = expected_w_plots.copy()
+        for bdg in expected_wo_plots["results"]:
+            bdg.pop("plots")
+
+        r = self.client.get("/api/alpha/buildings/")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_wo_plots)
+
+        # ###############
+        # Finally, we test the request with "withPlots=0"
+        r = self.client.get("/api/alpha/buildings/?withPlots=0")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_wo_plots)
+
+    def test_no_n_plus_1_query(self):
+        Address.objects.create(id="add_1")
+        Building.objects.create(rnb_id="A", addresses_id=["add_1"], point="POINT(0 0)")
+
+        Address.objects.create(id="add_2")
+        Building.objects.create(rnb_id="B", addresses_id=["add_2"], point="POINT(0 0)")
+
+        def list_buildings():
+            self.client.get("/api/alpha/buildings/")
+
+        # 1 for the buildings, 1 for the related addresses, 1 to log the call in rest_framework_tracking_apirequestlog
+        self.assertNumQueries(3, list_buildings)
+
+    def test_single_bdg(self):
+
+        expected_w_plots = {
+            "rnb_id": self.bdg_one.rnb_id,
+            "status": "constructed",
+            "point": {
+                "type": "Point",
+                "coordinates": [0.910481632368284, 44.84916325921506],
+            },
+            "shape": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [0.910400588657524, 44.84928501664322],
+                        [0.91029015119156, 44.84910387339187],
+                        [0.910569988499674, 44.84904017453093],
+                        [0.910669195036661, 44.84922264503825],
+                        [0.910400588657524, 44.84928501664322],
+                    ]
+                ],
+            },
+            "addresses": [],
+            "ext_ids": [],
+            "is_active": True,
+            "plots": [
+                {"id": "one", "bdg_cover_ratio": 0.529665644404105},
+                {"id": "two", "bdg_cover_ratio": 0.4490196151882506},
+            ],
+        }
+
+        # First we test with "withPlots" parameter = 1
+        r = self.client.get(f"/api/alpha/buildings/{self.bdg_one.rnb_id}/?withPlots=1")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_w_plots)
+
+        # Then we test without the "withPlots" parameter
+        expected_wo_plots = expected_w_plots.copy()
+        expected_wo_plots.pop("plots")
+        r = self.client.get(f"/api/alpha/buildings/{self.bdg_one.rnb_id}/")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_wo_plots)
+
+        # Finally, we test with "withPlots=0"
+        r = self.client.get(f"/api/alpha/buildings/{self.bdg_one.rnb_id}/?withPlots=0")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertDictEqual(data, expected_wo_plots)

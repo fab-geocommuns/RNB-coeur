@@ -67,6 +67,13 @@ services:
     env_file:
       - ./.env.worker.staging
 
+  metabase:
+    extends:
+      file: common-services.yml
+      service: metabase
+    env_file:
+      - ./.env.metabase.staging
+
 volumes:
   certs:
   vhost:

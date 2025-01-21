@@ -91,6 +91,41 @@ class FlowerProxyView(UserPassesTestMixin, ProxyView):
         return re_path(r"^(?P<path>{}.*)$".format(cls.url_prefix), cls.as_view())
 
 
+class MetabaseProxyView(UserPassesTestMixin, ProxyView):
+    upstream = "http://metabase:{}".format(os.environ.get("METABASE_PORT", "3000"))
+    add_x_forwarded = True
+    allowed_urls = [
+        "/metabase/public/dashboard/",  # HTML pages of public dashboards
+        "/metabase/app/",  # Static resources of metabase (JS scripts)
+        "/metabase/api/session/properties",  # App properties
+        "/metabase/api/public/",  # Public APIs
+    ]
+
+    def test_func(self):
+        if any(
+            self.request.path.startswith(allowed_url)
+            for allowed_url in self.allowed_urls
+        ):
+            return True
+        return self.request.user.is_superuser
+
+    def get_request_headers(self):
+        headers = super().get_request_headers()
+        if self.request.user.is_authenticated:
+            headers["X-Remote-User"] = self.request.user.email
+        return headers
+
+    def dispatch(self, request, *args, **kwargs):
+        kwargs["path"] = kwargs.get("path") or ""
+        if kwargs["path"].startswith("/"):
+            kwargs["path"] = kwargs["path"][1:]
+        return super().dispatch(request, *args, **kwargs)
+
+    @classmethod
+    def as_url(cls):
+        return re_path(r"^metabase(?P<path>/.*)?$", cls.as_view())
+
+
 def contribution(request, contribution_id):
     if not request.user.is_superuser:
         return HttpResponseForbidden()
