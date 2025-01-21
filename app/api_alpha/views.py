@@ -612,6 +612,8 @@ class BuildingAddressCursorPagination(BuildingCursorPagination):
 
 
 class ListCreateBuildings(RNBLoggingMixin, APIView):
+    permission_classes = [ReadOnly | RNBContributorPermission]
+
     @rnb_doc(
         {
             "get": {
