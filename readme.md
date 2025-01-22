@@ -71,6 +71,7 @@ WITH addresses AS (SELECT unnest(addresses_id) FROM batid_building bb WHERE st_d
 SELECT * FROM batid_address ba WHERE id IN (SELECT * FROM addresses);
 ```
 
+L'insertion en base des adresses doit se faire avant celle des bâtiments, pour respecter les contraintes SQL de ForeignKeys.
 ## Lancer les tests
 ```
 docker exec -ti web python manage.py test
