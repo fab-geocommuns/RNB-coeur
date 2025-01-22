@@ -51,6 +51,27 @@ docker compose up -d
 
 Le serveur local est lancé à l'adresse http://localhost:8000
 
+### 5. Créer un super utilisateur
+
+```
+docker exec -it web python manage.py createsuperuser
+```
+
+### 6. Importer des données de travail
+
+Pour importer des données de travail, il faut se connecter à une base de donnée existante et extraire un périmètre autour d'un point de référence.
+
+Voici un exemple des requêtes SQL qui permet d'extraire les bâtiments et les adresses autour de la tour Eiffel.
+
+```sql
+SELECT * FROM batid_building bb WHERE st_dwithin(bb.shape, st_geomfromewkt('SRID=4326;POINT (2.294492349179413 48.85837023573654)'), 0.001);
+
+
+WITH addresses AS (SELECT unnest(addresses_id) FROM batid_building bb WHERE st_dwithin(bb.shape, st_geomfromewkt('SRID=4326;POINT (2.294492349179413 48.85837023573654)'), 0.001))
+SELECT * FROM batid_address ba WHERE id IN (SELECT * FROM addresses);
+```
+
+L'insertion en base des adresses doit se faire avant celle des bâtiments, pour respecter les contraintes SQL de ForeignKeys.
 ## Lancer les tests
 ```
 docker exec -ti web python manage.py test
