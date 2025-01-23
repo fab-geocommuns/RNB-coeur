@@ -1150,7 +1150,6 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(r.status_code, 400)
 
         # update status and addresses
-
         data = {
             "status": "constructed",
             "addresses_cle_interop": [self.adr1.id, self.adr2.id],
@@ -1164,7 +1163,7 @@ class BuildingPatchTest(APITestCase):
 
         self.assertEqual(r.status_code, 204)
 
-        # comment is mandatory
+        # comment is not mandatory
         data = {
             "status": "constructed",
             "addresses_cle_interop": [self.adr1.id, self.adr2.id],
@@ -1175,7 +1174,7 @@ class BuildingPatchTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 204)
 
         data = {
             "status": "constructed",
@@ -1186,7 +1185,7 @@ class BuildingPatchTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 204)
 
         # can either deactivate or update
         data = {
@@ -1225,12 +1224,129 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
 
+    def test_reactivate(self):
+        self.assertTrue(self.building.is_active)
+        c1 = Contribution.objects.create(
+            rnb_id=self.building.rnb_id,
+            text="ruine",
+            report=True,
+            status="pending",
+        )
+        c2 = Contribution.objects.create(
+            rnb_id=self.building.rnb_id,
+            text="l'adresse est fausse",
+            report=True,
+            status="fixed",
+        )
+        c3 = Contribution.objects.create(
+            rnb_id=self.building.rnb_id,
+            text="modif",
+            report=False,
+            status="fixed",
+        )
+
+        other_building = Building.create_new(
+            user=None,
+            status="constructed",
+            event_origin="test",
+            addresses_id=[],
+            ext_ids=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5690889303904783, 44.83086359181351],
+                                [-0.5692329185634151, 44.83090842282704],
+                                [-0.5693593472030045, 44.83084615752156],
+                                [-0.5691767280571298, 44.83073407980169],
+                                [-0.5690889303904783, 44.83086359181351],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                ),
+                srid=4326,
+            ),
+        )
+
+        c4 = Contribution.objects.create(
+            rnb_id=other_building.rnb_id,
+            text="l'adresse est fausse",
+            report=True,
+            status="pending",
+        )
+
+        # start with a deactivation
+        self.building.deactivate(
+            self.user, event_origin={"source": "contribution", "id": 1}
+        )
+        self.building.refresh_from_db()
+
+        self.assertFalse(self.building.is_active)
+        event_id_1 = self.building.event_id
+        self.assertTrue(event_id_1 is not None)
+        self.assertEqual(self.building.event_type, "deactivation")
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        c3.refresh_from_db()
+        c4.refresh_from_db()
+        # updated contribution
+        self.assertEqual(c1.status, "refused")
+        # this is how the link is done
+        self.assertEqual(c1.status_updated_by_event_id, self.building.event_id)
+        # untouched contributions
+        self.assertEqual(c2.status, "fixed")
+        self.assertEqual(c3.status, "fixed")
+        self.assertEqual(c4.status, "pending")
+
+        # then reactivate
+        self.building.reactivate(self.user, {"source": "contribution", "id": 2})
+        self.building.refresh_from_db()
+
+        self.assertTrue(self.building.is_active)
+        event_id_2 = self.building.event_id
+        self.assertTrue(event_id_2 is not None)
+        self.assertNotEqual(event_id_1, event_id_2)
+        self.assertEqual(self.building.event_type, "reactivation")
+        # signalements (reports) closed by deactivation are reset to "pending"
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        c3.refresh_from_db()
+        c4.refresh_from_db()
+
+        # reset contribution status
+        self.assertEqual(c1.status, "pending")
+        self.assertIsNone(c1.status_changed_at)
+        self.assertIsNone(c1.status_updated_by_event_id)
+        self.assertIsNone(c1.review_user)
+        self.assertIsNone(c1.review_comment)
+        # untouched contributions
+        self.assertEqual(c2.status, "fixed")
+        self.assertEqual(c3.status, "fixed")
+        self.assertEqual(c4.status, "pending")
+
+    def test_cannot_reactivate_everything(self):
+        with self.assertRaises(Exception) as e:
+            # the building is active
+            self.building.reactivate()
+
+        # now we set the building as if it has been deactivated during a merge
+        self.building.event_type = "merge"
+        self.building.is_active = False
+        self.building.save()
+
+        with self.assertRaises(Exception) as e:
+            # not active, but not deactivated by a "deactivation" event
+            self.building.reactivate()
+
     def test_update_building(self):
         self.user.groups.add(self.group)
         comment = "maj du batiment"
         data = {
             "status": "notUsable",
             "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
             "comment": comment,
         }
 
@@ -1252,9 +1368,56 @@ class BuildingPatchTest(APITestCase):
             self.building.event_origin,
             {"source": "contribution", "contribution_id": contribution.id},
         )
+        g = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
+        self.assertEqual(self.building.shape.wkt, g.wkt)
+        self.assertTrue(g.contains(self.building.point))
         self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
+
+    def test_update_building_shape_hex(self):
+        self.user.groups.add(self.group)
+        comment = "maj du batiment"
+        wkt = "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))"
+        g = GEOSGeometry(wkt)
+        data = {
+            "shape": g.hex.decode(),
+            "comment": comment,
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.building.refresh_from_db()
+
+        self.assertEqual(self.building.shape.wkt, wkt)
+        self.assertTrue(g.contains(self.building.point))
+
+    def test_update_building_shape_point(self):
+        self.user.groups.add(self.group)
+        comment = "maj du batiment"
+        wkt = "POINT (1 1)"
+        g = GEOSGeometry(wkt)
+        data = {
+            "shape": g.wkt,
+            "comment": comment,
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.building.refresh_from_db()
+
+        self.assertEqual(self.building.shape.wkt, wkt)
+        self.assertEqual(self.building.point, self.building.shape)
 
     @mock.patch("batid.models.requests.get")
     def test_new_address(self, get_mock):

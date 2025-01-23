@@ -9,6 +9,7 @@ import requests
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.db import transaction
 from django.http import HttpResponse
@@ -78,6 +79,7 @@ from batid.services.stats import ACTIVE_BUILDING_COUNT
 from batid.services.stats import get_stat as get_cached_stat
 from batid.services.vector_tiles import ads_tiles_sql
 from batid.services.vector_tiles import bdgs_tiles_sql
+from batid.services.vector_tiles import plots_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
 from batid.utils.constants import ADS_GROUP_NAME
 
@@ -177,11 +179,13 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             return Response(
                 {"errors": search.errors}, status=status.HTTP_400_BAD_REQUEST
             )
+        try:
+            qs = search.get_queryset()
+            serializer = GuessBuildingSerializer(qs, many=True)
 
-        qs = search.get_queryset()
-        serializer = GuessBuildingSerializer(qs, many=True)
-
-        return Response(serializer.data)
+            return Response(serializer.data)
+        except BANAPIDown:
+            raise ServiceUnavailable(detail="BAN API is currently down")
 
 
 class BuildingClosestView(RNBLoggingMixin, APIView):
@@ -798,19 +802,21 @@ class SingleBuilding(APIView):
     @rnb_doc(
         {
             "patch": {
-                "summary": "Mise à jour ou désactivation d'un bâtiment",
+                "summary": "Mise à jour ou désactivation/réactivation d'un bâtiment",
                 "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
                 Il permet de :
                 <ul>
-                    <li> mettre à jour un bâtiment existant (status, addresses_cle_interop)</li>
-                    <li> de le désactiver (is_active) s'il s'avère qu'il ne devrait pas faire partir du RNB. Par exemple un arbre qui aurait été par erreur repertorié comme un bâtiment du RNB.</li>
+                    <li> mettre à jour un bâtiment existant (status, addresses_cle_interop, shape)</li>
+                    <li> de désactiver son RNB ID (is_active) s'il s'avère qu'il ne devrait pas faire partir du RNB. Par exemple un arbre qui aurait été par erreur repertorié comme un bâtiment du RNB.</li>
+                    <li> de réactiver un RNB ID, si celui-ci a été désactivé par erreur.</li>
                 </ul>
                 <br/><br/>
-                Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver.
+                Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver/réactiver.
                 <br/><br/>
                 Exemples valides: <br/>
                 <ul>
                     <li>{"comment": "faux bâtiment", "is_active": False}</li>
+                    <li>{"comment": "RNB ID désactivé par erreur, on le réactive", "is_active": True}</li>
                     <li>{"comment": "bâtiment démoli", "status": "demolished"}</li>
                     <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}</li>
                 </ul>""",
@@ -838,7 +844,9 @@ class SingleBuilding(APIView):
                                     },
                                     "is_active": {
                                         "type": "boolean",
-                                        "description": "Une seule valeure est autorisée : False. Signifie que le bâtiment est désactivé, car sa présence dans le RNB est une erreur. Ne permet pas de signaler une démolition, qui se fait plutôt par une mise à jour du statut.",
+                                        "description": """False : le RNB ID est désactivé, car sa présence dans le RNB est une erreur. Ne permet pas de signaler une démolition, qui doit se faire par une mise à jour du statut.
+                                                          True : le RNB ID est réactivé. À utiliser uniquement pour annuler une désactivation accidentelle.
+                                            """,
                                     },
                                     "status": {
                                         "type": "string",
@@ -848,8 +856,12 @@ class SingleBuilding(APIView):
                                         "type": "list",
                                         "description": """Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
                                     },
+                                    "shape": {
+                                        "type": "string",
+                                        "description": """Géométrie du bâtiment au format WKT ou HEX. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
+                                    },
                                 },
-                                "required": ["comment"],
+                                "required": [],
                             }
                         }
                     },
@@ -872,7 +884,7 @@ class SingleBuilding(APIView):
             with transaction.atomic():
                 contribution = Contribution(
                     rnb_id=rnb_id,
-                    text=data["comment"],
+                    text=data.get("comment"),
                     status="fixed",
                     status_changed_at=datetime.now(),
                     review_user=user,
@@ -887,13 +899,23 @@ class SingleBuilding(APIView):
                 if data.get("is_active") == False:
                     # a building that is not a building has its RNB ID deactivated from the base
                     building.deactivate(user, event_origin)
+                elif data.get("is_active") == True:
+                    # a building is reactivated, after a deactivation that should not have
+                    building.reactivate(user, event_origin)
                 else:
                     status = data.get("status")
                     addresses_cle_interop = data.get("addresses_cle_interop")
+                    shape = (
+                        GEOSGeometry(data.get("shape")) if data.get("shape") else None
+                    )
 
                     try:
                         building.update(
-                            user, event_origin, status, addresses_cle_interop
+                            user,
+                            event_origin,
+                            status,
+                            addresses_cle_interop,
+                            shape=shape,
                         )
                     except BANAPIDown:
                         raise ServiceUnavailable(detail="BAN API is currently down")
@@ -1265,6 +1287,25 @@ class ADSVectorTileView(APIView):
         return HttpResponse(
             tile_file, content_type="application/vnd.mapbox-vector-tile"
         )
+
+
+class PlotsVectorTileView(APIView):
+    def get(self, request, x, y, z):
+
+        if int(z) >= 16:
+
+            tile_dict = url_params_to_tile(x, y, z)
+            sql = plots_tiles_sql(tile_dict)
+
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+                tile_file = cursor.fetchone()[0]
+
+            return HttpResponse(
+                tile_file, content_type="application/vnd.mapbox-vector-tile"
+            )
+        else:
+            return HttpResponse(status=204)
 
 
 class BuildingsVectorTileView(APIView):

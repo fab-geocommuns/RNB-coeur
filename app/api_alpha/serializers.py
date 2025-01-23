@@ -1,5 +1,6 @@
 import math
 
+from django.contrib.gis.geos import GEOSGeometry
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -257,12 +258,28 @@ class BuildingUpdateSerializer(serializers.Serializer):
         allow_empty=True,
         required=False,
     )
-    comment = serializers.CharField(min_length=4, required=True)
+    shape = serializers.CharField(required=False)
+    comment = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_shape(self, shape):
+        if shape is None:
+            return None
+
+        try:
+            g = GEOSGeometry(shape)
+            if not g.valid:
+                raise Exception
+        except:
+            raise serializers.ValidationError(
+                "the given shape could not be parsed or is not valid"
+            )
+        return shape
 
     def validate(self, data):
         if data.get("is_active") is not None and (
             data.get("status") is not None
             or data.get("addresses_cle_interop") is not None
+            or data.get("shape") is not None
         ):
             raise serializers.ValidationError(
                 "you need to either set is_active or set status/addresses, not both at the same time"
@@ -271,11 +288,9 @@ class BuildingUpdateSerializer(serializers.Serializer):
             data.get("is_active") is None
             and data.get("status") is None
             and data.get("addresses_cle_interop") is None
+            and data.get("shape") is None
         ):
             raise serializers.ValidationError("empty arguments in the request body")
-
-        if data.get("is_active") == True:
-            raise serializers.ValidationError("you can only set is_active to False")
 
         return data
 
