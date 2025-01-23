@@ -150,9 +150,43 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
         ]
 
 
+def validate_point(coords_str: str):
+    if not coords_str:
+        raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+
+    coords = coords_str.split(",")
+
+    if len(coords) != 2:
+        raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+
+    try:
+        lat = float(coords[0])
+    except:
+        raise serializers.ValidationError(
+            "Point is not valid, because latitude is not valid"
+        )
+
+    try:
+        lon = float(coords[1])
+    except:
+        raise serializers.ValidationError(
+            "Point is not valid, because longitude is not valid"
+        )
+
+    if lat < -90 or lat > 90 or math.isnan(lat):
+        raise serializers.ValidationError(
+            "Point is not valid, latitude must be between -90 and 90"
+        )
+
+    if lon < -180 or lon > 180 or math.isnan(lon):
+        raise serializers.ValidationError(
+            "Point is not valid, longitude must be between -180 and 180"
+        )
+
+
 class BuildingClosestQuerySerializer(serializers.Serializer):
     radius = serializers.FloatField(required=True)
-    point = serializers.CharField(required=True)
+    point = serializers.CharField(required=True, validators=[validate_point])
 
     def validate_radius(self, value):
         if value < 0:
@@ -162,23 +196,6 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
             raise serializers.ValidationError("Radius must be less than 1000 meters")
 
         return value
-
-    # todo : si ouverture à usage externe, utiliser une validation du point plus complète. Exemple dispo dans BuildingGuessParams.__validate_point_from_url()
-    def validate_point(self, value):
-        """
-        we expect a 'lat,lng' format
-        """
-        try:
-            lat, lng = value.split(",")
-            lat = float(lat)
-            lng = float(lng)
-
-            if math.isnan(lat) or math.isnan(lng):
-                raise ValueError
-
-            return value
-        except:
-            raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
 
 
 class BuildingAddressQuerySerializer(serializers.Serializer):
