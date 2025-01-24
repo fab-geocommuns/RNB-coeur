@@ -57,14 +57,10 @@ class Inspector:
 
     def get_matching_bdgs(self):
 
-        # self.matching_bdgs = Building.objects.filter(
-        #     shape__intersects=self.candidate.shape
-        # ).filter(status__in=BuildingStatusService.REAL_BUILDINGS_STATUS, is_active=True)
-
         q = (
             "SELECT id, ST_AsEWKB(shape) as shape "
             f"FROM {Building._meta.db_table} "
-            "WHERE ST_DWithin(shape::geography, ST_GeomFromText(%(c_shape)s)::geography, 4) "
+            "WHERE ST_DWithin(shape::geography, ST_GeomFromText(%(c_shape)s)::geography, 3) "
             "AND status IN %(status)s "
             "AND is_active = true"
         )
@@ -305,15 +301,9 @@ def match_point_poly(
     a: GEOSGeometry, b: GEOSGeometry
 ) -> Literal["match", "no_match", "conflict"]:
 
-    # The point is close to the polygon (the db query is done with a distance of 4 meters)
+    # We are sure the point is close to the polygon (the db query is keeps buildings in a 3 meters radius)
     # So, it's always a match
     return "match"
-
-    # # NB : this intersection verification is already done in the sql query BUT we want to be sure this matching condition is always verified even the SQL query is modified
-    # if a.intersects(b):
-    #     return "match"
-    #
-    # return "no_match"
 
 
 def shape_family(shape: GEOSGeometry):
