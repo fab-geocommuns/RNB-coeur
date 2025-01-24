@@ -973,6 +973,49 @@ class TestCandidateOnTwoMatchingBdgs(InspectTest):
         self.assertEqual(c.inspection_details["reason"], "ambiguous_overlap")
 
 
+class TestCandidateCLoseToPointBdg(InspectTest):
+
+    bdgs_data = [
+        {
+            "id": "POINT_BDG",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [-0.4054973749373687, 42.13386683679241],
+                "type": "Point",
+            },
+        }
+    ]
+
+    candidates_data = [
+        {
+            "id": "CDT_POLY",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.4055384428695845, 42.1338676176932],
+                        [-0.4054805265556638, 42.13390978632495],
+                        [-0.40546683724414834, 42.1341050111069],
+                        [-0.4059112133287499, 42.13408705045228],
+                        [-0.40588488773067866, 42.13384575246573],
+                        [-0.4055384428695845, 42.1338676176932],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        }
+    ]
+
+    def test_result(self):
+
+        i = Inspector()
+        i.inspect()
+
+        self.assertEqual(Building.objects.all().count(), 1)
+        c = Candidate.objects.all().first()
+        self.assertEqual(c.inspection_details["decision"], "update")
+
+
 def data_to_candidate(data):
     b_import = BuildingImport.objects.create(
         departement="33",

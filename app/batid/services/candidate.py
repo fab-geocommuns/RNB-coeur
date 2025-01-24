@@ -57,9 +57,16 @@ class Inspector:
 
     def get_matching_bdgs(self):
 
-        self.matching_bdgs = Building.objects.filter(
-            shape__intersects=self.candidate.shape
-        ).filter(status__in=BuildingStatusService.REAL_BUILDINGS_STATUS, is_active=True)
+        # self.matching_bdgs = Building.objects.filter(
+        #     shape__intersects=self.candidate.shape
+        # ).filter(status__in=BuildingStatusService.REAL_BUILDINGS_STATUS, is_active=True)
+
+        q = f"SELECT id, ST_AsEWKB(shape) as shape FROM {Building._meta.db_table} WHERE ST_Intersects(shape, ST_GeomFromText(%(c_shape)s)) AND status IN %(status)s AND is_active = true"
+        params = {
+            "c_shape": f"{self.candidate.shape}",
+            "status": tuple(BuildingStatusService.REAL_BUILDINGS_STATUS),
+        }
+        self.matching_bdgs = Building.objects.raw(q, params)
 
     def inspect_candidate(self):
 
