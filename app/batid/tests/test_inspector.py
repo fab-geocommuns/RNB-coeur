@@ -7,7 +7,6 @@ from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
 from django.db import connection
 from django.db import transaction
-from django.db.utils import IntegrityError
 from django.test import TestCase
 from django.test import TransactionTestCase
 
@@ -1018,10 +1017,16 @@ def data_to_bdg(data):
 
 # we need to use TransactionTestCase because we are testing thez proper rollback of the transactions during the inspection
 class NonExistingAddress(TransactionTestCase):
-    def test_non_existing_address_raises(self):
+    @mock.patch("batid.models.requests.get")
+    def test_non_existing_address_raises(self, get_mock):
         """
         When an address is not found in the database, an error is raised
         """
+        get_mock.return_value.status_code = 404
+        get_mock.return_value.json.return_value = {
+            "details": "what is this id?",
+        }
+
         coords = [
             [2.349804906833981, 48.85789205519228],
             [2.349701279442314, 48.85786369735885],
@@ -1041,7 +1046,7 @@ class NonExistingAddress(TransactionTestCase):
         )
 
         i = Inspector()
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(BANUnknownCleInterop):
             i.inspect()
 
         candidate.refresh_from_db()

@@ -248,6 +248,21 @@ class BuildingPlotSerializer(serializers.ModelSerializer):
         ]
 
 
+def shape_is_valid(shape):
+    if shape is None:
+        return None
+
+    try:
+        g = GEOSGeometry(shape)
+        if not g.valid:
+            raise Exception
+    except:
+        raise serializers.ValidationError(
+            "the given shape could not be parsed or is not valid"
+        )
+    return shape
+
+
 class BuildingUpdateSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(required=False)
     status = serializers.ChoiceField(
@@ -258,22 +273,8 @@ class BuildingUpdateSerializer(serializers.Serializer):
         allow_empty=True,
         required=False,
     )
-    shape = serializers.CharField(required=False)
+    shape = serializers.CharField(required=False, validators=[shape_is_valid])
     comment = serializers.CharField(required=False, allow_blank=True)
-
-    def validate_shape(self, shape):
-        if shape is None:
-            return None
-
-        try:
-            g = GEOSGeometry(shape)
-            if not g.valid:
-                raise Exception
-        except:
-            raise serializers.ValidationError(
-                "the given shape could not be parsed or is not valid"
-            )
-        return shape
 
     def validate(self, data):
         if data.get("is_active") is not None and (
@@ -293,6 +294,19 @@ class BuildingUpdateSerializer(serializers.Serializer):
             raise serializers.ValidationError("empty arguments in the request body")
 
         return data
+
+
+class BuildingCreateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=BuildingStatus.ALL_TYPES_KEYS, required=True
+    )
+    addresses_cle_interop = serializers.ListField(
+        child=serializers.CharField(min_length=5, max_length=30),
+        allow_empty=True,
+        required=False,
+    )
+    shape = serializers.CharField(required=True, validators=[shape_is_valid])
+    comment = serializers.CharField(required=False, allow_blank=True)
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):
