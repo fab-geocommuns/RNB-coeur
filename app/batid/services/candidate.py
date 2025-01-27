@@ -301,7 +301,7 @@ def match_point_poly(
     a: GEOSGeometry, b: GEOSGeometry
 ) -> Literal["match", "no_match", "conflict"]:
 
-    # We are sure the point is close to the polygon (the db query is keeps buildings in a 3 meters radius)
+    # We are sure the point is close to the polygon (the db query keeps buildings in a 3 meters radius)
     # So, it's always a match
     return "match"
 
