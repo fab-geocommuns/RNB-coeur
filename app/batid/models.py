@@ -282,6 +282,9 @@ class Building(BuildingAbstract):
 
         point = shape if shape.geom_type == "Point" else shape.point_on_surface
 
+        if addresses_id is not None:
+            Address.add_addresses_to_db_if_needed(addresses_id)
+
         return Building.objects.create(
             rnb_id=generate_rnb_id(),
             point=point,

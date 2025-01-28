@@ -1562,6 +1562,124 @@ class BuildingPatchTest(APITestCase):
         )
 
 
+class BuildingPostTest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            first_name="Robert", last_name="Dylan", username="bob"
+        )
+        token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+
+        self.group, created = Group.objects.get_or_create(
+            name=RNBContributorPermission.group_name
+        )
+
+        self.adr1 = Address.objects.create(id="cle_interop_1")
+        self.adr2 = Address.objects.create(id="cle_interop_2")
+
+    def test_create_building(self):
+        data = {
+            "status": "constructed",
+            "addresses_cle_interop": ["cle_interop_1", "cle_interop_2"],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+            "comment": "nouveau bâtiment",
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 403)
+
+        self.user.groups.add(self.group)
+
+        r = self.client.post(
+            f"/api/alpha/buildings/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 201)
+        res = r.json()
+
+        self.assertTrue(res["rnb_id"])
+        self.assertEqual(res["status"], "constructed")
+        self.assertEqual(res["point"], {"type": "Point", "coordinates": [0.5, 0.5]})
+        self.assertEqual(res["point"], {"type": "Point", "coordinates": [0.5, 0.5]})
+        self.assertEqual(
+            res["shape"],
+            {
+                "type": "Polygon",
+                "coordinates": [
+                    [[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]]
+                ],
+            },
+        )
+        addresses = res["addresses"]
+        self.assertEqual(addresses[0]["id"], "cle_interop_1")
+        self.assertEqual(addresses[1]["id"], "cle_interop_2")
+        self.assertEqual(len(addresses), 2)
+        self.assertEqual(res["ext_ids"], [])
+        self.assertTrue(res["is_active"])
+
+        building = Building.objects.get(rnb_id=res["rnb_id"])
+        event_origin = building.event_origin
+        contribution_id = event_origin.get("contribution_id")
+
+        contribution = Contribution.objects.get(id=contribution_id)
+
+        self.assertEqual(contribution.status, "fixed")
+        self.assertFalse(contribution.report, False)
+        self.assertEqual(contribution.review_user.id, building.event_user.id)
+        self.assertEqual(contribution.text, data["comment"])
+
+    def test_create_building_missing_status(self):
+        data = {
+            "addresses_cle_interop": ["cle_interop_1"],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+            "comment": "nouveau bâtiment",
+        }
+
+        self.user.groups.add(self.group)
+
+        r = self.client.post(
+            f"/api/alpha/buildings/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+
+    @mock.patch("batid.models.requests.get")
+    def test_create_building_ban_is_down(self, get_mock):
+        get_mock.return_value.status_code = 500
+        cle_interop = "33063_9115_00012_bis"
+        get_mock.return_value.json.return_value = {
+            "details": "Oooops",
+        }
+
+        self.user.groups.add(self.group)
+        data = {
+            "status": "constructed",
+            "addresses_cle_interop": ["33063_9115_00012_bis"],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+            "comment": "nouveau bâtiment",
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 503)
+        get_mock.assert_called_with(
+            f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
+        )
+
+
 class BuildingsWithPlots(APITestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
