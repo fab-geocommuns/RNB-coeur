@@ -58,6 +58,7 @@ if DEBUG:
 
 INSTALLED_APPS = [
     "debug_toolbar",
+    "jsoneditor",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",

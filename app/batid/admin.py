@@ -6,9 +6,12 @@ from batid.models import Address
 from batid.models import ADS
 from batid.models import Contribution
 from batid.models import Organization
+from batid.models import DiffusionDatabase
 from batid.views import export_ads
 from batid.views import export_contributions
 from batid.views import worker
+from django.db.models.fields.json import JSONField
+from jsoneditor.forms import JSONEditor
 
 
 class OrganizationAdmin(admin.ModelAdmin):
@@ -63,6 +66,33 @@ class ADSAdmin(admin.ModelAdmin):
 
 
 admin.site.register(ADS, ADSAdmin)
+
+
+class DiffusionDatabaseAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "documentation_url",
+        "publisher",
+        "licence",
+        "tags",
+        "description",
+        "image_url",
+        "is_featured",
+        "featured_summary",
+        "attributes",
+        "created_at",
+        "updated_at",
+    )
+    formfield_overrides = {
+        JSONField: {
+            "widget": JSONEditor(
+                init_options={"mode": "code", "modes": ["code", "text"]}
+            )
+        }
+    }
+
+
+admin.site.register(DiffusionDatabase, DiffusionDatabaseAdmin)
 
 
 def get_admin_urls(urls):

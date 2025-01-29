@@ -23,6 +23,7 @@ from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
 from batid.validators import validate_one_ext_id
+from batid.validators import JSONSchemaValidator
 
 
 class BuildingAbstract(models.Model):
@@ -693,4 +694,43 @@ class DataFix(models.Model):
     # the user who created the fix
     user = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+DIFFUSION_DATABASE_ATTRIBUTES_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string",
+            },
+            "description": {
+                "type": "string",
+            },
+        },
+        "required": ["name", "description"],
+        "additionalProperties": False,
+    },
+}
+
+
+class DiffusionDatabase(models.Model):
+    display_order = models.FloatField(null=False, default=0)
+    name = models.CharField(max_length=255)
+    documentation_url = models.URLField(null=True)
+    publisher = models.CharField(max_length=255, null=True)
+    licence = models.CharField(max_length=255, null=True)
+    tags = ArrayField(models.CharField(max_length=255), null=False, default=list, blank=True)
+    description = models.TextField(blank=True)
+    image_url = models.URLField(null=True)
+    is_featured = models.BooleanField(default=False)
+    featured_summary = models.TextField(blank=True)
+    attributes = models.JSONField(
+        null=False,
+        default=list,
+        blank=True,
+        validators=[JSONSchemaValidator(DIFFUSION_DATABASE_ATTRIBUTES_SCHEMA)],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

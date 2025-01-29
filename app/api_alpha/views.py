@@ -58,6 +58,7 @@ from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import GuessBuildingSerializer
+from api_alpha.serializers import DiffusionDatabaseSerializer
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import rnb_doc
@@ -70,6 +71,7 @@ from batid.models import ADS
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import Organization
+from batid.models import DiffusionDatabase
 from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.geocoders import BanGeocoder
@@ -1853,6 +1855,14 @@ class TokenScheme(OpenApiAuthenticationExtension):
             "Exemple:\n\n"
             "`Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b`",
         }
+
+
+class DiffusionDatabaseView(APIView):
+    def get(self, request):
+        """Lists all databases in which ID-RNBs are published and available attributes"""
+        databases = DiffusionDatabase.objects.all()
+        serializer = DiffusionDatabaseSerializer(databases, many=True)
+        return Response(serializer.data)
 
 
 def get_schema(request):
