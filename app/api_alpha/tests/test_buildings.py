@@ -1680,6 +1680,92 @@ class BuildingPostTest(APITestCase):
         )
 
 
+class BuildingMergeTest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            first_name="Robert", last_name="Dylan", username="bob"
+        )
+        token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+
+        self.group, created = Group.objects.get_or_create(
+            name=RNBContributorPermission.group_name
+        )
+
+        self.adr1 = Address.objects.create(id="cle_interop_1")
+        self.adr2 = Address.objects.create(id="cle_interop_2")
+
+    def test_merge_buildings(self):
+        building_1 = Building.objects.create(
+            rnb_id="AAAA00000000",
+            shape="POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+            is_active=True,
+            addresses_id=[self.adr1.id],
+        )
+        building_2 = Building.objects.create(
+            rnb_id="BBBB00000000",
+            shape="POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))",
+            is_active=True,
+            addresses_id=[self.adr2.id],
+        )
+
+        data = {
+            "rnb_ids": [building_1.rnb_id, building_2.rnb_id],
+            "status": "constructed",
+            "merge_existing_addresses": True,
+            "comment": "Ces deux bâtiments ne font qu'un !",
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 403)
+        self.user.groups.add(self.group)
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 201)
+        res = r.json()
+
+        self.assertTrue(res["rnb_id"])
+        self.assertEqual(res["status"], "constructed")
+        # self.assertEqual(res["point"], {"type": "Point", "coordinates": [0.5, 0.5]})
+        # self.assertEqual(
+        #     res["shape"],
+        #     {
+        #         "type": "Polygon",
+        #         "coordinates": [
+        #             [[0.0, 0.0], [0.0, 2.0], [2.0, 2.0], [2.0, 0.0], [0.0, 0.0]]
+        #         ],
+        #     },
+        # )
+        addresses = res["addresses"]
+        self.assertEqual(addresses[0]["id"], self.adr1.id)
+        self.assertEqual(addresses[1]["id"], self.adr2.id)
+        self.assertEqual(len(addresses), 2)
+        # to do
+        self.assertEqual(res["ext_ids"], [])
+        self.assertTrue(res["is_active"])
+
+        building = Building.objects.get(rnb_id=res["rnb_id"])
+        event_origin = building.event_origin
+        contribution_id = event_origin.get("contribution_id")
+
+        contribution = Contribution.objects.get(id=contribution_id)
+
+        self.assertEqual(contribution.status, "fixed")
+        self.assertFalse(contribution.report, False)
+        self.assertEqual(contribution.review_user.id, building.event_user.id)
+        self.assertEqual(contribution.text, data["comment"])
+
+
 class BuildingsWithPlots(APITestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
