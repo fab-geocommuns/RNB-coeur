@@ -309,6 +309,32 @@ class BuildingCreateSerializer(serializers.Serializer):
     comment = serializers.CharField(required=False, allow_blank=True)
 
 
+class BuildingMergeSerializer(serializers.Serializer):
+    comment = serializers.CharField(required=False, allow_blank=True)
+    rnb_ids = serializers.ListField(
+        child=serializers.CharField(min_length=12, max_length=12),
+        min_length=2,
+        allow_empty=False,
+        required=True,
+    )
+    merge_existing_addresses = serializers.BooleanField(required=False)
+    addresses_cle_interop = serializers.ListField(
+        child=serializers.CharField(min_length=5, max_length=30),
+        allow_empty=True,
+        required=False,
+    )
+    status = serializers.ChoiceField(
+        choices=BuildingStatus.ALL_TYPES_KEYS, required=True
+    )
+
+    def validate(self, data):
+        if data.get("merge_existing_addresses") and data.get("addresses_cle_interop"):
+            raise serializers.ValidationError(
+                "If merge_existing_addresses is set to True, you cannot specify addresses_cle_interop"
+            )
+        return data
+
+
 class BuildingsADSSerializer(serializers.ModelSerializer):
     # building = BdgInAdsSerializer()
     rnb_id = RNBIdField(

@@ -53,6 +53,7 @@ from api_alpha.serializers import BuildingAddressQuerySerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingCreateSerializer
+from api_alpha.serializers import BuildingMergeSerializer
 from api_alpha.serializers import BuildingPlotSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import BuildingUpdateSerializer
@@ -768,7 +769,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                     },
                                     "addresses_cle_interop": {
                                         "type": "list",
-                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiments. Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
+                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiment. Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
                                     },
                                     "shape": {
                                         "type": "string",
@@ -849,6 +850,132 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 contribution.save()
 
             serializer = BuildingSerializer(created_building, with_plots=True)
+            return Response(serializer.data, status=http_status.HTTP_201_CREATED)
+
+
+class MergeBuildings(APIView):
+    permission_classes = [RNBContributorPermission]
+
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Fusion de bâtiments",
+                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
+                Il permet de corriger le RNB en fusionnant plusieurs bâtiments existants, donnant lieu à la création d'un nouveau bâtiment.
+                """,
+                "operationId": "mergeBuildings",
+                "parameters": [],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "comment": {
+                                        "type": "string",
+                                        "description": """Commentaire optionnel associé à l'opération""",
+                                    },
+                                    "rnb_ids": {
+                                        "type": "list",
+                                        "description": "Liste des ID-RNB des bâtiments à fusionner",
+                                    },
+                                    "merge_existing_addresses": {
+                                        "type": "bool",
+                                        "description": """Lorsque ce paramêtre vaut True, le bâtiment nouvellement créé hérite des adresses des bâtiments dont il est issu. S'il n'est pas rempli ou qu'il vaut False, le champ addresses_cle_interop est utilisé pour déterminer les adresses du bâtiment.""",
+                                    },
+                                    "addresses_cle_interop": {
+                                        "type": "list",
+                                        "description": """Liste des clés d'interopérabilité BAN liées au nouveau bâtiment créé. Si une liste vide est passée, le bâtiment ne sera lié à aucune adresse. Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "description": f"Statut du bâtiment nouvellement créé. Les valeurs possibles sont : <br /> {get_status_html_list()}<br />",
+                                    },
+                                },
+                                "required": ["rnb_ids", "status"],
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "200": {
+                        "description": "Détails du bâtiment nouvellement créé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {"$ref": "#/components/schemas/Building"},
+                                    ]
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    )
+    def post(self, request):
+        serializer = BuildingMergeSerializer(data=request.data)
+
+        if serializer.is_valid(raise_exception=True):
+            data = serializer.data
+            user = request.user
+
+            with transaction.atomic():
+                # create a contribution
+                contribution = Contribution(
+                    text=data.get("comment"),
+                    status="fixed",
+                    status_changed_at=datetime.now(timezone.utc),
+                    report=False,
+                    review_user=user,
+                )
+                contribution.save()
+
+                event_origin = {
+                    "source": "contribution",
+                    "contribution_id": contribution.id,
+                }
+
+                rnb_ids = data.get("rnb_ids")
+                buildings = list(Building.objects.filter(rnb_id__in=rnb_ids).all())
+                status = data.get("status")
+
+                merge_existing_addresses = data.get("merge_existing_addresses")
+                if merge_existing_addresses:
+                    addresses_id = list(
+                        set(
+                            [
+                                address
+                                for building in buildings
+                                for address in building.addresses_id
+                            ]
+                        )
+                    )
+                else:
+                    addresses_id = data.get("addresses_cle_interop")
+
+                try:
+                    new_building = Building.merge(
+                        buildings, user, event_origin, status, addresses_id
+                    )
+                except BANAPIDown:
+                    raise ServiceUnavailable(detail="BAN API is currently down")
+                except BANUnknownCleInterop:
+                    raise NotFound(
+                        detail="Cle d'intéropérabilité not found on the BAN API"
+                    )
+                except BANBadResultType:
+                    raise BadRequest(
+                        detail="BAN result has not the expected type (must be 'numero')"
+                    )
+
+                # update the contribution now that the rnb_id is known
+                contribution.rnb_id = new_building.rnb_id
+                contribution.save()
+
+            serializer = BuildingSerializer(new_building, with_plots=False)
             return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
@@ -967,7 +1094,7 @@ class SingleBuilding(APIView):
                                     },
                                     "addresses_cle_interop": {
                                         "type": "list",
-                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
+                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiment. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
                                     },
                                     "shape": {
                                         "type": "string",

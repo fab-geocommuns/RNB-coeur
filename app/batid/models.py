@@ -324,6 +324,9 @@ class Building(BuildingAbstract):
             if ext_id not in merged_ext_ids[i + 1 :]
         ]
 
+        if addresses_id is not None:
+            Address.add_addresses_to_db_if_needed(addresses_id)
+
         def remove_existing_builing(building):
             building.is_active = False
             building.event_type = "merge"
