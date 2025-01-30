@@ -1,5 +1,6 @@
 import csv
 import json
+import os
 from datetime import date
 from datetime import datetime
 from datetime import timezone
@@ -29,32 +30,47 @@ def import_etalab_plots(dpt: str, release_date: str):
     src.set_param("dpt", dpt)
     src.set_param("date", release_date)
 
-    with open(src.path) as f:
+    with open(src.path) as f, transaction.atomic():
+
+        # Deleting all plots in the dpt
+        print("deleting plots with id starting with", dpt)
+        Plot.objects.filter(id__startswith=dpt).delete()
+        print("plots deleted")
+
+        # Then, importing the new plots
         features = ijson.items(f, "features.item", use_float=True)
 
-        plots = list(map(_feature_to_row, features))
+        batch = []
+        batch_size = 100000
 
-        for plot in plots:
+        for feature in features:
+
+            plot = _feature_to_row(feature)
             plot.append(release_date)
 
-        with transaction.atomic():
-            print("deleting plots with id starting with", dpt)
-            Plot.objects.filter(id__startswith=dpt).delete()
-            print("plots deleted")
+            batch.append(plot)
+            if len(batch) == batch_size:
+                _save_plots(batch)
+                batch = []
 
-            print(f"saving plots for departement {dpt}")
-            _save_plots(plots)
-            print("plots saved")
+        # some plots might remain in the batch at the end of the loop, we save them
+        if batch:
+            _save_plots(batch)
+
+        print("plots saved")
 
         # remove the file
-        # os.remove(src.path)
+        os.remove(src.path)
 
 
 def _save_plots(rows):
+
     f = StringIO()
     writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
     writer.writerows(rows)
     f.seek(0)
+
+    print("copy to db")
 
     with connection.cursor() as cursor:
         cursor.copy_from(
