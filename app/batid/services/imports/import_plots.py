@@ -33,9 +33,7 @@ def import_etalab_plots(dpt: str, release_date: str):
     with open(src.path) as f, transaction.atomic():
 
         # Deleting all plots in the dpt
-        print("deleting plots with id starting with", dpt)
         Plot.objects.filter(id__startswith=dpt).delete()
-        print("plots deleted")
 
         # Then, importing the new plots
         features = ijson.items(f, "features.item", use_float=True)
@@ -57,8 +55,6 @@ def import_etalab_plots(dpt: str, release_date: str):
         if batch:
             _save_plots(batch)
 
-        print("plots saved")
-
         # remove the file
         os.remove(src.path)
 
@@ -69,8 +65,6 @@ def _save_plots(rows):
     writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
     writer.writerows(rows)
     f.seek(0)
-
-    print("copy to db")
 
     with connection.cursor() as cursor:
         cursor.copy_from(
