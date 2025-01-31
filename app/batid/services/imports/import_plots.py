@@ -20,7 +20,7 @@ from batid.services.administrative_areas import dpt_list_overseas
 from batid.services.source import Source
 
 
-def import_etalab_plots(dpt: str, release_date: str):
+def import_etalab_plots(dpt: str, release_date: str, batch_size: int = 100_000):
     """Import plots from Etalab"""
     print(
         f"---- Importing Etalab plots for departement {dpt} - release date {release_date} ----"
@@ -39,7 +39,6 @@ def import_etalab_plots(dpt: str, release_date: str):
         features = ijson.items(f, "features.item", use_float=True)
 
         batch = []
-        batch_size = 100000
 
         for feature in features:
 
