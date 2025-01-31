@@ -135,9 +135,6 @@ def queue_full_plots_import(
     dpt_end: Optional[str] = None,
     released_before: Optional[str] = None,
 ):
-    notify_tech(
-        f"Queuing full plots (cadastre) import tasks.  Dpt start: {dpt_start}, dpt end: {dpt_end}.  Released before: {released_before}"
-    )
 
     all_plots_dpts = etalab_dpt_list()
     dpts = slice_dpts(all_plots_dpts, dpt_start, dpt_end)
@@ -149,6 +146,9 @@ def queue_full_plots_import(
         release_date = etalab_recent_release_date(before_date)
     else:
         release_date = etalab_recent_release_date()
+
+    msg = f"Import du cadastre Etalab. Départements: {dpt_start} à {dpt_end}. Date de sortie: {release_date}"
+    notify_tech(msg)
 
     tasks = create_plots_full_import_tasks(dpts, release_date)
 
