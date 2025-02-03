@@ -25,7 +25,7 @@ class ImportPlotsTestCase(TestCase):
         source_instance.path = fixture_path
 
         # launch the import
-        import_plots.import_etalab_plots("75", "2024-12-13")
+        import_plots.import_etalab_plots("75", "2024-12-13", 1)
 
         self.assertEqual(Plot.objects.count(), 3)
 
