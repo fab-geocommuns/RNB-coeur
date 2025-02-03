@@ -23,6 +23,7 @@ from batid.services.data_gouv_publication import publish_on_data_gouv
 from batid.services.data_gouv_publication import update_resource_metadata
 from batid.services.data_gouv_publication import upload_to_s3
 
+
 # Polygone dans Paris
 def get_geom_paris():
     coords = {

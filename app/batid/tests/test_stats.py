@@ -16,7 +16,6 @@ from batid.services.stats import set_stat
 
 
 class AbstractStatTests(ABC, TestCase):
-
     """
     This abstract class is made to mock the cached_stat file path in all tests.
     This way, we do not risk to write in the real file.
