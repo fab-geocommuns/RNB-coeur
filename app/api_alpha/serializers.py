@@ -332,6 +332,14 @@ class BuildingMergeSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "If merge_existing_addresses is set to True, you cannot specify addresses_cle_interop"
             )
+        if (
+            not data.get("merge_existing_addresses")
+            and data.get("addresses_cle_interop") is None
+        ):
+            raise serializers.ValidationError(
+                "merge_existing_addresses or addresses_cle_interop must be set"
+            )
+
         return data
 
 
