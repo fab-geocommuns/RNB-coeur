@@ -1,9 +1,11 @@
 from datetime import datetime
-from django.core.management.base import BaseCommand
 
-from batid.services.data_fix.fill_empty_event_origin import building_identicals
-from batid.models import Candidate, BuildingWithHistory
+from django.core.management.base import BaseCommand
 from django.db import connection
+
+from batid.models import BuildingWithHistory
+from batid.models import Candidate
+from batid.services.data_fix.fill_empty_event_origin import building_identicals
 
 
 class Command(BaseCommand):
@@ -41,8 +43,8 @@ class Command(BaseCommand):
         print(">>> Count refusals per reason")
 
         q = """
-            SELECT inspection_details#>'{reason}' AS reason, count(*) 
-            FROM batid_candidate 
+            SELECT inspection_details#>'{reason}' AS reason, count(*)
+            FROM batid_candidate
             WHERE inspected_at > %(since)s and inspection_details @> '{"decision": "refusal"}'
             GROUP BY inspection_details#>'{reason}';
             """
@@ -58,9 +60,9 @@ class Command(BaseCommand):
         print(">>> Count decisions")
 
         q = """
-            SELECT inspection_details#>'{decision}' AS reason, count(*) 
-            FROM batid_candidate 
-            WHERE inspected_at > %(since)s 
+            SELECT inspection_details#>'{decision}' AS reason, count(*)
+            FROM batid_candidate
+            WHERE inspected_at > %(since)s
             GROUP BY inspection_details#>'{decision}';
             """
 
