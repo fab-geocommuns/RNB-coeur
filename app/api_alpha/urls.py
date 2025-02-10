@@ -12,6 +12,7 @@ from api_alpha.views import BuildingGuessView
 from api_alpha.views import BuildingPlotView
 from api_alpha.views import BuildingsVectorTileView
 from api_alpha.views import ContributionsViewSet
+from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import DiffView
 from api_alpha.views import get_schema
 from api_alpha.views import get_stats
@@ -49,6 +50,7 @@ urlpatterns = [
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
     # Plots vector tiles
     path("plots/tiles/<int:x>/<int:y>/<int:z>.pbf", PlotsVectorTileView.as_view()),
+    path("diffusion_databases", DiffusionDatabaseView.as_view()),
 ]
 
 

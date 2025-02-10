@@ -15,6 +15,7 @@ from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Contribution
+from batid.models import DiffusionDatabase
 from batid.services.bdg_status import BuildingStatus
 from batid.services.rnb_id import clean_rnb_id
 
@@ -464,3 +465,9 @@ class ADSSerializer(serializers.ModelSerializer):
     #             bdg_op.save()
     #
     #     return ads
+
+
+class DiffusionDatabaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiffusionDatabase
+        fields = "__all__"
