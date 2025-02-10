@@ -1524,7 +1524,7 @@ class DiffView(APIView):
                 r,
                 content_type="text/csv",
                 headers={
-                    "Content-Disposition": f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+                    "Content-Disposition": f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"'
                 },
             )
         else:
@@ -1537,8 +1537,7 @@ class DiffView(APIView):
                 start_ts = since
                 first_query = True
 
-                # while start_ts < most_recent_modification:
-                while first_query:
+                while start_ts < most_recent_modification:
                     end_ts = start_ts + timedelta(days=1)
 
                     raw_sql = """
@@ -1572,7 +1571,7 @@ class DiffView(APIView):
                         """
 
                     if first_query:
-                        sql_query = raw_sql + " WITH CSV HEADER"
+                        raw_sql = raw_sql + " WITH CSV HEADER"
                         first_query = False
 
                     sql_query = sql.SQL(raw_sql).format(

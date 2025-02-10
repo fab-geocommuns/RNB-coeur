@@ -1,4 +1,5 @@
 import csv
+import datetime
 import io
 import json
 from unittest import mock
@@ -324,10 +325,8 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[2]["event_id"], rows[0]["event_id"])
 
     def test_diff_split(self):
-
         # todo : use the future split() method when it will be implemented
 
-        # create building
         b1 = Building.objects.create(rnb_id="1", status="constructed")
         Building.objects.create(rnb_id="t")
         # reload the buildings to get the sys_period
@@ -373,6 +372,18 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[2][0], "create")
         self.assertEqual(rows[2][1], b3.rnb_id)
         self.assertEqual(rows[2][2], "constructed")
+
+        # additional check: set a since date in the past to make sure the loop on the datetimes is working correctly
+        # because rows of diff are fetched one day at a time
+        treshold = treshold - datetime.timedelta(days=10)
+        params = urlencode({"since": treshold.isoformat()})
+        url = f"/api/alpha/buildings/diff/?{params}"
+        r = self.client.get(url)
+        diff_text = get_content_from_streaming_response(r)
+        reader = csv.reader(io.StringIO(diff_text))
+        _headers = next(reader)
+        rows = list(reader)
+        self.assertEqual(len(rows), 5)
 
     def test_diff_no_since(self):
         # we want all the diff since the the creation of b1 (excluded)
