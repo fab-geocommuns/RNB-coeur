@@ -1,3 +1,5 @@
+import math
+
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
@@ -13,6 +15,7 @@ from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Contribution
+from batid.models import DiffusionDatabase
 from batid.services.bdg_status import BuildingStatus
 from batid.services.rnb_id import clean_rnb_id
 
@@ -149,9 +152,43 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
         ]
 
 
+def validate_point(coords_str: str):
+    if not coords_str:
+        raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+
+    coords = coords_str.split(",")
+
+    if len(coords) != 2:
+        raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+
+    try:
+        lat = float(coords[0])
+    except:
+        raise serializers.ValidationError(
+            "Point is not valid, because latitude is not valid"
+        )
+
+    try:
+        lon = float(coords[1])
+    except:
+        raise serializers.ValidationError(
+            "Point is not valid, because longitude is not valid"
+        )
+
+    if lat < -90 or lat > 90 or math.isnan(lat):
+        raise serializers.ValidationError(
+            "Point is not valid, latitude must be between -90 and 90"
+        )
+
+    if lon < -180 or lon > 180 or math.isnan(lon):
+        raise serializers.ValidationError(
+            "Point is not valid, longitude must be between -180 and 180"
+        )
+
+
 class BuildingClosestQuerySerializer(serializers.Serializer):
     radius = serializers.FloatField(required=True)
-    point = serializers.CharField(required=True)
+    point = serializers.CharField(required=True, validators=[validate_point])
 
     def validate_radius(self, value):
         if value < 0:
@@ -161,19 +198,6 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
             raise serializers.ValidationError("Radius must be less than 1000 meters")
 
         return value
-
-    # todo : si ouverture à usage externe, utiliser une validation du point plus complète. Exemple dispo dans BuildingGuessParams.__validate_point_from_url()
-    def validate_point(self, value):
-        """
-        we expect a 'lat,lng' format
-        """
-        try:
-            lat, lng = value.split(",")
-            lat = float(lat)
-            lng = float(lng)
-            return value
-        except:
-            raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
 
 
 class BuildingAddressQuerySerializer(serializers.Serializer):
@@ -225,6 +249,21 @@ class BuildingPlotSerializer(serializers.ModelSerializer):
         ]
 
 
+def shape_is_valid(shape):
+    if shape is None:
+        return None
+
+    try:
+        g = GEOSGeometry(shape)
+        if not g.valid:
+            raise Exception
+    except:
+        raise serializers.ValidationError(
+            "the given shape could not be parsed or is not valid"
+        )
+    return shape
+
+
 class BuildingUpdateSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(required=False)
     status = serializers.ChoiceField(
@@ -235,22 +274,8 @@ class BuildingUpdateSerializer(serializers.Serializer):
         allow_empty=True,
         required=False,
     )
-    shape = serializers.CharField(required=False)
+    shape = serializers.CharField(required=False, validators=[shape_is_valid])
     comment = serializers.CharField(required=False, allow_blank=True)
-
-    def validate_shape(self, shape):
-        if shape is None:
-            return None
-
-        try:
-            g = GEOSGeometry(shape)
-            if not g.valid:
-                raise Exception
-        except:
-            raise serializers.ValidationError(
-                "the given shape could not be parsed or is not valid"
-            )
-        return shape
 
     def validate(self, data):
         if data.get("is_active") is not None and (
@@ -270,6 +295,19 @@ class BuildingUpdateSerializer(serializers.Serializer):
             raise serializers.ValidationError("empty arguments in the request body")
 
         return data
+
+
+class BuildingCreateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=BuildingStatus.ALL_TYPES_KEYS, required=True
+    )
+    addresses_cle_interop = serializers.ListField(
+        child=serializers.CharField(min_length=5, max_length=30),
+        allow_empty=True,
+        required=False,
+    )
+    shape = serializers.CharField(required=True, validators=[shape_is_valid])
+    comment = serializers.CharField(required=False, allow_blank=True)
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):
@@ -427,3 +465,9 @@ class ADSSerializer(serializers.ModelSerializer):
     #             bdg_op.save()
     #
     #     return ads
+
+
+class DiffusionDatabaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiffusionDatabase
+        fields = "__all__"

@@ -14,6 +14,7 @@ from rest_framework_tracking.models import APIRequestLog
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
+from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.services.stats import compute_stats
 
@@ -558,3 +559,18 @@ def get_content_from_streaming_response(response):
     content = list(response.streaming_content)
     # each element of the list is a byte string, that we need to decode
     return "".join([b.decode("utf-8") for b in content])
+
+
+class TestDiffusionDatabases(APITestCase):
+    def test_diffusion_databases(self):
+        # create a diffusion database
+        DiffusionDatabase.objects.create(
+            name="Fichiers fonciers",
+            documentation_url="https://datafoncier.cerema.fr/actualites/nouveau-millesime-fichiers-fonciers-2024-disponible?ref=referentiel-national-du-batiment.ghost.io",
+            publisher="le Cerema",
+            licence="Réservée aux ayant droits",
+        )
+        url = "/api/alpha/diffusion_databases"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Fichiers fonciers", response.content.decode())
