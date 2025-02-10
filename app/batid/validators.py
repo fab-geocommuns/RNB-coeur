@@ -1,8 +1,8 @@
+import jsonschema
 from django.core.exceptions import ValidationError
 from django.utils.dateparse import parse_datetime
-from django.utils.translation import gettext_lazy as _
-import jsonschema
 from django.utils.deconstruct import deconstructible
+from django.utils.translation import gettext_lazy as _
 
 
 def validate_many_ext_ids(ext_ids):
@@ -51,6 +51,7 @@ def validate_one_ext_id(ext_id):
             _("External id created_at date must be a valid formatted date"),
         )
 
+
 @deconstructible
 class JSONSchemaValidator:
     def __init__(self, schema):
@@ -61,8 +62,9 @@ class JSONSchemaValidator:
             jsonschema.validate(value, self.schema)
         except jsonschema.exceptions.ValidationError as e:
             raise ValidationError(
-                '%(value)s must adhere to JSON schema: %(error)s', params={'value': value, 'error': e}
+                "%(value)s must adhere to JSON schema: %(error)s",
+                params={"value": value, "error": e},
             )
-        
+
     def __eq__(self, other):
         return isinstance(other, JSONSchemaValidator) and self.schema == other.schema

@@ -22,8 +22,8 @@ from batid.exceptions import BANUnknownCleInterop
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
-from batid.validators import validate_one_ext_id
 from batid.validators import JSONSchemaValidator
+from batid.validators import validate_one_ext_id
 
 
 class BuildingAbstract(models.Model):
@@ -721,7 +721,9 @@ class DiffusionDatabase(models.Model):
     documentation_url = models.URLField(null=True)
     publisher = models.CharField(max_length=255, null=True)
     licence = models.CharField(max_length=255, null=True)
-    tags = ArrayField(models.CharField(max_length=255), null=False, default=list, blank=True)
+    tags = ArrayField(
+        models.CharField(max_length=255), null=False, default=list, blank=True
+    )
     description = models.TextField(blank=True)
     image_url = models.URLField(null=True)
     is_featured = models.BooleanField(default=False)

@@ -1,6 +1,8 @@
 import csv
-import requests
 from io import StringIO
+
+import requests
+
 from batid.models import DiffusionDatabase
 
 

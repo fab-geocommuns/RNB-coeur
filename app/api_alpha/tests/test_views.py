@@ -13,8 +13,8 @@ from rest_framework_tracking.models import APIRequestLog
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
-from batid.models import Organization
 from batid.models import DiffusionDatabase
+from batid.models import Organization
 from batid.services.stats import compute_stats
 
 

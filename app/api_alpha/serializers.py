@@ -466,6 +466,7 @@ class ADSSerializer(serializers.ModelSerializer):
     #
     #     return ads
 
+
 class DiffusionDatabaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = DiffusionDatabase

@@ -1,17 +1,17 @@
 from django.contrib import admin
+from django.db.models.fields.json import JSONField
 from django.urls import path
 from django.utils.html import format_html
+from jsoneditor.forms import JSONEditor
 
 from batid.models import Address
 from batid.models import ADS
 from batid.models import Contribution
-from batid.models import Organization
 from batid.models import DiffusionDatabase
+from batid.models import Organization
 from batid.views import export_ads
 from batid.views import export_contributions
 from batid.views import worker
-from django.db.models.fields.json import JSONField
-from jsoneditor.forms import JSONEditor
 
 
 class OrganizationAdmin(admin.ModelAdmin):
