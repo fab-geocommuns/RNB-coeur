@@ -923,7 +923,6 @@ class MergeBuildings(APIView):
             user = request.user
 
             with transaction.atomic():
-                # create a contribution
                 contribution = Contribution(
                     text=data.get("comment"),
                     status="fixed",
