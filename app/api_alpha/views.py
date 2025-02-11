@@ -56,6 +56,7 @@ from api_alpha.serializers import BuildingCreateSerializer
 from api_alpha.serializers import BuildingMergeSerializer
 from api_alpha.serializers import BuildingPlotSerializer
 from api_alpha.serializers import BuildingSerializer
+from api_alpha.serializers import BuildingSplitSerializer
 from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import DiffusionDatabaseSerializer
@@ -976,6 +977,109 @@ class MergeBuildings(APIView):
                 contribution.save()
 
             serializer = BuildingSerializer(new_building, with_plots=False)
+            return Response(serializer.data, status=http_status.HTTP_201_CREATED)
+
+
+class SplitBuildings(APIView):
+    permission_classes = [RNBContributorPermission]
+
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Scission de bâtiments",
+                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
+                Il permet de corriger le RNB en scindand un bâtiment existant, donnant lieu à la création de plusieurs nouveaux bâtiments.
+                """,
+                "operationId": "splitBuildings",
+                "parameters": [],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "comment": {
+                                        "type": "string",
+                                        "description": """Commentaire optionnel associé à l'opération""",
+                                    },
+                                    "rnb_id": {
+                                        "type": "string",
+                                        "description": "ID-RNB du bâtiment à scinder",
+                                    },
+                                    "created_buildings": {
+                                        "type": "list",
+                                        "description": """Liste d'objets permettant la création des batiments issus de la scission. Les champs attendus sont `status`, `shape` et `addresses_cle_interop`. Par exemple
+                                        [{"status": "constructed", "shape": "POLYGON ((...))", "addresses_cle_interop": ["75105_8884_00004"]}, { ... }]
+                                        """,
+                                    },
+                                },
+                                "required": ["rnb_id", "created_buildings"],
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "200": {
+                        "description": "Détails des bâtiments nouvellement créés",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {"$ref": "#/components/schemas/Building"},
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    )
+    def post(self, request):
+        serializer = BuildingSplitSerializer(data=request.data)
+
+        if serializer.is_valid(raise_exception=True):
+            data = serializer.data
+            user = request.user
+
+            with transaction.atomic():
+                rnb_id = data.get("rnb_id")
+                comment = data.get("comment")
+
+                contribution = Contribution(
+                    text=comment,
+                    status="fixed",
+                    status_changed_at=datetime.now(timezone.utc),
+                    report=False,
+                    review_user=user,
+                    rnb_id=rnb_id,
+                )
+                contribution.save()
+
+                event_origin = {
+                    "source": "contribution",
+                    "contribution_id": contribution.id,
+                }
+
+                created_buildings = data.get("created_buildings")
+
+                try:
+                    building = Building.objects.get(rnb_id=rnb_id)
+                    new_buildings = building.split(
+                        created_buildings, user, event_origin
+                    )
+                except BANAPIDown:
+                    raise ServiceUnavailable(detail="BAN API is currently down")
+                except BANUnknownCleInterop:
+                    raise NotFound(
+                        detail="Cle d'intéropérabilité not found on the BAN API"
+                    )
+                except BANBadResultType:
+                    raise BadRequest(
+                        detail="BAN result has not the expected type (must be 'numero')"
+                    )
+
+            serializer = BuildingSerializer(new_buildings, with_plots=False, many=True)
             return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 

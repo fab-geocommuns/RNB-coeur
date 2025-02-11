@@ -301,6 +301,7 @@ class Building(BuildingAbstract):
         )
 
     @staticmethod
+    @transaction.atomic
     def merge(buildings: list, user, event_origin, status, addresses_id):
         from batid.utils.geo import merge_contiguous_shapes
 
@@ -356,6 +357,59 @@ class Building(BuildingAbstract):
         building.save()
 
         return building
+
+    def split(self, created_buildings: list, user: User, event_origin: dict):
+        if not event_origin or not user:
+            raise Exception("Missing information to split the building")
+
+        if not self.is_active:
+            raise Exception("Cannot split an inactive buildings.")
+
+        if not isinstance(created_buildings, list) or len(created_buildings) < 2:
+            raise Exception("A building must be split at least in two")
+
+        event_id = uuid.uuid4()
+
+        # deactivate the parent building
+        self.is_active = False
+        self.event_type = "split"
+        self.event_id = event_id
+        self.event_user = user
+        self.event_origin = event_origin
+        self.save()
+
+        def create_child_building(status, addresses_cle_interop, shape):
+            if addresses_cle_interop is not None:
+                Address.add_addresses_to_db_if_needed(addresses_cle_interop)
+
+            child_building = Building()
+            child_building.rnb_id = generate_rnb_id()
+            child_building.status = status
+            child_building.is_active = True
+            child_building.event_type = "split"
+            child_building.event_id = event_id
+            child_building.event_user = user
+            child_building.event_origin = event_origin
+            child_building.parent_buildings = [self.rnb_id]
+            child_building.addresses_id = addresses_cle_interop
+            child_building.shape = shape
+            child_building.point = shape.point_on_surface
+            child_building.ext_ids = self.ext_ids
+            child_building.save()
+
+            return child_building
+
+        child_buildings = []
+
+        for building_info in created_buildings:
+            status = building_info["status"]
+            addresses_cle_interop = building_info["addresses_cle_interop"]
+            shape = building_info["shape"]
+            child_buildings.append(
+                create_child_building(status, addresses_cle_interop, shape)
+            )
+
+        return child_buildings
 
     class Meta:
         # ordering = ["rnb_id"]
