@@ -378,9 +378,10 @@ class Building(BuildingAbstract):
         self.event_origin = event_origin
         self.save()
 
-        def create_child_building(status, addresses_cle_interop, shape):
+        def create_child_building(status: str, addresses_cle_interop: list, shape: str):
             if addresses_cle_interop is not None:
                 Address.add_addresses_to_db_if_needed(addresses_cle_interop)
+            geos_shape = GEOSGeometry(shape)
 
             child_building = Building()
             child_building.rnb_id = generate_rnb_id()
@@ -392,8 +393,8 @@ class Building(BuildingAbstract):
             child_building.event_origin = event_origin
             child_building.parent_buildings = [self.rnb_id]
             child_building.addresses_id = addresses_cle_interop
-            child_building.shape = shape
-            child_building.point = shape.point_on_surface
+            child_building.shape = geos_shape
+            child_building.point = geos_shape.point_on_surface
             child_building.ext_ids = self.ext_ids
             child_building.save()
 

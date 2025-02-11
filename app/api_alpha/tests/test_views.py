@@ -325,8 +325,8 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[2]["event_id"], rows[0]["event_id"])
 
     def test_diff_split(self):
-
-        # todo : use the future split() method when it will be implemented
+        user = User()
+        user.save()
 
         # create building
         b1 = Building.objects.create(rnb_id="1", status="constructed")
@@ -334,17 +334,25 @@ class DiffTest(TransactionTestCase):
         # reload the buildings to get the sys_period
         treshold = Building.objects.get(rnb_id="t").sys_period.lower
 
-        # split building b1 into b2 and b3
-        b1.event_type = "split"
-        b1.is_active = False
-        b1.save()
+        created_buildings = b1.split(
+            [
+                {
+                    "status": "constructed",
+                    "addresses_cle_interop": [],
+                    "shape": "POLYGON((0 0, 0 0.5, 0.5 0.5, 0.5 0, 0 0))",
+                },
+                {
+                    "status": "constructed",
+                    "addresses_cle_interop": [],
+                    "shape": "POLYGON((0 0, 0 0.5, 0.5 0.5, 0.5 0, 0 0))",
+                },
+            ],
+            user,
+            {"source": "contribution"},
+        )
 
-        b2 = Building.objects.create(
-            rnb_id="2", status="constructed", event_type="split", is_active=True
-        )
-        b3 = Building.objects.create(
-            rnb_id="3", status="constructed", event_type="split", is_active=True
-        )
+        b2 = created_buildings[0]
+        b3 = created_buildings[1]
 
         # we want all the diff since the creation of b1 (excluded)
         params = urlencode({"since": treshold.isoformat()})

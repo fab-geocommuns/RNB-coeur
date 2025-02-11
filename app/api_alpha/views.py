@@ -1010,7 +1010,7 @@ class SplitBuildings(APIView):
                                     "created_buildings": {
                                         "type": "list",
                                         "description": """Liste d'objets permettant la création des batiments issus de la scission. Les champs attendus sont `status`, `shape` et `addresses_cle_interop`. Par exemple
-                                        [{"status": "constructed", "shape": "POLYGON ((...))", "addresses_cle_interop": ["75105_8884_00004"]}, { ... }]
+                                        [{"status": "constructed", "shape": "POLYGON((...))", "addresses_cle_interop": ["75105_8884_00004"]}, { ... }]
                                         """,
                                     },
                                 },

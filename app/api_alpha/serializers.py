@@ -351,7 +351,7 @@ class BuildingSplitSerializer(serializers.Serializer):
     comment = serializers.CharField(required=False, allow_blank=True)
     rnb_ids = serializers.CharField(min_length=12, max_length=12, required=True)
     created_buildings = serializers.ListField(
-        required=True, allow_empty=False, child=BuildingCreateSerializerCore
+        required=True, allow_empty=False, child=BuildingCreateSerializerCore()
     )
 
 
