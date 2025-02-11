@@ -18,6 +18,7 @@ from api_alpha.views import get_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
 from api_alpha.views import ListCreateBuildings
+from api_alpha.views import MergeBuildings
 from api_alpha.views import PlotsVectorTileView
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SingleBuilding
@@ -39,6 +40,7 @@ urlpatterns = [
     path("buildings/address/", BuildingAddressView.as_view()),
     path("buildings/plot/<str:plot_id>/", BuildingPlotView.as_view()),
     path("buildings/diff/", DiffView.as_view()),
+    path("buildings/merge/", MergeBuildings.as_view()),
     re_path(
         r"buildings/(?P<rnb_id>[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4})/",
         SingleBuilding.as_view(),
