@@ -379,6 +379,7 @@ class Building(BuildingAbstract):
         self.save()
 
         def create_child_building(status: str, addresses_cle_interop: list, shape: str):
+            addresses_cle_interop = list(set(addresses_cle_interop))
             if addresses_cle_interop is not None:
                 Address.add_addresses_to_db_if_needed(addresses_cle_interop)
             geos_shape = GEOSGeometry(shape)

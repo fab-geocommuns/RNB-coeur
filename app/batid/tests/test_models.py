@@ -197,3 +197,94 @@ class TestBuilding(TestCase):
             # that type does not exist
             b.event_type = "spawn"
             b.save()
+
+
+class TestSplitBuilding(TestCase):
+    def setUp(self):
+        self.user = User()
+        self.user.save()
+        self.adr1 = Address.objects.create(id="cle_interop_1")
+        self.adr2 = Address.objects.create(id="cle_interop_2")
+
+    def test_split_a_building(self):
+        # create building
+        b1 = Building.objects.create(rnb_id="1", status="constructed")
+        event_origin = {"source": "xxx"}
+        # split it in 3
+        created_buildings = b1.split(
+            [
+                {
+                    "status": "constructed",
+                    "addresses_cle_interop": [],
+                    "shape": "POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))",
+                },
+                {
+                    "status": "demolished",
+                    # duplicate on purpose
+                    "addresses_cle_interop": [self.adr1.id, self.adr1.id],
+                    "shape": "POINT(0 1)",
+                },
+                {
+                    "status": "constructionProject",
+                    "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+                    "shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
+                },
+            ],
+            self.user,
+            event_origin,
+        )
+
+        b1.refresh_from_db()
+        event_id = b1.event_id
+
+        self.assertEqual(len(created_buildings), 3)
+
+        b2 = created_buildings[0]
+        b3 = created_buildings[1]
+        b4 = created_buildings[2]
+
+        self.assertEqual(b1.event_origin, event_origin)
+        self.assertEqual(b1.parent_buildings, None)
+        self.assertEqual(b1.status, "constructed")
+        self.assertEqual(b1.event_id, event_id)
+        self.assertEqual(b1.event_origin, event_origin)
+        self.assertEqual(b1.event_type, "split")
+        self.assertEqual(b1.event_user, self.user)
+        self.assertFalse(b1.is_active)
+        self.assertEqual(b1.addresses_id, None)
+
+        self.assertEqual(b2.point.wkt, "POINT (1 1)")
+        self.assertEqual(b2.shape.wkt, "POLYGON ((0 0, 0 2, 2 2, 2 0, 0 0))")
+        self.assertEqual(b2.event_origin, event_origin)
+        self.assertEqual(b2.parent_buildings, [b1.rnb_id])
+        self.assertEqual(b2.status, "constructed")
+        self.assertEqual(b2.event_id, event_id)
+        self.assertEqual(b2.event_origin, event_origin)
+        self.assertEqual(b2.event_type, "split")
+        self.assertEqual(b2.event_user, self.user)
+        self.assertTrue(b2.is_active)
+        self.assertEqual(b2.addresses_id, [])
+
+        self.assertEqual(b3.point.wkt, "POINT (0 1)")
+        self.assertEqual(b3.shape.wkt, "POINT (0 1)")
+        self.assertEqual(b3.event_origin, event_origin)
+        self.assertEqual(b3.parent_buildings, [b1.rnb_id])
+        self.assertEqual(b3.status, "demolished")
+        self.assertEqual(b3.event_id, event_id)
+        self.assertEqual(b3.event_origin, event_origin)
+        self.assertEqual(b3.event_type, "split")
+        self.assertEqual(b3.event_user, self.user)
+        self.assertTrue(b3.is_active)
+        self.assertEqual(b3.addresses_id, [self.adr1.id])
+
+        self.assertEqual(b4.point.wkt, "POINT (0.5 0.5)")
+        self.assertEqual(b4.shape.wkt, "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
+        self.assertEqual(b4.event_origin, event_origin)
+        self.assertEqual(b4.parent_buildings, [b1.rnb_id])
+        self.assertEqual(b4.status, "constructionProject")
+        self.assertEqual(b4.event_id, event_id)
+        self.assertEqual(b4.event_origin, event_origin)
+        self.assertEqual(b4.event_type, "split")
+        self.assertEqual(b4.event_user, self.user)
+        self.assertTrue(b4.is_active)
+        self.assertEqual(b4.addresses_id, [self.adr1.id, self.adr2.id])
