@@ -12,11 +12,12 @@ from api_alpha.views import BuildingGuessView
 from api_alpha.views import BuildingPlotView
 from api_alpha.views import BuildingsVectorTileView
 from api_alpha.views import ContributionsViewSet
+from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import DiffView
 from api_alpha.views import get_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
-from api_alpha.views import ListBuildings
+from api_alpha.views import ListCreateBuildings
 from api_alpha.views import PlotsVectorTileView
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SingleBuilding
@@ -32,7 +33,7 @@ router.register(r"ads", ADSViewSet)
 urlpatterns = [
     path("schema/", get_schema, name="schema"),
     path("stats", get_stats),
-    path("buildings/", ListBuildings.as_view()),
+    path("buildings/", ListCreateBuildings.as_view()),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
     path("buildings/address/", BuildingAddressView.as_view()),
@@ -49,6 +50,7 @@ urlpatterns = [
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
     # Plots vector tiles
     path("plots/tiles/<int:x>/<int:y>/<int:z>.pbf", PlotsVectorTileView.as_view()),
+    path("diffusion_databases", DiffusionDatabaseView.as_view()),
 ]
 
 
