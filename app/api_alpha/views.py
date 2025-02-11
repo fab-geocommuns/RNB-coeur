@@ -944,17 +944,16 @@ class MergeBuildings(APIView):
 
                 merge_existing_addresses = data.get("merge_existing_addresses")
                 if merge_existing_addresses:
-                    addresses_id = list(
-                        set(
-                            [
-                                address
-                                for building in buildings
-                                for address in building.addresses_id
-                            ]
-                        )
-                    )
+                    addresses_id = [
+                        address
+                        for building in buildings
+                        for address in building.addresses_id
+                    ]
                 else:
                     addresses_id = data.get("addresses_cle_interop")
+
+                # remove possible duplicates
+                addresses_id = list(set(addresses_id))
 
                 try:
                     new_building = Building.merge(

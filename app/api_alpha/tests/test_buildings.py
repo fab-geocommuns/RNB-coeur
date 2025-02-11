@@ -1809,7 +1809,8 @@ class BuildingMergeTest(APITestCase):
         data = {
             "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
             "status": "constructed",
-            "addresses_cle_interop": [self.adr1.id],
+            # we put a duplicate on purpose
+            "addresses_cle_interop": [self.adr1.id, self.adr1.id],
             "comment": "Ces deux bâtiments ne font qu'un, mais une seule adresse est la bonne",
         }
 
