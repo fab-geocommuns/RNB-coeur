@@ -1442,7 +1442,7 @@ class DiffView(APIView):
                     "Liste l'ensemble des modifications apportées au RNB depuis une date données. Génère un fichier CSV. Voici les points importants à retenir : <br />"
                     "<ul>"
                     "<li>Les modifications listées sont de trois types : create, update et delete</li>"
-                    "<li>Les modifications sont triées par rnb_id puis par date de modification croissante</li>"
+                    "<li>Les modifications sont triées par date de modification croissante</li>"
                     "<li>Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. Par exemple, une création (create) suivie d'une mise à jour (update)</li>"
                     "</ul>"
                 ),

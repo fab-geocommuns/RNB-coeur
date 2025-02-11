@@ -337,8 +337,10 @@ class DiffTest(TransactionTestCase):
         b1.is_active = False
         b1.save()
 
+        # b2 should appear before b3 in the resulting csv because the results are ordered by datetime
+        # not by ID-RNB anymore
         b2 = Building.objects.create(
-            rnb_id="2", status="constructed", event_type="split", is_active=True
+            rnb_id="z2", status="constructed", event_type="split", is_active=True
         )
         b3 = Building.objects.create(
             rnb_id="3", status="constructed", event_type="split", is_active=True
