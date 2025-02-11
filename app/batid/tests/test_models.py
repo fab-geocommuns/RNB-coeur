@@ -207,7 +207,7 @@ class TestSplitBuilding(TestCase):
         self.adr2 = Address.objects.create(id="cle_interop_2")
 
     def test_split_a_building(self):
-        # create building
+        # create a building
         b1 = Building.objects.create(rnb_id="1", status="constructed")
         event_origin = {"source": "xxx"}
         # split it in 3
@@ -288,3 +288,47 @@ class TestSplitBuilding(TestCase):
         self.assertEqual(b4.event_user, self.user)
         self.assertTrue(b4.is_active)
         self.assertEqual(b4.addresses_id, [self.adr1.id, self.adr2.id])
+
+    def test_split_a_building_raise(self):
+        # create building
+        b1 = Building.objects.create(rnb_id="1", status="constructed")
+        event_origin = {"source": "xxx"}
+
+        with self.assertRaisesRegex(
+            Exception, "A building must be split at least in two"
+        ):
+            # cannot split in 1
+            b1.split(
+                [
+                    {
+                        "status": "constructed",
+                        "addresses_cle_interop": [],
+                        "shape": "POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))",
+                    }
+                ],
+                self.user,
+                event_origin,
+            )
+
+    def test_split_a_building_inactive(self):
+        # create building
+        b1 = Building.objects.create(rnb_id="1", status="constructed", is_active=False)
+        event_origin = {"source": "xxx"}
+
+        with self.assertRaisesRegex(Exception, "Cannot split an inactive building"):
+            b1.split(
+                [
+                    {
+                        "status": "constructed",
+                        "addresses_cle_interop": [],
+                        "shape": "POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))",
+                    },
+                    {
+                        "status": "constructed",
+                        "addresses_cle_interop": [],
+                        "shape": "POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))",
+                    },
+                ],
+                self.user,
+                event_origin,
+            )

@@ -363,7 +363,7 @@ class Building(BuildingAbstract):
             raise Exception("Missing information to split the building")
 
         if not self.is_active:
-            raise Exception("Cannot split an inactive buildings.")
+            raise Exception("Cannot split an inactive building")
 
         if not isinstance(created_buildings, list) or len(created_buildings) < 2:
             raise Exception("A building must be split at least in two")
