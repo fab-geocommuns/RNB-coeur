@@ -1807,11 +1807,11 @@ class DiffView(APIView):
                             FROM batid_building_with_history bb
                             where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone
                             order by lower(sys_period)
-                        ) TO STDOUT
+                        ) TO STDOUT WITH CSV
                         """
 
                     if first_query:
-                        raw_sql = raw_sql + " WITH CSV HEADER"
+                        raw_sql = raw_sql + " HEADER"
                         first_query = False
 
                     sql_query = sql.SQL(raw_sql).format(

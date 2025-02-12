@@ -383,7 +383,7 @@ class DiffTest(TransactionTestCase):
         url = f"/api/alpha/buildings/diff/?{params}"
         r = self.client.get(url)
         diff_text = get_content_from_streaming_response(r)
-        reader = csv.reader(io.StringIO(diff_text))
+        reader = csv.reader(io.StringIO(diff_text), strict=True, delimiter=",")
         _headers = next(reader)
         rows = list(reader)
         self.assertEqual(len(rows), 5)
