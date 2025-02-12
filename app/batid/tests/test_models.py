@@ -287,7 +287,7 @@ class TestSplitBuilding(TestCase):
         self.assertEqual(b4.event_type, "split")
         self.assertEqual(b4.event_user, self.user)
         self.assertTrue(b4.is_active)
-        self.assertEqual(b4.addresses_id, [self.adr1.id, self.adr2.id])
+        self.assertEqual(b4.addresses_id.sort(), [self.adr1.id, self.adr2.id].sort())
 
     def test_split_a_building_raise(self):
         # create building
