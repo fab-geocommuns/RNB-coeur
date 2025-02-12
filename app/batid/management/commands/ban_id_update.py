@@ -1,53 +1,57 @@
 import time
 from datetime import datetime
+
 import requests
 from django.core.management.base import BaseCommand
-from django.db.models import Q
 from django.db import transaction
-from batid.models import Address, BuildingAddressesReadOnly
+from django.db.models import Q
+
+from batid.models import Address
+from batid.models import BuildingAddressesReadOnly
+
 
 class Command(BaseCommand):
     help = "Updates Address IDs using the BAN API"
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--from-created-at',
+            "--from-created-at",
             type=str,
-            help='Start date of the created_ad field (format YYYY-MM-DD)',
-            required=False
+            help="Start date of the created_ad field (format YYYY-MM-DD)",
+            required=False,
         )
         parser.add_argument(
-            '--to-created-at',
+            "--to-created-at",
             type=str,
-            help='End date of the created_ad field (format YYYY-MM-DD)',
-            required=False
+            help="End date of the created_ad field (format YYYY-MM-DD)",
+            required=False,
         )
         parser.add_argument(
-            '--min-score',
+            "--min-score",
             type=float,
-            help='Minimum confidence score from the BAN API',
+            help="Minimum confidence score from the BAN API",
             required=False,
-            default=0.8
+            default=0.8,
         )
         parser.add_argument(
-            '--rate-limit',
+            "--rate-limit",
             type=int,
-            help='Number of requests allowed per second',
+            help="Number of requests allowed per second",
             required=False,
-            default=50
+            default=50,
         )
 
     def handle(self, *args, **options):
-        RATE_LIMIT_PER_SECOND = options['rate_limit']
+        RATE_LIMIT_PER_SECOND = options["rate_limit"]
         MIN_TIME_BETWEEN_REQUESTS = 1.0 / RATE_LIMIT_PER_SECOND
         last_request_time = 0
 
         query = Q()
-        if options['start_date']:
-            start_date = datetime.strptime(options['start_date'], '%Y-%m-%d')
+        if options["start_date"]:
+            start_date = datetime.strptime(options["start_date"], "%Y-%m-%d")
             query &= Q(created_at__gte=start_date)
-        if options['end_date']:
-            end_date = datetime.strptime(options['end_date'], '%Y-%m-%d')
+        if options["end_date"]:
+            end_date = datetime.strptime(options["end_date"], "%Y-%m-%d")
             query &= Q(created_at__lte=end_date)
 
         addresses = Address.objects.filter(query)
@@ -84,7 +88,7 @@ class Command(BaseCommand):
                 response = requests.get(
                     "https://api-adresse.data.gouv.fr/search/",
                     params={"q": query_string},
-                    timeout=10
+                    timeout=10,
                 )
                 last_request_time = time.time()
 
@@ -92,7 +96,10 @@ class Command(BaseCommand):
                     data = response.json()
                     if data.get("features") and len(data["features"]) > 0:
                         first_result = data["features"][0]
-                        if first_result["properties"].get("score", 0) > options['min_score']:
+                        if (
+                            first_result["properties"].get("score", 0)
+                            > options["min_score"]
+                        ):
                             new_id = first_result["properties"].get("id")
                             if new_id and new_id != address.id:
                                 old_id = address.id
@@ -102,7 +109,7 @@ class Command(BaseCommand):
                                     ).update(address_id=new_id)
                                     address.id = new_id
                                     address.save()
-                                
+
                                 updated += 1
                                 print(f"Address updated: {query_string} -> {new_id}")
                 else:
@@ -113,4 +120,6 @@ class Command(BaseCommand):
                 errors += 1
                 print(f"Error for {query_string}: {str(e)}")
 
-        print(f"Done! {updated} addresses updated, {errors} errors out of {total} addresses processed")
+        print(
+            f"Done! {updated} addresses updated, {errors} errors out of {total} addresses processed"
+        )
