@@ -1682,7 +1682,7 @@ class DiffView(APIView):
                     "Liste l'ensemble des modifications apportées au RNB depuis une date données. Génère un fichier CSV. Voici les points importants à retenir : <br />"
                     "<ul>"
                     "<li>Les modifications listées sont de trois types : create, update et delete</li>"
-                    "<li>Les modifications sont triées par rnb_id puis par date de modification croissante</li>"
+                    "<li>Les modifications sont triées par date de modification croissante</li>"
                     "<li>Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. Par exemple, une création (create) suivie d'une mise à jour (update)</li>"
                     "</ul>"
                 ),
@@ -1726,7 +1726,6 @@ class DiffView(APIView):
         since_input = request.GET.get("since", "")
         # parse since to a timestamp
         since = parse_datetime(since_input)
-
         if since is None:
             return HttpResponse(
                 "The 'since' parameter is missing or incorrect", status=400
@@ -1746,7 +1745,6 @@ class DiffView(APIView):
             )
             cursor.execute(most_recent_modification_query)
             most_recent_modification = cursor.fetchone()[0]
-            most_recent_modification = most_recent_modification.isoformat(sep="T")
 
         # file descriptors r, w for reading and writing
         r, w = os.pipe()
@@ -1766,7 +1764,7 @@ class DiffView(APIView):
                 r,
                 content_type="text/csv",
                 headers={
-                    "Content-Disposition": f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+                    "Content-Disposition": f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"'
                 },
             )
         else:
@@ -1776,43 +1774,54 @@ class DiffView(APIView):
             w = os.fdopen(w, "w")
 
             with connection.cursor() as cursor:
-                sql_query = sql.SQL(
-                    """
-                    COPY (
-                        select
-                        CASE
-                            WHEN event_type = 'delete' THEN 'deactivate'
-                            WHEN event_type = 'deactivation' THEN 'deactivate'
-                            WHEN event_type = 'update' THEN 'update'
-                            WHEN event_type = 'split' and not is_active THEN 'deactivate'
-                            WHEN event_type = 'split' and is_active THEN 'create'
-                            WHEN event_type = 'merge' and not is_active THEN 'deactivate'
-                            WHEN event_type = 'merge' and is_active THEN 'create'
-                            ELSE 'create'
-                        END as action,
-                        rnb_id,
-                        status,
-                        is_active::int,
-                        sys_period,
-                        ST_AsEWKT(point) as point,
-                        ST_AsEWKT(shape) as shape,
-                        to_json(addresses_id) as addresses_id,
-                        COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
-                        parent_buildings,
-                        event_id,
-                        event_type
-                        FROM batid_building_with_history bb
-                        where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone
-                        order by rnb_id, lower(sys_period)
-                    ) TO STDOUT WITH CSV HEADER
-                    """
-                ).format(
-                    start=sql.Literal(since.isoformat()),
-                    end=sql.Literal(most_recent_modification),
-                )
-                # the data coming from the query is streamed to the file descriptor w
-                # and will be received by the parent process as a stream
-                cursor.copy_expert(sql_query, w)
+                start_ts = since
+                first_query = True
+
+                while start_ts < most_recent_modification:
+                    end_ts = start_ts + timedelta(days=1)
+
+                    raw_sql = """
+                        COPY (
+                            select
+                            CASE
+                                WHEN event_type = 'delete' THEN 'deactivate'
+                                WHEN event_type = 'deactivation' THEN 'deactivate'
+                                WHEN event_type = 'update' THEN 'update'
+                                WHEN event_type = 'split' and not is_active THEN 'deactivate'
+                                WHEN event_type = 'split' and is_active THEN 'create'
+                                WHEN event_type = 'merge' and not is_active THEN 'deactivate'
+                                WHEN event_type = 'merge' and is_active THEN 'create'
+                                ELSE 'create'
+                            END as action,
+                            rnb_id,
+                            status,
+                            is_active::int,
+                            sys_period,
+                            ST_AsEWKT(point) as point,
+                            ST_AsEWKT(shape) as shape,
+                            to_json(addresses_id) as addresses_id,
+                            COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
+                            parent_buildings,
+                            event_id,
+                            event_type
+                            FROM batid_building_with_history bb
+                            where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone
+                            order by lower(sys_period)
+                        ) TO STDOUT
+                        """
+
+                    if first_query:
+                        raw_sql = raw_sql + " WITH CSV HEADER"
+                        first_query = False
+
+                    sql_query = sql.SQL(raw_sql).format(
+                        start=sql.Literal(start_ts.isoformat()),
+                        end=sql.Literal(end_ts.isoformat()),
+                    )
+                    # the data coming from the query is streamed to the file descriptor w
+                    # and will be received by the parent process as a stream
+                    cursor.copy_expert(sql_query, w)
+                    start_ts = end_ts
             w.close()
             # the child process is terminated
             os._exit(0)
