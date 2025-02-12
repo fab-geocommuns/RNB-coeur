@@ -304,7 +304,7 @@ class BuildingCreateSerializerCore(serializers.Serializer):
     addresses_cle_interop = serializers.ListField(
         child=serializers.CharField(min_length=5, max_length=30),
         allow_empty=True,
-        required=False,
+        required=True,
     )
     shape = serializers.CharField(required=True, validators=[shape_is_valid])
 
@@ -349,9 +349,12 @@ class BuildingMergeSerializer(serializers.Serializer):
 
 class BuildingSplitSerializer(serializers.Serializer):
     comment = serializers.CharField(required=False, allow_blank=True)
-    rnb_ids = serializers.CharField(min_length=12, max_length=12, required=True)
+    rnb_id = serializers.CharField(min_length=12, max_length=12, required=True)
     created_buildings = serializers.ListField(
-        required=True, allow_empty=False, child=BuildingCreateSerializerCore()
+        min_length=2,
+        required=True,
+        allow_empty=False,
+        child=BuildingCreateSerializerCore(),
     )
 
 
