@@ -8,6 +8,7 @@ settings_local.py
 
 # Static files
 staticfiles/
+static/
 *.log
 *.gz
 *.zip
