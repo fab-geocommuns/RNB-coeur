@@ -2,8 +2,8 @@ location /api {
     proxy_pass http://rnb-api.beta.gouv.fr/api;
     set $upstream_keepalive false;
 
-    limit_req zone=mylimit;
+    limit_req zone=api_rate_limit;
     add_header RateLimit-Limit 50;
-    add_header RateLimit-Policy "50;w=1";  # 50 requests per window of 1 second
+    add_header RateLimit-Policy "q=50;w=1";  # 50 requests per window of 1 second
     limit_req_status 429;
 }
