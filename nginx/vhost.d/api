@@ -1,0 +1,4 @@
+limit_req zone=mylimit;
+add_header RateLimit-Limit 50;
+add_header RateLimit-Policy "50;w=1";  # 50 requests per window of 1 second
+limit_req_status 429;
