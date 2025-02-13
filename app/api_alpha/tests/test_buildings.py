@@ -1223,6 +1223,7 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
+        self.assertFalse(contribution.report)
 
     def test_reactivate(self):
         self.assertTrue(self.building.is_active)
