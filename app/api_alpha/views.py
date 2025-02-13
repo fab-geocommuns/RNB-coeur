@@ -1128,6 +1128,7 @@ class SingleBuilding(APIView):
                     status="fixed",
                     status_changed_at=datetime.now(),
                     review_user=user,
+                    report=False,
                 )
                 contribution.save()
 
