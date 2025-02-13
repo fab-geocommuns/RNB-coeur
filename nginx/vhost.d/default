@@ -1,0 +1,5 @@
+location /api {
+    proxy_pass http://rnb-api.beta.gouv.fr/api;
+    set $upstream_keepalive false;
+    include /etc/nginx/vhost.d/api;
+}
