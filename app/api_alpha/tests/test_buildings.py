@@ -866,9 +866,13 @@ class BuildingAddressViewTest(APITestCase):
 
     def test_by_cle_interop(self):
         # 2 buildings
-        r = self.client.get(
-            f"/api/alpha/buildings/address/?cle_interop_ban={self.cle_interop_ban_1}"
-        )
+        def buildings_by_address():
+            return self.client.get(
+                f"/api/alpha/buildings/address/?cle_interop_ban={self.cle_interop_ban_1}"
+            )
+
+        r = buildings_by_address()
+
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_1)
@@ -878,6 +882,7 @@ class BuildingAddressViewTest(APITestCase):
             [r["rnb_id"] for r in data["results"]],
             [self.building_1.rnb_id, self.building_2.rnb_id],
         )
+        self.assertNumQueries(3, buildings_by_address)
 
         # 1 building
         r = self.client.get(
