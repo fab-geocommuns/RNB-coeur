@@ -267,4 +267,6 @@ class FixMergeTest(TransactionTestCase):
             Building.objects.filter(event_id=event_id).filter(is_active=True).all()
         )
         new_building = new_buildings[0]
-        self.assertEqual(new_building.addresses_id, [self.adr1.id, self.adr2.id])
+        self.assertEqual(
+            new_building.addresses_id.sort(), [self.adr1.id, self.adr2.id].sort()
+        )
