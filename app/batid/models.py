@@ -335,6 +335,7 @@ class Building(BuildingAbstract):
             building.event_user = user
             building.event_origin = event_origin
             building.save()
+            building._refuse_pending_contributions(user, event_id)
 
         for building in buildings:
             remove_existing_builing(building)
