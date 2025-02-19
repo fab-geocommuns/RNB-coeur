@@ -476,7 +476,7 @@ class BuildingClosestViewTest(APITestCase):
         # It should be first in the results
         closest_bdg = Building.create_new(
             user=None,
-            event_origin="test",
+            event_origin={"source": "test"},
             status="constructed",
             addresses_id=[],
             ext_ids=[],
@@ -502,7 +502,7 @@ class BuildingClosestViewTest(APITestCase):
         # It should appear second in the results
         further_bdg = Building.create_new(
             user=None,
-            event_origin="test",
+            event_origin={"source": "test"},
             status="constructed",
             addresses_id=[],
             ext_ids=[],
@@ -531,7 +531,7 @@ class BuildingClosestViewTest(APITestCase):
             Building.create_new(
                 user=None,
                 status="constructed",
-                event_origin="test",
+                event_origin={"source": "test"},
                 addresses_id=[],
                 ext_ids=[],
                 shape=GEOSGeometry(
@@ -558,7 +558,7 @@ class BuildingClosestViewTest(APITestCase):
         deactivated_bdg = Building.create_new(
             user=None,
             status="constructed",
-            event_origin="test",
+            event_origin={"source": "test"},
             addresses_id=[],
             ext_ids=[],
             shape=GEOSGeometry(
@@ -578,14 +578,14 @@ class BuildingClosestViewTest(APITestCase):
                 srid=4326,
             ),
         )
-        deactivated_bdg.deactivate(user=None, event_origin="test")
+        deactivated_bdg.deactivate(user=None, event_origin={"source": "test"})
 
         # One demolished building, in radius range
         # It should not appear in the results
         demolished_bdg = Building.create_new(
             user=None,
             status="demolished",
-            event_origin="test",
+            event_origin={"source": "test"},
             addresses_id=[],
             ext_ids=[],
             shape=GEOSGeometry(
@@ -611,7 +611,7 @@ class BuildingClosestViewTest(APITestCase):
         very_far_bdg = Building.create_new(
             user=None,
             status="constructed",
-            event_origin="test",
+            event_origin={"source": "test"},
             addresses_id=[],
             ext_ids=[],
             shape=GEOSGeometry(
@@ -737,7 +737,7 @@ class BuildingClosestViewTest(APITestCase):
     def test_closes_no_n_plus_1(self):
         Building.create_new(
             user=None,
-            event_origin="test",
+            event_origin={"source": "test"},
             status="constructed",
             addresses_id=[],
             ext_ids=[],
@@ -761,7 +761,7 @@ class BuildingClosestViewTest(APITestCase):
         )
         Building.create_new(
             user=None,
-            event_origin="test",
+            event_origin={"source": "test"},
             status="constructed",
             addresses_id=[],
             ext_ids=[],
@@ -804,7 +804,7 @@ class BuildingAddressViewTest(APITestCase):
 
         self.building_1 = Building.create_new(
             user=None,
-            event_origin="test",
+            event_origin={"source": "test"},
             status="constructed",
             addresses_id=[self.cle_interop_ban_1, self.cle_interop_ban_2],
             ext_ids=[],
@@ -829,7 +829,7 @@ class BuildingAddressViewTest(APITestCase):
 
         self.building_2 = Building.create_new(
             user=None,
-            event_origin="test",
+            event_origin={"source": "test"},
             status="constructed",
             addresses_id=[self.cle_interop_ban_1],
             ext_ids=[],

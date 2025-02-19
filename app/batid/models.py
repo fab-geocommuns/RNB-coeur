@@ -156,10 +156,8 @@ class Building(BuildingAbstract):
             self.event_origin = event_origin
             self.save()
 
-            except_for_this_contribution = (
-                event_origin.get("contribution_id")
-                if event_origin.get("source") == "contribution"
-                else None
+            except_for_this_contribution = get_contribution_id_from_event_origin(
+                event_origin
             )
 
             self._refuse_pending_contributions(
@@ -342,10 +340,8 @@ class Building(BuildingAbstract):
         if addresses_id is not None:
             Address.add_addresses_to_db_if_needed(addresses_id)
 
-        except_for_this_contribution = (
-            event_origin.get("contribution_id")
-            if event_origin.get("source") == "contribution"
-            else None
+        except_for_this_contribution = get_contribution_id_from_event_origin(
+            event_origin
         )
 
         def remove_existing_builing(building):
@@ -406,6 +402,15 @@ class Building(BuildingAbstract):
                 name="valid_event_type_check",
             )
         ]
+
+
+def get_contribution_id_from_event_origin(event_origin):
+    return (
+        event_origin.get("contribution_id")
+        if isinstance(event_origin, dict)
+        and event_origin.get("source") == "contribution"
+        else None
+    )
 
 
 class BuildingWithHistory(BuildingAbstract):

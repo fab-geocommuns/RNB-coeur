@@ -118,7 +118,7 @@ class DiffTest(TransactionTestCase):
         b1.update(
             status="demolished",
             user=user,
-            event_origin="dummy_origin",
+            event_origin={"source": "test"},
             addresses_id=["ADDRESS_ID_2", "ADDRESS_ID_3"],
         )
 
@@ -138,7 +138,7 @@ class DiffTest(TransactionTestCase):
         b3 = Building.objects.create(
             rnb_id="3", shape=geom, point=geom.point_on_surface, status="constructed"
         )
-        b3.deactivate(user=user, event_origin="dummy_origin")
+        b3.deactivate(user=user, event_origin={"source": "test"})
 
         # we want all the diff since the creation of b1 (excluded)
         params = urlencode({"since": treshold.isoformat()})
