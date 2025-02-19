@@ -1,5 +1,7 @@
 import json
 import os
+import secrets
+import string
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -1910,9 +1912,6 @@ def city_ranking():
 
 def make_random_password(length):
     # https://docs.python.org/3/library/secrets.html#recipes-and-best-practices
-    import string
-    import secrets
-
     if length <= 0:
         raise ValueError("invalid password length")
 
