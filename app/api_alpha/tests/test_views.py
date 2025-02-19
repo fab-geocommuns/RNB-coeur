@@ -264,7 +264,7 @@ class DiffTest(TransactionTestCase):
         b3 = Building.merge(
             [b1, b2],
             user=user,
-            event_origin="dummy_origin",
+            event_origin={"source": "dummy"},
             addresses_id=["ADDRESS_ID_1", "ADDRESS_ID_2"],
             status="constructed",
         )

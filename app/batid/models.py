@@ -156,8 +156,11 @@ class Building(BuildingAbstract):
             self.event_origin = event_origin
             self.save()
 
-            if event_origin.get("source") == "contribution":
-                except_for_this_contribution = event_origin.get("contribution_id")
+            except_for_this_contribution = (
+                event_origin.get("contribution_id")
+                if event_origin.get("source") == "contribution"
+                else None
+            )
 
             self._refuse_pending_contributions(
                 user, event_id, except_for_this_contribution
@@ -339,8 +342,11 @@ class Building(BuildingAbstract):
         if addresses_id is not None:
             Address.add_addresses_to_db_if_needed(addresses_id)
 
-        if event_origin.get("source") == "contribution":
-            except_for_this_contribution = event_origin.get("contribution_id")
+        except_for_this_contribution = (
+            event_origin.get("contribution_id")
+            if event_origin.get("source") == "contribution"
+            else None
+        )
 
         def remove_existing_builing(building):
             building.is_active = False
