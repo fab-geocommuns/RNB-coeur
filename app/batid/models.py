@@ -156,7 +156,12 @@ class Building(BuildingAbstract):
             self.event_origin = event_origin
             self.save()
 
-            self._refuse_pending_contributions(user, event_id)
+            if event_origin.get("source") == "contribution":
+                except_for_this_contribution = event_origin.get("contribution_id")
+
+            self._refuse_pending_contributions(
+                user, event_id, except_for_this_contribution
+            )
         else:
             print(f"Cannot deactivate an inactive building: {self.rnb_id}")
 
@@ -224,12 +229,18 @@ class Building(BuildingAbstract):
         else:
             print(f"Cannot update an inactive building: {self.rnb_id}")
 
-    def _refuse_pending_contributions(self, user: User, event_id):
+    def _refuse_pending_contributions(
+        self, user: User, event_id, except_for_this_contribution_id=None
+    ):
 
         msg = f"Ce signalement a été refusé suite à la désactivation du bâtiment {self.rnb_id}."
         contributions = Contribution.objects.filter(
             rnb_id=self.rnb_id, status="pending", report=True
         )
+
+        if except_for_this_contribution_id:
+            # you may want to refuse all contributions, except for the one being currently treated
+            contributions = contributions.exclude(id=except_for_this_contribution_id)
 
         for c in contributions:
             c.refuse(user, msg, status_updated_by_event_id=event_id)
@@ -328,6 +339,9 @@ class Building(BuildingAbstract):
         if addresses_id is not None:
             Address.add_addresses_to_db_if_needed(addresses_id)
 
+        if event_origin.get("source") == "contribution":
+            except_for_this_contribution = event_origin.get("contribution_id")
+
         def remove_existing_builing(building):
             building.is_active = False
             building.event_type = "merge"
@@ -335,7 +349,9 @@ class Building(BuildingAbstract):
             building.event_user = user
             building.event_origin = event_origin
             building.save()
-            building._refuse_pending_contributions(user, event_id)
+            building._refuse_pending_contributions(
+                user, event_id, except_for_this_contribution
+            )
 
         for building in buildings:
             remove_existing_builing(building)
