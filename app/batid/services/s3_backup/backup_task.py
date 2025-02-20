@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 from datetime import datetime
@@ -17,6 +18,7 @@ def backup_to_s3(task_id=None):
         (backup_id, backup_name) = create_scaleway_db_backup()
         download_url = create_backup_download_url(backup_id)
         upload_to_s3(backup_name, download_url)
+        remove_older_backups()
         notify_mattermost(backup_name)
     except Exception as e:
         notify_mattermost_error(e, task_id)
@@ -174,3 +176,28 @@ def backup_download_url(backup_id):
         raise Exception(f"Error while getting the scaleway backup {backup_id}")
     else:
         return r.json()["download_url"]
+
+
+def remove_older_backups():
+    S3_BACKUP_ACCESS_KEY_ID = os.environ.get("S3_BACKUP_ACCESS_KEY_ID")
+    S3_BACKUP_SECRET_ACCESS_KEY = os.environ.get("S3_BACKUP_SECRET_ACCESS_KEY")
+    S3_BACKUP_ENDPOINT_URL = os.environ.get("S3_BACKUP_ENDPOINT_URL")
+    S3_BACKUP_REGION_NAME = os.environ.get("S3_BACKUP_REGION_NAME")
+    S3_BACKUP_BUCKET_NAME = os.environ.get("S3_BACKUP_BUCKET_NAME")
+
+    s3_resource = boto3.resource(
+        "s3",
+        aws_access_key_id=S3_BACKUP_ACCESS_KEY_ID,
+        aws_secret_access_key=S3_BACKUP_SECRET_ACCESS_KEY,
+        endpoint_url=S3_BACKUP_ENDPOINT_URL,
+        region_name=S3_BACKUP_REGION_NAME,
+    )
+
+    bucket = s3_resource.Bucket(S3_BACKUP_BUCKET_NAME)
+    now = datetime.now(timezone.utc)
+    one_month_ago = now - timedelta(days=30)
+
+    for obj in bucket.objects.all():
+        if obj.last_modified < one_month_ago:
+            logging.info(f"S3 external backup, deleting older backup {obj.key}")
+            obj.delete()

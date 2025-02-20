@@ -1,5 +1,7 @@
 import json
 import os
+import secrets
+import string
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -485,8 +487,10 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                 infos["cle_interop_ban"] = cle_interop_ban
 
             infos["status"] = "ok"
-            buildings = Building.objects.filter(is_active=True).filter(
-                addresses_read_only__id=cle_interop_ban
+            buildings = (
+                Building.objects.filter(is_active=True)
+                .filter(addresses_read_only__id=cle_interop_ban)
+                .prefetch_related("addresses_read_only")
             )
             paginated_bdgs = paginator.paginate_queryset(buildings, request)
             serialized_buildings = BuildingSerializer(paginated_bdgs, many=True)
@@ -1252,6 +1256,7 @@ class SingleBuilding(APIView):
                 status="fixed",
                 status_changed_at=datetime.now(),
                 review_user=user,
+                report=False,
             )
             contribution.save()
 
@@ -2027,6 +2032,16 @@ def city_ranking():
         return results
 
 
+def make_random_password(length):
+    # https://docs.python.org/3/library/secrets.html#recipes-and-best-practices
+    if length <= 0:
+        raise ValueError("invalid password length")
+
+    alphabet = string.ascii_letters + string.digits
+    password = "".join(secrets.choice(alphabet) for i in range(length))
+    return password
+
+
 @extend_schema(exclude=True)
 class AdsTokenView(APIView):
     permission_classes = [IsSuperUser]
@@ -2038,7 +2053,7 @@ class AdsTokenView(APIView):
                 users = []
 
                 for json_user in json_users:
-                    password = User.objects.make_random_password(length=15)
+                    password = make_random_password(length=15)
                     user, created = User.objects.get_or_create(
                         username=json_user["username"],
                         defaults={

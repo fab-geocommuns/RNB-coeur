@@ -726,6 +726,14 @@ class BuildingClosestViewTest(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
 
+    def test_closest_0_radius(self):
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=0"
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
+
     def test_closes_no_n_plus_1(self):
         Building.create_new(
             user=None,
@@ -858,9 +866,13 @@ class BuildingAddressViewTest(APITestCase):
 
     def test_by_cle_interop(self):
         # 2 buildings
-        r = self.client.get(
-            f"/api/alpha/buildings/address/?cle_interop_ban={self.cle_interop_ban_1}"
-        )
+        def buildings_by_address():
+            return self.client.get(
+                f"/api/alpha/buildings/address/?cle_interop_ban={self.cle_interop_ban_1}"
+            )
+
+        r = buildings_by_address()
+
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_1)
@@ -870,6 +882,7 @@ class BuildingAddressViewTest(APITestCase):
             [r["rnb_id"] for r in data["results"]],
             [self.building_1.rnb_id, self.building_2.rnb_id],
         )
+        self.assertNumQueries(3, buildings_by_address)
 
         # 1 building
         r = self.client.get(
@@ -1223,6 +1236,7 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
+        self.assertFalse(contribution.report)
 
     def test_reactivate(self):
         self.assertTrue(self.building.is_active)
