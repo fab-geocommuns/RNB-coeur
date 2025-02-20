@@ -1,5 +1,7 @@
 import json
 import os
+import secrets
+import string
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -1908,6 +1910,16 @@ def city_ranking():
         return results
 
 
+def make_random_password(length):
+    # https://docs.python.org/3/library/secrets.html#recipes-and-best-practices
+    if length <= 0:
+        raise ValueError("invalid password length")
+
+    alphabet = string.ascii_letters + string.digits
+    password = "".join(secrets.choice(alphabet) for i in range(length))
+    return password
+
+
 @extend_schema(exclude=True)
 class AdsTokenView(APIView):
     permission_classes = [IsSuperUser]
@@ -1919,7 +1931,7 @@ class AdsTokenView(APIView):
                 users = []
 
                 for json_user in json_users:
-                    password = User.objects.make_random_password(length=15)
+                    password = make_random_password(length=15)
                     user, created = User.objects.get_or_create(
                         username=json_user["username"],
                         defaults={
