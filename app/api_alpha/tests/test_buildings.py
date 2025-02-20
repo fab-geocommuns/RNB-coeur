@@ -2420,6 +2420,36 @@ class BuildingSplitTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.content, b'{"rnb_id":["This field may not be null."]}')
+
+        # unknown ID-RNB
+        data = {
+            "rnb_id": "coucoucoucou",
+            "comment": "Ce sont deux bâtiments",
+            "created_buildings": [
+                {
+                    "status": "constructed",
+                    "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                    "addresses_cle_interop": [self.adr1.id],
+                },
+                {
+                    "status": "notUsable",
+                    "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                    "addresses_cle_interop": [self.adr2.id],
+                },
+            ],
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/split/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(
+            r.content, b'{"detail":"No Building matches the given query."}'
+        )
 
         # split in 1 is impossible
         data = {
@@ -2441,6 +2471,10 @@ class BuildingSplitTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.content,
+            b'{"created_buildings":["Ensure this field has at least 2 elements."]}',
+        )
 
         # missing status in child building
         data = {
@@ -2465,6 +2499,10 @@ class BuildingSplitTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.content,
+            b'{"created_buildings":{"1":{"status":["This field is required."]}}}',
+        )
 
         # missing address in child building
         data = {
@@ -2489,6 +2527,10 @@ class BuildingSplitTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.content,
+            b'{"created_buildings":{"1":{"addresses_cle_interop":["This field is required."]}}}',
+        )
 
         # invalid shape
         data = {
@@ -2514,6 +2556,10 @@ class BuildingSplitTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.content,
+            b'{"created_buildings":{"1":{"shape":["the given shape could not be parsed or is not valid"]}}}',
+        )
 
     @mock.patch("batid.models.requests.get")
     def test_merge_building_ban_is_down(self, get_mock):
@@ -2548,6 +2594,43 @@ class BuildingSplitTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 503)
+        get_mock.assert_called_with(
+            f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
+        )
+
+    @mock.patch("batid.models.requests.get")
+    def test_merge_building_ban_unknown(self, get_mock):
+        get_mock.return_value.status_code = 404
+        cle_interop = "33063_9115_00012_bis"
+        get_mock.return_value.json.return_value = {
+            "details": "unknown",
+        }
+
+        data = {
+            "rnb_id": self.building_1.rnb_id,
+            "created_buildings": [
+                {
+                    "status": "constructed",
+                    "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                    "addresses_cle_interop": ["33063_9115_00012_bis"],
+                },
+                {
+                    "status": "constructed",
+                    "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                    "addresses_cle_interop": [self.adr2.id],
+                },
+            ],
+        }
+
+        self.user.groups.add(self.group)
+
+        r = self.client.post(
+            f"/api/alpha/buildings/split/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 404)
         get_mock.assert_called_with(
             f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
         )

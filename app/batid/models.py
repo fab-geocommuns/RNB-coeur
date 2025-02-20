@@ -16,6 +16,7 @@ from django.db.models import Q
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
+from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
@@ -358,7 +359,13 @@ class Building(BuildingAbstract):
 
         return building
 
-    def split(self, created_buildings: list, user: User, event_origin: dict):
+    @transaction.atomic
+    def split(
+        self,
+        created_buildings: list[SplitCreatedBuilding],
+        user: User,
+        event_origin: dict,
+    ):
         if not event_origin or not user:
             raise Exception("Missing information to split the building")
 
@@ -378,7 +385,9 @@ class Building(BuildingAbstract):
         self.event_origin = event_origin
         self.save()
 
-        def create_child_building(status: str, addresses_cle_interop: list, shape: str):
+        def create_child_building(
+            status: str, addresses_cle_interop: list[str], shape: str
+        ):
             addresses_cle_interop = list(set(addresses_cle_interop))
             if addresses_cle_interop is not None:
                 Address.add_addresses_to_db_if_needed(addresses_cle_interop)
