@@ -1036,28 +1036,26 @@ class SplitBuildings(APIView):
                                             ],
                                         },
                                     },
-                                    "required": ["rnb_id", "created_buildings"],
                                 },
-                            }
-                        },
-                    },
-                    "responses": {
-                        "200": {
-                            "description": "Détails des bâtiments nouvellement créés",
-                            "content": {
-                                "application/json": {
-                                    "schema": {
-                                        "type": "array",
-                                        "items": {
-                                            "$ref": "#/components/schemas/Building"
-                                        },
-                                    }
-                                }
+                                "required": ["rnb_id", "created_buildings"],
                             },
                         }
                     },
                 },
-            }
+                "responses": {
+                    "200": {
+                        "description": "Détails des bâtiments nouvellement créés",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {"$ref": "#/components/schemas/Building"},
+                                }
+                            }
+                        },
+                    }
+                },
+            },
         }
     )
     def post(self, request):
