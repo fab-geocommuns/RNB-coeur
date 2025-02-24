@@ -2,6 +2,8 @@ from datetime import datetime
 
 from django.core.management.base import BaseCommand
 
+from batid.services.candidate import display_report
+
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
@@ -21,3 +23,5 @@ class Command(BaseCommand):
         except ValueError:
             print("Please provide a valid date.")
             return
+
+        display_report(since, options["checks"])
