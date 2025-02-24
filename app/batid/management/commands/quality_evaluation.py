@@ -170,10 +170,14 @@ class Command(BaseCommand):
             coverage = (stats["matching_addresses"] / stats["total_ours"]) * 100
             self.stdout.write(f"\nCoverage rate: {coverage:.2f}%")
 
-    # Create index for faster lookup
     def normalize_street(self, street):
+        """
+        Normalizes a street name by removing diacritics and converting to lowercase.
+        """
+
         if not street:
             return ""
+
         # Remove diacritics
         normalized = "".join(
             c
