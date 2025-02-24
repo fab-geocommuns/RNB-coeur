@@ -1,9 +1,6 @@
 from datetime import datetime
-from django.core.management.base import BaseCommand
 
-from batid.services.data_fix.fill_empty_event_origin import building_identicals
-from batid.models import Candidate, BuildingWithHistory
-from django.db import connection
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
