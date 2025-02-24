@@ -7,7 +7,6 @@ from datetime import datetime
 from datetime import timezone
 from typing import Optional
 
-
 import fiona
 import psycopg2
 from celery import Signature
@@ -19,11 +18,11 @@ from django.db import transaction
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import Candidate
+from batid.services.administrative_areas import dpts_list
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
 from batid.utils.geo import fix_nested_shells
-from batid.services.administrative_areas import dpts_list
 
 
 def create_bdtopo_full_import_tasks(dpt_list: list, release_date: str) -> list:
