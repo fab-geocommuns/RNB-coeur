@@ -2,16 +2,16 @@ import os
 from datetime import datetime
 from datetime import timezone
 from typing import Literal
-
 from celery import Signature
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.db import transaction
 
-from batid.models import Building
+from batid.models import Building, BuildingWithHistory
 from batid.models import Candidate
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
+from batid.services.data_fix.fill_empty_event_origin import building_identicals
 
 
 class Inspector:
@@ -347,3 +347,144 @@ def create_inspection_tasks() -> list:
         tasks.append(Signature("batid.tasks.inspect_candidates", immutable=True))
 
     return tasks
+
+
+def display_report(since: datetime, requested_hecks: str = "all"):
+
+    if not isinstance(since, datetime):
+        raise ValueError("Since must be a datetime object")
+
+    checks = _report_check_to_do(requested_hecks)
+
+    if "count_decisions" in checks:
+
+        print(">>> Count decisions")
+
+        decisions = _report_count_decisions(since)
+        for decision, count in decisions.items():
+            print(f"Decision {decision} : {count:_}")
+
+    if "count_refusals" in checks:
+
+        print(">>> Count refusals per reason")
+
+        refusals = _report_count_refusals(since)
+        for reason, count in refusals.items():
+            print(f"Reason {reason} : {count:_}")
+
+    if "real_updates" in checks:
+
+        print(">>> Check if updates are real updates")
+
+        fake_updates = _report_list_fake_updates(since)
+
+        if fake_updates:
+            print(f"{len(fake_updates)} buildings have no real update")
+            print(fake_updates)
+        else:
+            print(f"All updates are real updates")
+
+
+def _report_check_to_do(requested_checks):
+
+    available_checks = ["real_updates", "count_decisions", "count_refusals"]
+
+    if requested_checks == "all":
+        return available_checks
+
+    return list(set(requested_checks.split(",")) & set(available_checks))
+
+
+def _report_count_decisions(since: datetime) -> dict:
+
+    q = """
+        SELECT jsonb_extract_path_text(inspection_details, 'decision') AS reason, count(*) 
+        FROM batid_candidate 
+        WHERE inspected_at > %(since)s 
+        GROUP BY jsonb_extract_path_text(inspection_details, 'decision');
+        """
+
+    with connection.cursor() as cursor:
+        cursor.execute(q, {"since": since})
+
+        decisions = {}
+
+        for row in cursor.fetchall():
+
+            decisions[row[0]] = row[1]
+
+        return decisions
+
+
+def _report_count_refusals(since: datetime) -> dict:
+
+    q = """
+        SELECT jsonb_extract_path_text(inspection_details, 'reason') AS reason, count(*) 
+        FROM batid_candidate 
+        WHERE inspected_at > %(since)s and inspection_details @> '{"decision": "refusal"}'
+        GROUP BY jsonb_extract_path_text(inspection_details, 'reason');
+        """
+
+    refusals = {}
+    with connection.cursor() as cursor:
+        cursor.execute(q, {"since": since})
+        for row in cursor.fetchall():
+
+            refusals[row[0]] = row[1]
+
+    return refusals
+
+
+def _report_list_fake_updates(since: datetime) -> list:
+    """
+    We check if each update made from candidate inspection
+    has really updated at least one field in the building
+    """
+
+    q = """
+            SELECT * FROM batid_candidate
+            WHERE inspected_at >= %(since)s
+            AND  inspection_details @> '{"decision": "update"}'
+            limit 100 offset %(offset)s
+            """
+
+    params = {
+        "since": since,
+        "offset": 0,
+    }
+    batch_size = 1000
+    checked_count = 0
+
+    problems = []
+
+    while True:
+
+        candidates = Candidate.objects.raw(q, params)
+
+        if not candidates:
+            break
+
+        # We check each updated building
+        for candidate in candidates:
+
+            rnb_id = candidate.inspection_details["rnb_id"]
+
+            # todo : this query is ok with a rearely updated database.
+            # We may upgrade it to get the right BuildingWithHistory based on a stronger critera
+            # than "the last two history rows for this building"
+            bdg_history = BuildingWithHistory.objects.filter(rnb_id=rnb_id).order_by(
+                "-sys_period"
+            )[:2]
+
+            new = bdg_history[0]
+            old = bdg_history[1]
+
+            if building_identicals(new, old):
+                problems.append(rnb_id)
+                print(f"Building {rnb_id} has no real update")
+
+            checked_count += 1
+
+        params["offset"] += batch_size
+
+    return problems
