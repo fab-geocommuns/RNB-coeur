@@ -221,7 +221,7 @@ CELERY_BEAT_SCHEDULE = {
     "import_bal": {
         "task": "batid.tasks.queue_full_bal_import",
         "schedule": crontab(
-            minute=0, hour=0, day_of_month=15, month_of_year="1,4,7,10"
+            minute=0, hour=0, day_of_month=20, month_of_year="1,4,7,10"
         ),
     },
 }
