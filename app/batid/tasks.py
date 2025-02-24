@@ -24,7 +24,10 @@ from batid.services.data_gouv_publication import get_area_publish_task
 from batid.services.data_gouv_publication import publish
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
-from batid.services.imports.import_bdtopo import bdtopo_recente_release_date
+from batid.services.imports.import_bdtopo import (
+    bdtopo_dpts_list,
+    bdtopo_recente_release_date,
+)
 from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
 from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
 from batid.services.imports.import_cities import import_etalab_cities
@@ -105,7 +108,7 @@ def queue_full_bdtopo_import(
     )
 
     # Get list of dpts
-    dpts = dpts_list(dpt_start, dpt_end)
+    dpts = bdtopo_dpts_list(dpt_start, dpt_end)
 
     # Default release date to most recent one
     if released_before:

@@ -274,7 +274,7 @@ def _bdtopo_release_dates() -> list:
     ]
 
 
-def bdtopo_dpt_list():
+def bdtopo_dpts_list():
 
     # Wallis-et-Futuna (986) and Polynésie française (987) are not available in BD Topo
     all_dpts = dpts_list()
