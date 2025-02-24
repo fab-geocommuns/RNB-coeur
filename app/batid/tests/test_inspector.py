@@ -16,12 +16,10 @@ from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import BuildingWithHistory
 from batid.models import Candidate
-from batid.services.candidate import (
-    Inspector,
-    _report_count_decisions,
-    _report_count_refusals,
-    _report_list_fake_updates,
-)
+from batid.services.candidate import _report_count_decisions
+from batid.services.candidate import _report_count_refusals
+from batid.services.candidate import _report_list_fake_updates
+from batid.services.candidate import Inspector
 from batid.services.rnb_id import generate_rnb_id
 from batid.tests.helpers import coords_to_mp_geom
 from batid.tests.helpers import coords_to_point_geom

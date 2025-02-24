@@ -2,13 +2,15 @@ import os
 from datetime import datetime
 from datetime import timezone
 from typing import Literal
+
 from celery import Signature
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.db import transaction
 
-from batid.models import Building, BuildingWithHistory
+from batid.models import Building
+from batid.models import BuildingWithHistory
 from batid.models import Candidate
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.services.data_fix.fill_empty_event_origin import building_identicals
@@ -406,9 +408,9 @@ def _report_check_to_do(requested_checks):
 def _report_count_decisions(since: datetime) -> dict:
 
     q = """
-        SELECT jsonb_extract_path_text(inspection_details, 'decision') AS reason, count(*) 
-        FROM batid_candidate 
-        WHERE inspected_at > %(since)s 
+        SELECT jsonb_extract_path_text(inspection_details, 'decision') AS reason, count(*)
+        FROM batid_candidate
+        WHERE inspected_at > %(since)s
         GROUP BY jsonb_extract_path_text(inspection_details, 'decision');
         """
 
@@ -427,8 +429,8 @@ def _report_count_decisions(since: datetime) -> dict:
 def _report_count_refusals(since: datetime) -> dict:
 
     q = """
-        SELECT jsonb_extract_path_text(inspection_details, 'reason') AS reason, count(*) 
-        FROM batid_candidate 
+        SELECT jsonb_extract_path_text(inspection_details, 'reason') AS reason, count(*)
+        FROM batid_candidate
         WHERE inspected_at > %(since)s and inspection_details @> '{"decision": "refusal"}'
         GROUP BY jsonb_extract_path_text(inspection_details, 'reason');
         """
