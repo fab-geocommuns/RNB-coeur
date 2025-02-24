@@ -22,6 +22,7 @@ from batid.exceptions import BANUnknownCleInterop
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
+from batid.validators import JSONSchemaValidator
 from batid.validators import validate_one_ext_id
 
 
@@ -155,7 +156,13 @@ class Building(BuildingAbstract):
             self.event_origin = event_origin
             self.save()
 
-            self._refuse_pending_contributions(user, event_id)
+            except_for_this_contribution = get_contribution_id_from_event_origin(
+                event_origin
+            )
+
+            self._refuse_pending_contributions(
+                user, event_id, except_for_this_contribution
+            )
         else:
             print(f"Cannot deactivate an inactive building: {self.rnb_id}")
 
@@ -223,12 +230,18 @@ class Building(BuildingAbstract):
         else:
             print(f"Cannot update an inactive building: {self.rnb_id}")
 
-    def _refuse_pending_contributions(self, user: User, event_id):
+    def _refuse_pending_contributions(
+        self, user: User, event_id, except_for_this_contribution_id=None
+    ):
 
         msg = f"Ce signalement a été refusé suite à la désactivation du bâtiment {self.rnb_id}."
         contributions = Contribution.objects.filter(
             rnb_id=self.rnb_id, status="pending", report=True
         )
+
+        if except_for_this_contribution_id:
+            # you may want to refuse all contributions, except for the one being currently treated
+            contributions = contributions.exclude(id=except_for_this_contribution_id)
 
         for c in contributions:
             c.refuse(user, msg, status_updated_by_event_id=event_id)
@@ -324,6 +337,13 @@ class Building(BuildingAbstract):
             if ext_id not in merged_ext_ids[i + 1 :]
         ]
 
+        if addresses_id is not None:
+            Address.add_addresses_to_db_if_needed(addresses_id)
+
+        except_for_this_contribution = get_contribution_id_from_event_origin(
+            event_origin
+        )
+
         def remove_existing_builing(building):
             building.is_active = False
             building.event_type = "merge"
@@ -331,6 +351,9 @@ class Building(BuildingAbstract):
             building.event_user = user
             building.event_origin = event_origin
             building.save()
+            building._refuse_pending_contributions(
+                user, event_id, except_for_this_contribution
+            )
 
         for building in buildings:
             remove_existing_builing(building)
@@ -379,6 +402,15 @@ class Building(BuildingAbstract):
                 name="valid_event_type_check",
             )
         ]
+
+
+def get_contribution_id_from_event_origin(event_origin):
+    return (
+        event_origin.get("contribution_id")
+        if isinstance(event_origin, dict)
+        and event_origin.get("source") == "contribution"
+        else None
+    )
 
 
 class BuildingWithHistory(BuildingAbstract):
@@ -693,4 +725,45 @@ class DataFix(models.Model):
     # the user who created the fix
     user = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+DIFFUSION_DATABASE_ATTRIBUTES_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string",
+            },
+            "description": {
+                "type": "string",
+            },
+        },
+        "required": ["name", "description"],
+        "additionalProperties": False,
+    },
+}
+
+
+class DiffusionDatabase(models.Model):
+    display_order = models.FloatField(null=False, default=0)
+    name = models.CharField(max_length=255)
+    documentation_url = models.URLField(null=True)
+    publisher = models.CharField(max_length=255, null=True)
+    licence = models.CharField(max_length=255, null=True)
+    tags = ArrayField(
+        models.CharField(max_length=255), null=False, default=list, blank=True
+    )
+    description = models.TextField(blank=True)
+    image_url = models.URLField(null=True)
+    is_featured = models.BooleanField(default=False)
+    featured_summary = models.TextField(blank=True)
+    attributes = models.JSONField(
+        null=False,
+        default=list,
+        blank=True,
+        validators=[JSONSchemaValidator(DIFFUSION_DATABASE_ATTRIBUTES_SCHEMA)],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

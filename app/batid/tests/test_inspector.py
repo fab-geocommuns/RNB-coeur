@@ -1163,6 +1163,181 @@ class TestCandidateOnTwoMatchingBdgs(InspectTest):
         self.assertDictEqual(refusals_counts, {"ambiguous_overlap": 1})
 
 
+class TestCandidateCLoseToPointBdg(InspectTest):
+    """
+    Some buildings have only a Point in the shape attribute.
+    BD Topo (and others) can help us to transform this point into a polygon.
+    The problem is sometimes the candidate does not intersect the building.
+    We have to attach the candidate to the building if it is close enough.
+    We verify the inspection attaches candidate polygon and building point when they are close enough.
+
+
+    POINT_BDG is a building with a point shape.
+    It is close to the candidate. Its shape must be updated with the candidate polygon.
+
+    FAR_POINT_BDG is a building with a point shape.
+    It is far from the candidate and should be ignored.
+
+    POLY_BDG_NEIGHBOR is a building with a polygon shape.
+    It intersects the candidate but not enough. It should be ignored
+
+    """
+
+    bdgs_data = [
+        {
+            "id": "POINT_BDG",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [-0.4054973749373687, 42.13386683679241],
+                "type": "Point",
+            },
+        },
+        {
+            "id": "FAR_POINT_BDG",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [-0.40521491170318313, 42.13399847871867],
+                "type": "Point",
+            },
+        },
+        {
+            "id": "POLY_BDG_NEIGHBOR",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.4054742368722941, 42.134111441961494],
+                        [-0.4054853481118812, 42.133891163317315],
+                        [-0.4052423823313802, 42.133890613993145],
+                        [-0.40526386406216375, 42.13413561214],
+                        [-0.4054742368722941, 42.134111441961494],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        },
+    ]
+
+    candidates_data = [
+        {
+            "id": "CDT_POLY",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.4055384428695845, 42.1338676176932],
+                        [-0.4054805265556638, 42.13390978632495],
+                        [-0.40546683724414834, 42.1341050111069],
+                        [-0.4059112133287499, 42.13408705045228],
+                        [-0.40588488773067866, 42.13384575246573],
+                        [-0.4055384428695845, 42.1338676176932],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        },
+    ]
+
+    def test_result(self):
+
+        i = Inspector()
+        i.inspect()
+
+        # The candidate updated a building
+        c = Candidate.objects.all().first()
+        self.assertEqual(c.inspection_details["decision"], "update")
+
+        # Updated building now has a polygon
+        rnb_id = c.inspection_details["rnb_id"]
+        bdg = Building.objects.get(rnb_id=rnb_id)
+
+        self.assertEqual(bdg.shape.geom_type, "Polygon")
+        self.assertEqual(len(bdg.ext_ids), 2)
+        self.assertEqual(bdg.ext_ids[1]["id"], "CDT_POLY")
+
+
+class TestCandidateCLoseToAmbiguousPointsBdgs(InspectTest):
+    bdgs_data = [
+        {
+            "id": "CLOSE_ONE",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.40526639833487366, 42.13435554467577],
+                "type": "Point",
+            },
+        },
+        {
+            "id": "CLOSE_TWO",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.4054133335975223, 42.134342572850386],
+                "type": "Point",
+            },
+        },
+        {
+            "id": "INSIDE",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.4052891383165331, 42.134270579167264],
+                "type": "Point",
+            },
+        },
+        {
+            "id": "FAR",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.40496020881957406, 42.13401039632299],
+                "type": "Point",
+            },
+        },
+    ]
+
+    candidates_data = [
+        {
+            "id": "AMBIGUOUS_POLY",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.40533767926592645, 42.134363059816536],
+                        [-0.4054953663784602, 42.134262535288656],
+                        [-0.4052270216421334, 42.13414867568085],
+                        [-0.40517030961083833, 42.13431484909324],
+                        [-0.40533767926592645, 42.134363059816536],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        },
+    ]
+
+    def test_result(self):
+
+        i = Inspector()
+        i.inspect()
+
+        # The candidate has been refused
+        c = Candidate.objects.all().first()
+        self.assertEqual(c.inspection_details["decision"], "refusal")
+        self.assertEqual(c.inspection_details["reason"], "too_many_geomatches")
+        # There are 4 bdgs in the database but one is too far from the candidate
+        self.assertEqual(len(c.inspection_details["matches"]), 3)
+
+        # The buildings have not been updated
+        bdgs = Building.objects.all()
+        self.assertEqual(len(bdgs), 4)
+
+        for bdg in bdgs:
+
+            self.assertEqual(bdg.shape.geom_type, "Point")
+            self.assertEqual(len(bdg.ext_ids), 1)
+
+            history_rows = (
+                BuildingWithHistory.objects.filter(rnb_id=bdg.rnb_id).all().count()
+            )
+            self.assertEqual(history_rows, 1)
+
+
 def data_to_candidate(data):
     b_import = BuildingImport.objects.create(
         departement="33",

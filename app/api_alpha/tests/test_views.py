@@ -1,4 +1,5 @@
 import csv
+import datetime
 import io
 import json
 from unittest import mock
@@ -13,6 +14,7 @@ from rest_framework_tracking.models import APIRequestLog
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
+from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.services.stats import compute_stats
 
@@ -116,7 +118,7 @@ class DiffTest(TransactionTestCase):
         b1.update(
             status="demolished",
             user=user,
-            event_origin="dummy_origin",
+            event_origin={"source": "test"},
             addresses_id=["ADDRESS_ID_2", "ADDRESS_ID_3"],
         )
 
@@ -136,7 +138,7 @@ class DiffTest(TransactionTestCase):
         b3 = Building.objects.create(
             rnb_id="3", shape=geom, point=geom.point_on_surface, status="constructed"
         )
-        b3.deactivate(user=user, event_origin="dummy_origin")
+        b3.deactivate(user=user, event_origin={"source": "test"})
 
         # we want all the diff since the creation of b1 (excluded)
         params = urlencode({"since": treshold.isoformat()})
@@ -262,7 +264,7 @@ class DiffTest(TransactionTestCase):
         b3 = Building.merge(
             [b1, b2],
             user=user,
-            event_origin="dummy_origin",
+            event_origin={"source": "dummy"},
             addresses_id=["ADDRESS_ID_1", "ADDRESS_ID_2"],
             status="constructed",
         )
@@ -324,10 +326,8 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[2]["event_id"], rows[0]["event_id"])
 
     def test_diff_split(self):
-
         # todo : use the future split() method when it will be implemented
 
-        # create building
         b1 = Building.objects.create(rnb_id="1", status="constructed")
         Building.objects.create(rnb_id="t")
         # reload the buildings to get the sys_period
@@ -338,8 +338,10 @@ class DiffTest(TransactionTestCase):
         b1.is_active = False
         b1.save()
 
+        # b2 should appear before b3 in the resulting csv because the results are ordered by datetime
+        # not by ID-RNB anymore
         b2 = Building.objects.create(
-            rnb_id="2", status="constructed", event_type="split", is_active=True
+            rnb_id="z2", status="constructed", event_type="split", is_active=True
         )
         b3 = Building.objects.create(
             rnb_id="3", status="constructed", event_type="split", is_active=True
@@ -373,6 +375,18 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[2][0], "create")
         self.assertEqual(rows[2][1], b3.rnb_id)
         self.assertEqual(rows[2][2], "constructed")
+
+        # additional check: set a since date in the past to make sure the loop on the datetimes is working correctly
+        # because rows of diff are fetched one day at a time
+        treshold = treshold - datetime.timedelta(days=10)
+        params = urlencode({"since": treshold.isoformat()})
+        url = f"/api/alpha/buildings/diff/?{params}"
+        r = self.client.get(url)
+        diff_text = get_content_from_streaming_response(r)
+        reader = csv.reader(io.StringIO(diff_text), strict=True, delimiter=",")
+        _headers = next(reader)
+        rows = list(reader)
+        self.assertEqual(len(rows), 5)
 
     def test_diff_no_since(self):
         # we want all the diff since the the creation of b1 (excluded)
@@ -547,3 +561,18 @@ def get_content_from_streaming_response(response):
     content = list(response.streaming_content)
     # each element of the list is a byte string, that we need to decode
     return "".join([b.decode("utf-8") for b in content])
+
+
+class TestDiffusionDatabases(APITestCase):
+    def test_diffusion_databases(self):
+        # create a diffusion database
+        DiffusionDatabase.objects.create(
+            name="Fichiers fonciers",
+            documentation_url="https://datafoncier.cerema.fr/actualites/nouveau-millesime-fichiers-fonciers-2024-disponible?ref=referentiel-national-du-batiment.ghost.io",
+            publisher="le Cerema",
+            licence="Réservée aux ayant droits",
+        )
+        url = "/api/alpha/diffusion_databases"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Fichiers fonciers", response.content.decode())

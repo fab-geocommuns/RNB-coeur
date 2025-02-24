@@ -1,5 +1,7 @@
 import json
 import os
+import secrets
+import string
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -53,10 +55,12 @@ from api_alpha.serializers import BuildingAddressQuerySerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingCreateSerializer
+from api_alpha.serializers import BuildingMergeSerializer
 from api_alpha.serializers import BuildingPlotSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
+from api_alpha.serializers import DiffusionDatabaseSerializer
 from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
@@ -69,6 +73,7 @@ from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
 from batid.models import Contribution
+from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
@@ -480,8 +485,10 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                 infos["cle_interop_ban"] = cle_interop_ban
 
             infos["status"] = "ok"
-            buildings = Building.objects.filter(is_active=True).filter(
-                addresses_read_only__id=cle_interop_ban
+            buildings = (
+                Building.objects.filter(is_active=True)
+                .filter(addresses_read_only__id=cle_interop_ban)
+                .prefetch_related("addresses_read_only")
             )
             paginated_bdgs = paginator.paginate_queryset(buildings, request)
             serialized_buildings = BuildingSerializer(paginated_bdgs, many=True)
@@ -768,7 +775,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                     },
                                     "addresses_cle_interop": {
                                         "type": "list",
-                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiments. Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
+                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiment. Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
                                     },
                                     "shape": {
                                         "type": "string",
@@ -849,6 +856,130 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 contribution.save()
 
             serializer = BuildingSerializer(created_building, with_plots=True)
+            return Response(serializer.data, status=http_status.HTTP_201_CREATED)
+
+
+class MergeBuildings(APIView):
+    permission_classes = [RNBContributorPermission]
+
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Fusion de bâtiments",
+                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
+                Il permet de corriger le RNB en fusionnant plusieurs bâtiments existants, donnant lieu à la création d'un nouveau bâtiment.
+                """,
+                "operationId": "mergeBuildings",
+                "parameters": [],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "comment": {
+                                        "type": "string",
+                                        "description": """Commentaire optionnel associé à l'opération""",
+                                    },
+                                    "rnb_ids": {
+                                        "type": "list",
+                                        "description": "Liste des ID-RNB des bâtiments à fusionner",
+                                    },
+                                    "merge_existing_addresses": {
+                                        "type": "bool",
+                                        "description": """Lorsque ce paramêtre vaut True, le bâtiment nouvellement créé hérite des adresses des bâtiments dont il est issu. S'il n'est pas rempli ou qu'il vaut False, le champ addresses_cle_interop est utilisé pour déterminer les adresses du bâtiment.""",
+                                    },
+                                    "addresses_cle_interop": {
+                                        "type": "list",
+                                        "description": """Liste des clés d'interopérabilité BAN liées au nouveau bâtiment créé. Si une liste vide est passée, le bâtiment ne sera lié à aucune adresse. Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "description": f"Statut du bâtiment nouvellement créé. Les valeurs possibles sont : <br /> {get_status_html_list()}<br />",
+                                    },
+                                },
+                                "required": ["rnb_ids", "status"],
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "200": {
+                        "description": "Détails du bâtiment nouvellement créé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {"$ref": "#/components/schemas/Building"},
+                                    ]
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    )
+    def post(self, request):
+        serializer = BuildingMergeSerializer(data=request.data)
+
+        if serializer.is_valid(raise_exception=True):
+            data = serializer.data
+            user = request.user
+
+            with transaction.atomic():
+                contribution = Contribution(
+                    text=data.get("comment"),
+                    status="fixed",
+                    status_changed_at=datetime.now(timezone.utc),
+                    report=False,
+                    review_user=user,
+                )
+                contribution.save()
+
+                event_origin = {
+                    "source": "contribution",
+                    "contribution_id": contribution.id,
+                }
+
+                rnb_ids = data.get("rnb_ids")
+                buildings = list(Building.objects.filter(rnb_id__in=rnb_ids).all())
+                status = data.get("status")
+
+                merge_existing_addresses = data.get("merge_existing_addresses")
+                if merge_existing_addresses:
+                    addresses_id = [
+                        address
+                        for building in buildings
+                        for address in building.addresses_id
+                    ]
+                else:
+                    addresses_id = data.get("addresses_cle_interop")
+
+                # remove possible duplicates
+                addresses_id = list(set(addresses_id))
+
+                try:
+                    new_building = Building.merge(
+                        buildings, user, event_origin, status, addresses_id
+                    )
+                except BANAPIDown:
+                    raise ServiceUnavailable(detail="BAN API is currently down")
+                except BANUnknownCleInterop:
+                    raise NotFound(
+                        detail="Cle d'intéropérabilité not found on the BAN API"
+                    )
+                except BANBadResultType:
+                    raise BadRequest(
+                        detail="BAN result has not the expected type (must be 'numero')"
+                    )
+
+                # update the contribution now that the rnb_id is known
+                contribution.rnb_id = new_building.rnb_id
+                contribution.save()
+
+            serializer = BuildingSerializer(new_building, with_plots=False)
             return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
@@ -967,7 +1098,7 @@ class SingleBuilding(APIView):
                                     },
                                     "addresses_cle_interop": {
                                         "type": "list",
-                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiments. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
+                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiment. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
                                     },
                                     "shape": {
                                         "type": "string",
@@ -1001,6 +1132,7 @@ class SingleBuilding(APIView):
                     status="fixed",
                     status_changed_at=datetime.now(),
                     review_user=user,
+                    report=False,
                 )
                 contribution.save()
 
@@ -1555,7 +1687,7 @@ class DiffView(APIView):
                     "Liste l'ensemble des modifications apportées au RNB depuis une date données. Génère un fichier CSV. Voici les points importants à retenir : <br />"
                     "<ul>"
                     "<li>Les modifications listées sont de trois types : create, update et delete</li>"
-                    "<li>Les modifications sont triées par rnb_id puis par date de modification croissante</li>"
+                    "<li>Les modifications sont triées par date de modification croissante</li>"
                     "<li>Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. Par exemple, une création (create) suivie d'une mise à jour (update)</li>"
                     "</ul>"
                 ),
@@ -1599,7 +1731,6 @@ class DiffView(APIView):
         since_input = request.GET.get("since", "")
         # parse since to a timestamp
         since = parse_datetime(since_input)
-
         if since is None:
             return HttpResponse(
                 "The 'since' parameter is missing or incorrect", status=400
@@ -1619,7 +1750,6 @@ class DiffView(APIView):
             )
             cursor.execute(most_recent_modification_query)
             most_recent_modification = cursor.fetchone()[0]
-            most_recent_modification = most_recent_modification.isoformat(sep="T")
 
         # file descriptors r, w for reading and writing
         r, w = os.pipe()
@@ -1639,7 +1769,7 @@ class DiffView(APIView):
                 r,
                 content_type="text/csv",
                 headers={
-                    "Content-Disposition": f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification}.csv"'
+                    "Content-Disposition": f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"'
                 },
             )
         else:
@@ -1649,43 +1779,54 @@ class DiffView(APIView):
             w = os.fdopen(w, "w")
 
             with connection.cursor() as cursor:
-                sql_query = sql.SQL(
-                    """
-                    COPY (
-                        select
-                        CASE
-                            WHEN event_type = 'delete' THEN 'deactivate'
-                            WHEN event_type = 'deactivation' THEN 'deactivate'
-                            WHEN event_type = 'update' THEN 'update'
-                            WHEN event_type = 'split' and not is_active THEN 'deactivate'
-                            WHEN event_type = 'split' and is_active THEN 'create'
-                            WHEN event_type = 'merge' and not is_active THEN 'deactivate'
-                            WHEN event_type = 'merge' and is_active THEN 'create'
-                            ELSE 'create'
-                        END as action,
-                        rnb_id,
-                        status,
-                        is_active::int,
-                        sys_period,
-                        ST_AsEWKT(point) as point,
-                        ST_AsEWKT(shape) as shape,
-                        to_json(addresses_id) as addresses_id,
-                        COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
-                        parent_buildings,
-                        event_id,
-                        event_type
-                        FROM batid_building_with_history bb
-                        where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone
-                        order by rnb_id, lower(sys_period)
-                    ) TO STDOUT WITH CSV HEADER
-                    """
-                ).format(
-                    start=sql.Literal(since.isoformat()),
-                    end=sql.Literal(most_recent_modification),
-                )
-                # the data coming from the query is streamed to the file descriptor w
-                # and will be received by the parent process as a stream
-                cursor.copy_expert(sql_query, w)
+                start_ts = since
+                first_query = True
+
+                while start_ts < most_recent_modification:
+                    end_ts = start_ts + timedelta(days=1)
+
+                    raw_sql = """
+                        COPY (
+                            select
+                            CASE
+                                WHEN event_type = 'delete' THEN 'deactivate'
+                                WHEN event_type = 'deactivation' THEN 'deactivate'
+                                WHEN event_type = 'update' THEN 'update'
+                                WHEN event_type = 'split' and not is_active THEN 'deactivate'
+                                WHEN event_type = 'split' and is_active THEN 'create'
+                                WHEN event_type = 'merge' and not is_active THEN 'deactivate'
+                                WHEN event_type = 'merge' and is_active THEN 'create'
+                                ELSE 'create'
+                            END as action,
+                            rnb_id,
+                            status,
+                            is_active::int,
+                            sys_period,
+                            ST_AsEWKT(point) as point,
+                            ST_AsEWKT(shape) as shape,
+                            to_json(addresses_id) as addresses_id,
+                            COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
+                            parent_buildings,
+                            event_id,
+                            event_type
+                            FROM batid_building_with_history bb
+                            where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone
+                            order by lower(sys_period)
+                        ) TO STDOUT WITH CSV
+                        """
+
+                    if first_query:
+                        raw_sql = raw_sql + " HEADER"
+                        first_query = False
+
+                    sql_query = sql.SQL(raw_sql).format(
+                        start=sql.Literal(start_ts.isoformat()),
+                        end=sql.Literal(end_ts.isoformat()),
+                    )
+                    # the data coming from the query is streamed to the file descriptor w
+                    # and will be received by the parent process as a stream
+                    cursor.copy_expert(sql_query, w)
+                    start_ts = end_ts
             w.close()
             # the child process is terminated
             os._exit(0)
@@ -1769,6 +1910,16 @@ def city_ranking():
         return results
 
 
+def make_random_password(length):
+    # https://docs.python.org/3/library/secrets.html#recipes-and-best-practices
+    if length <= 0:
+        raise ValueError("invalid password length")
+
+    alphabet = string.ascii_letters + string.digits
+    password = "".join(secrets.choice(alphabet) for i in range(length))
+    return password
+
+
 @extend_schema(exclude=True)
 class AdsTokenView(APIView):
     permission_classes = [IsSuperUser]
@@ -1780,7 +1931,7 @@ class AdsTokenView(APIView):
                 users = []
 
                 for json_user in json_users:
-                    password = User.objects.make_random_password(length=15)
+                    password = make_random_password(length=15)
                     user, created = User.objects.get_or_create(
                         username=json_user["username"],
                         defaults={
@@ -1853,6 +2004,14 @@ class TokenScheme(OpenApiAuthenticationExtension):
             "Exemple:\n\n"
             "`Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b`",
         }
+
+
+class DiffusionDatabaseView(APIView):
+    def get(self, request):
+        """Lists all databases in which ID-RNBs are published and available attributes"""
+        databases = DiffusionDatabase.objects.all()
+        serializer = DiffusionDatabaseSerializer(databases, many=True)
+        return Response(serializer.data)
 
 
 def get_schema(request):

@@ -8,6 +8,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
+from api_alpha.views import make_random_password
 from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
@@ -980,6 +981,10 @@ class ADSEndpointsWithAuthTest(APITestCase):
             "/api/alpha/ads/token/", data=data, content_type="application/json"
         )
         self.assertEqual(r.status_code, 403)
+
+    def test_create_password(self):
+        password = make_random_password(length=15)
+        self.assertEqual(len(password), 15)
 
     def test_ads_create_user_ok(self):
         username = "john_doe"

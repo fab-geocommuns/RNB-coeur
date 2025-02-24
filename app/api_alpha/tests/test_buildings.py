@@ -476,7 +476,7 @@ class BuildingClosestViewTest(APITestCase):
         # It should be first in the results
         closest_bdg = Building.create_new(
             user=None,
-            event_origin="test",
+            event_origin={"source": "test"},
             status="constructed",
             addresses_id=[],
             ext_ids=[],
@@ -502,7 +502,7 @@ class BuildingClosestViewTest(APITestCase):
         # It should appear second in the results
         further_bdg = Building.create_new(
             user=None,
-            event_origin="test",
+            event_origin={"source": "test"},
             status="constructed",
             addresses_id=[],
             ext_ids=[],
@@ -531,7 +531,7 @@ class BuildingClosestViewTest(APITestCase):
             Building.create_new(
                 user=None,
                 status="constructed",
-                event_origin="test",
+                event_origin={"source": "test"},
                 addresses_id=[],
                 ext_ids=[],
                 shape=GEOSGeometry(
@@ -558,7 +558,7 @@ class BuildingClosestViewTest(APITestCase):
         deactivated_bdg = Building.create_new(
             user=None,
             status="constructed",
-            event_origin="test",
+            event_origin={"source": "test"},
             addresses_id=[],
             ext_ids=[],
             shape=GEOSGeometry(
@@ -578,14 +578,14 @@ class BuildingClosestViewTest(APITestCase):
                 srid=4326,
             ),
         )
-        deactivated_bdg.deactivate(user=None, event_origin="test")
+        deactivated_bdg.deactivate(user=None, event_origin={"source": "test"})
 
         # One demolished building, in radius range
         # It should not appear in the results
         demolished_bdg = Building.create_new(
             user=None,
             status="demolished",
-            event_origin="test",
+            event_origin={"source": "test"},
             addresses_id=[],
             ext_ids=[],
             shape=GEOSGeometry(
@@ -611,7 +611,7 @@ class BuildingClosestViewTest(APITestCase):
         very_far_bdg = Building.create_new(
             user=None,
             status="constructed",
-            event_origin="test",
+            event_origin={"source": "test"},
             addresses_id=[],
             ext_ids=[],
             shape=GEOSGeometry(
@@ -726,10 +726,18 @@ class BuildingClosestViewTest(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
 
+    def test_closest_0_radius(self):
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=0"
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
+
     def test_closes_no_n_plus_1(self):
         Building.create_new(
             user=None,
-            event_origin="test",
+            event_origin={"source": "test"},
             status="constructed",
             addresses_id=[],
             ext_ids=[],
@@ -753,7 +761,7 @@ class BuildingClosestViewTest(APITestCase):
         )
         Building.create_new(
             user=None,
-            event_origin="test",
+            event_origin={"source": "test"},
             status="constructed",
             addresses_id=[],
             ext_ids=[],
@@ -796,7 +804,7 @@ class BuildingAddressViewTest(APITestCase):
 
         self.building_1 = Building.create_new(
             user=None,
-            event_origin="test",
+            event_origin={"source": "test"},
             status="constructed",
             addresses_id=[self.cle_interop_ban_1, self.cle_interop_ban_2],
             ext_ids=[],
@@ -821,7 +829,7 @@ class BuildingAddressViewTest(APITestCase):
 
         self.building_2 = Building.create_new(
             user=None,
-            event_origin="test",
+            event_origin={"source": "test"},
             status="constructed",
             addresses_id=[self.cle_interop_ban_1],
             ext_ids=[],
@@ -858,9 +866,13 @@ class BuildingAddressViewTest(APITestCase):
 
     def test_by_cle_interop(self):
         # 2 buildings
-        r = self.client.get(
-            f"/api/alpha/buildings/address/?cle_interop_ban={self.cle_interop_ban_1}"
-        )
+        def buildings_by_address():
+            return self.client.get(
+                f"/api/alpha/buildings/address/?cle_interop_ban={self.cle_interop_ban_1}"
+            )
+
+        r = buildings_by_address()
+
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertEqual(data["cle_interop_ban"], self.cle_interop_ban_1)
@@ -870,6 +882,7 @@ class BuildingAddressViewTest(APITestCase):
             [r["rnb_id"] for r in data["results"]],
             [self.building_1.rnb_id, self.building_2.rnb_id],
         )
+        self.assertNumQueries(3, buildings_by_address)
 
         # 1 building
         r = self.client.get(
@@ -1223,6 +1236,7 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
+        self.assertFalse(contribution.report)
 
     def test_reactivate(self):
         self.assertTrue(self.building.is_active)
@@ -1670,6 +1684,295 @@ class BuildingPostTest(APITestCase):
 
         r = self.client.post(
             f"/api/alpha/buildings/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 503)
+        get_mock.assert_called_with(
+            f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
+        )
+
+
+class BuildingMergeTest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            first_name="Robert", last_name="Dylan", username="bob"
+        )
+        token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+
+        self.group, created = Group.objects.get_or_create(
+            name=RNBContributorPermission.group_name
+        )
+
+        self.adr1 = Address.objects.create(id="cle_interop_1")
+        self.adr2 = Address.objects.create(id="cle_interop_2")
+
+        self.building_1 = Building.objects.create(
+            rnb_id="AAAA00000000",
+            shape="POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+            is_active=True,
+            addresses_id=[self.adr1.id],
+            ext_ids=[
+                {
+                    "id": "xxx",
+                    "source": "bdnb",
+                    "created_at": "2023-12-07T13:28:58.299402+00:00",
+                    "source_version": "2023_01",
+                }
+            ],
+        )
+        self.building_2 = Building.objects.create(
+            rnb_id="BBBB00000000",
+            shape="POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))",
+            is_active=True,
+            addresses_id=[self.adr2.id],
+            ext_ids=[
+                {
+                    "id": "yyy",
+                    "source": "bdtopo",
+                    "created_at": "2024-12-07T13:28:58.299402+00:00",
+                    "source_version": "2024_01",
+                }
+            ],
+        )
+
+    def test_merge_buildings(self):
+        data = {
+            "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
+            "status": "constructed",
+            "merge_existing_addresses": True,
+            "comment": "Ces deux bâtiments ne font qu'un !",
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 403)
+        self.user.groups.add(self.group)
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 201)
+        res = r.json()
+
+        self.assertTrue(res["rnb_id"])
+        self.assertEqual(res["status"], "constructed")
+        self.assertEqual(res["point"], {"type": "Point", "coordinates": [1.0, 0.5]})
+        self.assertEqual(
+            res["shape"],
+            {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [0.0, 1.0],
+                        [1.0, 1.0],
+                        [2.0, 1.0],
+                        [2.0, 0.0],
+                        [1.0, 0.0],
+                        [0.0, 0.0],
+                        [0.0, 1.0],
+                    ]
+                ],
+            },
+        )
+        addresses = res["addresses"]
+        self.assertEqual(addresses[0]["id"], self.adr1.id)
+        self.assertEqual(addresses[1]["id"], self.adr2.id)
+        self.assertEqual(len(addresses), 2)
+        self.assertEqual(
+            res["ext_ids"],
+            [
+                {
+                    "id": "xxx",
+                    "source": "bdnb",
+                    "created_at": "2023-12-07T13:28:58.299402+00:00",
+                    "source_version": "2023_01",
+                },
+                {
+                    "id": "yyy",
+                    "source": "bdtopo",
+                    "created_at": "2024-12-07T13:28:58.299402+00:00",
+                    "source_version": "2024_01",
+                },
+            ],
+        )
+
+        self.assertTrue(res["is_active"])
+
+        building = Building.objects.get(rnb_id=res["rnb_id"])
+        event_origin = building.event_origin
+        contribution_id = event_origin.get("contribution_id")
+
+        contribution = Contribution.objects.get(id=contribution_id)
+
+        self.assertEqual(contribution.status, "fixed")
+        self.assertFalse(contribution.report, False)
+        self.assertEqual(contribution.review_user.id, building.event_user.id)
+        self.assertEqual(contribution.text, data["comment"])
+
+    def test_merge_buildings_explicit_addresses(self):
+        data = {
+            "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
+            "status": "constructed",
+            # we put a duplicate on purpose
+            "addresses_cle_interop": [self.adr1.id, self.adr1.id],
+            "comment": "Ces deux bâtiments ne font qu'un, mais une seule adresse est la bonne",
+        }
+
+        self.user.groups.add(self.group)
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 201)
+        res = r.json()
+
+        self.assertTrue(res["rnb_id"])
+        self.assertEqual(res["status"], "constructed")
+        self.assertEqual(res["point"], {"type": "Point", "coordinates": [1.0, 0.5]})
+
+        addresses = res["addresses"]
+        self.assertEqual(addresses[0]["id"], self.adr1.id)
+        self.assertEqual(len(addresses), 1)
+
+        self.assertEqual(
+            res["ext_ids"],
+            [
+                {
+                    "id": "xxx",
+                    "source": "bdnb",
+                    "created_at": "2023-12-07T13:28:58.299402+00:00",
+                    "source_version": "2023_01",
+                },
+                {
+                    "id": "yyy",
+                    "source": "bdtopo",
+                    "created_at": "2024-12-07T13:28:58.299402+00:00",
+                    "source_version": "2024_01",
+                },
+            ],
+        )
+        self.assertTrue(res["is_active"])
+
+        building = Building.objects.get(rnb_id=res["rnb_id"])
+        event_origin = building.event_origin
+        contribution_id = event_origin.get("contribution_id")
+
+        contribution = Contribution.objects.get(id=contribution_id)
+
+        self.assertEqual(contribution.status, "fixed")
+        self.assertFalse(contribution.report, False)
+        self.assertEqual(contribution.review_user.id, building.event_user.id)
+        self.assertEqual(contribution.text, data["comment"])
+
+    def test_merge_buildings_missing_info(self):
+        self.user.groups.add(self.group)
+
+        # not enough rnb_ids to merge
+        data = {
+            "rnb_ids": [],
+            "status": "constructed",
+            "merge_existing_addresses": True,
+            "comment": "Ces deux bâtiments ne font qu'un !",
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+
+        # rnb_ids should be a list
+        data = {
+            "rnb_ids": "coucou",
+            "status": "constructed",
+            "merge_existing_addresses": True,
+            "comment": "Ces deux bâtiments ne font qu'un !",
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+
+        # missing status
+        data = {
+            "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
+            "merge_existing_addresses": True,
+            "comment": "Ces deux bâtiments ne font qu'un !",
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+
+        # missing addresses
+        data = {
+            "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
+            "status": "constructed",
+            "comment": "Ces deux bâtiments ne font qu'un, mais une seule adresse est la bonne",
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+
+        # comment is mandatory
+        data = {
+            "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
+            "status": "constructed",
+            "addresses_cle_interop": [self.adr1.id],
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 201)
+
+    @mock.patch("batid.models.requests.get")
+    def test_merge_building_ban_is_down(self, get_mock):
+        get_mock.return_value.status_code = 500
+        cle_interop = "33063_9115_00012_bis"
+        get_mock.return_value.json.return_value = {
+            "details": "Oooops",
+        }
+
+        data = {
+            "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
+            "status": "constructed",
+            "addresses_cle_interop": ["33063_9115_00012_bis"],
+        }
+
+        self.user.groups.add(self.group)
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
             data=json.dumps(data),
             content_type="application/json",
         )
