@@ -21,6 +21,7 @@ from batid.services.data_fix.remove_light_buildings import (
 )
 from batid.services.data_gouv_publication import get_area_publish_task
 from batid.services.data_gouv_publication import publish
+from batid.services.imports.import_bal import create_bal_full_import_tasks, create_candidate_from_bal
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
 from batid.services.imports.import_bdtopo import bdtopo_recente_release_date
@@ -254,3 +255,25 @@ def fill_empty_event_origin(from_rnb_id=None, to_rnb_id=None, batch_size=10000):
 # def delete_to_deactivation(batch_size=10000):
 #     delete_to_deactivation_job(batch_size)
 #     return "done"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_full_bal_import(dpt_start: Optional[str] = None, dpt_end: Optional[str] = None):
+    notify_tech(
+        f"Queuing full BAL import tasks. Dpt start: {dpt_start}, dpt end: {dpt_end}"
+    )
+
+    # Get list of dpts
+    dpts = dpts_list(dpt_start, dpt_end)
+
+    tasks = create_bal_full_import_tasks(dpts)
+
+    chain(*tasks)()
+    return f"Queued {len(tasks)} tasks"
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def convert_bal(src_params, bulk_launch_uuid=None):
+    create_candidate_from_bal(src_params, bulk_launch_uuid)
+    return "done"
