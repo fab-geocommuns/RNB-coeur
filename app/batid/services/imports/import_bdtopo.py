@@ -7,6 +7,7 @@ from datetime import datetime
 from datetime import timezone
 from typing import Optional
 
+
 import fiona
 import psycopg2
 from celery import Signature
@@ -22,6 +23,7 @@ from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
 from batid.utils.geo import fix_nested_shells
+from batid.services.administrative_areas import dpts_list
 
 
 def create_bdtopo_full_import_tasks(dpt_list: list, release_date: str) -> list:
@@ -270,3 +272,10 @@ def _bdtopo_release_dates() -> list:
         "2030-09-15",
         "2030-12-15",
     ]
+
+
+def bdtopo_dpt_list():
+
+    # Wallis-et-Futuna (986) and Polynésie française (987) are not available in BD Topo
+    all_dpts = dpts_list()
+    return [dpt for dpt in all_dpts if dpt not in ["986", "987"]]
