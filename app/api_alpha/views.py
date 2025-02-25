@@ -58,10 +58,12 @@ from api_alpha.serializers import BuildingCreateSerializer
 from api_alpha.serializers import BuildingMergeSerializer
 from api_alpha.serializers import BuildingPlotSerializer
 from api_alpha.serializers import BuildingSerializer
+from api_alpha.serializers import BuildingSplitSerializer
 from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import DiffusionDatabaseSerializer
 from api_alpha.serializers import GuessBuildingSerializer
+from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import rnb_doc
@@ -807,56 +809,55 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
     )
     def post(self, request):
         serializer = BuildingCreateSerializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            data = serializer.data
-            user = request.user
+        serializer.is_valid(raise_exception=True)
 
-            with transaction.atomic():
-                # create a contribution
-                contribution = Contribution(
-                    text=data.get("comment"),
-                    status="fixed",
-                    status_changed_at=datetime.now(timezone.utc),
-                    report=False,
-                    review_user=user,
+        data = serializer.data
+        user = request.user
+
+        with transaction.atomic():
+            # create a contribution
+            contribution = Contribution(
+                text=data.get("comment"),
+                status="fixed",
+                status_changed_at=datetime.now(timezone.utc),
+                report=False,
+                review_user=user,
+            )
+            contribution.save()
+
+            event_origin = {
+                "source": "contribution",
+                "contribution_id": contribution.id,
+            }
+
+            status = data.get("status")
+            addresses_cle_interop = data.get("addresses_cle_interop")
+            shape = GEOSGeometry(data.get("shape"))
+
+            try:
+                created_building = Building.create_new(
+                    user=user,
+                    event_origin=event_origin,
+                    status=status,
+                    addresses_id=addresses_cle_interop,
+                    shape=shape,
+                    ext_ids=[],
                 )
-                contribution.save()
+            except BANAPIDown:
+                raise ServiceUnavailable(detail="BAN API is currently down")
+            except BANUnknownCleInterop:
+                raise NotFound(detail="Cle d'intéropérabilité not found on the BAN API")
+            except BANBadResultType:
+                raise BadRequest(
+                    detail="BAN result has not the expected type (must be 'numero')"
+                )
 
-                event_origin = {
-                    "source": "contribution",
-                    "contribution_id": contribution.id,
-                }
+            # update the contribution now that the rnb_id is known
+            contribution.rnb_id = created_building.rnb_id
+            contribution.save()
 
-                status = data.get("status")
-                addresses_cle_interop = data.get("addresses_cle_interop")
-                shape = GEOSGeometry(data.get("shape"))
-
-                try:
-                    created_building = Building.create_new(
-                        user=user,
-                        event_origin=event_origin,
-                        status=status,
-                        addresses_id=addresses_cle_interop,
-                        shape=shape,
-                        ext_ids=[],
-                    )
-                except BANAPIDown:
-                    raise ServiceUnavailable(detail="BAN API is currently down")
-                except BANUnknownCleInterop:
-                    raise NotFound(
-                        detail="Cle d'intéropérabilité not found on the BAN API"
-                    )
-                except BANBadResultType:
-                    raise BadRequest(
-                        detail="BAN result has not the expected type (must be 'numero')"
-                    )
-
-                # update the contribution now that the rnb_id is known
-                contribution.rnb_id = created_building.rnb_id
-                contribution.save()
-
-            serializer = BuildingSerializer(created_building, with_plots=True)
-            return Response(serializer.data, status=http_status.HTTP_201_CREATED)
+        serializer = BuildingSerializer(created_building, with_plots=True)
+        return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
 class MergeBuildings(APIView):
@@ -923,64 +924,189 @@ class MergeBuildings(APIView):
     )
     def post(self, request):
         serializer = BuildingMergeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if serializer.is_valid(raise_exception=True):
-            data = serializer.data
-            user = request.user
+        data = serializer.data
+        user = request.user
 
-            with transaction.atomic():
-                contribution = Contribution(
-                    text=data.get("comment"),
-                    status="fixed",
-                    status_changed_at=datetime.now(timezone.utc),
-                    report=False,
-                    review_user=user,
+        with transaction.atomic():
+            contribution = Contribution(
+                text=data.get("comment"),
+                status="fixed",
+                status_changed_at=datetime.now(timezone.utc),
+                report=False,
+                review_user=user,
+            )
+            contribution.save()
+
+            event_origin = {
+                "source": "contribution",
+                "contribution_id": contribution.id,
+            }
+
+            rnb_ids = data.get("rnb_ids")
+            buildings = list(Building.objects.filter(rnb_id__in=rnb_ids).all())
+            status = data.get("status")
+
+            merge_existing_addresses = data.get("merge_existing_addresses")
+            if merge_existing_addresses:
+                addresses_id = [
+                    address
+                    for building in buildings
+                    for address in building.addresses_id
+                ]
+            else:
+                addresses_id = data.get("addresses_cle_interop")
+
+            # remove possible duplicates
+            addresses_id = list(set(addresses_id))
+
+            try:
+                new_building = Building.merge(
+                    buildings, user, event_origin, status, addresses_id
                 )
-                contribution.save()
+            except BANAPIDown:
+                raise ServiceUnavailable(detail="BAN API is currently down")
+            except BANUnknownCleInterop:
+                raise NotFound(detail="Cle d'intéropérabilité not found on the BAN API")
+            except BANBadResultType:
+                raise BadRequest(
+                    detail="BAN result has not the expected type (must be 'numero')"
+                )
 
-                event_origin = {
-                    "source": "contribution",
-                    "contribution_id": contribution.id,
-                }
+            # update the contribution now that the rnb_id is known
+            contribution.rnb_id = new_building.rnb_id
+            contribution.save()
 
-                rnb_ids = data.get("rnb_ids")
-                buildings = list(Building.objects.filter(rnb_id__in=rnb_ids).all())
-                status = data.get("status")
+        serializer = BuildingSerializer(new_building, with_plots=False)
+        return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
-                merge_existing_addresses = data.get("merge_existing_addresses")
-                if merge_existing_addresses:
-                    addresses_id = [
-                        address
-                        for building in buildings
-                        for address in building.addresses_id
-                    ]
-                else:
-                    addresses_id = data.get("addresses_cle_interop")
 
-                # remove possible duplicates
-                addresses_id = list(set(addresses_id))
+class SplitBuildings(APIView):
+    permission_classes = [RNBContributorPermission]
 
-                try:
-                    new_building = Building.merge(
-                        buildings, user, event_origin, status, addresses_id
-                    )
-                except BANAPIDown:
-                    raise ServiceUnavailable(detail="BAN API is currently down")
-                except BANUnknownCleInterop:
-                    raise NotFound(
-                        detail="Cle d'intéropérabilité not found on the BAN API"
-                    )
-                except BANBadResultType:
-                    raise BadRequest(
-                        detail="BAN result has not the expected type (must be 'numero')"
-                    )
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Scission de bâtiments",
+                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
+                Il permet de corriger le RNB en scindand un bâtiment existant, donnant lieu à la création de plusieurs nouveaux bâtiments.
+                """,
+                "operationId": "splitBuildings",
+                "parameters": [
+                    {
+                        "name": "rnb_id",
+                        "in": "path",
+                        "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "PG46YY6YWCX8",
+                    },
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "comment": {
+                                        "type": "string",
+                                        "description": """Commentaire optionnel associé à l'opération""",
+                                    },
+                                    "created_buildings": {
+                                        "type": "array",
+                                        "description": "Liste des bâtiments issus de la scission.",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "type": "string",
+                                                    "description": "État du bâtiment (ex: 'constructed')",
+                                                },
+                                                "shape": {
+                                                    "type": "string",
+                                                    "description": "Géométrie du bâtiment au format WKT (ex: 'POLYGON((...))')",
+                                                },
+                                                "addresses_cle_interop": {
+                                                    "type": "array",
+                                                    "description": 'Liste des clés interopérables des adresses associées ex: ["75105_8884_00004"]',
+                                                    "items": {"type": "string"},
+                                                },
+                                            },
+                                            "required": [
+                                                "status",
+                                                "shape",
+                                                "addresses_cle_interop",
+                                            ],
+                                        },
+                                    },
+                                },
+                                "required": ["rnb_id", "created_buildings"],
+                            },
+                        }
+                    },
+                },
+                "responses": {
+                    "200": {
+                        "description": "Détails des bâtiments nouvellement créés",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {"$ref": "#/components/schemas/Building"},
+                                }
+                            }
+                        },
+                    }
+                },
+            },
+        }
+    )
+    def post(self, request, rnb_id):
+        serializer = BuildingSplitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-                # update the contribution now that the rnb_id is known
-                contribution.rnb_id = new_building.rnb_id
-                contribution.save()
+        data = serializer.data
+        user = request.user
 
-            serializer = BuildingSerializer(new_building, with_plots=False)
-            return Response(serializer.data, status=http_status.HTTP_201_CREATED)
+        with transaction.atomic():
+            rnb_id = clean_rnb_id(rnb_id)
+            comment = data.get("comment")
+
+            contribution = Contribution(
+                text=comment,
+                status="fixed",
+                status_changed_at=datetime.now(timezone.utc),
+                report=False,
+                review_user=user,
+                rnb_id=rnb_id,
+            )
+            contribution.save()
+
+            event_origin = {
+                "source": "contribution",
+                "contribution_id": contribution.id,
+            }
+
+            created_buildings: list[SplitCreatedBuilding] = data.get(
+                "created_buildings"
+            )
+
+            try:
+                building = get_object_or_404(Building, rnb_id=rnb_id)
+                new_buildings = building.split(created_buildings, user, event_origin)
+            except BANAPIDown:
+                raise ServiceUnavailable(detail="BAN API is currently down")
+            except BANUnknownCleInterop:
+                raise NotFound(detail="Cle d'intéropérabilité not found on the BAN API")
+            except BANBadResultType:
+                raise BadRequest(
+                    detail="BAN result has not the expected type (must be 'numero')"
+                )
+
+        serializer = BuildingSerializer(new_buildings, with_plots=False, many=True)
+        return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
 class SingleBuilding(APIView):
@@ -996,7 +1122,7 @@ class SingleBuilding(APIView):
                     {
                         "name": "rnb_id",
                         "in": "path",
-                        "description": "Identifiant unique du bâtiment dans le RNB",
+                        "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
                         "required": True,
                         "schema": {"type": "string"},
                         "example": "PG46YY6YWCX8",
@@ -1038,7 +1164,7 @@ class SingleBuilding(APIView):
             {"user": request.user, "status": "all", "with_plots": with_plots},
             only_active=False,
         )
-        building = get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
+        building = get_object_or_404(qs, rnb_id=clean_rnb_id(rnb_id))
         serializer = BuildingSerializer(building, with_plots=with_plots)
 
         return Response(serializer.data)
@@ -1069,7 +1195,7 @@ class SingleBuilding(APIView):
                     {
                         "name": "rnb_id",
                         "in": "path",
-                        "description": "Identifiant unique du bâtiment dans le RNB",
+                        "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
                         "required": True,
                         "schema": {"type": "string"},
                         "example": "PG46YY6YWCX8",
@@ -1120,61 +1246,60 @@ class SingleBuilding(APIView):
     )
     def patch(self, request, rnb_id):
         serializer = BuildingUpdateSerializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            data = serializer.data
-            user = request.user
-            building = Building.objects.get(rnb_id=rnb_id)
+        serializer.is_valid(raise_exception=True)
 
-            with transaction.atomic():
-                contribution = Contribution(
-                    rnb_id=rnb_id,
-                    text=data.get("comment"),
-                    status="fixed",
-                    status_changed_at=datetime.now(),
-                    review_user=user,
-                    report=False,
-                )
-                contribution.save()
+        data = serializer.data
+        user = request.user
+        building = Building.objects.get(rnb_id=rnb_id)
 
-                event_origin = {
-                    "source": "contribution",
-                    "contribution_id": contribution.id,
-                }
+        with transaction.atomic():
+            contribution = Contribution(
+                rnb_id=rnb_id,
+                text=data.get("comment"),
+                status="fixed",
+                status_changed_at=datetime.now(),
+                review_user=user,
+                report=False,
+            )
+            contribution.save()
 
-                if data.get("is_active") == False:
-                    # a building that is not a building has its RNB ID deactivated from the base
-                    building.deactivate(user, event_origin)
-                elif data.get("is_active") == True:
-                    # a building is reactivated, after a deactivation that should not have
-                    building.reactivate(user, event_origin)
-                else:
-                    status = data.get("status")
-                    addresses_cle_interop = data.get("addresses_cle_interop")
-                    shape = (
-                        GEOSGeometry(data.get("shape")) if data.get("shape") else None
+            event_origin = {
+                "source": "contribution",
+                "contribution_id": contribution.id,
+            }
+
+            if data.get("is_active") == False:
+                # a building that is not a building has its RNB ID deactivated from the base
+                building.deactivate(user, event_origin)
+            elif data.get("is_active") == True:
+                # a building is reactivated, after a deactivation that should not have
+                building.reactivate(user, event_origin)
+            else:
+                status = data.get("status")
+                addresses_cle_interop = data.get("addresses_cle_interop")
+                shape = GEOSGeometry(data.get("shape")) if data.get("shape") else None
+
+                try:
+                    building.update(
+                        user,
+                        event_origin,
+                        status,
+                        addresses_cle_interop,
+                        shape=shape,
+                    )
+                except BANAPIDown:
+                    raise ServiceUnavailable(detail="BAN API is currently down")
+                except BANUnknownCleInterop:
+                    raise NotFound(
+                        detail="Cle d'intéropérabilité not found on the BAN API"
+                    )
+                except BANBadResultType:
+                    raise BadRequest(
+                        detail="BAN result has not the expected type (must be 'numero')"
                     )
 
-                    try:
-                        building.update(
-                            user,
-                            event_origin,
-                            status,
-                            addresses_cle_interop,
-                            shape=shape,
-                        )
-                    except BANAPIDown:
-                        raise ServiceUnavailable(detail="BAN API is currently down")
-                    except BANUnknownCleInterop:
-                        raise NotFound(
-                            detail="Cle d'intéropérabilité not found on the BAN API"
-                        )
-                    except BANBadResultType:
-                        raise BadRequest(
-                            detail="BAN result has not the expected type (must be 'numero')"
-                        )
-
-            # request is successful, no content to send back
-            return Response(status=http_status.HTTP_204_NO_CONTENT)
+        # request is successful, no content to send back
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
 
 
 class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):

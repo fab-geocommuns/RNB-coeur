@@ -297,16 +297,19 @@ class BuildingUpdateSerializer(serializers.Serializer):
         return data
 
 
-class BuildingCreateSerializer(serializers.Serializer):
+class BuildingCreateSerializerCore(serializers.Serializer):
     status = serializers.ChoiceField(
         choices=BuildingStatus.ALL_TYPES_KEYS, required=True
     )
     addresses_cle_interop = serializers.ListField(
         child=serializers.CharField(min_length=5, max_length=30),
         allow_empty=True,
-        required=False,
+        required=True,
     )
     shape = serializers.CharField(required=True, validators=[shape_is_valid])
+
+
+class BuildingCreateSerializer(BuildingCreateSerializerCore):
     comment = serializers.CharField(required=False, allow_blank=True)
 
 
@@ -342,6 +345,16 @@ class BuildingMergeSerializer(serializers.Serializer):
             )
 
         return data
+
+
+class BuildingSplitSerializer(serializers.Serializer):
+    comment = serializers.CharField(required=False, allow_blank=True)
+    created_buildings = serializers.ListField(
+        min_length=2,
+        required=True,
+        allow_empty=False,
+        child=BuildingCreateSerializerCore(),
+    )
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):
