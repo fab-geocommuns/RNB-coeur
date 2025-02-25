@@ -349,7 +349,6 @@ class BuildingMergeSerializer(serializers.Serializer):
 
 class BuildingSplitSerializer(serializers.Serializer):
     comment = serializers.CharField(required=False, allow_blank=True)
-    rnb_id = serializers.CharField(min_length=12, max_length=12, required=True)
     created_buildings = serializers.ListField(
         min_length=2,
         required=True,

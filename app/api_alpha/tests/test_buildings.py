@@ -2272,7 +2272,6 @@ class BuildingSplitTest(APITestCase):
 
     def test_split_buildings(self):
         data = {
-            "rnb_id": self.building_1.rnb_id,
             "comment": "Ces deux bâtiments ne font qu'un !",
             "created_buildings": [
                 {
@@ -2289,7 +2288,7 @@ class BuildingSplitTest(APITestCase):
         }
 
         r = self.client.post(
-            f"/api/alpha/buildings/split/",
+            f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
             data=json.dumps(data),
             content_type="application/json",
         )
@@ -2298,7 +2297,7 @@ class BuildingSplitTest(APITestCase):
         self.user.groups.add(self.group)
 
         r = self.client.post(
-            f"/api/alpha/buildings/split/",
+            f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
             data=json.dumps(data),
             content_type="application/json",
         )
@@ -2386,7 +2385,6 @@ class BuildingSplitTest(APITestCase):
 
         # base case: correct
         data = {
-            "rnb_id": self.building_1.rnb_id,
             "created_buildings": [
                 {
                     "status": "constructed",
@@ -2402,7 +2400,7 @@ class BuildingSplitTest(APITestCase):
         }
 
         r = self.client.post(
-            f"/api/alpha/buildings/split/",
+            f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
             data=json.dumps(data),
             content_type="application/json",
         )
@@ -2411,34 +2409,6 @@ class BuildingSplitTest(APITestCase):
 
         # missing rnb_id
         data = {
-            "rnb_id": None,
-            "comment": "Ce sont deux bâtiments",
-            "created_buildings": [
-                {
-                    "status": "constructed",
-                    "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr1.id],
-                },
-                {
-                    "status": "notUsable",
-                    "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr2.id],
-                },
-            ],
-        }
-
-        r = self.client.post(
-            f"/api/alpha/buildings/split/",
-            data=json.dumps(data),
-            content_type="application/json",
-        )
-
-        self.assertEqual(r.status_code, 400)
-        self.assertEqual(r.content, b'{"rnb_id":["This field may not be null."]}')
-
-        # unknown ID-RNB
-        data = {
-            "rnb_id": "coucoucoucou",
             "comment": "Ce sont deux bâtiments",
             "created_buildings": [
                 {
@@ -2461,13 +2431,37 @@ class BuildingSplitTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 404)
+
+        # unknown ID-RNB
+        data = {
+            "comment": "Ce sont deux bâtiments",
+            "created_buildings": [
+                {
+                    "status": "constructed",
+                    "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                    "addresses_cle_interop": [self.adr1.id],
+                },
+                {
+                    "status": "notUsable",
+                    "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                    "addresses_cle_interop": [self.adr2.id],
+                },
+            ],
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/coucoucoucou/split/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 404)
         self.assertEqual(
             r.content, b'{"detail":"No Building matches the given query."}'
         )
 
         # split in 1 is impossible
         data = {
-            "rnb_id": self.building_1.rnb_id,
             "comment": "Ce sont deux bâtiments",
             "created_buildings": [
                 {
@@ -2479,7 +2473,7 @@ class BuildingSplitTest(APITestCase):
         }
 
         r = self.client.post(
-            f"/api/alpha/buildings/split/",
+            f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
             data=json.dumps(data),
             content_type="application/json",
         )
@@ -2492,7 +2486,6 @@ class BuildingSplitTest(APITestCase):
 
         # missing status in child building
         data = {
-            "rnb_id": self.building_1.rnb_id,
             "created_buildings": [
                 {
                     "status": "constructed",
@@ -2507,7 +2500,7 @@ class BuildingSplitTest(APITestCase):
         }
 
         r = self.client.post(
-            f"/api/alpha/buildings/split/",
+            f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
             data=json.dumps(data),
             content_type="application/json",
         )
@@ -2520,7 +2513,6 @@ class BuildingSplitTest(APITestCase):
 
         # missing address in child building
         data = {
-            "rnb_id": self.building_1.rnb_id,
             "created_buildings": [
                 {
                     "status": "constructed",
@@ -2535,7 +2527,7 @@ class BuildingSplitTest(APITestCase):
         }
 
         r = self.client.post(
-            f"/api/alpha/buildings/split/",
+            f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
             data=json.dumps(data),
             content_type="application/json",
         )
@@ -2548,7 +2540,6 @@ class BuildingSplitTest(APITestCase):
 
         # invalid shape
         data = {
-            "rnb_id": self.building_1.rnb_id,
             "created_buildings": [
                 {
                     "status": "constructed",
@@ -2564,7 +2555,7 @@ class BuildingSplitTest(APITestCase):
         }
 
         r = self.client.post(
-            f"/api/alpha/buildings/split/",
+            f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
             data=json.dumps(data),
             content_type="application/json",
         )
@@ -2584,7 +2575,6 @@ class BuildingSplitTest(APITestCase):
         }
 
         data = {
-            "rnb_id": self.building_1.rnb_id,
             "created_buildings": [
                 {
                     "status": "constructed",
@@ -2602,7 +2592,7 @@ class BuildingSplitTest(APITestCase):
         self.user.groups.add(self.group)
 
         r = self.client.post(
-            f"/api/alpha/buildings/split/",
+            f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
             data=json.dumps(data),
             content_type="application/json",
         )
@@ -2621,7 +2611,6 @@ class BuildingSplitTest(APITestCase):
         }
 
         data = {
-            "rnb_id": self.building_1.rnb_id,
             "created_buildings": [
                 {
                     "status": "constructed",
@@ -2639,7 +2628,7 @@ class BuildingSplitTest(APITestCase):
         self.user.groups.add(self.group)
 
         r = self.client.post(
-            f"/api/alpha/buildings/split/",
+            f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
             data=json.dumps(data),
             content_type="application/json",
         )

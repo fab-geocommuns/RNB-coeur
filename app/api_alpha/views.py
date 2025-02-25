@@ -993,7 +993,16 @@ class SplitBuildings(APIView):
                 Il permet de corriger le RNB en scindand un bâtiment existant, donnant lieu à la création de plusieurs nouveaux bâtiments.
                 """,
                 "operationId": "splitBuildings",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "rnb_id",
+                        "in": "path",
+                        "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "example": "PG46YY6YWCX8",
+                    },
+                ],
                 "requestBody": {
                     "required": True,
                     "content": {
@@ -1004,10 +1013,6 @@ class SplitBuildings(APIView):
                                     "comment": {
                                         "type": "string",
                                         "description": """Commentaire optionnel associé à l'opération""",
-                                    },
-                                    "rnb_id": {
-                                        "type": "string",
-                                        "description": "ID-RNB du bâtiment à scinder",
                                     },
                                     "created_buildings": {
                                         "type": "array",
@@ -1058,7 +1063,7 @@ class SplitBuildings(APIView):
             },
         }
     )
-    def post(self, request):
+    def post(self, request, rnb_id):
         serializer = BuildingSplitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -1066,7 +1071,7 @@ class SplitBuildings(APIView):
         user = request.user
 
         with transaction.atomic():
-            rnb_id = data.get("rnb_id")
+            rnb_id = clean_rnb_id(rnb_id)
             comment = data.get("comment")
 
             contribution = Contribution(
@@ -1117,7 +1122,7 @@ class SingleBuilding(APIView):
                     {
                         "name": "rnb_id",
                         "in": "path",
-                        "description": "Identifiant unique du bâtiment dans le RNB",
+                        "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
                         "required": True,
                         "schema": {"type": "string"},
                         "example": "PG46YY6YWCX8",
@@ -1159,7 +1164,7 @@ class SingleBuilding(APIView):
             {"user": request.user, "status": "all", "with_plots": with_plots},
             only_active=False,
         )
-        building = get_object_or_404(qs, rnb_id=clean_rnb_id(self.kwargs["rnb_id"]))
+        building = get_object_or_404(qs, rnb_id=clean_rnb_id(rnb_id))
         serializer = BuildingSerializer(building, with_plots=with_plots)
 
         return Response(serializer.data)
@@ -1190,7 +1195,7 @@ class SingleBuilding(APIView):
                     {
                         "name": "rnb_id",
                         "in": "path",
-                        "description": "Identifiant unique du bâtiment dans le RNB",
+                        "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
                         "required": True,
                         "schema": {"type": "string"},
                         "example": "PG46YY6YWCX8",
