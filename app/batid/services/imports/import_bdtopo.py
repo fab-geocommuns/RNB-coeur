@@ -18,6 +18,7 @@ from django.db import transaction
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import Candidate
+from batid.services.administrative_areas import dpts_list
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
@@ -270,3 +271,10 @@ def _bdtopo_release_dates() -> list:
         "2030-09-15",
         "2030-12-15",
     ]
+
+
+def bdtopo_dpts_list():
+
+    # Wallis-et-Futuna (986) and Polynésie française (987) are not available in BD Topo
+    all_dpts = dpts_list()
+    return [dpt for dpt in all_dpts if dpt not in ["986", "987"]]
