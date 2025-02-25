@@ -1,23 +1,14 @@
-import json
-import os
-import random
 import uuid
 from collections import defaultdict
-from datetime import datetime
-from datetime import timezone
+import csv
 
 import pandas as pd
-import psycopg2
 from celery import Signature
 from django.contrib.gis.geos import MultiPoint
 from django.contrib.gis.geos import Point
 from django.db import connection
-from django.db import transaction
 
-from batid.models import Building
-from batid.models import Candidate
-from batid.services.imports import building_import_history
-from batid.services.source import BufferToCopy
+from batid.models import Address, Building
 from batid.services.source import Source
 from batid.utils.db import dictfetchall
 
@@ -57,68 +48,150 @@ def create_bal_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
     )
     tasks.append(convert_task)
 
+    import_task = Signature(
+        "batid.tasks.import_bal_addresses",
+        args=[src_params, bulk_launch_id],
+        immutable=True,
+    )
+    tasks.append(import_task)
+
     return tasks
 
 
-def create_candidate_from_bal(src_params, bulk_launch_uuid=None):
+def convert_bal(src_params, bulk_launch_uuid=None):
     src = Source("bal")
     src.set_params(src_params)
 
-    # Create building import
-    building_import = building_import_history.insert_building_import(
-        "bal", bulk_launch_uuid, src_params["dpt"]
-    )
+    # FIXME should we create a building_import_history ?
 
     # Load data
     df = pd.read_csv(src.find(src.filename))
     certified_df = df[df["certification_commune"] == 1]
     certified_df.reset_index(drop=True, inplace=True)
 
-    # Fond new adresses
+    # Find new adresses
     new_links, old_link_new_ban_id, stats = _create_link_building_address(certified_df)
 
-    # Create Candidates
-    candidates = []
-    for rnb_id, cle_interop, commune_nom, voie_nom, numero in new_links:
-        candidate = {
-            "source": "bal",
-            "source_id": cle_interop,
-            "address_keys": f"{{{cle_interop}}}",
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
-            "random": random.randint(0, 1000000000),
-            "created_by": json.dumps({"source": "import", "id": building_import.id}),
-            "source_version": src_params.get("date"),
-        }
-        candidates.append(candidate)
+    # Save to CSV
+    if new_links:
+        source_filepath = src.find(src.filename)
+        output_filepath = source_filepath.replace('.csv', f'_new_links.csv')
+        
+        with open(output_filepath, 'w', newline='') as csvfile:
+            fieldnames = ['rnb_id', 'cle_interop', 'long', 'lat', 'numero', 'suffixe', 'voie_nom', 'commune_nom', 'commune_insee']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+            writer.writeheader()
+            for link in new_links:
+                writer.writerow({
+                    'rnb_id': link[0],
+                    'cle_interop': link[1],
+                    'long': link[2],
+                    'lat': link[3],
+                    'numero': link[4],
+                    'suffixe': link[5],
+                    'voie_nom': link[6],
+                    'commune_nom': link[7],
+                    'commune_insee': link[8]
+                })
+        
+        print(f"Exported {len(new_links)} new links to {output_filepath}")
 
-    # Save to DB
-    if candidates:
-        buffer = BufferToCopy()
-        buffer.write_data(candidates)
-
-        cols = candidates[0].keys()
-
-        with open(buffer.path, "r") as f:
-            with transaction.atomic():
-                try:
-                    with connection.cursor() as cursor:
-                        cursor.copy_from(
-                            f, Candidate._meta.db_table, sep=";", columns=cols
-                        )
-
-                    building_import_history.increment_created_candidates(
-                        building_import, len(candidates)
-                    )
-
-                except (Exception, psycopg2.DatabaseError) as error:
-                    raise error
-
-        # Clean up
-        os.remove(buffer.path)
-        src.remove_uncompressed_folder()
+    # Clean up
+    src.remove_uncompressed_folder()
 
     return new_links, old_link_new_ban_id, stats
+
+
+
+def insert_bal_addresses(src_params, bulk_launch_uuid=None):
+    src = Source("bal")
+    src.set_params(src_params)
+
+    # Load data
+    source_filepath = src.find(src.filename)
+    csv_filepath = source_filepath.replace('.csv', f'_new_links.csv')
+    df = pd.read_csv(csv_filepath)
+
+    # Process in batches of 100
+    batch_size = 100
+    total_processed = 0
+    total_addresses_added = 0
+    total_buildings_updated = 0
+    
+    # Process in batches
+    for i in range(0, len(df), batch_size):
+        batch = df.iloc[i:i+batch_size]
+        
+        # Process each row in the batch - add addresses and update buildings in one loop
+        addresses_added = 0
+        for _, row in batch.iterrows():
+            address_id = row['cle_interop']
+            
+            # Collect all address IDs in the batch
+            address_ids = batch['cle_interop'].tolist()
+            existing_addresses = set(Address.objects.filter(id__in=address_ids).values_list('id', flat=True))
+            
+            # Prepare address objects for bulk creation
+            addresses_to_create = []
+            for _, row in batch.iterrows():
+                address_id = row['cle_interop']
+                if address_id not in existing_addresses:
+                    addresses_to_create.append(
+                        Address(
+                            id=address_id,
+                            source="bal",
+                            point=f"POINT ({row['long']} {row['lat']})",
+                            street_number=row['numero'],
+                            street_rep=row['suffixe'],
+                            street=row['voie_nom'],
+                            city_name=row['commune_nom'],
+                            city_zipcode=row['commune_insee'],  # FIXME is it correct ?
+                            city_insee_code=row['commune_insee']
+                        )
+                    )
+            
+            # Bulk create addresses
+            if addresses_to_create:
+                try:
+                    Address.objects.bulk_create(addresses_to_create)
+                    addresses_added = len(addresses_to_create)
+                except Exception as e:
+                    print(f"Error bulk creating addresses: {str(e)}")
+            
+            # Collect all building RNB IDs in the batch
+            rnb_ids = batch['rnb_id'].tolist()
+            buildings = {b.rnb_id: b for b in Building.objects.filter(rnb_id__in=rnb_ids)}
+            
+            # Prepare buildings for bulk update
+            buildings_to_update = []
+            for _, row in batch.iterrows():
+                rnb_id = row['rnb_id']
+                if rnb_id in buildings:
+                    building = buildings[rnb_id]
+                    if row['cle_interop'] not in building.addresses_id:
+                        building.addresses_id.append(row['cle_interop'])
+                        buildings_to_update.append(building)
+                else:
+                    print(f"Building with rnb_id {rnb_id} not found")
+            
+            # Bulk update buildings
+            if buildings_to_update:
+                try:
+                    Building.objects.bulk_update(buildings_to_update, ['addresses_id'])
+                    total_buildings_updated += len(buildings_to_update)
+                except Exception as e:
+                    print(f"Error bulk updating buildings: {str(e)}")
+        
+        total_processed += len(batch)
+        total_addresses_added += addresses_added
+        
+        if i % (batch_size * 10) == 0:
+            print(f"Processed {total_processed}/{len(df)} rows, added {total_addresses_added} addresses, updated {total_buildings_updated} buildings")
+    
+    print(f"Completed: processed {total_processed} rows, added {total_addresses_added} addresses, updated {total_buildings_updated} buildings")
+    
+    # FIXME: clean up csv files ?
 
 
 def _create_link_building_address(certified_df):
@@ -193,9 +266,13 @@ def _create_link_building_address(certified_df):
                         link = (
                             building.rnb_id,
                             cle_interop,
-                            row["commune_nom"],
-                            row["voie_nom"],
+                            row["long"],
+                            row["lat"], 
                             row["numero"],
+                            row["suffixe"],
+                            row["voie_nom"],
+                            row["commune_nom"],
+                            row["commune_insee"]
                         )
                         cles_interop_already_linked.add(cle_interop)
                         if already_exists:
@@ -288,9 +365,13 @@ def _create_link_building_address(certified_df):
                     link = (
                         last_bdg["rnb_id"],
                         row["cle_interop"],
-                        row["commune_nom"],
-                        row["voie_nom"],
+                        row["long"],
+                        row["lat"],
                         row["numero"],
+                        row["suffixe"],
+                        row["voie_nom"],
+                        row["commune_nom"],
+                        row["commune_insee"]
                     )
                     if already_exists:
                         new_ban_id.add(link)
