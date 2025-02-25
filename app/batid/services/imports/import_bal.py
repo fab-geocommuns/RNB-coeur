@@ -1,22 +1,26 @@
-import uuid
 import json
-
-from batid.services.imports import building_import_history
-from batid.services.source import Source, BufferToCopy
-from celery import Signature
-from django.contrib.gis.geos import MultiPoint
-from collections import defaultdict
-from batid.models import Building
-from django.db import connection
-import pandas as pd
-from django.contrib.gis.geos import Point
-from batid.utils.db import dictfetchall
-from django.db import transaction
 import os
 import random
-from datetime import datetime, timezone
+import uuid
+from collections import defaultdict
+from datetime import datetime
+from datetime import timezone
+
+import pandas as pd
 import psycopg2
+from celery import Signature
+from django.contrib.gis.geos import MultiPoint
+from django.contrib.gis.geos import Point
+from django.db import connection
+from django.db import transaction
+
+from batid.models import Building
 from batid.models import Candidate
+from batid.services.imports import building_import_history
+from batid.services.source import BufferToCopy
+from batid.services.source import Source
+from batid.utils.db import dictfetchall
+
 
 def create_bal_full_import_tasks(dpt_list: list) -> list:
 
@@ -32,9 +36,7 @@ def create_bal_full_import_tasks(dpt_list: list) -> list:
     return tasks
 
 
-def create_bal_dpt_import_tasks(
-    dpt: str, bulk_launch_id=None
-) -> list:
+def create_bal_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
 
     tasks = []
     src_params = {
@@ -57,6 +59,7 @@ def create_bal_dpt_import_tasks(
 
     return tasks
 
+
 def create_candidate_from_bal(src_params, bulk_launch_uuid=None):
     src = Source("bal")
     src.set_params(src_params)
@@ -68,7 +71,7 @@ def create_candidate_from_bal(src_params, bulk_launch_uuid=None):
 
     # Load data
     df = pd.read_csv(src.find(src.filename))
-    certified_df = df[df['certification_commune'] == 1]    
+    certified_df = df[df["certification_commune"] == 1]
     certified_df.reset_index(drop=True, inplace=True)
 
     # Fond new adresses
@@ -85,7 +88,7 @@ def create_candidate_from_bal(src_params, bulk_launch_uuid=None):
             "updated_at": datetime.now(timezone.utc),
             "random": random.randint(0, 1000000000),
             "created_by": json.dumps({"source": "import", "id": building_import.id}),
-            "source_version": src_params.get("date")
+            "source_version": src_params.get("date"),
         }
         candidates.append(candidate)
 
@@ -178,8 +181,7 @@ def _create_link_building_address(certified_df):
             multi_point = MultiPoint(points_list, srid=4326)
 
             bdgs = Building.objects.filter(
-                shape__intersects=multi_point,
-                is_active=True
+                shape__intersects=multi_point, is_active=True
             ).exclude(addresses_id__overlap=excluded_addresses)
 
             cles_interop_already_linked = set()
@@ -188,7 +190,13 @@ def _create_link_building_address(certified_df):
                     if building.shape.intersects(point):
                         row = batch[batch["cle_interop"] == cle_interop].iloc[0]
                         already_exists = _address_already_exists(building, row)
-                        link = (building.rnb_id, cle_interop, row["commune_nom"], row["voie_nom"], row["numero"])
+                        link = (
+                            building.rnb_id,
+                            cle_interop,
+                            row["commune_nom"],
+                            row["voie_nom"],
+                            row["numero"],
+                        )
                         cles_interop_already_linked.add(cle_interop)
                         if already_exists:
                             new_ban_id.add(link)
@@ -200,12 +208,14 @@ def _create_link_building_address(certified_df):
             other_rows = batch[~batch["cle_interop"].isin(cles_interop_already_linked)]
             if len(other_rows) > 0:
                 points = [(row["long"], row["lat"]) for _, row in other_rows.iterrows()]
-                cle_interop_list = [row["cle_interop"] for _, row in other_rows.iterrows()]
+                cle_interop_list = [
+                    row["cle_interop"] for _, row in other_rows.iterrows()
+                ]
                 params = {
                     "lng_list": [p[0] for p in points],
                     "lat_list": [p[1] for p in points],
                     "cle_interop_list": cle_interop_list,
-                    "buffer_size": 0.00002 # 0.00002 seems to be a good value to check if the point is close to many plots
+                    "buffer_size": 0.00002,  # 0.00002 seems to be a good value to check if the point is close to many plots
                 }
                 # Print raw sql
                 cursor.execute(q, params)
@@ -223,22 +233,28 @@ def _create_link_building_address(certified_df):
                 # Count unique plots and big buildings covered by the plot they intersect
                 plots_by_cle_interop = defaultdict(list)
                 for plot in plots:
-                    plots_by_cle_interop[plot['cle_interop']].append(plot)
+                    plots_by_cle_interop[plot["cle_interop"]].append(plot)
 
                 # Process each point separately
                 for _, row in other_rows.iterrows():
-                    plots = plots_by_cle_interop[row['cle_interop']]
+                    plots = plots_by_cle_interop[row["cle_interop"]]
 
                     # Get unique plots for this point
                     plots_ids = {plot["plot_id"] for plot in plots}
                     covered_enough_big_bdgs = []
 
                     for plot in plots:
-                        if plot["rnb_id"] and plot["bdg_cover_ratio"] > 0.75 and plot["bdg_area"] >= 35:
-                            covered_enough_big_bdgs.append({
-                                'rnb_id': plot['rnb_id'],
-                                'addresses': plot['bdg_addresses']
-                            })
+                        if (
+                            plot["rnb_id"]
+                            and plot["bdg_cover_ratio"] > 0.75
+                            and plot["bdg_area"] >= 35
+                        ):
+                            covered_enough_big_bdgs.append(
+                                {
+                                    "rnb_id": plot["rnb_id"],
+                                    "addresses": plot["bdg_addresses"],
+                                }
+                            )
 
                     # If we have many plots, it is too ambiguous, we skip
                     if len(plots_ids) > 1:
@@ -259,25 +275,42 @@ def _create_link_building_address(certified_df):
                     last_bdg = covered_enough_big_bdgs[0]
 
                     # We check the cle_interop is not already linked to the bdg
-                    if row['cle_interop'] in last_bdg['addresses']:
+                    if row["cle_interop"] in last_bdg["addresses"]:
                         stats["address_already_exists"] += 1
                         continue
 
-                    bdg = Building.objects.filter(rnb_id=last_bdg['rnb_id']).prefetch_related("addresses_read_only").get()
+                    bdg = (
+                        Building.objects.filter(rnb_id=last_bdg["rnb_id"])
+                        .prefetch_related("addresses_read_only")
+                        .get()
+                    )
                     already_exists = _address_already_exists(bdg, row)
-                    link = (last_bdg["rnb_id"], row['cle_interop'], row["commune_nom"], row["voie_nom"], row["numero"])
+                    link = (
+                        last_bdg["rnb_id"],
+                        row["cle_interop"],
+                        row["commune_nom"],
+                        row["voie_nom"],
+                        row["numero"],
+                    )
                     if already_exists:
                         new_ban_id.add(link)
                     else:
                         new_addresses.add(link)
 
             if batches_handled % 10 == 0:
-                print(f"batch : {batches_handled}, found {len(new_addresses)} new links so far and {len(new_ban_id)} existing links but with a new ban id on {batches_handled * batch_size} inspected rows")
+                print(
+                    f"batch : {batches_handled}, found {len(new_addresses)} new links so far and {len(new_ban_id)} existing links but with a new ban id on {batches_handled * batch_size} inspected rows"
+                )
 
     return new_addresses, new_ban_id, stats
+
 
 def _address_already_exists(bdg, row):
     already_exists = False
     for address in bdg.addresses_read_only.all():
-        already_exists = already_exists or (address.city_name.lower() == row['commune_nom'].lower() and address.street.lower() == row['voie_nom'].lower() and int(address.street_number) == row['numero'])
+        already_exists = already_exists or (
+            address.city_name.lower() == row["commune_nom"].lower()
+            and address.street.lower() == row["voie_nom"].lower()
+            and int(address.street_number) == row["numero"]
+        )
     return already_exists
