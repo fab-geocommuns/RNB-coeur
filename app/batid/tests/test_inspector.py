@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from datetime import timezone
 from unittest import mock
 
 from django.contrib.gis.geos import GEOSGeometry
@@ -1159,6 +1160,29 @@ class TestCandidateOnTwoMatchingBdgs(InspectTest):
 
         refusals_counts = _report_count_refusals(since)
         self.assertDictEqual(refusals_counts, {"ambiguous_overlap": 1})
+
+    def test_fake_update(self):
+        # we create a building
+        rnb_id = "xxxxyyyyzzzz"
+        building = Building.objects.create(
+            rnb_id=rnb_id,
+            shape="POLYGON((0 0, 0 0.5, 0.5 0.5, 0.5 0, 0 0))",
+            status="constructed",
+        )
+
+        # we save a second time the building but make no change to create a "fake update"
+        building.save()
+
+        # we create by hand an inspected candidate
+        now = datetime.now(timezone.utc)
+        candidat = Candidate.objects.create(
+            inspected_at=datetime.now(timezone.utc),
+            inspection_details={"decision": "update", "rnb_id": rnb_id},
+        )
+
+        # rnb_id should be listed as a fake update
+        fake_updates = _report_list_fake_updates(now)
+        self.assertListEqual(fake_updates, [rnb_id])
 
 
 class TestCandidateCLoseToPointBdg(InspectTest):
