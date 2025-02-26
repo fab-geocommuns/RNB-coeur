@@ -1,6 +1,5 @@
 import inspect
 
-import yaml
 from django.conf import settings
 from django.urls import get_resolver
 from rest_framework.schemas.generators import BaseSchemaGenerator
@@ -52,6 +51,10 @@ def get_status_html_list():
     html_list += "</ul>"
 
     return html_list
+
+
+def get_status_list():
+    return [status["key"] for status in BuildingStatus.TYPES]
 
 
 def _get_components() -> dict:
@@ -266,12 +269,6 @@ def _get_components() -> dict:
             },
         },
     }
-
-
-def build_schema_yml():
-    schema_dict = build_schema_dict()
-
-    return yaml.dump(schema_dict, default_flow_style=False, allow_unicode=True)
 
 
 def _get_endpoints() -> list:
