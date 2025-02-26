@@ -135,69 +135,65 @@ def insert_bal_addresses(src_params, bulk_launch_uuid=None):
     for i in range(0, len(df), batch_size):
         batch = df.iloc[i : i + batch_size]
 
-        # Process each row in the batch - add addresses and update buildings in one loop
-        addresses_added = 0
+        # Collect all address IDs in the batch
+        address_ids = batch["cle_interop"].tolist()
+        existing_addresses = set(
+            Address.objects.filter(id__in=address_ids).values_list("id", flat=True)
+        )
+
+        # Prepare addresses for bulk creation
+        addresses_to_create = []
         for _, row in batch.iterrows():
             address_id = row["cle_interop"]
-
-            # Collect all address IDs in the batch
-            address_ids = batch["cle_interop"].tolist()
-            existing_addresses = set(
-                Address.objects.filter(id__in=address_ids).values_list("id", flat=True)
-            )
-
-            # Prepare address objects for bulk creation
-            addresses_to_create = []
-            for _, row in batch.iterrows():
-                address_id = row["cle_interop"]
-                if address_id not in existing_addresses:
-                    addresses_to_create.append(
-                        Address(
-                            id=address_id,
-                            source="bal",
-                            point=f"POINT ({row['long']} {row['lat']})",
-                            street_number=row["numero"],
-                            street_rep=row["suffixe"],
-                            street=row["voie_nom"],
-                            city_name=row["commune_nom"],
-                            city_zipcode=None,  # Not available in the CSV
-                            city_insee_code=row["commune_insee"],
-                        )
+            if address_id not in existing_addresses:
+                addresses_to_create.append(
+                    Address(
+                        id=address_id,
+                        source="bal",
+                        point=f"POINT ({row['long']} {row['lat']})",
+                        street_number=row["numero"],
+                        street_rep=row["suffixe"],
+                        street=row["voie_nom"],
+                        city_name=row["commune_nom"],
+                        city_zipcode=None,  # Not available in the CSV
+                        city_insee_code=row["commune_insee"],
                     )
+                )
 
-            # Bulk create addresses
-            if addresses_to_create:
-                try:
-                    Address.objects.bulk_create(addresses_to_create)
-                    addresses_added = len(addresses_to_create)
-                except Exception as e:
-                    print(f"Error bulk creating addresses: {str(e)}")
+        # Bulk create addresses
+        addresses_added = 0
+        if addresses_to_create:
+            try:
+                Address.objects.bulk_create(addresses_to_create)
+                addresses_added = len(addresses_to_create)
+            except Exception as e:
+                print(f"Error bulk creating addresses: {str(e)}")
 
-            # Collect all building RNB IDs in the batch
-            rnb_ids = batch["rnb_id"].tolist()
-            buildings = {
-                b.rnb_id: b for b in Building.objects.filter(rnb_id__in=rnb_ids)
-            }
+        # Collect all building RNB IDs in the batch
+        rnb_ids = batch["rnb_id"].tolist()
+        buildings = {
+            b.rnb_id: b for b in Building.objects.filter(rnb_id__in=rnb_ids)
+        }
 
-            # Prepare buildings for bulk update
-            buildings_to_update = []
-            for _, row in batch.iterrows():
-                rnb_id = row["rnb_id"]
-                if rnb_id in buildings:
-                    building = buildings[rnb_id]
-                    if row["cle_interop"] not in building.addresses_id:
-                        building.addresses_id.append(row["cle_interop"])
-                        buildings_to_update.append(building)
-                else:
-                    print(f"Building with rnb_id {rnb_id} not found")
+        # Prepare buildings for bulk update
+        buildings_to_update = []
+        for _, row in batch.iterrows():
+            rnb_id = row["rnb_id"]
+            if rnb_id in buildings:
+                building = buildings[rnb_id]
+                if row["cle_interop"] not in building.addresses_id:
+                    building.addresses_id.append(row["cle_interop"])
+                    buildings_to_update.append(building)
+            else:
+                print(f"Building with rnb_id {rnb_id} not found")
 
-            # Bulk update buildings
-            if buildings_to_update:
-                try:
-                    Building.objects.bulk_update(buildings_to_update, ["addresses_id"])
-                    total_buildings_updated += len(buildings_to_update)
-                except Exception as e:
-                    print(f"Error bulk updating buildings: {str(e)}")
+        # Bulk update buildings
+        if buildings_to_update:
+            try:
+                Building.objects.bulk_update(buildings_to_update, ["addresses_id"])
+                total_buildings_updated += len(buildings_to_update)
+            except Exception as e:
+                print(f"Error bulk updating buildings: {str(e)}")
 
         total_processed += len(batch)
         total_addresses_added += addresses_added
