@@ -66,7 +66,7 @@ def convert_bal(src_params, bulk_launch_uuid=None):
     # FIXME should we create a building_import_history ?
 
     # Load data
-    df = pd.read_csv(src.find(src.filename))
+    df = pd.read_csv(src.path, sep=";")
     certified_df = df[df["certification_commune"] == 1]
     certified_df.reset_index(drop=True, inplace=True)
 
@@ -123,7 +123,7 @@ def insert_bal_addresses(src_params, bulk_launch_uuid=None):
     # Load data
     source_filepath = src.find(src.filename)
     csv_filepath = source_filepath.replace(".csv", f"_new_links.csv")
-    df = pd.read_csv(csv_filepath)
+    df = pd.read_csv(csv_filepath, sep=";")
 
     # Process in batches of 100
     batch_size = 100
@@ -311,8 +311,6 @@ def _create_link_building_address(certified_df):
                 # Print raw sql
                 cursor.execute(q, params)
                 plots = dictfetchall(cursor, q, params)
-
-                # pprint(plots)
 
                 # The bdg matching using plots is tricky. We have to be very conservative.
                 # We have many ambiguous situations to filter out:

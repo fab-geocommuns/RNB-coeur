@@ -21,7 +21,7 @@ from batid.services.data_fix.remove_light_buildings import (
 )
 from batid.services.data_gouv_publication import get_area_publish_task
 from batid.services.data_gouv_publication import publish
-from batid.services.imports.import_bal import convert_bal
+from batid.services.imports.import_bal import convert_bal as convert_bal_impl
 from batid.services.imports.import_bal import create_bal_full_import_tasks
 from batid.services.imports.import_bal import insert_bal_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
@@ -280,7 +280,7 @@ def queue_full_bal_import(
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def convert_bal(src_params, bulk_launch_uuid=None):
-    convert_bal(src_params, bulk_launch_uuid)
+    convert_bal_impl(src_params, bulk_launch_uuid)
     return "done"
 
 
