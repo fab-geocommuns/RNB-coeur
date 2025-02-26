@@ -171,9 +171,7 @@ def insert_bal_addresses(src_params, bulk_launch_uuid=None):
 
         # Collect all building RNB IDs in the batch
         rnb_ids = batch["rnb_id"].tolist()
-        buildings = {
-            b.rnb_id: b for b in Building.objects.filter(rnb_id__in=rnb_ids)
-        }
+        buildings = {b.rnb_id: b for b in Building.objects.filter(rnb_id__in=rnb_ids)}
 
         # Prepare buildings for bulk update
         buildings_to_update = []
