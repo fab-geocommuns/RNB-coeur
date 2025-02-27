@@ -958,7 +958,7 @@ class MergeBuildings(APIView):
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
-                        "description": "Une clé d'interopérabilité n'a pas été trouvée auprés de la BAN"
+                        "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprés de la BAN"
                     },
                 },
             }
@@ -987,7 +987,11 @@ class MergeBuildings(APIView):
             }
 
             rnb_ids = data.get("rnb_ids")
-            buildings = list(Building.objects.filter(rnb_id__in=rnb_ids).all())
+            buildings = []
+            for rnb_id in rnb_ids:
+                building = get_object_or_404(Building, rnb_id=rnb_id)
+                buildings.append(building)
+
             status = data.get("status")
 
             merge_existing_addresses = data.get("merge_existing_addresses")
@@ -1119,7 +1123,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
-                        "description": "Une clé d'interopérabilité n'a pas été trouvée auprés de la BAN"
+                        "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprés de la BAN"
                     },
                 },
             },
@@ -1331,7 +1335,7 @@ Si ce paramêtre est :
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
-                        "description": "Une clé d'interopérabilité n'a pas été trouvée auprés de la BAN"
+                        "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprés de la BAN"
                     },
                 },
             }
@@ -1343,7 +1347,7 @@ Si ce paramêtre est :
 
         data = serializer.data
         user = request.user
-        building = Building.objects.get(rnb_id=rnb_id)
+        building = get_object_or_404(Building, rnb_id=rnb_id)
 
         with transaction.atomic():
             contribution = Contribution(
