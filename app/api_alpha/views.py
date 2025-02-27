@@ -1335,7 +1335,7 @@ Si ce paramêtre est :
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
-                        "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprés de la BAN"
+                        "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
                     },
                 },
             }
