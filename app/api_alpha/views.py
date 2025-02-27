@@ -112,7 +112,7 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             "get": {
                 "summary": "Identification de bâtiment",
                 "description": (
-                    "Ce endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
+                    "Cet endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
                 ),
                 "operationId": "guessBuilding",
                 "parameters": [
@@ -205,7 +205,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Bâtiments les plus proches d'un point",
-                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments présents dans un rayon donné autour d'un point donné. Les bâtiments sont triés par distance croissante par rapport au point donné. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet d'obtenir une liste paginée des bâtiments présents dans un rayon donné autour d'un point donné. Les bâtiments sont triés par distance croissante par rapport au point donné. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "closestBuildings",
                 "parameters": [
                     {
@@ -303,7 +303,7 @@ class BuildingPlotView(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Bâtiments sur une parcelle cadastrale",
-                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments présents sur une parcelle cadastrale. Les bâtiments sont triés par taux de recouvrement décroissant entre le bâtiment et la parcelle (le bâtiment entièrement sur une parcelle arrive avant celui à moitié sur la parcelle). La méthode de filtrage est purement géométrique et ne tient pas compte du lien fiscal entre le bâtiment et la parcelle. Des faux positifs sont donc possibles. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet d'obtenir une liste paginée des bâtiments présents sur une parcelle cadastrale. Les bâtiments sont triés par taux de recouvrement décroissant entre le bâtiment et la parcelle (le bâtiment entièrement sur une parcelle arrive avant celui à moitié sur la parcelle). La méthode de filtrage est purement géométrique et ne tient pas compte du lien fiscal entre le bâtiment et la parcelle. Des faux positifs sont donc possibles. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "plotBuildings",
                 "parameters": [
                     {
@@ -376,7 +376,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Identification de bâtiments par leur adresse",
-                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments associés à une adresse. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet d'obtenir une liste paginée des bâtiments associés à une adresse. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "address",
                 "parameters": [
                     {
@@ -632,7 +632,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             "get": {
                 "summary": "Liste des batiments",
                 "description": (
-                    "Ce endpoint permet de récupérer une liste paginée de bâtiments. "
+                    "Cet endpoint permet de récupérer une liste paginée de bâtiments. "
                     "Des filtres, notamment par code INSEE de la commune, sont disponibles. NB : l'URL se termine nécessairement par un slash (/)."
                 ),
                 "operationId": "listBuildings",
@@ -758,7 +758,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         {
             "post": {
                 "summary": "Création d'un bâtiment",
-                "description": "Ce endpoint permet de créer un bâtiment dans le RNB. Lors de la création, un identifiant RNB (ID-RNB) est généré. L'utilisateur doit être identifié et disposer des droits nécessaires pour écrire dans le RNB.",
+                "description": "Cet endpoint permet de créer un bâtiment dans le RNB. Lors de la création, un identifiant RNB (ID-RNB) est généré. L'utilisateur doit être identifié et disposer des droits nécessaires pour écrire dans le RNB.",
                 "operationId": "postBuilding",
                 "requestBody": {
                     "required": True,
@@ -889,7 +889,7 @@ class MergeBuildings(APIView):
                 "summary": "Fusion de bâtiments",
                 "description": """Permet de corriger le RNB en fusionnant plusieurs bâtiments existants, donnant lieu à la création d'un nouveau bâtiment.
 
-                Ce endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
+                Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
                 """,
                 "operationId": "mergeBuildings",
                 "parameters": [],
@@ -1035,7 +1035,7 @@ class SplitBuildings(APIView):
                     """\
 Permet de corriger le RNB en scindant un bâtiment existant, donnant lieu à la création de plusieurs nouveaux bâtiments.
 
-Ce endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB."""
+Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB."""
                 ),
                 "operationId": "splitBuildings",
                 "parameters": [
@@ -1178,7 +1178,7 @@ class SingleBuilding(APIView):
         {
             "get": {
                 "summary": "Consultation d'un bâtiment",
-                "description": "Ce endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "getBuilding",
                 "parameters": [
                     {
@@ -1237,7 +1237,7 @@ class SingleBuilding(APIView):
                 "summary": "Mise à jour ou désactivation/réactivation d'un bâtiment",
                 "description": LiteralStr(
                     """\
-Ce endpoint permet de :
+Cet endpoint permet de :
 * mettre à jour un bâtiment existant (status, addresses_cle_interop, shape)
 * désactiver son ID-RNB s'il s'avère qu'il ne devrait pas faire partie du
   RNB. Par exemple un arbre qui aurait été par erreur répertorié comme un
@@ -1246,7 +1246,7 @@ Ce endpoint permet de :
 
 Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver/réactiver.
 
-Ce endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
+Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
 
 Exemples valides:
 * ```{"comment": "faux bâtiment", "is_active": False}```
@@ -1634,7 +1634,7 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         operation_id="create_ads",
         summary="Création d'une ADS",
         description=(
-            "Ce endpoint permet de créer une Autorisation du Droit des Sols (ADS) dans le RNB. "
+            "Cet endpoint permet de créer une Autorisation du Droit des Sols (ADS) dans le RNB. "
             "L'API ADS est réservée aux communes et requiert une authentification par token."
         ),
         request=ADSSerializer,
@@ -1680,7 +1680,7 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         operation_id="update_ads",
         summary="Modification d'une ADS",
         description=(
-            "Ce endpoint permet de modifier une Autorisation du Droit des Sols (ADS) existante dans le RNB. "
+            "Cet endpoint permet de modifier une Autorisation du Droit des Sols (ADS) existante dans le RNB. "
             "L'API ADS est réservée aux communes et requiert une authentification par token."
         ),
         request=ADSSerializer,
@@ -1726,7 +1726,7 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         tags=["ADS"],
         operation_id="delete_ads",
         summary="Suppression d'une ADS",
-        description="Ce endpoint permet de supprimer une Autorisation du Droit des Sols (ADS) existante dans le RNB.",
+        description="Cet endpoint permet de supprimer une Autorisation du Droit des Sols (ADS) existante dans le RNB.",
         responses={
             204: {"description": "ADS supprimée avec succès"},
             404: {"description": "ADS non trouvée"},
