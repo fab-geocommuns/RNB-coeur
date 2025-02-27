@@ -821,7 +821,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
-                        "description": "Une clé d'interopérabilité n'a pas été trouvée auprés de la BAN"
+                        "description": "Une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
                     },
                 },
             }
