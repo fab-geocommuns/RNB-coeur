@@ -887,10 +887,13 @@ class MergeBuildings(APIView):
         {
             "post": {
                 "summary": "Fusion de bâtiments",
-                "description": """Permet de corriger le RNB en fusionnant plusieurs bâtiments existants, donnant lieu à la création d'un nouveau bâtiment.
+                "description": LiteralStr(
+                    """\
+Permet de corriger le RNB en fusionnant plusieurs bâtiments existants, donnant lieu à la création d'un nouveau bâtiment.
 
-                Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
-                """,
+Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
+                """
+                ),
                 "operationId": "mergeBuildings",
                 "parameters": [],
                 "requestBody": {
