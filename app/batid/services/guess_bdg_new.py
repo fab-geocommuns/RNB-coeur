@@ -21,7 +21,22 @@ from batid.services.closest_bdg import get_closest_from_poly
 from batid.services.geocoders import BanBatchGeocoder
 from batid.services.geocoders import BanGeocoder
 from batid.services.geocoders import PhotonGeocoder
+import concurrent.futures
+from typing import TypedDict
 
+class Input(TypedDict):
+    ext_id: str
+    polygon: Polygon
+    lat: float
+    lng: float
+    name : str
+    address: str
+
+class Guess(TypedDict):
+    input: Input
+    matches: list[str]
+    match_reason: str
+    finished_steps: list[str]
 
 class Guesser:
     def __init__(self):
@@ -286,8 +301,7 @@ class Guesser:
 class AbstractHandler(ABC):
     _name = None
 
-    def handle(self, guesses: dict) -> tuple:
-
+    def handle(self, guesses: dict[str, Guess]) -> tuple[dict[str, Guess], bool]:
         handler_changed_guesses = False
         to_guess, to_not_guess = self._split_guesses(guesses)
 
@@ -324,10 +338,11 @@ class AbstractHandler(ABC):
             raise ValueError("_name must be set")
         return self._name
 
-    def _add_finished_step(self, guesses: dict) -> dict:
+    def _add_finished_step(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
         for guess in guesses.values():
             if self.name not in guess["finished_steps"]:
                 guess["finished_steps"].append(self.name)
+
         return guesses
 
 
@@ -338,7 +353,7 @@ class ClosestFromPointHandler(AbstractHandler):
         self.closest_radius = closest_radius
         self.isolated_bdg_max_distance = isolated_bdg_max_distance
 
-    def _guess_batch(self, guesses: dict) -> dict:
+    def _guess_batch(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
         tasks = []
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -354,7 +369,7 @@ class ClosestFromPointHandler(AbstractHandler):
 
         return guesses
 
-    def _guess_one(self, guess: dict) -> dict:
+    def _guess_one(self, guess: Guess) -> Guess:
         lat = guess["input"].get("lat", None)
         lng = guess["input"].get("lng", None)
 
@@ -363,7 +378,7 @@ class ClosestFromPointHandler(AbstractHandler):
 
         # Get the two closest buildings
         closest_bdgs = get_closest_from_point(lat, lng, self.closest_radius)[:2]
-        # we have to close the connections to avoid a "too many connections" error
+        # We have to close the connection to avoid a "too many connections" error
         connection.close()
 
         if not closest_bdgs:
@@ -417,7 +432,7 @@ class GeocodeAddressHandler(AbstractHandler):
         self.closest_radius = closest_radius
         self.min_score = min_score
 
-    def _guess_batch(self, guesses: dict) -> dict:
+    def _guess_batch(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
 
         guesses = self._geocode_batch(guesses)
 
@@ -427,7 +442,7 @@ class GeocodeAddressHandler(AbstractHandler):
 
         return guesses
 
-    def _guess_one(self, guess: dict) -> dict:
+    def _guess_one(self, guess: Guess) -> Guess:
         lat = guess["input"].get("lat", None)
         lng = guess["input"].get("lng", None)
         ban_id = guess["input"].get("ban_id", None)
@@ -450,7 +465,7 @@ class GeocodeAddressHandler(AbstractHandler):
 
         return guess
 
-    def _geocode_batch(self, guesses: dict) -> dict:
+    def _geocode_batch(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
 
         # Format addresses for geocoding
         addresses = []
@@ -526,7 +541,7 @@ class GeocodeAddressHandler(AbstractHandler):
         )
 
         if geocode_response.status_code != 200:
-            return
+            return None
 
         geo_results = geocode_response.json()
 
@@ -536,14 +551,17 @@ class GeocodeAddressHandler(AbstractHandler):
             if best["properties"]["score"] >= 0.8:
                 return best["properties"]["id"]
 
+        return None
+
 
 class GeocodeNameHandler(AbstractHandler):
     _name = "geocode_name"
 
-    def __init__(self, sleep_time=0.8):
+    def __init__(self, sleep_time=0.8, radius_in_meters = 5000):
         self.sleep_time = sleep_time
+        self.radius_in_meters = radius_in_meters
 
-    def _guess_batch(self, guesses: dict) -> dict:
+    def _guess_batch(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
 
         for guess in guesses.values():
             guess = self._guess_one(guess)
@@ -551,7 +569,7 @@ class GeocodeNameHandler(AbstractHandler):
 
         return guesses
 
-    def _guess_one(self, guess: dict) -> dict:
+    def _guess_one(self, guess: Guess) -> Guess:
         lat = guess["input"].get("lat", None)
         lng = guess["input"].get("lng", None)
         name = guess["input"].get("name", None)
@@ -562,7 +580,7 @@ class GeocodeNameHandler(AbstractHandler):
         # We sleep a little bit to avoid being throttled by the geocoder
         time.sleep(self.sleep_time)
 
-        osm_bdg_point = self._geocode_name_and_point(name, lat, lng)
+        osm_bdg_point = self._geocode_name_and_point(name, lat, lng, self.radius_in_meters)
 
         if osm_bdg_point:
             # todo : on devrait filtrer pour n'avoir que les bâtiments qui ont un statut de bâtiment réel
@@ -578,13 +596,15 @@ class GeocodeNameHandler(AbstractHandler):
         return guess
 
     @staticmethod
-    def _geocode_name_and_point(name: str, lat: float, lng: float) -> Optional[Point]:
+    def _geocode_name_and_point(name: str, lat: float, lng: float, radius_in_meters: int) -> Optional[Point]:
+        bbox = GeocodeNameHandler._radius_to_lng_lat_bbox(lat, lng, radius_in_meters)
         geocode_params = {
             "q": name,
             "lat": lat,
             "lon": lng,
             "lang": "fr",
             "limit": 1,
+            "bbox": ",".join(map(str, bbox)),
         }
 
         geocoder = PhotonGeocoder()
@@ -604,7 +624,16 @@ class GeocodeNameHandler(AbstractHandler):
             lng = geo_result["features"][0]["geometry"]["coordinates"][0]
             return Point(lng, lat, srid=4326)
         else:
-            return
+            return None
+
+    @staticmethod
+    def _radius_to_lng_lat_bbox(lat: float, lng: float, radius_in_meters: int) -> list[float]:
+        point = Point(lng, lat, srid=4326)
+        point.transform(3857)
+        bounding_circle = point.buffer(radius_in_meters)
+        envelope = bounding_circle.envelope
+        envelope.transform(4326)
+        return list(envelope.extent)
 
 
 class PartialRoofHandler(AbstractHandler):
@@ -618,7 +647,7 @@ class PartialRoofHandler(AbstractHandler):
         self.isolated_section_max_distance = isolated_section_max_distance
         self.min_second_bdg_distance = min_second_bdg_distance
 
-    def _guess_batch(self, guesses: dict) -> dict:
+    def _guess_batch(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
         tasks = []
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -634,7 +663,7 @@ class PartialRoofHandler(AbstractHandler):
 
         return guesses
 
-    def _guess_one(self, guess: dict) -> dict:
+    def _guess_one(self, guess: Guess) -> Guess:
         roof_geojson = guess["input"].get("polygon", None)
 
         if not roof_geojson:
@@ -712,6 +741,8 @@ class PartialRoofHandler(AbstractHandler):
 
         if len(matches) == 1:
             return matches[0]
+
+        return False
 
     def _isolated_bdg_intersecting(
         self, roof_poly: GEOSGeometry, closest_bdgs: list
