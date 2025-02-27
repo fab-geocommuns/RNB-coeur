@@ -9,6 +9,7 @@ from datetime import timezone
 from typing import Any
 
 import requests
+import yaml
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
@@ -45,6 +46,7 @@ from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
 
+from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.permissions import ADSPermission
@@ -66,6 +68,7 @@ from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
+from api_alpha.utils.rnb_doc import get_status_list
 from api_alpha.utils.rnb_doc import rnb_doc
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
@@ -109,7 +112,7 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             "get": {
                 "summary": "Identification de bâtiment",
                 "description": (
-                    "Ce endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
+                    "Cet endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
                 ),
                 "operationId": "guessBuilding",
                 "parameters": [
@@ -202,7 +205,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Bâtiments les plus proches d'un point",
-                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments présents dans un rayon donné autour d'un point donné. Les bâtiments sont triés par distance croissante par rapport au point donné. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet d'obtenir une liste paginée des bâtiments présents dans un rayon donné autour d'un point donné. Les bâtiments sont triés par distance croissante par rapport au point donné. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "closestBuildings",
                 "parameters": [
                     {
@@ -300,7 +303,7 @@ class BuildingPlotView(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Bâtiments sur une parcelle cadastrale",
-                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments présents sur une parcelle cadastrale. Les bâtiments sont triés par taux de recouvrement décroissant entre le bâtiment et la parcelle (le bâtiment entièrement sur une parcelle arrive avant celui à moitié sur la parcelle). La méthode de filtrage est purement géométrique et ne tient pas compte du lien fiscal entre le bâtiment et la parcelle. Des faux positifs sont donc possibles. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet d'obtenir une liste paginée des bâtiments présents sur une parcelle cadastrale. Les bâtiments sont triés par taux de recouvrement décroissant entre le bâtiment et la parcelle (le bâtiment entièrement sur une parcelle arrive avant celui à moitié sur la parcelle). La méthode de filtrage est purement géométrique et ne tient pas compte du lien fiscal entre le bâtiment et la parcelle. Des faux positifs sont donc possibles. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "plotBuildings",
                 "parameters": [
                     {
@@ -373,7 +376,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Identification de bâtiments par leur adresse",
-                "description": "Ce endpoint permet d'obtenir une liste paginée des bâtiments associés à une adresse. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet d'obtenir une liste paginée des bâtiments associés à une adresse. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "address",
                 "parameters": [
                     {
@@ -629,7 +632,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             "get": {
                 "summary": "Liste des batiments",
                 "description": (
-                    "Ce endpoint permet de récupérer une liste paginée de bâtiments. "
+                    "Cet endpoint permet de récupérer une liste paginée de bâtiments. "
                     "Des filtres, notamment par code INSEE de la commune, sont disponibles. NB : l'URL se termine nécessairement par un slash (/)."
                 ),
                 "operationId": "listBuildings",
@@ -755,11 +758,8 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         {
             "post": {
                 "summary": "Création d'un bâtiment",
-                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
-                Il permet de créer un bâtiment dans le RNB ainsi que le RNB ID associé.
-                """,
+                "description": "Cet endpoint permet de créer un bâtiment dans le RNB. Lors de la création, un identifiant RNB (ID-RNB) est généré. L'utilisateur doit être identifié et disposer des droits nécessaires pour écrire dans le RNB.",
                 "operationId": "postBuilding",
-                "parameters": [],
                 "requestBody": {
                     "required": True,
                     "content": {
@@ -769,19 +769,29 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                 "properties": {
                                     "comment": {
                                         "type": "string",
-                                        "description": """Commentaire optionnel associé à la création du bâtiment""",
+                                        "description": "Commentaire optionnel associé à la création du bâtiment.",
+                                        "example": "Bâtiment ajouté suite à une nouvelle construction, visible sur la vue satellite.",
                                     },
                                     "status": {
                                         "type": "string",
-                                        "description": f"Statut du bâtiment. Les valeurs possibles sont : <br /> {get_status_html_list()}<br />",
+                                        "enum": get_status_list(),
+                                        "description": "Statut du bâtiment.",
+                                        "example": "constructed",
                                     },
                                     "addresses_cle_interop": {
-                                        "type": "list",
-                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiment. Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
+                                        "type": "array",
+                                        # currently a bug in gitbook, addding info on items hides the description
+                                        # "items": {"type": "string"},
+                                        "description": "Liste des clés d'interopérabilité BAN liées au bâtiment.",
+                                        "example": [
+                                            "75105_8884_00004",
+                                            "75105_8884_00006",
+                                        ],
                                     },
                                     "shape": {
                                         "type": "string",
-                                        "description": """Géométrie du bâtiment au format WKT ou HEX. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
+                                        "description": "Géométrie du bâtiment au format WKT ou HEX. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.",
+                                        "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
                                     },
                                 },
                                 "required": ["status", "shape"],
@@ -791,7 +801,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 },
                 "responses": {
                     "200": {
-                        "description": "Détails du bâtiment nouvellement créé",
+                        "description": "Détails du bâtiment nouvellement créé dans le RNB",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -802,7 +812,17 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                 }
                             }
                         },
-                    }
+                    },
+                    "400": {
+                        "description": "Requête invalide (données mal formatées ou incomplètes)."
+                    },
+                    "403": {
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                    },
+                    "503": {"description": "Service temporairement indisponible"},
+                    "404": {
+                        "description": "Une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
+                    },
                 },
             }
         }
@@ -867,8 +887,9 @@ class MergeBuildings(APIView):
         {
             "post": {
                 "summary": "Fusion de bâtiments",
-                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
-                Il permet de corriger le RNB en fusionnant plusieurs bâtiments existants, donnant lieu à la création d'un nouveau bâtiment.
+                "description": """Permet de corriger le RNB en fusionnant plusieurs bâtiments existants, donnant lieu à la création d'un nouveau bâtiment.
+
+                Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
                 """,
                 "operationId": "mergeBuildings",
                 "parameters": [],
@@ -884,20 +905,31 @@ class MergeBuildings(APIView):
                                         "description": """Commentaire optionnel associé à l'opération""",
                                     },
                                     "rnb_ids": {
-                                        "type": "list",
+                                        "type": "array",
                                         "description": "Liste des ID-RNB des bâtiments à fusionner",
+                                        "exemple": ["XXXXYYYYZZZZ", "AAAABBBBCCCC"],
                                     },
                                     "merge_existing_addresses": {
                                         "type": "bool",
-                                        "description": """Lorsque ce paramêtre vaut True, le bâtiment nouvellement créé hérite des adresses des bâtiments dont il est issu. S'il n'est pas rempli ou qu'il vaut False, le champ addresses_cle_interop est utilisé pour déterminer les adresses du bâtiment.""",
+                                        "description": LiteralStr(
+                                            """\
+- `True`, le bâtiment nouvellement créé hérite des adresses des bâtiments dont il est issu.
+- `False` ou non rempli, le champ `addresses_cle_interop` est utilisé pour déterminer les adresses du bâtiment."""
+                                        ),
                                     },
                                     "addresses_cle_interop": {
-                                        "type": "list",
-                                        "description": """Liste des clés d'interopérabilité BAN liées au nouveau bâtiment créé. Si une liste vide est passée, le bâtiment ne sera lié à aucune adresse. Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
+                                        "type": "array",
+                                        "description": "Liste des clés d'interopérabilité BAN liées au nouveau bâtiment créé. Si une liste vide est passée, le bâtiment ne sera lié à aucune adresse.",
+                                        "exemple": [
+                                            "75105_8884_00004",
+                                            "75105_8884_00006",
+                                        ],
                                     },
                                     "status": {
                                         "type": "string",
-                                        "description": f"Statut du bâtiment nouvellement créé. Les valeurs possibles sont : <br /> {get_status_html_list()}<br />",
+                                        "enum": get_status_list(),
+                                        "description": "Statut du bâtiment.",
+                                        "example": "constructed",
                                     },
                                 },
                                 "required": ["rnb_ids", "status"],
@@ -917,7 +949,17 @@ class MergeBuildings(APIView):
                                 }
                             }
                         },
-                    }
+                    },
+                    "400": {
+                        "description": "Requête invalide (données mal formatées ou incomplètes)."
+                    },
+                    "403": {
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                    },
+                    "503": {"description": "Service temporairement indisponible"},
+                    "404": {
+                        "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
+                    },
                 },
             }
         }
@@ -945,7 +987,11 @@ class MergeBuildings(APIView):
             }
 
             rnb_ids = data.get("rnb_ids")
-            buildings = list(Building.objects.filter(rnb_id__in=rnb_ids).all())
+            buildings = []
+            for rnb_id in rnb_ids:
+                building = get_object_or_404(Building, rnb_id=rnb_id)
+                buildings.append(building)
+
             status = data.get("status")
 
             merge_existing_addresses = data.get("merge_existing_addresses")
@@ -989,9 +1035,12 @@ class SplitBuildings(APIView):
         {
             "post": {
                 "summary": "Scission de bâtiments",
-                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
-                Il permet de corriger le RNB en scindand un bâtiment existant, donnant lieu à la création de plusieurs nouveaux bâtiments.
-                """,
+                "description": LiteralStr(
+                    """\
+Permet de corriger le RNB en scindant un bâtiment existant, donnant lieu à la création de plusieurs nouveaux bâtiments.
+
+Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB."""
+                ),
                 "operationId": "splitBuildings",
                 "parameters": [
                     {
@@ -1022,16 +1071,23 @@ class SplitBuildings(APIView):
                                             "properties": {
                                                 "status": {
                                                     "type": "string",
-                                                    "description": "État du bâtiment (ex: 'constructed')",
+                                                    "enum": get_status_list(),
+                                                    "description": "Statut du bâtiment.",
+                                                    "example": "constructed",
                                                 },
                                                 "shape": {
                                                     "type": "string",
-                                                    "description": "Géométrie du bâtiment au format WKT (ex: 'POLYGON((...))')",
+                                                    "description": "Géométrie du bâtiment au format WKT",
+                                                    "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
                                                 },
                                                 "addresses_cle_interop": {
                                                     "type": "array",
-                                                    "description": 'Liste des clés interopérables des adresses associées ex: ["75105_8884_00004"]',
-                                                    "items": {"type": "string"},
+                                                    "description": "Liste des clés interopérables des adresses associées",
+                                                    # "items": {"type": "string"},
+                                                    "example": [
+                                                        "75105_8884_00004",
+                                                        "75105_8884_00006",
+                                                    ],
                                                 },
                                             },
                                             "required": [
@@ -1058,7 +1114,17 @@ class SplitBuildings(APIView):
                                 }
                             }
                         },
-                    }
+                    },
+                    "400": {
+                        "description": "Requête invalide (données mal formatées ou incomplètes)."
+                    },
+                    "403": {
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                    },
+                    "503": {"description": "Service temporairement indisponible"},
+                    "404": {
+                        "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
+                    },
                 },
             },
         }
@@ -1116,7 +1182,7 @@ class SingleBuilding(APIView):
         {
             "get": {
                 "summary": "Consultation d'un bâtiment",
-                "description": "Ce endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "getBuilding",
                 "parameters": [
                     {
@@ -1173,23 +1239,26 @@ class SingleBuilding(APIView):
         {
             "patch": {
                 "summary": "Mise à jour ou désactivation/réactivation d'un bâtiment",
-                "description": """Ce endpoint nécessite d'être identifié et d'avoir les droits d'écrire dans le RNB.
-                Il permet de :
-                <ul>
-                    <li> mettre à jour un bâtiment existant (status, addresses_cle_interop, shape)</li>
-                    <li> de désactiver son RNB ID (is_active) s'il s'avère qu'il ne devrait pas faire partir du RNB. Par exemple un arbre qui aurait été par erreur repertorié comme un bâtiment du RNB.</li>
-                    <li> de réactiver un RNB ID, si celui-ci a été désactivé par erreur.</li>
-                </ul>
-                <br/><br/>
-                Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver/réactiver.
-                <br/><br/>
-                Exemples valides: <br/>
-                <ul>
-                    <li>{"comment": "faux bâtiment", "is_active": False}</li>
-                    <li>{"comment": "RNB ID désactivé par erreur, on le réactive", "is_active": True}</li>
-                    <li>{"comment": "bâtiment démoli", "status": "demolished"}</li>
-                    <li>{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}</li>
-                </ul>""",
+                "description": LiteralStr(
+                    """\
+Cet endpoint permet de :
+* mettre à jour un bâtiment existant (status, addresses_cle_interop, shape)
+* désactiver son ID-RNB s'il s'avère qu'il ne devrait pas faire partie du
+  RNB. Par exemple un arbre qui aurait été par erreur répertorié comme un
+  bâtiment du RNB.
+* réactiver un ID-RNB, si celui-ci a été désactivé par erreur.
+
+Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver/réactiver.
+
+Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
+
+Exemples valides:
+* ```{"comment": "faux bâtiment", "is_active": False}```
+* ```{"comment": "RNB ID désactivé par erreur, on le réactive", "is_active": True}```
+* ```{"comment": "bâtiment démoli", "status": "demolished"}```
+* ```{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}```
+"""
+                ),
                 "operationId": "patchBuilding",
                 "parameters": [
                     {
@@ -1210,21 +1279,39 @@ class SingleBuilding(APIView):
                                 "properties": {
                                     "comment": {
                                         "type": "string",
-                                        "description": """Texte associé à la modification et la justifiant. <br /><br />Exemple : "Ce n'est pas un bâtiment mais un arbre." """,
+                                        "description": "Texte associé à la modification et la justifiant.",
+                                        "exemple": "Ce n'est pas un bâtiment mais un arbre.",
                                     },
                                     "is_active": {
                                         "type": "boolean",
-                                        "description": """False : le RNB ID est désactivé, car sa présence dans le RNB est une erreur. Ne permet pas de signaler une démolition, qui doit se faire par une mise à jour du statut.
-                                                          True : le RNB ID est réactivé. À utiliser uniquement pour annuler une désactivation accidentelle.
-                                            """,
+                                        "description": LiteralStr(
+                                            """\
+* `False` : l' ID-RNB est désactivé, car sa présence dans le RNB est une erreur. Ne permet *pas* de signaler une démolition, qui doit se faire par une mise à jour du statut.
+* `True` : l'ID-RNB est réactivé. À utiliser uniquement pour annuler une désactivation accidentelle."""
+                                        ),
                                     },
                                     "status": {
                                         "type": "string",
-                                        "description": f"Mise à jour du statut du bâtiment. Les valeurs possibles sont : <br /> {get_status_html_list()}<br />",
+                                        "enum": get_status_list(),
+                                        "description": f"Statut du bâtiment.",
+                                        "exemple": "demolished",
                                     },
                                     "addresses_cle_interop": {
-                                        "type": "list",
-                                        "description": """Liste des clés d'interopérabilité BAN liées au bâtiment. Si ce paramêtre est absent, les clés ne sont pas modifiées. Si le paramêtre est présent et que sa valeur est une liste vide, le bâtiment ne sera plus lié à une adresse.<br /><br /> Exemple: ["75105_8884_00004", "75105_8884_00006"]""",
+                                        "type": "array",
+                                        # currently a bug in gitbook, addding info on items hides the description
+                                        # "items": {"type": "string"},
+                                        "description": LiteralStr(
+                                            """\
+Liste des clés d'interopérabilité BAN liées au bâtiment.
+
+Si ce paramêtre est :
+* absent, alors les clés ne sont pas modifiées.
+* présent et que sa valeur est une liste vide, alors le bâtiment ne sera plus lié à aucune adresse."""
+                                        ),
+                                        "exemple": [
+                                            "75105_8884_00004",
+                                            "75105_8884_00006",
+                                        ],
                                     },
                                     "shape": {
                                         "type": "string",
@@ -1239,7 +1326,17 @@ class SingleBuilding(APIView):
                 "responses": {
                     "204": {
                         "description": "Pas de contenu attendu dans la réponse en cas de succès",
-                    }
+                    },
+                    "400": {
+                        "description": "Requête invalide (données mal formatées ou incomplètes)."
+                    },
+                    "403": {
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                    },
+                    "503": {"description": "Service temporairement indisponible"},
+                    "404": {
+                        "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
+                    },
                 },
             }
         }
@@ -1250,7 +1347,7 @@ class SingleBuilding(APIView):
 
         data = serializer.data
         user = request.user
-        building = Building.objects.get(rnb_id=rnb_id)
+        building = get_object_or_404(Building, rnb_id=rnb_id)
 
         with transaction.atomic():
             contribution = Contribution(
@@ -1541,7 +1638,7 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         operation_id="create_ads",
         summary="Création d'une ADS",
         description=(
-            "Ce endpoint permet de créer une Autorisation du Droit des Sols (ADS) dans le RNB. "
+            "Cet endpoint permet de créer une Autorisation du Droit des Sols (ADS) dans le RNB. "
             "L'API ADS est réservée aux communes et requiert une authentification par token."
         ),
         request=ADSSerializer,
@@ -1587,7 +1684,7 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         operation_id="update_ads",
         summary="Modification d'une ADS",
         description=(
-            "Ce endpoint permet de modifier une Autorisation du Droit des Sols (ADS) existante dans le RNB. "
+            "Cet endpoint permet de modifier une Autorisation du Droit des Sols (ADS) existante dans le RNB. "
             "L'API ADS est réservée aux communes et requiert une authentification par token."
         ),
         request=ADSSerializer,
@@ -1633,7 +1730,7 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         tags=["ADS"],
         operation_id="delete_ads",
         summary="Suppression d'une ADS",
-        description="Ce endpoint permet de supprimer une Autorisation du Droit des Sols (ADS) existante dans le RNB.",
+        description="Cet endpoint permet de supprimer une Autorisation du Droit des Sols (ADS) existante dans le RNB.",
         responses={
             204: {"description": "ADS supprimée avec succès"},
             404: {"description": "ADS non trouvée"},
@@ -2140,9 +2237,6 @@ class DiffusionDatabaseView(APIView):
 
 
 def get_schema(request):
-
-    import yaml
-
     schema_dict = build_schema_dict()
     schema_yml = yaml.dump(
         schema_dict, default_flow_style=False, allow_unicode=True, sort_keys=False
