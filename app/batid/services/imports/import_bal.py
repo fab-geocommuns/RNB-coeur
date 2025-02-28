@@ -3,6 +3,7 @@ import uuid
 from collections import defaultdict
 
 import pandas as pd
+from batid.services.administrative_areas import dpts_list
 from celery import Signature
 from django.contrib.gis.geos import MultiPoint
 from django.contrib.gis.geos import Point
@@ -407,3 +408,15 @@ def _address_already_exists(bdg, row):
             and int(address.street_number) == row["numero"]
         )
     return already_exists
+
+
+def bal_dpts_list():
+
+    # BAL let us download the file for territories : 84, 988 et 989
+    # We add them to the full list
+    # MIGHT DO : add those territories to the full list (dpts_list()) and control it does not break anything
+
+    full_list = dpts_list()
+    full_list.extend(["984", "988", "989"])
+
+    return full_list
