@@ -41,8 +41,17 @@
 .env.s3_backup.import
 .env.s3_backup.sandbox
 
+.env.metabase.dev
+.env.metabase.prod
+.env.metabase.staging
+.env.metabase.import
+.env.metabase.sandbox
+
 # Jupyter notebooks trash
 app/.Trash-0/*
+
+# Static files
+/app/static/
 
 # Some data in notebook
 /app/notebooks/rapprochements/AccesLibre/*.csv
