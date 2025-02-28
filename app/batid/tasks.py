@@ -22,12 +22,7 @@ from batid.services.data_fix.remove_light_buildings import (
 )
 from batid.services.data_gouv_publication import get_area_publish_task
 from batid.services.data_gouv_publication import publish
-from batid.services.imports.import_bal import (
-    convert_bal as convert_bal_impl,
-)
 from batid.services.imports.import_bal import create_bal_full_import_tasks
-
-# from batid.services.imports.import_bal import insert_bal_addresses
 from batid.services.imports.import_bal import import_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
@@ -51,6 +46,8 @@ from batid.services.mattermost import notify_tech
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.signal import AsyncSignalDispatcher
 from batid.services.source import Source
+
+# from batid.services.imports.import_bal import insert_bal_addresses
 
 # from batid.services.data_fix.delete_to_deactivation import (
 #     delete_to_deactivation as delete_to_deactivation_job,

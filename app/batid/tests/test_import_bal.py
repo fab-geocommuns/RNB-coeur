@@ -1,19 +1,15 @@
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import pandas as pd
 from django.contrib.gis.geos import MultiPolygon
-from django.contrib.gis.geos import Polygon
 from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import Polygon
 from django.test import TestCase
 
 from batid.models import Address
 from batid.models import Building
-from batid.services.imports.import_bal import _create_link_building_address
 from batid.services.imports.import_bal import create_bal_dpt_import_tasks
 from batid.services.imports.import_bal import create_bal_full_import_tasks
 from batid.services.imports.import_bal import import_addresses
-from batid.services.imports.import_bal import insert_bal_addresses
 from batid.tests import helpers
 
 
@@ -51,27 +47,29 @@ class TestBALImport(TestCase):
     @patch("batid.services.imports.import_bdtopo.Source.find")
     @patch("batid.services.imports.import_bal.Source.remove_uncompressed_folder")
     def test_import_addresses(self, mock_remove_folder, sourceFindMock):
-        
+
         sourceFindMock.return_value = helpers.fixture_path("bal_simple.csv")
         mock_remove_folder.return_value = None
         initial_address_count = Address.objects.count()
-        
+
         # Call the function with department parameter
         import_addresses({"dpt": "75"})
-        
+
         # Verify addresses were created
         self.assertGreater(Address.objects.count(), initial_address_count)
-        
+
         # Verify specific addresses were created with correct data
-        address1 = Address.objects.filter(street="Rue de Test", street_number="10").first()
+        address1 = Address.objects.filter(
+            street="Rue de Test", street_number="10"
+        ).first()
         self.assertIsNotNone(address1)
         self.assertEqual(address1.source, "BAL")
         self.assertEqual(address1.city_name, "Paris")
-        
+
         # Verify addresses with certification_commune != "1" were skipped
         uncertified_address = Address.objects.filter(street="Rue Non Certifiée").first()
         self.assertIsNone(uncertified_address)
-        
+
         # Verify duplicate addresses were handled correctly (using ignore_conflicts)
         Address.objects.create(
             id="duplicate_address_id",
@@ -81,12 +79,12 @@ class TestBALImport(TestCase):
             street_rep="",
             street="Rue Duplicate",
             city_name="Paris",
-            city_insee_code="75056"
+            city_insee_code="75056",
         )
-        
+
         # Call the function again
         import_addresses({"dpt": "75"})
-        
+
         # Verify the original address was not modified
         address_dup = Address.objects.get(id="duplicate_address_id")
         self.assertEqual(address_dup.source, "OTHER")

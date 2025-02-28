@@ -90,17 +90,19 @@ def import_addresses(src_params: dict, bulk_launch_uuid=None):
 
             adresses_count += 1
 
-            addresses_batch.append(Address(
-                id=row["cle_interop"],
-                source="BAL",
-                point=Point(float(row["long"]), float(row["lat"]), srid=4326),
-                street_number=row["numero"],
-                street_rep=row["suffixe"],
-                street=row["voie_nom"],
-                city_name=row["commune_nom"],
-                city_zipcode=None, # FIXME: find the related zipcode from INSEE code (maybe using: https://www.data.gouv.fr/en/datasets/base-officielle-des-codes-postaux/)
-                city_insee_code=row["commune_insee"],
-            ))
+            addresses_batch.append(
+                Address(
+                    id=row["cle_interop"],
+                    source="BAL",
+                    point=Point(float(row["long"]), float(row["lat"]), srid=4326),
+                    street_number=row["numero"],
+                    street_rep=row["suffixe"],
+                    street=row["voie_nom"],
+                    city_name=row["commune_nom"],
+                    city_zipcode=None,  # FIXME: find the related zipcode from INSEE code (maybe using: https://www.data.gouv.fr/en/datasets/base-officielle-des-codes-postaux/)
+                    city_insee_code=row["commune_insee"],
+                )
+            )
 
             if len(addresses_batch) >= batch_size:
                 Address.objects.bulk_create(addresses_batch, ignore_conflicts=True)
@@ -108,7 +110,7 @@ def import_addresses(src_params: dict, bulk_launch_uuid=None):
 
         Address.objects.bulk_create(addresses_batch, ignore_conflicts=True)
         end_time = time.perf_counter()
-        print(f'Duration: {(end_time - start_time):.2f}s')
+        print(f"Duration: {(end_time - start_time):.2f}s")
 
 
 def convert_bal(src_params, bulk_launch_uuid=None):
