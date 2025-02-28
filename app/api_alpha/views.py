@@ -13,6 +13,7 @@ import yaml
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.db import transaction
@@ -2249,3 +2250,28 @@ def get_schema(request):
     response["Content-Disposition"] = 'attachment; filename="schema.yml"'
 
     return response
+
+
+class RequestPasswordReset(APIView):
+    def post(self, request):
+
+        email = request.data.get("email")
+        if email is None:
+            return JsonResponse({"error": "Email is required"}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # We do not want someone to know if an email is in the database or not:
+            # even if the user does not exist, we still return a 204 status code
+            return Response(None, status=204)
+
+        # We found a user with the email, we continue
+
+        # We generate the token. Note, Django does not need to store the token in the database
+        # (explanation: https://stackoverflow.com/questions/46234627/how-does-default-token-generator-store-tokens)
+        token = default_token_generator.make_token(user)
+
+        # Get the reset url to include in the email
+
+        return Response(None, status=204)

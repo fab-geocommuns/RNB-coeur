@@ -163,6 +163,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Documentation de l'API du Référentiel National du Bâtiment (RNB)",
     "VERSION": "0.0.1",
