@@ -70,7 +70,37 @@ def import_addresses(src_params: dict, bulk_launch_uuid=None):
     src = Source("bal")
     src.set_params(src_params)
 
-    return
+    with open(src.path, "r") as f:
+        reader = csv.DictReader(f, delimiter=";")
+
+        c = 0
+        for row in reader:
+
+            c += 1
+            print(c)
+
+            cle_interop = row["cle_interop"]
+
+            address = Address.objects.filter(id=cle_interop).first()
+
+            if not address:
+
+                print("Creating address", cle_interop)
+
+                Address.objects.create(
+                    id=cle_interop,
+                    source="BAL",
+                    point=Point(float(row["long"]), float(row["lat"]), srid=4326),
+                    street_number=row["numero"],
+                    street_rep=row["suffixe"],
+                    street=row["voie_nom"],
+                    city_name=row["commune_nom"],
+                    city_zipcode=None,
+                    city_insee_code=row["commune_insee"],
+                )
+
+            if c % 10 == 0:
+                break
 
 
 def convert_bal(src_params, bulk_launch_uuid=None):

@@ -123,8 +123,11 @@ def _dpt_names() -> dict:
         "975": "Saint-Pierre-et-Miquelon",
         "977": "Saint-Barthélemy",
         "978": "Saint-Martin",
+        "984": "Terres australes et antarctiques françaises",
         "986": "Wallis-et-Futuna",
         "987": "Polynésie française",
+        "988": "Nouvelle-Calédonie",
+        "989": "Île de Clipperton",
     }
 
 
@@ -235,6 +238,7 @@ def dpt_list_overseas():
 
 # COM = Collectivité d'outre-mer
 def com_list():
+    # Note (paul) : I am not clear if 984, 988 and 989 are part of the COMs
     return ["975", "977", "978", "984", "986", "987", "988", "989"]
 
 

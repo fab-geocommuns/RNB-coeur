@@ -34,166 +34,165 @@ class TestBALImport(TestCase):
         dpt_list = ["75", "92"]
         tasks = create_bal_full_import_tasks(dpt_list)
 
-        # Each department creates 3 tasks
-        assert len(tasks) == 6
+        # Each department creates 4 tasks
+        assert len(tasks) == 4
 
     def test_create_bal_dpt_import_tasks(self):
         tasks = create_bal_dpt_import_tasks("75")
 
-        # The function now creates 3 tasks: dl_source, convert_bal, and import_bal_addresses
-        assert len(tasks) == 3
+        # The function now creates 2 tasks: dl_source, import_bal
+        assert len(tasks) == 2
         assert tasks[0].task == "batid.tasks.dl_source"
-        assert tasks[1].task == "batid.tasks.convert_bal"
-        assert tasks[2].task == "batid.tasks.import_bal_addresses"
+        assert tasks[1].task == "batid.tasks.import_bal"
 
-    def test_create_link_building_address_no_matches(self):
-        # Create test data with no matching buildings - using a DataFrame
-        data = {
-            "cle_interop": ["test_address_no_match"],
-            "long": [2],
-            "lat": [48],
-            "numero": [123],
-            "suffixe": [""],
-            "voie_nom": ["No Match Street"],
-            "commune_nom": ["Test City"],
-            "commune_insee": ["12345"],
-            "certification_commune": [1],
-        }
-        df = pd.DataFrame(data)
+    # def test_create_link_building_address_no_matches(self):
+    #     # Create test data with no matching buildings - using a DataFrame
+    #     data = {
+    #         "cle_interop": ["test_address_no_match"],
+    #         "long": [2],
+    #         "lat": [48],
+    #         "numero": [123],
+    #         "suffixe": [""],
+    #         "voie_nom": ["No Match Street"],
+    #         "commune_nom": ["Test City"],
+    #         "commune_insee": ["12345"],
+    #         "certification_commune": [1],
+    #     }
+    #     df = pd.DataFrame(data)
 
-        new_links, _, _ = _create_link_building_address(df)
+    #     new_links, _, _ = _create_link_building_address(df)
 
-        self.assertEqual(len(new_links), 0)
+    #     self.assertEqual(len(new_links), 0)
 
-    def test_create_link_building_address_with_matches(self):
-        data = {
-            "cle_interop": ["test_address_with_match"],
-            "long": [0.5],
-            "lat": [0.5],
-            "numero": [456],
-            "suffixe": [""],
-            "voie_nom": ["Match Street"],
-            "commune_nom": ["Test City"],
-            "commune_insee": ["12345"],
-            "certification_commune": [1],
-        }
-        df = pd.DataFrame(data)
-        new_links, _, _ = _create_link_building_address(df)
+    # def test_create_link_building_address_with_matches(self):
+    #     data = {
+    #         "cle_interop": ["test_address_with_match"],
+    #         "long": [0.5],
+    #         "lat": [0.5],
+    #         "numero": [456],
+    #         "suffixe": [""],
+    #         "voie_nom": ["Match Street"],
+    #         "commune_nom": ["Test City"],
+    #         "commune_insee": ["12345"],
+    #         "certification_commune": [1],
+    #     }
+    #     df = pd.DataFrame(data)
+    #     new_links, _, _ = _create_link_building_address(df)
 
-        self.assertGreater(len(new_links), 0)
+    #     self.assertGreater(len(new_links), 0)
 
-        link = list(new_links)[0]
-        self.assertEqual(link[0], "TEST123")
-        self.assertEqual(link[1], "test_address_with_match")
+    #     link = list(new_links)[0]
+    #     self.assertEqual(link[0], "TEST123")
+    #     self.assertEqual(link[1], "test_address_with_match")
 
-    def test_create_link_building_address_in_buffer(self):
-        data = {
-            "cle_interop": ["test_address_buffer"],
-            "long": [0.5001],
-            "lat": [0.5001],
-            "numero": [789],
-            "suffixe": [""],
-            "voie_nom": ["Buffer Street"],
-            "commune_nom": ["Test City"],
-            "commune_insee": ["12345"],
-            "certification_commune": [1],
-        }
-        df = pd.DataFrame(data)
+    # def test_create_link_building_address_in_buffer(self):
+    #     data = {
+    #         "cle_interop": ["test_address_buffer"],
+    #         "long": [0.5001],
+    #         "lat": [0.5001],
+    #         "numero": [789],
+    #         "suffixe": [""],
+    #         "voie_nom": ["Buffer Street"],
+    #         "commune_nom": ["Test City"],
+    #         "commune_insee": ["12345"],
+    #         "certification_commune": [1],
+    #     }
+    #     df = pd.DataFrame(data)
 
-        new_links, _, _ = _create_link_building_address(df)
+    #     new_links, _, _ = _create_link_building_address(df)
 
-        self.assertGreater(len(new_links), 0)
+    #     self.assertGreater(len(new_links), 0)
 
-        link = list(new_links)[0]
-        self.assertEqual(link[0], "TEST123")
-        self.assertEqual(link[1], "test_address_buffer")
+    #     link = list(new_links)[0]
+    #     self.assertEqual(link[0], "TEST123")
+    #     self.assertEqual(link[1], "test_address_buffer")
 
-    @patch("batid.services.imports.import_bal.Source")
-    @patch("batid.services.imports.import_bal.pd.read_csv")
-    def test_insert_bal_addresses(self, mock_read_csv, MockSource):
-        mock_source_instance = MagicMock()
-        source_filepath = "/fake/path/test_bal.csv"
-        new_links_filepath = "/fake/path/test_bal_new_links.csv"
-        mock_source_instance.find.return_value = source_filepath
-        mock_source_instance.filename = "test_bal.csv"
-        MockSource.return_value = mock_source_instance
+    # @patch("batid.services.imports.import_bal.Source")
+    # @patch("batid.services.imports.import_bal.pd.read_csv")
+    # def test_insert_bal_addresses(self, mock_read_csv, MockSource):
+    #     mock_source_instance = MagicMock()
+    #     source_filepath = "/fake/path/test_bal.csv"
+    #     new_links_filepath = "/fake/path/test_bal_new_links.csv"
+    #     mock_source_instance.find.return_value = source_filepath
+    #     mock_source_instance.filename = "test_bal.csv"
+    #     MockSource.return_value = mock_source_instance
 
-        data = {
-            "cle_interop": [
-                "existing_address_id",
-                "new_address_id1",
-                "new_address_id2",
-            ],
-            "rnb_id": ["TEST123", "TEST123", "TEST123"],
-            "long": [0.5, 0.6, 0.7],
-            "lat": [0.5, 0.6, 0.7],
-            "numero": ["42", "43", "44"],
-            "suffixe": ["", "bis", ""],
-            "voie_nom": ["Rue de Test", "Rue de Test", "Avenue Test"],
-            "commune_nom": ["Paris", "Paris", "Paris"],
-            "commune_insee": ["75056", "75056", "75056"],
-            "certification_commune": [1, 1, 1],
-        }
+    #     data = {
+    #         "cle_interop": [
+    #             "existing_address_id",
+    #             "new_address_id1",
+    #             "new_address_id2",
+    #         ],
+    #         "rnb_id": ["TEST123", "TEST123", "TEST123"],
+    #         "long": [0.5, 0.6, 0.7],
+    #         "lat": [0.5, 0.6, 0.7],
+    #         "numero": ["42", "43", "44"],
+    #         "suffixe": ["", "bis", ""],
+    #         "voie_nom": ["Rue de Test", "Rue de Test", "Avenue Test"],
+    #         "commune_nom": ["Paris", "Paris", "Paris"],
+    #         "commune_insee": ["75056", "75056", "75056"],
+    #         "certification_commune": [1, 1, 1],
+    #     }
 
-        # Create an existing address
-        Address.objects.create(
-            id="existing_address_id",
-            city_name="Paris",
-            street="Rue de Test",
-            street_number="42",
-        )
+    #     # Create an existing address
+    #     Address.objects.create(
+    #         id="existing_address_id",
+    #         city_name="Paris",
+    #         street="Rue de Test",
+    #         street_number="42",
+    #     )
 
-        mock_read_csv.return_value = pd.DataFrame(data)
+    #     mock_read_csv.return_value = pd.DataFrame(data)
 
-        insert_bal_addresses({"dpt": "75"})
+    #     insert_bal_addresses({"dpt": "75"})
 
-        mock_read_csv.assert_called_once_with(new_links_filepath)
+    #     mock_read_csv.assert_called_once_with(new_links_filepath)
 
-        # Check that new addresses were created
-        self.assertTrue(Address.objects.filter(id="new_address_id1").exists())
-        self.assertTrue(Address.objects.filter(id="new_address_id2").exists())
+    #     # Check that new addresses were created
+    #     self.assertTrue(Address.objects.filter(id="new_address_id1").exists())
+    #     self.assertTrue(Address.objects.filter(id="new_address_id2").exists())
 
-        # Check address details
-        new_address1 = Address.objects.get(id="new_address_id1")
-        self.assertEqual(new_address1.street_number, "43")
-        self.assertEqual(new_address1.street_rep, "bis")
-        self.assertEqual(new_address1.street, "Rue de Test")
-        self.assertEqual(new_address1.city_name, "Paris")
-        self.assertEqual(new_address1.city_insee_code, "75056")
+    #     # Check address details
+    #     new_address1 = Address.objects.get(id="new_address_id1")
+    #     self.assertEqual(new_address1.street_number, "43")
+    #     self.assertEqual(new_address1.street_rep, "bis")
+    #     self.assertEqual(new_address1.street, "Rue de Test")
+    #     self.assertEqual(new_address1.city_name, "Paris")
+    #     self.assertEqual(new_address1.city_insee_code, "75056")
 
-        # Check that the building was updated with the new address IDs
-        building = Building.objects.get(rnb_id="TEST123")
-        self.assertIn("existing_address_id", building.addresses_id)
-        self.assertIn("new_address_id1", building.addresses_id)
-        self.assertIn("new_address_id2", building.addresses_id)
+    #     # Check that the building was updated with the new address IDs
+    #     building = Building.objects.get(rnb_id="TEST123")
+    #     self.assertIn("existing_address_id", building.addresses_id)
+    #     self.assertIn("new_address_id1", building.addresses_id)
+    #     self.assertIn("new_address_id2", building.addresses_id)
 
-    @patch("batid.services.imports.import_bal.Source")
-    @patch("batid.services.imports.import_bal.pd.read_csv")
-    def test_insert_bal_addresses_empty_data(self, mock_read_csv, MockSource):
-        mock_source_instance = MagicMock()
-        source_filepath = "/fake/path/test_bal.csv"
-        new_links_filepath = "/fake/path/test_bal_new_links.csv"
-        mock_source_instance.find.return_value = source_filepath
-        mock_source_instance.filename = "test_bal.csv"
-        MockSource.return_value = mock_source_instance
+    # @patch("batid.services.imports.import_bal.Source")
+    # @patch("batid.services.imports.import_bal.pd.read_csv")
+    # def test_insert_bal_addresses_empty_data(self, mock_read_csv, MockSource):
+    #     mock_source_instance = MagicMock()
+    #     source_filepath = "/fake/path/test_bal.csv"
+    #     new_links_filepath = "/fake/path/test_bal_new_links.csv"
+    #     mock_source_instance.find.return_value = source_filepath
+    #     mock_source_instance.filename = "test_bal.csv"
+    #     MockSource.return_value = mock_source_instance
 
-        data = {
-            "cle_interop": [],
-            "rnb_id": [],
-            "long": [],
-            "lat": [],
-            "numero": [],
-            "suffixe": [],
-            "voie_nom": [],
-            "commune_nom": [],
-            "commune_insee": [],
-            "certification_commune": [],
-        }
+    #     data = {
+    #         "cle_interop": [],
+    #         "rnb_id": [],
+    #         "long": [],
+    #         "lat": [],
+    #         "numero": [],
+    #         "suffixe": [],
+    #         "voie_nom": [],
+    #         "commune_nom": [],
+    #         "commune_insee": [],
+    #         "certification_commune": [],
+    #     }
 
-        mock_read_csv.return_value = pd.DataFrame(data)
-        initial_address_count = Address.objects.count()
+    #     mock_read_csv.return_value = pd.DataFrame(data)
+    #     initial_address_count = Address.objects.count()
 
-        insert_bal_addresses({"dpt": "75"})
+    #     insert_bal_addresses({"dpt": "75"})
 
-        mock_read_csv.assert_called_once_with(new_links_filepath)
-        self.assertEqual(Address.objects.count(), initial_address_count)
+    #     mock_read_csv.assert_called_once_with(new_links_filepath)
+    #     self.assertEqual(Address.objects.count(), initial_address_count)

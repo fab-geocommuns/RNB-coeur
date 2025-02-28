@@ -23,7 +23,6 @@ from batid.services.data_fix.remove_light_buildings import (
 from batid.services.data_gouv_publication import get_area_publish_task
 from batid.services.data_gouv_publication import publish
 from batid.services.imports.import_bal import (
-    bal_dpts_list,
     convert_bal as convert_bal_impl,
 )
 from batid.services.imports.import_bal import create_bal_full_import_tasks
@@ -319,6 +318,8 @@ def queue_full_bal_import(
     return f"Queued {len(tasks)} tasks"
 
 
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_bal(src_params: dict, bulk_launch_uuid: str = None):
 
     import_addresses(src_params, bulk_launch_uuid)
