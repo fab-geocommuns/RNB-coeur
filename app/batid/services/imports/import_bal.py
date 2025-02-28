@@ -99,7 +99,7 @@ def import_addresses(src_params: dict, bulk_launch_uuid=None):
                     city_insee_code=row["commune_insee"],
                 )
 
-            if c % 10 == 0:
+            if c % 20000 == 0:
                 break
 
 
