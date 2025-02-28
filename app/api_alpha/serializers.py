@@ -1,3 +1,6 @@
+import math
+
+from django.contrib.gis.geos import GEOSGeometry
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -12,6 +15,7 @@ from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Contribution
+from batid.models import DiffusionDatabase
 from batid.services.bdg_status import BuildingStatus
 from batid.services.rnb_id import clean_rnb_id
 
@@ -64,32 +68,31 @@ class ExtIdSerializer(serializers.Serializer):
 
 
 class BuildingSerializer(serializers.ModelSerializer):
+    def __init__(self, *args, **kwargs):
+
+        # We have to intercept the with_plots arguments before passing to the parent class
+        with_plots = kwargs.pop("with_plots", False)
+
+        # Trigger the parent class init
+        super().__init__(*args, **kwargs)
+
+        # If with_plots is False, we remove the plots field from the fields list
+        if not with_plots:
+            self.fields.pop("plots")
+
     point = serializers.DictField(
         source="point_geojson",
         read_only=True,
-        help_text="""{
-                            "type": "Point",
-                            "coordinates": [
-                                3.584410393780201,
-                                49.52799819019749
-                            ]
-                        }""",
     )
     shape = serializers.DictField(
         source="shape_geojson",
         read_only=True,
-        help_text="""{
-                            "type": "Polygon",
-                            "coordinates": [[
-                                [100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
-                                [100.0, 1.0], [100.0, 0.0]
-                             ]]
-                        }""",
     )
     addresses = AddressSerializer(
         many=True, read_only=True, source="addresses_read_only"
     )
     ext_ids = ExtIdSerializer(many=True, read_only=True)
+    plots = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Building
@@ -101,12 +104,8 @@ class BuildingSerializer(serializers.ModelSerializer):
             "addresses",
             "ext_ids",
             "is_active",
+            "plots",
         ]
-        extra_kwargs = {
-            "rnb_id": {"help_text": "QBAAG16VCJWA"},
-            "status": {"help_text": "constructed"},
-            "is_active": {"help_text": "true"},
-        }
 
 
 class GuessBuildingSerializer(serializers.ModelSerializer):
@@ -153,9 +152,43 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
         ]
 
 
+def validate_point(coords_str: str):
+    if not coords_str:
+        raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+
+    coords = coords_str.split(",")
+
+    if len(coords) != 2:
+        raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+
+    try:
+        lat = float(coords[0])
+    except:
+        raise serializers.ValidationError(
+            "Point is not valid, because latitude is not valid"
+        )
+
+    try:
+        lon = float(coords[1])
+    except:
+        raise serializers.ValidationError(
+            "Point is not valid, because longitude is not valid"
+        )
+
+    if lat < -90 or lat > 90 or math.isnan(lat):
+        raise serializers.ValidationError(
+            "Point is not valid, latitude must be between -90 and 90"
+        )
+
+    if lon < -180 or lon > 180 or math.isnan(lon):
+        raise serializers.ValidationError(
+            "Point is not valid, longitude must be between -180 and 180"
+        )
+
+
 class BuildingClosestQuerySerializer(serializers.Serializer):
     radius = serializers.FloatField(required=True)
-    point = serializers.CharField(required=True)
+    point = serializers.CharField(required=True, validators=[validate_point])
 
     def validate_radius(self, value):
         if value < 0:
@@ -166,18 +199,69 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
 
         return value
 
-    # todo : si ouverture à usage externe, utiliser une validation du point plus complète. Exemple dispo dans BuildingGuessParams.__validate_point_from_url()
-    def validate_point(self, value):
-        """
-        we expect a 'lat,lng' format
-        """
-        try:
-            lat, lng = value.split(",")
-            lat = float(lat)
-            lng = float(lng)
-            return value
-        except:
-            raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+
+class BuildingAddressQuerySerializer(serializers.Serializer):
+    q = serializers.CharField(required=False)
+    min_score = serializers.FloatField(required=False)
+    cle_interop_ban = serializers.CharField(required=False)
+
+    def validate_min_score(self, min_score):
+        if min_score < 0 or min_score > 1:
+            raise serializers.ValidationError("min_score must be between 0. and 1.0")
+        return min_score
+
+    def validate(self, data):
+        # one (and only one) field is required
+        if (data.get("q") is None and data.get("cle_interop_ban") is None) or (
+            data.get("q") is not None and data.get("cle_interop_ban") is not None
+        ):
+            raise serializers.ValidationError(
+                "you need to either set 'q' or 'cle_interop_ban'."
+            )
+
+        if data.get("cle_interop_ban") and data.get("min_score"):
+            raise serializers.ValidationError(
+                "'min_score' is only relevant with a text address"
+            )
+
+        return data
+
+
+class BuildingPlotSerializer(serializers.ModelSerializer):
+    bdg_cover_ratio = serializers.SerializerMethodField()
+    point = serializers.DictField(source="point_geojson", read_only=True)
+    addresses = AddressSerializer(
+        many=True, read_only=True, source="addresses_read_only"
+    )
+
+    def get_bdg_cover_ratio(self, obj):
+        return obj.bdg_cover_ratio
+
+    class Meta:
+        model = Building
+        fields = [
+            "rnb_id",
+            "bdg_cover_ratio",
+            "status",
+            "point",
+            "addresses",
+            "ext_ids",
+        ]
+
+
+def shape_is_valid(shape):
+    if shape is None:
+        return None
+
+    try:
+        g = GEOSGeometry(shape)
+        if not g.valid:
+            raise Exception
+    except:
+        raise serializers.ValidationError(
+            "the given shape could not be parsed or is not valid"
+        )
+    return shape
 
 
 class BuildingUpdateSerializer(serializers.Serializer):
@@ -190,12 +274,14 @@ class BuildingUpdateSerializer(serializers.Serializer):
         allow_empty=True,
         required=False,
     )
-    comment = serializers.CharField(min_length=4, required=True)
+    shape = serializers.CharField(required=False, validators=[shape_is_valid])
+    comment = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, data):
         if data.get("is_active") is not None and (
             data.get("status") is not None
             or data.get("addresses_cle_interop") is not None
+            or data.get("shape") is not None
         ):
             raise serializers.ValidationError(
                 "you need to either set is_active or set status/addresses, not both at the same time"
@@ -204,13 +290,71 @@ class BuildingUpdateSerializer(serializers.Serializer):
             data.get("is_active") is None
             and data.get("status") is None
             and data.get("addresses_cle_interop") is None
+            and data.get("shape") is None
         ):
             raise serializers.ValidationError("empty arguments in the request body")
 
-        if data.get("is_active") == True:
-            raise serializers.ValidationError("you can only set is_active to False")
+        return data
+
+
+class BuildingCreateSerializerCore(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=BuildingStatus.ALL_TYPES_KEYS, required=True
+    )
+    addresses_cle_interop = serializers.ListField(
+        child=serializers.CharField(min_length=5, max_length=30),
+        allow_empty=True,
+        required=True,
+    )
+    shape = serializers.CharField(required=True, validators=[shape_is_valid])
+
+
+class BuildingCreateSerializer(BuildingCreateSerializerCore):
+    comment = serializers.CharField(required=False, allow_blank=True)
+
+
+class BuildingMergeSerializer(serializers.Serializer):
+    comment = serializers.CharField(required=False, allow_blank=True)
+    rnb_ids = serializers.ListField(
+        child=serializers.CharField(min_length=12, max_length=12),
+        min_length=2,
+        allow_empty=False,
+        required=True,
+    )
+    merge_existing_addresses = serializers.BooleanField(required=False)
+    addresses_cle_interop = serializers.ListField(
+        child=serializers.CharField(min_length=5, max_length=30),
+        allow_empty=True,
+        required=False,
+    )
+    status = serializers.ChoiceField(
+        choices=BuildingStatus.ALL_TYPES_KEYS, required=True
+    )
+
+    def validate(self, data):
+        if data.get("merge_existing_addresses") and data.get("addresses_cle_interop"):
+            raise serializers.ValidationError(
+                "If merge_existing_addresses is set to True, you cannot specify addresses_cle_interop"
+            )
+        if (
+            not data.get("merge_existing_addresses")
+            and data.get("addresses_cle_interop") is None
+        ):
+            raise serializers.ValidationError(
+                "merge_existing_addresses or addresses_cle_interop must be set"
+            )
 
         return data
+
+
+class BuildingSplitSerializer(serializers.Serializer):
+    comment = serializers.CharField(required=False, allow_blank=True)
+    created_buildings = serializers.ListField(
+        min_length=2,
+        required=True,
+        allow_empty=False,
+        child=BuildingCreateSerializerCore(),
+    )
 
 
 class BuildingsADSSerializer(serializers.ModelSerializer):
@@ -368,3 +512,9 @@ class ADSSerializer(serializers.ModelSerializer):
     #             bdg_op.save()
     #
     #     return ads
+
+
+class DiffusionDatabaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiffusionDatabase
+        fields = "__all__"

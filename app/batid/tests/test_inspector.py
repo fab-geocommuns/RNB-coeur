@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from datetime import timezone
 from unittest import mock
 
 from django.contrib.gis.geos import GEOSGeometry
@@ -7,7 +8,6 @@ from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
 from django.db import connection
 from django.db import transaction
-from django.db.utils import IntegrityError
 from django.test import TestCase
 from django.test import TransactionTestCase
 
@@ -17,6 +17,9 @@ from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import BuildingWithHistory
 from batid.models import Candidate
+from batid.services.candidate import _report_count_decisions
+from batid.services.candidate import _report_count_refusals
+from batid.services.candidate import _report_list_fake_updates
 from batid.services.candidate import Inspector
 from batid.services.rnb_id import generate_rnb_id
 from batid.tests.helpers import coords_to_mp_geom
@@ -73,6 +76,9 @@ class TestInspectorBdgCreate(TestCase):
         )
 
     def test_creation(self):
+
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -103,6 +109,20 @@ class TestInspectorBdgCreate(TestCase):
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "creation")
         self.assertEqual(candidate.inspection_details["rnb_id"], b.rnb_id)
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"creation": 1})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {})
+
+        too_late = datetime.now()
+        decision_counts = _report_count_decisions(too_late)
+        self.assertDictEqual(decision_counts, {})
 
 
 class TestInspectorBdgUpdate(TestCase):
@@ -175,6 +195,9 @@ class TestInspectorBdgUpdate(TestCase):
         )
 
     def test_merge(self):
+
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -222,6 +245,13 @@ class TestInspectorBdgUpdate(TestCase):
 
         self.assertEqual(second_candidate.inspection_details["decision"], "update")
         self.assertEqual(second_candidate.inspection_details["rnb_id"], b.rnb_id)
+
+        # Test reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"update": 2})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
 
 
 class InspectorMergeBuilding(TestCase):
@@ -278,6 +308,7 @@ class InspectorMergeBuilding(TestCase):
         )
 
         # we expect the candidate to be refused, because it contains no new information about the building.
+        since = datetime.now()
         i = Inspector()
         i.inspect()
         c.refresh_from_db()
@@ -291,6 +322,16 @@ class InspectorMergeBuilding(TestCase):
         self.assertEqual(len(buildings), 1)
         building = buildings[0]
         self.assertEqual(building.event_type, "creation")
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"refusal": 1})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {"nothing_to_update": 1})
 
     def test_all_addresses_are_known(self):
         # Create an address
@@ -443,6 +484,9 @@ class TestHalvishCover(InspectTest):
     ]
 
     def test_result(self):
+
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -451,6 +495,16 @@ class TestHalvishCover(InspectTest):
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
         self.assertEqual(candidate.inspection_details["reason"], "ambiguous_overlap")
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"refusal": 1})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {"ambiguous_overlap": 1})
 
 
 class OneSmallOneBig:
@@ -496,10 +550,17 @@ class OneSmallOneBig:
     }
 
     def test_result(self):
+
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
         self.assertEqual(Building.objects.all().count(), 1)
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"update": 1})
 
 
 class TestOneSmallBdgThenOneBigCand(InspectTest):
@@ -507,6 +568,9 @@ class TestOneSmallBdgThenOneBigCand(InspectTest):
     candidates_data = [OneSmallOneBig.big]
 
     def test_result(self):
+
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -516,12 +580,25 @@ class TestOneSmallBdgThenOneBigCand(InspectTest):
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
         self.assertEqual(candidate.inspection_details["reason"], "ambiguous_overlap")
 
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"refusal": 1})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {"ambiguous_overlap": 1})
+
 
 class TestOneBigBdgThenOneSmallCand(InspectTest):
     bdgs_data = [OneSmallOneBig.big]
     candidates_data = [OneSmallOneBig.small]
 
     def test_result(self):
+
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -529,6 +606,16 @@ class TestOneBigBdgThenOneSmallCand(InspectTest):
 
         candidate = Candidate.objects.all().first()
         self.assertEqual(candidate.inspection_details["decision"], "refusal")
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"refusal": 1})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {"ambiguous_overlap": 1})
 
 
 class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
@@ -597,6 +684,9 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
     ]
 
     def test_result(self):
+
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -609,6 +699,16 @@ class TestOneVeryBigBdgThenTwoSmallCandIn(InspectTest):
         candidate_2 = Candidate.objects.all().order_by("inspected_at").last()
         self.assertEqual(candidate_2.inspection_details["decision"], "refusal")
         self.assertEqual(candidate_2.inspection_details["reason"], "ambiguous_overlap")
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"refusal": 2})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {"ambiguous_overlap": 2})
 
 
 class TestPointCandidateInsidePolyBdg(InspectTest):
@@ -649,6 +749,8 @@ class TestPointCandidateInsidePolyBdg(InspectTest):
         shape = b.shape.clone()
         point = b.point.clone()
 
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -659,6 +761,16 @@ class TestPointCandidateInsidePolyBdg(InspectTest):
         self.assertIsInstance(b.shape, Polygon)
         self.assertEqual(shape.equals(b.shape), True)
         self.assertEqual(point.equals(b.point), True)
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"update": 1})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {})
 
 
 class TestPolyCandidateOnPointBdg(InspectTest):
@@ -697,6 +809,8 @@ class TestPolyCandidateOnPointBdg(InspectTest):
         b = Building.objects.all().first()
         self.assertIsInstance(b.shape, Point)
 
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -705,6 +819,16 @@ class TestPolyCandidateOnPointBdg(InspectTest):
         # Check the building is now a polygon
         b.refresh_from_db()
         self.assertIsInstance(b.shape, Polygon)
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"update": 1})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {})
 
 
 class TestPointCandidateOutsidePolyBdg(InspectTest):
@@ -739,6 +863,9 @@ class TestPointCandidateOutsidePolyBdg(InspectTest):
     ]
 
     def test_result(self):
+
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -749,6 +876,16 @@ class TestPointCandidateOutsidePolyBdg(InspectTest):
 
         b_point = Building.objects.get(ext_ids__contains=[{"id": "POINT_BDG"}])
         self.assertEqual(b_point.shape.geom_type, "Point")
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"creation": 1})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {})
 
 
 class TestOnePolyCandidatesOnTwoPointBdgs(InspectTest):
@@ -791,6 +928,9 @@ class TestOnePolyCandidatesOnTwoPointBdgs(InspectTest):
     ]
 
     def test_result(self):
+
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -799,6 +939,16 @@ class TestOnePolyCandidatesOnTwoPointBdgs(InspectTest):
         c = Candidate.objects.all().first()
         self.assertEqual(c.inspection_details["decision"], "refusal")
         self.assertEqual(c.inspection_details["reason"], "too_many_geomatches")
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"refusal": 1})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {"too_many_geomatches": 1})
 
 
 class TestBdgAndCandidateWithSamePoint(InspectTest):
@@ -825,6 +975,9 @@ class TestBdgAndCandidateWithSamePoint(InspectTest):
     ]
 
     def test_result(self):
+
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -832,6 +985,16 @@ class TestBdgAndCandidateWithSamePoint(InspectTest):
 
         c = Candidate.objects.all().first()
         self.assertEqual(c.inspection_details["decision"], "update")
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"update": 1})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {})
 
 
 class TestUpdatePointBdgAndTouchingPolyBdgsWithOnePolyCandidate(InspectTest):
@@ -902,6 +1065,9 @@ class TestUpdatePointBdgAndTouchingPolyBdgsWithOnePolyCandidate(InspectTest):
     ]
 
     def test_result(self):
+
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -913,6 +1079,16 @@ class TestUpdatePointBdgAndTouchingPolyBdgsWithOnePolyCandidate(InspectTest):
         # Check the central building is now a polygon
         b = Building.objects.get(ext_ids__contains=[{"id": "central"}])
         self.assertEqual(b.shape.geom_type, "Polygon")
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"update": 1})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {})
 
 
 class TestCandidateOnTwoMatchingBdgs(InspectTest):
@@ -963,6 +1139,9 @@ class TestCandidateOnTwoMatchingBdgs(InspectTest):
     ]
 
     def test_result(self):
+
+        since = datetime.now()
+
         i = Inspector()
         i.inspect()
 
@@ -971,6 +1150,214 @@ class TestCandidateOnTwoMatchingBdgs(InspectTest):
         c = Candidate.objects.all().first()
         self.assertEqual(c.inspection_details["decision"], "refusal")
         self.assertEqual(c.inspection_details["reason"], "ambiguous_overlap")
+
+        # Test the reports
+        decision_counts = _report_count_decisions(since)
+        self.assertDictEqual(decision_counts, {"refusal": 1})
+
+        fake_updates = _report_list_fake_updates(since)
+        self.assertListEqual(fake_updates, [])
+
+        refusals_counts = _report_count_refusals(since)
+        self.assertDictEqual(refusals_counts, {"ambiguous_overlap": 1})
+
+    def test_fake_update(self):
+        # we create a building
+        rnb_id = "xxxxyyyyzzzz"
+        building = Building.objects.create(
+            rnb_id=rnb_id,
+            shape="POLYGON((0 0, 0 0.5, 0.5 0.5, 0.5 0, 0 0))",
+            status="constructed",
+        )
+
+        # we save a second time the building but make no change to create a "fake update"
+        building.save()
+
+        # we create by hand an inspected candidate
+        now = datetime.now(timezone.utc)
+        candidat = Candidate.objects.create(
+            inspected_at=datetime.now(timezone.utc),
+            inspection_details={"decision": "update", "rnb_id": rnb_id},
+        )
+
+        # rnb_id should be listed as a fake update
+        fake_updates = _report_list_fake_updates(now)
+        self.assertListEqual(fake_updates, [rnb_id])
+
+
+class TestCandidateCLoseToPointBdg(InspectTest):
+    """
+    Some buildings have only a Point in the shape attribute.
+    BD Topo (and others) can help us to transform this point into a polygon.
+    The problem is sometimes the candidate does not intersect the building.
+    We have to attach the candidate to the building if it is close enough.
+    We verify the inspection attaches candidate polygon and building point when they are close enough.
+
+
+    POINT_BDG is a building with a point shape.
+    It is close to the candidate. Its shape must be updated with the candidate polygon.
+
+    FAR_POINT_BDG is a building with a point shape.
+    It is far from the candidate and should be ignored.
+
+    POLY_BDG_NEIGHBOR is a building with a polygon shape.
+    It intersects the candidate but not enough. It should be ignored
+
+    """
+
+    bdgs_data = [
+        {
+            "id": "POINT_BDG",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [-0.4054973749373687, 42.13386683679241],
+                "type": "Point",
+            },
+        },
+        {
+            "id": "FAR_POINT_BDG",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [-0.40521491170318313, 42.13399847871867],
+                "type": "Point",
+            },
+        },
+        {
+            "id": "POLY_BDG_NEIGHBOR",
+            "source": "bdtopo",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.4054742368722941, 42.134111441961494],
+                        [-0.4054853481118812, 42.133891163317315],
+                        [-0.4052423823313802, 42.133890613993145],
+                        [-0.40526386406216375, 42.13413561214],
+                        [-0.4054742368722941, 42.134111441961494],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        },
+    ]
+
+    candidates_data = [
+        {
+            "id": "CDT_POLY",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.4055384428695845, 42.1338676176932],
+                        [-0.4054805265556638, 42.13390978632495],
+                        [-0.40546683724414834, 42.1341050111069],
+                        [-0.4059112133287499, 42.13408705045228],
+                        [-0.40588488773067866, 42.13384575246573],
+                        [-0.4055384428695845, 42.1338676176932],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        },
+    ]
+
+    def test_result(self):
+
+        i = Inspector()
+        i.inspect()
+
+        # The candidate updated a building
+        c = Candidate.objects.all().first()
+        self.assertEqual(c.inspection_details["decision"], "update")
+
+        # Updated building now has a polygon
+        rnb_id = c.inspection_details["rnb_id"]
+        bdg = Building.objects.get(rnb_id=rnb_id)
+
+        self.assertEqual(bdg.shape.geom_type, "Polygon")
+        self.assertEqual(len(bdg.ext_ids), 2)
+        self.assertEqual(bdg.ext_ids[1]["id"], "CDT_POLY")
+
+
+class TestCandidateCLoseToAmbiguousPointsBdgs(InspectTest):
+    bdgs_data = [
+        {
+            "id": "CLOSE_ONE",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.40526639833487366, 42.13435554467577],
+                "type": "Point",
+            },
+        },
+        {
+            "id": "CLOSE_TWO",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.4054133335975223, 42.134342572850386],
+                "type": "Point",
+            },
+        },
+        {
+            "id": "INSIDE",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.4052891383165331, 42.134270579167264],
+                "type": "Point",
+            },
+        },
+        {
+            "id": "FAR",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [-0.40496020881957406, 42.13401039632299],
+                "type": "Point",
+            },
+        },
+    ]
+
+    candidates_data = [
+        {
+            "id": "AMBIGUOUS_POLY",
+            "source": "bdnb",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-0.40533767926592645, 42.134363059816536],
+                        [-0.4054953663784602, 42.134262535288656],
+                        [-0.4052270216421334, 42.13414867568085],
+                        [-0.40517030961083833, 42.13431484909324],
+                        [-0.40533767926592645, 42.134363059816536],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+        },
+    ]
+
+    def test_result(self):
+
+        i = Inspector()
+        i.inspect()
+
+        # The candidate has been refused
+        c = Candidate.objects.all().first()
+        self.assertEqual(c.inspection_details["decision"], "refusal")
+        self.assertEqual(c.inspection_details["reason"], "too_many_geomatches")
+        # There are 4 bdgs in the database but one is too far from the candidate
+        self.assertEqual(len(c.inspection_details["matches"]), 3)
+
+        # The buildings have not been updated
+        bdgs = Building.objects.all()
+        self.assertEqual(len(bdgs), 4)
+
+        for bdg in bdgs:
+
+            self.assertEqual(bdg.shape.geom_type, "Point")
+            self.assertEqual(len(bdg.ext_ids), 1)
+
+            history_rows = (
+                BuildingWithHistory.objects.filter(rnb_id=bdg.rnb_id).all().count()
+            )
+            self.assertEqual(history_rows, 1)
 
 
 def data_to_candidate(data):
@@ -1018,10 +1405,16 @@ def data_to_bdg(data):
 
 # we need to use TransactionTestCase because we are testing thez proper rollback of the transactions during the inspection
 class NonExistingAddress(TransactionTestCase):
-    def test_non_existing_address_raises(self):
+    @mock.patch("batid.models.requests.get")
+    def test_non_existing_address_raises(self, get_mock):
         """
         When an address is not found in the database, an error is raised
         """
+        get_mock.return_value.status_code = 404
+        get_mock.return_value.json.return_value = {
+            "details": "what is this id?",
+        }
+
         coords = [
             [2.349804906833981, 48.85789205519228],
             [2.349701279442314, 48.85786369735885],
@@ -1041,7 +1434,7 @@ class NonExistingAddress(TransactionTestCase):
         )
 
         i = Inspector()
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(BANUnknownCleInterop):
             i.inspect()
 
         candidate.refresh_from_db()
@@ -1142,6 +1535,8 @@ class GeosIntersectsBugInterception(TransactionTestCase):
                 is_light=False,
             )
 
+            since = datetime.now()
+
             i = Inspector()
             i.inspect()
 
@@ -1149,3 +1544,13 @@ class GeosIntersectsBugInterception(TransactionTestCase):
             self.assertEqual(c.inspection_details["decision"], "refusal")
             self.assertEqual(c.inspection_details["reason"], "topology_exception")
             self.assertNotEqual(c.inspected_at, None)
+
+            # Test the reports
+            decision_counts = _report_count_decisions(since)
+            self.assertDictEqual(decision_counts, {"refusal": 1})
+
+            fake_updates = _report_list_fake_updates(since)
+            self.assertListEqual(fake_updates, [])
+
+            refusals_counts = _report_count_refusals(since)
+            self.assertDictEqual(refusals_counts, {"topology_exception": 1})

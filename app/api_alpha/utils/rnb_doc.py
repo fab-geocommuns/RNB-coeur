@@ -1,6 +1,5 @@
 import inspect
 
-import yaml
 from django.conf import settings
 from django.urls import get_resolver
 from rest_framework.schemas.generators import BaseSchemaGenerator
@@ -54,6 +53,10 @@ def get_status_html_list():
     return html_list
 
 
+def get_status_list():
+    return [status["key"] for status in BuildingStatus.TYPES]
+
+
 def _get_components() -> dict:
     return {
         "schemas": {
@@ -103,6 +106,30 @@ def _get_components() -> dict:
                         "description": "Code INSEE de la commune",
                         "example": "02191",
                     },
+                },
+            },
+            "BuildingWPlots": {
+                "type": "object",
+                "properties": {
+                    "plots": {
+                        "type": "array",
+                        "description": "Liste des parcelles cadastrales intersectant le bâtiment. Disponible si le paramètre <pre>withPlots=1</pre> est intégré à l'URL de requête. NB: il s'agit d'un croisement géométrique et non d'une donnée fiscale. Il arrive parfois qu'un bâtiment intersecte une mauvaise parcelle du fait d'un décalage géographique entre les bâtiments du cadastre et ceux du RNB. Nous fournissons avec chaque parcelle cadastrale le taux d'intersection du bâtiment avec celle-ci. Les parcelles intersectant largement un bâtiment sont plus susceptibles d'être réellement associées à ce bâtiment d'un point de vue fiscal.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "description": "Identifiant de la parcelle.",
+                                    "example": "01402000AB0051",
+                                },
+                                "bdg_cover_ratio": {
+                                    "type": "number",
+                                    "description": "Taux d'intersection du bâtiment par la parcelle. Ce taux est compris entre 0 et 1. Un taux de 1 signifie que la parcelle couvre entièrement le bâtiment.",
+                                    "example": 0.403,
+                                },
+                            },
+                        },
+                    }
                 },
             },
             "Building": {
@@ -242,12 +269,6 @@ def _get_components() -> dict:
             },
         },
     }
-
-
-def build_schema_yml():
-    schema_dict = build_schema_dict()
-
-    return yaml.dump(schema_dict, default_flow_style=False, allow_unicode=True)
 
 
 def _get_endpoints() -> list:

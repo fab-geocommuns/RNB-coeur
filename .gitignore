@@ -67,6 +67,8 @@ app/.Trash-0/*
 /app/notebooks/rapprochements/**/*.shx
 /app/notebooks/rapprochements/**/*.xlsx
 
+/app/notebooks/evaluation_bal/**/*.csv
+
 # Remove files in data folder since they are used for importing default data
 source_data/
 

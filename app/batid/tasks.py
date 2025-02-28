@@ -6,6 +6,7 @@ from celery import shared_task
 
 from batid.models import AsyncSignal
 from batid.services.administrative_areas import dpts_list
+from batid.services.administrative_areas import slice_dpts
 from batid.services.building import export_city as export_city_job
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
@@ -26,6 +27,7 @@ from batid.services.imports.import_bal import create_bal_full_import_tasks
 from batid.services.imports.import_bal import insert_bal_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
+from batid.services.imports.import_bdtopo import bdtopo_dpts_list
 from batid.services.imports.import_bdtopo import bdtopo_recente_release_date
 from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
 from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
@@ -34,6 +36,9 @@ from batid.services.imports.import_dgfip_ads import (
     import_dgfip_ads_achievements as import_dgfip_ads_achievements_job,
 )
 from batid.services.imports.import_dpt import import_etalab_dpts
+from batid.services.imports.import_plots import create_plots_full_import_tasks
+from batid.services.imports.import_plots import etalab_dpt_list
+from batid.services.imports.import_plots import etalab_recent_release_date
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
 )
@@ -104,7 +109,7 @@ def queue_full_bdtopo_import(
     )
 
     # Get list of dpts
-    dpts = dpts_list(dpt_start, dpt_end)
+    dpts = bdtopo_dpts_list(dpt_start, dpt_end)
 
     # Default release date to most recent one
     if released_before:
@@ -120,10 +125,39 @@ def queue_full_bdtopo_import(
     return f"Queued {len(tasks)} tasks"
 
 
+@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_plots(dpt):
-    import_etalab_plots_job(dpt)
+def import_plots(dpt: str, release_date: str):
+    import_etalab_plots_job(dpt, release_date)
     return "done"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_full_plots_import(
+    dpt_start: Optional[str] = None,
+    dpt_end: Optional[str] = None,
+    released_before: Optional[str] = None,
+):
+
+    all_plots_dpts = etalab_dpt_list()
+    dpts = slice_dpts(all_plots_dpts, dpt_start, dpt_end)
+
+    # Default release date to most recent one
+    if released_before:
+        # date str to date object
+        before_date = datetime.strptime(released_before, "%Y-%m-%d").date()
+        release_date = etalab_recent_release_date(before_date)
+    else:
+        release_date = etalab_recent_release_date()
+
+    msg = f"Import du cadastre Etalab. Départements: {dpt_start} à {dpt_end}. Date de sortie: {release_date}"
+    notify_tech(msg)
+
+    tasks = create_plots_full_import_tasks(dpts, release_date)
+
+    chain(*tasks)()
+    return f"Queued {len(tasks)} tasks"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})

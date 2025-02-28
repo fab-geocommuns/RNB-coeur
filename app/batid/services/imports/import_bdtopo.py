@@ -9,7 +9,6 @@ from typing import Optional
 
 import fiona
 import psycopg2
-from celery import group
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import WKTWriter
@@ -19,7 +18,7 @@ from django.db import transaction
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import Candidate
-from batid.services.candidate import create_inspection_tasks
+from batid.services.administrative_areas import dpts_list
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
@@ -36,6 +35,11 @@ def create_bdtopo_full_import_tasks(dpt_list: list, release_date: str) -> list:
 
         dpt_tasks = create_bdtopo_dpt_import_tasks(dpt, release_date, bulk_launch_uuid)
         tasks.extend(dpt_tasks)
+
+    # Those inspections are commented out for now since we want to verify the created candidates first
+    # inspect_tasks = create_inspection_tasks()
+    # inspect_group = group(*inspect_tasks)
+    # tasks.append(inspect_group)
 
     return tasks
 
@@ -61,11 +65,6 @@ def create_bdtopo_dpt_import_tasks(
         immutable=True,
     )
     tasks.append(convert_task)
-
-    # Those inspections are commented out for now since we want to verify the created candidates first
-    inspect_tasks = create_inspection_tasks()
-    inspect_group = group(*inspect_tasks)
-    tasks.append(inspect_group)
 
     return tasks
 
@@ -272,3 +271,10 @@ def _bdtopo_release_dates() -> list:
         "2030-09-15",
         "2030-12-15",
     ]
+
+
+def bdtopo_dpts_list():
+
+    # Wallis-et-Futuna (986) and Polynésie française (987) are not available in BD Topo
+    all_dpts = dpts_list()
+    return [dpt for dpt in all_dpts if dpt not in ["986", "987"]]

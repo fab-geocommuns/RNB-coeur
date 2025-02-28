@@ -4,6 +4,8 @@ from io import StringIO
 import requests
 from requests import Response
 
+from batid.exceptions import BANAPIDown
+
 
 class BanGeocoder:
     GEOCODE_URL = "https://api-adresse.data.gouv.fr/search/"
@@ -14,13 +16,31 @@ class BanGeocoder:
 
         response = requests.get(self.GEOCODE_URL, params=params)
 
-        return response
+        if response.status_code == 200:
+            return response
+        else:
+            raise BANAPIDown
 
     def reverse(self, lat: float, lng: float) -> requests.Response:
         url = self.REVERSE_URL.format(lat=lat, lng=lng)
         response = requests.get(url)
 
         return response
+
+    def cle_interop_ban_best_result(self, params: dict):
+        response = self.geocode(params)
+        results = response.json()
+
+        if "features" in results and results["features"]:
+            best = results["features"][0]
+
+            if best["properties"]["type"] == "housenumber":
+                return {
+                    "cle_interop_ban": best["properties"]["id"],
+                    "score": best["properties"]["score"],
+                }
+
+        return {"cle_interop_ban": None, "score": None}
 
 
 class BanBatchGeocoder:

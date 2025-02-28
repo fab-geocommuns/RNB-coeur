@@ -59,6 +59,7 @@ if DEBUG:
 
 INSTALLED_APPS = [
     "debug_toolbar",
+    "jsoneditor",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -212,6 +213,13 @@ CELERY_BEAT_SCHEDULE = {
         # 15 april, 15 july, 15 october, 15 january
         "schedule": crontab(
             minute=0, hour=0, day_of_month=15, month_of_year="1,4,7,10"
+        ),
+    },
+    "import_plots": {
+        "task": "batid.tasks.queue_full_plots_import",
+        # january 31, april 30, july 31, november 30,
+        "schedule": crontab(
+            minute=0, hour=0, day_of_month="30", month_of_year="1,4,7,11"
         ),
     },
     "publish_data_gouv": {

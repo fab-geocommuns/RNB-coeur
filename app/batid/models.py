@@ -16,12 +16,14 @@ from django.db.models import Q
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
+from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
+from batid.validators import JSONSchemaValidator
 from batid.validators import validate_one_ext_id
 
 
@@ -147,16 +149,45 @@ class Building(BuildingAbstract):
         This deactivate method is used to mark a RNB_ID as inactive, with an associated event_type "deactivation"
         """
         if self.is_active:
+            event_id = uuid.uuid4()
             self.event_type = "deactivation"
             self.is_active = False
+            self.event_id = event_id
+            self.event_user = user
+            self.event_origin = event_origin
+            self.save()
+
+            except_for_this_contribution = get_contribution_id_from_event_origin(
+                event_origin
+            )
+
+            self._refuse_pending_contributions(
+                user, event_id, except_for_this_contribution
+            )
+        else:
+            print(f"Cannot deactivate an inactive building: {self.rnb_id}")
+
+    @transaction.atomic
+    def reactivate(self, user: User, event_origin):
+        """
+        This method allows a user to undo a RNB ID deactivation made by mistake.
+        We may add some checks in the future, like only allowing to reactivate a recently deactivated ID.
+        """
+        if self.is_active == False and self.event_type == "deactivation":
+            previous_event_id = self.event_id
+
+            self.event_type = "reactivation"
+            self.is_active = True
             self.event_id = uuid.uuid4()
             self.event_user = user
             self.event_origin = event_origin
             self.save()
 
-            self._refuse_pending_contributions(user)
+            self._reset_linked_contributions(user, previous_event_id)
         else:
-            print(f"Cannot deactivate an inactive building: {self.rnb_id}")
+            print(
+                f"Cannot reactivate RNB ID : {self.rnb_id}. Can only reactivate a previously deactivated RNB ID."
+            )
 
     def update(
         self,
@@ -171,7 +202,7 @@ class Building(BuildingAbstract):
             status is None
             and addresses_id is None
             and ext_ids is None
-            and shape is not None
+            and shape is None
         ):
 
             raise Exception("Missing data to update the building")
@@ -200,15 +231,26 @@ class Building(BuildingAbstract):
         else:
             print(f"Cannot update an inactive building: {self.rnb_id}")
 
-    def _refuse_pending_contributions(self, user: User):
+    def _refuse_pending_contributions(
+        self, user: User, event_id, except_for_this_contribution_id=None
+    ):
 
         msg = f"Ce signalement a été refusé suite à la désactivation du bâtiment {self.rnb_id}."
         contributions = Contribution.objects.filter(
-            rnb_id=self.rnb_id, status="pending"
+            rnb_id=self.rnb_id, status="pending", report=True
         )
 
+        if except_for_this_contribution_id:
+            # you may want to refuse all contributions, except for the one being currently treated
+            contributions = contributions.exclude(id=except_for_this_contribution_id)
+
         for c in contributions:
-            c.refuse(user, msg)
+            c.refuse(user, msg, status_updated_by_event_id=event_id)
+
+    def _reset_linked_contributions(self, user: User, event_id):
+        contributions = Contribution.objects.filter(status_updated_by_event_id=event_id)
+        for c in contributions:
+            c.reset_pending()
 
     @staticmethod
     def add_ext_id(
@@ -254,6 +296,9 @@ class Building(BuildingAbstract):
 
         point = shape if shape.geom_type == "Point" else shape.point_on_surface
 
+        if addresses_id is not None:
+            Address.add_addresses_to_db_if_needed(addresses_id)
+
         return Building.objects.create(
             rnb_id=generate_rnb_id(),
             point=point,
@@ -269,6 +314,7 @@ class Building(BuildingAbstract):
         )
 
     @staticmethod
+    @transaction.atomic
     def merge(buildings: list, user, event_origin, status, addresses_id):
         from batid.utils.geo import merge_contiguous_shapes
 
@@ -293,6 +339,13 @@ class Building(BuildingAbstract):
             if ext_id not in merged_ext_ids[i + 1 :]
         ]
 
+        if addresses_id is not None:
+            Address.add_addresses_to_db_if_needed(addresses_id)
+
+        except_for_this_contribution = get_contribution_id_from_event_origin(
+            event_origin
+        )
+
         def remove_existing_builing(building):
             building.is_active = False
             building.event_type = "merge"
@@ -300,6 +353,9 @@ class Building(BuildingAbstract):
             building.event_user = user
             building.event_origin = event_origin
             building.save()
+            building._refuse_pending_contributions(
+                user, event_id, except_for_this_contribution
+            )
 
         for building in buildings:
             remove_existing_builing(building)
@@ -322,6 +378,69 @@ class Building(BuildingAbstract):
 
         return building
 
+    @transaction.atomic
+    def split(
+        self,
+        created_buildings: list[SplitCreatedBuilding],
+        user: User,
+        event_origin: dict,
+    ):
+        if not event_origin or not user:
+            raise Exception("Missing information to split the building")
+
+        if not self.is_active:
+            raise Exception("Cannot split an inactive building")
+
+        if not isinstance(created_buildings, list) or len(created_buildings) < 2:
+            raise Exception("A building must be split at least in two")
+
+        event_id = uuid.uuid4()
+
+        # deactivate the parent building
+        self.is_active = False
+        self.event_type = "split"
+        self.event_id = event_id
+        self.event_user = user
+        self.event_origin = event_origin
+        self.save()
+
+        def create_child_building(
+            status: str, addresses_cle_interop: list[str], shape: str
+        ):
+            addresses_cle_interop = list(set(addresses_cle_interop))
+            if addresses_cle_interop is not None:
+                Address.add_addresses_to_db_if_needed(addresses_cle_interop)
+            geos_shape = GEOSGeometry(shape)
+
+            child_building = Building()
+            child_building.rnb_id = generate_rnb_id()
+            child_building.status = status
+            child_building.is_active = True
+            child_building.event_type = "split"
+            child_building.event_id = event_id
+            child_building.event_user = user
+            child_building.event_origin = event_origin
+            child_building.parent_buildings = [self.rnb_id]
+            child_building.addresses_id = addresses_cle_interop
+            child_building.shape = geos_shape
+            child_building.point = geos_shape.point_on_surface
+            child_building.ext_ids = self.ext_ids
+            child_building.save()
+
+            return child_building
+
+        child_buildings = []
+
+        for building_info in created_buildings:
+            status = building_info["status"]
+            addresses_cle_interop = building_info["addresses_cle_interop"]
+            shape = building_info["shape"]
+            child_buildings.append(
+                create_child_building(status, addresses_cle_interop, shape)
+            )
+
+        return child_buildings
+
     class Meta:
         # ordering = ["rnb_id"]
         indexes = [
@@ -333,6 +452,13 @@ class Building(BuildingAbstract):
             Index(Lower("sys_period"), name="bdg_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_event_type_idx"),
             GinIndex(fields=["parent_buildings"], name="bdg_parent_buildings_idx"),
+            models.Index(
+                fields=(
+                    "is_active",
+                    "status",
+                ),
+                name="batid_building_active_status",
+            ),
         ]
         constraints = [
             # a DB level constraint on the authorized values for the event_type columns
@@ -341,6 +467,15 @@ class Building(BuildingAbstract):
                 name="valid_event_type_check",
             )
         ]
+
+
+def get_contribution_id_from_event_origin(event_origin):
+    return (
+        event_origin.get("contribution_id")
+        if isinstance(event_origin, dict)
+        and event_origin.get("source") == "contribution"
+        else None
+    )
 
 
 class BuildingWithHistory(BuildingAbstract):
@@ -470,6 +605,8 @@ class Plot(models.Model):
     id = models.CharField(max_length=40, primary_key=True, db_index=True)
     shape = models.MultiPolygonField(null=True, srid=4326)
 
+    source_version = models.CharField(max_length=20, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -586,6 +723,9 @@ class Contribution(models.Model):
     email = models.EmailField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # is it a user report (a modification proposal or "signalement" in French) or a direct data modification?
+    report = models.BooleanField(null=False, db_index=True, default=True)
+    # useful for reports (signalements)
     status = models.CharField(
         choices=[("pending", "pending"), ("fixed", "fixed"), ("refused", "refused")],
         max_length=10,
@@ -598,6 +738,8 @@ class Contribution(models.Model):
     review_user = models.ForeignKey(
         User, on_delete=models.PROTECT, null=True, blank=True
     )
+    # if an event on a Building (eg a deactivation) updates the status of a "signalement" (eg status set to refused).
+    status_updated_by_event_id = models.UUIDField(null=True, db_index=True)
 
     def fix(self, user, review_comment=""):
         if self.status != "pending":
@@ -609,7 +751,7 @@ class Contribution(models.Model):
         self.review_user = user
         self.save()
 
-    def refuse(self, user, review_comment=""):
+    def refuse(self, user, review_comment="", status_updated_by_event_id=None):
         if self.status != "pending":
             raise ValueError("Contribution is not pending.")
 
@@ -617,6 +759,19 @@ class Contribution(models.Model):
         self.status_changed_at = datetime.now()
         self.review_comment = review_comment
         self.review_user = user
+        self.status_updated_by_event_id = status_updated_by_event_id
+        self.save()
+
+    def reset_pending(self):
+        """
+        A signalement has been refused because its underlying building has been deactivated.
+        The building is finally reactivated => we reset the signalement to a pending status.
+        """
+        self.status = "pending"
+        self.status_changed_at = None
+        self.review_comment = None
+        self.review_user = None
+        self.status_updated_by_event_id = None
         self.save()
 
 
@@ -635,4 +790,45 @@ class DataFix(models.Model):
     # the user who created the fix
     user = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+DIFFUSION_DATABASE_ATTRIBUTES_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string",
+            },
+            "description": {
+                "type": "string",
+            },
+        },
+        "required": ["name", "description"],
+        "additionalProperties": False,
+    },
+}
+
+
+class DiffusionDatabase(models.Model):
+    display_order = models.FloatField(null=False, default=0)
+    name = models.CharField(max_length=255)
+    documentation_url = models.URLField(null=True)
+    publisher = models.CharField(max_length=255, null=True)
+    licence = models.CharField(max_length=255, null=True)
+    tags = ArrayField(
+        models.CharField(max_length=255), null=False, default=list, blank=True
+    )
+    description = models.TextField(blank=True)
+    image_url = models.URLField(null=True)
+    is_featured = models.BooleanField(default=False)
+    featured_summary = models.TextField(blank=True)
+    attributes = models.JSONField(
+        null=False,
+        default=list,
+        blank=True,
+        validators=[JSONSchemaValidator(DIFFUSION_DATABASE_ATTRIBUTES_SCHEMA)],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

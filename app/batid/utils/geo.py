@@ -52,6 +52,7 @@ def merge_contiguous_shapes(shapes: list):
         return shapes[0]
     else:
         if any(shape.geom_type not in ["Polygon", "MultiPolygon"] for shape in shapes):
+            # one day we will also need to merge points with polygons, that will require additionnal work
             raise Exception("Only Polygon and MultiPolygon shapes can be merged")
         merged_shape = shapes[0]
         shapes = shapes[1:]

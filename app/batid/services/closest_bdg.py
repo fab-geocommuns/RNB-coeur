@@ -53,6 +53,7 @@ def __get_qs(lat, lng, radius):
         .order_by("distance")
     )
 
+    qs = qs.prefetch_related("addresses_read_only")
     return qs
 
 
@@ -71,7 +72,7 @@ def __validate_poly(poly):
 
 
 def __validate_radius(radius):
-    if not radius:
+    if radius is None:
         raise ValueError("radius is required")
     if not isinstance(radius, int):
         raise ValueError("radius must be an int")
