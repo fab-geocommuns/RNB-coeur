@@ -1,0 +1,5 @@
+cle_interop;long;lat;numero;suffixe;voie_nom;commune_nom;commune_insee;certification_commune
+test_address_1;2.3522;48.8566;10;;Rue de Test;Paris;75056;1
+test_address_2;2.3523;48.8567;12;bis;Rue de Test;Paris;75056;1
+test_address_3;2.3524;48.8568;14;;Rue Non Certifiée;Paris;75056;0
+duplicate_address_id;2.3522;48.8566;42;;Rue Duplicate;Paris;75056;1 

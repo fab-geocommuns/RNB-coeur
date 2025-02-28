@@ -75,7 +75,7 @@ def import_addresses(src_params: dict, bulk_launch_uuid=None):
         "bal", bulk_launch_uuid, src_params["dpt"]
     )
 
-    with open(src.path, "r") as f:
+    with open(src.find(src.filename), "r") as f:
         reader = csv.DictReader(f, delimiter=";")
 
         addresses_batch = []
