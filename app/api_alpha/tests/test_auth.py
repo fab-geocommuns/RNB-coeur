@@ -36,7 +36,6 @@ class ADSEnpointsNoAuthTest(APITestCase):
 
 
 class ForgottenPassword(APITestCase):
-
     def setUp(self):
 
         u = User.objects.create_user(

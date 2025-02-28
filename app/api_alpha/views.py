@@ -13,6 +13,7 @@ import yaml
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.db import transaction
@@ -45,7 +46,7 @@ from rest_framework.utils.urls import replace_query_param
 from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
-from django.contrib.auth.tokens import default_token_generator
+
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
@@ -2252,7 +2253,6 @@ def get_schema(request):
 
 
 class RequestPasswordReset(APIView):
-
     def post(self, request):
 
         email = request.data.get("email")
