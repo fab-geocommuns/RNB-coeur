@@ -33,3 +33,34 @@ class ADSEnpointsNoAuthTest(APITestCase):
             response.data["non_field_errors"][0],
             "Unable to log in with provided credentials.",
         )
+
+
+class ForgottenPassword(APITestCase):
+
+    def setUp(self):
+
+        u = User.objects.create_user(
+            username="someone", email="someone@random.com", password="1234"
+        )
+
+    def test_trigger_process(self):
+        data = {"email": "someone@random.com"}
+        response = self.client.post("/api/alpha/auth/reset_password/", data)
+
+        self.assertEqual(response.status_code, 204)
+
+        # Check the token
+        u = User.objects.get(email="someone@random.com")
+
+    def test_trigger_process_wrong_email(self):
+        data = {"email": "no_in_db@nowhere.com"}
+        response = self.client.post("/api/alpha/auth/reset_password/", data)
+
+        # We still return 204 to avoid leaking information
+        self.assertEqual(response.status_code, 204)
+
+    def test_trigger_process_no_email(self):
+        data = {}
+        response = self.client.post("/api/alpha/auth/reset_password/", data)
+
+        self.assertEqual(response.status_code, 400)

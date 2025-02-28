@@ -45,7 +45,7 @@ from rest_framework.utils.urls import replace_query_param
 from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
-
+from django.contrib.auth.tokens import default_token_generator
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
@@ -2249,3 +2249,29 @@ def get_schema(request):
     response["Content-Disposition"] = 'attachment; filename="schema.yml"'
 
     return response
+
+
+class RequestPasswordReset(APIView):
+
+    def post(self, request):
+
+        email = request.data.get("email")
+        if email is None:
+            return JsonResponse({"error": "Email is required"}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # We do not want someone to know if an email is in the database or not:
+            # event if the user does not exist, we still return a 200 status code
+            return Response(None, status=204)
+
+        # We found a user with the email, we continue
+
+        # We generate the token. Note, Django does not need to store the token in the database
+        # (explanation: https://stackoverflow.com/questions/46234627/how-does-default-token-generator-store-tokens)
+        token = default_token_generator.make_token(user)
+
+        # Get the reset url to include in the email
+
+        return Response(None, status=204)

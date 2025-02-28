@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
@@ -162,6 +163,7 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 30,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
+
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Documentation de l'API du Référentiel National du Bâtiment (RNB)",
