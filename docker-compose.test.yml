@@ -26,6 +26,7 @@ services:
       - WAIT_BEFORE=8
       - MATTERMOST_NOTIFICATIONS=0
       - URL=http://dummy.fake
+      - FRONTEND_URL=http://front.fake
     build:
       args:
         - WITH_DEV_DEPENDENCIES=true

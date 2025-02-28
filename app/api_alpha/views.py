@@ -2263,7 +2263,7 @@ class RequestPasswordReset(APIView):
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             # We do not want someone to know if an email is in the database or not:
-            # event if the user does not exist, we still return a 200 status code
+            # even if the user does not exist, we still return a 204 status code
             return Response(None, status=204)
 
         # We found a user with the email, we continue
