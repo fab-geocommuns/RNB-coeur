@@ -22,9 +22,14 @@ from batid.services.data_fix.remove_light_buildings import (
 )
 from batid.services.data_gouv_publication import get_area_publish_task
 from batid.services.data_gouv_publication import publish
-from batid.services.imports.import_bal import convert_bal as convert_bal_impl
+from batid.services.imports.import_bal import (
+    bal_dpts_list,
+    convert_bal as convert_bal_impl,
+)
 from batid.services.imports.import_bal import create_bal_full_import_tasks
-from batid.services.imports.import_bal import insert_bal_addresses
+
+# from batid.services.imports.import_bal import insert_bal_addresses
+from batid.services.imports.import_bal import import_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
 from batid.services.imports.import_bdtopo import bdtopo_dpts_list
@@ -298,6 +303,9 @@ def fill_empty_event_origin(from_rnb_id=None, to_rnb_id=None, batch_size=10000):
 def queue_full_bal_import(
     dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
 ):
+
+    # MIGHT DO : handle only addresses updated after a certain date.
+
     notify_tech(
         f"Queuing full BAL import tasks. Dpt start: {dpt_start}, dpt end: {dpt_end}"
     )
@@ -311,15 +319,22 @@ def queue_full_bal_import(
     return f"Queued {len(tasks)} tasks"
 
 
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def convert_bal(src_params, bulk_launch_uuid=None):
-    convert_bal_impl(src_params, bulk_launch_uuid)
+def import_bal(src_params: dict, bulk_launch_uuid: str = None):
+
+    import_addresses(src_params, bulk_launch_uuid)
+
     return "done"
 
 
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_bal_addresses(src_params, bulk_launch_uuid=None):
-    insert_bal_addresses(src_params, bulk_launch_uuid)
-    return "done"
+# @notify_if_error
+# @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+# def convert_bal(src_params, bulk_launch_uuid=None):
+#     convert_bal_impl(src_params, bulk_launch_uuid)
+#     return "done"
+
+
+# @notify_if_error
+# @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+# def import_bal_addresses(src_params, bulk_launch_uuid=None):
+#     insert_bal_addresses(src_params, bulk_launch_uuid)
+#     return "done"

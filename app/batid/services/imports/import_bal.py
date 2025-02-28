@@ -43,21 +43,34 @@ def create_bal_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
     )
     tasks.append(dl_task)
 
-    convert_task = Signature(
-        "batid.tasks.convert_bal",
-        args=[src_params, bulk_launch_id],
-        immutable=True,
+    task = Signature(
+        "batid.tasks.import_bal", args=[src_params, bulk_launch_id], immutable=True
     )
-    tasks.append(convert_task)
+    tasks.append(task)
 
-    import_task = Signature(
-        "batid.tasks.import_bal_addresses",
-        args=[src_params, bulk_launch_id],
-        immutable=True,
-    )
-    tasks.append(import_task)
+    # convert_task = Signature(
+    #     "batid.tasks.convert_bal",
+    #     args=[src_params, bulk_launch_id],
+    #     immutable=True,
+    # )
+    # tasks.append(convert_task)
+
+    # import_task = Signature(
+    #     "batid.tasks.import_bal_addresses",
+    #     args=[src_params, bulk_launch_id],
+    #     immutable=True,
+    # )
+    # tasks.append(import_task)
 
     return tasks
+
+
+def import_addresses(src_params: dict, bulk_launch_uuid=None):
+
+    src = Source("bal")
+    src.set_params(src_params)
+
+    return
 
 
 def convert_bal(src_params, bulk_launch_uuid=None):
@@ -408,15 +421,3 @@ def _address_already_exists(bdg, row):
             and int(address.street_number) == row["numero"]
         )
     return already_exists
-
-
-def bal_dpts_list():
-
-    # BAL let us download the file for territories : 84, 988 et 989
-    # We add them to the full list
-    # MIGHT DO : add those territories to the full list (dpts_list()) and control it does not break anything
-
-    full_list = dpts_list()
-    full_list.extend(["984", "988", "989"])
-
-    return full_list

@@ -235,7 +235,7 @@ def dpt_list_overseas():
 
 # COM = Collectivité d'outre-mer
 def com_list():
-    return ["975", "977", "978", "986", "987"]
+    return ["975", "977", "978", "984", "986", "987", "988", "989"]
 
 
 def dpts_list(start: Optional[str] = None, end: Optional[str] = None):
