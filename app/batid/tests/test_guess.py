@@ -331,9 +331,12 @@ class TestGuesser(TransactionTestCase):
         self.assertEqual(reason, "found_name_in_osm")
 
     def test_radius_to_bbox(self):
-        lng, lat = 2.387349,48.862927
+        lng, lat = 2.387349, 48.862927
         bbox = GeocodeNameHandler._radius_to_lng_lat_bbox(lat, lng, 500)
-        self.assertEqual(["%.6f" % num for num in bbox], ['2.382857', '48.859972', '2.391841', '48.865882'])
+        self.assertEqual(
+            ["%.6f" % num for num in bbox],
+            ["2.382857", "48.859972", "2.391841", "48.865882"],
+        )
 
     def test_custom_handlers(self):
         # we define a custom list of handlers and check it is used

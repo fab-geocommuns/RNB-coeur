@@ -1,4 +1,4 @@
-import concurrent
+import concurrent.futures
 import csv
 import json
 import re
@@ -7,6 +7,7 @@ from abc import ABC
 from abc import abstractmethod
 from io import StringIO
 from typing import Optional
+from typing import TypedDict
 
 import orjson
 import pandas as pd
@@ -21,22 +22,23 @@ from batid.services.closest_bdg import get_closest_from_poly
 from batid.services.geocoders import BanBatchGeocoder
 from batid.services.geocoders import BanGeocoder
 from batid.services.geocoders import PhotonGeocoder
-import concurrent.futures
-from typing import TypedDict
+
 
 class Input(TypedDict):
     ext_id: str
     polygon: Polygon
     lat: float
     lng: float
-    name : str
+    name: str
     address: str
+
 
 class Guess(TypedDict):
     input: Input
     matches: list[str]
     match_reason: str
     finished_steps: list[str]
+
 
 class Guesser:
     def __init__(self):
@@ -557,7 +559,7 @@ class GeocodeAddressHandler(AbstractHandler):
 class GeocodeNameHandler(AbstractHandler):
     _name = "geocode_name"
 
-    def __init__(self, sleep_time=0.8, radius_in_meters = 5000):
+    def __init__(self, sleep_time=0.8, radius_in_meters=5000):
         self.sleep_time = sleep_time
         self.radius_in_meters = radius_in_meters
 
@@ -580,7 +582,9 @@ class GeocodeNameHandler(AbstractHandler):
         # We sleep a little bit to avoid being throttled by the geocoder
         time.sleep(self.sleep_time)
 
-        osm_bdg_point = self._geocode_name_and_point(name, lat, lng, self.radius_in_meters)
+        osm_bdg_point = self._geocode_name_and_point(
+            name, lat, lng, self.radius_in_meters
+        )
 
         if osm_bdg_point:
             # todo : on devrait filtrer pour n'avoir que les bâtiments qui ont un statut de bâtiment réel
@@ -596,7 +600,9 @@ class GeocodeNameHandler(AbstractHandler):
         return guess
 
     @staticmethod
-    def _geocode_name_and_point(name: str, lat: float, lng: float, radius_in_meters: int) -> Optional[Point]:
+    def _geocode_name_and_point(
+        name: str, lat: float, lng: float, radius_in_meters: int
+    ) -> Optional[Point]:
         bbox = GeocodeNameHandler._radius_to_lng_lat_bbox(lat, lng, radius_in_meters)
         geocode_params = {
             "q": name,
@@ -627,7 +633,9 @@ class GeocodeNameHandler(AbstractHandler):
             return None
 
     @staticmethod
-    def _radius_to_lng_lat_bbox(lat: float, lng: float, radius_in_meters: int) -> list[float]:
+    def _radius_to_lng_lat_bbox(
+        lat: float, lng: float, radius_in_meters: int
+    ) -> list[float]:
         point = Point(lng, lat, srid=4326)
         point.transform(3857)
         bounding_circle = point.buffer(radius_in_meters)
