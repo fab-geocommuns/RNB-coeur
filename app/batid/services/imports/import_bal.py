@@ -1,7 +1,6 @@
 import csv
 import time
 import uuid
-from collections import defaultdict
 
 from celery import Signature
 from django.contrib.gis.geos import MultiPoint
@@ -163,9 +162,11 @@ def _find_link_building_with_address(certified_rows: list[dict[str, str]]):
     batch_size = 200
     batches_handled = 0
     total_rows = len(certified_rows)
-    
+
     # Create batches of rows
-    batches = [certified_rows[i:i + batch_size] for i in range(0, total_rows, batch_size)]
+    batches = [
+        certified_rows[i : i + batch_size] for i in range(0, total_rows, batch_size)
+    ]
 
     stats = {
         "ambigous_multi_plots": 0,
@@ -181,7 +182,9 @@ def _find_link_building_with_address(certified_rows: list[dict[str, str]]):
             # Create points from the batch
             points = [(float(row["long"]), float(row["lat"])) for row in batch]
             point_to_cle_interop = {
-                Point(float(row["long"]), float(row["lat"]), srid=4326): row["cle_interop"]
+                Point(float(row["long"]), float(row["lat"]), srid=4326): row[
+                    "cle_interop"
+                ]
                 for row in batch
             }
 
@@ -199,7 +202,9 @@ def _find_link_building_with_address(certified_rows: list[dict[str, str]]):
                 for point, cle_interop in point_to_cle_interop.items():
                     if building.shape.intersects(point):
                         # Find the row with matching cle_interop
-                        row = next((r for r in batch if r["cle_interop"] == cle_interop), None)
+                        row = next(
+                            (r for r in batch if r["cle_interop"] == cle_interop), None
+                        )
                         if row:
                             already_exists = _address_already_exists(building, row)
                             link = {
@@ -220,7 +225,11 @@ def _find_link_building_with_address(certified_rows: list[dict[str, str]]):
                                 new_addresses.append(link)
 
             # 2) If we found no precise match, we continue with a less precise method using plots
-            other_rows = [row for row in batch if row["cle_interop"] not in cles_interop_already_linked]
+            other_rows = [
+                row
+                for row in batch
+                if row["cle_interop"] not in cles_interop_already_linked
+            ]
             if len(other_rows) > 0:
                 points = [(float(row["long"]), float(row["lat"])) for row in other_rows]
                 cle_interop_list = [row["cle_interop"] for row in other_rows]
@@ -241,7 +250,11 @@ def _find_link_building_with_address(certified_rows: list[dict[str, str]]):
                 # we handle those cases along the script
 
                 for row in other_rows:
-                    plots = [plot for plot in plots if plot["cle_interop"] == row["cle_interop"]]
+                    plots = [
+                        plot
+                        for plot in plots
+                        if plot["cle_interop"] == row["cle_interop"]
+                    ]
 
                     # Get unique plots for this point
                     plots_ids = {plot["plot_id"] for plot in plots}
@@ -300,7 +313,7 @@ def _find_link_building_with_address(certified_rows: list[dict[str, str]]):
                         "commune_nom": row["commune_nom"],
                         "commune_insee": row["commune_insee"],
                     }
-                    
+
                     if already_exists:
                         new_ban_id.append(link)
                     else:
@@ -322,7 +335,7 @@ def _save_new_links(new_links):
 
     # Process in batches
     for i in range(0, len(new_links), batch_size):
-        batch = new_links[i:i + batch_size]
+        batch = new_links[i : i + batch_size]
 
         # Collect all building RNB IDs in the batch
         rnb_ids = [link["rnb_id"] for link in batch]

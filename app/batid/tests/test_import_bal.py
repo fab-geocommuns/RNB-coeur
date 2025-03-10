@@ -1,21 +1,16 @@
-from unittest.mock import patch, MagicMock
-import csv
-import io
+from unittest.mock import patch
 
-from django.contrib.gis.geos import MultiPolygon, Point
+from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
 from django.test import TestCase
-from django.contrib.gis.db.models.functions import Area
-from django.contrib.gis.measure import D
 
 from batid.models import Address
 from batid.models import Building
 from batid.models import Plot
 from batid.services.imports.import_bal import _create_bal_dpt_import_tasks
+from batid.services.imports.import_bal import _find_link_building_with_address
 from batid.services.imports.import_bal import create_bal_full_import_tasks
 from batid.services.imports.import_bal import import_addresses
-from batid.services.imports.import_bal import _find_link_building_with_address
-from batid.services.imports.import_bal import link_building_with_addresses
 from batid.tests import helpers
 
 
@@ -34,10 +29,12 @@ class TestBALImport(TestCase):
             is_active=True,
             addresses_id=["test_address_id"],
         )
-        
+
         self.test_plot = Plot.objects.create(
             id="test_plot_id",
-            shape=MultiPolygon(Polygon(((0, 0), (0, 1.1), (1.1, 1.1), (1.1, 0), (0, 0)))),
+            shape=MultiPolygon(
+                Polygon(((0, 0), (0, 1.1), (1.1, 1.1), (1.1, 0), (0, 0)))
+            ),
         )
 
     def test_create_bal_full_import_tasks(self):
@@ -146,16 +143,16 @@ class TestBALImport(TestCase):
                 "certification_commune": "1",
             }
         ]
-        
+
         # Create an Address object for the test
         Address.objects.create(
             id="test_address_buffer",
             city_name="Test City",
             street="Buffer Street",
             street_number="789",
-            point=f'POINT (1.00001 1.00001)',
+            point=f"POINT (1.00001 1.00001)",
         )
-        
+
         # Run the function with real database interactions
         new_links, _, _ = _find_link_building_with_address(data)
 
