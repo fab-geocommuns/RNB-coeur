@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 from django.contrib.gis.geos import MultiPolygon
-from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
 from django.test import TestCase
 
