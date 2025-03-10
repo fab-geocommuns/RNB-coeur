@@ -22,7 +22,7 @@ from batid.services.data_fix.remove_light_buildings import (
 )
 from batid.services.data_gouv_publication import get_area_publish_task
 from batid.services.data_gouv_publication import publish
-from batid.services.imports.import_bal import create_bal_full_import_tasks
+from batid.services.imports.import_bal import create_bal_full_import_tasks, link_building_with_addresses
 from batid.services.imports.import_bal import import_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
@@ -324,11 +324,11 @@ def import_bal(src_params: dict, bulk_launch_uuid: str = None):
     return "done"
 
 
-# @notify_if_error
-# @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-# def convert_bal(src_params, bulk_launch_uuid=None):
-#     convert_bal_impl(src_params, bulk_launch_uuid)
-#     return "done"
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def link_building_addresses_using_bal(src_params, bulk_launch_uuid=None):
+    link_building_with_addresses(src_params, bulk_launch_uuid)
+    return "done"
 
 
 # @notify_if_error
