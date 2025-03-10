@@ -70,17 +70,8 @@ class TestBALImport(TestCase):
         uncertified_address = Address.objects.filter(street="Rue Non Certifiée").first()
         self.assertIsNone(uncertified_address)
 
-        # Verify duplicate addresses were handled correctly (using ignore_conflicts)
-        Address.objects.create(
-            id="duplicate_address_id",
-            source="OTHER",
-            point=Point(2.3522, 48.8566, srid=4326),
-            street_number="42",
-            street_rep="",
-            street="Rue Duplicate",
-            city_name="Paris",
-            city_insee_code="75056",
-        )
+        # Then update it to have a different source
+        Address.objects.filter(id="duplicate_address_id").update(source="OTHER")
 
         # Call the function again
         import_addresses({"dpt": "75"})
