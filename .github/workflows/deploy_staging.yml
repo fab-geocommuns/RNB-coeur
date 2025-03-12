@@ -1,12 +1,11 @@
-name: Deploy application on production server
-on:
-    push:
-        branches:
-            - main
+name: Deploy application on staging server
+on: workflow_dispatch
+
 jobs:
-    build:
-        name: Build
+    deployment:
+        name: Deployment on staging server
         runs-on: ubuntu-latest
+        environment: staging
         steps:
             - name: connect to server with ssh and run commands to deploy
               uses: appleboy/ssh-action@v1.0.0
@@ -15,4 +14,4 @@ jobs:
                   username: ${{ secrets.SSH_USERNAME }}
                   key: ${{ secrets.SSH_PRIVATE_KEY }}
                   port: ${{ secrets.SSH_PORT }}
-                  script: cd /srv/RNB-coeur && git pull && docker compose -f docker-compose.prod.yml build --no-cache && docker compose -f docker-compose.prod.yml up -d
+                  script: cd /srv/RNB-coeur && git pull && docker compose -f docker-compose.staging.yml build --no-cache && docker compose -f docker-compose.staging.yml up -d
