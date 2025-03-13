@@ -1,4 +1,4 @@
-import concurrent
+import concurrent.futures
 import csv
 import json
 import re
@@ -7,6 +7,7 @@ from abc import ABC
 from abc import abstractmethod
 from io import StringIO
 from typing import Optional
+from typing import TypedDict
 
 import orjson
 import pandas as pd
@@ -21,8 +22,6 @@ from batid.services.closest_bdg import get_closest_from_poly
 from batid.services.geocoders import BanBatchGeocoder
 from batid.services.geocoders import BanGeocoder
 from batid.services.geocoders import PhotonGeocoder
-import concurrent.futures
-from typing import TypedDict
 
 
 class Input(TypedDict):
