@@ -1,6 +1,5 @@
 name: Deploy application on staging server
 on:
-  push:
   workflow_dispatch:
 
 jobs:
