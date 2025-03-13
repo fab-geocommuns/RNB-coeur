@@ -2268,10 +2268,11 @@ class RequestPasswordReset(APIView):
 
         # We found a user with the email, we continue
 
-        # We generate the token. Note, Django does not need to store the token in the database
+        # We generate the token. Note, Django does not need to store the "request new password" token in the database
         # (explanation: https://stackoverflow.com/questions/46234627/how-does-default-token-generator-store-tokens)
         token = default_token_generator.make_token(user)
 
-        # Get the reset url to include in the email
+        # Build the email to send
+        email = build_reset_password_email(token)
 
         return Response(None, status=204)
