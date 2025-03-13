@@ -1,9 +1,10 @@
-from django.test import TestCase
+from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
 from django.core.validators import URLValidator
-from django.core.exceptions import ValidationError
+from django.test import TestCase
 
-from batid.services.email import build_reset_password_email, _reset_password_url
+from batid.services.email import _reset_password_url
+from batid.services.email import build_reset_password_email
 
 
 class ResetPasswordEmail(TestCase):
