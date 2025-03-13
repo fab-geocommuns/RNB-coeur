@@ -1,6 +1,11 @@
 name: rnb-coeur
 
 services:
+  nginx-proxy:
+    extends:
+      file: common-services.yml
+      service: nginx-proxy
+
   web:
     extends:
       file: common-services.yml
@@ -24,6 +29,12 @@ services:
         condition: service_healthy
     environment:
       - URL=http://localhost:8000
+      - VIRTUAL_HOST=rnb-api.dev
+      - DJANGO_ALLOWED_HOST=rnb-api.dev
+      - VIRTUAL_PORT=8000
+      - VIRTUAL_PROTO=http
+
+
   db:
     extends:
       file: common-services.yml
@@ -80,3 +91,6 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
+  certs:
+  vhost:
+  html:
