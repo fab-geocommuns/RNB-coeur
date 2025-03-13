@@ -21,7 +21,7 @@ main() {
         exit 1
     fi
 
-    # Use ab to test the Nginx configuration
+    # Use curl to test the Nginx configuration
     # Limit is supposed to be 50 concurrent requests per ip
 
     echo "--> Testing below rate limit"

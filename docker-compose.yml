@@ -92,5 +92,4 @@ volumes:
   postgres_data:
   rabbitmq_data:
   certs:
-  vhost:
   html:
