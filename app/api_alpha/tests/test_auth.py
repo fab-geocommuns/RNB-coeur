@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
+from unittest import mock
 
 
 class ADSEnpointsNoAuthTest(APITestCase):
@@ -42,14 +43,15 @@ class ForgottenPassword(APITestCase):
             username="someone", email="someone@random.com", password="1234"
         )
 
-    def test_trigger_process(self):
+    @mock.patch("api_alpha.views.build_reset_password_email")
+    def test_trigger_process(self, mock_build_email):
         data = {"email": "someone@random.com"}
         response = self.client.post("/api/alpha/auth/reset_password/", data)
 
         self.assertEqual(response.status_code, 204)
 
-        # Check the token
-        u = User.objects.get(email="someone@random.com")
+        # Check the email was built and sent
+        mock_build_email.assert_called_once()
 
     def test_trigger_process_wrong_email(self):
         data = {"email": "no_in_db@nowhere.com"}

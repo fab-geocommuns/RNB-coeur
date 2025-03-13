@@ -22,6 +22,7 @@ from django.http import JsonResponse
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_datetime
+from batid.services.email import build_reset_password_email
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
@@ -2273,6 +2274,9 @@ class RequestPasswordReset(APIView):
         token = default_token_generator.make_token(user)
 
         # Build the email to send
-        email = build_reset_password_email(token)
+        email = build_reset_password_email(token, email)
+
+        # Send the email
+        email.send()
 
         return Response(None, status=204)
