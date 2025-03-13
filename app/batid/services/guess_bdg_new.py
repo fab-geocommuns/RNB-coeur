@@ -24,19 +24,22 @@ from batid.services.geocoders import PhotonGeocoder
 import concurrent.futures
 from typing import TypedDict
 
+
 class Input(TypedDict):
     ext_id: str
     polygon: Polygon
     lat: float
     lng: float
-    name : str
+    name: str
     address: str
+
 
 class Guess(TypedDict):
     input: Input
     matches: list[str]
     match_reason: str
     finished_steps: list[str]
+
 
 class Guesser:
     def __init__(self):
@@ -557,9 +560,12 @@ class GeocodeAddressHandler(AbstractHandler):
 class GeocodeNameHandler(AbstractHandler):
     _name = "geocode_name"
 
-    def __init__(self, sleep_time=0.8, radius_in_meters = 5000):
+    # We allow to geocode a name in a square bounding box around a point.
+    # The "apothem" is the radius of the inscribed circle of this square
+    # (i.e. the "radius" of the bounding box around the point).
+    def __init__(self, sleep_time=0.8, bbox_apothem_in_meters=5000):
         self.sleep_time = sleep_time
-        self.radius_in_meters = radius_in_meters
+        self.bbox_apothem_in_meters = bbox_apothem_in_meters
 
     def _guess_batch(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
 
@@ -580,7 +586,9 @@ class GeocodeNameHandler(AbstractHandler):
         # We sleep a little bit to avoid being throttled by the geocoder
         time.sleep(self.sleep_time)
 
-        osm_bdg_point = self._geocode_name_and_point(name, lat, lng, self.radius_in_meters)
+        osm_bdg_point = self._geocode_name_and_point(
+            name, lat, lng, self.bbox_apothem_in_meters
+        )
 
         if osm_bdg_point:
             # todo : on devrait filtrer pour n'avoir que les bâtiments qui ont un statut de bâtiment réel
@@ -596,8 +604,12 @@ class GeocodeNameHandler(AbstractHandler):
         return guess
 
     @staticmethod
-    def _geocode_name_and_point(name: str, lat: float, lng: float, radius_in_meters: int) -> Optional[Point]:
-        bbox = GeocodeNameHandler._radius_to_lng_lat_bbox(lat, lng, radius_in_meters)
+    def _geocode_name_and_point(
+        name: str, lat: float, lng: float, bbox_apothem_in_meters: int
+    ) -> Optional[Point]:
+        bbox = GeocodeNameHandler.lng_lat_bbox_around_point(
+            lat, lng, bbox_apothem_in_meters
+        )
         geocode_params = {
             "q": name,
             "lat": lat,
@@ -627,10 +639,12 @@ class GeocodeNameHandler(AbstractHandler):
             return None
 
     @staticmethod
-    def _radius_to_lng_lat_bbox(lat: float, lng: float, radius_in_meters: int) -> list[float]:
+    def lng_lat_bbox_around_point(
+        lat: float, lng: float, bbox_apothem_in_meters: int
+    ) -> list[float]:
         point = Point(lng, lat, srid=4326)
         point.transform(3857)
-        bounding_circle = point.buffer(radius_in_meters)
+        bounding_circle = point.buffer(bbox_apothem_in_meters)
         envelope = bounding_circle.envelope
         envelope.transform(4326)
         return list(envelope.extent)
