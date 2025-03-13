@@ -14,4 +14,4 @@ jobs:
                   username: ${{ secrets.SSH_USERNAME }}
                   key: ${{ secrets.SSH_PRIVATE_KEY }}
                   port: ${{ secrets.SSH_PORT }}
-                  script: cd /srv/RNB-coeur && git pull && docker compose -f docker-compose.staging.yml build --no-cache && docker compose -f docker-compose.staging.yml up -d
+                  script: cd /srv/RNB-coeur && git fetch && git reset --hard origin/{{ github.ref }} && docker compose -f docker-compose.staging.yml build --no-cache && docker compose -f docker-compose.staging.yml up -d
