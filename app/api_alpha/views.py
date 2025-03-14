@@ -2253,7 +2253,7 @@ def get_schema(request):
     return response
 
 
-class RequestPasswordReset(APIView):
+class RequestPasswordReset(RNBLoggingMixin, APIView):
     def post(self, request):
 
         email = request.data.get("email")
@@ -2278,5 +2278,37 @@ class RequestPasswordReset(APIView):
 
         # Send the email
         email.send()
+
+        return Response(None, status=204)
+
+
+class ChangePassword(APIView):
+
+    # NB: we do not want to log the use of this endpoint.
+    # The risk would be to log the new password in the logs, which is a security risk.
+
+    def patch(self, request, token):
+        password = request.data.get("password")
+        if password is None:
+            return JsonResponse({"error": "Password is required"}, status=400)
+
+        email = request.data.get("email")
+        if email is None:
+            return JsonResponse({"error": "Email is required"}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # We do not want someone to know if an email is in the database or not:
+            # even if the user does not exist, we still return a 204 status code
+            return Response(None, status=204)
+
+        # We check if the token is valid
+        if not default_token_generator.check_token(user, token):
+            return Response(None, status=204)
+
+        # We change the password
+        user.set_password(password)
+        user.save()
 
         return Response(None, status=204)

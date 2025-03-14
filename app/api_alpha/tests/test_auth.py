@@ -1,8 +1,10 @@
 from unittest import mock
 
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
+from rest_framework_tracking.models import APIRequestLog
 
 
 class ADSEnpointsNoAuthTest(APITestCase):
@@ -45,7 +47,18 @@ class ForgottenPassword(APITestCase):
         )
 
     @mock.patch("api_alpha.views.build_reset_password_email")
-    def test_trigger_process(self, mock_build_email):
+    def test_full_process(self, mock_build_email):
+
+        # ##################
+        # PART 1: The user can login.
+
+        data = {"username": "someone", "password": "1234"}
+        response = self.client.post("/api/alpha/login/", data)
+
+        self.assertEqual(response.status_code, 200)
+
+        # ##################
+        # PART 2: The user forgot its password. He makes a password request.
 
         # We will verify the email is well sent.
         # To do so, we have to mock the email locally
@@ -62,6 +75,40 @@ class ForgottenPassword(APITestCase):
         # Check the email was built and sent
         mock_build_email.assert_called_once()
         mock_email.send.assert_called_once()
+
+        # ##################
+        # PART 3: The user is on the frontend and send the new password
+
+        data = {"password": "new_password", "email": "someone@random.com"}
+
+        # We need the token to rebuild the urlv
+        user = User.objects.get(email="someone@random.com")
+        token = default_token_generator.make_token(user)
+
+        response = self.client.patch("/api/alpha/auth/change_password/" + token, data)
+
+        self.assertEqual(response.status_code, 204)
+
+        # Verify the new password is not logged via rest_framework_tracking
+        # There must be only one log: the one when we touched /api/alpha/auth/reset_password/
+        logs = APIRequestLog.objects.all()
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs.first().path, "/api/alpha/auth/reset_password/")
+
+        # ##################
+        # PART 4: The user can login with the new password
+
+        # The new password works
+        data = {"username": "someone", "password": "new_password"}
+        response = self.client.post("/api/alpha/login/", data)
+
+        self.assertEqual(response.status_code, 200)
+
+        # The old password does not work
+        data = {"username": "someone", "password": "1234"}
+        response = self.client.post("/api/alpha/login/", data)
+
+        self.assertEqual(response.status_code, 400)
 
     def test_trigger_process_wrong_email(self):
         data = {"email": "no_in_db@nowhere.com"}

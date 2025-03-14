@@ -21,6 +21,7 @@ from api_alpha.views import ListCreateBuildings
 from api_alpha.views import MergeBuildings
 from api_alpha.views import PlotsVectorTileView
 from api_alpha.views import RequestPasswordReset
+from api_alpha.views import ChangePassword
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SingleBuilding
 from api_alpha.views import SplitBuildings
@@ -64,6 +65,7 @@ urlpatterns = [
     # Authentification
     path("login/", RNBAuthToken.as_view()),
     path("auth/reset_password/", RequestPasswordReset.as_view()),
+    path("auth/change_password/<str:token>", ChangePassword.as_view()),
 ]
 
 
