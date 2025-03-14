@@ -179,7 +179,6 @@ class ForgottenPassword(APITestCase):
 
 
 class ForgottenPasswordThrottling(APITestCase):
-
     def test_throttling(self):
 
         code_429 = 0
