@@ -2,10 +2,10 @@ from unittest import mock
 
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
+from nanoid import generate
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
-from nanoid import generate
 
 
 class ADSEnpointsNoAuthTest(APITestCase):
