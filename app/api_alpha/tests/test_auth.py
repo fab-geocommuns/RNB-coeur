@@ -177,11 +177,15 @@ class ForgottenPassword(APITestCase):
 
         self.assertEqual(response.status_code, 400)
 
+
+class ForgottenPasswordThrottling(APITestCase):
+
     def test_throttling(self):
 
-        max_requests = 10
+        code_429 = 0
+        code_204 = 0
 
-        for i in range(50):
+        for _ in range(50):
 
             data = {
                 "email": "someone@random.com",
@@ -193,7 +197,13 @@ class ForgottenPassword(APITestCase):
                 "/api/alpha/auth/change_password/" + random_token, data
             )
 
-            if i < max_requests:
-                self.assertEqual(response.status_code, 204)
-            else:
-                self.assertEqual(response.status_code, 429)
+            if response.status_code == 429:
+                code_429 += 1
+            elif response.status_code == 204:
+                code_204 += 1
+
+        # We don't count precisely because the throttling because it includes request made in other tests
+        self.assertTrue(code_429 > 0)
+        self.assertTrue(code_204 > 0)
+        self.assertTrue(code_429 + code_204 == 50)
+        self.assertTrue(code_429 > code_204)
