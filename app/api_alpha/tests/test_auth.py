@@ -1,7 +1,8 @@
+from unittest import mock
+
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
-from unittest import mock
 
 
 class ADSEnpointsNoAuthTest(APITestCase):
