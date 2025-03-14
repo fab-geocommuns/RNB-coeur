@@ -2293,6 +2293,7 @@ class ChangePassword(APIView):
     # - Do not log the use of this endpoint, the risk would be to log the new password in the logs, which is a security risk.
     # - Validate the new password is strong enough (validated against the AUTH_PASSWORD_VALIDATORS validators set in settings.py)
 
+    # about scoped throttles in DRF: https://www.django-rest-framework.org/api-guide/throttling/#scopedratethrottle
     throttle_scope = "change_password"
 
     def patch(self, request, token):
