@@ -5,6 +5,7 @@ from django.contrib.auth.tokens import default_token_generator
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
+from nanoid import generate
 
 
 class ADSEnpointsNoAuthTest(APITestCase):
@@ -175,3 +176,24 @@ class ForgottenPassword(APITestCase):
         response = self.client.patch("/api/alpha/auth/change_password/" + token, data)
 
         self.assertEqual(response.status_code, 400)
+
+    def test_throttling(self):
+
+        max_requests = 10
+
+        for i in range(50):
+
+            data = {
+                "email": "someone@random.com",
+                "password": "STRONG_zoeihfiuezhf77iuzgef$",
+            }
+            random_token = generate(size=10)
+
+            response = self.client.patch(
+                "/api/alpha/auth/change_password/" + random_token, data
+            )
+
+            if i < max_requests:
+                self.assertEqual(response.status_code, 204)
+            else:
+                self.assertEqual(response.status_code, 429)

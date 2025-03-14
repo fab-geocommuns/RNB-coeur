@@ -2285,8 +2285,14 @@ class RequestPasswordReset(RNBLoggingMixin, APIView):
 
 class ChangePassword(APIView):
 
-    # NB: we do not want to log the use of this endpoint.
-    # The risk would be to log the new password in the logs, which is a security risk.
+    # About security:
+    # This endpoint is used to change the password of a user. It is very sensitive. It should be hardened.
+    # - In case of wrong email/token couple, always return a 204 status code, never return a 404 or 400 status code. We don't want to leak info
+    # - Throttle the endpoint to avoid brute force attacks
+    # - Do not log the use of this endpoint, the risk would be to log the new password in the logs, which is a security risk.
+    # - Validate the new password is strong enough (validated against the AUTH_PASSWORD_VALIDATORS validators set in settings.py)
+
+    throttle_scope = "change_password"
 
     def patch(self, request, token):
         password = request.data.get("password")
