@@ -13,7 +13,10 @@ import yaml
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
+from django.core.exceptions import ValidationError
 from django.db import connection
 from django.db import transaction
 from django.http import HttpResponse
@@ -82,6 +85,7 @@ from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
+from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.mattermost import notify_tech
@@ -2249,3 +2253,77 @@ def get_schema(request):
     response["Content-Disposition"] = 'attachment; filename="schema.yml"'
 
     return response
+
+
+class RequestPasswordReset(RNBLoggingMixin, APIView):
+    def post(self, request):
+
+        email = request.data.get("email")
+        if email is None:
+            return JsonResponse({"error": "Email is required"}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # We do not want someone to know if an email is in the database or not:
+            # even if the user does not exist, we still return a 204 status code
+            return Response(None, status=204)
+
+        # We found a user with the email, we continue
+
+        # We generate the token. Note, Django does not need to store the "request new password" token in the database
+        # (explanation: https://stackoverflow.com/questions/46234627/how-does-default-token-generator-store-tokens)
+        token = default_token_generator.make_token(user)
+
+        # Build the email to send
+        email = build_reset_password_email(token, email)
+
+        # Send the email
+        email.send()
+
+        return Response(None, status=204)
+
+
+class ChangePassword(APIView):
+
+    # About security:
+    # This endpoint is used to change the password of a user. It is very sensitive. It should be hardened.
+    # - In case of wrong email/token couple, always return a 204 status code, never return a 404 or 400 status code. We don't want to leak info
+    # - Throttle the endpoint to avoid brute force attacks
+    # - Do not log the use of this endpoint, the risk would be to log the new password in the logs, which is a security risk.
+    # - Validate the new password is strong enough (validated against the AUTH_PASSWORD_VALIDATORS validators set in settings.py)
+
+    # about scoped throttles in DRF: https://www.django-rest-framework.org/api-guide/throttling/#scopedratethrottle
+    throttle_scope = "change_password"
+
+    def patch(self, request, token):
+        password = request.data.get("password")
+        if password is None:
+            return JsonResponse({"error": "Password is required"}, status=400)
+
+        email = request.data.get("email")
+        if email is None:
+            return JsonResponse({"error": "Email is required"}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # We do not want someone to know if an email is in the database or not:
+            # even if the user does not exist, we still return a 204 status code
+            return Response(None, status=204)
+
+        # We check if the token is valid
+        if not default_token_generator.check_token(user, token):
+            return Response(None, status=204)
+
+        # Verify the password is strong enough (validated against the AUTH_PASSWORD_VALIDATORS validators set in settings.py)
+        try:
+            validate_password(password, user)
+        except ValidationError as e:
+            return JsonResponse({"error": e.messages}, status=400)
+
+        # We change the password
+        user.set_password(password)
+        user.save()
+
+        return Response(None, status=204)
