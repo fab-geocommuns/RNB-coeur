@@ -122,3 +122,56 @@ class ForgottenPassword(APITestCase):
         response = self.client.post("/api/alpha/auth/reset_password/", data)
 
         self.assertEqual(response.status_code, 400)
+
+    def test_change_password_wrong_email(self):
+
+        # Get the right token
+        user = User.objects.get(email="someone@random.com")
+        real_token = default_token_generator.make_token(user)
+
+        # But send the wrong email
+        data = {"password": "new_password", "email": "does_not_exist@random.com"}
+        response = self.client.patch(
+            "/api/alpha/auth/change_password/" + real_token, data
+        )
+
+        # We should receive a "fake" 204 to avoid leaking information
+        self.assertEqual(response.status_code, 204)
+
+        # But the password should not have changed
+        data = {"username": "someone", "password": "1234"}
+        response = self.client.post("/api/alpha/login/", data)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_change_password_wrong_token(self):
+
+        # Get the wrong token
+        fake_token = "fake_token"
+
+        # But send the right email
+        data = {"password": "new_password", "email": "someone@random.com"}
+        response = self.client.patch(
+            "/api/alpha/auth/change_password/" + fake_token, data
+        )
+
+        # We should receive a "fake" 204 to avoid leaking information
+        self.assertEqual(response.status_code, 204)
+
+        # But the password should not have changed
+        data = {"username": "someone", "password": "1234"}
+        response = self.client.post("/api/alpha/login/", data)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_choose_weak_password(self):
+
+        # Get the token
+        user = User.objects.get(email="someone@random.com")
+        token = default_token_generator.make_token(user)
+
+        data = {"password": "1111", "email": "someone@random.com"}
+
+        response = self.client.patch("/api/alpha/auth/change_password/" + token, data)
+
+        self.assertEqual(response.status_code, 400)

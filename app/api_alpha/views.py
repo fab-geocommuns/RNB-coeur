@@ -46,7 +46,8 @@ from rest_framework.utils.urls import replace_query_param
 from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
-
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
@@ -2306,6 +2307,12 @@ class ChangePassword(APIView):
         # We check if the token is valid
         if not default_token_generator.check_token(user, token):
             return Response(None, status=204)
+
+        # Verify the password is strong enough (validated against the AUTH_PASSWORD_VALIDATORS validators set in settings.py)
+        try:
+            validate_password(password, user)
+        except ValidationError as e:
+            return JsonResponse({"error": e.messages}, status=400)
 
         # We change the password
         user.set_password(password)
