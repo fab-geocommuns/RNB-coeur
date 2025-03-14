@@ -11,6 +11,7 @@ from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
 from api_alpha.views import BuildingPlotView
 from api_alpha.views import BuildingsVectorTileView
+from api_alpha.views import ChangePassword
 from api_alpha.views import ContributionsViewSet
 from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import DiffView
@@ -21,7 +22,6 @@ from api_alpha.views import ListCreateBuildings
 from api_alpha.views import MergeBuildings
 from api_alpha.views import PlotsVectorTileView
 from api_alpha.views import RequestPasswordReset
-from api_alpha.views import ChangePassword
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SingleBuilding
 from api_alpha.views import SplitBuildings
