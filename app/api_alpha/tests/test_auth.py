@@ -45,6 +45,14 @@ class ForgottenPassword(APITestCase):
 
     @mock.patch("api_alpha.views.build_reset_password_email")
     def test_trigger_process(self, mock_build_email):
+
+        # We will verify the email is well sent.
+        # To do so, we have to mock the email locally
+        # from the return value of build_reset_password_email() which is also mocked
+        # explanation: https://chatgpt.com/share/67d4203c-b510-800b-8d82-c8ad07b2611c (start from the conversation end, the beginning is a mess)
+        mock_email = mock.Mock()
+        mock_build_email.return_value = mock_email
+
         data = {"email": "someone@random.com"}
         response = self.client.post("/api/alpha/auth/reset_password/", data)
 
@@ -52,6 +60,7 @@ class ForgottenPassword(APITestCase):
 
         # Check the email was built and sent
         mock_build_email.assert_called_once()
+        mock_email.send.assert_called_once()
 
     def test_trigger_process_wrong_email(self):
         data = {"email": "no_in_db@nowhere.com"}
