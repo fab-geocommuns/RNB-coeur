@@ -1,5 +1,5 @@
 from unittest import mock
-
+from django.core.cache import cache
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from nanoid import generate
@@ -184,6 +184,11 @@ class ForgottenPasswordThrottling(APITestCase):
         code_429 = 0
         code_204 = 0
 
+        # The throttling counter use Django cache.
+        # Other auth tests (above) request "/api/alpha/auth/change_password/" which count in the throttling
+        # We have to reset the cache to avoid the throttling to be already full
+        cache.clear()
+
         for _ in range(50):
 
             data = {
@@ -201,8 +206,5 @@ class ForgottenPasswordThrottling(APITestCase):
             elif response.status_code == 204:
                 code_204 += 1
 
-        # We don't count precisely because the throttling because it includes request made in other tests
-        self.assertTrue(code_429 > 0)
-        self.assertTrue(code_204 > 0)
-        self.assertTrue(code_429 + code_204 == 50)
-        self.assertTrue(code_429 > code_204)
+        self.assertEqual(code_429, 40)
+        self.assertEqual(code_204, 10)
