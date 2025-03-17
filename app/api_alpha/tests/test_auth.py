@@ -1,7 +1,8 @@
 from unittest import mock
-from django.core.cache import cache
+
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
+from django.core.cache import cache
 from nanoid import generate
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
