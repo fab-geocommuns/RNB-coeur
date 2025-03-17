@@ -319,17 +319,13 @@ def queue_full_bal_import(
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_bal(src_params: dict, bulk_launch_uuid: str = None):
-
-    import_addresses(src_params, bulk_launch_uuid)
-
-    return "done"
+    return import_addresses(src_params, bulk_launch_uuid)
 
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def link_building_addresses_using_bal(src_params, bulk_launch_uuid=None):
-    link_building_with_addresses(src_params, bulk_launch_uuid)
-    return "done"
+    return link_building_with_addresses(src_params, bulk_launch_uuid)
 
 
 # @notify_if_error

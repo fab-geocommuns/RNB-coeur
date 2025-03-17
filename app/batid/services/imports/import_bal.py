@@ -103,6 +103,8 @@ def import_addresses(src_params: dict, bulk_launch_uuid=None):
         end_time = time.perf_counter()
         print(f"Duration: {(end_time - start_time):.2f}s")
 
+    return f"Imported {adresses_count} BAN addresses"
+
 
 def link_building_with_addresses(src_params, bulk_launch_uuid=None):
     src = Source("bal")
@@ -117,11 +119,15 @@ def link_building_with_addresses(src_params, bulk_launch_uuid=None):
                 certified_rows.append(row)
 
     # Find new adresses
+    start_time = time.perf_counter()
     new_links, _, stats = _find_link_building_with_address(certified_rows)
+    stats["find_link_total_time"] = time.perf_counter() - start_time
 
     # Create new links
     if new_links:
+        start_time = time.perf_counter()
         _save_new_links(new_links)
+        stats["save_new_links_total_time"] = time.perf_counter() - start_time
 
     # Clean up
     src.remove_uncompressed_folder()
@@ -173,10 +179,17 @@ def _find_link_building_with_address(certified_rows: list[dict[str, str]]):
         "no_covered_building": 0,
         "multiple_covered_building": 0,
         "address_already_exists": 0,
+        "total_bal_rows_treated": 0,
+        "existing_link_with_new_bal_id": 0,
+        "find_link_mean_time_per_batch": 0,
+        "find_link_mean_time_per_sql_query": 0,
     }
 
+    time_per_batch = []
+    time_per_sql_query = []
     with connection.cursor() as cursor:
         for batch in batches:
+            start_time_per_batch = time.perf_counter()
             batches_handled += 1
 
             # Create points from the batch
@@ -240,7 +253,9 @@ def _find_link_building_with_address(certified_rows: list[dict[str, str]]):
                     "buffer_size": 0.00002,  # 0.00002 seems to be a good value to check if the point is close to many plots
                 }
 
+                start_time_per_sql_query = time.perf_counter()
                 plots = dictfetchall(cursor, q, params)
+                time_per_sql_query.append(time.perf_counter() - start_time_per_sql_query)
 
                 # The bdg matching using plots is tricky. We have to be very conservative.
                 # We have many ambiguous situations to filter out:
@@ -319,11 +334,19 @@ def _find_link_building_with_address(certified_rows: list[dict[str, str]]):
                     else:
                         new_addresses.append(link)
 
+            time_per_batch.append(time.perf_counter() - start_time_per_batch)
+
             if batches_handled % 10 == 0:
+                stats["total_bal_rows_treated"] += len(batch)
+                stats["existing_link_with_new_bal_id"] += len(new_ban_id)
                 print(
                     f"batch : {batches_handled}, found {len(new_addresses)} new links so far and {len(new_ban_id)} existing links but with a new ban id on {batches_handled * batch_size} inspected rows"
                 )
 
+    stats["find_link_mean_time_per_batch"] = sum(time_per_batch) / len(time_per_batch)
+    stats["find_link_mean_time_per_sql_query"] = sum(time_per_sql_query) / len(
+        time_per_sql_query
+    )
     return new_addresses, new_ban_id, stats
 
 
