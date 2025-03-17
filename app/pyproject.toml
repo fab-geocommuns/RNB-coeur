@@ -7,7 +7,7 @@ authors = ["RNB team <tech@rnb.beta.gouv.fr>"]
 [tool.poetry.dependencies]
 python = "3.12.4"
 boto3 = "~1.36.0"
-Django = "~5.1.6"
+Django = "~5.1.7"
 drf-spectacular = "~0.28.0"
 drf-api-tracking = "~1.8.4"
 flower = "~2.0.1"
