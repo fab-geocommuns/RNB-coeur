@@ -255,7 +255,9 @@ def _find_link_building_with_address(certified_rows: list[dict[str, str]]):
 
                 start_time_per_sql_query = time.perf_counter()
                 plots = dictfetchall(cursor, q, params)
-                time_per_sql_query.append(time.perf_counter() - start_time_per_sql_query)
+                time_per_sql_query.append(
+                    time.perf_counter() - start_time_per_sql_query
+                )
 
                 # The bdg matching using plots is tricky. We have to be very conservative.
                 # We have many ambiguous situations to filter out:
