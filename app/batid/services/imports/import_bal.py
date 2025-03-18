@@ -114,9 +114,14 @@ def link_building_with_addresses(src_params, bulk_launch_uuid=None):
     certified_rows = []
     with open(src.find(src.filename), "r") as f:
         reader = csv.DictReader(f, delimiter=";")
+        total_rows = 0
         for row in reader:
+            total_rows += 1
             if row["certification_commune"] == "1":
                 certified_rows.append(row)
+
+        print(f"Found {len(certified_rows)} certified BAL addresses out of {total_rows} addresses")
+
 
     # Find new adresses
     start_time = time.perf_counter()
@@ -132,6 +137,7 @@ def link_building_with_addresses(src_params, bulk_launch_uuid=None):
     # Clean up
     src.remove_uncompressed_folder()
 
+    stats["certified_addresses"] = len(certified_rows)
     return stats
 
 
