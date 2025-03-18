@@ -106,7 +106,11 @@ class RNBLoggingMixin(LoggingMixin):
         return request.query_params.get("from") != "monitoring"
 
 
-class BuildingGuessView(RNBLoggingMixin, APIView):
+class BaseAPIView(APIView):
+    throttle_scope = "default"
+
+
+class BuildingGuessView(RNBLoggingMixin, BaseAPIView):
     @rnb_doc(
         {
             "get": {
@@ -200,7 +204,7 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             raise ServiceUnavailable(detail="BAN API is currently down")
 
 
-class BuildingClosestView(RNBLoggingMixin, APIView):
+class BuildingClosestView(RNBLoggingMixin, BaseAPIView):
     @rnb_doc(
         {
             "get": {
@@ -298,7 +302,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
             return Response(query_serializer.errors, status=400)
 
 
-class BuildingPlotView(RNBLoggingMixin, APIView):
+class BuildingPlotView(RNBLoggingMixin, BaseAPIView):
     @rnb_doc(
         {
             "get": {
@@ -371,7 +375,7 @@ class BuildingPlotView(RNBLoggingMixin, APIView):
         return paginator.get_paginated_response(serializer.data)
 
 
-class BuildingAddressView(RNBLoggingMixin, APIView):
+class BuildingAddressView(RNBLoggingMixin, BaseAPIView):
     @rnb_doc(
         {
             "get": {
@@ -624,7 +628,7 @@ class BuildingAddressCursorPagination(BuildingCursorPagination):
         )
 
 
-class ListCreateBuildings(RNBLoggingMixin, APIView):
+class ListCreateBuildings(RNBLoggingMixin, BaseAPIView):
     permission_classes = [ReadOnly | RNBContributorPermission]
 
     @rnb_doc(
@@ -880,7 +884,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
-class MergeBuildings(APIView):
+class MergeBuildings(BaseAPIView):
     permission_classes = [RNBContributorPermission]
 
     @rnb_doc(
@@ -1031,7 +1035,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
-class SplitBuildings(APIView):
+class SplitBuildings(BaseAPIView):
     permission_classes = [RNBContributorPermission]
 
     @rnb_doc(
@@ -1178,7 +1182,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
-class SingleBuilding(APIView):
+class SingleBuilding(BaseAPIView):
     permission_classes = [ReadOnly | RNBContributorPermission]
 
     @rnb_doc(
@@ -1743,7 +1747,7 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-class ADSVectorTileView(APIView):
+class ADSVectorTileView(BaseAPIView):
     def get(self, request, x, y, z):
 
         # might do : include a minimum zoom level as it is done for buildings
@@ -1759,7 +1763,7 @@ class ADSVectorTileView(APIView):
         )
 
 
-class PlotsVectorTileView(APIView):
+class PlotsVectorTileView(BaseAPIView):
     def get(self, request, x, y, z):
 
         if int(z) >= 16:
@@ -1778,7 +1782,7 @@ class PlotsVectorTileView(APIView):
             return HttpResponse(status=204)
 
 
-class BuildingsVectorTileView(APIView):
+class BuildingsVectorTileView(BaseAPIView):
     @extend_schema(
         tags=["Tile"],
         operation_id="get_vector_tile",
@@ -1903,7 +1907,7 @@ def get_stats(request):
     return response
 
 
-class DiffView(APIView):
+class DiffView(BaseAPIView):
     @rnb_doc(
         {
             "get": {
@@ -2146,7 +2150,7 @@ def make_random_password(length):
 
 
 @extend_schema(exclude=True)
-class AdsTokenView(APIView):
+class AdsTokenView(BaseAPIView):
     permission_classes = [IsSuperUser]
 
     def post(self, request, *args, **kwargs):
@@ -2231,7 +2235,7 @@ class TokenScheme(OpenApiAuthenticationExtension):
         }
 
 
-class DiffusionDatabaseView(APIView):
+class DiffusionDatabaseView(BaseAPIView):
     def get(self, request):
         """Lists all databases in which ID-RNBs are published and available attributes"""
         databases = DiffusionDatabase.objects.all()
