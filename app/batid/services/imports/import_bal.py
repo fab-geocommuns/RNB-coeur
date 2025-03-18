@@ -120,8 +120,9 @@ def link_building_with_addresses(src_params, bulk_launch_uuid=None):
             if row["certification_commune"] == "1":
                 certified_rows.append(row)
 
-        print(f"Found {len(certified_rows)} certified BAL addresses out of {total_rows} addresses")
-
+        print(
+            f"Found {len(certified_rows)} certified BAL addresses out of {total_rows} addresses"
+        )
 
     # Find new adresses
     start_time = time.perf_counter()
