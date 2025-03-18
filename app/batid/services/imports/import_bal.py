@@ -4,18 +4,17 @@ import uuid
 from typing import TypedDict
 
 from celery import Signature
-from django.contrib.gis.geos import MultiPoint
 from django.contrib.gis.geos import Point
 from django.db import connection
 
-from batid.models import Address, Plot
+from batid.models import Address
 from batid.models import Building
 from batid.services.imports import building_import_history
 from batid.services.source import Source
-from batid.utils.db import dictfetchall
+
 
 class BalCsvRow(TypedDict):
-    """"
+    """ "
     Type of each BAL CSV row
     """
 
@@ -38,7 +37,6 @@ class BalCsvRow(TypedDict):
     source: str
     date_der_maj: str
     certification_commune: "0" | "1"
-
 
 
 def create_bal_full_import_tasks(dpt_list: list) -> list:
@@ -181,10 +179,13 @@ def _find_link_using_point_in_shape(csv_row: BalCsvRow) -> bool:
 
     # We found only one building, we link the address to it
     if len(buildings) == 1 and not csv_row["cle_interop"] in buildings[0].addresses_id:
-        buildings[0].update(addresses_id=[*buildings[0].addresses_id, csv_row["cle_interop"]])
+        buildings[0].update(
+            addresses_id=[*buildings[0].addresses_id, csv_row["cle_interop"]]
+        )
         return True
 
     return False
+
 
 def _find_link_using_plots(csv_row: BalCsvRow) -> bool:
     """
@@ -214,13 +215,22 @@ def _find_link_using_plots(csv_row: BalCsvRow) -> bool:
                 AND bdg_cover_ratio > %(min_cover_ratio)s
                 AND bdg_area > %(min_area)s;
         """
-        cursor.execute(q, {"lng": lng, "lat": lat, "buffer_size": buffer_size, "min_cover_ratio": min_cover_ratio, "min_area": min_area})
+        cursor.execute(
+            q,
+            {
+                "lng": lng,
+                "lat": lat,
+                "buffer_size": buffer_size,
+                "min_cover_ratio": min_cover_ratio,
+                "min_area": min_area,
+            },
+        )
         buildings = cursor.fetchall()
 
     if not buildings:
         return False
 
-    # If we have none, we skip  
+    # If we have none, we skip
     if len(buildings) == 0:
         return False
 
@@ -232,11 +242,8 @@ def _find_link_using_plots(csv_row: BalCsvRow) -> bool:
     if csv_row["cle_interop"] in buildings[0].addresses_id:
         return False
 
-    bdg = (
-        Building.objects.filter(rnb_id=buildings[0]["rnb_id"])
-        .get()
-    )
-    
+    bdg = Building.objects.filter(rnb_id=buildings[0]["rnb_id"]).get()
+
     bdg.update(
         addresses_id=[csv_row["cle_interop"], *bdg.addresses_id],
     )
