@@ -134,9 +134,6 @@ def link_building_with_addresses(src_params, bulk_launch_uuid=None):
         _save_new_links(new_links)
         stats["save_new_links_total_time"] = time.perf_counter() - start_time
 
-    # Clean up
-    src.remove_uncompressed_folder()
-
     stats["certified_addresses"] = len(certified_rows)
     return stats
 
