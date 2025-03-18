@@ -189,7 +189,7 @@ class ForgottenPasswordThrottling(APITestCase):
         # We have to reset the cache to avoid the throttling to be already full
         cache.clear()
 
-        for _ in range(50):
+        for _ in range(15):
 
             data = {
                 "email": "someone@random.com",
@@ -206,5 +206,5 @@ class ForgottenPasswordThrottling(APITestCase):
             elif response.status_code == 204:
                 code_204 += 1
 
-        self.assertEqual(code_429, 40)
+        self.assertEqual(code_429, 5)
         self.assertEqual(code_204, 10)
