@@ -28,7 +28,7 @@ def get_closest_from_poly(poly: Polygon, radius) -> Optional[QuerySet]:
     return qs
 
 
-def get_closest_from_point(lat, lng, radius) -> Optional[QuerySet]:
+def get_closest_from_point(lat: float, lng: float, radius: int) -> QuerySet:
     __validate_point(lat, lng)
     __validate_radius(radius)
     return __get_qs(lat, lng, radius)
