@@ -373,42 +373,52 @@ class ClosestFromPointHandler(AbstractHandler):
         if not lat or not lng:
             return guess
 
+        result = self.__class__.guess_closest_building(
+            lat, lng, self.closest_radius, self.isolated_bdg_max_distance
+        )
+
+        if result:
+            match, reason = result
+            guess["matches"].append(match)
+            guess["match_reason"] = reason
+
+        return guess
+
+    @staticmethod
+    def guess_closest_building(
+        lat: float, lng: float, closest_radius: int = 30, isolated_max_distance: int = 8
+    ) -> Optional[tuple[Building, str]]:
         # Get the two closest buildings
-        closest_bdgs = get_closest_from_point(lat, lng, self.closest_radius)[:2]
+        closest_bdgs = get_closest_from_point(lat, lng, closest_radius)[:2]
         # We have to close the connection to avoid a "too many connections" error
         connection.close()
 
         if not closest_bdgs:
-            return guess
+            return None
 
         first_bdg = closest_bdgs[0]
-        # Is the the point is in the first building ?
+
+        # Is the the point is in the first building?
         if first_bdg.distance.m <= 0:
-            guess["matches"].append(first_bdg)
-            guess["match_reason"] = "point_on_bdg"
-            return guess
+            return first_bdg, "point_on_bdg"
 
-        # Is the first building within 8 meters and the second building is far enough ?
-        if first_bdg.distance.m <= self.isolated_bdg_max_distance:
-            if len(closest_bdgs) == 1:
-                # There is only one building close enough. No need to compare to the second one.
-                guess["matches"].append(first_bdg)
-                guess["match_reason"] = "isolated_closest_bdg"
-                return guess
+        # Is the first building is too far from the point anyway?
+        if first_bdg.distance.m > isolated_max_distance:
+            return None
 
-            if len(closest_bdgs) > 1:
-                # There is at least one other close building. We compare the two closest buildings distance to the point.
-                second_bdg = closest_bdgs[1]
-                min_second_bdg_distance = self._min_second_bdg_distance(
-                    first_bdg.distance.m
-                )
-                if second_bdg.distance.m >= min_second_bdg_distance:
-                    guess["matches"].append(first_bdg)
-                    guess["match_reason"] = "isolated_closest_bdg"
-                    return guess
+        # There is only one building close enough. No need to compare to the second one.
+        if len(closest_bdgs) == 1:
+            return first_bdg, "isolated_closest_bdg"
 
-        # We did not find anything. We return guess as it was sent.
-        return guess
+        # There is at least one other close building. We compare the two closest buildings distance to the point.
+        second_bdg = closest_bdgs[1]
+        min_second_bdg_distance = ClosestFromPointHandler._min_second_bdg_distance(
+            first_bdg.distance.m
+        )
+        if second_bdg.distance.m >= min_second_bdg_distance:
+            return first_bdg, "isolated_closest_bdg"
+
+        return None
 
     @staticmethod
     def _min_second_bdg_distance(first_bdg_distance: float) -> float:
@@ -585,14 +595,14 @@ class GeocodeNameHandler(AbstractHandler):
         )
 
         if osm_bdg_point:
-            # todo : on devrait filtrer pour n'avoir que les bâtiments qui ont un statut de bâtiment réel
-            bdg = Building.objects.filter(shape__contains=osm_bdg_point).first()
-            # close the connection to avoid a "too many connections" error
-            connection.close()
+            result = ClosestFromPointHandler.guess_closest_building(
+                osm_bdg_point.y, osm_bdg_point.x
+            )
 
-            if isinstance(bdg, Building):
+            if result:
+                bdg, reason = result
                 guess["matches"].append(bdg)
-                guess["match_reason"] = "found_name_in_osm"
+                guess["match_reason"] = f"found_name_in_osm_{reason}"
                 return guess
 
         return guess
