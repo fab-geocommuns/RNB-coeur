@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
 from nanoid import generate
-from batid.services.user import get_b64_user_id
+from batid.services.user import _b64_to_int, _int_to_b64, get_user_id_b64
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
@@ -88,7 +88,7 @@ class ForgottenPassword(APITestCase):
         # We need the token to rebuild the url
         user = User.objects.get(email="someone@random.com")
         token = default_token_generator.make_token(user)
-        user_id_b64 = get_b64_user_id(user)
+        user_id_b64 = get_user_id_b64(user)
 
         response = self.client.patch(
             f"/api/alpha/auth/change_password/{user_id_b64}/{token}", data
@@ -136,10 +136,10 @@ class ForgottenPassword(APITestCase):
         user = User.objects.get(email="someone@random.com")
         real_token = default_token_generator.make_token(user)
 
-        # But send the wrong id
+        # But send the wrong id (MDk4NzY1 does not exist)
         data = {"password": "new_password", "confirm_password": "new_password"}
         response = self.client.patch(
-            f"/api/alpha/auth/change_password/WRONG_ID/{real_token}", data
+            f"/api/alpha/auth/change_password/MDk4NzY1/{real_token}", data
         )
 
         # The response should be a 404
@@ -158,14 +158,20 @@ class ForgottenPassword(APITestCase):
         # Get the wrong token
         fake_token = "fake_token"
 
-        # But send the right email
+        # But send the right user b64 user id
+        user = User.objects.get(email="someone@random.com")
+        user_id_b64 = get_user_id_b64(user)
+
+        # But send the right user b64 user id
         data = {"password": "new_password", "confirm_password": "new_password"}
         response = self.client.patch(
-            f"/api/alpha/auth/change_password/" + fake_token, data
+            f"/api/alpha/auth/change_password/{user_id_b64}/{fake_token}", data
         )
 
-        # We should receive a "fake" 204 to avoid leaking information
-        self.assertEqual(response.status_code, 204)
+        # The response should be a 404
+        self.assertEqual(response.status_code, 404)
+        # The response should be empty (we don't want to explain why it failed)
+        self.assertEqual(response.content, b"")
 
         # But the password should not have changed
         data = {"username": "someone", "password": "1234"}
@@ -175,15 +181,28 @@ class ForgottenPassword(APITestCase):
 
     def test_choose_weak_password(self):
 
-        # Get the token
+        # Get the token and the user id
         user = User.objects.get(email="someone@random.com")
         token = default_token_generator.make_token(user)
+        user_id_b64 = get_user_id_b64(user)
 
         data = {"password": "1111", "email": "someone@random.com"}
 
-        response = self.client.patch("/api/alpha/auth/change_password/" + token, data)
+        response = self.client.patch(
+            f"/api/alpha/auth/change_password/{user_id_b64}/{token}", data
+        )
 
         self.assertEqual(response.status_code, 400)
+
+    def test_b64_utils(self):
+
+        # User id to b64
+        encoded_id = _int_to_b64(42)
+        self.assertEqual(encoded_id, "NDI=")
+
+        # B64 to user id
+        decoded_id = _b64_to_int("NDI=")
+        self.assertEqual(decoded_id, 42)
 
 
 class ForgottenPasswordThrottling(APITestCase):

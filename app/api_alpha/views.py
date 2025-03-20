@@ -25,7 +25,7 @@ from django.http import JsonResponse
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_datetime
-from batid.services.user import get_b64_user_id
+from batid.services.user import get_user_id_b64, get_user_id_from_b64
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
@@ -2278,7 +2278,7 @@ class RequestPasswordReset(RNBLoggingMixin, APIView):
         token = default_token_generator.make_token(user)
 
         # We also need the user id in base 64
-        user_id_b64 = get_b64_user_id(user)
+        user_id_b64 = get_user_id_b64(user)
 
         # Build the email to send
         email = build_reset_password_email(token, user_id_b64, email)
@@ -2309,8 +2309,9 @@ class ChangePassword(APIView):
 
         # Retrieve the user
         try:
+
             # Convert Base 64 user id to string
-            user_id = base64.b64decode(user_id_b64).decode("utf-8")
+            user_id = get_user_id_from_b64(user_id_b64)
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
             # We return a 404 status code if the user does not exist.
@@ -2330,14 +2331,14 @@ class ChangePassword(APIView):
         if password is None:
             return JsonResponse({"error": "Password is required"}, status=400)
 
-        if password != confirm_password:
-            return JsonResponse({"error": "Passwords do not match"}, status=400)
-
         confirm_password = request.data.get("confirm_password")
         if confirm_password is None:
             return JsonResponse(
                 {"error": "Password confirmation is required"}, status=400
             )
+
+        if password != confirm_password:
+            return JsonResponse({"error": "Passwords do not match"}, status=400)
 
         # Verify the password is strong enough (validated against the AUTH_PASSWORD_VALIDATORS validators set in settings.py)
         try:
