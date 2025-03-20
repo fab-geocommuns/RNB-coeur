@@ -1,4 +1,3 @@
-import base64
 import binascii
 import json
 import os
@@ -26,7 +25,6 @@ from django.http import JsonResponse
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_datetime
-from batid.services.user import get_user_id_b64, get_user_id_from_b64
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
@@ -96,6 +94,8 @@ from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.stats import ACTIVE_BUILDING_COUNT
 from batid.services.stats import get_stat as get_cached_stat
+from batid.services.user import get_user_id_b64
+from batid.services.user import get_user_id_from_b64
 from batid.services.vector_tiles import ads_tiles_sql
 from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import plots_tiles_sql
