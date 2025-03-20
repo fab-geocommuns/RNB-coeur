@@ -3,11 +3,13 @@ import csv
 import json
 import re
 import time
+from tqdm.notebook import tqdm
 from abc import ABC
 from abc import abstractmethod
 from io import StringIO
 from typing import Optional
 from typing import TypedDict
+from typing import Callable
 
 import orjson
 import pandas as pd
@@ -41,20 +43,20 @@ class Guess(TypedDict):
 
 
 class Guesser:
-    def __init__(self):
-        self.guesses = {}
-        self.handlers = [
+    def __init__(self, batch_size: int = 5000):
+        self.guesses: dict[str, Guess] = {}
+        self.handlers: list[AbstractHandler] = [
             ClosestFromPointHandler(),
             GeocodeAddressHandler(),
             GeocodeNameHandler(),
         ]
+        self.batch_size = batch_size
 
     def create_work_file(self, inputs, file_path):
         self.load_inputs(inputs)
         self.save_work_file(file_path)
 
     def load_work_file(self, file_path):
-        print("- loading work file")
         with open(file_path, "r") as f:
             self.guesses = json.load(f)
 
@@ -64,46 +66,42 @@ class Guesser:
 
     def guess_work_file(self, file_path):
         self.load_work_file(file_path)
+        self.guess_all(
+            skip_if_no_change=True,
+            on_batch_done=lambda: self.save_work_file(file_path),
+        )
 
+    def guess_all(
+        self,
+        skip_if_no_change: bool = False,
+        on_batch_done: Optional[Callable] = None,
+    ):
         batches = self._guesses_to_batches()
 
-        c = 0
-        for batch in batches:
-            c += 1
-            print(f"Batch {c}/{len(batches)}")
+        progress_bar = tqdm(batches)
+        for batch in progress_bar:
             batch, changed_batch = self.guess_batch(batch)
-            if changed_batch:
-                print("Batch changed")
-                self.guesses.update(batch)
-                self.save_work_file(file_path)
-            else:
-                print("Batch did not change")
 
-    def guess_all(self):
-        batches = self._guesses_to_batches()
+            if not changed_batch and skip_if_no_change:
+                progress_bar.set_description("Batch already processed, skipping")
+                continue
 
-        for batch in batches:
+            self.guesses.update(batch)
+            progress_bar.set_description("Batch processed")
+            if on_batch_done:
+                on_batch_done()
 
-            batch, changed_batch = self.guess_batch(batch)
-            if changed_batch:
-                self.guesses.update(batch)
-
-    def _guesses_to_batches(self, batch_size: int = 5000):
-        print("- converting guesses to batches")
+    def _guesses_to_batches(self) -> list[dict[str, Guess]]:
         batches = []
         batch = {}
         last_ext_id = list(self.guesses.keys())[-1]
 
-        c = 0
         for ext_id, guess in self.guesses.items():
-            c += 1
             batch[ext_id] = guess
 
-            if len(batch) == batch_size or ext_id == last_ext_id:
+            if len(batch) == self.batch_size or ext_id == last_ext_id:
                 batches.append(batch)
                 batch = {}
-
-        print(f"- converted {len(self.guesses)} guesses to {len(batches)} batches")
 
         return batches
 
@@ -203,10 +201,7 @@ class Guesser:
         self.convert_matches()
 
         with open(file_path, "wb") as f:
-            print("- saving work file")
             f.write(orjson.dumps(self.guesses, option=orjson.OPT_INDENT_2))
-            # json.dump(self.guesses, f, indent=4, ensure_ascii=False)
-            print("- work file saved")
 
     def convert_matches(self):
         for ext_id, guess in self.guesses.items():
