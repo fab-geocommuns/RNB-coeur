@@ -10,7 +10,7 @@ from batid.services.email import build_reset_password_email
 class ResetPasswordEmail(TestCase):
     def test_email(self):
 
-        email = build_reset_password_email("token", "email@address.com")
+        email = build_reset_password_email("token", "fake_bd64", "email@address.com")
 
         self.assertIsInstance(email, EmailMultiAlternatives)
 
