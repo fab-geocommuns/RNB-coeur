@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import secrets
@@ -2275,10 +2276,14 @@ class RequestPasswordReset(RNBLoggingMixin, APIView):
         # (explanation: https://stackoverflow.com/questions/46234627/how-does-default-token-generator-store-tokens)
         token = default_token_generator.make_token(user)
 
+        # We also need the user id in base 64
+        user_id_b64 = base64.b64encode(user.pk)
+
         # Build the email to send
-        email = build_reset_password_email(token, email)
+        email = build_reset_password_email(token, user_id_b64, email)
 
         # Send the email
+        # Might do: use a queue to send the email instead of a synchronous call
         email.send()
 
         return Response(None, status=204)
@@ -2288,7 +2293,7 @@ class ChangePassword(APIView):
 
     # About security:
     # This endpoint is used to change the password of a user. It is very sensitive. It should be hardened.
-    # - In case of wrong email/token couple, always return a 204 status code, never return a 404 or 400 status code. We don't want to leak info
+    # - In case of wrong user id/token couple, always return a 404 status code
     # - Throttle the endpoint to avoid brute force attacks
     # - Do not log the use of this endpoint, the risk would be to log the new password in the logs, which is a security risk.
     # - Validate the new password is strong enough (validated against the AUTH_PASSWORD_VALIDATORS validators set in settings.py)
@@ -2296,25 +2301,42 @@ class ChangePassword(APIView):
     # about scoped throttles in DRF: https://www.django-rest-framework.org/api-guide/throttling/#scopedratethrottle
     throttle_scope = "change_password"
 
-    def patch(self, request, token):
+    def patch(self, request, user_id_b64, token):
+
+        # #################
+        # First, we verify the couple user_id/token is valid, otherwise we return a 404 status code
+
+        # Retrieve the user
+        try:
+            # Convert Base 64 user id to string
+            user_id = base64.b64decode(user_id_b64).decode("utf-8")
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            # We return a 404 status code if the user does not exist.
+            # We do not provide information about the user or the token.
+            return Response(None, status=404)
+
+        # We check if the token is valid
+        if not default_token_generator.check_token(user, token):
+            # We return a 404 status code if the token is not valid for this user.
+            # We do not provide information about the user or the token.
+            return Response(None, status=404)
+
+        # #################
+        # Second, we verify the new password is valid
+
         password = request.data.get("password")
         if password is None:
             return JsonResponse({"error": "Password is required"}, status=400)
 
-        email = request.data.get("email")
-        if email is None:
-            return JsonResponse({"error": "Email is required"}, status=400)
+        if password != confirm_password:
+            return JsonResponse({"error": "Passwords do not match"}, status=400)
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            # We do not want someone to know if an email is in the database or not:
-            # even if the user does not exist, we still return a 204 status code
-            return Response(None, status=204)
-
-        # We check if the token is valid
-        if not default_token_generator.check_token(user, token):
-            return Response(None, status=204)
+        confirm_password = request.data.get("confirm_password")
+        if confirm_password is None:
+            return JsonResponse(
+                {"error": "Password confirmation is required"}, status=400
+            )
 
         # Verify the password is strong enough (validated against the AUTH_PASSWORD_VALIDATORS validators set in settings.py)
         try:

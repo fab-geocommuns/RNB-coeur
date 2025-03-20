@@ -4,13 +4,15 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
 
-def build_reset_password_email(token: str, email: str) -> EmailMultiAlternatives:
+def build_reset_password_email(
+    token: str, user_id_b64: str, email: str
+) -> EmailMultiAlternatives:
 
     # ###########
     # Build the email content
 
     # First the site url to change password
-    url = _reset_password_url(token)
+    url = _reset_password_url(user_id_b64, token)
 
     html_content = render_to_string("emails/reset_password.html", {"url": url})
 
@@ -26,7 +28,7 @@ def build_reset_password_email(token: str, email: str) -> EmailMultiAlternatives
     return msg
 
 
-def _reset_password_url(token: str) -> str:
+def _reset_password_url(user_id_b64: str, token: str) -> str:
 
     site_url = os.environ.get("FRONTEND_URL")
-    return f"{site_url}/reset_password/{token}"
+    return f"{site_url}/reset_password/{user_id_b64}/{token}"

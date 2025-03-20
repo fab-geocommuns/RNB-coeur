@@ -65,7 +65,9 @@ urlpatterns = [
     # Authentification
     path("login/", RNBAuthToken.as_view()),
     path("auth/reset_password/", RequestPasswordReset.as_view()),
-    path("auth/change_password/<str:token>", ChangePassword.as_view()),
+    path(
+        "auth/change_password/<str:user_id_b64>/<str:token>", ChangePassword.as_view()
+    ),
 ]
 
 
