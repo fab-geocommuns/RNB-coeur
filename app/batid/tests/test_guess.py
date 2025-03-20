@@ -302,9 +302,40 @@ class TestGuesser(TransactionTestCase):
         self.assertIsNone(reason)
 
     @patch("batid.services.guess_bdg_new.GeocodeNameHandler._geocode_name_and_point")
-    def test_guess_from_name(self, geocode_name_and_point_mock):
+    def test_guess_from_name_on_building(self, geocode_name_and_point_mock):
         geocode_name_and_point_mock.return_value = Point(
             -0.5627717611330638, 44.825522167102605, srid=4326
+        )
+
+        inputs = [
+            {
+                "ext_id": "UNIQUE_ROW",
+                "lat": 44.8254,
+                "lng": -0.5630,
+                "name": "On building",
+            }
+        ]
+
+        guesser = Guesser()
+        guesser.load_inputs(inputs)
+        guesser.guess_all()
+
+        # We verify we found the right building
+        self.assertEqual(
+            guesser.guesses.get("UNIQUE_ROW")["matches"][0].rnb_id, "BizarreShape"
+        )
+        self.assertEqual(len(guesser.guesses.get("UNIQUE_ROW")["matches"]), 1)
+
+        # Check the reason
+        reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
+        self.assertEqual(reason, "found_name_in_osm_point_on_bdg")
+
+    @patch("batid.services.guess_bdg_new.GeocodeNameHandler._geocode_name_and_point")
+    def test_guess_from_name_close_to_building(self, geocode_name_and_point_mock):
+        geocode_name_and_point_mock.return_value = Point(
+            -0.5623671471738305,
+            44.82532433011028,
+            srid=4326,
         )
 
         inputs = [
@@ -322,13 +353,13 @@ class TestGuesser(TransactionTestCase):
 
         # We verify we found the right building
         self.assertEqual(
-            guesser.guesses.get("UNIQUE_ROW")["matches"][0].rnb_id, "BizarreShape"
+            guesser.guesses.get("UNIQUE_ROW")["matches"][0].rnb_id, "SouthOne"
         )
         self.assertEqual(len(guesser.guesses.get("UNIQUE_ROW")["matches"]), 1)
 
         # Check the reason
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
-        self.assertEqual(reason, "found_name_in_osm")
+        self.assertEqual(reason, "found_name_in_osm_isolated_closest_bdg")
 
     def test_lng_lat_bbox_around_point(self):
         lng, lat = 2.387349, 48.862927
