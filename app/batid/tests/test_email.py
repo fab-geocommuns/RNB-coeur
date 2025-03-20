@@ -15,12 +15,12 @@ class ResetPasswordEmail(TestCase):
         self.assertIsInstance(email, EmailMultiAlternatives)
 
         # Check the email HTML content contains the link
-        url = _reset_password_url("token")
+        url = _reset_password_url("fake_bd64", "token")
         self.assertIn(url, email.alternatives[0][0])
 
     def test_reset_url(self):
 
-        url = _reset_password_url("token")
+        url = _reset_password_url("fake_bd64", "token")
 
         # Test this is a valid url
         validator = URLValidator()
