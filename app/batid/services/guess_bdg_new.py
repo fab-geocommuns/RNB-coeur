@@ -33,6 +33,7 @@ class Input(TypedDict):
     lng: float
     name: str
     address: str
+    ban_id: str
 
 
 class Guess(TypedDict):
@@ -488,35 +489,41 @@ class GeocodeAddressHandler(AbstractHandler):
                     }
                 )
 
+        if not addresses:
+            return guesses
+
         # Geocode addresses in batch
-        if addresses:
-            geocoder = BanBatchGeocoder()
-            response = geocoder.geocode(
-                addresses,
-                columns=["address"],
-                result_columns=["result_type", "result_id", "result_score"],
+        geocoder = BanBatchGeocoder()
+        response = geocoder.geocode(
+            addresses,
+            columns=["address"],
+            result_columns=["result_type", "result_id", "result_score"],
+        )
+        if response.status_code == 400:
+            with open("error_addresses.txt", "w") as f:
+                f.write("\n".join([address["address"] for address in addresses]))
+            raise Exception(f"Error while geocoding addresses : {response.text}")
+        if response.status_code != 200:
+            raise Exception(f"Error while geocoding addresses : {response.text}")
+
+        # Parse the response
+        csv_file = StringIO(response.text)
+        reader = csv.DictReader(csv_file)
+
+        address_results = [row for row in reader if row["result_type"] == "housenumber"]
+        address_result_with_max_score = max(
+            address_results,
+            key=lambda x: float(x["result_score"]),
+            default=None,
+        )
+
+        if (
+            address_result_with_max_score
+            and float(address_result_with_max_score["result_score"]) >= self.min_score
+        ):
+            guesses[address_result_with_max_score["ext_id"]]["input"]["ban_id"] = (
+                address_result_with_max_score["result_id"]
             )
-            if response.status_code == 400:
-                # save address in text file
-                with open("error_addresses.txt", "w") as f:
-                    for address in addresses:
-                        f.write(address["address"] + "\n")
-                raise Exception(f"Error while geocoding addresses : {response.text}")
-            if response.status_code != 200:
-                raise Exception(f"Error while geocoding addresses : {response.text}")
-
-            # Parse the response
-
-            csv_file = StringIO(response.text)
-            reader = csv.DictReader(csv_file)
-
-            for row in reader:
-
-                if (
-                    row["result_type"] == "housenumber"
-                    and float(row["result_score"]) >= self.min_score
-                ):
-                    guesses[row["ext_id"]]["input"]["ban_id"] = row["result_id"]
 
         return guesses
 

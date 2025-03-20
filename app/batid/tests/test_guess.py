@@ -237,11 +237,20 @@ class TestGuesser(TransactionTestCase):
         self.assertEqual(reason, "point_on_bdg")
 
     @patch("batid.services.geocoders.BanBatchGeocoder.geocode")
-    @patch("batid.services.guess_bdg_new.GeocodeNameHandler._geocode_name_and_point")
-    def test_guess_from_address(self, geocode_name_and_point_mock, geocode_mock):
-        geocode_name_and_point_mock.return_value = None
+    def test_guess_from_address(self, geocode_mock):
         geocode_mock.return_value = _mock_guesser_batch_address_geocoding(
-            [{"ext_id": "UNIQUE_ROW", "result_id": "BAN_ID_ONE", "result_score": 0.9}]
+            [
+                {
+                    "ext_id": "UNIQUE_ROW",
+                    "result_id": "BAN_ID_ONE",
+                    "result_score": 0.9,
+                },
+                {
+                    "ext_id": "UNIQUE_ROW",
+                    "result_id": "BAN_ID_LESS_SCORE",
+                    "result_score": 0.8,
+                },
+            ]
         )
 
         inputs = [
