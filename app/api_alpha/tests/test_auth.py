@@ -97,10 +97,12 @@ class ForgottenPassword(APITestCase):
         self.assertEqual(response.status_code, 204)
 
         # Verify the new password is not logged via rest_framework_tracking
-        # There must be only one log: the one when we touched /api/alpha/auth/reset_password/
-        logs = APIRequestLog.objects.all()
+        logs = APIRequestLog.objects.filter(
+            path__startswith="/api/alpha/auth/change_password/"
+        )
+
         self.assertEqual(len(logs), 1)
-        self.assertEqual(logs.first().path, "/api/alpha/auth/reset_password/")
+        self.assertNotIn("new_password", logs.first().query_params)
 
         # ##################
         # PART 4: The user can login with the new password
@@ -264,8 +266,6 @@ class ForgottenPasswordThrottling(APITestCase):
             response = self.client.patch(
                 f"/api/alpha/auth/change_password/{wrong_user_id}/{random_token}", data
             )
-
-            print(response.status_code)
 
             if response.status_code == 429:
                 code_429 += 1

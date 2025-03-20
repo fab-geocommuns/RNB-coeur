@@ -109,6 +109,9 @@ class IsSuperUser(BasePermission):
 
 
 class RNBLoggingMixin(LoggingMixin):
+
+    sensitive_fields = {"confirm_password"}
+
     def should_log(self, request, response):
         return request.query_params.get("from") != "monitoring"
 
@@ -2291,7 +2294,7 @@ class RequestPasswordReset(RNBLoggingMixin, APIView):
         return Response(None, status=204)
 
 
-class ChangePassword(APIView):
+class ChangePassword(RNBLoggingMixin, APIView):
 
     # About security:
     # This endpoint is used to change the password of a user. It is very sensitive. It should be hardened.
