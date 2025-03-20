@@ -25,6 +25,7 @@ from django.http import JsonResponse
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_datetime
+from batid.services.user import get_b64_user_id
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
@@ -2277,7 +2278,7 @@ class RequestPasswordReset(RNBLoggingMixin, APIView):
         token = default_token_generator.make_token(user)
 
         # We also need the user id in base 64
-        user_id_b64 = base64.b64encode(user.pk)
+        user_id_b64 = get_b64_user_id(user)
 
         # Build the email to send
         email = build_reset_password_email(token, user_id_b64, email)

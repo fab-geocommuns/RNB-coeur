@@ -1,9 +1,11 @@
+import base64
 from unittest import mock
 
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
 from nanoid import generate
+from batid.services.user import get_b64_user_id
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
@@ -81,13 +83,16 @@ class ForgottenPassword(APITestCase):
         # ##################
         # PART 3: The user is on the frontend and send the new password
 
-        data = {"password": "new_password", "email": "someone@random.com"}
+        data = {"password": "new_password", "confirm_password": "new_password"}
 
-        # We need the token to rebuild the urlv
+        # We need the token to rebuild the url
         user = User.objects.get(email="someone@random.com")
         token = default_token_generator.make_token(user)
+        user_id_b64 = get_b64_user_id(user)
 
-        response = self.client.patch("/api/alpha/auth/change_password/" + token, data)
+        response = self.client.patch(
+            f"/api/alpha/auth/change_password/{user_id_b64}/{token}", data
+        )
 
         self.assertEqual(response.status_code, 204)
 
@@ -125,20 +130,22 @@ class ForgottenPassword(APITestCase):
 
         self.assertEqual(response.status_code, 400)
 
-    def test_change_password_wrong_email(self):
+    def test_change_password_wrong_id(self):
 
         # Get the right token
         user = User.objects.get(email="someone@random.com")
         real_token = default_token_generator.make_token(user)
 
-        # But send the wrong email
-        data = {"password": "new_password", "email": "does_not_exist@random.com"}
+        # But send the wrong id
+        data = {"password": "new_password", "confirm_password": "new_password"}
         response = self.client.patch(
-            "/api/alpha/auth/change_password/" + real_token, data
+            f"/api/alpha/auth/change_password/WRONG_ID/{real_token}", data
         )
 
-        # We should receive a "fake" 204 to avoid leaking information
-        self.assertEqual(response.status_code, 204)
+        # The response should be a 404
+        self.assertEqual(response.status_code, 404)
+        # The response should be empty (we don't want to explain why it failed)
+        self.assertEqual(response.content, b"")
 
         # But the password should not have changed
         data = {"username": "someone", "password": "1234"}
@@ -152,9 +159,9 @@ class ForgottenPassword(APITestCase):
         fake_token = "fake_token"
 
         # But send the right email
-        data = {"password": "new_password", "email": "someone@random.com"}
+        data = {"password": "new_password", "confirm_password": "new_password"}
         response = self.client.patch(
-            "/api/alpha/auth/change_password/" + fake_token, data
+            f"/api/alpha/auth/change_password/" + fake_token, data
         )
 
         # We should receive a "fake" 204 to avoid leaking information
