@@ -28,18 +28,24 @@ def get_closest_from_poly(poly: Polygon, radius) -> Optional[QuerySet]:
     return qs
 
 
+<<<<<<< Updated upstream
 def get_closest_from_point(lat: float, lng: float, radius: int) -> QuerySet:
+=======
+def get_closest_from_point(lat: float, lng: float, radius: int) -> Optional[QuerySet]:
+>>>>>>> Stashed changes
     __validate_point(lat, lng)
     __validate_radius(radius)
     return __get_qs(lat, lng, radius)
 
 
-def __get_qs(lat, lng, radius):
+def __get_qs(lat: float, lng: float, radius: int) -> Optional[QuerySet]:
     qs = (
         Building.objects.all()
         .filter(is_active=True)
         .filter(status__in=BuildingStatus.REAL_BUILDINGS_STATUS)
     )
+
+    print(qs)
 
     point_geom = Point(lng, lat, srid=4326)
 
@@ -54,6 +60,7 @@ def __get_qs(lat, lng, radius):
     )
 
     qs = qs.prefetch_related("addresses_read_only")
+    print(str(qs.query))
     return qs
 
 

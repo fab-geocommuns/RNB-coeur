@@ -8,7 +8,10 @@ from abc import abstractmethod
 from io import StringIO
 from typing import Optional
 from typing import TypedDict
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 import orjson
 import pandas as pd
 from django.contrib.gis.geos import GEOSGeometry
@@ -28,6 +31,7 @@ from batid.services.geocoders import PhotonGeocoder
 class Input(TypedDict):
     ext_id: str
     polygon: Polygon
+<<<<<<< Updated upstream
     lat: float
     lng: float
     name: str
@@ -39,14 +43,26 @@ class HandlerResult(TypedDict):
     matches: list[str]
     point: Optional[tuple[float, float]]
     reason: str
+=======
+    address: str
+    name: str
+    lat: float
+    lng: float
+>>>>>>> Stashed changes
 
 
 class Guess(TypedDict):
     input: Input
+<<<<<<< Updated upstream
     matches: list[str]
     match_reason: str
     finished_steps: list[str]
     handler_results: dict[str, HandlerResult]
+=======
+    matches: list[Building]
+    match_reason: Optional[str]
+    finished_steps: list[str]
+>>>>>>> Stashed changes
 
 
 class Guesser:
@@ -58,7 +74,7 @@ class Guesser:
             GeocodeNameHandler(),
         ]
 
-    def create_work_file(self, inputs, file_path):
+    def create_work_file(self, inputs: list[Input], file_path):
         self.load_inputs(inputs)
         self.save_work_file(file_path)
 
@@ -67,7 +83,7 @@ class Guesser:
         with open(file_path, "r") as f:
             self.guesses = json.load(f)
 
-    def load_inputs(self, inputs: list):
+    def load_inputs(self, inputs: list[Input]):
         self._validate_inputs(inputs)
         self.guesses = self._inputs_to_guesses(inputs)
 
@@ -243,7 +259,7 @@ class Guesser:
 
         return guesses, guesses_changed
 
-    def to_csv(self, file_path, ext_id_col_name="ext_id"):
+    def to_csv(self, file_path, ext_id_col_name="ext_id", delimiter=","):
 
         self.convert_matches()
 
@@ -263,26 +279,29 @@ class Guesser:
 
         with open(file_path, "w") as f:
             writer = csv.DictWriter(
-                f, fieldnames=[ext_id_col_name, "rnb_ids", "match_reason"]
+                f,
+                fieldnames=[ext_id_col_name, "rnb_ids", "match_reason"],
+                delimiter=delimiter,
             )
             writer.writeheader()
             writer.writerows(rows)
 
     @staticmethod
-    def _inputs_to_guesses(inputs) -> dict:
+    def _inputs_to_guesses(inputs: list[Input]) -> dict[str, Guess]:
         guesses = {}
         for input in inputs:
             # Always transform ext_id to string
             ext_id = str(input["ext_id"])
             input["ext_id"] = ext_id
 
-            guesses[ext_id] = {
+            guess: Guess = {
                 "input": input,
                 "matches": [],
                 "match_reason": None,
                 "finished_steps": [],
                 "handler_results": {},
             }
+            guesses[ext_id] = guess
 
         return guesses
 
@@ -376,13 +395,21 @@ class ClosestFromPointHandler(AbstractHandler):
                 tasks.append(future)
 
             for future in concurrent.futures.as_completed(tasks):
+<<<<<<< Updated upstream
                 guess, handler_result = future.result()
                 guess["handler_results"][self.name] = handler_result
+=======
+                guess: Guess = future.result()
+>>>>>>> Stashed changes
                 guesses[guess["input"]["ext_id"]] = guess
 
         return guesses
 
+<<<<<<< Updated upstream
     def _guess_one(self, guess: Guess) -> tuple[Guess, HandlerResult]:
+=======
+    def _guess_one(self, guess: Guess) -> Guess:
+>>>>>>> Stashed changes
         lat = guess["input"].get("lat", None)
         lng = guess["input"].get("lng", None)
 
@@ -752,7 +779,11 @@ class PartialRoofHandler(AbstractHandler):
 
         return guesses
 
+<<<<<<< Updated upstream
     def _guess_one(self, guess: Guess) -> tuple[Guess, HandlerResult]:
+=======
+    def _guess_one(self, guess: list[str]) -> dict:
+>>>>>>> Stashed changes
         roof_geojson = guess["input"].get("polygon", None)
 
         if not roof_geojson:
