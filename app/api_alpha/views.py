@@ -1,4 +1,5 @@
 import base64
+import binascii
 import json
 import os
 import secrets
@@ -2307,11 +2308,17 @@ class ChangePassword(APIView):
         # #################
         # First, we verify the couple user_id/token is valid, otherwise we return a 404 status code
 
+        try:
+            # Convert Base 64 user id to string
+            user_id = get_user_id_from_b64(user_id_b64)
+        except binascii.Error:
+            # We return a 404 status code if the user does not exist.
+            # We do not provide information about the user or the token.
+            return Response(None, status=404)
+
         # Retrieve the user
         try:
 
-            # Convert Base 64 user id to string
-            user_id = get_user_id_from_b64(user_id_b64)
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
             # We return a 404 status code if the user does not exist.

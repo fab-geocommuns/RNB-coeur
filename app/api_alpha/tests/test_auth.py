@@ -186,13 +186,48 @@ class ForgottenPassword(APITestCase):
         token = default_token_generator.make_token(user)
         user_id_b64 = get_user_id_b64(user)
 
-        data = {"password": "1111", "email": "someone@random.com"}
+        data = {"password": "1111", "confirm_password": "1111"}
 
         response = self.client.patch(
             f"/api/alpha/auth/change_password/{user_id_b64}/{token}", data
         )
 
         self.assertEqual(response.status_code, 400)
+
+    def test_different_passwords(self):
+
+        # Get the token and the user id
+        user = User.objects.get(email="someone@random.com")
+        token = default_token_generator.make_token(user)
+        user_id_b64 = get_user_id_b64(user)
+
+        data = {
+            "password": "STRONG_ozuhef875$",
+            "confirm_password": "STRONG_DIFFERENT_ozuhef875$",
+        }
+
+        response = self.client.patch(
+            f"/api/alpha/auth/change_password/{user_id_b64}/{token}", data
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_malformed_b64_user_id(self):
+
+        user = User.objects.get(email="someone@random.com")
+        token = default_token_generator.make_token(user)
+        malformed_user_id_b64 = "WRONG_ID"
+
+        data = {
+            "password": "STRONG_ozuhef875$",
+            "confirm_password": "STRONG_ozuhef875$",
+        }
+
+        response = self.client.patch(
+            f"/api/alpha/auth/change_password/{malformed_user_id_b64}/{token}", data
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     def test_b64_utils(self):
 
@@ -209,7 +244,7 @@ class ForgottenPasswordThrottling(APITestCase):
     def test_throttling(self):
 
         code_429 = 0
-        code_204 = 0
+        code_404 = 0
 
         # The throttling counter use Django cache.
         # Other auth tests (above) request "/api/alpha/auth/change_password/" which count in the throttling
@@ -219,19 +254,23 @@ class ForgottenPasswordThrottling(APITestCase):
         for _ in range(15):
 
             data = {
-                "email": "someone@random.com",
                 "password": "STRONG_zoeihfiuezhf77iuzgef$",
+                "confirm_password": "STRONG_zoeihfiuezhf77iuzgef$",
             }
             random_token = generate(size=10)
 
+            wrong_user_id = _int_to_b64(42)
+
             response = self.client.patch(
-                "/api/alpha/auth/change_password/" + random_token, data
+                f"/api/alpha/auth/change_password/{wrong_user_id}/{random_token}", data
             )
+
+            print(response.status_code)
 
             if response.status_code == 429:
                 code_429 += 1
-            elif response.status_code == 204:
-                code_204 += 1
+            elif response.status_code == 404:
+                code_404 += 1
 
         self.assertEqual(code_429, 5)
-        self.assertEqual(code_204, 10)
+        self.assertEqual(code_404, 10)
