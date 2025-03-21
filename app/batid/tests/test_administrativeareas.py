@@ -19,10 +19,10 @@ class AdminAreas(TestCase):
         self.assertEqual(len(drom_list), 5)
 
         com_overseas_list = com_list()
-        self.assertEqual(len(com_overseas_list), 5)
+        self.assertEqual(len(com_overseas_list), 8)
 
         all = dpts_list()
-        self.assertEqual(len(all), 106)
+        self.assertEqual(len(all), 109)
 
         # Test everybody has a name
         for code in all:
