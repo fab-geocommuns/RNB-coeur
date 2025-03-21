@@ -186,7 +186,7 @@ EMAIL_HOST_PASSWORD = os.environ.get("DJANGO_EMAIL_HOST_PASSWORD")
 EMAIL_USE_TLS = os.environ.get("DJANGO_EMAIL_USE_TLS")
 
 RNB_SEND_ADDRESS = os.environ.get("RNB_SEND_ADDRESS")
-RNB_SEND_NAME = os.environ.get("RNB_SEND_NAME")
+RNB_SEND_NAME = "Référentiel National des Bâtiments"
 RNB_REPLY_TO_ADDRESS = os.environ.get("RNB_REPLY_TO_ADDRESS")
 
 
