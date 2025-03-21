@@ -4,13 +4,13 @@ from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
 from django.test import TestCase
 
-from batid.models import Address
-from batid.models import Building
-from batid.models import Plot
 from app.batid.services.imports.import_ban import _create_bal_dpt_import_tasks
 from app.batid.services.imports.import_ban import _find_link_building_with_address
 from app.batid.services.imports.import_ban import create_bal_full_import_tasks
 from app.batid.services.imports.import_ban import import_addresses
+from batid.models import Address
+from batid.models import Building
+from batid.models import Plot
 from batid.tests import helpers
 
 

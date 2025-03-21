@@ -4,7 +4,6 @@ import uuid
 from celery import Signature
 from django.contrib.gis.geos import Point
 
-
 from batid.models import Address
 from batid.services.imports import building_import_history
 from batid.services.source import Source

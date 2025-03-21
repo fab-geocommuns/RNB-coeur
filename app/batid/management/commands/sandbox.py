@@ -1,6 +1,5 @@
 from django.core.management.base import BaseCommand
 
-from batid.services.source import Source
 from batid.services.imports.import_ban import import_ban_addresses
 
 
