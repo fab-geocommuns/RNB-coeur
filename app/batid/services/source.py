@@ -57,6 +57,10 @@ class Source:
                 "url": "https://adresse.data.gouv.fr/data/ban/adresses/latest/csv-bal/adresses-{{dpt}}.csv.gz",
                 "filename": "bal-{{dpt}}.csv",
             },
+            "ban": {
+                "url": "https://adresse.data.gouv.fr/data/ban/adresses/latest/csv/adresses-{{dpt}}.csv.gz",
+                "filename": "adresses-{{dpt}}.csv",
+            },
         }
 
     def set_param(self, p_key, p_val):
