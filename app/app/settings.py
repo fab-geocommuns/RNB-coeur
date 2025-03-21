@@ -183,7 +183,9 @@ EMAIL_HOST = os.environ.get("DJANGO_EMAIL_HOST")
 EMAIL_PORT = os.environ.get("DJANGO_EMAIL_PORT")
 EMAIL_HOST_USER = os.environ.get("DJANGO_EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.environ.get("DJANGO_EMAIL_HOST_PASSWORD")
-EMAIL_USE_TLS = os.environ.get("DJANGO_EMAIL_USE_TLS")
+EMAIL_USE_TLS = True if os.environ.get("DJANGO_EMAIL_USE_TLS") == "1" else False
+EMAIL_USE_SSL = True if os.environ.get("DJANGO_EMAIL_USE_SSL") == "1" else False
+# EMAIL_TIMEOUT = 60
 
 RNB_SEND_ADDRESS = os.environ.get("RNB_SEND_ADDRESS")
 RNB_SEND_NAME = "Référentiel National des Bâtiments"
