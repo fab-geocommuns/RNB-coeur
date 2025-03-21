@@ -3,13 +3,12 @@ import csv
 import json
 import re
 import time
-from tqdm.notebook import tqdm
 from abc import ABC
 from abc import abstractmethod
 from io import StringIO
+from typing import Callable
 from typing import Optional
 from typing import TypedDict
-from typing import Callable
 
 import orjson
 import pandas as pd
@@ -17,6 +16,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
 from django.db import connection
+from tqdm.notebook import tqdm
 
 from batid.models import Building
 from batid.services.closest_bdg import get_closest_from_point
@@ -521,9 +521,9 @@ class GeocodeAddressHandler(AbstractHandler):
             address_result_with_max_score
             and float(address_result_with_max_score["result_score"]) >= self.min_score
         ):
-            guesses[address_result_with_max_score["ext_id"]]["input"]["ban_id"] = (
-                address_result_with_max_score["result_id"]
-            )
+            guesses[address_result_with_max_score["ext_id"]]["input"][
+                "ban_id"
+            ] = address_result_with_max_score["result_id"]
 
         return guesses
 
