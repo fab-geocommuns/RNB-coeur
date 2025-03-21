@@ -7,10 +7,10 @@ from django.test import TestCase
 from batid.models import Address
 from batid.models import Building
 from batid.models import Plot
-from batid.services.imports.import_bal import _create_bal_dpt_import_tasks
-from batid.services.imports.import_bal import _find_link_building_with_address
-from batid.services.imports.import_bal import create_bal_full_import_tasks
-from batid.services.imports.import_bal import import_addresses
+from app.batid.services.imports.import_ban import _create_bal_dpt_import_tasks
+from app.batid.services.imports.import_ban import _find_link_building_with_address
+from app.batid.services.imports.import_ban import create_bal_full_import_tasks
+from app.batid.services.imports.import_ban import import_addresses
 from batid.tests import helpers
 
 
