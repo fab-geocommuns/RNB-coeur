@@ -8,6 +8,7 @@ from datetime import timezone
 
 import boto3
 import requests
+from botocore.config import Config
 
 from batid.services.mattermost import notify_tech
 
@@ -57,6 +58,10 @@ def upload_to_s3(backup_name, download_url):
         aws_secret_access_key=S3_BACKUP_SECRET_ACCESS_KEY,
         endpoint_url=S3_BACKUP_ENDPOINT_URL,
         region_name=S3_BACKUP_REGION_NAME,
+        config=Config(
+            request_checksum_calculation="when_required",
+            response_checksum_validation="when_required",
+        ),
     )
 
     s3.upload_fileobj(r.raw, S3_BACKUP_BUCKET_NAME, backup_name)
