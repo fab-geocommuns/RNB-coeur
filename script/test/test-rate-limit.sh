@@ -30,12 +30,12 @@ main() {
     prompt_continue
 
     echo "--> Testing above rate limit but below concurrent limit"
-    stress $target_url 70 49
+    stress $target_url 200 49
 
     prompt_continue
 
     echo "--> Testing above rate limit"
-    stress $target_url 70 70
+    stress $target_url 200 200
 }
 
 main $@
