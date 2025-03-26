@@ -18,6 +18,7 @@ from batid.models import BuildingADS
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
+from batid.models import UserProfile
 from batid.services.bdg_status import BuildingStatus
 from batid.services.rnb_id import clean_rnb_id
 
@@ -525,10 +526,18 @@ class DiffusionDatabaseSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     # this field will never be sent back for security reasons
     password = serializers.CharField(write_only=True)
+    job_title = serializers.CharField(source="profile.job_title", required=False)
 
     class Meta:
         model = User
-        fields = ["last_name", "first_name", "email", "username", "password"]
+        fields = [
+            "last_name",
+            "first_name",
+            "email",
+            "username",
+            "password",
+            "job_title",
+        ]
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -538,6 +547,8 @@ class UserSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
+        profile_data = validated_data.pop("profile", {})
+
         user = User(
             first_name=validated_data["first_name"],
             last_name=validated_data["last_name"],
@@ -546,12 +557,16 @@ class UserSerializer(serializers.ModelSerializer):
         )
         user.set_password(validated_data["password"])
         user.save()
+
+        # add info (job_title) in the User profile
+        UserProfile.objects.update_or_create(
+            user=user, defaults={"job_title": profile_data.get("job_title")}
+        )
+
         return user
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
-    organization_name = serializers.CharField(source="name", required=True)
-
     class Meta:
         model = Organization
-        fields = ["organization_name"]
+        fields = ["name"]

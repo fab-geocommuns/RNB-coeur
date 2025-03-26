@@ -2229,9 +2229,11 @@ class CreateUserView(APIView):
         user_serializer.is_valid(raise_exception=True)
         user = user_serializer.save()
 
-        organization_serializer = OrganizationSerializer(data=request.data)
+        organization_serializer = OrganizationSerializer(
+            data={"name": request.data.get("organization_name")}
+        )
         organization_serializer.is_valid(raise_exception=True)
-        organization_name = organization_serializer.data.get("organization_name")
+        organization_name = organization_serializer.data.get("name")
         organization, created = Organization.objects.get_or_create(
             name=organization_name
         )
