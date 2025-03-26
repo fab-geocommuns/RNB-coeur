@@ -17,6 +17,7 @@ from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
+from batid.models import Organization
 from batid.services.bdg_status import BuildingStatus
 from batid.services.rnb_id import clean_rnb_id
 
@@ -546,3 +547,11 @@ class UserSerializer(serializers.ModelSerializer):
         user.set_password(validated_data["password"])
         user.save()
         return user
+
+
+class OrganizationSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source="name", required=True)
+
+    class Meta:
+        model = Organization
+        fields = ["organization_name"]

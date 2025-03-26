@@ -69,6 +69,7 @@ from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import DiffusionDatabaseSerializer
 from api_alpha.serializers import GuessBuildingSerializer
+from api_alpha.serializers import OrganizationSerializer
 from api_alpha.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.rnb_doc import build_schema_dict
@@ -2222,11 +2223,21 @@ class RNBAuthToken(ObtainAuthToken):
 
 
 class CreateUserView(APIView):
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
-        serializer = UserSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        user_serializer = UserSerializer(data=request.data)
+        user_serializer.is_valid(raise_exception=True)
+        user = user_serializer.save()
+
+        organization_serializer = OrganizationSerializer(data=request.data)
+        organization_serializer.is_valid(raise_exception=True)
+        organization_name = organization_serializer.data.get("organization_name")
+        organization, created = Organization.objects.get_or_create(
+            name=organization_name
+        )
+        organization.users.add(user)
+
+        return Response(user_serializer.data, status=status.HTTP_201_CREATED)
 
 
 class TokenScheme(OpenApiAuthenticationExtension):
