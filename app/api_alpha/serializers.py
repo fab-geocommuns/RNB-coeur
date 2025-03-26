@@ -1,5 +1,6 @@
 import math
 
+from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
@@ -518,3 +519,12 @@ class DiffusionDatabaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = DiffusionDatabase
         fields = "__all__"
+
+
+class UserSerializer(serializers.ModelSerializer):
+    # this field will never be sent back for security reasons
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ["last_name", "first_name", "email", "username", "password"]
