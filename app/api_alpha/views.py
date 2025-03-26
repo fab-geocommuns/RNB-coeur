@@ -69,6 +69,7 @@ from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import DiffusionDatabaseSerializer
 from api_alpha.serializers import GuessBuildingSerializer
+from api_alpha.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
@@ -2218,6 +2219,14 @@ class RNBAuthToken(ObtainAuthToken):
                 "groups": [group.name for group in user.groups.all()],
             }
         )
+
+
+class CreateUserView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = UserSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class TokenScheme(OpenApiAuthenticationExtension):
