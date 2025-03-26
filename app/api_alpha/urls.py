@@ -13,6 +13,7 @@ from api_alpha.views import BuildingPlotView
 from api_alpha.views import BuildingsVectorTileView
 from api_alpha.views import ChangePassword
 from api_alpha.views import ContributionsViewSet
+from api_alpha.views import CreateUserView
 from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import DiffView
 from api_alpha.views import get_schema
@@ -64,6 +65,7 @@ urlpatterns = [
     path("diffusion_databases", DiffusionDatabaseView.as_view()),
     # Authentification
     path("login/", RNBAuthToken.as_view()),
+    path("auth/user/create/", CreateUserView.as_view()),
     path("auth/reset_password/", RequestPasswordReset.as_view()),
     path(
         "auth/change_password/<str:user_id_b64>/<str:token>", ChangePassword.as_view()
