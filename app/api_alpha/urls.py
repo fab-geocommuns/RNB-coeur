@@ -25,6 +25,7 @@ from api_alpha.views import RequestPasswordReset
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SingleBuilding
 from api_alpha.views import SplitBuildings
+from api_alpha.views import OrganizationView
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
@@ -37,6 +38,9 @@ router.register(r"ads", ADSViewSet)
 urlpatterns = [
     path("schema/", get_schema, name="schema"),
     path("stats", get_stats),
+    # For site
+    path("diffusion_databases", DiffusionDatabaseView.as_view()),
+    path("organization_names", OrganizationView.as_view()),
     # Buildings
     path("buildings/", ListCreateBuildings.as_view()),
     path("buildings/guess/", BuildingGuessView.as_view()),
@@ -61,7 +65,6 @@ urlpatterns = [
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
     # Plots vector tiles
     path("plots/tiles/<int:x>/<int:y>/<int:z>.pbf", PlotsVectorTileView.as_view()),
-    path("diffusion_databases", DiffusionDatabaseView.as_view()),
     # Authentification
     path("login/", RNBAuthToken.as_view()),
     path("auth/reset_password/", RequestPasswordReset.as_view()),
