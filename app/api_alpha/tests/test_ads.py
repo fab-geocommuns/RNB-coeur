@@ -1314,6 +1314,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
             first_name="Super-John",
             last_name="Doe",
             username="johndoe_superuser",
+            email="superuser@ilovepower.fr",
             is_superuser=True,
         )
         org.users.add(self.superuser)
