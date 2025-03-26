@@ -2237,7 +2237,13 @@ class CreateUserView(APIView):
         )
         organization.users.add(user)
 
-        return Response(user_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "user": user_serializer.data,
+                "organization": organization_serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class TokenScheme(OpenApiAuthenticationExtension):
