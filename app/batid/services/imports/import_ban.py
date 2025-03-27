@@ -56,7 +56,7 @@ def import_ban_addresses(
     # First, we register the import
     if bulk_launch_uuid:
         building_import_history.insert_building_import(
-            "bal", bulk_launch_uuid, src_params["dpt"]
+            "ban", bulk_launch_uuid, src_params["dpt"]
         )
 
     src = Source("ban")
