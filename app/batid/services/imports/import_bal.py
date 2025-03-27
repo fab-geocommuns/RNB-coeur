@@ -1,4 +1,7 @@
 from celery import Signature
+from typing import Optional
+from django.contrib.gis.geos import Point
+from batid.models import Building
 
 
 def create_all_bal_links_tasks(dpts: list):
@@ -39,3 +42,13 @@ def _create_bal_links_dpt_tasks(dpt: str):
 def create_dpt_bal_rnb_links(dpt: str):
 
     pass
+
+
+def bdg_to_link(point: Point, cle_interop: str) -> Optional[Building]:
+
+    bdgs = Building.objects.filter(shape__contains=point)
+
+    if bdgs:
+        return bdgs.first()
+
+    return None
