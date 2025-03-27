@@ -1,8 +1,6 @@
 # abstract class, which will be extend by a specific class foreach django model
 from abc import ABC
-from datetime import datetime
 from typing import List
-from typing import Optional
 from typing import Type
 
 from django.db.models import Model

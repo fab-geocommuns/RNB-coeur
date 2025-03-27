@@ -4,7 +4,6 @@ from typing import Optional
 from celery import chain
 from celery import shared_task
 
-
 from batid.services.administrative_areas import dpts_list
 from batid.services.administrative_areas import slice_dpts
 from batid.services.building import export_city as export_city_job
