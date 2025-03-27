@@ -3,10 +3,11 @@ name = "app"
 version = "0.1.0"
 description = "RNB's backend code"
 authors = ["RNB team <tech@rnb.beta.gouv.fr>"]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "3.12.4"
-boto3 = "~1.36.0"
+boto3 = "~1.37.18"
 Django = "~5.1.7"
 drf-spectacular = "~0.28.0"
 drf-api-tracking = "~1.8.4"
