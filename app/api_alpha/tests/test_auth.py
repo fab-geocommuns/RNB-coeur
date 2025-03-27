@@ -289,7 +289,7 @@ class UserCreation(APITestCase):
             "organization_name": "Mairie d'Angoulème",
             "job_title": "responsable SIG",
         }
-        response = self.client.post("/api/alpha/auth/user/", data)
+        response = self.client.post("/api/alpha/auth/users/", data)
 
         self.assertEqual(response.status_code, 201)
 
@@ -317,14 +317,14 @@ class UserCreation(APITestCase):
             "organization_name": "Mairie d'Angoulème",
             "job_title": "responsable SIG",
         }
-        response = self.client.post("/api/alpha/auth/user/", data)
+        response = self.client.post("/api/alpha/auth/users/", data)
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
             {
-                "email": ["A user with this email address already exists"],
-                "username": ["A user with that username already exists."],
+                "email": ["Un utilisateur avec cette adresse email existe déjà."],
+                "username": ["Un utilisateur avec ce nom existe déjà."],
             },
         )
 
@@ -337,22 +337,22 @@ class UserCreation(APITestCase):
             "username": "jujuyy",
             "password": "tajine",
         }
-        response = self.client.post("/api/alpha/auth/user/", data)
+        response = self.client.post("/api/alpha/auth/users/", data)
 
         self.assertEqual(response.status_code, 201)
 
     def test_mandatory_info(self):
         data = {}
-        response = self.client.post("/api/alpha/auth/user/", data)
+        response = self.client.post("/api/alpha/auth/users/", data)
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
             {
-                "last_name": ["This field is required."],
-                "first_name": ["This field is required."],
-                "email": ["This field is required."],
-                "username": ["This field is required."],
-                "password": ["This field is required."],
+                "last_name": ["Ce champ est obligatoire."],
+                "first_name": ["Ce champ est obligatoire."],
+                "email": ["Ce champ est obligatoire."],
+                "username": ["Ce champ est obligatoire."],
+                "password": ["Ce champ est obligatoire."],
             },
         )
