@@ -680,25 +680,6 @@ class Organization(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
-class AsyncSignal(models.Model):
-    id = models.AutoField(primary_key=True)
-    type = models.CharField(max_length=20, null=False, db_index=True)
-    building = models.ForeignKey(Building, on_delete=models.CASCADE, null=True)
-    origin = models.CharField(max_length=100, null=False, db_index=True)
-    handled_at = models.DateTimeField(null=True)
-    handle_result = models.JSONField(null=True)
-    created_at = models.DateTimeField(auto_now_add=True, null=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    creator_copy_id = models.IntegerField(null=True)
-    creator_copy_fname = models.CharField(max_length=100, null=True)
-    creator_copy_lname = models.CharField(max_length=100, null=True)
-    creator_org_copy_id = models.IntegerField(null=True)
-    creator_org_copy_name = models.CharField(max_length=100, null=True)
-
-    class Meta:
-        ordering = ["created_at"]
-
-
 class BuildingImport(models.Model):
     id = models.AutoField(primary_key=True)
     import_source = models.CharField(max_length=20, null=False)
