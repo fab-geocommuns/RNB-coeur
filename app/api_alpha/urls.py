@@ -20,12 +20,12 @@ from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
 from api_alpha.views import ListCreateBuildings
 from api_alpha.views import MergeBuildings
+from api_alpha.views import OrganizationView
 from api_alpha.views import PlotsVectorTileView
 from api_alpha.views import RequestPasswordReset
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SingleBuilding
 from api_alpha.views import SplitBuildings
-from api_alpha.views import OrganizationView
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
