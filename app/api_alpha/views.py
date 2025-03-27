@@ -1,3 +1,4 @@
+import binascii
 import json
 import os
 import secrets
@@ -13,7 +14,10 @@ import yaml
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
+from django.core.exceptions import ValidationError
 from django.db import connection
 from django.db import transaction
 from django.http import HttpResponse
@@ -82,6 +86,7 @@ from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
+from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.mattermost import notify_tech
@@ -89,6 +94,8 @@ from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.stats import ACTIVE_BUILDING_COUNT
 from batid.services.stats import get_stat as get_cached_stat
+from batid.services.user import get_user_id_b64
+from batid.services.user import get_user_id_from_b64
 from batid.services.vector_tiles import ads_tiles_sql
 from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import plots_tiles_sql
@@ -102,6 +109,9 @@ class IsSuperUser(BasePermission):
 
 
 class RNBLoggingMixin(LoggingMixin):
+
+    sensitive_fields = {"confirm_password"}
+
     def should_log(self, request, response):
         return request.query_params.get("from") != "monitoring"
 
@@ -2249,3 +2259,105 @@ def get_schema(request):
     response["Content-Disposition"] = 'attachment; filename="schema.yml"'
 
     return response
+
+
+class RequestPasswordReset(RNBLoggingMixin, APIView):
+    def post(self, request):
+
+        email = request.data.get("email")
+        if email is None:
+            return JsonResponse({"error": "Email is required"}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # We do not want someone to know if an email is in the database or not:
+            # even if the user does not exist, we still return a 204 status code
+            return Response(None, status=204)
+
+        # We found a user with the email, we continue
+
+        # We generate the token. Note, Django does not need to store the "request new password" token in the database
+        # (explanation: https://stackoverflow.com/questions/46234627/how-does-default-token-generator-store-tokens)
+        token = default_token_generator.make_token(user)
+
+        # We also need the user id in base 64
+        user_id_b64 = get_user_id_b64(user)
+
+        # Build the email to send
+        email = build_reset_password_email(token, user_id_b64, email)
+
+        # Send the email
+        # Might do: use a queue to send the email instead of a synchronous call
+        email.send()
+
+        return Response(None, status=204)
+
+
+class ChangePassword(RNBLoggingMixin, APIView):
+
+    # About security:
+    # This endpoint is used to change the password of a user. It is very sensitive. It should be hardened.
+    # - In case of wrong user id/token couple, always return a 404 status code
+    # - Throttle the endpoint to avoid brute force attacks
+    # - Do not log the use of this endpoint, the risk would be to log the new password in the logs, which is a security risk.
+    # - Validate the new password is strong enough (validated against the AUTH_PASSWORD_VALIDATORS validators set in settings.py)
+
+    # about scoped throttles in DRF: https://www.django-rest-framework.org/api-guide/throttling/#scopedratethrottle
+    throttle_scope = "change_password"
+
+    def patch(self, request, user_id_b64, token):
+
+        # #################
+        # First, we verify the couple user_id/token is valid, otherwise we return a 404 status code
+
+        try:
+            # Convert Base 64 user id to string
+            user_id = get_user_id_from_b64(user_id_b64)
+        except binascii.Error:
+            # We return a 404 status code if the user does not exist.
+            # We do not provide information about the user or the token.
+            return Response(None, status=404)
+
+        # Retrieve the user
+        try:
+
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            # We return a 404 status code if the user does not exist.
+            # We do not provide information about the user or the token.
+            return Response(None, status=404)
+
+        # We check if the token is valid
+        if not default_token_generator.check_token(user, token):
+            # We return a 404 status code if the token is not valid for this user.
+            # We do not provide information about the user or the token.
+            return Response(None, status=404)
+
+        # #################
+        # Second, we verify the new password is valid
+
+        password = request.data.get("password")
+        if password is None:
+            return JsonResponse({"error": "Password is required"}, status=400)
+
+        confirm_password = request.data.get("confirm_password")
+        if confirm_password is None:
+            return JsonResponse(
+                {"error": "Password confirmation is required"}, status=400
+            )
+
+        if password != confirm_password:
+            return JsonResponse({"error": "Passwords do not match"}, status=400)
+
+        # Verify the password is strong enough (validated against the AUTH_PASSWORD_VALIDATORS validators set in settings.py)
+        try:
+            validate_password(password, user)
+        except ValidationError as e:
+            return JsonResponse({"error": e.messages}, status=400)
+
+        # We change the password
+        user.set_password(password)
+        user.save()
+
+        return Response(None, status=204)

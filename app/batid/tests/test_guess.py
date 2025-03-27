@@ -12,6 +12,7 @@ from batid.models import Address
 from batid.models import Building
 from batid.services.guess_bdg_new import ClosestFromPointHandler
 from batid.services.guess_bdg_new import GeocodeAddressHandler
+from batid.services.guess_bdg_new import GeocodeNameHandler
 from batid.services.guess_bdg_new import Guesser
 from batid.services.guess_bdg_new import PartialRoofHandler
 from batid.tests.helpers import create_default_bdg
@@ -328,6 +329,14 @@ class TestGuesser(TransactionTestCase):
         # Check the reason
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "found_name_in_osm")
+
+    def test_lng_lat_bbox_around_point(self):
+        lng, lat = 2.387349, 48.862927
+        bbox = GeocodeNameHandler.lng_lat_bbox_around_point(lat, lng, 500)
+        self.assertEqual(
+            ["%.6f" % num for num in bbox],
+            ["2.382857", "48.859972", "2.391841", "48.865882"],
+        )
 
     def test_custom_handlers(self):
         # we define a custom list of handlers and check it is used
