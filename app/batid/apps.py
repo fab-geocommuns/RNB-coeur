@@ -6,5 +6,4 @@ class BatidConfig(AppConfig):
     name = "batid"
 
     def ready(self):
-        from batid.signals import receivers  # noqa
         from api_alpha.utils import drf_spectacular_extension  # noqa
