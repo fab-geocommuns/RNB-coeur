@@ -1,5 +1,5 @@
 id;id_fantoir;numero;rep;nom_voie;code_postal;code_insee;nom_commune;code_insee_ancienne_commune;nom_ancienne_commune;x;y;lon;lat;type_position;alias;nom_ld;libelle_acheminement;nom_afnor;source_position;source_nom_voie;certification_commune;cad_parcelles
-04001_pk624e_00001;;1;bis;Impasse de la Treille;04510;04001;Aiglun;;;951088.5;6335099.35;6.135212;44.070028;entrée;;;AIGLUN;IMPASSE DE LA TREILLE;commune;commune;1;040010000B0487
+04001_pk624e_00001;;1;bis;Impasse de la Treille àéêù;04510;04001;Aiglun;;;951088.5;6335099.35;6.135212;44.070028;entrée;;;AIGLUN;IMPASSE DE LA TREILLE;commune;commune;1;040010000B0487
 04001_pk624e_00002;;2;;Impasse de la Treille;04510;04001;Aiglun;;;951098.29;6335095.07;6.135332;44.069986;entrée;;;AIGLUN;IMPASSE DE LA TREILLE;commune;commune;1;040010000B0487
 04001_pk624e_00003;;3;;Impasse de la Treille;04510;04001;Aiglun;;;951107.87;6335086;6.135447;44.069901;entrée;;;AIGLUN;IMPASSE DE LA TREILLE;commune;commune;1;040010000B0487
 04001_cmxn7e_00001;;1;;Chemin de l'Orée du Bois;04510;04001;Aiglun;;;952169.82;6333811.6;6.148059;44.05806;entrée;;;AIGLUN;CHEMIN DE L OREE DU BOIS;commune;commune;1;040010000A2415
