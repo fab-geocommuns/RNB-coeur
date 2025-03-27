@@ -1,6 +1,5 @@
 location /api {
     proxy_pass http://web:8000/api;
-    set $upstream_keepalive false;
 
     limit_req zone=api_rate_limit burst=50;
     add_header RateLimit-Limit 20;
