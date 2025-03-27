@@ -1,10 +1,10 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from unittest.mock import patch
-from django.test import TestCase
+
 from django.contrib.gis.geos import Point
 from django.conf import settings
-
+from django.test import TestCase
 
 import batid.tests.helpers as helpers
 from batid.models import Address
@@ -12,7 +12,6 @@ from batid.services.imports.import_ban import import_ban_addresses
 
 
 class BANImportDB(TestCase):
-
     @patch("batid.services.imports.import_ban.Source.find")
     def test_import_on_empty_db_one_batch(self, sourceMock):
         sourceMock.return_value = helpers.fixture_path("ban_import_test_data.csv")

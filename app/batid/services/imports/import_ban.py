@@ -1,6 +1,6 @@
 import csv
-from typing import Optional
 import uuid
+from typing import Optional
 
 from celery import Signature
 from django.contrib.gis.geos import Point
