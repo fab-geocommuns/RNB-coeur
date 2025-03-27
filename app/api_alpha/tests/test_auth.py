@@ -276,3 +276,83 @@ class ForgottenPasswordThrottling(APITestCase):
 
         self.assertEqual(code_429, 5)
         self.assertEqual(code_404, 10)
+
+
+class UserCreation(APITestCase):
+    def test_create_user(self):
+        data = {
+            "last_name": "Y",
+            "first_name": "Julie",
+            "email": "julie.y@exemple.com",
+            "username": "jujuyy",
+            "password": "tajine",
+            "organization_name": "Mairie d'Angoulème",
+            "job_title": "responsable SIG",
+        }
+        response = self.client.post("/api/alpha/auth/user/create/", data)
+
+        self.assertEqual(response.status_code, 201)
+
+        julie = User.objects.prefetch_related("organizations", "profile").get(
+            first_name="Julie"
+        )
+        self.assertEqual(julie.last_name, "Y")
+        self.assertEqual(julie.email, "julie.y@exemple.com")
+        # we check the password is properly hashed
+        self.assertNotEqual(julie.password, "tajine")
+        self.assertIsNotNone(julie.password)
+        self.assertEqual(julie.username, "jujuyy")
+        self.assertEqual(len(julie.organizations.all()), 1)
+        orgas = julie.organizations.all()
+        self.assertEqual(orgas[0].name, "Mairie d'Angoulème")
+        self.assertEqual(julie.profile.job_title, "responsable SIG")
+
+        # check for unicity constraints
+        data = {
+            "last_name": "Y",
+            "first_name": "Julie",
+            "email": "julie.y@exemple.com",
+            "username": "jujuyy",
+            "password": "tajine",
+            "organization_name": "Mairie d'Angoulème",
+            "job_title": "responsable SIG",
+        }
+        response = self.client.post("/api/alpha/auth/user/create/", data)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "email": ["A user with this email address already exists"],
+                "username": ["A user with that username already exists."],
+            },
+        )
+
+    def test_create_user_no_orga(self):
+        # come as you are: someone can create an account without having a job or an organization
+        data = {
+            "last_name": "Y",
+            "first_name": "Julie",
+            "email": "julie.y@exemple.com",
+            "username": "jujuyy",
+            "password": "tajine",
+        }
+        response = self.client.post("/api/alpha/auth/user/create/", data)
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_mandatory_info(self):
+        data = {}
+        response = self.client.post("/api/alpha/auth/user/create/", data)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "last_name": ["This field is required."],
+                "first_name": ["This field is required."],
+                "email": ["This field is required."],
+                "username": ["This field is required."],
+                "password": ["This field is required."],
+            },
+        )

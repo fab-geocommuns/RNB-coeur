@@ -527,6 +527,9 @@ class UserSerializer(serializers.ModelSerializer):
     # this field will never be sent back for security reasons
     password = serializers.CharField(write_only=True)
     job_title = serializers.CharField(source="profile.job_title", required=False)
+    first_name = serializers.CharField(required=True)
+    last_name = serializers.CharField(required=True)
+    email = serializers.CharField(required=True)
 
     class Meta:
         model = User
