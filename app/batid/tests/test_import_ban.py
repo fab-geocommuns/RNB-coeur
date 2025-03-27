@@ -1,7 +1,10 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from unittest.mock import patch
 from django.test import TestCase
 from django.contrib.gis.geos import Point
+from django.conf import settings
+
 
 import batid.tests.helpers as helpers
 from batid.models import Address
@@ -16,7 +19,8 @@ class BANImportDB(TestCase):
 
         self.assertEqual(Address.objects.count(), 0)
 
-        before_import = datetime.now()
+        # Now UTC time
+        before_import = datetime.now(ZoneInfo(settings.TIME_ZONE))
 
         import_ban_addresses({"dpt": "dummy"}, batch_size=100)
 
