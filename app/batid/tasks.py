@@ -311,9 +311,3 @@ def queue_full_ban_import(
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_ban(src_params: dict, bulk_launch_uuid: str = None):
     return import_ban_addresses(src_params, bulk_launch_uuid)
-
-
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def link_building_addresses_using_bal(src_params, bulk_launch_uuid=None):
-    return link_building_with_addresses(src_params, bulk_launch_uuid)
