@@ -16,7 +16,7 @@ from django.db import transaction
 
 from batid.models import Plot
 from batid.services.administrative_areas import dpt_list_metropole
-from batid.services.administrative_areas import dpt_list_overseas
+from batid.services.administrative_areas import drom_list
 from batid.services.source import Source
 
 
@@ -102,7 +102,7 @@ def _feature_to_row(feature: dict):
 
 def etalab_dpt_list() -> list:
 
-    return dpt_list_metropole() + dpt_list_overseas()
+    return dpt_list_metropole() + drom_list()
 
 
 def create_plots_full_import_tasks(dpt_list: list, release_date: str) -> list:
