@@ -1,3 +1,6 @@
+import os
+from unittest import mock
+
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
 from django.core.validators import URLValidator
@@ -18,10 +21,10 @@ class ResetPasswordEmail(TestCase):
         url = _reset_password_url("fake_bd64", "token")
         self.assertIn(url, email.alternatives[0][0])
 
+    @mock.patch.dict(os.environ, {"FRONTEND_URL": "http://rnb.beta.gouv.fr"})
     def test_reset_url(self):
 
         url = _reset_password_url("fake_bd64", "token")
-
         # Test this is a valid url
         validator = URLValidator()
         try:
