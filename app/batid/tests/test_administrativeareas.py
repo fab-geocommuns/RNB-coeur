@@ -2,9 +2,10 @@ from django.test import TestCase
 
 from batid.services.administrative_areas import com_list
 from batid.services.administrative_areas import dpt_list_metropole
-from batid.services.administrative_areas import dpt_list_overseas
 from batid.services.administrative_areas import dpt_name
 from batid.services.administrative_areas import dpts_list
+from batid.services.administrative_areas import drom_list
+from batid.services.administrative_areas import other_territories_list
 from batid.services.administrative_areas import slice_dpts
 from batid.services.administrative_areas import validate_dpt_code
 
@@ -15,14 +16,17 @@ class AdminAreas(TestCase):
         metropole_list = dpt_list_metropole()
         self.assertEqual(len(metropole_list), 96)
 
-        drom_list = dpt_list_overseas()
-        self.assertEqual(len(drom_list), 5)
+        drom = drom_list()
+        self.assertEqual(len(drom), 5)
 
-        com_overseas_list = com_list()
-        self.assertEqual(len(com_overseas_list), 5)
+        com = com_list()
+        self.assertEqual(len(com), 5)
+
+        other_territories = other_territories_list()
+        self.assertEqual(len(other_territories), 3)
 
         all = dpts_list()
-        self.assertEqual(len(all), 106)
+        self.assertEqual(len(all), 109)
 
         # Test everybody has a name
         for code in all:

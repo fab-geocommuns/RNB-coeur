@@ -244,6 +244,10 @@ CELERY_BEAT_SCHEDULE = {
         # once a week, saturday at 3am
         "schedule": crontab(hour=3, minute=0, day_of_week=6),
     },
+    "import_ban": {
+        "task": "batid.tasks.queue_full_ban_import",
+        "schedule": crontab(minute=0, hour=0, day_of_month="1,15"),
+    },
 }
 
 # URL of the project
