@@ -25,6 +25,9 @@ from batid.services.data_gouv_publication import publish
 from batid.services.imports.import_ban import create_ban_full_import_tasks
 from batid.services.imports.import_ban import import_ban_addresses
 from batid.services.imports.import_bal import create_all_bal_links_tasks
+from batid.services.imports.import_bal import (
+    create_dpt_bal_rnb_links as create_dpt_bal_rnb_links_job,
+)
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
 from batid.services.imports.import_bdtopo import bdtopo_dpts_list
@@ -331,3 +334,9 @@ def queue_full_bal_rnb_links(
 
     chain(*tasks)()
     return f"Queued {len(tasks)} tasks"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def create_dpt_bal_rnb_links(src_params: dict):
+    return create_dpt_bal_rnb_links_job(src_params)

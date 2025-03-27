@@ -34,3 +34,8 @@ def _create_bal_links_dpt_tasks(dpt: str):
     tasks.append(links_task)
 
     return tasks
+
+
+def create_dpt_bal_rnb_links(dpt: str):
+
+    pass
