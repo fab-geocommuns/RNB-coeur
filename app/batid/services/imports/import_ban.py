@@ -11,16 +11,11 @@ from batid.services.source import Source
 
 
 def create_ban_full_import_tasks(dpt_list: list) -> list:
-
     tasks = []
-
     bulk_launch_uuid = str(uuid.uuid4())
-
     for dpt in dpt_list:
-
         dpt_tasks = _create_ban_dpt_import_tasks(dpt, bulk_launch_uuid)
         tasks.extend(dpt_tasks)
-
     return tasks
 
 
