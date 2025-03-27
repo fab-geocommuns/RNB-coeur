@@ -62,10 +62,10 @@ class Guesser:
         self._validate_inputs(inputs)
         self.guesses = self._inputs_to_guesses(inputs)
 
-    def guess_work_file(self, file_path):
+    def guess_work_file(self, file_path, batch_size=5000):
         self.load_work_file(file_path)
 
-        batches = self._guesses_to_batches()
+        batches = self._guesses_to_batches(batch_size)
 
         c = 0
         for batch in batches:
