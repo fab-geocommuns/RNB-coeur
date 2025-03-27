@@ -4,18 +4,9 @@ import os
 from django.contrib.gis.geos import GEOSGeometry
 from requests import Response
 
-from batid.models import AsyncSignal
+
 from batid.models import Building
 from batid.models import City
-from batid.services.signal import AsyncSignalDispatcher
-
-
-def dispatch_signals():
-    signals = AsyncSignal.objects.filter(handled_at__isnull=True).order_by("created_at")
-
-    dispatcher = AsyncSignalDispatcher()
-    for s in signals:
-        dispatcher.dispatch(s)
 
 
 def create_paris():
