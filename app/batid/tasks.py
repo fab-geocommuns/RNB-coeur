@@ -21,6 +21,8 @@ from batid.services.data_fix.remove_light_buildings import (
 )
 from batid.services.data_gouv_publication import get_area_publish_task
 from batid.services.data_gouv_publication import publish
+from batid.services.imports.import_ban import create_ban_full_import_tasks
+from batid.services.imports.import_ban import import_ban_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
 from batid.services.imports.import_bdtopo import bdtopo_dpts_list
@@ -42,10 +44,6 @@ from batid.services.mattermost import notify_if_error
 from batid.services.mattermost import notify_tech
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.source import Source
-
-# from batid.services.data_fix.delete_to_deactivation import (
-#     delete_to_deactivation as delete_to_deactivation_job,
-# )
 
 
 @shared_task
@@ -277,3 +275,28 @@ def fill_empty_event_origin(from_rnb_id=None, to_rnb_id=None, batch_size=10000):
 # def delete_to_deactivation(batch_size=10000):
 #     delete_to_deactivation_job(batch_size)
 #     return "done"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_full_ban_import(
+    dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
+):
+
+    # Get list of dpts
+    dpts = dpts_list(dpt_start, dpt_end)
+
+    notify_tech(
+        f"Import des adresses BAN. Dpt start. Départements: {dpt_start} à {dpt_end}"
+    )
+
+    tasks = create_ban_full_import_tasks(dpts)
+
+    chain(*tasks)()
+    return f"Queued {len(tasks)} tasks"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def import_ban(src_params: dict, bulk_launch_uuid: str = None):
+    return import_ban_addresses(src_params, bulk_launch_uuid)
