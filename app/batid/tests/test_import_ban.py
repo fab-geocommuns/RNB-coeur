@@ -32,7 +32,7 @@ class BANImportDB(TestCase):
         self.assertEqual(address.point, Point(6.135212, 44.070028, srid=4326))
         self.assertEqual(address.street_number, "1")
         self.assertEqual(address.street_rep, "bis")
-        self.assertEqual(address.street, "Impasse de la Treille")
+        self.assertEqual(address.street, "Impasse de la Treille àéêù")
         self.assertEqual(address.city_name, "Aiglun")
         self.assertEqual(address.city_zipcode, "04510")
         self.assertEqual(address.city_insee_code, "04001")
