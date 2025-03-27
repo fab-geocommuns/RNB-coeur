@@ -2249,6 +2249,14 @@ class DiffusionDatabaseView(APIView):
         return Response(serializer.data)
 
 
+class OrganizationView(APIView):
+    def get(self, request):
+        """Lists all organization names"""
+        organizations = Organization.objects.all()
+        names = [org.name for org in organizations]
+        return Response(names)
+
+
 def get_schema(request):
     schema_dict = build_schema_dict()
     schema_yml = yaml.dump(
