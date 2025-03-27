@@ -1,4 +1,5 @@
 import csv
+from typing import Optional
 import uuid
 
 from celery import Signature
@@ -46,7 +47,11 @@ def _create_ban_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
     return tasks
 
 
-def import_ban_addresses(src_params: dict, bulk_launch_uuid=None):
+def import_ban_addresses(
+    src_params: dict,
+    bulk_launch_uuid: Optional[str] = None,
+    batch_size: Optional[int] = 100000,
+):
 
     # First, we register the import
     if bulk_launch_uuid:
@@ -61,7 +66,6 @@ def import_ban_addresses(src_params: dict, bulk_launch_uuid=None):
         reader = csv.DictReader(f, delimiter=";")
 
         addresses_batch = []
-        batch_size = 100000
         adresses_count = 0
 
         for row in reader:
@@ -69,7 +73,7 @@ def import_ban_addresses(src_params: dict, bulk_launch_uuid=None):
             addresses_batch.append(
                 Address(
                     id=row["id"],
-                    source="BAN",
+                    source="Import BAN",
                     point=Point(float(row["lon"]), float(row["lat"]), srid=4326),
                     street_number=row["numero"],
                     street_rep=row["rep"],
