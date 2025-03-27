@@ -1,6 +1,7 @@
 from datetime import datetime
 from datetime import timezone
 
+from django.db.models import QuerySet
 from django.conf import settings
 from django.core.serializers import serialize
 from django.db import connection
@@ -10,6 +11,7 @@ from batid.models import Building
 from batid.models import City
 from batid.models import Department
 from batid.services.source import Source
+from batid.services.bdg_status import BuildingStatus
 
 
 def remove_dpt_bdgs(dpt_code: str):
@@ -103,3 +105,10 @@ def export_city(insee_code: str) -> str:
         f.write(geojson)
 
     return src.path
+
+
+def get_real_bdgs_queryset() -> QuerySet:
+
+    return Building.objects.filter(
+        status__in=BuildingStatus.REAL_BUILDINGS_STATUS, is_active=True
+    )
