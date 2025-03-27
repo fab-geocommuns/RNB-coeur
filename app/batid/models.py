@@ -680,6 +680,11 @@ class Organization(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    job_title = models.CharField(max_length=255, blank=True, null=True)
+
+
 class AsyncSignal(models.Model):
     id = models.AutoField(primary_key=True)
     type = models.CharField(max_length=20, null=False, db_index=True)
