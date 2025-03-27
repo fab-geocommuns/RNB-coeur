@@ -289,7 +289,7 @@ class UserCreation(APITestCase):
             "organization_name": "Mairie d'Angoulème",
             "job_title": "responsable SIG",
         }
-        response = self.client.post("/api/alpha/auth/user/create/", data)
+        response = self.client.post("/api/alpha/auth/user/", data)
 
         self.assertEqual(response.status_code, 201)
 
@@ -317,7 +317,7 @@ class UserCreation(APITestCase):
             "organization_name": "Mairie d'Angoulème",
             "job_title": "responsable SIG",
         }
-        response = self.client.post("/api/alpha/auth/user/create/", data)
+        response = self.client.post("/api/alpha/auth/user/", data)
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
@@ -337,13 +337,13 @@ class UserCreation(APITestCase):
             "username": "jujuyy",
             "password": "tajine",
         }
-        response = self.client.post("/api/alpha/auth/user/create/", data)
+        response = self.client.post("/api/alpha/auth/user/", data)
 
         self.assertEqual(response.status_code, 201)
 
     def test_mandatory_info(self):
         data = {}
-        response = self.client.post("/api/alpha/auth/user/create/", data)
+        response = self.client.post("/api/alpha/auth/user/", data)
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(

@@ -65,7 +65,7 @@ urlpatterns = [
     path("diffusion_databases", DiffusionDatabaseView.as_view()),
     # Authentification
     path("login/", RNBAuthToken.as_view()),
-    path("auth/user/create/", CreateUserView.as_view()),
+    path("auth/users/", CreateUserView.as_view()),
     path("auth/reset_password/", RequestPasswordReset.as_view()),
     path(
         "auth/change_password/<str:user_id_b64>/<str:token>", ChangePassword.as_view()
