@@ -6,7 +6,6 @@ from batid.models import Address, Building
 
 
 class BalLinks(TestCase):
-
     def test_address_on_real_bdg(self):
 
         # Isolated real building, no address in history

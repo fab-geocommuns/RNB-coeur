@@ -1,12 +1,12 @@
 from django.test import TestCase
+
 from batid.models import Building
-from batid.services.building import get_real_bdgs_queryset
 from batid.services.bdg_status import BuildingStatus
+from batid.services.building import get_real_bdgs_queryset
 from batid.services.rnb_id import generate_rnb_id
 
 
 class Buildings(TestCase):
-
     def setUp(self):
 
         all_status = BuildingStatus.ALL_TYPES_KEYS

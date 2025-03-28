@@ -22,12 +22,12 @@ from batid.services.data_fix.remove_light_buildings import (
 )
 from batid.services.data_gouv_publication import get_area_publish_task
 from batid.services.data_gouv_publication import publish
-from batid.services.imports.import_ban import create_ban_full_import_tasks
-from batid.services.imports.import_ban import import_ban_addresses
 from batid.services.imports.import_bal import create_all_bal_links_tasks
 from batid.services.imports.import_bal import (
     create_dpt_bal_rnb_links as create_dpt_bal_rnb_links_job,
 )
+from batid.services.imports.import_ban import create_ban_full_import_tasks
+from batid.services.imports.import_ban import import_ban_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
 from batid.services.imports.import_bdtopo import bdtopo_dpts_list
