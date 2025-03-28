@@ -826,9 +826,6 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                             }
                         },
                     },
-                    "400": {
-                        "description": "Requête invalide (données mal formatées ou incomplètes)."
-                    },
                     "403": {
                         "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
                     },
@@ -965,9 +962,6 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                 }
                             }
                         },
-                    },
-                    "400": {
-                        "description": "Requête invalide (données mal formatées ou incomplètes)."
                     },
                     "403": {
                         "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
@@ -1130,9 +1124,6 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                 }
                             }
                         },
-                    },
-                    "400": {
-                        "description": "Requête invalide (données mal formatées ou incomplètes)."
                     },
                     "403": {
                         "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."

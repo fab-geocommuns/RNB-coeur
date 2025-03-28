@@ -9,8 +9,22 @@ from rest_framework.viewsets import ViewSetMixin
 
 from batid.services.bdg_status import BuildingStatus
 
+COMMON_RESPONSES = {
+    "400": {"description": "Requête invalide (données mal formatées ou incomplètes)."},
+    "429": {
+        "description": "Le quota de requêtes a été atteint. Un quota maximal de 20 requêtes par secondes est appliqué, mais celui-ci peut varier par requête.\nVeuillez consulter les headers HTTP de la réponse pour plus d'informations concernant le quota."
+    },
+}
+
 
 def rnb_doc(path_desc):
+    for _, desc in path_desc.items():
+        method_responses = desc.get("responses", {})
+        for code, response in COMMON_RESPONSES.items():
+            if code not in method_responses:
+                method_responses[code] = response
+        desc["responses"] = method_responses
+
     def decorator(fn):
         fn._in_rnb_doc = True
         fn._path_desc = path_desc
