@@ -1,8 +1,8 @@
 import json
 from django.test import TestCase
-from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry, Point
 from batid.services.imports.import_bal import bdg_to_link
-from batid.models import Building
+from batid.models import Address, Building
 
 
 class BalLinks(TestCase):
@@ -252,3 +252,55 @@ class BalLinks(TestCase):
         bdg = bdg_to_link(address_point, "_")
 
         self.assertEqual(bdg, None)
+
+    def test_address_on_bdg_but_address_in_history(self):
+        """
+        We do not want to link the address to the building if the address has already been linked to it at any point in time.
+
+        The main scenario is to not attach again the address if someone removed the link (correcting an error).
+        We stick to "an import can not undo a contribution" principle
+
+        """
+
+        Address.objects.create(
+            id="1234",
+            source="Import BAL",
+            point=Point(
+                0,
+                0,
+            ),
+        )
+
+        # First version of the building have the address
+        bdg = Building.objects.create(
+            rnb_id="HISTORY",
+            status="constructed",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5206731809492453, 44.83095412267062],
+                                [-0.5207117887700861, 44.8308267825044],
+                                [-0.5205996422437806, 44.83081157120293],
+                                [-0.5205647113583325, 44.83094369208712],
+                                [-0.5206731809492453, 44.83095412267062],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+            addresses_id=["1234"],
+        )
+
+        # Second version have the address removed
+        bdg.addresses_id = []
+        bdg.save()
+
+        address_point = Point(-0.5206731809492453, 44.83095412267062, srid=4326)
+        address_id = "1234"
+
+        # Since the building had this address in the past, we should not link it
+        bdg = bdg_to_link(address_point, address_id)
+        self.assertIsNone(bdg)
