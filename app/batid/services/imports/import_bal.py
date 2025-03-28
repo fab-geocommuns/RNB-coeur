@@ -1,7 +1,10 @@
 from celery import Signature
 from typing import Optional
 from django.contrib.gis.geos import Point
+from django.contrib.gis.measure import D
+from django.contrib.gis.db.models.functions import Distance
 from batid.models import Building
+from batid.services.building import get_real_bdgs_queryset
 
 
 def create_all_bal_links_tasks(dpts: list):
@@ -46,9 +49,11 @@ def create_dpt_bal_rnb_links(dpt: str):
 
 def bdg_to_link(point: Point, cle_interop: str) -> Optional[Building]:
 
-    bdgs = Building.objects.filter(shape__contains=point)
+    qs = get_real_bdgs_queryset()
 
-    if bdgs:
+    bdgs = qs.annotate(distance=Distance("shape", point)).filter(distance__lte=D(m=3))
+
+    if bdgs.count() == 1:
         return bdgs.first()
 
     return None
