@@ -22,6 +22,10 @@ from batid.services.data_fix.remove_light_buildings import (
 )
 from batid.services.data_gouv_publication import get_area_publish_task
 from batid.services.data_gouv_publication import publish
+from batid.services.imports.import_bal import create_all_bal_links_tasks
+from batid.services.imports.import_bal import (
+    create_dpt_bal_rnb_links as create_dpt_bal_rnb_links_job,
+)
 from batid.services.imports.import_ban import create_ban_full_import_tasks
 from batid.services.imports.import_ban import import_ban_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
@@ -311,3 +315,29 @@ def queue_full_ban_import(
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_ban(src_params: dict, bulk_launch_uuid: str = None):
     return import_ban_addresses(src_params, bulk_launch_uuid)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_full_bal_rnb_links(
+    dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
+):
+
+    # Get list of dpts
+    dpts = dpts_list(dpt_start, dpt_end)
+
+    notify_tech(
+        f"Création de liens bâtiment <> adresse via BAL. Départements: {dpt_start} à {dpt_end}"
+    )
+
+    tasks = create_all_bal_links_tasks(dpts)
+
+    chain(*tasks)()
+    return f"Queued {len(tasks)} tasks"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid: Optional[str] = None):
+
+    return create_dpt_bal_rnb_links_job(src_params, bulk_launch_uuid)
