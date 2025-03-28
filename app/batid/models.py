@@ -717,6 +717,19 @@ class BuildingImport(models.Model):
     building_refused_count = models.IntegerField(null=True)
 
 
+class ImportReport(models.Model):
+    id = models.AutoField(primary_key=True)
+    source = models.CharField(max_length=20, null=False)
+    source_version = models.CharField(max_length=20, null=True)
+    source_territory = models.CharField(max_length=20, null=True)
+    bulk_launch_uuid = models.UUIDField(null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    stats = models.JSONField(null=True)
+
+
 class Contribution(models.Model):
     id = models.AutoField(primary_key=True)
     rnb_id = models.CharField(max_length=255, null=True)
