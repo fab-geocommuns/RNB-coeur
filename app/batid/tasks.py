@@ -338,5 +338,6 @@ def queue_full_bal_rnb_links(
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def create_dpt_bal_rnb_links(src_params: dict):
-    return create_dpt_bal_rnb_links_job(src_params)
+def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid: Optional[str] = None):
+
+    return create_dpt_bal_rnb_links_job(src_params, bulk_launch_uuid)
