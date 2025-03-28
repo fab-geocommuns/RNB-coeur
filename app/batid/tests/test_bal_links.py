@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from batid.models import Address
 from batid.models import Building
-from batid.services.imports.import_bal import bdg_to_link
+from batid.services.imports.import_bal import find_bdg_to_link
 
 
 class BalLinks(TestCase):
@@ -45,7 +45,7 @@ class BalLinks(TestCase):
             )
         )
 
-        bdg = bdg_to_link(address_point, "_")
+        bdg = find_bdg_to_link(address_point, "_")
         self.assertEqual(bdg.rnb_id, "ISOLATED")
 
     def test_address_on_inactive_bdg(self):
@@ -84,7 +84,7 @@ class BalLinks(TestCase):
             )
         )
 
-        bdg = bdg_to_link(address_point, "_")
+        bdg = find_bdg_to_link(address_point, "_")
         self.assertEqual(bdg, None)
 
     def test_address_on_demolished_bdg(self):
@@ -123,7 +123,7 @@ class BalLinks(TestCase):
             )
         )
 
-        bdg = bdg_to_link(address_point, "_")
+        bdg = find_bdg_to_link(address_point, "_")
         self.assertIsNone(bdg)
 
     def test_address_close_to_bdg(self):
@@ -161,7 +161,7 @@ class BalLinks(TestCase):
             )
         )
 
-        bdg = bdg_to_link(close_address_point, "_")
+        bdg = find_bdg_to_link(close_address_point, "_")
         self.assertEqual(bdg.rnb_id, "CLOSE")
 
         # This address point is close (4 meters) but not enough
@@ -174,7 +174,7 @@ class BalLinks(TestCase):
                 }
             )
         )
-        bdg = bdg_to_link(a_bit_too_far_address_point, "_")
+        bdg = find_bdg_to_link(a_bit_too_far_address_point, "_")
         self.assertEqual(bdg, None)
 
         # This address point is far (8 meters) from the building
@@ -188,7 +188,7 @@ class BalLinks(TestCase):
             )
         )
 
-        bdg = bdg_to_link(far_address_point, "_")
+        bdg = find_bdg_to_link(far_address_point, "_")
         self.assertEqual(bdg, None)
 
     def test_point_ambiguous_point(self):
@@ -252,7 +252,7 @@ class BalLinks(TestCase):
         # The point is very close to the two buildings
         # It is not possible to determine which one is the right one
         # We should return None
-        bdg = bdg_to_link(address_point, "_")
+        bdg = find_bdg_to_link(address_point, "_")
 
         self.assertEqual(bdg, None)
 
@@ -305,7 +305,7 @@ class BalLinks(TestCase):
         address_id = "1234"
 
         # Since the building had this address in the past, we should not link it
-        bdg = bdg_to_link(address_point, address_id)
+        bdg = find_bdg_to_link(address_point, address_id)
         self.assertIsNone(bdg)
 
     def test_already_linked_bdg(self):
@@ -346,5 +346,5 @@ class BalLinks(TestCase):
         address_id = "1234"
 
         # Since the building is already linked to the address, we should not link it again
-        bdg = bdg_to_link(address_point, address_id)
+        bdg = find_bdg_to_link(address_point, address_id)
         self.assertIsNone(bdg)

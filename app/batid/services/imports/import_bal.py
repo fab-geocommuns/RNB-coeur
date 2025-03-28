@@ -53,10 +53,12 @@ def create_dpt_bal_rnb_links(dpt: str):
     pass
 
 
-def bdg_to_link(point: Point, cle_interop: str) -> Optional[Building]:
+def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Building]:
 
     bdgs = get_real_bdgs_queryset()
-    bdgs = bdgs.annotate(distance=Distance("shape", point)).filter(distance__lte=D(m=3))
+    bdgs = bdgs.annotate(distance=Distance("shape", address_point)).filter(
+        distance__lte=D(m=3)
+    )
 
     # We do NOT want to create the bdg <> address link if the same link exists or has existed in the past
     # To do so:
