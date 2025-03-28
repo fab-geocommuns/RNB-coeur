@@ -3,7 +3,9 @@ from typing import Optional
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
-from batid.models import Building
+from django.db.models.expressions import RawSQL
+from django.db.models import Subquery, OuterRef
+from batid.models import Building, BuildingWithHistory
 from batid.services.building import get_real_bdgs_queryset
 
 
@@ -49,11 +51,35 @@ def create_dpt_bal_rnb_links(dpt: str):
 
 def bdg_to_link(point: Point, cle_interop: str) -> Optional[Building]:
 
-    qs = get_real_bdgs_queryset()
+    bdgs = get_real_bdgs_queryset()
+    bdgs = bdgs.annotate(distance=Distance("shape", point)).filter(distance__lte=D(m=3))
 
-    bdgs = qs.annotate(distance=Distance("shape", point)).filter(distance__lte=D(m=3))
+    # We do NOT want to create the bdg <> address link if the same link exists or has existed in the past
+    # To do so:
+    # - We build an array of all past and present addresses id for each building (via annotate() and the subquery)
+    # - We then verify if the "cle_interop" is not in this list of historical addresses
+
+    historical_addresses_subquery = BuildingWithHistory.objects.filter(
+        rnb_id=OuterRef("rnb_id")
+    ).annotate(address_id=RawSQL("unnest(addresses_id)", ()))
+
+    bdgs = bdgs.annotate(
+        historical_addresses=AddressesInHistory(historical_addresses_subquery)
+    )
 
     if bdgs.count() == 1:
-        return bdgs.first()
+
+        historical_addresses = bdgs.first().historical_addresses
+
+        # There is no historical address, we can link
+        if historical_addresses is None or len(historical_addresses) == 0:
+            return bdgs.first()
+        # There are historical addresses but the current one is not in the list
+        elif historical_addresses and cle_interop not in historical_addresses:
+            return bdgs.first()
 
     return None
+
+
+class AddressesInHistory(Subquery):
+    template = "(SELECT array_agg(_agg.address_id) FROM (%(subquery)s) AS _agg)"
