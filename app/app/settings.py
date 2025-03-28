@@ -177,6 +177,19 @@ SPECTACULAR_SETTINGS = {
     ],
 }
 
+EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND")
+EMAIL_HOST = os.environ.get("DJANGO_EMAIL_HOST")
+EMAIL_PORT = os.environ.get("DJANGO_EMAIL_PORT")
+EMAIL_HOST_USER = os.environ.get("DJANGO_EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.environ.get("DJANGO_EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = os.environ.get("DJANGO_EMAIL_USE_TLS") == "1"
+EMAIL_USE_SSL = os.environ.get("DJANGO_EMAIL_USE_SSL") == "1"
+
+RNB_SEND_ADDRESS = os.environ.get("RNB_SEND_ADDRESS")
+RNB_SEND_NAME = "Référentiel National des Bâtiments"
+RNB_REPLY_TO_ADDRESS = os.environ.get("RNB_REPLY_TO_ADDRESS")
+
+
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Internationalization
@@ -230,6 +243,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "batid.tasks.publish_datagouv_all",
         # once a week, saturday at 3am
         "schedule": crontab(hour=3, minute=0, day_of_week=6),
+    },
+    "import_ban": {
+        "task": "batid.tasks.queue_full_ban_import",
+        "schedule": crontab(minute=0, hour=0, day_of_month="1,15"),
     },
 }
 

@@ -13,6 +13,7 @@ from api_alpha.views import BuildingPlotView
 from api_alpha.views import BuildingsVectorTileView
 from api_alpha.views import ChangePassword
 from api_alpha.views import ContributionsViewSet
+from api_alpha.views import CreateUserView
 from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import DiffView
 from api_alpha.views import get_schema
@@ -20,6 +21,7 @@ from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
 from api_alpha.views import ListCreateBuildings
 from api_alpha.views import MergeBuildings
+from api_alpha.views import OrganizationView
 from api_alpha.views import PlotsVectorTileView
 from api_alpha.views import RequestPasswordReset
 from api_alpha.views import RNBAuthToken
@@ -37,6 +39,9 @@ router.register(r"ads", ADSViewSet)
 urlpatterns = [
     path("schema/", get_schema, name="schema"),
     path("stats", get_stats),
+    # For site
+    path("diffusion_databases", DiffusionDatabaseView.as_view()),
+    path("organization_names", OrganizationView.as_view()),
     # Buildings
     path("buildings/", ListCreateBuildings.as_view()),
     path("buildings/guess/", BuildingGuessView.as_view()),
@@ -61,9 +66,9 @@ urlpatterns = [
     path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
     # Plots vector tiles
     path("plots/tiles/<int:x>/<int:y>/<int:z>.pbf", PlotsVectorTileView.as_view()),
-    path("diffusion_databases", DiffusionDatabaseView.as_view()),
     # Authentification
     path("login/", RNBAuthToken.as_view()),
+    path("auth/users/", CreateUserView.as_view()),
     path("auth/reset_password/", RequestPasswordReset.as_view()),
     path(
         "auth/change_password/<str:user_id_b64>/<str:token>", ChangePassword.as_view()

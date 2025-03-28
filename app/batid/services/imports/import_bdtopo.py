@@ -273,8 +273,14 @@ def _bdtopo_release_dates() -> list:
     ]
 
 
-def bdtopo_dpts_list():
+def bdtopo_dpts_list(dpt_start: str = None, dpt_end: str = None):
 
-    # Wallis-et-Futuna (986) and Polynésie française (987) are not available in BD Topo
-    all_dpts = dpts_list()
-    return [dpt for dpt in all_dpts if dpt not in ["986", "987"]]
+    # Terres australes et antarctiques françaises (984),
+    # Wallis-et-Futuna (986),
+    # Polynésie française (987),
+    # Nouvelle-Calédonie (988),
+    # Île Clipperton (989),
+    # are not available in BD Topo
+
+    all_dpts = dpts_list(dpt_start, dpt_end)
+    return [dpt for dpt in all_dpts if dpt not in ["986", "987", "984", "988", "989"]]

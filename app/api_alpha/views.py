@@ -24,6 +24,7 @@ from django.http import HttpResponse
 from django.http import JsonResponse
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import translation
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
@@ -69,6 +70,8 @@ from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import DiffusionDatabaseSerializer
 from api_alpha.serializers import GuessBuildingSerializer
+from api_alpha.serializers import OrganizationSerializer
+from api_alpha.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
@@ -2211,6 +2214,39 @@ class RNBAuthToken(ObtainAuthToken):
         )
 
 
+class CreateUserView(APIView):
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        # we need French error message for the website
+        with translation.override("fr"):
+            user_serializer = UserSerializer(data=request.data)
+            user_serializer.is_valid(raise_exception=True)
+            user = user_serializer.save()
+
+            organization_serializer = None
+            organization_name = request.data.get("organization_name")
+            if organization_name:
+                organization_serializer = OrganizationSerializer(
+                    data={"name": organization_name}
+                )
+                organization_serializer.is_valid(raise_exception=True)
+                organization, created = Organization.objects.get_or_create(
+                    name=organization_name
+                )
+                organization.users.add(user)
+                organization.save()
+
+            return Response(
+                {
+                    "user": user_serializer.data,
+                    "organization": organization_serializer.data
+                    if organization_serializer
+                    else None,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+
 class TokenScheme(OpenApiAuthenticationExtension):
     target_class = "rest_framework.authentication.TokenAuthentication"
     name = "RNBTokenAuth"
@@ -2238,6 +2274,14 @@ class DiffusionDatabaseView(APIView):
         databases = DiffusionDatabase.objects.all()
         serializer = DiffusionDatabaseSerializer(databases, many=True)
         return Response(serializer.data)
+
+
+class OrganizationView(APIView):
+    def get(self, request):
+        """Lists all organization names"""
+        organizations = Organization.objects.all()
+        names = [org.name for org in organizations]
+        return Response(names)
 
 
 def get_schema(request):
