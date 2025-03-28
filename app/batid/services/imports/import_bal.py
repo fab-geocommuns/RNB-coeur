@@ -2,7 +2,6 @@ import csv
 import uuid
 from typing import Optional
 
-from batid.services.source import Source
 from celery import Signature
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
@@ -14,6 +13,7 @@ from django.db.models.expressions import RawSQL
 from batid.models import Building
 from batid.models import BuildingWithHistory
 from batid.services.building import get_real_bdgs_queryset
+from batid.services.source import Source
 
 
 def create_all_bal_links_tasks(dpts: list):
@@ -87,16 +87,12 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
             #     user=None,
             # )
 
-            pass
-
     # Open file
     # Keep only certified rows
     # For each row, get the address point
     # For each point, get the building
     # For each building, create the link using update()
     # (define event_origin)
-
-    pass
 
 
 def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Building]:
