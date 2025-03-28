@@ -1,5 +1,7 @@
+import csv
 from typing import Optional
 
+from batid.services.source import Source
 from celery import Signature
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
@@ -48,7 +50,46 @@ def _create_bal_links_dpt_tasks(dpt: str):
     return tasks
 
 
-def create_dpt_bal_rnb_links(dpt: str):
+def create_dpt_bal_rnb_links(src_params: dict):
+
+    src = Source("bal")
+    src.set_params(src_params)
+
+    with open(src.find(src.filename), "r") as f:
+        reader = csv.DictReader(f, delimiter=";")
+
+        for row in reader:
+
+            if row["certification_commune"] == "0":
+                continue
+
+            bdg_to_link = find_bdg_to_link(
+                Point(
+                    float(row["long"]),
+                    float(row["lat"]),
+                    srid=4326,
+                ),
+                row["cle_interop"],
+            )
+
+            if not isinstance(bdg_to_link, Building):
+                continue
+
+            current_bdg_addresses = bdg_to_link.addresses_id
+            current_bdg_addresses.append(row["cle_interop"])
+
+            # bdg_to_link.update(
+            #     user=None,
+            # )
+
+            pass
+
+    # Open file
+    # Keep only certified rows
+    # For each row, get the address point
+    # For each point, get the building
+    # For each building, create the link using update()
+    # (define event_origin)
 
     pass
 
