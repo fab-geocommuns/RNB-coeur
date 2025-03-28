@@ -1,12 +1,13 @@
 import json
-from django.test import TestCase
+
 from django.contrib.gis.geos import GEOSGeometry
-from batid.services.imports.import_bal import bdg_to_link
+from django.test import TestCase
+
 from batid.models import Building
+from batid.services.imports.import_bal import bdg_to_link
 
 
 class BalLinks(TestCase):
-
     def test_address_on_real_bdg(self):
 
         # Isolated real building, no address in history
