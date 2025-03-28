@@ -4,10 +4,12 @@ from celery import Signature
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
-from django.contrib.gis.db.models.functions import Distance
+from django.db.models import OuterRef
+from django.db.models import Subquery
 from django.db.models.expressions import RawSQL
-from django.db.models import Subquery, OuterRef
-from batid.models import Building, BuildingWithHistory
+
+from batid.models import Building
+from batid.models import BuildingWithHistory
 from batid.services.building import get_real_bdgs_queryset
 
 

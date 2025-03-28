@@ -1,8 +1,12 @@
 import json
+
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import Point
 from django.test import TestCase
-from django.contrib.gis.geos import GEOSGeometry, Point
+
+from batid.models import Address
+from batid.models import Building
 from batid.services.imports.import_bal import bdg_to_link
-from batid.models import Address, Building
 
 
 class BalLinks(TestCase):
