@@ -303,3 +303,44 @@ class BalLinks(TestCase):
         # Since the building had this address in the past, we should not link it
         bdg = bdg_to_link(address_point, address_id)
         self.assertIsNone(bdg)
+
+    def test_already_linked_bdg(self):
+
+        Address.objects.create(
+            id="1234",
+            source="Import BAL",
+            point=Point(
+                0,
+                0,
+            ),
+        )
+
+        # The building already has the address linked
+        bdg = Building.objects.create(
+            rnb_id="ALREADY",
+            status="constructed",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5206731809492453, 44.83095412267062],
+                                [-0.5207117887700861, 44.8308267825044],
+                                [-0.5205996422437806, 44.83081157120293],
+                                [-0.5205647113583325, 44.83094369208712],
+                                [-0.5206731809492453, 44.83095412267062],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+            addresses_id=["1234"],
+        )
+
+        address_point = Point(-0.5206731809492453, 44.83095412267062, srid=4326)
+        address_id = "1234"
+
+        # Since the building is already linked to the address, we should not link it again
+        bdg = bdg_to_link(address_point, address_id)
+        self.assertIsNone(bdg)
