@@ -167,7 +167,7 @@ class Guesser:
 
         data = self.matched_sample(match_reason, sample_size, sample_cols)
 
-        print(data.sample(sample_size))
+        print(data)
 
     def matched_sample(
         self,
@@ -181,7 +181,7 @@ class Guesser:
 
         reasons = df[df["match_reason"] == match_reason]
 
-        return reasons[sample_cols]
+        return reasons[sample_cols].sample(sample_size)
 
     def unmatched_sample(self, sample_size: int = 10):
         data = list(self.guesses.values())
