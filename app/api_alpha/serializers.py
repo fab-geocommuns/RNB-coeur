@@ -12,7 +12,6 @@ from api_alpha.validators import ads_validate_rnbid
 from api_alpha.validators import ADSValidator
 from api_alpha.validators import bdg_is_active
 from api_alpha.validators import BdgInADSValidator
-from app.batid.services.email import build_activate_account_email
 from batid.models import Address
 from batid.models import ADS
 from batid.models import Building
@@ -22,6 +21,7 @@ from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.models import UserProfile
 from batid.services.bdg_status import BuildingStatus
+from batid.services.email import build_activate_account_email
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.user import get_user_id_b64
 
