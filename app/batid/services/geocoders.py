@@ -1,6 +1,6 @@
 import csv
 from io import StringIO
-
+from django.conf import settings
 import requests
 from requests import Response
 
@@ -112,7 +112,7 @@ class BanBatchGeocoder:
 
 
 class PhotonGeocoder:
-    GEOCODE_URL = "https://photon.komoot.io/api/"
+    GEOCODE_URL = settings.PHOTON_GEOCODER_URL
 
     def geocode(self, params) -> requests.Response:
         if "q" not in params:

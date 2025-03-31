@@ -244,15 +244,11 @@ MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))
 VCTR_TILES_MIN_ZOOM = 14
 VCTR_TILES_MAX_ZOOM = 18
 
-# Photon Geocoder
+# Photon geocoder
 PHOTON_GEOCODER_URL = os.environ.get(
     "PHOTON_GEOCODER_URL", "https://photon.komoot.io/api/"
 )
-# PHOTON_GEOCODER_SLEEP is the time to wait between two requests to the Photon geocoder
-# to avoid being blocked by the server
-PHOTON_GEOCODER_SLEEP = int(
-    os.environ.get("PHOTON_GEOCODER_SLEEP", default=1)
-)  # in seconds
+
 
 # Mattermost
 MATTERMOST_NOTIFICATIONS = (
