@@ -158,6 +158,17 @@ class Guesser:
             ban_id_percentage = ban_id_count / total * 100
             print(f"rows with ban_id: {ban_id_count} ({ban_id_percentage:.2f}%)")
 
+    def display_matched_sample(
+        self,
+        match_reason: str,
+        sample_size: int = 10,
+        sample_cols: list = ["input_ext_id", "matches", "match_reason"],
+    ):
+
+        data = self.matched_sample(match_reason, sample_size, sample_cols)
+
+        print(data.sample(sample_size))
+
     def matched_sample(
         self,
         match_reason: str,
@@ -170,11 +181,7 @@ class Guesser:
 
         reasons = df[df["match_reason"] == match_reason]
 
-        # count how many rows have a input_ext_id column
-
-        reasons = reasons[sample_cols]
-
-        print(reasons.sample(sample_size))
+        return reasons[sample_cols]
 
     def unmatched_sample(self, sample_size: int = 10):
         data = list(self.guesses.values())
