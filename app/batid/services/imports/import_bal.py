@@ -13,8 +13,8 @@ from django.db.models.expressions import RawSQL
 from batid.models import Building
 from batid.models import BuildingWithHistory
 from batid.services.building import get_real_bdgs_queryset
-from batid.services.source import Source
 from batid.services.imports import building_import_history
+from batid.services.source import Source
 
 
 def create_all_bal_links_tasks(dpts: list):
