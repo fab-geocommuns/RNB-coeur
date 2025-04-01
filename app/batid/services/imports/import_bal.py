@@ -14,6 +14,7 @@ from batid.models import Building
 from batid.models import BuildingWithHistory
 from batid.services.building import get_real_bdgs_queryset
 from batid.services.source import Source
+from batid.services.imports import building_import_history
 
 
 def create_all_bal_links_tasks(dpts: list):
@@ -60,6 +61,12 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
     src = Source("bal")
     src.set_params(src_params)
 
+    building_import = building_import_history.insert_building_import(
+        "bal", bulk_launch_uuid, src_params["dpt"]
+    )
+
+    updates = 0
+
     with open(src.find(src.filename), "r") as f:
         reader = csv.DictReader(f, delimiter=";")
 
@@ -83,16 +90,15 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
             current_bdg_addresses = bdg_to_link.addresses_id
             current_bdg_addresses.append(row["cle_interop"])
 
-            # bdg_to_link.update(
-            #     user=None,
-            # )
+            bdg_to_link.update(
+                user=None,
+                event_origin={"source": "import", "id": building_import.id},
+                addresses_id=current_bdg_addresses,
+            )
+            updates += 1
 
-    # Open file
-    # Keep only certified rows
-    # For each row, get the address point
-    # For each point, get the building
-    # For each building, create the link using update()
-    # (define event_origin)
+        building_import.building_updated_count = updates
+        building_import.save()
 
 
 def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Building]:
