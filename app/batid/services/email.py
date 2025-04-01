@@ -41,8 +41,8 @@ def get_rnb_email_sender() -> str:
 
 
 def activate_account_url(user_id_b64: str, token: str) -> str:
-    site_url = os.environ.get("URL")
-    return f"{site_url}/api/alpha/auth/activate/{user_id_b64}/{token}"
+    backend_site_url = os.environ.get("URL")
+    return f"{backend_site_url}/api/alpha/auth/activate/{user_id_b64}/{token}/"
 
 
 def build_activate_account_email(

@@ -1,7 +1,11 @@
+import os
+import re
 from unittest import mock
+from urllib.parse import urlparse
 
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
+from django.core import mail
 from django.core.cache import cache
 from nanoid import generate
 from rest_framework.authtoken.models import Token
@@ -307,6 +311,13 @@ class UserCreation(APITestCase):
         self.assertEqual(orgas[0].name, "Mairie d'Angoulème")
         self.assertEqual(julie.profile.job_title, "responsable SIG")
 
+        # the user is not active yet
+        self.assertFalse(julie.is_active)
+        # activation email has been sent
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, [julie.email])
+
         # check for unicity constraints
         data = {
             "last_name": "Y",
@@ -356,3 +367,54 @@ class UserCreation(APITestCase):
                 "password": ["Ce champ est obligatoire."],
             },
         )
+
+    @mock.patch.dict(os.environ, {"FRONTEND_URL": "https://rnb.beta.gouv.fr"})
+    def test_full_account_activation_scenario(self):
+        data = {
+            "last_name": "Y",
+            "first_name": "Julie",
+            "email": "julie.y@exemple.com",
+            "username": "jujuyy",
+            "password": "tajine",
+            "organization_name": "Mairie d'Angoulème",
+            "job_title": "responsable SIG",
+        }
+        # julie creates her account
+        self.client.post("/api/alpha/auth/users/", data)
+
+        julie = User.objects.prefetch_related("organizations", "profile").get(
+            first_name="Julie"
+        )
+
+        # the account is inactive
+        self.assertFalse(julie.is_active)
+        # but she has received an email
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, [julie.email])
+        self.assertTrue(
+            email.alternatives, "error : email has no HTML version available"
+        )
+
+        html_content = email.alternatives[0][0]
+
+        # the mail contains an activation link
+        match = re.search(r'"([^"]+)"', html_content)
+        self.assertIsNotNone(match, "No link found in email")
+        activation_link = match.group(1)
+        activation_link = urlparse(activation_link)
+        activation_link = activation_link.path
+        print(activation_link)
+
+        # Julie clicks on the link
+        resp = self.client.get(activation_link)
+
+        # She is redirected to the website where she will be notified of the activation success
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(
+            resp["Location"], "https://rnb.beta.gouv.fr/activation?status=success"
+        )
+
+        # her account is now active!
+        julie.refresh_from_db()
+        self.assertTrue(julie.is_active)
