@@ -1,18 +1,20 @@
 import json
-from unittest.mock import patch
 import uuid
+from unittest.mock import patch
+
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 
-from batid.models import Address, BuildingImport
-from batid.models import Building
-from batid.services.imports.import_bal import find_bdg_to_link, create_dpt_bal_rnb_links
 import batid.tests.helpers as helpers
+from batid.models import Address
+from batid.models import Building
+from batid.models import BuildingImport
+from batid.services.imports.import_bal import create_dpt_bal_rnb_links
+from batid.services.imports.import_bal import find_bdg_to_link
 
 
 class BALImport(TestCase):
-
     @patch("batid.services.imports.import_bal.Source.find")
     def test_bal_import(self, sourceMock):
 
