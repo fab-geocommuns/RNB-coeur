@@ -1,4 +1,3 @@
-import os
 import re
 from unittest import mock
 from urllib.parse import urlparse
@@ -293,17 +292,15 @@ class UserCreation(APITestCase):
             "organization_name": "Mairie d'Angoulème",
             "job_title": "responsable SIG",
         }
-        self.environ_patcher = mock.patch.dict(
-            os.environ,
-            {
-                "FRONTEND_URL": "https://rnb.beta.gouv.fr",
-                "RNB_SEND_ADDRESS": "coucou@rnb.beta.gouv.fr",
-            },
+
+        self.override = self.settings(
+            RNB_SEND_ADDRESS="coucou@rnb.beta.gouv.fr",
+            FRONTEND_URL="https://rnb.beta.gouv.fr",
         )
-        self.environ_patcher.start()
+        self.override.enable()
 
     def tearDown(self):
-        self.environ_patcher.stop()
+        self.override.disable()
 
     def test_create_user(self):
         response = self.client.post("/api/alpha/auth/users/", self.julie_data)

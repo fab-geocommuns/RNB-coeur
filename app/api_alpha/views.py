@@ -2306,7 +2306,7 @@ class ActivateUser(APIView):
         except (TypeError, ValueError, OverflowError, User.DoesNotExist):
             user = None
 
-        site_url = os.environ.get("FRONTEND_URL")
+        site_url = settings.FRONTEND_URL
 
         if user and default_token_generator.check_token(user, token):
             user.is_active = True

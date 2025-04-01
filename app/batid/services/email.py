@@ -31,8 +31,7 @@ def build_reset_password_email(
 
 
 def _reset_password_url(user_id_b64: str, token: str) -> str:
-
-    site_url = os.environ.get("FRONTEND_URL")
+    site_url = settings.FRONTEND_URL
     return f"{site_url}/reset_password/{user_id_b64}/{token}"
 
 
