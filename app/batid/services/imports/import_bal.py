@@ -87,13 +87,18 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
             if not isinstance(bdg_to_link, Building):
                 continue
 
-            current_bdg_addresses = bdg_to_link.addresses_id
+            current_bdg_addresses = (
+                bdg_to_link.addresses_id
+                if isinstance(bdg_to_link.addresses_id, list)
+                else []
+            )
             current_bdg_addresses.append(row["cle_interop"])
 
             bdg_to_link.update(
                 user=None,
                 event_origin={"source": "import", "id": building_import.id},
                 addresses_id=current_bdg_addresses,
+                status=None,
             )
             updates += 1
 

@@ -1,15 +1,130 @@
 import json
-
+from unittest.mock import patch
+import uuid
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 
-from batid.models import Address
+from batid.models import Address, BuildingImport
 from batid.models import Building
-from batid.services.imports.import_bal import find_bdg_to_link
+from batid.services.imports.import_bal import find_bdg_to_link, create_dpt_bal_rnb_links
+import batid.tests.helpers as helpers
 
 
-class BalLinks(TestCase):
+class BALImport(TestCase):
+
+    @patch("batid.services.imports.import_bal.Source.find")
+    def test_bal_import(self, sourceMock):
+
+        sourceMock.return_value = helpers.fixture_path("bal_import_test_data.csv")
+
+        # Certification commune only
+        # Creation d'un buildingImport
+        # Reception du bon event_origin
+        # Append d'une adresse supplémentaire
+
+        # Building ONE
+
+        Address.objects.create(
+            id="OLD_ON_ONE",
+            source="Import BAN",
+            point=Point(
+                0,
+                0,
+            ),
+        )
+
+        Address.objects.create(
+            id="GO_ON_ONE",
+            source="Import BAN",
+            point=Point(
+                0,
+                0,
+            ),
+        )
+
+        Building.objects.create(
+            rnb_id="ONE",
+            addresses_id=["OLD_ON_ONE"],
+            status="constructed",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.520396681614983, 44.83160353126539],
+                                [-0.5203518277556043, 44.83151793460064],
+                                [-0.5201764899430827, 44.83157287842056],
+                                [-0.5202327611480939, 44.831651534744594],
+                                [-0.520396681614983, 44.83160353126539],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+        )
+
+        # Building TWO
+        Building.objects.create(
+            rnb_id="TWO",
+            status="constructed",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5204219628803344, 44.83158791566697],
+                                [-0.5205932230694259, 44.83153008008131],
+                                [-0.5205369518644432, 44.831448531806274],
+                                [-0.5203705848234677, 44.83151272939409],
+                                [-0.5204219628803344, 44.83158791566697],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+        )
+
+        Address.objects.create(
+            id="GO_ON_TWO",
+            source="Import BAN",
+            point=Point(
+                0,
+                0,
+            ),
+        )
+
+        # We execute the BAL import
+        bulk_launch_uuid = uuid.uuid4()
+        create_dpt_bal_rnb_links({"dpt": "01"}, bulk_launch_uuid)
+
+        # We check the import result
+        report = BuildingImport.objects.get(bulk_launch_uuid=bulk_launch_uuid)
+        self.assertEqual(report.building_updated_count, 2)
+
+        # We check the buildings
+
+        bdg_one = Building.objects.get(rnb_id="ONE")
+        self.assertListEqual(bdg_one.addresses_id, ["OLD_ON_ONE", "GO_ON_ONE"])
+        self.assertDictEqual(
+            bdg_one.event_origin, {"source": "import", "id": report.id}
+        )
+
+        bdg_two = Building.objects.get(rnb_id="TWO")
+        self.assertListEqual(bdg_two.addresses_id, ["GO_ON_TWO"])
+        self.assertDictEqual(
+            bdg_two.event_origin, {"source": "import", "id": report.id}
+        )
+
+
+class LinkSearch(TestCase):
+    """
+    This class is dedidated to the tests of the search of the building to link
+    to the address in the BAL import.
+    """
+
     def test_address_on_real_bdg(self):
 
         # Isolated real building, no address in history
