@@ -115,6 +115,7 @@ class PhotonGeocoder:
     GEOCODE_URL = settings.PHOTON_GEOCODER_URL
 
     def geocode(self, params) -> requests.Response:
+
         if "q" not in params:
             raise Exception("Missing 'q' parameter for Photon geocoding")
 
