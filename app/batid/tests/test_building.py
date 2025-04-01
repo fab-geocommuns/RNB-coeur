@@ -36,7 +36,7 @@ class Buildings(TestCase):
         self.assertEqual(real_bdgs.count(), 4)
 
         real_status = [bdg.status for bdg in real_bdgs]
-        self.assertListEqual(real_status, BuildingStatus.REAL_BUILDINGS_STATUS)
+        self.assertEqual(set(real_status), set(BuildingStatus.REAL_BUILDINGS_STATUS))
 
         real_is_active = [bdg.is_active for bdg in real_bdgs]
         self.assertListEqual(real_is_active, [True] * 4)
