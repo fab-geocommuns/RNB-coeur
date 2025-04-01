@@ -326,7 +326,7 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[2]["event_id"], rows[0]["event_id"])
 
     def test_diff_split(self):
-        user = User()
+        user = User(email="test@exemple.fr")
         user.save()
 
         b1 = Building.objects.create(rnb_id="1", status="constructed")
