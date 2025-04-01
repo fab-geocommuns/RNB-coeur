@@ -283,20 +283,20 @@ class ForgottenPasswordThrottling(APITestCase):
 
 
 class UserCreation(APITestCase):
-    def test_create_user(self):
-        data = {
-            "last_name": "Y",
+    def setUp(self):
+        self.julie_data = {
+            "last_name": "B",
             "first_name": "Julie",
-            "email": "julie.y@exemple.com",
-            "username": "jujuyy",
+            "email": "julie.b@exemple.com",
+            "username": "juju",
             "password": "tajine",
             "organization_name": "Mairie d'Angoulème",
             "job_title": "responsable SIG",
         }
-        response = self.client.post("/api/alpha/auth/users/", data)
 
+    def test_create_user(self):
+        response = self.client.post("/api/alpha/auth/users/", self.julie_data)
         self.assertEqual(response.status_code, 201)
-
         julie = User.objects.prefetch_related("organizations", "profile").get(
             first_name="Julie"
         )
@@ -318,17 +318,7 @@ class UserCreation(APITestCase):
         email = mail.outbox[0]
         self.assertEqual(email.to, [julie.email])
 
-        # check for unicity constraints
-        data = {
-            "last_name": "Y",
-            "first_name": "Julie",
-            "email": "julie.y@exemple.com",
-            "username": "jujuyy",
-            "password": "tajine",
-            "organization_name": "Mairie d'Angoulème",
-            "job_title": "responsable SIG",
-        }
-        response = self.client.post("/api/alpha/auth/users/", data)
+        response = self.client.post("/api/alpha/auth/users/", self.julie_data)
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
@@ -341,15 +331,8 @@ class UserCreation(APITestCase):
 
     def test_create_user_no_orga(self):
         # come as you are: someone can create an account without having a job or an organization
-        data = {
-            "last_name": "Y",
-            "first_name": "Julie",
-            "email": "julie.y@exemple.com",
-            "username": "jujuyy",
-            "password": "tajine",
-        }
-        response = self.client.post("/api/alpha/auth/users/", data)
-
+        self.julie_data.pop("organization_name")
+        response = self.client.post("/api/alpha/auth/users/", self.julie_data)
         self.assertEqual(response.status_code, 201)
 
     def test_mandatory_info(self):
@@ -370,17 +353,8 @@ class UserCreation(APITestCase):
 
     @mock.patch.dict(os.environ, {"FRONTEND_URL": "https://rnb.beta.gouv.fr"})
     def test_full_account_activation_scenario(self):
-        data = {
-            "last_name": "Y",
-            "first_name": "Julie",
-            "email": "julie.y@exemple.com",
-            "username": "jujuyy",
-            "password": "tajine",
-            "organization_name": "Mairie d'Angoulème",
-            "job_title": "responsable SIG",
-        }
         # julie creates her account
-        self.client.post("/api/alpha/auth/users/", data)
+        self.client.post("/api/alpha/auth/users/", self.julie_data)
 
         julie = User.objects.prefetch_related("organizations", "profile").get(
             first_name="Julie"
@@ -404,7 +378,6 @@ class UserCreation(APITestCase):
         activation_link = match.group(1)
         activation_link = urlparse(activation_link)
         activation_link = activation_link.path
-        print(activation_link)
 
         # Julie clicks on the link
         resp = self.client.get(activation_link)
@@ -418,3 +391,48 @@ class UserCreation(APITestCase):
         # her account is now active!
         julie.refresh_from_db()
         self.assertTrue(julie.is_active)
+
+    @mock.patch.dict(os.environ, {"FRONTEND_URL": "https://rnb.beta.gouv.fr"})
+    def test_dont_mess_with_activation_to(self):
+        # julie creates her account
+        self.client.post("/api/alpha/auth/users/", self.julie_data)
+
+        julie = User.objects.prefetch_related("organizations", "profile").get(
+            first_name="Julie"
+        )
+
+        # the account is inactive
+        self.assertFalse(julie.is_active)
+        # but she has received an email
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, [julie.email])
+        self.assertTrue(
+            email.alternatives, "error : email has no HTML version available"
+        )
+
+        html_content = email.alternatives[0][0]
+
+        # the mail contains an activation link
+        match = re.search(r'"([^"]+)"', html_content)
+        self.assertIsNotNone(match, "No link found in email")
+        activation_link = match.group(1)
+        activation_link = urlparse(activation_link)
+        activation_link = activation_link.path
+
+        # sneaky Julie modifies the token
+        activation_link = activation_link[:-5]
+        activation_link = activation_link + "xxxx/"
+
+        # Julie clicks on the modified link
+        resp = self.client.get(activation_link)
+
+        # She is redirected to the website where she will be notified of the activation error
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(
+            resp["Location"], "https://rnb.beta.gouv.fr/activation?status=error"
+        )
+
+        # her account is still inactive
+        julie.refresh_from_db()
+        self.assertFalse(julie.is_active)
