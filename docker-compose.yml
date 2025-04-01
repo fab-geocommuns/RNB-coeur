@@ -1,6 +1,12 @@
 name: rnb-coeur
 
 services:
+  # Uncomment this to use Nginx locally
+  # nginx-proxy:
+  #   extends:
+  #     file: common-services.yml
+  #     service: nginx-proxy
+
   web:
     extends:
       file: common-services.yml
@@ -24,8 +30,19 @@ services:
         condition: service_healthy
     environment:
       - URL=http://localhost:8000
+
     networks:
       - rnb_dev_network
+      # This is to test Nginx proxy locally, but it's not required if you are targeting
+      # the Django application directly.
+      # If you want to test something on Nginx, you will have to add the following to
+      # your /etc/hosts file:
+      #   127.0.0.1 rnb-api.dev
+      # And uncomment the following lines
+      # - VIRTUAL_HOST=rnb-api.dev
+      # - DJANGO_ALLOWED_HOST=rnb-api.dev
+      # - VIRTUAL_PORT=8000
+      # - VIRTUAL_PROTO=http
   db:
     extends:
       file: common-services.yml
@@ -82,6 +99,10 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
+   certs:
+  html:
 networks:
   rnb_dev_network:
     external: true
+
+
