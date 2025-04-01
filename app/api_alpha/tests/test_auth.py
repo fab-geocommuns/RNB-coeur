@@ -293,6 +293,17 @@ class UserCreation(APITestCase):
             "organization_name": "Mairie d'Angoulème",
             "job_title": "responsable SIG",
         }
+        self.environ_patcher = mock.patch.dict(
+            os.environ,
+            {
+                "FRONTEND_URL": "https://rnb.beta.gouv.fr",
+                "RNB_SEND_ADDRESS": "coucou@rnb.beta.gouv.fr",
+            },
+        )
+        self.environ_patcher.start()
+
+    def tearDown(self):
+        self.environ_patcher.stop()
 
     def test_create_user(self):
         response = self.client.post("/api/alpha/auth/users/", self.julie_data)
@@ -300,12 +311,12 @@ class UserCreation(APITestCase):
         julie = User.objects.prefetch_related("organizations", "profile").get(
             first_name="Julie"
         )
-        self.assertEqual(julie.last_name, "Y")
-        self.assertEqual(julie.email, "julie.y@exemple.com")
+        self.assertEqual(julie.last_name, "B")
+        self.assertEqual(julie.email, "julie.b@exemple.com")
         # we check the password is properly hashed
         self.assertNotEqual(julie.password, "tajine")
         self.assertIsNotNone(julie.password)
-        self.assertEqual(julie.username, "jujuyy")
+        self.assertEqual(julie.username, "juju")
         self.assertEqual(len(julie.organizations.all()), 1)
         orgas = julie.organizations.all()
         self.assertEqual(orgas[0].name, "Mairie d'Angoulème")
@@ -351,7 +362,6 @@ class UserCreation(APITestCase):
             },
         )
 
-    @mock.patch.dict(os.environ, {"FRONTEND_URL": "https://rnb.beta.gouv.fr"})
     def test_full_account_activation_scenario(self):
         # julie creates her account
         self.client.post("/api/alpha/auth/users/", self.julie_data)
@@ -392,7 +402,6 @@ class UserCreation(APITestCase):
         julie.refresh_from_db()
         self.assertTrue(julie.is_active)
 
-    @mock.patch.dict(os.environ, {"FRONTEND_URL": "https://rnb.beta.gouv.fr"})
     def test_dont_mess_with_activation_to(self):
         # julie creates her account
         self.client.post("/api/alpha/auth/users/", self.julie_data)
