@@ -112,7 +112,7 @@ def _dpt_names() -> dict:
         "94": "Val-de-Marne",
         "95": "Val-d'Oise",
         # ####
-        # Départements our Régions d'outre-mer
+        # Départements ou Régions d'outre-mer
         "971": "Guadeloupe",
         "972": "Martinique",
         "973": "Guyane",
@@ -125,6 +125,12 @@ def _dpt_names() -> dict:
         "978": "Saint-Martin",
         "986": "Wallis-et-Futuna",
         "987": "Polynésie française",
+        # ####
+        # Autres statuts
+        # (possession française sous l'autorité directe du gouvernement & Collectivité sui generis)
+        "988": "Nouvelle-Calédonie",
+        "984": "Terres australes et antarctiques françaises",
+        "989": "Île de Clipperton",
     }
 
 
@@ -229,13 +235,17 @@ def dpt_list_metropole():
     ]
 
 
-def dpt_list_overseas():
+def drom_list():
     return ["971", "972", "973", "974", "976"]
 
 
 # COM = Collectivité d'outre-mer
 def com_list():
     return ["975", "977", "978", "986", "987"]
+
+
+def other_territories_list():
+    return ["988", "984", "989"]
 
 
 def dpts_list(start: Optional[str] = None, end: Optional[str] = None):
@@ -245,7 +255,9 @@ def dpts_list(start: Optional[str] = None, end: Optional[str] = None):
     :return: list of departments in France
     """
 
-    all_dpts = dpt_list_metropole() + dpt_list_overseas() + com_list()
+    all_dpts = (
+        dpt_list_metropole() + drom_list() + com_list() + other_territories_list()
+    )
 
     return slice_dpts(all_dpts, start, end)
 

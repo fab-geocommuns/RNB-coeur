@@ -27,6 +27,13 @@ services:
       - MATTERMOST_NOTIFICATIONS=0
       - URL=http://dummy.fake
       - FRONTEND_URL=http://front.fake
+      - DJANGO_EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+      - DJANGO_EMAIL_HOST=dummy_email_host
+      - DJANGO_EMAIL_PORT=dummy_email_port
+      - DJANGO_EMAIL_HOST_USER=dummy_email_host_user
+      - DJANGO_EMAIL_HOST_PASSWORD=dummy_email_host_password
+      - DJANGO_EMAIL_USE_TLS=0
+      - DJANGO_EMAIL_USE_SSL=1
     build:
       args:
         - WITH_DEV_DEPENDENCIES=true

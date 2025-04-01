@@ -326,7 +326,7 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[2]["event_id"], rows[0]["event_id"])
 
     def test_diff_split(self):
-        user = User()
+        user = User(email="test@exemple.fr")
         user.save()
 
         b1 = Building.objects.create(rnb_id="1", status="constructed")
@@ -583,3 +583,14 @@ class TestDiffusionDatabases(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertIn("Fichiers fonciers", response.content.decode())
+
+
+class TestOrganizationNames(APITestCase):
+    def test_organization_names(self):
+        Organization.objects.create(name="CC de la Varne")
+        Organization.objects.create(name="Mairie de Saint-Brégorin")
+        url = "/api/alpha/organization_names"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("CC de la Varne", response.content.decode())
+        self.assertIn("Mairie de Saint-Brégorin", response.content.decode())
