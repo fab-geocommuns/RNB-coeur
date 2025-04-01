@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
@@ -242,6 +243,12 @@ MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))
 # Zoom range for vector tiles generation
 VCTR_TILES_MIN_ZOOM = 14
 VCTR_TILES_MAX_ZOOM = 18
+
+# Photon geocoder
+PHOTON_GEOCODER_URL = os.environ.get(
+    "PHOTON_GEOCODER_URL", "https://photon.komoot.io/api/"
+)
+
 
 # Mattermost
 MATTERMOST_NOTIFICATIONS = (

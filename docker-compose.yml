@@ -24,6 +24,8 @@ services:
         condition: service_healthy
     environment:
       - URL=http://localhost:8000
+    networks:
+      - rnb_dev_network
   db:
     extends:
       file: common-services.yml
@@ -80,3 +82,6 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
+networks:
+  rnb_dev_network:
+    external: true

@@ -8,7 +8,7 @@ RUN apt-get update && \
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    POETRY_VERSION=1.3.1 \
+    POETRY_VERSION=2.1.1 \
     # by default venv path would be set in /root folder and that would creates permission issues
     POETRY_VIRTUALENVS_PATH="/python_venv" \
     PATH="/root/.local/bin:${PATH}"
