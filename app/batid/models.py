@@ -680,7 +680,6 @@ class Organization(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
-
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     job_title = models.CharField(max_length=255, blank=True, null=True)
