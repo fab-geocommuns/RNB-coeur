@@ -18,11 +18,6 @@ class BALImport(TestCase):
 
         sourceMock.return_value = helpers.fixture_path("bal_import_test_data.csv")
 
-        # Certification commune only
-        # Creation d'un buildingImport
-        # Reception du bon event_origin
-        # Append d'une adresse supplémentaire
-
         # Building ONE
 
         Address.objects.create(
