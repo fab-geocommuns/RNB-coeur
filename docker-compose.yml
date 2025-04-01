@@ -104,5 +104,3 @@ volumes:
 networks:
   rnb_dev_network:
     external: true
-
-
