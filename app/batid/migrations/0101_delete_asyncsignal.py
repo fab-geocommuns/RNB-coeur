@@ -5,7 +5,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0100_diffusiondatabase"),
+        ("batid", "0102_userprofile"),
     ]
 
     operations = [
