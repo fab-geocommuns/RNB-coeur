@@ -97,6 +97,9 @@ class BALImport(TestCase):
 
         # We check the import result
         report = BuildingImport.objects.get(bulk_launch_uuid=bulk_launch_uuid)
+        self.assertEqual(report.import_source, "bal")
+        self.assertEqual(report.bulk_launch_uuid, bulk_launch_uuid)
+        self.assertEqual(report.departement, "01")
         self.assertEqual(report.building_updated_count, 2)
 
         # We check the buildings
