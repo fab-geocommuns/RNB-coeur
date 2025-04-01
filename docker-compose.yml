@@ -99,7 +99,7 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
-   certs:
+  certs:
   html:
 networks:
   rnb_dev_network:
