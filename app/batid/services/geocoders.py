@@ -1,7 +1,8 @@
 import csv
 from io import StringIO
-from django.conf import settings
+
 import requests
+from django.conf import settings
 from requests import Response
 
 from batid.exceptions import BANAPIDown
