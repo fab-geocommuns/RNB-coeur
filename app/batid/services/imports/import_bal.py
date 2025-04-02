@@ -3,17 +3,10 @@ import uuid
 from typing import Optional
 
 from celery import Signature
-from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
-from django.contrib.gis.measure import D
-from django.db.models import OuterRef
-from django.db.models import Subquery
-from django.db.models.expressions import RawSQL
 
 from batid.models import Building
-from batid.models import BuildingHistoryOnly
 from batid.services.bdg_status import BuildingStatus
-from batid.services.building import get_real_bdgs_queryset
 from batid.services.imports import building_import_history
 from batid.services.source import Source
 
@@ -110,9 +103,9 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
 def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Building]:
 
     sql = """
-        SELECT bdg.id, bdg.rnb_id, 
-        COALESCE (bdg.addresses_id, '{}') AS current_addresses, 
-        COALESCE(array_agg(DISTINCT unnested_address_id), '{}') AS past_addresses 
+        SELECT bdg.id, bdg.rnb_id,
+        COALESCE (bdg.addresses_id, '{}') AS current_addresses,
+        COALESCE(array_agg(DISTINCT unnested_address_id), '{}') AS past_addresses
         FROM batid_building as bdg
         LEFT JOIN batid_building_history as history on history.rnb_id = bdg.rnb_id
         LEFT JOIN LATERAL unnest(history.addresses_id) AS unnested_address_id ON TRUE
