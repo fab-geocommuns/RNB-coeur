@@ -96,7 +96,7 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
         FROM batid_building as bdg
         LEFT JOIN batid_building_history as history on history.rnb_id = bdg.rnb_id
         LEFT JOIN LATERAL unnest(history.addresses_id) AS unnested_address_id ON TRUE
-        WHERE ST_DWithin(bdg.shape::geography, %(address_point)s::geography, 3)
+        WHERE ST_Intersects(bdg.shape, %(address_point)s)
         AND bdg.status IN %(status)s
         AND bdg.is_active = TRUE
         GROUP BY bdg.id, bdg.rnb_id, bdg.addresses_id

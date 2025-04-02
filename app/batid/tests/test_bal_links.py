@@ -266,7 +266,7 @@ class LinkSearch(TestCase):
         )
 
         # This address point is close to the building
-        # It should match
+        # It should not match
         close_address_point = GEOSGeometry(
             json.dumps(
                 {
@@ -277,7 +277,8 @@ class LinkSearch(TestCase):
         )
 
         bdg = find_bdg_to_link(close_address_point, "_")
-        self.assertEqual(bdg.rnb_id, "CLOSE")
+        # self.assertEqual(bdg.rnb_id, "CLOSE")
+        self.assertIsNone(bdg)
 
         # This address point is close (4 meters) but not enough
         # It should not match
