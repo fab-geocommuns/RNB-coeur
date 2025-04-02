@@ -12,7 +12,6 @@ from django.db import connection
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.services.bdg_status import BuildingStatus
-from batid.services.building import get_real_bdgs_queryset
 from batid.services.imports import building_import_history
 from batid.services.source import Source
 
