@@ -574,9 +574,11 @@ class GeocodeNameHandler(AbstractHandler):
     # We allow to geocode a name in a square bounding box around a point.
     # The "apothem" is the radius of the inscribed circle of this square
     # (i.e. the "radius" of the bounding box around the point).
-    def __init__(self, sleep_time=0.8, bbox_apothem_in_meters=5000):
+    def __init__(self, sleep_time=0, bbox_apothem_in_meters=5000, photon_url=None):
         self.sleep_time = sleep_time
         self.bbox_apothem_in_meters = bbox_apothem_in_meters
+        if photon_url:
+            PhotonGeocoder.GEOCODE_URL = photon_url
 
     def _guess_batch(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
 
