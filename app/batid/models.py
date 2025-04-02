@@ -229,6 +229,7 @@ class Building(BuildingAbstract):
 
             self.save()
         else:
+            # Might do: I think we should raise an exception here
             print(f"Cannot update an inactive building: {self.rnb_id}")
 
     def _refuse_pending_contributions(
