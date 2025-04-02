@@ -64,8 +64,6 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
         "bal", bulk_launch_uuid, src_params["dpt"]
     )
 
-    updates = 0
-
     with open(src.find(src.filename), "r") as f:
         reader = csv.DictReader(f, delimiter=";")
 
@@ -87,8 +85,8 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
                 process_batch(batch, building_import)
                 batch = []
 
-        building_import.building_updated_count = updates
-        building_import.save()
+    if len(batch) > 0:
+        process_batch(batch, building_import)
 
 
 def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Building]:
@@ -117,9 +115,9 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
 
         if (
             isinstance(bdgs[0].addresses_id, list)
-            and cle_interop not in bdgs[0].addresses_id
+            and cle_interop in bdgs[0].addresses_id
         ):
-            return bdgs[0]
+            return None
 
         # We do NOT want to create the bdg <> address link if the same link exists or has existed in the past
         if (
@@ -133,9 +131,9 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
     return None
 
 
-def find_and_update_bdg(address_point: Point, cle_interop: str) -> Optional[Building]:
-
-    connection.close()
+def find_and_update_bdg(
+    address_point: Point, cle_interop: str, bdg_import_id: int
+) -> Optional[Building]:
 
     bdg_to_link = find_bdg_to_link(address_point, cle_interop)
 
@@ -150,7 +148,7 @@ def find_and_update_bdg(address_point: Point, cle_interop: str) -> Optional[Buil
 
         bdg_to_link.update(
             user=None,
-            event_origin={"source": "import"},
+            event_origin={"source": "import", "id": bdg_import_id},
             addresses_id=current_bdg_addresses,
             status=None,
         )
@@ -160,12 +158,11 @@ def find_and_update_bdg(address_point: Point, cle_interop: str) -> Optional[Buil
 
 def process_batch(batch: list, bdg_import: BuildingImport):
 
-    with ThreadPoolExecutor() as executor:
+    updated_count = 0
+    for address_point, cle_interop in batch:
+        updated_bdg = find_and_update_bdg(address_point, cle_interop, bdg_import.id)
+        if isinstance(updated_bdg, Building):
+            updated_count += 1
 
-        results = list[executor.map(lambda x: find_and_update_bdg(x[0], x[1]), batch)]
-
-        # Count how many buildings were updated
-        updated_count = sum(1 for result in results if isinstance(result, Building))
-
-        bdg_import.building_updated_count += updated_count
-        bdg_import.save()
+    bdg_import.building_updated_count += updated_count
+    bdg_import.save()
