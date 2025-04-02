@@ -1,17 +1,16 @@
 import csv
+
+from concurrent.futures import ThreadPoolExecutor
+import time
 import uuid
 from typing import Optional
 
 from celery import Signature
-from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
-from django.contrib.gis.measure import D
-from django.db.models import OuterRef
-from django.db.models import Subquery
-from django.db.models.expressions import RawSQL
+from django.db import connection
 
 from batid.models import Building
-from batid.models import BuildingHistoryOnly
+from batid.models import BuildingImport
 from batid.services.bdg_status import BuildingStatus
 from batid.services.building import get_real_bdgs_queryset
 from batid.services.imports import building_import_history
@@ -71,37 +70,23 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
     with open(src.find(src.filename), "r") as f:
         reader = csv.DictReader(f, delimiter=";")
 
+        batch = []
+
         for row in reader:
 
             if row["certification_commune"] == "0":
                 continue
 
-            bdg_to_link = find_bdg_to_link(
-                Point(
-                    float(row["long"]),
-                    float(row["lat"]),
-                    srid=4326,
-                ),
-                row["cle_interop"],
+            address_point = Point(
+                float(row["long"]),
+                float(row["lat"]),
+                srid=4326,
             )
 
-            if not isinstance(bdg_to_link, Building):
-                continue
-
-            current_bdg_addresses = (
-                bdg_to_link.addresses_id
-                if isinstance(bdg_to_link.addresses_id, list)
-                else []
-            )
-            current_bdg_addresses.append(row["cle_interop"])
-
-            bdg_to_link.update(
-                user=None,
-                event_origin={"source": "import", "id": building_import.id},
-                addresses_id=current_bdg_addresses,
-                status=None,
-            )
-            updates += 1
+            batch.append((address_point, row["cle_interop"]))
+            if len(batch) >= 1000:
+                process_batch(batch, building_import)
+                batch = []
 
         building_import.building_updated_count = updates
         building_import.save()
@@ -110,9 +95,9 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
 def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Building]:
 
     sql = """
-        SELECT bdg.id, bdg.rnb_id, 
-        COALESCE (bdg.addresses_id, '{}') AS current_addresses, 
-        COALESCE(array_agg(DISTINCT unnested_address_id), '{}') AS past_addresses 
+        SELECT bdg.id, bdg.rnb_id,
+        COALESCE (bdg.addresses_id, '{}') AS current_addresses,
+        COALESCE(array_agg(DISTINCT unnested_address_id), '{}') AS past_addresses
         FROM batid_building as bdg
         LEFT JOIN batid_building_history as history on history.rnb_id = bdg.rnb_id
         LEFT JOIN LATERAL unnest(history.addresses_id) AS unnested_address_id ON TRUE
@@ -131,6 +116,12 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
 
     if len(bdgs) == 1:
 
+        if (
+            isinstance(bdgs[0].addresses_id, list)
+            and cle_interop not in bdgs[0].addresses_id
+        ):
+            return bdgs[0]
+
         # We do NOT want to create the bdg <> address link if the same link exists or has existed in the past
         if (
             cle_interop in bdgs[0].current_addresses
@@ -141,3 +132,55 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
         return bdgs[0]
 
     return None
+
+
+def find_and_update_bdg(address_point: Point, cle_interop: str) -> Optional[Building]:
+
+    connection.close()
+
+    bdg_to_link = find_bdg_to_link(address_point, cle_interop)
+
+    if isinstance(bdg_to_link, Building):
+
+        current_bdg_addresses = (
+            bdg_to_link.addresses_id
+            if isinstance(bdg_to_link.addresses_id, list)
+            else []
+        )
+        current_bdg_addresses.append(cle_interop)
+
+        bdg_to_link.update(
+            user=None,
+            event_origin={"source": "import"},
+            addresses_id=current_bdg_addresses,
+            status=None,
+        )
+
+        return bdg_to_link
+
+
+def process_batch(batch: list, bdg_import: BuildingImport):
+
+    print("Process batch")
+    target = 30_000_000
+    start = time.perf_counter()
+
+    with ThreadPoolExecutor() as executor:
+
+        results = list[executor.map(lambda x: find_and_update_bdg(x[0], x[1]), batch)]
+
+        # Count how many buildings were updated
+        updated_count = sum(1 for result in results if isinstance(result, Building))
+
+        bdg_import.building_updated_count += updated_count
+        bdg_import.save()
+
+    end = time.perf_counter()
+
+    batch_duration = end - start
+    target_duration = target / len(batch) * batch_duration
+    target_estimage_days = target_duration / 60 / 60 / 24
+
+    print(f"Batch processed in {end - start:.2f} seconds")
+    print(f"Updated {updated_count} buildings")
+    print(f"Estimated target completion : {target_estimage_days:.2f} days")
