@@ -11,7 +11,8 @@ from django.db.models import Subquery
 from django.db.models.expressions import RawSQL
 
 from batid.models import Building
-from batid.models import BuildingWithHistory
+from batid.models import BuildingHistoryOnly
+from batid.services.bdg_status import BuildingStatus
 from batid.services.building import get_real_bdgs_queryset
 from batid.services.imports import building_import_history
 from batid.services.source import Source
@@ -108,37 +109,35 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
 
 def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Building]:
 
-    bdgs = get_real_bdgs_queryset()
-    bdgs = bdgs.annotate(distance=Distance("shape", address_point)).filter(
-        distance__lte=D(m=3)
-    )
+    sql = """
+        SELECT bdg.id, bdg.rnb_id, 
+        COALESCE (bdg.addresses_id, '{}') AS current_addresses, 
+        COALESCE(array_agg(DISTINCT unnested_address_id), '{}') AS past_addresses 
+        FROM batid_building as bdg
+        LEFT JOIN batid_building_history as history on history.rnb_id = bdg.rnb_id
+        LEFT JOIN LATERAL unnest(history.addresses_id) AS unnested_address_id ON TRUE
+        WHERE ST_DWithin(bdg.shape::geography, %(address_point)s::geography, 3)
+        AND bdg.status IN %(status)s
+        AND bdg.is_active = TRUE
+        GROUP BY bdg.id, bdg.rnb_id, bdg.addresses_id
+    """
 
-    # We do NOT want to create the bdg <> address link if the same link exists or has existed in the past
-    # To do so:
-    # - We build an array of all past and present addresses id for each building (via annotate() and the subquery)
-    # - We then verify if the "cle_interop" is not in this list of historical addresses
+    params = {
+        "address_point": f"{address_point}",
+        "status": tuple(BuildingStatus.REAL_BUILDINGS_STATUS),
+    }
 
-    historical_addresses_subquery = BuildingWithHistory.objects.filter(
-        rnb_id=OuterRef("rnb_id")
-    ).annotate(address_id=RawSQL("unnest(addresses_id)", ()))
+    bdgs = Building.objects.raw(sql, params)
 
-    bdgs = bdgs.annotate(
-        historical_addresses=AddressesInHistory(historical_addresses_subquery)
-    )
+    if len(bdgs) == 1:
 
-    if bdgs.count() == 1:
+        # We do NOT want to create the bdg <> address link if the same link exists or has existed in the past
+        if (
+            cle_interop in bdgs[0].current_addresses
+            or cle_interop in bdgs[0].past_addresses
+        ):
+            return None
 
-        historical_addresses = bdgs.first().historical_addresses
-
-        # There is no historical address, we can link
-        if historical_addresses is None or len(historical_addresses) == 0:
-            return bdgs.first()
-        # There are historical addresses but the current one is not in the list
-        elif historical_addresses and cle_interop not in historical_addresses:
-            return bdgs.first()
+        return bdgs[0]
 
     return None
-
-
-class AddressesInHistory(Subquery):
-    template = "(SELECT array_agg(_agg.address_id) FROM (%(subquery)s) AS _agg)"
