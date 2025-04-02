@@ -1,11 +1,9 @@
 import csv
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 from celery import Signature
 from django.contrib.gis.geos import Point
-from django.db import connection
 
 from batid.models import Building
 from batid.models import BuildingImport
