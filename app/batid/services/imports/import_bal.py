@@ -160,10 +160,6 @@ def find_and_update_bdg(address_point: Point, cle_interop: str) -> Optional[Buil
 
 def process_batch(batch: list, bdg_import: BuildingImport):
 
-    print("Process batch")
-    target = 30_000_000
-    start = time.perf_counter()
-
     with ThreadPoolExecutor() as executor:
 
         results = list[executor.map(lambda x: find_and_update_bdg(x[0], x[1]), batch)]
@@ -173,13 +169,3 @@ def process_batch(batch: list, bdg_import: BuildingImport):
 
         bdg_import.building_updated_count += updated_count
         bdg_import.save()
-
-    end = time.perf_counter()
-
-    batch_duration = end - start
-    target_duration = target / len(batch) * batch_duration
-    target_estimage_days = target_duration / 60 / 60 / 24
-
-    print(f"Batch processed in {end - start:.2f} seconds")
-    print(f"Updated {updated_count} buildings")
-    print(f"Estimated target completion : {target_estimage_days:.2f} days")

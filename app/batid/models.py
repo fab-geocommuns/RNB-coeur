@@ -634,7 +634,6 @@ class Address(models.Model):
 
     @staticmethod
     def add_address_to_db_if_needed(address_id):
-
         if Address.objects.filter(id=address_id).exists():
             return
         else:
