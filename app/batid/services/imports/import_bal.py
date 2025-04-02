@@ -1,8 +1,6 @@
 import csv
-
-from concurrent.futures import ThreadPoolExecutor
-import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 from celery import Signature
