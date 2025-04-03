@@ -16,8 +16,10 @@ class UsernameOrEmailBackend(ModelBackend):
         try:
             user = UserModel.objects.get(Q(username=username) | Q(email=username))
         except UserModel.DoesNotExist:
+            UserModel().set_password(password)
             return None
         except UserModel.MultipleObjectsReturned:
+            UserModel().set_password(password)
             return None
         else:
             if user.check_password(password) and self.user_can_authenticate(user):
