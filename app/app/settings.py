@@ -177,7 +177,6 @@ SPECTACULAR_SETTINGS = {
     ],
 }
 
-SITE_URL = os.environ.get("URL")
 FRONTEND_URL = os.environ.get("FRONTEND_URL")
 
 EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND")
