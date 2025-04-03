@@ -24,8 +24,10 @@ from django.http import HttpResponse
 from django.http import JsonResponse
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
+from django.shortcuts import redirect
 from django.utils import translation
 from django.utils.dateparse import parse_datetime
+from django.utils.http import urlsafe_base64_decode
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
@@ -2294,6 +2296,24 @@ def get_schema(request):
     response["Content-Disposition"] = 'attachment; filename="schema.yml"'
 
     return response
+
+
+class ActivateUser(APIView):
+    def get(self, request, user_id_b64, token):
+        try:
+            uid = urlsafe_base64_decode(user_id_b64).decode()
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        site_url = settings.FRONTEND_URL
+
+        if user and default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            return redirect(f"{site_url}/activation?status=success&email={user.email}")
+        else:
+            return redirect(f"{site_url}/activation?status=error")
 
 
 class RequestPasswordReset(RNBLoggingMixin, APIView):
