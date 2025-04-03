@@ -24,16 +24,24 @@ class ADSEnpointsNoAuthTest(APITestCase):
         self.login = "bill"
         self.password = "billIsTheGoat"
         self.token = None
+        self.email = "bill@bill.com"
 
     def setUp(self) -> None:
         u = User.objects.create_user(
-            username=self.login, email="bill@bill.com", password=self.password
+            username=self.login, email=self.email, password=self.password
         )
         t = Token.objects.create(user=u)
         self.token = t.key
 
     def test_correct_creds(self):
         data = {"username": self.login, "password": self.password}
+        response = self.client.post("/api/alpha/login/", data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["token"], self.token)
+
+    def test_correct_creds_with_email(self):
+        # user wants to connect with his mail
+        data = {"username": self.email, "password": self.password}
         response = self.client.post("/api/alpha/login/", data)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["token"], self.token)
