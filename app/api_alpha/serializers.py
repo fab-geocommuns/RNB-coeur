@@ -546,10 +546,21 @@ class UserSerializer(serializers.ModelSerializer):
         ]
 
     def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
+        if (
+            User.objects.filter(email=value).exists()
+            or User.objects.filter(username=value).exists()
+        ):
             raise serializers.ValidationError(
                 "Un utilisateur avec cette adresse email existe déjà."
             )
+        return value
+
+    def validate_username(self, value):
+        if (
+            User.objects.filter(email=value).exists()
+            or User.objects.filter(username=value).exists()
+        ):
+            raise serializers.ValidationError("Un utilisateur avec ce nom existe déjà.")
         return value
 
     def create(self, validated_data):
