@@ -334,14 +334,39 @@ class UserCreation(APITestCase):
         email = mail.outbox[0]
         self.assertEqual(email.to, [julie.email])
 
+        # check for unicity constraints
         response = self.client.post("/api/alpha/auth/users/", self.julie_data)
-
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
             {
                 "email": ["Un utilisateur avec cette adresse email existe déjà."],
                 "username": ["Un utilisateur avec ce nom existe déjà."],
+            },
+        )
+        # check also that you cannot create a new user with a username being an existing email address
+        new_data = self.julie_data.copy()
+        new_data["username"] = self.julie_data["email"]
+        new_data["email"] = "another_email@exemple.fr"
+        response = self.client.post("/api/alpha/auth/users/", new_data)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "username": ["Un utilisateur avec ce nom existe déjà."],
+            },
+        )
+
+        # check also that you cannot create a new user with an email being an existing username
+        new_data = self.julie_data.copy()
+        new_data["email"] = self.julie_data["username"]
+        new_data["username"] = "another_username"
+        response = self.client.post("/api/alpha/auth/users/", new_data)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "email": ["Un utilisateur avec cette adresse email existe déjà."],
             },
         )
 
