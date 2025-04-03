@@ -392,7 +392,8 @@ class UserCreation(APITestCase):
         # She is redirected to the website where she will be notified of the activation success
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(
-            resp["Location"], "https://rnb.beta.gouv.fr/activation?status=success"
+            resp["Location"],
+            f"https://rnb.beta.gouv.fr/activation?status=success&email={julie.email}",
         )
 
         # her account is now active!
