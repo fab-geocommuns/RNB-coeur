@@ -24,16 +24,24 @@ class ADSEnpointsNoAuthTest(APITestCase):
         self.login = "bill"
         self.password = "billIsTheGoat"
         self.token = None
+        self.email = "bill@bill.com"
 
     def setUp(self) -> None:
         u = User.objects.create_user(
-            username=self.login, email="bill@bill.com", password=self.password
+            username=self.login, email=self.email, password=self.password
         )
         t = Token.objects.create(user=u)
         self.token = t.key
 
     def test_correct_creds(self):
         data = {"username": self.login, "password": self.password}
+        response = self.client.post("/api/alpha/login/", data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["token"], self.token)
+
+    def test_correct_creds_with_email(self):
+        # user wants to connect with his mail
+        data = {"username": self.email, "password": self.password}
         response = self.client.post("/api/alpha/login/", data)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["token"], self.token)
@@ -326,14 +334,39 @@ class UserCreation(APITestCase):
         email = mail.outbox[0]
         self.assertEqual(email.to, [julie.email])
 
+        # check for unicity constraints
         response = self.client.post("/api/alpha/auth/users/", self.julie_data)
-
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
             {
                 "email": ["Un utilisateur avec cette adresse email existe déjà."],
                 "username": ["Un utilisateur avec ce nom existe déjà."],
+            },
+        )
+        # check also that you cannot create a new user with a username being an existing email address
+        new_data = self.julie_data.copy()
+        new_data["username"] = self.julie_data["email"]
+        new_data["email"] = "another_email@exemple.fr"
+        response = self.client.post("/api/alpha/auth/users/", new_data)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "username": ["Un utilisateur avec ce nom existe déjà."],
+            },
+        )
+
+        # check also that you cannot create a new user with an email being an existing username
+        new_data = self.julie_data.copy()
+        new_data["email"] = self.julie_data["username"]
+        new_data["username"] = "another_username"
+        response = self.client.post("/api/alpha/auth/users/", new_data)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "email": ["Un utilisateur avec cette adresse email existe déjà."],
             },
         )
 
