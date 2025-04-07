@@ -293,9 +293,16 @@ if sentry_dsn:
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'gunicorn_style': {
+            'format': '[%(asctime)s] [%(process)d] [%(levelname)s] %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S %z',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'gunicorn_style',
         },
     },
     'root': {
@@ -303,3 +310,4 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
