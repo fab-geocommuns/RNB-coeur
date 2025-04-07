@@ -289,3 +289,17 @@ if sentry_dsn:
         send_default_pii=True,
         environment=os.environ.get("SENTRY_ENV"),
     )
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
