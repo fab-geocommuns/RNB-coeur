@@ -1,6 +1,7 @@
 import math
 
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
@@ -20,7 +21,9 @@ from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.models import UserProfile
 from batid.services.bdg_status import BuildingStatus
+from batid.services.email import build_activate_account_email
 from batid.services.rnb_id import clean_rnb_id
+from batid.services.user import get_user_id_b64
 
 
 class RNBIdField(serializers.CharField):
@@ -559,7 +562,10 @@ class UserSerializer(serializers.ModelSerializer):
             email=validated_data["email"],
         )
         user.set_password(validated_data["password"])
+        user.is_active = False
         user.save()
+
+        send_user_email_with_activation_link(user)
 
         # add info (job_title) in the User profile
         UserProfile.objects.update_or_create(
@@ -567,6 +573,13 @@ class UserSerializer(serializers.ModelSerializer):
         )
 
         return user
+
+
+def send_user_email_with_activation_link(user):
+    token = default_token_generator.make_token(user)
+    user_id_b64 = get_user_id_b64(user)
+    email = build_activate_account_email(token, user_id_b64, user.email)
+    email.send()
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
