@@ -4,6 +4,7 @@ from typing import Optional
 
 
 from celery import Signature
+from django.db import transaction
 from django.contrib.gis.geos import Point
 from batid.exceptions import (
     BANAPIDown,
@@ -26,7 +27,7 @@ def create_all_bal_links_tasks(dpts: list):
 
     for dpt in dpts:
         dpt_tasks = _create_bal_links_dpt_tasks(dpt, bulk_launch_uuid)
-        tasks.extend(dpt_tasks)
+        tasks.append(dpt_tasks)
 
     return tasks
 
@@ -160,17 +161,26 @@ def find_and_update_bdg(
 
 def process_batch(batch: list, bdg_import: BuildingImport):
 
-    updated_count = 0
-    for address_point, cle_interop in batch:
+    with transaction.atomic():
 
-        try:
-            updated_bdg = find_and_update_bdg(address_point, cle_interop, bdg_import.id)
-            if isinstance(updated_bdg, Building):
-                updated_count += 1
-        except (BANUnknownCleInterop, BANAPIDown, BANBadRequest, BANBadResultType) as e:
-            bdg_import.building_refused_count += 1
-            bdg_import.save()
-            continue
+        updated_count = 0
+        for address_point, cle_interop in batch:
 
-    bdg_import.building_updated_count += updated_count
-    bdg_import.save()
+            try:
+                updated_bdg = find_and_update_bdg(
+                    address_point, cle_interop, bdg_import.id
+                )
+                if isinstance(updated_bdg, Building):
+                    updated_count += 1
+            except (
+                BANUnknownCleInterop,
+                BANAPIDown,
+                BANBadRequest,
+                BANBadResultType,
+            ) as e:
+                bdg_import.building_refused_count += 1
+                bdg_import.save()
+                continue
+
+        bdg_import.building_updated_count += updated_count
+        bdg_import.save()

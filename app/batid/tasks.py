@@ -330,10 +330,11 @@ def queue_full_bal_rnb_links(
         f"Création de liens bâtiment <> adresse via BAL. Départements: {dpt_start} à {dpt_end}"
     )
 
-    tasks = create_all_bal_links_tasks(dpts)
+    all_tasks = create_all_bal_links_tasks(dpts)
 
-    chain(*tasks)()
-    return f"Queued {len(tasks)} tasks"
+    for one_dpt_tasks in all_tasks:
+        chain(*one_dpt_tasks)()
+    return f"Queued BAL tasks"
 
 
 @notify_if_error
