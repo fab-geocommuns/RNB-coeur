@@ -142,7 +142,7 @@ def envelopeToBuildingsSQL(env, geometry_column):
         ),
         mvtgeom AS (
             SELECT ST_AsMVTGeom(ST_Transform(t.{geomColumn}, 3857), bounds.b2d) AS geom,
-                   {attrColumns}, (select count(*) from batid_contribution c where c.rnb_id = t.rnb_id) as contributions
+                   {attrColumns}, (select count(*) from batid_contribution c where c.rnb_id = t.rnb_id and c.status = 'pending') as contributions
             FROM {table} t, bounds
             WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
             and t.is_active = true
