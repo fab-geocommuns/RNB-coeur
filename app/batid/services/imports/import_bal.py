@@ -2,15 +2,13 @@ import csv
 import uuid
 from typing import Optional
 
-
 from celery import Signature
 from django.contrib.gis.geos import Point
-from batid.exceptions import (
-    BANAPIDown,
-    BANBadRequest,
-    BANBadResultType,
-    BANUnknownCleInterop,
-)
+
+from batid.exceptions import BANAPIDown
+from batid.exceptions import BANBadRequest
+from batid.exceptions import BANBadResultType
+from batid.exceptions import BANUnknownCleInterop
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.services.bdg_status import BuildingStatus

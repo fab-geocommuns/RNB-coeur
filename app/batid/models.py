@@ -18,9 +18,9 @@ from django.db.models.indexes import Index
 
 from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import BANAPIDown
+from batid.exceptions import BANBadRequest
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
-from batid.exceptions import BANBadRequest
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity

@@ -6,8 +6,8 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 
-from batid.exceptions import BANUnknownCleInterop
 import batid.tests.helpers as helpers
+from batid.exceptions import BANUnknownCleInterop
 from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingImport
@@ -122,7 +122,6 @@ class BALImport(TestCase):
 
 
 class BALImportWithUnknownCleInterop(TestCase):
-
     @patch("batid.models.Address.add_new_address_from_ban_api")
     @patch("batid.services.imports.import_bal.Source.find")
     def test_bal_import(self, source_mock, new_address_mock):
