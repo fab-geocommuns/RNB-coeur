@@ -2,6 +2,7 @@ import re
 from unittest import mock
 from urllib.parse import urlparse
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
@@ -326,6 +327,11 @@ class UserCreation(APITestCase):
         orgas = julie.organizations.all()
         self.assertEqual(orgas[0].name, "Mairie d'Angoulème")
         self.assertEqual(julie.profile.job_title, "responsable SIG")
+        # Julie is a contributor and has a token
+        self.assertTrue(
+            julie.groups.filter(name=settings.CONTRIBUTORS_GROUP_NAME).exists()
+        )
+        self.assertTrue(Token.objects.filter(user=julie).exists)
 
         # the user is not active yet
         self.assertFalse(julie.is_active)
