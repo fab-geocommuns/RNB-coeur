@@ -5,7 +5,12 @@ from typing import Optional
 
 from celery import Signature
 from django.contrib.gis.geos import Point
-from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import (
+    BANAPIDown,
+    BANBadRequest,
+    BANBadResultType,
+    BANUnknownCleInterop,
+)
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.services.bdg_status import BuildingStatus
@@ -157,14 +162,15 @@ def process_batch(batch: list, bdg_import: BuildingImport):
 
     updated_count = 0
     for address_point, cle_interop in batch:
+
         try:
             updated_bdg = find_and_update_bdg(address_point, cle_interop, bdg_import.id)
-        except BANUnknownCleInterop as e:
+            if isinstance(updated_bdg, Building):
+                updated_count += 1
+        except (BANUnknownCleInterop, BANAPIDown, BANBadRequest, BANBadResultType) as e:
             bdg_import.building_refused_count += 1
             bdg_import.save()
-
-        if isinstance(updated_bdg, Building):
-            updated_count += 1
+            continue
 
     bdg_import.building_updated_count += updated_count
     bdg_import.save()

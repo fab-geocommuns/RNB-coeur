@@ -6,6 +6,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 
+from batid.exceptions import BANUnknownCleInterop
 import batid.tests.helpers as helpers
 from batid.models import Address
 from batid.models import Building
@@ -122,10 +123,13 @@ class BALImport(TestCase):
 
 class BALImportWithUnknownCleInterop(TestCase):
 
+    @patch("batid.models.Address.add_new_address_from_ban_api")
     @patch("batid.services.imports.import_bal.Source.find")
-    def test_bal_import(self, sourceMock):
+    def test_bal_import(self, source_mock, new_address_mock):
 
-        sourceMock.return_value = helpers.fixture_path("bal_import_test_data.csv")
+        source_mock.return_value = helpers.fixture_path("bal_import_test_data.csv")
+
+        new_address_mock.side_effect = BANUnknownCleInterop()
 
         # One of the CSV address should be linked to this building but it CLE_INTEROP is unknown
         Building.objects.create(
@@ -154,6 +158,8 @@ class BALImportWithUnknownCleInterop(TestCase):
         # We execute the BAL import
         bulk_launch_uuid = uuid.uuid4()
         create_dpt_bal_rnb_links({"dpt": "01"}, bulk_launch_uuid)
+
+        # self.assertEqual(new_address_mock.call_count, 1)
 
         report = BuildingImport.objects.get(bulk_launch_uuid=bulk_launch_uuid)
         self.assertEqual(report.import_source, "bal")
