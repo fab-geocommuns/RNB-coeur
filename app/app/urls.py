@@ -13,6 +13,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import include
 from django.urls import path
@@ -24,6 +25,7 @@ from batid.views import merge_buildings
 from batid.views import MetabaseProxyView
 from batid.views import refuse_contribution
 from batid.views import update_building
+from app.debug_views import test_error
 
 urlpatterns = [
     path("", include("website.urls")),
@@ -42,4 +44,5 @@ urlpatterns = [
     path("contribution/fix/merge_buildings", merge_buildings, name="merge_buildings"),
     path("__debug__/", include("debug_toolbar.urls")),
     path("webhook/", include("webhook.urls")),
+    path("__test__/error/", test_error, name="test_error"),
 ]
