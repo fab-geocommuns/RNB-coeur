@@ -103,6 +103,7 @@ class BALImport(TestCase):
         self.assertEqual(report.bulk_launch_uuid, bulk_launch_uuid)
         self.assertEqual(report.departement, "01")
         self.assertEqual(report.building_updated_count, 2)
+        self.assertEqual(report.building_refused_count, 0)
 
         # We check the buildings
 
@@ -117,6 +118,49 @@ class BALImport(TestCase):
         self.assertDictEqual(
             bdg_two.event_origin, {"source": "import", "id": report.id}
         )
+
+
+class BALImportWithUnknownCleInterop(TestCase):
+
+    @patch("batid.services.imports.import_bal.Source.find")
+    def test_bal_import(self, sourceMock):
+
+        sourceMock.return_value = helpers.fixture_path("bal_import_test_data.csv")
+
+        # One of the CSV address should be linked to this building but it CLE_INTEROP is unknown
+        Building.objects.create(
+            rnb_id="NO_ADDRESS",
+            status="constructed",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5208465518688001, 44.83137629535605],
+                                [-0.5209714266673586, 44.83124373127637],
+                                [-0.5209000696392536, 44.83120522712949],
+                                [-0.5207868291392401, 44.831261883222226],
+                                [-0.5208209564132744, 44.83129653692134],
+                                [-0.5207542531047125, 44.83133284077405],
+                                [-0.5208465518688001, 44.83137629535605],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+        )
+
+        # We execute the BAL import
+        bulk_launch_uuid = uuid.uuid4()
+        create_dpt_bal_rnb_links({"dpt": "01"}, bulk_launch_uuid)
+
+        report = BuildingImport.objects.get(bulk_launch_uuid=bulk_launch_uuid)
+        self.assertEqual(report.import_source, "bal")
+        self.assertEqual(report.bulk_launch_uuid, bulk_launch_uuid)
+        self.assertEqual(report.departement, "01")
+        self.assertEqual(report.building_updated_count, 0)
+        self.assertEqual(report.building_refused_count, 1)
 
 
 class LinkSearch(TestCase):
