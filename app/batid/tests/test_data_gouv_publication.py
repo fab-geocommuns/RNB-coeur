@@ -13,6 +13,7 @@ from moto import mock_aws
 from batid.models import Address
 from batid.models import Building
 from batid.models import Department_subdivided
+from batid.models import Plot
 from batid.services.data_gouv_publication import cleanup_directory
 from batid.services.data_gouv_publication import create_archive
 from batid.services.data_gouv_publication import create_csv
@@ -180,7 +181,7 @@ class TestDataGouvPublication(TestCase):
         # Building 4: many addresses
         Building.objects.create(
             rnb_id="BDG-MANY-ADD",
-            shape=geom_bdg_paris,
+            shape=geom_bdg_paris.point_on_surface,
             point=geom_bdg_paris.point_on_surface,
             status="constructed",
             ext_ids={"some_source": "9999"},
@@ -205,6 +206,19 @@ class TestDataGouvPublication(TestCase):
             addresses_id=[address_paris_1.id, address_Montreuil.id],
         )
 
+        # create 2 plots touching the Parisian building
+        # plot 1
+        Plot.objects.create(
+            id="plot_1",
+            shape="MULTIPOLYGON (((2.353592263942687 48.8381199933757, 2.353592263942687 48.83800449764507, 2.354083199327647 48.83800449764507, 2.354083199327647 48.8381199933757, 2.353592263942687 48.8381199933757)))",
+        )
+
+        # # plot 2
+        Plot.objects.create(
+            id="plot_2",
+            shape="MULTIPOLYGON (((2.3535922986454807 48.838004770495814, 2.3535922986454807 48.83790342816005, 2.354083657770417 48.83790342816005, 2.354083657770417 48.838004770495814, 2.3535922986454807 48.838004770495814)))",
+        )
+
         area = "75"
         directory_name = create_directory(area)
 
@@ -218,7 +232,15 @@ class TestDataGouvPublication(TestCase):
         self.assertEqual(len(files), 1)
 
         # Expected values
-        expected_keys = ["rnb_id", "point", "shape", "status", "ext_ids", "addresses"]
+        expected_keys = [
+            "rnb_id",
+            "point",
+            "shape",
+            "status",
+            "ext_ids",
+            "addresses",
+            "plots",
+        ]
         expected_len = 3
         expected_rows = [
             {
@@ -237,6 +259,8 @@ class TestDataGouvPublication(TestCase):
                         "city_name": "Paris",
                     }
                 ],
+                # the building sits on two plots
+                "plots": """[{"id" : "plot_1", "bdg_cover_ratio" : 0.4513785723301588}, {"id" : "plot_2", "bdg_cover_ratio" : 0.5510222422494555}]""",
             },
             {
                 "rnb_id": "BDG2-PARIS",
@@ -245,11 +269,12 @@ class TestDataGouvPublication(TestCase):
                 "status": "constructed",
                 "ext_ids": {"some_source": "5678"},
                 "addresses": [],
+                "plots": """[{"id" : "plot_1", "bdg_cover_ratio" : 0.4513785723301588}, {"id" : "plot_2", "bdg_cover_ratio" : 0.5510222422494555}]""",
             },
             {
                 "rnb_id": "BDG-MANY-ADD",
                 "point": "SRID=4326;POINT(2.353856491181528 48.837994633790686)",
-                "shape": "SRID=4326;POLYGON((2.353721421744524 48.83801408684721,2.35382782105961 48.83790774339977,2.353989390389472 48.83797518073416,2.3538810207165 48.83809708645475,2.353721421744524 48.83801408684721))",
+                "shape": "SRID=4326;POINT(2.353856491181528 48.837994633790686)",
                 "status": "constructed",
                 "ext_ids": {"some_source": "9999"},
                 "addresses": [
@@ -270,6 +295,8 @@ class TestDataGouvPublication(TestCase):
                         "city_name": "Paris",
                     },
                 ],
+                # we check the cover ratio for points is 1
+                "plots": """[{"id" : "plot_2", "bdg_cover_ratio" : 1}]""",
             },
         ]
         expected_rows = sorted(expected_rows, key=lambda x: x["rnb_id"])

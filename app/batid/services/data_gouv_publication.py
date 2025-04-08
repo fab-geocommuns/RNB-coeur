@@ -78,7 +78,23 @@ def sql_query(code_area):
                     'city_name', addr.city_name
                 )
 
-        ) FILTER (WHERE addr.id IS NOT NULL), '[]'::json) AS addresses
+        ) FILTER (WHERE addr.id IS NOT NULL), '[]'::json) AS addresses,
+        (
+           SELECT json_agg(json_build_object('id', p.id, 'bdg_cover_ratio',
+               CASE
+                   WHEN ST_GeometryType(bdg.shape) = 'ST_Point' THEN 1.0
+                   WHEN ST_GeometryType(bdg.shape) IN ('ST_Polygon', 'ST_MultiPolygon') THEN
+                       CASE
+                           WHEN ST_Area(bdg.shape) > 0 THEN
+                               ST_Area(ST_Intersection(bdg.shape, p.shape)) / ST_Area(bdg.shape)
+                           ELSE 0.0
+                       END
+                   ELSE 0.0
+               END
+           ))
+           FROM batid_plot p
+           WHERE ST_Intersects(p.shape, bdg.shape)
+       ) AS plots
         FROM batid_building bdg
         LEFT JOIN batid_buildingaddressesreadonly bdg_addr ON bdg_addr.building_id = bdg.id
         LEFT JOIN batid_address addr ON addr.id = bdg_addr.address_id
