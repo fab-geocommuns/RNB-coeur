@@ -136,6 +136,8 @@ DATABASES = {
     }
 }
 
+# any active user part of this group can edit the RNB
+CONTRIBUTORS_GROUP_NAME = "Contributors"
 
 AUTHENTICATION_BACKENDS = [
     "app.authentication.UsernameOrEmailBackend",

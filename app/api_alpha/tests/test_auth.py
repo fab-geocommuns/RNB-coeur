@@ -3,6 +3,7 @@ from unittest import mock
 from urllib.parse import urlparse
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
@@ -292,6 +293,7 @@ class ForgottenPasswordThrottling(APITestCase):
 
 class UserCreation(APITestCase):
     def setUp(self):
+        Group.objects.get_or_create(name=settings.CONTRIBUTORS_GROUP_NAME)
         self.julie_data = {
             "last_name": "B",
             "first_name": "Julie",

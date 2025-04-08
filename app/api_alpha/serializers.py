@@ -1,5 +1,7 @@
 import math
 
+from django.conf import settings
+from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
@@ -13,7 +15,6 @@ from api_alpha.validators import ads_validate_rnbid
 from api_alpha.validators import ADSValidator
 from api_alpha.validators import bdg_is_active
 from api_alpha.validators import BdgInADSValidator
-from app.app import settings
 from batid.models import Address
 from batid.models import ADS
 from batid.models import Building
@@ -576,9 +577,12 @@ class UserSerializer(serializers.ModelSerializer):
         )
         user.set_password(validated_data["password"])
         user.is_active = False
-        user.groups.add(settings.CONTRIBUTORS_GROUP_NAME)
-        Token.objects.get_or_create(user=user)
         user.save()
+
+        group = Group.objects.get(name=settings.CONTRIBUTORS_GROUP_NAME)
+        user.groups.add(group)
+        user.save()
+        Token.objects.get_or_create(user=user)
 
         send_user_email_with_activation_link(user)
 
