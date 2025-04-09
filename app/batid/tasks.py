@@ -4,7 +4,6 @@ from typing import Optional
 from celery import chain
 from celery import shared_task
 
-from batid.models import AsyncSignal
 from batid.services.administrative_areas import dpts_list
 from batid.services.administrative_areas import slice_dpts
 from batid.services.building import export_city as export_city_job
@@ -48,7 +47,6 @@ from batid.services.imports.import_plots import (
 from batid.services.mattermost import notify_if_error
 from batid.services.mattermost import notify_tech
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
-from batid.services.signal import AsyncSignalDispatcher
 from batid.services.source import Source
 
 
@@ -198,15 +196,6 @@ def export_city(insee_code):
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_dgfip_ads_achievements(filename: str):
     import_dgfip_ads_achievements_job(filename)
-    return "done"
-
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def dispatch_signal(pk: int):
-    s = AsyncSignal.objects.get(pk=pk)
-    d = AsyncSignalDispatcher()
-    d.dispatch(s)
-
     return "done"
 
 

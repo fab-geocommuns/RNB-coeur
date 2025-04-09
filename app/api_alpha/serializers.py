@@ -1,7 +1,12 @@
 import math
 
+from django.conf import settings
+from django.contrib.auth.models import Group
+from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework import serializers
+from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
 
 from api_alpha.services import BuildingADS as BuildingADSLogic
@@ -16,8 +21,12 @@ from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
+from batid.models import Organization
+from batid.models import UserProfile
 from batid.services.bdg_status import BuildingStatus
+from batid.services.email import build_activate_account_email
 from batid.services.rnb_id import clean_rnb_id
+from batid.services.user import get_user_id_b64
 
 
 class RNBIdField(serializers.CharField):
@@ -518,3 +527,81 @@ class DiffusionDatabaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = DiffusionDatabase
         fields = "__all__"
+
+
+class UserSerializer(serializers.ModelSerializer):
+    # this field will never be sent back for security reasons
+    password = serializers.CharField(write_only=True)
+    job_title = serializers.CharField(source="profile.job_title", required=False)
+    first_name = serializers.CharField(required=True)
+    last_name = serializers.CharField(required=True)
+    email = serializers.CharField(required=True)
+
+    class Meta:
+        model = User
+        fields = [
+            "last_name",
+            "first_name",
+            "email",
+            "username",
+            "password",
+            "job_title",
+        ]
+
+    def validate_email(self, value):
+        if (
+            User.objects.filter(email=value).exists()
+            or User.objects.filter(username=value).exists()
+        ):
+            raise serializers.ValidationError(
+                "Un utilisateur avec cette adresse email existe déjà."
+            )
+        return value
+
+    def validate_username(self, value):
+        if (
+            User.objects.filter(email=value).exists()
+            or User.objects.filter(username=value).exists()
+        ):
+            raise serializers.ValidationError("Un utilisateur avec ce nom existe déjà.")
+        return value
+
+    def create(self, validated_data):
+        profile_data = validated_data.pop("profile", {})
+
+        user = User(
+            first_name=validated_data["first_name"],
+            last_name=validated_data["last_name"],
+            username=validated_data["username"],
+            email=validated_data["email"],
+        )
+        user.set_password(validated_data["password"])
+        user.is_active = False
+        user.save()
+
+        group = Group.objects.get(name=settings.CONTRIBUTORS_GROUP_NAME)
+        user.groups.add(group)
+        user.save()
+        Token.objects.get_or_create(user=user)
+
+        send_user_email_with_activation_link(user)
+
+        # add info (job_title) in the User profile
+        UserProfile.objects.update_or_create(
+            user=user, defaults={"job_title": profile_data.get("job_title")}
+        )
+
+        return user
+
+
+def send_user_email_with_activation_link(user):
+    token = default_token_generator.make_token(user)
+    user_id_b64 = get_user_id_b64(user)
+    email = build_activate_account_email(token, user_id_b64, user.email)
+    email.send()
+
+
+class OrganizationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ["name"]

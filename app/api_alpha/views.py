@@ -24,7 +24,10 @@ from django.http import HttpResponse
 from django.http import JsonResponse
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
+from django.shortcuts import redirect
+from django.utils import translation
 from django.utils.dateparse import parse_datetime
+from django.utils.http import urlsafe_base64_decode
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
@@ -69,6 +72,8 @@ from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import DiffusionDatabaseSerializer
 from api_alpha.serializers import GuessBuildingSerializer
+from api_alpha.serializers import OrganizationSerializer
+from api_alpha.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
@@ -823,9 +828,6 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                             }
                         },
                     },
-                    "400": {
-                        "description": "Requête invalide (données mal formatées ou incomplètes)."
-                    },
                     "403": {
                         "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
                     },
@@ -962,9 +964,6 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                 }
                             }
                         },
-                    },
-                    "400": {
-                        "description": "Requête invalide (données mal formatées ou incomplètes)."
                     },
                     "403": {
                         "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
@@ -1127,9 +1126,6 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                 }
                             }
                         },
-                    },
-                    "400": {
-                        "description": "Requête invalide (données mal formatées ou incomplètes)."
                     },
                     "403": {
                         "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
@@ -2220,6 +2216,39 @@ class RNBAuthToken(ObtainAuthToken):
         )
 
 
+class CreateUserView(APIView):
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        # we need French error message for the website
+        with translation.override("fr"):
+            user_serializer = UserSerializer(data=request.data)
+            user_serializer.is_valid(raise_exception=True)
+            user = user_serializer.save()
+
+            organization_serializer = None
+            organization_name = request.data.get("organization_name")
+            if organization_name:
+                organization_serializer = OrganizationSerializer(
+                    data={"name": organization_name}
+                )
+                organization_serializer.is_valid(raise_exception=True)
+                organization, created = Organization.objects.get_or_create(
+                    name=organization_name
+                )
+                organization.users.add(user)
+                organization.save()
+
+            return Response(
+                {
+                    "user": user_serializer.data,
+                    "organization": organization_serializer.data
+                    if organization_serializer
+                    else None,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+
 class TokenScheme(OpenApiAuthenticationExtension):
     target_class = "rest_framework.authentication.TokenAuthentication"
     name = "RNBTokenAuth"
@@ -2267,6 +2296,24 @@ def get_schema(request):
     response["Content-Disposition"] = 'attachment; filename="schema.yml"'
 
     return response
+
+
+class ActivateUser(APIView):
+    def get(self, request, user_id_b64, token):
+        try:
+            uid = urlsafe_base64_decode(user_id_b64).decode()
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        site_url = settings.FRONTEND_URL
+
+        if user and default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            return redirect(f"{site_url}/activation?status=success&email={user.email}")
+        else:
+            return redirect(f"{site_url}/activation?status=error")
 
 
 class RequestPasswordReset(RNBLoggingMixin, APIView):
