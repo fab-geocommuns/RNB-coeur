@@ -105,10 +105,3 @@ def export_city(insee_code: str) -> str:
         f.write(geojson)
 
     return src.path
-
-
-def get_real_bdgs_queryset() -> QuerySet:
-
-    return Building.objects.filter(
-        status__in=BuildingStatus.REAL_BUILDINGS_STATUS, is_active=True
-    )
