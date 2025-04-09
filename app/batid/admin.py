@@ -9,6 +9,7 @@ from batid.models import ADS
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
+from batid.models import BuildingImport
 from batid.views import export_ads
 from batid.views import export_contributions
 from batid.views import worker
@@ -19,6 +20,23 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Organization, OrganizationAdmin)
+
+
+class BuildingImportAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "import_source",
+        "departement",
+        "created_at",
+        "candidate_created_count",
+        "building_created_count",
+        "building_updated_count",
+        "building_refused_count",
+        "bulk_launch_uuid",
+    )
+
+
+admin.site.register(BuildingImport, BuildingImportAdmin)
 
 
 class AddressAdmin(admin.ModelAdmin):
