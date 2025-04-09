@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
 import os
-
 import sentry_sdk
 from celery.schedules import crontab
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -269,7 +268,6 @@ MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))
 # Zoom range for vector tiles generation
 VCTR_TILES_MIN_ZOOM = 14
 VCTR_TILES_MAX_ZOOM = 18
-
 
 # Mattermost
 MATTERMOST_NOTIFICATIONS = (

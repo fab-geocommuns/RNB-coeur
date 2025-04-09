@@ -2,7 +2,6 @@ import csv
 from io import StringIO
 
 import requests
-from django.conf import settings
 from requests import Response
 
 from batid.exceptions import BANAPIDown
@@ -113,7 +112,7 @@ class BanBatchGeocoder:
 
 
 class PhotonGeocoder:
-    GEOCODE_URL = settings.PHOTON_GEOCODER_URL
+    GEOCODE_URL = "https://photon.komoot.io/api/"
 
     def geocode(self, params) -> requests.Response:
 
