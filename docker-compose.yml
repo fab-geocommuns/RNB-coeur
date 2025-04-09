@@ -40,6 +40,8 @@ services:
       # - DJANGO_ALLOWED_HOST=rnb-api.dev
       # - VIRTUAL_PORT=8000
       # - VIRTUAL_PROTO=http
+
+      
   db:
     extends:
       file: common-services.yml

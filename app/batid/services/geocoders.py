@@ -115,7 +115,6 @@ class PhotonGeocoder:
     GEOCODE_URL = "https://photon.komoot.io/api/"
 
     def geocode(self, params) -> requests.Response:
-
         if "q" not in params:
             raise Exception("Missing 'q' parameter for Photon geocoding")
 
