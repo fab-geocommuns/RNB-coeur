@@ -41,7 +41,7 @@ services:
       # - VIRTUAL_PORT=8000
       # - VIRTUAL_PROTO=http
 
-      
+
   db:
     extends:
       file: common-services.yml
