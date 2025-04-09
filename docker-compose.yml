@@ -101,6 +101,3 @@ volumes:
   rabbitmq_data:
   certs:
   html:
-networks:
-  rnb_dev_network:
-    external: true
