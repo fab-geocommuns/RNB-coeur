@@ -3,8 +3,8 @@ import uuid
 from typing import Optional
 
 from celery import Signature
-from django.db import transaction
 from django.contrib.gis.geos import Point
+from django.db import transaction
 
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadRequest
