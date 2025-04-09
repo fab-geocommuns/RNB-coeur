@@ -6,6 +6,7 @@ from jsoneditor.forms import JSONEditor
 
 from batid.models import Address
 from batid.models import ADS
+from batid.models import BuildingImport
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
