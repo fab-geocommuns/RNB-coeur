@@ -4,13 +4,11 @@ from datetime import timezone
 from django.conf import settings
 from django.core.serializers import serialize
 from django.db import connection
-from django.db.models import QuerySet
 from psycopg2.extras import RealDictCursor
 
 from batid.models import Building
 from batid.models import City
 from batid.models import Department
-from batid.services.bdg_status import BuildingStatus
 from batid.services.source import Source
 
 
