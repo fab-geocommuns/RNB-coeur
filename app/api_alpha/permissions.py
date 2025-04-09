@@ -1,5 +1,6 @@
 import copy
 
+from django.conf import settings
 from django.contrib.auth.models import Group
 from rest_framework import permissions
 from rest_framework.permissions import SAFE_METHODS
@@ -110,7 +111,7 @@ def is_in_group(user, group_name):
 
 
 class RNBContributorPermission(permissions.BasePermission):
-    group_name = "Contributors"
+    group_name = settings.CONTRIBUTORS_GROUP_NAME
 
     def has_permission(self, request, view):
         return is_in_group(request.user, self.group_name)

@@ -1111,6 +1111,23 @@ class BuildingPatchTest(APITestCase):
 
         self.user.groups.add(self.group)
 
+        # deactivate the user
+        self.user.is_active = False
+        self.user.save()
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        # unauthorized!
+        self.assertEqual(r.status_code, 401)
+
+        # activate the user
+        self.user.is_active = True
+        self.user.save()
+
         r = self.client.patch(
             f"/api/alpha/buildings/{self.rnb_id}/",
             data=json.dumps(data),

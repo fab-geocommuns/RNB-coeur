@@ -91,6 +91,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "batid.middlewares.SimpleRequestLoggerMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
 
@@ -135,6 +136,12 @@ DATABASES = {
     }
 }
 
+# any active user part of this group can edit the RNB
+CONTRIBUTORS_GROUP_NAME = "Contributors"
+
+AUTHENTICATION_BACKENDS = [
+    "app.authentication.UsernameOrEmailBackend",
+]
 
 # Password validation
 # https://docs.djangoproject.com/en/3.0/ref/settings/#auth-password-validators
@@ -176,6 +183,8 @@ SPECTACULAR_SETTINGS = {
         "api_alpha.utils.drf_spectacular_extension.filter_endpoints_hook"
     ],
 }
+
+FRONTEND_URL = os.environ.get("FRONTEND_URL")
 
 EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND")
 EMAIL_HOST = os.environ.get("DJANGO_EMAIL_HOST")
@@ -289,3 +298,36 @@ if sentry_dsn:
         send_default_pii=True,
         environment=os.environ.get("SENTRY_ENV"),
     )
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "gunicorn_style": {
+            "format": "[%(asctime)s] [%(process)d] [%(levelname)s] %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S %z",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "gunicorn_style",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "rest_framework": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

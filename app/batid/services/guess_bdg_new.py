@@ -6,6 +6,7 @@ import time
 from abc import ABC
 from abc import abstractmethod
 from io import StringIO
+from typing import Callable
 from typing import Optional
 from typing import TypedDict
 
@@ -15,6 +16,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
 from django.db import connection
+from tqdm.notebook import tqdm
 
 from batid.models import Building
 from batid.services.closest_bdg import get_closest_from_point
@@ -22,6 +24,7 @@ from batid.services.closest_bdg import get_closest_from_poly
 from batid.services.geocoders import BanBatchGeocoder
 from batid.services.geocoders import BanGeocoder
 from batid.services.geocoders import PhotonGeocoder
+from batid.utils.misc import max_by_group
 
 
 class Input(TypedDict):
@@ -31,6 +34,7 @@ class Input(TypedDict):
     lng: float
     name: str
     address: str
+    ban_id: str
 
 
 class Guess(TypedDict):
@@ -41,20 +45,20 @@ class Guess(TypedDict):
 
 
 class Guesser:
-    def __init__(self):
-        self.guesses = {}
-        self.handlers = [
+    def __init__(self, batch_size: int = 5000):
+        self.guesses: dict[str, Guess] = {}
+        self.handlers: list[AbstractHandler] = [
             ClosestFromPointHandler(),
             GeocodeAddressHandler(),
             GeocodeNameHandler(),
         ]
+        self.batch_size = batch_size
 
     def create_work_file(self, inputs, file_path):
         self.load_inputs(inputs)
         self.save_work_file(file_path)
 
     def load_work_file(self, file_path):
-        print("- loading work file")
         with open(file_path, "r") as f:
             self.guesses = json.load(f)
 
@@ -64,46 +68,42 @@ class Guesser:
 
     def guess_work_file(self, file_path, batch_size=5000):
         self.load_work_file(file_path)
+        self.guess_all(
+            skip_if_no_change=True,
+            on_batch_done=lambda: self.save_work_file(file_path),
+        )
 
-        batches = self._guesses_to_batches(batch_size)
-
-        c = 0
-        for batch in batches:
-            c += 1
-            print(f"Batch {c}/{len(batches)}")
-            batch, changed_batch = self.guess_batch(batch)
-            if changed_batch:
-                print("Batch changed")
-                self.guesses.update(batch)
-                self.save_work_file(file_path)
-            else:
-                print("Batch did not change")
-
-    def guess_all(self):
+    def guess_all(
+        self,
+        skip_if_no_change: bool = False,
+        on_batch_done: Optional[Callable] = None,
+    ):
         batches = self._guesses_to_batches()
 
-        for batch in batches:
-
+        progress_bar = tqdm(batches)
+        for batch in progress_bar:
             batch, changed_batch = self.guess_batch(batch)
-            if changed_batch:
-                self.guesses.update(batch)
 
-    def _guesses_to_batches(self, batch_size: int = 5000):
-        print("- converting guesses to batches")
+            if not changed_batch and skip_if_no_change:
+                progress_bar.set_description("Batch already processed, skipping")
+                continue
+
+            self.guesses.update(batch)
+            progress_bar.set_description("Batch processed")
+            if on_batch_done:
+                on_batch_done()
+
+    def _guesses_to_batches(self) -> list[dict[str, Guess]]:
         batches = []
         batch = {}
         last_ext_id = list(self.guesses.keys())[-1]
 
-        c = 0
         for ext_id, guess in self.guesses.items():
-            c += 1
             batch[ext_id] = guess
 
-            if len(batch) == batch_size or ext_id == last_ext_id:
+            if len(batch) == self.batch_size or ext_id == last_ext_id:
                 batches.append(batch)
                 batch = {}
-
-        print(f"- converted {len(self.guesses)} guesses to {len(batches)} batches")
 
         return batches
 
@@ -210,10 +210,7 @@ class Guesser:
         self.convert_matches()
 
         with open(file_path, "wb") as f:
-            print("- saving work file")
             f.write(orjson.dumps(self.guesses, option=orjson.OPT_INDENT_2))
-            # json.dump(self.guesses, f, indent=4, ensure_ascii=False)
-            print("- work file saved")
 
     def convert_matches(self):
         for ext_id, guess in self.guesses.items():
@@ -385,42 +382,52 @@ class ClosestFromPointHandler(AbstractHandler):
         if not lat or not lng:
             return guess
 
+        result = self.__class__.guess_closest_building(
+            lat, lng, self.closest_radius, self.isolated_bdg_max_distance
+        )
+
+        if result:
+            match, reason = result
+            guess["matches"].append(match)
+            guess["match_reason"] = reason
+
+        return guess
+
+    @staticmethod
+    def guess_closest_building(
+        lat: float, lng: float, closest_radius: int = 30, isolated_max_distance: int = 8
+    ) -> Optional[tuple[Building, str]]:
         # Get the two closest buildings
-        closest_bdgs = get_closest_from_point(lat, lng, self.closest_radius)[:2]
+        closest_bdgs = get_closest_from_point(lat, lng, closest_radius)[:2]
         # We have to close the connection to avoid a "too many connections" error
         connection.close()
 
         if not closest_bdgs:
-            return guess
+            return None
 
         first_bdg = closest_bdgs[0]
-        # Is the the point is in the first building ?
+
+        # Is the the point is in the first building?
         if first_bdg.distance.m <= 0:
-            guess["matches"].append(first_bdg)
-            guess["match_reason"] = "point_on_bdg"
-            return guess
+            return first_bdg, "point_on_bdg"
 
-        # Is the first building within 8 meters and the second building is far enough ?
-        if first_bdg.distance.m <= self.isolated_bdg_max_distance:
-            if len(closest_bdgs) == 1:
-                # There is only one building close enough. No need to compare to the second one.
-                guess["matches"].append(first_bdg)
-                guess["match_reason"] = "isolated_closest_bdg"
-                return guess
+        # Is the first building is too far from the point anyway?
+        if first_bdg.distance.m > isolated_max_distance:
+            return None
 
-            if len(closest_bdgs) > 1:
-                # There is at least one other close building. We compare the two closest buildings distance to the point.
-                second_bdg = closest_bdgs[1]
-                min_second_bdg_distance = self._min_second_bdg_distance(
-                    first_bdg.distance.m
-                )
-                if second_bdg.distance.m >= min_second_bdg_distance:
-                    guess["matches"].append(first_bdg)
-                    guess["match_reason"] = "isolated_closest_bdg"
-                    return guess
+        # There is only one building close enough. No need to compare to the second one.
+        if len(closest_bdgs) == 1:
+            return first_bdg, "isolated_closest_bdg"
 
-        # We did not find anything. We return guess as it was sent.
-        return guess
+        # There is at least one other close building. We compare the two closest buildings distance to the point.
+        second_bdg = closest_bdgs[1]
+        min_second_bdg_distance = ClosestFromPointHandler._min_second_bdg_distance(
+            first_bdg.distance.m
+        )
+        if second_bdg.distance.m >= min_second_bdg_distance:
+            return first_bdg, "isolated_closest_bdg"
+
+        return None
 
     @staticmethod
     def _min_second_bdg_distance(first_bdg_distance: float) -> float:
@@ -490,35 +497,40 @@ class GeocodeAddressHandler(AbstractHandler):
                     }
                 )
 
+        if not addresses:
+            return guesses
+
         # Geocode addresses in batch
-        if addresses:
-            geocoder = BanBatchGeocoder()
-            response = geocoder.geocode(
-                addresses,
-                columns=["address"],
-                result_columns=["result_type", "result_id", "result_score"],
-            )
-            if response.status_code == 400:
-                # save address in text file
-                with open("error_addresses.txt", "w") as f:
-                    for address in addresses:
-                        f.write(address["address"] + "\n")
-                raise Exception(f"Error while geocoding addresses : {response.text}")
-            if response.status_code != 200:
-                raise Exception(f"Error while geocoding addresses : {response.text}")
+        geocoder = BanBatchGeocoder()
+        response = geocoder.geocode(
+            addresses,
+            columns=["address"],
+            result_columns=["result_type", "result_id", "result_score"],
+        )
+        if response.status_code == 400:
+            with open("error_addresses.txt", "w") as f:
+                f.write("\n".join([address["address"] for address in addresses]))
+            raise Exception(f"Error while geocoding addresses : {response.text}")
+        if response.status_code != 200:
+            raise Exception(f"Error while geocoding addresses : {response.text}")
 
-            # Parse the response
+        # Parse the response
+        csv_file = StringIO(response.text)
+        reader = csv.DictReader(csv_file)
 
-            csv_file = StringIO(response.text)
-            reader = csv.DictReader(csv_file)
+        address_results = [row for row in reader if row["result_type"] == "housenumber"]
 
-            for row in reader:
+        # Get max scoring address for each input row
+        address_result_with_max_score_by_ext_id = max_by_group(
+            address_results,
+            max_key=lambda x: float(x["result_score"]),
+            group_key=lambda x: x["ext_id"],
+        )
 
-                if (
-                    row["result_type"] == "housenumber"
-                    and float(row["result_score"]) >= self.min_score
-                ):
-                    guesses[row["ext_id"]]["input"]["ban_id"] = row["result_id"]
+        # Augment input guess with resulting ban_id
+        for ext_id, address_result in address_result_with_max_score_by_ext_id.items():
+            if float(address_result["result_score"]) >= self.min_score:
+                guesses[ext_id]["input"]["ban_id"] = address_result["result_id"]
 
         return guesses
 
@@ -569,9 +581,11 @@ class GeocodeNameHandler(AbstractHandler):
     # We allow to geocode a name in a square bounding box around a point.
     # The "apothem" is the radius of the inscribed circle of this square
     # (i.e. the "radius" of the bounding box around the point).
-    def __init__(self, sleep_time=0.8, bbox_apothem_in_meters=5000):
+    def __init__(self, sleep_time=0, bbox_apothem_in_meters=5000, photon_url=None):
         self.sleep_time = sleep_time
         self.bbox_apothem_in_meters = bbox_apothem_in_meters
+        if photon_url:
+            PhotonGeocoder.GEOCODE_URL = photon_url
 
     def _guess_batch(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
 
@@ -597,14 +611,14 @@ class GeocodeNameHandler(AbstractHandler):
         )
 
         if osm_bdg_point:
-            # todo : on devrait filtrer pour n'avoir que les bâtiments qui ont un statut de bâtiment réel
-            bdg = Building.objects.filter(shape__contains=osm_bdg_point).first()
-            # close the connection to avoid a "too many connections" error
-            connection.close()
+            result = ClosestFromPointHandler.guess_closest_building(
+                osm_bdg_point.y, osm_bdg_point.x
+            )
 
-            if isinstance(bdg, Building):
+            if result:
+                bdg, reason = result
                 guess["matches"].append(bdg)
-                guess["match_reason"] = "found_name_in_osm"
+                guess["match_reason"] = f"found_name_in_osm_{reason}"
                 return guess
 
         return guess

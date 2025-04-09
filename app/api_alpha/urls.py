@@ -3,6 +3,7 @@ from django.urls import path
 from django.urls import re_path
 from rest_framework import routers
 
+from api_alpha.views import ActivateUser
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSVectorTileView
 from api_alpha.views import ADSViewSet
@@ -69,6 +70,7 @@ urlpatterns = [
     # Authentification
     path("login/", RNBAuthToken.as_view()),
     path("auth/users/", CreateUserView.as_view()),
+    path("auth/activate/<str:user_id_b64>/<str:token>/", ActivateUser.as_view()),
     path("auth/reset_password/", RequestPasswordReset.as_view()),
     path(
         "auth/change_password/<str:user_id_b64>/<str:token>", ChangePassword.as_view()
