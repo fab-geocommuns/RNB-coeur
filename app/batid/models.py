@@ -643,14 +643,10 @@ class Address(models.Model):
     @staticmethod
     def add_new_address_from_ban_api(address_id):
 
-        print("adding from BAN API")
-
         BAN_API_URL = "https://plateforme.adresse.data.gouv.fr/lookup/"
 
         url = f"{BAN_API_URL}{address_id}"
         r = requests.get(url)
-
-        print(f"status code : {r.status_code}")
 
         if r.status_code == 200:
             data = r.json()
