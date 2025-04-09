@@ -30,9 +30,6 @@ services:
         condition: service_healthy
     environment:
       - URL=http://localhost:8000
-
-    networks:
-      - rnb_dev_network
       # This is to test Nginx proxy locally, but it's not required if you are targeting
       # the Django application directly.
       # If you want to test something on Nginx, you will have to add the following to
