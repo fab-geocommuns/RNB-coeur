@@ -2,8 +2,24 @@ from datetime import date, timedelta
 from django.test import TestCase
 
 from batid.services.kpi import get_kpi
-from batid.services.kpi import get_kpi_most_recent
+from batid.services.kpi import get_kpi_most_recent, compute_active_buildings_count
 from batid.models import KPI
+from batid.models import Building
+
+
+class KPICompute(TestCase):
+
+    def setUp(self):
+
+        # Active/inactive buildings
+        Building.object.create(rnb_id="one", is_active=True)
+        Building.object.create(rnb_id="two", is_active=False)
+
+    def test_compute_active_buildings_count(self):
+
+        value = compute_active_buildings_count()
+        self.assertEqual(value, 1)
+
 
 class TestKPI(TestCase):
 

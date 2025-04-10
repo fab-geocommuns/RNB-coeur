@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
@@ -229,8 +230,8 @@ CELERY_BEAT_SCHEDULE = {
         # saturday at 7am
         "schedule": crontab(hour=7, minute=0, day_of_week=6),
     },
-    "compute_stats": {
-        "task": "batid.tasks.renew_stats",
+    "compute_kpis": {
+        "task": "batid.tasks.renew_kpis",
         # everyday at 3am
         "schedule": crontab(hour=3, minute=0),
     },

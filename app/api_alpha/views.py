@@ -28,6 +28,7 @@ from django.shortcuts import redirect
 from django.utils import translation
 from django.utils.dateparse import parse_datetime
 from django.utils.http import urlsafe_base64_decode
+from batid.services.kpi import get_kpi_most_recent
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
@@ -97,7 +98,7 @@ from batid.services.guess_bdg import BuildingGuess
 from batid.services.mattermost import notify_tech
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.stats import ACTIVE_BUILDING_COUNT
+from batid.services.kpi import KPI_ACTIVE_BUILDINGS_COUNT
 from batid.services.stats import get_stat as get_cached_stat
 from batid.services.user import get_user_id_b64
 from batid.services.user import get_user_id_from_b64
@@ -1880,7 +1881,6 @@ def get_stats(request):
         )
         return cursor.fetchone()[0]
 
-    building_counts = get_building_count_estimate()
     api_calls_since_2024_count = APIRequestLog.objects.filter(
         requested_at__gte="2024-01-01T00:00:00Z"
     ).count()
@@ -1888,16 +1888,10 @@ def get_stats(request):
     data_gouv_publication_count = get_data_gouv_publication_count()
 
     # Get the cached value of the building count
-    bdg_count = get_cached_stat(ACTIVE_BUILDING_COUNT)
-    # check the "computed_at" date is not too old
-    if bdg_count["computed_at"] < datetime.now() - timedelta(days=2):
-        # if it is, we warn the tech channel
-        notify_tech(
-            f'Le calcul du nombre de bâtiments disponible dans le cache est trop vieux. Il date de {bdg_count["computed_at"].isoformat()}'
-        )
+    bdg_count_kpi = get_kpi_most_recent(KPI_ACTIVE_BUILDINGS_COUNT)
 
     data = {
-        "building_counts": bdg_count["value"],
+        "building_counts": bdg_count_kpi.value,
         "api_calls_since_2024_count": api_calls_since_2024_count,
         "contributions_count": contributions_count,
         "data_gouv_publication_count": data_gouv_publication_count,
@@ -2241,9 +2235,11 @@ class CreateUserView(APIView):
             return Response(
                 {
                     "user": user_serializer.data,
-                    "organization": organization_serializer.data
-                    if organization_serializer
-                    else None,
+                    "organization": (
+                        organization_serializer.data
+                        if organization_serializer
+                        else None
+                    ),
                 },
                 status=status.HTTP_201_CREATED,
             )

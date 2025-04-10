@@ -265,6 +265,19 @@ def renew_stats():
     return "done"
 
 
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def renew_kpis():
+    """
+    This task is in charge of calculating some KPIs displayed on https://rnb.beta.gouv.fr/stats
+    It is too expensive to calculate them on the fly, so we calculate them once a day and store them in a file
+    """
+
+    from batid.services.kpi import compute_today_kpis
+
+    compute_today_kpis()
+    return "done"
+
+
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def fill_empty_event_origin(from_rnb_id=None, to_rnb_id=None, batch_size=10000):
     fix_fill_empty_event_origin(from_rnb_id, to_rnb_id, batch_size)
