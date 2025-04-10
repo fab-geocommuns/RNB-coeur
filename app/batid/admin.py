@@ -6,10 +6,10 @@ from jsoneditor.forms import JSONEditor
 
 from batid.models import Address
 from batid.models import ADS
+from batid.models import BuildingImport
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
-from batid.models import BuildingImport
 from batid.views import export_ads
 from batid.views import export_contributions
 from batid.views import worker
@@ -28,6 +28,7 @@ class BuildingImportAdmin(admin.ModelAdmin):
         "import_source",
         "departement",
         "created_at",
+        "updated_at",
         "candidate_created_count",
         "building_created_count",
         "building_updated_count",
