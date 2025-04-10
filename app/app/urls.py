@@ -17,6 +17,7 @@ from django.contrib import admin
 from django.urls import include
 from django.urls import path
 
+from app.debug_views import test_error
 from batid.views import contribution
 from batid.views import delete_building
 from batid.views import FlowerProxyView
@@ -42,4 +43,5 @@ urlpatterns = [
     path("contribution/fix/merge_buildings", merge_buildings, name="merge_buildings"),
     path("__debug__/", include("debug_toolbar.urls")),
     path("webhook/", include("webhook.urls")),
+    path("__test__/error/", test_error, name="test_error"),
 ]
