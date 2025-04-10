@@ -2,22 +2,51 @@ from datetime import date, timedelta
 from django.test import TestCase
 
 from batid.services.kpi import get_kpi
-from batid.services.kpi import get_kpi_most_recent, compute_active_buildings_count
+from batid.services.kpi import (
+    get_kpi_most_recent,
+    compute_active_buildings_count,
+    compute_real_buildings_count,
+    compute_today_kpis,
+)
 from batid.models import KPI
 from batid.models import Building
 
 
-class KPICompute(TestCase):
+class KPIDailyComputation(TestCase):
+
+    def setUp(self):
+        compute_today_kpis()
+
+    def test_all_are_done(self):
+
+        daily_kpis = ["active_buildings_count", "real_buildings_count"]
+
+        kpis = KPI.objects.all()
+        self.assertEqual(len(kpis), len(daily_kpis))
+
+        for kpi in kpis:
+            self.assertIn(kpi.name, daily_kpis)
+            self.assertEqual(kpi.value_date, date.today())
+
+
+class KPIComputing(TestCase):
 
     def setUp(self):
 
         # Active/inactive buildings
-        Building.object.create(rnb_id="one", is_active=True)
-        Building.object.create(rnb_id="two", is_active=False)
+        Building.objects.create(rnb_id="one", status="constructed", is_active=True)
+        Building.objects.create(rnb_id="two", status="constructed", is_active=False)
+
+        # Demolished buildings
+        Building.objects.create(rnb_id="demol", status="demolished", is_active=True)
 
     def test_compute_active_buildings_count(self):
 
         value = compute_active_buildings_count()
+        self.assertEqual(value, 2)
+
+    def compute_real_buildings_count(self):
+        value = compute_real_buildings_count()
         self.assertEqual(value, 1)
 
 

@@ -1873,13 +1873,6 @@ def get_data_gouv_publication_count():
 
 
 def get_stats(request):
-    def get_building_count_estimate():
-        cursor = connection.cursor()
-        # fast way to get an estimate
-        cursor.execute(
-            "SELECT reltuples::bigint FROM pg_class WHERE relname='batid_building'"
-        )
-        return cursor.fetchone()[0]
 
     api_calls_since_2024_count = APIRequestLog.objects.filter(
         requested_at__gte="2024-01-01T00:00:00Z"
