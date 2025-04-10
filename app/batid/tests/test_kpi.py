@@ -1,19 +1,18 @@
-from datetime import date, timedelta
+from datetime import date
+from datetime import timedelta
+
 from django.test import TestCase
 
-from batid.services.kpi import get_kpi
-from batid.services.kpi import (
-    get_kpi_most_recent,
-    compute_active_buildings_count,
-    compute_real_buildings_count,
-    compute_today_kpis,
-)
-from batid.models import KPI
 from batid.models import Building
+from batid.models import KPI
+from batid.services.kpi import compute_active_buildings_count
+from batid.services.kpi import compute_real_buildings_count
+from batid.services.kpi import compute_today_kpis
+from batid.services.kpi import get_kpi
+from batid.services.kpi import get_kpi_most_recent
 
 
 class KPIDailyComputation(TestCase):
-
     def setUp(self):
         compute_today_kpis()
 
@@ -30,7 +29,6 @@ class KPIDailyComputation(TestCase):
 
 
 class KPIComputing(TestCase):
-
     def setUp(self):
 
         # Active/inactive buildings
@@ -51,7 +49,6 @@ class KPIComputing(TestCase):
 
 
 class TestKPI(TestCase):
-
     def setUp(self):
 
         # Create a yesterday KPI

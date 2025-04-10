@@ -28,7 +28,6 @@ from django.shortcuts import redirect
 from django.utils import translation
 from django.utils.dateparse import parse_datetime
 from django.utils.http import urlsafe_base64_decode
-from batid.services.kpi import get_kpi_most_recent
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
@@ -95,11 +94,10 @@ from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
 from batid.services.guess_bdg import BuildingGuess
-from batid.services.mattermost import notify_tech
+from batid.services.kpi import get_kpi_most_recent
+from batid.services.kpi import KPI_ACTIVE_BUILDINGS_COUNT
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.kpi import KPI_ACTIVE_BUILDINGS_COUNT
-from batid.services.stats import get_stat as get_cached_stat
 from batid.services.user import get_user_id_b64
 from batid.services.user import get_user_id_from_b64
 from batid.services.vector_tiles import ads_tiles_sql
