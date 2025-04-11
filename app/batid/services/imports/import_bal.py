@@ -162,7 +162,7 @@ def process_batch(batch: list, bdg_import: BuildingImport):
     with transaction.atomic():
 
         updated_count = 0
-        resufed_count = 0
+        refused_count = 0
         for address_point, cle_interop in batch:
 
             try:
