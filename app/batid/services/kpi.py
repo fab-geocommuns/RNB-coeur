@@ -1,9 +1,8 @@
 from datetime import date
 from typing import Optional
 
-from batid.services.bdg_status import BuildingStatus
-from batid.models import KPI, Contribution
 from batid.models import Building
+from batid.models import Contribution
 from batid.models import KPI
 from batid.services.bdg_status import BuildingStatus
 
