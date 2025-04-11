@@ -58,3 +58,15 @@ def compute_real_buildings_count():
     return Building.objects.filter(
         is_active=True, status__in=BuildingStatus.REAL_BUILDINGS_STATUS
     ).count()
+
+
+def compute_real_buildings_wo_addresses_count():
+    """
+    Count the number of real (active + physical status) buildings without addresses
+    """
+
+    return Building.objects.filter(
+        is_active=True,
+        status__in=BuildingStatus.REAL_BUILDINGS_STATUS,
+        addresses_read_only=None,
+    ).count()

@@ -7,12 +7,13 @@ from batid.services.kpi import (
     compute_active_buildings_count,
     compute_real_buildings_count,
     compute_today_kpis,
+    compute_real_buildings_wo_addresses_count,
 )
-from batid.models import KPI
+from batid.models import KPI, Address
 from batid.models import Building
 
 
-class KPIDailyComputation(TestCase):
+class KPIDailyRun(TestCase):
 
     def setUp(self):
         compute_today_kpis()
@@ -29,25 +30,64 @@ class KPIDailyComputation(TestCase):
             self.assertEqual(kpi.value_date, date.today())
 
 
-class KPIComputing(TestCase):
+class ComputeActiveBuildingsCount(TestCase):
 
     def setUp(self):
 
-        # Active/inactive buildings
         Building.objects.create(rnb_id="one", status="constructed", is_active=True)
-        Building.objects.create(rnb_id="two", status="constructed", is_active=False)
+        Building.objects.create(rnb_id="two", status="demolished", is_active=True)
 
-        # Demolished buildings
-        Building.objects.create(rnb_id="demol", status="demolished", is_active=True)
+        Building.objects.create(rnb_id="three", status="constructed", is_active=False)
 
-    def test_compute_active_buildings_count(self):
-
+    def test(self):
         value = compute_active_buildings_count()
         self.assertEqual(value, 2)
 
-    def compute_real_buildings_count(self):
+
+class ComputeRealBuildingsCount(TestCase):
+
+    def setUp(self):
+
+        # Real buildings
+        Building.objects.create(rnb_id="1", status="constructed", is_active=True)
+        Building.objects.create(rnb_id="2", status="notUsable", is_active=True)
+
+        # Not real buildings
+        Building.objects.create(rnb_id="3", status="constructed", is_active=False)
+        Building.objects.create(rnb_id="4", status="demolished", is_active=True)
+
+    def test(self):
+
         value = compute_real_buildings_count()
-        self.assertEqual(value, 1)
+        self.assertEqual(value, 2)
+
+
+class ComputeRealBuildingsWithoutAddressCount(TestCase):
+
+    def setUp(self):
+
+        # Addresses
+        Address.objects.create(id="one")
+        Address.objects.create(id="two")
+        Address.objects.create(id="three")
+
+        # Real buildings
+        Building.objects.create(
+            rnb_id="r1", status="constructed", addresses_id=["one", "two"]
+        )
+        Building.objects.create(rnb_id="r2", status="notUsable", addresses_id=[])
+        Building.objects.create(rnb_id="r3", status="notUsable", addresses_id=None)
+
+        # Not real buildings
+        Building.objects.create(
+            rnb_id="3", status="constructed", is_active=False, addresses_id=["one"]
+        )
+        Building.objects.create(rnb_id="4", status="demolished", is_active=True)
+
+    def test(self):
+
+        value = compute_real_buildings_wo_addresses_count()
+        self.assertEqual(value, 2)
 
 
 class TestKPI(TestCase):
