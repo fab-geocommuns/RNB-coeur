@@ -93,7 +93,7 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
 def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Building]:
 
     sql = """
-        SELECT bdg.id, bdg.rnb_id,
+        SELECT bdg.id, bdg.rnb_id, bdg.is_active, 
         COALESCE (bdg.addresses_id, '{}') AS current_addresses,
         COALESCE(array_agg(DISTINCT unnested_address_id), '{}') AS past_addresses
         FROM batid_building as bdg
@@ -102,7 +102,7 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
         WHERE ST_Intersects(bdg.shape, %(address_point)s)
         AND bdg.status IN %(status)s
         AND bdg.is_active = TRUE
-        GROUP BY bdg.id, bdg.rnb_id, bdg.addresses_id
+        GROUP BY bdg.id, bdg.rnb_id, bdg.addresses_id, bdg.is_active
     """
 
     params = {
@@ -112,24 +112,17 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
 
     bdgs = Building.objects.raw(sql, params)
 
-    if len(bdgs) == 1:
+    if len(bdgs) != 1:
+        return None
 
-        if (
-            isinstance(bdgs[0].addresses_id, list)
-            and cle_interop in bdgs[0].addresses_id
-        ):
-            return None
+    # We do NOT want to create the bdg <> address link if the same link exists or has existed in the past
+    if (
+        cle_interop in bdgs[0].current_addresses
+        or cle_interop in bdgs[0].past_addresses
+    ):
+        return None
 
-        # We do NOT want to create the bdg <> address link if the same link exists or has existed in the past
-        if (
-            cle_interop in bdgs[0].current_addresses
-            or cle_interop in bdgs[0].past_addresses
-        ):
-            return None
-
-        return bdgs[0]
-
-    return None
+    return bdgs[0]
 
 
 def find_and_update_bdg(
@@ -140,17 +133,13 @@ def find_and_update_bdg(
 
     if isinstance(bdg_to_link, Building):
 
-        current_bdg_addresses = (
-            bdg_to_link.addresses_id
-            if isinstance(bdg_to_link.addresses_id, list)
-            else []
-        )
-        current_bdg_addresses.append(cle_interop)
+        currenet_addresses = bdg_to_link.current_addresses
+        currenet_addresses.append(cle_interop)
 
         bdg_to_link.update(
             user=None,
             event_origin={"source": "import", "id": bdg_import_id},
-            addresses_id=current_bdg_addresses,
+            addresses_id=currenet_addresses,
             status=None,
         )
 
@@ -169,6 +158,7 @@ def process_batch(batch: list, bdg_import: BuildingImport):
                 updated_bdg = find_and_update_bdg(
                     address_point, cle_interop, bdg_import.id
                 )
+
                 if isinstance(updated_bdg, Building):
                     updated_count += 1
             except (

@@ -96,6 +96,7 @@ class BALImport(TestCase):
 
         # We execute the BAL import
         bulk_launch_uuid = uuid.uuid4()
+
         create_dpt_bal_rnb_links({"dpt": "01"}, bulk_launch_uuid)
 
         # We check the import result
@@ -107,7 +108,6 @@ class BALImport(TestCase):
         self.assertEqual(report.building_refused_count, 0)
 
         # We check the buildings
-
         bdg_one = Building.objects.get(rnb_id="ONE")
         self.assertListEqual(bdg_one.addresses_id, ["OLD_ON_ONE", "GO_ON_ONE"])
         self.assertDictEqual(
