@@ -1,0 +1,7 @@
+uid_adresse;cle_interop;commune_insee;commune_nom;commune_deleguee_insee;commune_deleguee_nom;voie_nom;lieudit_complement_nom;numero;suffixe;position;x;y;long;lat;cad_parcelles;source;date_der_maj;certification_commune
+;GO_ON_ONE;04004;Allemagne-en-Provence;;;Rue du Four;;30;;;942009.31;6302721.47;-0.5202832333427807;44.8315860282174;;commune;2023-12-14;1
+;UNCERTIFIED;04004;Allemagne-en-Provence;;;Rue du Four;;36;;;942014.78;6302717.45;-0.5202832333427807;44.8315860282174;;commune;2023-12-14;0
+;GO_ON_TWO;04004;Allemagne-en-Provence;;;Rue du Four;;49;;;942022.99;6302713.54;-0.5204903761063804;44.83151142034421;;commune;2023-12-14;1
+;04004_jwjf04_00001;04004;Allemagne-en-Provence;;;Le Tartavel;;1;;;942556.59;6302560.07;6.013287;43.780401;;commune;2023-12-14;1
+;04004_jwjf04_00002;04004;Allemagne-en-Provence;;;Le Tartavel;;2;;;942555.13;6302558.24;6.013268;43.780385;;commune;2023-12-14;0
+;UNKNOWN;04004;Allemagne-en-Provence;;;Le Tartavel;;3;;;942548.59;6302556.65;-0.5208465518688001;44.83137629535605;;commune;2023-12-14;1

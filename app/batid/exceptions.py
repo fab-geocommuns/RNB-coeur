@@ -6,6 +6,10 @@ class BANAPIDown(Exception):
     """looks like the BAN API is down"""
 
 
+class BANBadRequest(Exception):
+    """BAN API returns a 400 error code"""
+
+
 class BANBadResultType(Exception):
     """BAN result has not the expected type (ie 'voie' instead of 'numero')"""
 
