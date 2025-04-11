@@ -130,7 +130,7 @@ class BALImportWithUnknownCleInterop(TestCase):
 
         new_address_mock.side_effect = BANUnknownCleInterop()
 
-        # One of the CSV address should be linked to this building but it CLE_INTEROP is unknown
+        # One of the CSV address should be linked to this building but its CLE_INTEROP is unknown
         Building.objects.create(
             rnb_id="NO_ADDRESS",
             status="constructed",
