@@ -16,8 +16,13 @@ class Command(BaseCommand):
         users = []
 
         with open(csv_file, newline="") as file:
-            reader = csv.reader(file)
-            for row in reader:
+            reader = csv.reader(file, delimiter=";")
+            for idx, row in enumerate(list(reader)):
+
+                if idx == 0:
+                    # Skip the header row
+                    continue
+
                 # Edit this part depending on your CSV file structure
                 username = row[3]
                 email = row[3]
@@ -33,6 +38,25 @@ class Command(BaseCommand):
                     "organization_managed_cities": organization_managed_cities,
                 }
                 users.append(user)
+
+        self.stdout.write(f"Parsed {len(users)} users :\n")
+
+        for user in users:
+            print("--")
+            print(f"Username: {user['username']}")
+            print(f"Email: {user['email']}")
+            print(f"Organization name: {user['organization_name']}")
+            print(f"Managed cities: {', '.join(user['organization_managed_cities'])}")
+        # User must confirm creation
+
+        print("----------- Confirm -----------")
+        self.stdout.write(
+            f"Do you want to create tokens for those {len(users)} users? (y/n)"
+        )
+        confirm = input().strip().lower()
+        if confirm != "y":
+            self.stdout.write("Aborting...")
+            return
 
         print(f"Sending {len(users)} users to the API\n")
         response = requests.post(
