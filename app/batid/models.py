@@ -830,6 +830,3 @@ class KPI(models.Model):
     class Meta:
         ordering = ["value_date"]
         unique_together = ("name", "value_date")
-
-        
-

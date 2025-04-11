@@ -1,4 +1,6 @@
-from datetime import date, timedelta
+from datetime import date
+from datetime import timedelta
+
 from django.test import TestCase
 from django.contrib.auth.models import User
 
@@ -150,7 +152,6 @@ class CountRealBuildingsWithoutAddress(TestCase):
 
 
 class TestKPI(TestCase):
-
     def setUp(self):
 
         # Create a yesterday KPI

@@ -1,9 +1,11 @@
-from typing import Optional
 from datetime import date
+from typing import Optional
 
 from batid.services.bdg_status import BuildingStatus
 from batid.models import KPI, Contribution
 from batid.models import Building
+from batid.models import KPI
+from batid.services.bdg_status import BuildingStatus
 
 KPI_ACTIVE_BUILDINGS_COUNT = "active_buildings_count"
 KPI_REAL_BUILDINGS_COUNT = "real_buildings_count"
