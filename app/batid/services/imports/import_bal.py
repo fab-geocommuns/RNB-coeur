@@ -93,7 +93,7 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
 def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Building]:
 
     sql = """
-        SELECT bdg.id, bdg.rnb_id, bdg.is_active, 
+        SELECT bdg.id, bdg.rnb_id, bdg.is_active,
         COALESCE (bdg.addresses_id, '{}') AS current_addresses,
         COALESCE(array_agg(DISTINCT unnested_address_id), '{}') AS past_addresses
         FROM batid_building as bdg
