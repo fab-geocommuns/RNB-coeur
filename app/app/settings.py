@@ -229,8 +229,8 @@ CELERY_BEAT_SCHEDULE = {
         # saturday at 7am
         "schedule": crontab(hour=7, minute=0, day_of_week=6),
     },
-    "compute_stats": {
-        "task": "batid.tasks.renew_stats",
+    "compute_kpis": {
+        "task": "batid.tasks.renew_kpis",
         # everyday at 3am
         "schedule": crontab(hour=3, minute=0),
     },
