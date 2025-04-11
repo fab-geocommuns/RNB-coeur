@@ -21,14 +21,8 @@ from batid.services.kpi import compute_today_kpis
 
 
 class StatsTest(APITestCase):
-    @mock.patch("batid.services.source.Source.default_ref")
     @mock.patch("api_alpha.views.requests.get")
-    def test_stats(self, get_mock, default_src_ref_mock):
-
-        # Mock the path to the cached stats file
-        default_src_ref_mock.return_value = {
-            "cached_stats": {"filename": "test_cached_stats.json"}
-        }
+    def test_stats(self, get_mock):
 
         # create buildings for building count
         Building.objects.create(rnb_id="1", is_active=True)
