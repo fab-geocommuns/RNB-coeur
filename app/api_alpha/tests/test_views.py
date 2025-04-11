@@ -16,7 +16,6 @@ from batid.models import Building
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
-from batid.services.stats import compute_stats
 from batid.services.kpi import compute_today_kpis
 
 

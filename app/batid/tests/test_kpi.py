@@ -1,31 +1,28 @@
 from datetime import date
 from datetime import timedelta
 
-from django.test import TestCase
 from django.contrib.auth.models import User
+from django.test import TestCase
 
-from batid.services.kpi import (
-    count_editors,
-    count_edits,
-    count_fixed_reports,
-    count_pending_reports,
-    count_refused_reports,
-    count_reports,
-    get_kpi,
-)
-from batid.services.kpi import (
-    get_kpi_most_recent,
-    count_active_buildings,
-    count_real_buildings,
-    compute_today_kpis,
-    count_real_buildings_wo_addresses,
-)
-from batid.models import KPI, Address, Contribution
+from batid.models import Address
 from batid.models import Building
+from batid.models import Contribution
+from batid.models import KPI
+from batid.services.kpi import compute_today_kpis
+from batid.services.kpi import count_active_buildings
+from batid.services.kpi import count_editors
+from batid.services.kpi import count_edits
+from batid.services.kpi import count_fixed_reports
+from batid.services.kpi import count_pending_reports
+from batid.services.kpi import count_real_buildings
+from batid.services.kpi import count_real_buildings_wo_addresses
+from batid.services.kpi import count_refused_reports
+from batid.services.kpi import count_reports
+from batid.services.kpi import get_kpi
+from batid.services.kpi import get_kpi_most_recent
 
 
 class KPIDailyRun(TestCase):
-
     def setUp(self):
         compute_today_kpis()
 
@@ -52,7 +49,6 @@ class KPIDailyRun(TestCase):
 
 
 class CountActiveBuildings(TestCase):
-
     def setUp(self):
 
         Building.objects.create(rnb_id="one", status="constructed", is_active=True)
@@ -66,7 +62,6 @@ class CountActiveBuildings(TestCase):
 
 
 class CountRealBuildings(TestCase):
-
     def setUp(self):
 
         # Real buildings
@@ -84,7 +79,6 @@ class CountRealBuildings(TestCase):
 
 
 class CountContributions(TestCase):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -122,7 +116,6 @@ class CountContributions(TestCase):
 
 
 class CountRealBuildingsWithoutAddress(TestCase):
-
     def setUp(self):
 
         # Addresses
