@@ -17,6 +17,7 @@ from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.services.stats import compute_stats
+from batid.services.kpi import compute_today_kpis
 
 
 class StatsTest(APITestCase):
@@ -34,7 +35,7 @@ class StatsTest(APITestCase):
         Building.objects.create(rnb_id="2", is_active=True)
         Building.objects.create(rnb_id="3", is_active=False)
         # trigger the stats computation for building count
-        compute_stats()
+        compute_today_kpis()
 
         # create one contribution
         Contribution.objects.create()

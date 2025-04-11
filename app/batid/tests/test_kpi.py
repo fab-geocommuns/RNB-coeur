@@ -1,15 +1,24 @@
 from datetime import date, timedelta
 from django.test import TestCase
+from django.contrib.auth.models import User
 
-from batid.services.kpi import get_kpi
+from batid.services.kpi import (
+    count_editors,
+    count_edits,
+    count_fixed_reports,
+    count_pending_reports,
+    count_refused_reports,
+    count_reports,
+    get_kpi,
+)
 from batid.services.kpi import (
     get_kpi_most_recent,
-    compute_active_buildings_count,
-    compute_real_buildings_count,
+    count_active_buildings,
+    count_real_buildings,
     compute_today_kpis,
-    compute_real_buildings_wo_addresses_count,
+    count_real_buildings_wo_addresses,
 )
-from batid.models import KPI, Address
+from batid.models import KPI, Address, Contribution
 from batid.models import Building
 
 
@@ -20,7 +29,17 @@ class KPIDailyRun(TestCase):
 
     def test_all_are_done(self):
 
-        daily_kpis = ["active_buildings_count", "real_buildings_count"]
+        daily_kpis = [
+            "active_buildings_count",
+            "real_buildings_count",
+            "real_buildings_wo_addresses_count",
+            "editors_count",
+            "edits_count",
+            "reports_count",
+            "pending_reports_count",
+            "fixed_reports_count",
+            "refused_reports_count",
+        ]
 
         kpis = KPI.objects.all()
         self.assertEqual(len(kpis), len(daily_kpis))
@@ -30,7 +49,7 @@ class KPIDailyRun(TestCase):
             self.assertEqual(kpi.value_date, date.today())
 
 
-class ComputeActiveBuildingsCount(TestCase):
+class CountActiveBuildings(TestCase):
 
     def setUp(self):
 
@@ -40,11 +59,11 @@ class ComputeActiveBuildingsCount(TestCase):
         Building.objects.create(rnb_id="three", status="constructed", is_active=False)
 
     def test(self):
-        value = compute_active_buildings_count()
+        value = count_active_buildings()
         self.assertEqual(value, 2)
 
 
-class ComputeRealBuildingsCount(TestCase):
+class CountRealBuildings(TestCase):
 
     def setUp(self):
 
@@ -58,11 +77,49 @@ class ComputeRealBuildingsCount(TestCase):
 
     def test(self):
 
-        value = compute_real_buildings_count()
+        value = count_real_buildings()
         self.assertEqual(value, 2)
 
 
-class ComputeRealBuildingsWithoutAddressCount(TestCase):
+class CountContributions(TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.u1 = None
+        self.u2 = None
+        self.u3 = None
+
+    def setUp(self):
+
+        self.u1 = User.objects.create(username="u1")
+        self.u2 = User.objects.create(username="u2")
+        self.u3 = User.objects.create(username="u3")
+
+        # Reports
+        Contribution.objects.create(report=True, status="pending")
+        Contribution.objects.create(report=True, status="fixed", review_user=self.u1)
+        Contribution.objects.create(report=True, status="refused", review_user=self.u1)
+        Contribution.objects.create(report=True, status="refused", review_user=self.u2)
+        Contribution.objects.create(report=True, status="refused", review_user=self.u3)
+
+        # Edits
+        Contribution.objects.create(report=False, status="fixed", review_user=self.u1)
+        Contribution.objects.create(report=False, status="fixed", review_user=self.u1)
+        Contribution.objects.create(report=False, status="fixed", review_user=self.u2)
+
+        # Test reports
+        self.assertEqual(count_reports(), 5)
+        self.assertEqual(count_pending_reports(), 1)
+        self.assertEqual(count_fixed_reports(), 1)
+        self.assertEqual(count_refused_reports(), 3)
+
+        # Test edits
+        self.assertEqual(count_editors(), 2)
+        self.assertEqual(count_edits(), 3)
+
+
+class CountRealBuildingsWithoutAddress(TestCase):
 
     def setUp(self):
 
@@ -75,7 +132,9 @@ class ComputeRealBuildingsWithoutAddressCount(TestCase):
         Building.objects.create(
             rnb_id="r1", status="constructed", addresses_id=["one", "two"]
         )
+        # test empty array
         Building.objects.create(rnb_id="r2", status="notUsable", addresses_id=[])
+        # test None
         Building.objects.create(rnb_id="r3", status="notUsable", addresses_id=None)
 
         # Not real buildings
@@ -86,7 +145,7 @@ class ComputeRealBuildingsWithoutAddressCount(TestCase):
 
     def test(self):
 
-        value = compute_real_buildings_wo_addresses_count()
+        value = count_real_buildings_wo_addresses()
         self.assertEqual(value, 2)
 
 
