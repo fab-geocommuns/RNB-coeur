@@ -162,6 +162,7 @@ def process_batch(batch: list, bdg_import: BuildingImport):
     with transaction.atomic():
 
         updated_count = 0
+        resufed_count = 0
         for address_point, cle_interop in batch:
 
             try:
@@ -175,10 +176,10 @@ def process_batch(batch: list, bdg_import: BuildingImport):
                 BANAPIDown,
                 BANBadRequest,
                 BANBadResultType,
-            ) as e:
-                bdg_import.building_refused_count += 1
-                bdg_import.save()
+            ) as _:
+                refused_count += 1
                 continue
 
+        bdg_import.building_refused_count += refused_count
         bdg_import.building_updated_count += updated_count
         bdg_import.save()
