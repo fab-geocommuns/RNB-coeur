@@ -291,7 +291,7 @@ def queue_full_ban_import(
     dpts = dpts_list(dpt_start, dpt_end)
 
     notify_tech(
-        f"Import des adresses BAN. Dpt start. Départements: {dpt_start} à {dpt_end}"
+        f"Import des adresses BAN. Dpt start. Départements: {dpts[0]} à {dpts[-1]}"
     )
 
     tasks = create_ban_full_import_tasks(dpts)
