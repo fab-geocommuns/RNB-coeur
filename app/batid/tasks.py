@@ -316,7 +316,7 @@ def queue_full_bal_rnb_links(
     dpts = dpts_list(dpt_start, dpt_end)
 
     notify_tech(
-        f"Création de liens bâtiment <> adresse via BAL. Départements: {dpt_start} à {dpt_end}"
+        f"Création de liens bâtiment <> adresse via BAL. Départements: {dpts[0]} à {dpts[-1]}"
     )
 
     all_tasks = create_all_bal_links_tasks(dpts)
