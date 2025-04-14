@@ -823,3 +823,15 @@ class DiffusionDatabase(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class KPI(models.Model):
+    name = models.CharField(max_length=255, null=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    value = models.FloatField(null=False)
+    value_date = models.DateField(null=True)
+
+    class Meta:
+        ordering = ["value_date"]
+        unique_together = ("name", "value_date")
