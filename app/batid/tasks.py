@@ -21,6 +21,10 @@ from batid.services.data_fix.remove_light_buildings import (
 )
 from batid.services.data_gouv_publication import get_area_publish_task
 from batid.services.data_gouv_publication import publish
+from batid.services.imports.import_bal import create_all_bal_links_tasks
+from batid.services.imports.import_bal import (
+    create_dpt_bal_rnb_links as create_dpt_bal_rnb_links_job,
+)
 from batid.services.imports.import_ban import create_ban_full_import_tasks
 from batid.services.imports.import_ban import import_ban_addresses
 from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
@@ -97,12 +101,12 @@ def queue_full_bdtopo_import(
     released_before: Optional[str] = None,
 ):
 
-    notify_tech(
-        f"Queuing full BDTopo import tasks.  Dpt start: {dpt_start}, dpt end: {dpt_end}.  Released before: {released_before}"
-    )
-
     # Get list of dpts
     dpts = bdtopo_dpts_list(dpt_start, dpt_end)
+
+    notify_tech(
+        f"Queuing full BDTopo import tasks.  Dpt start: {dpts[0]}, dpt end: {dpts[-1]}.  Released before: {released_before}"
+    )
 
     # Default release date to most recent one
     if released_before:
@@ -144,7 +148,7 @@ def queue_full_plots_import(
     else:
         release_date = etalab_recent_release_date()
 
-    msg = f"Import du cadastre Etalab. Départements: {dpt_start} à {dpt_end}. Date de sortie: {release_date}"
+    msg = f"Import du cadastre Etalab. Départements: {dpts[0]} à {dpts[-1]}. Date de sortie: {release_date}"
     notify_tech(msg)
 
     tasks = create_plots_full_import_tasks(dpts, release_date)
@@ -287,7 +291,7 @@ def queue_full_ban_import(
     dpts = dpts_list(dpt_start, dpt_end)
 
     notify_tech(
-        f"Import des adresses BAN. Dpt start. Départements: {dpt_start} à {dpt_end}"
+        f"Import des adresses BAN. Dpt start. Départements: {dpts[0]} à {dpts[-1]}"
     )
 
     tasks = create_ban_full_import_tasks(dpts)
@@ -300,3 +304,30 @@ def queue_full_ban_import(
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_ban(src_params: dict, bulk_launch_uuid: str = None):
     return import_ban_addresses(src_params, bulk_launch_uuid)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_full_bal_rnb_links(
+    dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
+):
+
+    # Get list of dpts
+    dpts = dpts_list(dpt_start, dpt_end)
+
+    notify_tech(
+        f"Création de liens bâtiment <> adresse via BAL. Départements: {dpts[0]} à {dpts[-1]}"
+    )
+
+    all_tasks = create_all_bal_links_tasks(dpts)
+
+    for one_dpt_tasks in all_tasks:
+        chain(*one_dpt_tasks)()
+    return f"Queued BAL tasks"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid: Optional[str] = None):
+
+    return create_dpt_bal_rnb_links_job(src_params, bulk_launch_uuid)
