@@ -17,9 +17,11 @@ from batid.services.imports.import_bal import find_bdg_to_link
 
 class BALImport(TestCase):
     @patch("batid.services.imports.import_bal.Source.find")
-    def test_bal_import(self, sourceMock):
+    def test_bal_import(self, source_mock):
 
-        sourceMock.return_value = helpers.fixture_path("bal_import_test_data.csv")
+        source_mock.return_value = helpers.copy_fixture(
+            "bal_import_test_data.csv", "bal_import_test_data_COPY.csv"
+        )
 
         # Building ONE
 
@@ -126,7 +128,9 @@ class BALImportWithUnknownCleInterop(TestCase):
     @patch("batid.services.imports.import_bal.Source.find")
     def test_bal_import(self, source_mock, new_address_mock):
 
-        source_mock.return_value = helpers.fixture_path("bal_import_test_data.csv")
+        source_mock.return_value = helpers.copy_fixture(
+            "bal_import_test_data.csv", "bal_import_test_data_COPY.csv"
+        )
 
         new_address_mock.side_effect = BANUnknownCleInterop()
 
