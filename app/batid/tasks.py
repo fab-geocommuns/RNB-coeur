@@ -148,7 +148,7 @@ def queue_full_plots_import(
     else:
         release_date = etalab_recent_release_date()
 
-    msg = f"Import du cadastre Etalab. Départements: {dpt_start} à {dpt_end}. Date de sortie: {release_date}"
+    msg = f"Import du cadastre Etalab. Départements: {dpts[0]} à {dpts[-1]}. Date de sortie: {release_date}"
     notify_tech(msg)
 
     tasks = create_plots_full_import_tasks(dpts, release_date)
