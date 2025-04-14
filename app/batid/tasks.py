@@ -101,12 +101,12 @@ def queue_full_bdtopo_import(
     released_before: Optional[str] = None,
 ):
 
-    notify_tech(
-        f"Queuing full BDTopo import tasks.  Dpt start: {dpt_start}, dpt end: {dpt_end}.  Released before: {released_before}"
-    )
-
     # Get list of dpts
     dpts = bdtopo_dpts_list(dpt_start, dpt_end)
+
+    notify_tech(
+        f"Queuing full BDTopo import tasks.  Dpt start: {dpts[0]}, dpt end: {dpts[-1]}.  Released before: {released_before}"
+    )
 
     # Default release date to most recent one
     if released_before:
