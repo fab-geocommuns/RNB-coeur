@@ -462,7 +462,7 @@ class LinkSearch(TestCase):
             addresses_id=["1234"],
         )
 
-        # Second version have the address removed
+        # Second version has the address removed
         bdg.addresses_id = []
         bdg.save()
 
