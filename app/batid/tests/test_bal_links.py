@@ -439,7 +439,7 @@ class LinkSearch(TestCase):
             ),
         )
 
-        # First version of the building have the address
+        # First version of the building has the address
         bdg = Building.objects.create(
             rnb_id="HISTORY",
             status="constructed",
