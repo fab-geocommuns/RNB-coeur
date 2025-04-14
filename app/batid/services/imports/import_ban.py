@@ -80,9 +80,15 @@ def import_ban_addresses(
             )
 
             if len(addresses_batch) >= batch_size:
-                Address.objects.bulk_create(addresses_batch, ignore_conflicts=True)
+                created_addresses = Address.objects.bulk_create(
+                    addresses_batch, ignore_conflicts=True
+                )
+                adresses_count += len(created_addresses)
                 addresses_batch = []
 
-        Address.objects.bulk_create(addresses_batch, ignore_conflicts=True)
+        created_addresses = Address.objects.bulk_create(
+            addresses_batch, ignore_conflicts=True
+        )
+        adresses_count += len(created_addresses)
 
     return f"Imported {adresses_count} BAN addresses"

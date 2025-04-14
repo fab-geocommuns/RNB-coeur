@@ -52,6 +52,11 @@ class Source:
                 "filename": "commune_insee.csv",
             },
             "export": {"filename": "export-{{city}}-{{date}}.geojson"},
+            "cached_stats": {"filename": "cached_stats.json"},
+            "bal": {
+                "url": "https://adresse.data.gouv.fr/data/ban/adresses/latest/csv-bal/adresses-{{dpt}}.csv.gz",
+                "filename": "bal-{{dpt}}.csv",
+            },
             "ban": {
                 "url": "https://adresse.data.gouv.fr/data/ban/adresses/latest/csv/adresses-{{dpt}}.csv.gz",
                 "filename": "adresses-{{dpt}}.csv",
