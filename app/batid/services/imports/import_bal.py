@@ -1,4 +1,5 @@
 import csv
+import os
 import uuid
 from typing import Optional
 
@@ -88,6 +89,9 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
 
     if len(batch) > 0:
         process_batch(batch, building_import)
+
+    # We remove the source file
+    os.remove(src.find(src.filename))
 
 
 def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Building]:
