@@ -133,13 +133,13 @@ def find_and_update_bdg(
 
     if isinstance(bdg_to_link, Building):
 
-        currenet_addresses = bdg_to_link.current_addresses
-        currenet_addresses.append(cle_interop)
+        current_addresses = bdg_to_link.current_addresses
+        current_addresses.append(cle_interop)
 
         bdg_to_link.update(
             user=None,
             event_origin={"source": "import", "id": bdg_import_id},
-            addresses_id=currenet_addresses,
+            addresses_id=current_addresses,
             status=None,
         )
 
