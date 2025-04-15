@@ -344,10 +344,3 @@ def queue_full_bal_rnb_links(
 def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid: Optional[str] = None):
 
     return create_dpt_bal_rnb_links_job(src_params, bulk_launch_uuid)
-
-
-# create a task to display current dateime
-@shared_task
-def display_current_datetime():
-
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
