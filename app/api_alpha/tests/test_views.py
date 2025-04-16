@@ -6,11 +6,11 @@ from unittest import mock
 
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
+from django.core import signing
 from django.test import TransactionTestCase
 from django.utils.http import urlencode
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
-from django.core import signing
 
 from batid.models import Address
 from batid.models import Building

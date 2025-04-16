@@ -13,11 +13,11 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-
 from django.contrib import admin
 from django.urls import include
 from django.urls import path
 
+from app.debug_views import test_error
 from batid.views import contribution
 from batid.views import delete_building
 from batid.views import FlowerProxyView
@@ -25,7 +25,6 @@ from batid.views import merge_buildings
 from batid.views import MetabaseProxyView
 from batid.views import refuse_contribution
 from batid.views import update_building
-from app.debug_views import test_error
 
 urlpatterns = [
     path("", include("website.urls")),
