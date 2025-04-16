@@ -1,9 +1,12 @@
 import math
 
+from django.conf import settings
+from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework import serializers
+from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
 
 from api_alpha.services import BuildingADS as BuildingADSLogic
@@ -575,6 +578,11 @@ class UserSerializer(serializers.ModelSerializer):
         user.set_password(validated_data["password"])
         user.is_active = False
         user.save()
+
+        group = Group.objects.get(name=settings.CONTRIBUTORS_GROUP_NAME)
+        user.groups.add(group)
+        user.save()
+        Token.objects.get_or_create(user=user)
 
         send_user_email_with_activation_link(user)
 

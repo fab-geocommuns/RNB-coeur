@@ -33,7 +33,7 @@ def publish(areas_list):
             logging.error(
                 f"Error while publishing the RNB for area {area} on data.gouv.fr: {e}"
             )
-            return False
+            raise
         finally:
             # we always cleanup the directory, no matter what happens
             cleanup_directory(directory_name)
