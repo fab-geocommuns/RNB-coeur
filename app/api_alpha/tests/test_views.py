@@ -6,6 +6,7 @@ from unittest import mock
 
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
+from django.core import signing
 from django.test import TransactionTestCase
 from django.utils.http import urlencode
 from rest_framework.test import APITestCase
@@ -588,3 +589,13 @@ class TestOrganizationNames(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("CC de la Varne", response.content.decode())
         self.assertIn("Mairie de Saint-Brégorin", response.content.decode())
+
+
+class TestDebugViews(APITestCase):
+    def test_error_endpoint_with_valid_token(self):
+        token = signing.dumps("error-test", salt="error-test")
+
+        with self.assertRaises(Exception) as context:
+            self.client.get(f"/__test__/error/?token={token}")
+
+        self.assertEqual(str(context.exception), "This is a test error")
