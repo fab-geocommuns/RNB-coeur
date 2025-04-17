@@ -18,6 +18,7 @@ from django.db.models.indexes import Index
 
 from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import BANAPIDown
+from batid.exceptions import BANBadRequest
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
@@ -229,6 +230,7 @@ class Building(BuildingAbstract):
 
             self.save()
         else:
+            # Might do: I think we should raise an exception here
             print(f"Cannot update an inactive building: {self.rnb_id}")
 
     def _refuse_pending_contributions(
@@ -640,6 +642,7 @@ class Address(models.Model):
 
     @staticmethod
     def add_new_address_from_ban_api(address_id):
+
         BAN_API_URL = "https://plateforme.adresse.data.gouv.fr/lookup/"
 
         url = f"{BAN_API_URL}{address_id}"
@@ -650,6 +653,8 @@ class Address(models.Model):
             Address.save_new_address(data)
         elif r.status_code == 404:
             raise BANUnknownCleInterop
+        elif r.status_code == 400:
+            raise BANBadRequest
         else:
             raise BANAPIDown
 
@@ -818,3 +823,15 @@ class DiffusionDatabase(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class KPI(models.Model):
+    name = models.CharField(max_length=255, null=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    value = models.FloatField(null=False)
+    value_date = models.DateField(null=True)
+
+    class Meta:
+        ordering = ["value_date"]
+        unique_together = ("name", "value_date")

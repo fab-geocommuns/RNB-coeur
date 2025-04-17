@@ -1185,3 +1185,14 @@ def mock_photon_geocoder_empty_result() -> Response:
 def fixture_path(filename):
     file_dir = os.path.dirname(os.path.realpath("__file__"))
     return os.path.join(file_dir, "batid/fixtures", filename)
+
+
+def copy_fixture(original_filename, copy_filename) -> str:
+
+    original_path = fixture_path(original_filename)
+    copy_path = fixture_path(copy_filename)
+
+    with open(original_path, "r") as f, open(copy_path, "w") as f_copy:
+        f_copy.write(f.read())
+
+    return copy_path

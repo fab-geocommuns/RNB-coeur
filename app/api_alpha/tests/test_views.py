@@ -6,6 +6,7 @@ from unittest import mock
 
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
+from django.core import signing
 from django.test import TransactionTestCase
 from django.utils.http import urlencode
 from rest_framework.test import APITestCase
@@ -16,25 +17,19 @@ from batid.models import Building
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
-from batid.services.stats import compute_stats
+from batid.services.kpi import compute_today_kpis
 
 
 class StatsTest(APITestCase):
-    @mock.patch("batid.services.source.Source.default_ref")
     @mock.patch("api_alpha.views.requests.get")
-    def test_stats(self, get_mock, default_src_ref_mock):
-
-        # Mock the path to the cached stats file
-        default_src_ref_mock.return_value = {
-            "cached_stats": {"filename": "test_cached_stats.json"}
-        }
+    def test_stats(self, get_mock):
 
         # create buildings for building count
         Building.objects.create(rnb_id="1", is_active=True)
         Building.objects.create(rnb_id="2", is_active=True)
         Building.objects.create(rnb_id="3", is_active=False)
         # trigger the stats computation for building count
-        compute_stats()
+        compute_today_kpis()
 
         # create one contribution
         Contribution.objects.create()
@@ -594,3 +589,13 @@ class TestOrganizationNames(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("CC de la Varne", response.content.decode())
         self.assertIn("Mairie de Saint-Brégorin", response.content.decode())
+
+
+class TestDebugViews(APITestCase):
+    def test_error_endpoint_with_valid_token(self):
+        token = signing.dumps("error-test", salt="error-test")
+
+        with self.assertRaises(Exception) as context:
+            self.client.get(f"/__test__/error/?token={token}")
+
+        self.assertEqual(str(context.exception), "This is a test error")
