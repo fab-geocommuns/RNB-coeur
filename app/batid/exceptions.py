@@ -20,3 +20,15 @@ class ContributionFixTooBroad(Exception):
 
 class PlotUnknown(Exception):
     """The given plot id is not in the RNB database"""
+
+
+class OperationOnInactiveBuilding(Exception):
+    """Some (many) operations are not permitted on inactive buildings"""
+
+
+class NotEnoughBuildings(Exception):
+    """Not enough buildings were provided for the operation to succeed"""
+
+
+class InvalidWGS84Geometry(Exception):
+    """The geometry is not a valid WGS 84 geometry"""

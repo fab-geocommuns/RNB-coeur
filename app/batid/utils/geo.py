@@ -2,6 +2,8 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
 
+from batid.exceptions import InvalidWGS84Geometry
+
 
 def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:
     if not isinstance(geom, MultiPolygon):
@@ -66,3 +68,31 @@ def merge_contiguous_shapes(shapes: list):
             else:  # no break
                 raise Exception("we don't want to merge non-contiguous shapes")
         return merged_shape
+
+
+def shape_verification(geom: GEOSGeometry):
+    """Check if the provided WGS84 geometry is valid, and raises a InvalidWGS84Geometry exception if not."""
+    if not geom.valid:
+        raise InvalidWGS84Geometry("Shape is topologically invalid.")
+
+    def check_simple_tuple(t):
+        (lon, lat) = t
+        if not (-180 <= lon <= 180):
+            raise InvalidWGS84Geometry(f"Longitude is off-range : {lon}")
+        if not (-90 <= lat <= 90):
+            raise InvalidWGS84Geometry(f"Latitude is off-range : {lat}")
+
+    def check_coords(g):
+        coords = g.coords if hasattr(g, "coords") else g
+        if (
+            isinstance(coords, tuple)
+            and len(coords) == 2
+            and (type(coords[0]) == int or type(coords[0]) == float)
+        ):
+            check_simple_tuple(coords)
+        else:
+            for coord in coords:
+                check_coords(coord)
+
+    check_coords(geom)
+    return True

@@ -21,9 +21,12 @@ from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadRequest
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import NotEnoughBuildings
+from batid.exceptions import OperationOnInactiveBuilding
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
+from batid.utils.geo import shape_verification
 from batid.validators import JSONSchemaValidator
 from batid.validators import validate_one_ext_id
 
@@ -208,30 +211,33 @@ class Building(BuildingAbstract):
 
             raise Exception("Missing data to update the building")
 
-        if self.is_active:
-            self.event_type = "update"
-            self.event_id = uuid.uuid4()
-            self.event_user = user
-            self.event_origin = event_origin
+        if not self.is_active:
+            raise OperationOnInactiveBuilding(
+                f"Cannot update inactive building {self.rnb_id}"
+            )
+        if shape:
+            shape_verification(shape)
 
-            if addresses_id is not None:
-                Address.add_addresses_to_db_if_needed(addresses_id)
-                self.addresses_id = addresses_id
+        self.event_type = "update"
+        self.event_id = uuid.uuid4()
+        self.event_user = user
+        self.event_origin = event_origin
 
-            if status is not None:
-                self.status = status
+        if addresses_id is not None:
+            Address.add_addresses_to_db_if_needed(addresses_id)
+            self.addresses_id = addresses_id
 
-            if ext_ids is not None:
-                self.ext_ids = ext_ids
+        if status is not None:
+            self.status = status
 
-            if shape is not None:
-                self.shape = shape
-                self.point = shape.point_on_surface
+        if ext_ids is not None:
+            self.ext_ids = ext_ids
 
-            self.save()
-        else:
-            # Might do: I think we should raise an exception here
-            print(f"Cannot update an inactive building: {self.rnb_id}")
+        if shape is not None:
+            self.shape = shape
+            self.point = shape.point_on_surface
+
+        self.save()
 
     def _refuse_pending_contributions(
         self, user: User, event_id, except_for_this_contribution_id=None
@@ -295,6 +301,8 @@ class Building(BuildingAbstract):
             or ext_ids is None
         ):
             raise Exception("Missing information to create a new building")
+
+        shape_verification(shape)
 
         point = shape if shape.geom_type == "Point" else shape.point_on_surface
 
@@ -391,10 +399,12 @@ class Building(BuildingAbstract):
             raise Exception("Missing information to split the building")
 
         if not self.is_active:
-            raise Exception("Cannot split an inactive building")
+            raise OperationOnInactiveBuilding(
+                f"Cannot split inactive building {self.rnb_id}"
+            )
 
         if not isinstance(created_buildings, list) or len(created_buildings) < 2:
-            raise Exception("A building must be split at least in two")
+            raise NotEnoughBuildings("A building must be split at least in two")
 
         event_id = uuid.uuid4()
 
@@ -413,6 +423,7 @@ class Building(BuildingAbstract):
             if addresses_cle_interop is not None:
                 Address.add_addresses_to_db_if_needed(addresses_cle_interop)
             geos_shape = GEOSGeometry(shape)
+            shape_verification(geos_shape)
 
             child_building = Building()
             child_building.rnb_id = generate_rnb_id()

@@ -82,6 +82,9 @@ from api_alpha.utils.rnb_doc import rnb_doc
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import InvalidWGS84Geometry
+from batid.exceptions import NotEnoughBuildings
+from batid.exceptions import OperationOnInactiveBuilding
 from batid.exceptions import PlotUnknown
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
@@ -882,6 +885,10 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 raise BadRequest(
                     detail="BAN result has not the expected type (must be 'numero')"
                 )
+            except InvalidWGS84Geometry:
+                raise BadRequest(
+                    detail="Provided shape is invalid (bad topology or wrong CRS)"
+                )
 
             # update the contribution now that the rnb_id is known
             contribution.rnb_id = created_building.rnb_id
@@ -1178,6 +1185,16 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                 raise BadRequest(
                     detail="BAN result has not the expected type (must be 'numero')"
                 )
+            except InvalidWGS84Geometry:
+                raise BadRequest(
+                    detail="Provided shape is invalid (bad topology or wrong CRS)"
+                )
+            except NotEnoughBuildings:
+                raise BadRequest(
+                    detail="A split operation requires at least two child buildings"
+                )
+            except OperationOnInactiveBuilding:
+                raise BadRequest(detail="Cannot split an inactive building")
 
         serializer = BuildingSerializer(new_buildings, with_plots=False, many=True)
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
@@ -1401,6 +1418,12 @@ Si ce paramêtre est :
                 except BANBadResultType:
                     raise BadRequest(
                         detail="BAN result has not the expected type (must be 'numero')"
+                    )
+                except OperationOnInactiveBuilding:
+                    raise BadRequest(detail="Cannot update inactive buildings")
+                except InvalidWGS84Geometry:
+                    raise BadRequest(
+                        detail="Provided shape is invalid (bad topology or wrong CRS)"
                     )
 
         # request is successful, no content to send back
