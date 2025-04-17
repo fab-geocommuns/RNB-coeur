@@ -82,6 +82,9 @@ from api_alpha.utils.rnb_doc import rnb_doc
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import ImpossibleShapeMerge
+from batid.exceptions import NotEnoughBuildings
+from batid.exceptions import OperationOnInactiveBuilding
 from batid.exceptions import PlotUnknown
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
@@ -1029,6 +1032,16 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
             except BANBadResultType:
                 raise BadRequest(
                     detail="BAN result has not the expected type (must be 'numero')"
+                )
+            except OperationOnInactiveBuilding:
+                raise BadRequest(detail="Cannot merge inactive buildings")
+            except NotEnoughBuildings:
+                raise BadRequest(
+                    detail="A merge operation requires at least two buildings"
+                )
+            except ImpossibleShapeMerge:
+                raise BadRequest(
+                    detail="To merge buildings, their shapes must be contiguous polygons. Consider updating the buildings's shapes first."
                 )
 
             # update the contribution now that the rnb_id is known

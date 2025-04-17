@@ -21,6 +21,8 @@ from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadRequest
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import NotEnoughBuildings
+from batid.exceptions import OperationOnInactiveBuilding
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
@@ -321,10 +323,10 @@ class Building(BuildingAbstract):
         from batid.utils.geo import merge_contiguous_shapes
 
         if not isinstance(buildings, list) or len(buildings) < 2:
-            raise Exception("Not enough buildings to merge.")
+            raise NotEnoughBuildings("Not enough buildings to merge.")
 
         if any([not building.is_active for building in buildings]):
-            raise Exception("Cannot merge inactive buildings.")
+            raise OperationOnInactiveBuilding("Cannot merge inactive buildings.")
 
         event_id = uuid.uuid4()
         parent_buildings = [building.rnb_id for building in buildings]
