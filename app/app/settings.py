@@ -229,8 +229,8 @@ CELERY_BEAT_SCHEDULE = {
         # saturday at 7am
         "schedule": crontab(hour=7, minute=0, day_of_week=6),
     },
-    "compute_stats": {
-        "task": "batid.tasks.renew_stats",
+    "compute_kpis": {
+        "task": "batid.tasks.renew_kpis",
         # everyday at 3am
         "schedule": crontab(hour=3, minute=0),
     },
@@ -256,6 +256,11 @@ CELERY_BEAT_SCHEDULE = {
     "import_ban": {
         "task": "batid.tasks.queue_full_ban_import",
         "schedule": crontab(minute=0, hour=0, day_of_month="1,15"),
+    },
+    "create_bal_links": {
+        "task": "batid.tasks.queue_full_bal_rnb_links",
+        # we create links after the BAN has been imported
+        "schedule": crontab(minute=0, hour=0, day_of_month="2,16"),
     },
 }
 
