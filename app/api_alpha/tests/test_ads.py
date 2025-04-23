@@ -784,7 +784,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
 
         self.assertIn(
-            "Date has wrong format. Use one of these formats instead: YYYY-MM-DD.",
+            "La date n'a pas le bon format. Utilisez un des formats suivants\xa0: YYYY-MM-DD.",
             r_data["decided_at"],
         )
 
@@ -806,7 +806,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        self.assertIn("This field is required.", r_data["decided_at"])
+        self.assertIn("Ce champ est obligatoire.", r_data["decided_at"])
 
     def test_ads_wrong_bdg_rnbid(self):
         data = {

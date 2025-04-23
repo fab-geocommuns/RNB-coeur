@@ -2623,7 +2623,7 @@ class BuildingSplitTest(APITestCase):
         self.assertEqual(r.status_code, 400)
         self.assertEqual(
             r.content,
-            b'{"created_buildings":{"1":{"status":["This field is required."]}}}',
+            b'{"created_buildings":{"1":{"status":["Ce champ est obligatoire."]}}}',
         )
 
         # missing address in child building
@@ -2650,7 +2650,7 @@ class BuildingSplitTest(APITestCase):
         self.assertEqual(r.status_code, 400)
         self.assertEqual(
             r.content,
-            b'{"created_buildings":{"1":{"addresses_cle_interop":["This field is required."]}}}',
+            b'{"created_buildings":{"1":{"addresses_cle_interop":["Ce champ est obligatoire."]}}}',
         )
 
         # invalid shape
