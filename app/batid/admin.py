@@ -1,4 +1,8 @@
+from django import forms
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 from django.db.models.fields.json import JSONField
 from django.urls import path
 from django.utils.html import format_html
@@ -127,3 +131,23 @@ def get_admin_urls(urls):
 
 
 admin.site.get_urls = get_admin_urls(admin.site.get_urls())
+
+
+class CustomUserCreationForm(UserCreationForm):
+    email = forms.EmailField(required=True)
+
+    class Meta:
+        model = User
+        fields = ("username", "email", "password1", "password2")
+
+
+BaseUserAdmin.add_form = CustomUserCreationForm
+BaseUserAdmin.add_fieldsets = (
+    (
+        None,
+        {
+            "classes": ("wide",),
+            "fields": ("username", "email", "password1", "password2"),
+        },
+    ),
+)
