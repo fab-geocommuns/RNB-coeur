@@ -2,6 +2,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
 
+from batid.exceptions import ImpossibleShapeMerge
 from batid.exceptions import InvalidWGS84Geometry
 
 
@@ -55,7 +56,9 @@ def merge_contiguous_shapes(shapes: list):
     else:
         if any(shape.geom_type not in ["Polygon", "MultiPolygon"] for shape in shapes):
             # one day we will also need to merge points with polygons, that will require additionnal work
-            raise Exception("Only Polygon and MultiPolygon shapes can be merged")
+            raise ImpossibleShapeMerge(
+                "Only Polygon and MultiPolygon shapes can be merged"
+            )
         merged_shape = shapes[0]
         shapes = shapes[1:]
 
@@ -66,7 +69,9 @@ def merge_contiguous_shapes(shapes: list):
                     merged_shape = merged_shape.union(shape)
                     break
             else:  # no break
-                raise Exception("we don't want to merge non-contiguous shapes")
+                raise ImpossibleShapeMerge(
+                    "Merging non-contiguous buildings is not possible"
+                )
         return merged_shape
 
 

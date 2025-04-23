@@ -1777,6 +1777,20 @@ class BuildingMergeTest(APITestCase):
             ],
         )
 
+        self.building_3 = Building.objects.create(
+            rnb_id="CCCC00000000",
+            shape="POINT (10 0)",
+            is_active=True,
+            addresses_id=[],
+        )
+
+        self.building_inactive = Building.objects.create(
+            rnb_id="DDDD00000000",
+            shape="POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))",
+            is_active=False,
+            addresses_id=[],
+        )
+
     def test_merge_buildings(self):
         data = {
             "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
@@ -1915,7 +1929,7 @@ class BuildingMergeTest(APITestCase):
         self.assertEqual(contribution.review_user.id, building.event_user.id)
         self.assertEqual(contribution.text, data["comment"])
 
-    def test_merge_buildings_missing_info(self):
+    def test_merge_buildings_bad_requests(self):
         self.user.groups.add(self.group)
 
         # not enough rnb_ids to merge
@@ -1980,7 +1994,62 @@ class BuildingMergeTest(APITestCase):
 
         self.assertEqual(r.status_code, 400)
 
-        # comment is mandatory
+        # shapes must be contiguous
+        data = {
+            "rnb_ids": [self.building_1.rnb_id, self.building_3.rnb_id],
+            "status": "constructed",
+            "addresses_cle_interop": [],
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json(),
+            {
+                "detail": "To merge buildings, their shapes must be contiguous polygons. Consider updating the buildings's shapes first."
+            },
+        )
+
+        # one building is not enough
+        data = {
+            "rnb_ids": [self.building_1.rnb_id],
+            "status": "constructed",
+            "addresses_cle_interop": [],
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json(), {"rnb_ids": ["Ensure this field has at least 2 elements."]}
+        )
+
+        # cannot merge inactive buildings
+        data = {
+            "rnb_ids": [self.building_1.rnb_id, self.building_inactive.rnb_id],
+            "status": "constructed",
+            "addresses_cle_interop": [],
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json(), {"detail": "Cannot merge inactive buildings"})
+
+        # comment is not mandatory
         data = {
             "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
             "status": "constructed",
