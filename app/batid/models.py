@@ -26,7 +26,7 @@ from batid.exceptions import OperationOnInactiveBuilding
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
-from batid.utils.geo import shape_verification
+from batid.utils.geo import assert_shape_is_valid
 from batid.validators import JSONSchemaValidator
 from batid.validators import validate_one_ext_id
 
@@ -216,7 +216,7 @@ class Building(BuildingAbstract):
                 f"Cannot update inactive building {self.rnb_id}"
             )
         if shape:
-            shape_verification(shape)
+            assert_shape_is_valid(shape)
 
         self.event_type = "update"
         self.event_id = uuid.uuid4()
@@ -302,7 +302,7 @@ class Building(BuildingAbstract):
         ):
             raise Exception("Missing information to create a new building")
 
-        shape_verification(shape)
+        assert_shape_is_valid(shape)
 
         point = shape if shape.geom_type == "Point" else shape.point_on_surface
 
@@ -423,7 +423,7 @@ class Building(BuildingAbstract):
             if addresses_cle_interop is not None:
                 Address.add_addresses_to_db_if_needed(addresses_cle_interop)
             geos_shape = GEOSGeometry(shape)
-            shape_verification(geos_shape)
+            assert_shape_is_valid(geos_shape)
 
             child_building = Building()
             child_building.rnb_id = generate_rnb_id()

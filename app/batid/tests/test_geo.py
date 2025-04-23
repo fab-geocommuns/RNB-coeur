@@ -2,9 +2,9 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
 
 from batid.exceptions import InvalidWGS84Geometry
+from batid.utils.geo import assert_shape_is_valid
 from batid.utils.geo import fix_nested_shells
 from batid.utils.geo import merge_contiguous_shapes
-from batid.utils.geo import shape_verification
 
 
 class TestGeo(TestCase):
@@ -90,26 +90,26 @@ class TestGeo(TestCase):
 class TestShapeVerification(TestCase):
     def test_valid_geometry_point(self):
         shape = GEOSGeometry("POINT (25 12)")
-        self.assertTrue(shape_verification(shape))
+        self.assertTrue(assert_shape_is_valid(shape))
 
     def test_valid_geometry_polygon(self):
         shape = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
-        self.assertTrue(shape_verification(shape))
+        self.assertTrue(assert_shape_is_valid(shape))
 
     def test_valid_geometry_multipolygon(self):
         shape = GEOSGeometry(
             "MULTIPOLYGON (((0 0, 0 1, 1 1, 1 0, 0 0)),((10 0, 10 1, 11 1, 11 0, 10 0)))"
         )
-        self.assertTrue(shape_verification(shape))
+        self.assertTrue(assert_shape_is_valid(shape))
 
     def test_invalid_geometry(self):
         # a butterfly shape (self intersection)
         shape = GEOSGeometry("POLYGON ((0 0, 1 0, 0 1 , 1 1, 0 0))")
 
         with self.assertRaises(InvalidWGS84Geometry):
-            shape_verification(shape)
+            assert_shape_is_valid(shape)
 
     def test_invalid_geometry_crs(self):
         shape = GEOSGeometry("POLYGON ((1000 0, 1000 1, 1001 1, 1001 0, 1000 0))")
         with self.assertRaises(InvalidWGS84Geometry):
-            shape_verification(shape)
+            assert_shape_is_valid(shape)
