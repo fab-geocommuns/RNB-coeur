@@ -1,3 +1,4 @@
+import base64
 import re
 from unittest import mock
 from urllib.parse import urlparse
@@ -512,3 +513,69 @@ class UserCreation(APITestCase):
                 mock_create_sandbox_user.assert_called_once_with(expected_user_data)
 
                 self.assertTrue(User.objects.filter(first_name="Julie").exists())
+
+
+class GetUserTokenTest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuserwithtoken",
+            password="testpassword",
+            email="testuserwithtoken@example.test",
+        )
+        self.token = Token.objects.create(user=self.user)
+        self.user_without_token = User.objects.create_user(
+            username="testuserwithouttoken",
+            password="testpassword",
+            email="testuserwithouttoken@example.test",
+        )
+
+    def test_get_user_token_not_in_sandbox(self):
+        with self.settings(ENVIRONMENT="production"):
+            response = self.client.get(
+                f"/api/alpha/auth/users/{base64.b64encode(self.user.email.encode('utf-8')).decode('utf-8')}/token"
+            )
+            self.assertEqual(response.status_code, 404)
+
+    def test_get_user_token_in_sandbox_with_wrong_secret_token(self):
+        with self.settings(
+            ENVIRONMENT="sandbox",
+        ):
+            response = self.client.get(
+                f"/api/alpha/auth/users/{base64.b64encode(self.user.email.encode('utf-8')).decode('utf-8')}/token",
+                HTTP_AUTHORIZATION="Bearer ",
+            )
+            self.assertEqual(response.status_code, 401)
+
+        with self.settings(
+            ENVIRONMENT="sandbox",
+            SANDBOX_SECRET_TOKEN="right_token",
+        ):
+            response = self.client.get(
+                f"/api/alpha/auth/users/{base64.b64encode(self.user.email.encode('utf-8')).decode('utf-8')}/token",
+                HTTP_AUTHORIZATION="Bearer wrong_token",
+            )
+            self.assertEqual(response.status_code, 401)
+
+    def test_get_user_token_in_sandbox_with_right_secret_token(self):
+        with self.settings(
+            ENVIRONMENT="sandbox",
+            SANDBOX_SECRET_TOKEN="right_token",
+        ):
+            response = self.client.get(
+                f"/api/alpha/auth/users/{base64.b64encode(self.user.email.encode('utf-8')).decode('utf-8')}/token",
+                HTTP_AUTHORIZATION="Bearer right_token",
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["token"], self.token.key)
+
+    def test_get_user_token_in_sandbox_with_right_secret_token_but_no_token(self):
+        with self.settings(
+            ENVIRONMENT="sandbox",
+            SANDBOX_SECRET_TOKEN="right_token",
+        ):
+            response = self.client.get(
+                f"/api/alpha/auth/users/{base64.b64encode(self.user_without_token.email.encode('utf-8')).decode('utf-8')}/token",
+                HTTP_AUTHORIZATION="Bearer right_token",
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["token"], None)

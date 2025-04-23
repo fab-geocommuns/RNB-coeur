@@ -15,6 +15,7 @@ from api_alpha.views import BuildingsVectorTileView
 from api_alpha.views import ChangePassword
 from api_alpha.views import ContributionsViewSet
 from api_alpha.views import CreateUserView
+from api_alpha.views import GetUserToken
 from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import DiffView
 from api_alpha.views import get_schema
@@ -28,6 +29,7 @@ from api_alpha.views import RequestPasswordReset
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SingleBuilding
 from api_alpha.views import SplitBuildings
+from api_alpha.views import GetCurrentUserTokens
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
@@ -70,6 +72,8 @@ urlpatterns = [
     # Authentification
     path("login/", RNBAuthToken.as_view()),
     path("auth/users/", CreateUserView.as_view()),
+    path("auth/users/me/tokens", GetCurrentUserTokens.as_view()),
+    path("auth/users/<str:user_email_b64>/token", GetUserToken.as_view()),
     path("auth/activate/<str:user_id_b64>/<str:token>/", ActivateUser.as_view()),
     path("auth/reset_password/", RequestPasswordReset.as_view()),
     path(

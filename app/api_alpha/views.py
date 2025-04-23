@@ -50,6 +50,7 @@ from rest_framework.utils.urls import replace_query_param
 from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
+from rest_framework.exceptions import AuthenticationFailed
 
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest
@@ -2267,6 +2268,60 @@ class CreateUserView(APIView):
                 },
                 status=status.HTTP_201_CREATED,
             )
+
+
+class SandboxAuthenticationError(AuthenticationFailed):
+    pass
+
+
+def sandbox_only(func):
+    def wrapper(self, request, *args, **kwargs):
+        if settings.ENVIRONMENT != "sandbox":
+            print("Sandbox only endpoint called in non-sandbox environment")
+            raise NotFound()
+
+        auth_header = request.headers.get("Authorization")
+        expected_auth_header = f"Bearer {settings.SANDBOX_SECRET_TOKEN}"
+        if not settings.SANDBOX_SECRET_TOKEN or auth_header != expected_auth_header:
+            raise SandboxAuthenticationError()
+        return func(self, request, *args, **kwargs)
+
+    return wrapper
+
+
+class GetUserToken(APIView):
+    @sandbox_only
+    def get(self, request, user_email_b64):
+        user_email = urlsafe_base64_decode(user_email_b64).decode()
+        user = User.objects.get(email=user_email)
+        try:
+            token = Token.objects.get(user=user)
+        except Token.DoesNotExist:
+            token = None
+        return Response({"token": token.key if token else None})
+
+
+class GetCurrentUserTokens(APIView):
+    permission_classes = [RNBContributorPermission]
+
+    def get(self, request) -> Response:
+        user = request.user
+        try:
+            token = Token.objects.get(user=user)
+        except Token.DoesNotExist:
+            token = None
+
+        if settings.HAS_SANDBOX:
+            sandbox_token = SandboxClient().get_user_token(user.email)
+        else:
+            sandbox_token = None
+
+        return Response(
+            {
+                "production_token": token.key if token else None,
+                "sandbox_token": sandbox_token if sandbox_token else None,
+            }
+        )
 
 
 class TokenScheme(OpenApiAuthenticationExtension):
