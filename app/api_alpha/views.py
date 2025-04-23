@@ -25,7 +25,6 @@ from django.http import JsonResponse
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
-from django.utils import translation
 from django.utils.dateparse import parse_datetime
 from django.utils.http import urlsafe_base64_decode
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
