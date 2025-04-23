@@ -807,7 +807,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                     },
                                     "shape": {
                                         "type": "string",
-                                        "description": "Géométrie du bâtiment au format WKT ou HEX. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.",
+                                        "description": "Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.",
                                         "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
                                     },
                                 },
@@ -1101,7 +1101,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                                 },
                                                 "shape": {
                                                     "type": "string",
-                                                    "description": "Géométrie du bâtiment au format WKT",
+                                                    "description": "Géométrie du bâtiment au format WKT ou HEX, en WGS84.",
                                                     "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
                                                 },
                                                 "addresses_cle_interop": {
@@ -1336,7 +1336,7 @@ Si ce paramêtre est :
                                     },
                                     "shape": {
                                         "type": "string",
-                                        "description": """Géométrie du bâtiment au format WKT ou HEX. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
+                                        "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
                                     },
                                 },
                                 "required": [],
