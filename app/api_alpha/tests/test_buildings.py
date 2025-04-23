@@ -1136,6 +1136,25 @@ class BuildingPatchTest(APITestCase):
 
         self.assertEqual(r.status_code, 204)
 
+    def test_update_a_building_invalid_shape(self):
+        self.user.groups.add(self.group)
+
+        data = {
+            "shape": "POLYGON ((1000 0, 1000 1, 1001 1, 1001 0, 1000 0))",
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json(),
+            {"detail": "Provided shape is invalid (bad topology or wrong CRS)"},
+        )
+
     def test_update_a_building_parameters(self):
         self.user.groups.add(self.group)
 
@@ -1149,6 +1168,16 @@ class BuildingPatchTest(APITestCase):
 
         self.assertEqual(r.status_code, 400)
 
+        # update status ok
+        data = {"status": "demolished", "comment": "démoli"}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+
         # not a building
         data = {"is_active": False, "comment": "not a building"}
         r = self.client.patch(
@@ -1159,15 +1188,8 @@ class BuildingPatchTest(APITestCase):
 
         self.assertEqual(r.status_code, 204)
 
-        # update status ok
-        data = {"status": "demolished", "comment": "démoli"}
-        r = self.client.patch(
-            f"/api/alpha/buildings/{self.rnb_id}/",
-            data=json.dumps(data),
-            content_type="application/json",
-        )
-
-        self.assertEqual(r.status_code, 204)
+    def test_update_a_building_parameters_2(self):
+        self.user.groups.add(self.group)
 
         # update status : unauthorized status
         data = {"status": "painted_black", "comment": "peint en noir"}

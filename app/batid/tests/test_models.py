@@ -315,7 +315,7 @@ class TestSplitBuilding(TestCase):
         b1 = Building.objects.create(rnb_id="1", status="constructed", is_active=False)
         event_origin = {"source": "xxx"}
 
-        with self.assertRaisesRegex(Exception, "Cannot split an inactive building"):
+        with self.assertRaisesRegex(Exception, "Cannot split inactive building 1"):
             b1.split(
                 [
                     {

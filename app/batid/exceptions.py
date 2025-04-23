@@ -30,5 +30,9 @@ class NotEnoughBuildings(Exception):
     """Not enough buildings were provided for the operation to succeed"""
 
 
+class InvalidWGS84Geometry(Exception):
+    """The geometry is not a valid WGS 84 geometry"""
+
+
 class ImpossibleShapeMerge(Exception):
     """The given shapes could not be merged"""
