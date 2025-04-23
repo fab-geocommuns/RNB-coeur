@@ -151,6 +151,3 @@ BaseUserAdmin.add_fieldsets = (
         },
     ),
 )
-
-admin.site.unregister(User)
-admin.site.register(User, BaseUserAdmin)
