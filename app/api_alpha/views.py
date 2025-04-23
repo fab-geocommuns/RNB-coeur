@@ -2204,36 +2204,32 @@ class RNBAuthToken(ObtainAuthToken):
 class CreateUserView(APIView):
     @transaction.atomic
     def post(self, request, *args, **kwargs):
-        # we need French error message for the website
-        with translation.override("fr"):
-            user_serializer = UserSerializer(data=request.data)
-            user_serializer.is_valid(raise_exception=True)
-            user = user_serializer.save()
+        user_serializer = UserSerializer(data=request.data)
+        user_serializer.is_valid(raise_exception=True)
+        user = user_serializer.save()
 
-            organization_serializer = None
-            organization_name = request.data.get("organization_name")
-            if organization_name:
-                organization_serializer = OrganizationSerializer(
-                    data={"name": organization_name}
-                )
-                organization_serializer.is_valid(raise_exception=True)
-                organization, created = Organization.objects.get_or_create(
-                    name=organization_name
-                )
-                organization.users.add(user)
-                organization.save()
-
-            return Response(
-                {
-                    "user": user_serializer.data,
-                    "organization": (
-                        organization_serializer.data
-                        if organization_serializer
-                        else None
-                    ),
-                },
-                status=status.HTTP_201_CREATED,
+        organization_serializer = None
+        organization_name = request.data.get("organization_name")
+        if organization_name:
+            organization_serializer = OrganizationSerializer(
+                data={"name": organization_name}
             )
+            organization_serializer.is_valid(raise_exception=True)
+            organization, created = Organization.objects.get_or_create(
+                name=organization_name
+            )
+            organization.users.add(user)
+            organization.save()
+
+        return Response(
+            {
+                "user": user_serializer.data,
+                "organization": (
+                    organization_serializer.data if organization_serializer else None
+                ),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class TokenScheme(OpenApiAuthenticationExtension):
