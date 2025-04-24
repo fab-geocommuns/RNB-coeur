@@ -82,6 +82,10 @@ from api_alpha.utils.rnb_doc import rnb_doc
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import ImpossibleShapeMerge
+from batid.exceptions import InvalidWGS84Geometry
+from batid.exceptions import NotEnoughBuildings
+from batid.exceptions import OperationOnInactiveBuilding
 from batid.exceptions import PlotUnknown
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
@@ -804,7 +808,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                     },
                                     "shape": {
                                         "type": "string",
-                                        "description": "Géométrie du bâtiment au format WKT ou HEX. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.",
+                                        "description": "Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.",
                                         "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
                                     },
                                 },
@@ -881,6 +885,10 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             except BANBadResultType:
                 raise BadRequest(
                     detail="BAN result has not the expected type (must be 'numero')"
+                )
+            except InvalidWGS84Geometry:
+                raise BadRequest(
+                    detail="Provided shape is invalid (bad topology or wrong CRS)"
                 )
 
             # update the contribution now that the rnb_id is known
@@ -1030,6 +1038,16 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                 raise BadRequest(
                     detail="BAN result has not the expected type (must be 'numero')"
                 )
+            except OperationOnInactiveBuilding:
+                raise BadRequest(detail="Cannot merge inactive buildings")
+            except NotEnoughBuildings:
+                raise BadRequest(
+                    detail="A merge operation requires at least two buildings"
+                )
+            except ImpossibleShapeMerge:
+                raise BadRequest(
+                    detail="To merge buildings, their shapes must be contiguous polygons. Consider updating the buildings's shapes first."
+                )
 
             # update the contribution now that the rnb_id is known
             contribution.rnb_id = new_building.rnb_id
@@ -1088,7 +1106,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                                 },
                                                 "shape": {
                                                     "type": "string",
-                                                    "description": "Géométrie du bâtiment au format WKT",
+                                                    "description": "Géométrie du bâtiment au format WKT ou HEX, en WGS84.",
                                                     "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
                                                 },
                                                 "addresses_cle_interop": {
@@ -1178,6 +1196,16 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                 raise BadRequest(
                     detail="BAN result has not the expected type (must be 'numero')"
                 )
+            except InvalidWGS84Geometry:
+                raise BadRequest(
+                    detail="Provided shape is invalid (bad topology or wrong CRS)"
+                )
+            except NotEnoughBuildings:
+                raise BadRequest(
+                    detail="A split operation requires at least two child buildings"
+                )
+            except OperationOnInactiveBuilding:
+                raise BadRequest(detail="Cannot split an inactive building")
 
         serializer = BuildingSerializer(new_buildings, with_plots=False, many=True)
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
@@ -1323,7 +1351,7 @@ Si ce paramêtre est :
                                     },
                                     "shape": {
                                         "type": "string",
-                                        "description": """Géométrie du bâtiment au format WKT ou HEX. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
+                                        "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
                                     },
                                 },
                                 "required": [],
@@ -1401,6 +1429,12 @@ Si ce paramêtre est :
                 except BANBadResultType:
                     raise BadRequest(
                         detail="BAN result has not the expected type (must be 'numero')"
+                    )
+                except OperationOnInactiveBuilding:
+                    raise BadRequest(detail="Cannot update inactive buildings")
+                except InvalidWGS84Geometry:
+                    raise BadRequest(
+                        detail="Provided shape is invalid (bad topology or wrong CRS)"
                     )
 
         # request is successful, no content to send back

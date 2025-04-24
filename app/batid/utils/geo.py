@@ -2,6 +2,9 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
 
+from batid.exceptions import ImpossibleShapeMerge
+from batid.exceptions import InvalidWGS84Geometry
+
 
 def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:
     if not isinstance(geom, MultiPolygon):
@@ -53,7 +56,9 @@ def merge_contiguous_shapes(shapes: list):
     else:
         if any(shape.geom_type not in ["Polygon", "MultiPolygon"] for shape in shapes):
             # one day we will also need to merge points with polygons, that will require additionnal work
-            raise Exception("Only Polygon and MultiPolygon shapes can be merged")
+            raise ImpossibleShapeMerge(
+                "Only Polygon and MultiPolygon shapes can be merged"
+            )
         merged_shape = shapes[0]
         shapes = shapes[1:]
 
@@ -64,5 +69,39 @@ def merge_contiguous_shapes(shapes: list):
                     merged_shape = merged_shape.union(shape)
                     break
             else:  # no break
-                raise Exception("we don't want to merge non-contiguous shapes")
+                raise ImpossibleShapeMerge(
+                    "Merging non-contiguous buildings is not possible"
+                )
         return merged_shape
+
+
+def assert_shape_is_valid(geom: GEOSGeometry):
+    """Check if the provided WGS84 geometry is valid, and raises a InvalidWGS84Geometry exception if not."""
+    if not geom.valid:
+        raise InvalidWGS84Geometry("Shape is topologically invalid.")
+
+    def check_simple_tuple(t):
+        (lon, lat) = t
+        if not (-180 <= lon <= 180):
+            raise InvalidWGS84Geometry(
+                f"Longitude is off-range for WGS84 (±180°): {lon}"
+            )
+        if not (-90 <= lat <= 90):
+            raise InvalidWGS84Geometry(
+                f"Latitude is off-range for WGS84 (±90°) : {lat}"
+            )
+
+    def check_coords(g):
+        coords = g.coords if hasattr(g, "coords") else g
+        if (
+            isinstance(coords, tuple)
+            and len(coords) == 2
+            and (type(coords[0]) == int or type(coords[0]) == float)
+        ):
+            check_simple_tuple(coords)
+        else:
+            for coord in coords:
+                check_coords(coord)
+
+    check_coords(geom)
+    return True
