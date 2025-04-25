@@ -44,6 +44,7 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
+from rest_framework.pagination import CursorPagination
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import BasePermission
 from rest_framework.renderers import JSONRenderer
@@ -522,6 +523,11 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
             return Response(query_serializer.errors, status=400)
 
 
+class RNBCursorPagination(CursorPagination):
+    page_size = 20
+    ordering = "id"
+
+
 class BuildingCursorPagination(BasePagination):
     page_size = 20
 
@@ -762,10 +768,13 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         # add user to query params
         query_params["user"] = request.user
         buildings = list_bdgs(query_params)
-        paginator = BuildingCursorPagination()
+
+        # paginator = BuildingCursorPagination()
+        paginator = RNBCursorPagination()
 
         # paginate
         paginated_buildings = paginator.paginate_queryset(buildings, request)
+
         serializer = BuildingSerializer(
             paginated_buildings, with_plots=with_plots, many=True
         )

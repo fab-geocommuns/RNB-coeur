@@ -26,9 +26,6 @@ def list_bdgs(params, only_active=True) -> QuerySet:
     if only_active:
         qs = qs.filter(is_active=True)
 
-    # By default, we sort on id since the column is indexed
-    qs = qs.order_by("id")
-
     # #######################
     # Status filter
 
@@ -64,9 +61,7 @@ def list_bdgs(params, only_active=True) -> QuerySet:
         )
         poly = Polygon(poly_coords, srid=4326)
 
-        qs = qs.filter(shape__intersects=poly)
-        # We have to order by created_at to avoid pagination issues on geographic queries
-        qs = qs.order_by("created_at")
+        qs = qs.filter(shape__bboverlaps=poly, shape__intersects=poly)
 
     # #######################
     # Insee Code filter
@@ -74,14 +69,11 @@ def list_bdgs(params, only_active=True) -> QuerySet:
     insee_code = params.get("insee_code", None)
     if insee_code:
         city = City.objects.get(code_insee=insee_code)
-        qs = qs.filter(shape__intersects=city.shape)
-        # We have to order by created_at to avoid pagination issues on geographic queries
-        qs = qs.order_by("created_at")
+        qs = qs.filter(shape__bboverlaps=city.shape, shape__intersects=city.shape)
 
     cle_interop_ban = params.get("cle_interop_ban", None)
     if cle_interop_ban:
         qs = qs.filter(addresses_read_only__id=cle_interop_ban)
-        qs = qs.order_by("created_at")
 
     # #######################
     # With plots (adding plots ids to the buildings
