@@ -1,6 +1,6 @@
-from batid.models import Building
 from rest_framework.test import APITestCase
 
+from batid.models import Building
 from batid.tests.helpers import create_default_bdg
 from batid.tests.helpers import create_grenoble
 
