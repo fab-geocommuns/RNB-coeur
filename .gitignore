@@ -65,6 +65,15 @@ app/.Trash-0/*
 /app/notebooks/rapprochements/**/*.shx
 /app/notebooks/rapprochements/**/*.xlsx
 
+/app/notebooks/croisements/**/*.csv
+/app/notebooks/croisements/**/*.json
+/app/notebooks/croisements/**/*.cpg
+/app/notebooks/croisements/**/*.dbf
+/app/notebooks/croisements/**/*.prj
+/app/notebooks/croisements/**/*.shp
+/app/notebooks/croisements/**/*.shx
+/app/notebooks/croisements/**/*.xlsx
+
 /app/notebooks/evaluation_bal/**/*.csv
 
 # Remove files in data folder since they are used for importing default data
