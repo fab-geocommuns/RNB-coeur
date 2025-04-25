@@ -10,6 +10,7 @@ import boto3
 import requests
 from celery import Signature
 from django.db import connection
+from django.db import transaction
 
 from batid.services.administrative_areas import dpts_list
 
@@ -109,11 +110,13 @@ def sql_query(code_area):
 
 
 def create_csv(directory_name, code_area):
-    with connection.cursor() as cursor:
-        sql = sql_query(code_area)
-
-        with open(f"{file_path(directory_name, code_area)}.csv", "w") as fp:
-            cursor.copy_expert(sql, fp)
+    sql = sql_query(code_area)
+    with open(f"{file_path(directory_name, code_area)}.csv", "w") as fp:
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                # custom statement timeout set at 48H
+                cursor.execute("SET LOCAL statement_timeout = 172800000;")
+                cursor.copy_expert(sql, fp)
 
 
 def sha1sum(filename):
