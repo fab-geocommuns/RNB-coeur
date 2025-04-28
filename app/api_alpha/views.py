@@ -1,8 +1,6 @@
 import binascii
 import json
 import os
-import secrets
-import string
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -108,9 +106,9 @@ from batid.services.vector_tiles import ads_tiles_sql
 from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import plots_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
-from batid.utils.constants import ADS_GROUP_NAME
 from batid.tasks import create_sandbox_user
 from batid.utils.auth import make_random_password
+from batid.utils.constants import ADS_GROUP_NAME
 
 
 class IsSuperUser(BasePermission):

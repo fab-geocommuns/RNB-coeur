@@ -8,7 +8,6 @@ from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from batid.utils.auth import make_random_password
 from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
@@ -17,6 +16,7 @@ from batid.tests.helpers import create_cenac
 from batid.tests.helpers import create_from_geojson_feature
 from batid.tests.helpers import create_grenoble
 from batid.tests.helpers import create_paris
+from batid.utils.auth import make_random_password
 from batid.utils.constants import ADS_GROUP_NAME
 
 

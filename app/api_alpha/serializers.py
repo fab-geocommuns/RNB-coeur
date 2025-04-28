@@ -5,6 +5,7 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
@@ -27,8 +28,6 @@ from batid.services.bdg_status import BuildingStatus
 from batid.services.email import build_activate_account_email
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.user import get_user_id_b64
-
-from django.db import transaction
 
 
 class RNBIdField(serializers.CharField):

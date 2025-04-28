@@ -1,4 +1,3 @@
-import json
 import re
 from unittest import mock
 from urllib.parse import urlparse

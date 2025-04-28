@@ -1,11 +1,9 @@
+import json
 from unittest import mock
 
 from django.test import TestCase
-from django.conf import settings
 
 from batid.tasks import create_sandbox_user
-
-import json
 
 
 class TestCreateSandboxUserTask(TestCase):
