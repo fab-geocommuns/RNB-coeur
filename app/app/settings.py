@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
@@ -27,6 +28,11 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DEBUG", default=0))
+
+ENVIRONMENT = os.environ["DJANGO_ENV"]  # This is mandatory
+HAS_SANDBOX = str(os.environ.get("HAS_SANDBOX", default="false")) == "true"
+SANDBOX_URL = os.environ.get("SANDBOX_URL", default=None)
+SANDBOX_SECRET_TOKEN = os.environ.get("SANDBOX_SECRET_TOKEN", default=None)
 
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOST").split(" ")
 CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS").split(" ")

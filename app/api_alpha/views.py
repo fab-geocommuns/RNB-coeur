@@ -109,6 +109,7 @@ from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import plots_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
 from batid.utils.constants import ADS_GROUP_NAME
+from api_alpha.utils.sandbox_client import SandboxClient
 
 
 class IsSuperUser(BasePermission):
@@ -2235,6 +2236,14 @@ class RNBAuthToken(ObtainAuthToken):
         )
 
 
+def create_user_in_sandbox(user_data: dict) -> None:
+    active_user_data = user_data.copy()
+    active_user_data["is_active"] = True
+    SandboxClient().create_user(active_user_data)
+
+    return None
+
+
 class CreateUserView(APIView):
     @transaction.atomic
     def post(self, request, *args, **kwargs):
@@ -2256,6 +2265,9 @@ class CreateUserView(APIView):
                 )
                 organization.users.add(user)
                 organization.save()
+
+            if settings.HAS_SANDBOX:
+                create_user_in_sandbox(request.data)
 
             return Response(
                 {

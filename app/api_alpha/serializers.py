@@ -28,6 +28,8 @@ from batid.services.email import build_activate_account_email
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.user import get_user_id_b64
 
+from django.db import transaction
+
 
 class RNBIdField(serializers.CharField):
     def to_internal_value(self, data):
@@ -576,7 +578,7 @@ class UserSerializer(serializers.ModelSerializer):
             email=validated_data["email"],
         )
         user.set_password(validated_data["password"])
-        user.is_active = False
+        user.is_active = settings.ENVIRONMENT == "sandbox"
         user.save()
 
         group = Group.objects.get(name=settings.CONTRIBUTORS_GROUP_NAME)
@@ -584,7 +586,8 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
         Token.objects.get_or_create(user=user)
 
-        send_user_email_with_activation_link(user)
+        if not user.is_active:
+            transaction.on_commit(lambda: send_user_email_with_activation_link(user))
 
         # add info (job_title) in the User profile
         UserProfile.objects.update_or_create(

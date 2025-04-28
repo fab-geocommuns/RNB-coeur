@@ -1,3 +1,4 @@
+import json
 import re
 from unittest import mock
 from urllib.parse import urlparse
@@ -303,18 +304,19 @@ class UserCreation(APITestCase):
             "organization_name": "Mairie d'Angoulème",
             "job_title": "responsable SIG",
         }
-
         self.override = self.settings(
             RNB_SEND_ADDRESS="coucou@rnb.beta.gouv.fr",
             FRONTEND_URL="https://rnb.beta.gouv.fr",
         )
+
         self.override.enable()
 
     def tearDown(self):
         self.override.disable()
 
     def test_create_user(self):
-        response = self.client.post("/api/alpha/auth/users/", self.julie_data)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post("/api/alpha/auth/users/", self.julie_data)
         self.assertEqual(response.status_code, 201)
         julie = User.objects.prefetch_related("organizations", "profile").get(
             first_name="Julie"
@@ -402,7 +404,8 @@ class UserCreation(APITestCase):
 
     def test_full_account_activation_scenario(self):
         # julie creates her account
-        self.client.post("/api/alpha/auth/users/", self.julie_data)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post("/api/alpha/auth/users/", self.julie_data)
 
         julie = User.objects.prefetch_related("organizations", "profile").get(
             first_name="Julie"
@@ -443,7 +446,8 @@ class UserCreation(APITestCase):
 
     def test_dont_mess_with_activation_to(self):
         # julie creates her account
-        self.client.post("/api/alpha/auth/users/", self.julie_data)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post("/api/alpha/auth/users/", self.julie_data)
 
         julie = User.objects.prefetch_related("organizations", "profile").get(
             first_name="Julie"
@@ -484,3 +488,77 @@ class UserCreation(APITestCase):
         # her account is still inactive
         julie.refresh_from_db()
         self.assertFalse(julie.is_active)
+
+    def test_is_active_parameter_invalid_in_production(self):
+        with self.settings(ENVIRONMENT="production"):
+            data = self.julie_data.copy()
+            data["is_active"] = True
+            response = self.client.post("/api/alpha/auth/users/", data)
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                response.json(),
+                {
+                    "is_active": [
+                        "Updating is_active is only allowed in sandbox environment, not in production"
+                    ]
+                },
+            )
+
+    def test_is_active_parameter_valid_in_sandbox(self):
+        with self.settings(ENVIRONMENT="sandbox"):
+            data = self.julie_data.copy()
+            data["is_active"] = True
+            response = self.client.post("/api/alpha/auth/users/", data)
+            self.assertEqual(response.status_code, 201)
+            user = User.objects.get(first_name="Julie")
+            self.assertTrue(user.is_active)
+
+    @mock.patch("requests.request")
+    def test_account_creation_forwarded_to_sandbox(self, mock_request):
+        with self.settings(
+            ENVIRONMENT="production",
+            HAS_SANDBOX=True,
+            SANDBOX_URL="https://sandbox.example.test",
+        ):
+            # Configure the mock to return a successful response
+            mock_request.return_value.status_code = 201
+            mock_request.return_value.text = ""
+
+            response = self.client.post("/api/alpha/auth/users/", self.julie_data)
+            self.assertEqual(response.status_code, 201)
+
+            # Verify the request was made to the sandbox server
+            mock_request.assert_called_once()
+            call_args = mock_request.call_args
+            self.assertEqual(call_args[0][0], "POST")
+            self.assertEqual(
+                call_args[0][1], "https://sandbox.example.test/api/alpha/auth/users/"
+            )
+
+            expected_json_params = self.julie_data.copy()
+            expected_json_params["is_active"] = True
+            self.assertEqual(
+                json.dumps(call_args[1]["json"]), json.dumps(expected_json_params)
+            )
+
+            # Verify user was created
+            self.assertTrue(User.objects.filter(first_name="Julie").exists())
+
+    @mock.patch("requests.post")
+    def test_account_creation_rollback_on_sandbox_failure(self, mock_post):
+        with self.settings(
+            ENVIRONMENT="production",
+            HAS_SANDBOX=True,
+            SANDBOX_URL="https://sandbox.example.test",
+        ):
+            original_user_count = User.objects.count()
+
+            mock_post.return_value.status_code = 500
+            mock_post.return_value.text = ""
+
+            self.assertRaises(
+                Exception, self.client.post, "/api/alpha/auth/users/", self.julie_data
+            )
+
+            # Verify no user was created
+            self.assertEqual(User.objects.count(), original_user_count)
