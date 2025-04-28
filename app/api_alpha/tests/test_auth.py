@@ -14,11 +14,11 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
+from api_alpha.permissions import RNBContributorPermission
+from api_alpha.utils.sandbox_client import SandboxClientError
 from batid.services.user import _b64_to_int
 from batid.services.user import _int_to_b64
 from batid.services.user import get_user_id_b64
-from api_alpha.utils.sandbox_client import SandboxClientError
-from api_alpha.permissions import RNBContributorPermission
 
 
 class ADSEnpointsNoAuthTest(APITestCase):
