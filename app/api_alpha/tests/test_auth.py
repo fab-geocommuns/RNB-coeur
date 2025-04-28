@@ -17,6 +17,8 @@ from rest_framework_tracking.models import APIRequestLog
 from batid.services.user import _b64_to_int
 from batid.services.user import _int_to_b64
 from batid.services.user import get_user_id_b64
+from api_alpha.utils.sandbox_client import SandboxClientError
+from api_alpha.permissions import RNBContributorPermission
 
 
 class ADSEnpointsNoAuthTest(APITestCase):
@@ -513,6 +515,44 @@ class UserCreation(APITestCase):
                 mock_create_sandbox_user.assert_called_once_with(expected_user_data)
 
                 self.assertTrue(User.objects.filter(first_name="Julie").exists())
+
+
+class GetCurrentUserTokensTest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuserwithtoken",
+            password="testpassword",
+            email="testuserwithtoken@example.test",
+        )
+        self.token = Token.objects.create(user=self.user)
+        self.group, created = Group.objects.get_or_create(
+            name=RNBContributorPermission.group_name
+        )
+        self.user.groups.add(self.group)
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+
+    @mock.patch("api_alpha.utils.sandbox_client.SandboxClient.get_user_token")
+    def test_get_user_token_with_sandbox_token(self, mock_get_user_token):
+        mock_get_user_token.return_value = "sandbox_token"
+
+        response = self.client.get(
+            f"/api/alpha/auth/users/me/tokens",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["production_token"], self.token.key)
+        self.assertEqual(response.data["sandbox_token"], "sandbox_token")
+
+    @mock.patch("api_alpha.utils.sandbox_client.SandboxClient.get_user_token")
+    def test_get_user_token_without_sandbox_token(self, mock_get_user_token):
+        mock_get_user_token.side_effect = SandboxClientError("test")
+
+        response = self.client.get(
+            f"/api/alpha/auth/users/me/tokens",
+            HTTP_AUTHORIZATION="Token " + self.token.key,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["production_token"], self.token.key)
+        self.assertEqual(response.data["sandbox_token"], None)
 
 
 class GetUserTokenTest(APITestCase):

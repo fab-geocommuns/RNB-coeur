@@ -110,6 +110,7 @@ from batid.services.vector_tiles import url_params_to_tile
 from batid.tasks import create_sandbox_user
 from batid.utils.auth import make_random_password
 from batid.utils.constants import ADS_GROUP_NAME
+from api_alpha.utils.sandbox_client import SandboxClient, SandboxClientError
 
 
 class IsSuperUser(BasePermission):
@@ -2306,22 +2307,27 @@ class GetCurrentUserTokens(APIView):
 
     def get(self, request) -> Response:
         user = request.user
-        try:
-            token = Token.objects.get(user=user)
-        except Token.DoesNotExist:
-            token = None
+        token = Token.objects.get(
+            user=user
+        )  # Exists because it's used to authenticate the request
 
-        if settings.HAS_SANDBOX:
-            sandbox_token = SandboxClient().get_user_token(user.email)
-        else:
-            sandbox_token = None
+        sandbox_token = self._get_sandbox_token(user.email)
 
         return Response(
             {
                 "production_token": token.key if token else None,
-                "sandbox_token": sandbox_token if sandbox_token else None,
+                "sandbox_token": sandbox_token,
             }
         )
+
+    def _get_sandbox_token(self, user_email: str) -> str | None:
+        if not settings.HAS_SANDBOX:
+            return None
+
+        try:
+            return SandboxClient().get_user_token(user_email)
+        except SandboxClientError:
+            return None
 
 
 class TokenScheme(OpenApiAuthenticationExtension):
