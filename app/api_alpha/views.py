@@ -110,6 +110,7 @@ from batid.services.vector_tiles import plots_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
 from batid.utils.constants import ADS_GROUP_NAME
 from batid.tasks import create_sandbox_user
+from batid.utils.auth import make_random_password
 
 
 class IsSuperUser(BasePermission):
@@ -2227,7 +2228,7 @@ class RNBAuthToken(ObtainAuthToken):
 
 
 def create_user_in_sandbox(user_data: dict) -> None:
-    user_data_without_password = user_data.copy()
+    user_data_without_password = user_data.dict()
     user_data_without_password.pop("password")
     create_sandbox_user.delay(user_data_without_password)
 

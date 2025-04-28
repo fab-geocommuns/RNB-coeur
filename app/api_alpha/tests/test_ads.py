@@ -8,7 +8,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from api_alpha.views import make_random_password
+from batid.utils.auth import make_random_password
 from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
