@@ -109,7 +109,7 @@ from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import plots_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
 from batid.utils.constants import ADS_GROUP_NAME
-from api_alpha.utils.sandbox_client import SandboxClient
+from batid.tasks import create_sandbox_user
 
 
 class IsSuperUser(BasePermission):
@@ -2161,16 +2161,6 @@ def city_ranking():
         return results
 
 
-def make_random_password(length):
-    # https://docs.python.org/3/library/secrets.html#recipes-and-best-practices
-    if length <= 0:
-        raise ValueError("invalid password length")
-
-    alphabet = string.ascii_letters + string.digits
-    password = "".join(secrets.choice(alphabet) for i in range(length))
-    return password
-
-
 @extend_schema(exclude=True)
 class AdsTokenView(APIView):
     permission_classes = [IsSuperUser]
@@ -2237,11 +2227,9 @@ class RNBAuthToken(ObtainAuthToken):
 
 
 def create_user_in_sandbox(user_data: dict) -> None:
-    active_user_data = user_data.copy()
-    active_user_data["is_active"] = True
-    SandboxClient().create_user(active_user_data)
-
-    return None
+    user_data_without_password = user_data.copy()
+    user_data_without_password.pop("password")
+    create_sandbox_user.delay(user_data_without_password)
 
 
 class CreateUserView(APIView):
