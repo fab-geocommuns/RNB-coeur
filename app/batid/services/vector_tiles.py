@@ -2,6 +2,21 @@ from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Plot
 from batid.services.bdg_status import BuildingStatus
+from typing import TypedDict
+
+
+class TileParams(TypedDict):
+    x: int
+    y: int
+    zoom: int
+
+
+class Envelope(TypedDict):
+    xmin: float
+    xmax: float
+    ymin: float
+    ymax: float
+    segSize: float
 
 
 def get_real_buildings_status():
@@ -27,8 +42,11 @@ def tileIsValid(tile):
     return True
 
 
+DENSIFY_FACTOR = 4
+
+
 # Calculate envelope in "Spherical Mercator" (https://epsg.io/3857)
-def tileToEnvelope(tile):
+def tileToEnvelope(tile: TileParams) -> Envelope:
     # Width of world in EPSG:3857
     worldMercMax = 20037508.3427892
     worldMercMin = -1 * worldMercMax
@@ -40,20 +58,24 @@ def tileToEnvelope(tile):
     # Calculate geographic bounds from tile coordinates
     # XYZ tile coordinates are in "image space" so origin is
     # top-left, not bottom right
-    env = dict()
-    env["xmin"] = worldMercMin + tileMercSize * tile["x"]
-    env["xmax"] = worldMercMin + tileMercSize * (tile["x"] + 1)
-    env["ymin"] = worldMercMax - tileMercSize * (tile["y"] + 1)
-    env["ymax"] = worldMercMax - tileMercSize * (tile["y"])
+    xmax = worldMercMin + tileMercSize * (tile["x"] + 1)
+    ymin = worldMercMax - tileMercSize * (tile["y"] + 1)
+    xmin = worldMercMin + tileMercSize * tile["x"]
+    ymax = worldMercMax - tileMercSize * (tile["y"])
+    env: Envelope = {
+        "xmin": xmin,
+        "xmax": xmax,
+        "ymin": ymin,
+        "ymax": ymax,
+        "segSize": (xmax - xmin) / DENSIFY_FACTOR,
+    }
     return env
 
 
 # Generate SQL to materialize a query envelope in EPSG:3857.
 # Densify the edges a little so the envelope can be
 # safely converted to other coordinate systems.
-def envelopeToBoundsSQL(env):
-    DENSIFY_FACTOR = 4
-    env["segSize"] = (env["xmax"] - env["xmin"]) / DENSIFY_FACTOR
+def envelopeToBoundsSQL(env: Envelope) -> str:
     sql_tmpl = (
         "ST_Segmentize(ST_MakeEnvelope({xmin}, {ymin}, {xmax}, {ymax}, 3857),{segSize})"
     )
@@ -120,7 +142,9 @@ def envelopeToPlotsSQL(env):
 
 # Generate a SQL query to pull a tile worth of MVT data
 # from the table of interest.
-def envelopeToBuildingsSQL(env, geometry_column):
+def envelopeToBuildingsSQL(
+    env: Envelope, geometry_column: str, only_active: bool = True
+) -> str:
     params = {
         "table": Building._meta.db_table,
         "srid": str(4326),
@@ -131,6 +155,7 @@ def envelopeToBuildingsSQL(env, geometry_column):
 
     tbl = params.copy()
     tbl["env"] = envelopeToBoundsSQL(env)
+    tbl["active_clause"] = "and t.is_active = true" if only_active else ""
     # Materialize the bounds
     # Select the relevant geometry and clip to MVT bounds
     # Convert to MVT format
@@ -142,10 +167,11 @@ def envelopeToBuildingsSQL(env, geometry_column):
         ),
         mvtgeom AS (
             SELECT ST_AsMVTGeom(ST_Transform(t.{geomColumn}, 3857), bounds.b2d) AS geom,
-                   {attrColumns}, (select count(*) from batid_contribution c where c.rnb_id = t.rnb_id and c.status = 'pending') as contributions
+                   {attrColumns}, (select count(*) from batid_contribution c where c.rnb_id = t.rnb_id and c.status = 'pending') as contributions,
+                   t.is_active as is_active
             FROM {table} t, bounds
             WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
-            and t.is_active = true
+            {active_clause}
             and t.status IN ({real_buildings_status})
         )
         SELECT ST_AsMVT(mvtgeom.*) FROM mvtgeom
@@ -153,8 +179,8 @@ def envelopeToBuildingsSQL(env, geometry_column):
     return sql_tmpl.format(**tbl)
 
 
-def url_params_to_tile(x, y, z):
-    tile = {"x": int(x), "y": int(y), "zoom": int(z)}
+def url_params_to_tile(x: str, y: str, z: str) -> TileParams:
+    tile: TileParams = {"x": int(x), "y": int(y), "zoom": int(z)}
 
     if not tileIsValid(tile):
         raise ValueError("Invalid tile coordinates")
@@ -162,13 +188,13 @@ def url_params_to_tile(x, y, z):
     return tile
 
 
-def bdgs_tiles_sql(tile, data_type):
+def bdgs_tiles_sql(tile: TileParams, data_type: str, only_active: bool = True) -> str:
     env = tileToEnvelope(tile)
     if data_type == "shape":
         geometry_column = "shape"
     elif data_type == "point":
         geometry_column = "point"
-    sql = envelopeToBuildingsSQL(env, geometry_column)
+    sql = envelopeToBuildingsSQL(env, geometry_column, only_active)
 
     return sql
 

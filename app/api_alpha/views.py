@@ -1867,7 +1867,7 @@ class BuildingsVectorTileView(APIView):
         # Check the request zoom level
         if int(z) >= 16:
             tile_dict = url_params_to_tile(x, y, z)
-            sql = bdgs_tiles_sql(tile_dict, "point")
+            sql = bdgs_tiles_sql(tile_dict, "point", only_active=False)
 
             with connection.cursor() as cursor:
                 cursor.execute(sql)
@@ -1884,7 +1884,7 @@ def get_tile_shape(request, x, y, z):
     # Check the request zoom level
     if int(z) >= 16:
         tile_dict = url_params_to_tile(x, y, z)
-        sql = bdgs_tiles_sql(tile_dict, "shape")
+        sql = bdgs_tiles_sql(tile_dict, "shape", only_active=False)
 
         with connection.cursor() as cursor:
             cursor.execute(sql)
