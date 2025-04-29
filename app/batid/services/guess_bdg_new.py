@@ -589,13 +589,34 @@ class GeocodeNameHandler(AbstractHandler):
 
     def _guess_batch(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
 
-        for guess in guesses.values():
-            guess = self._guess_one(guess)
-            guesses[guess["input"]["ext_id"]] = guess
+        if self.sleep_time > 0:
+
+            # We need to avoid throttling. We do one by one.
+            for guess in guesses.values():
+                guess = self._guess_one(guess)
+                guesses[guess["input"]["ext_id"]] = guess
+        else:
+
+            # No need to avoid throttling. We can parallelize.
+            tasks = []
+
+            print("parallelize batch")
+
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                for guess in guesses.values():
+                    future = executor.submit(self._guess_one, guess)
+                    # We comment out the line below since closing all connections might provoke with open connection where the query is not yet executed
+                    # future.add_done_callback(lambda future: connections.close_all())
+                    tasks.append(future)
+
+                for future in concurrent.futures.as_completed(tasks):
+                    guess = future.result()
+                    guesses[guess["input"]["ext_id"]] = guess
 
         return guesses
 
     def _guess_one(self, guess: Guess) -> Guess:
+
         lat = guess["input"].get("lat", None)
         lng = guess["input"].get("lng", None)
         name = guess["input"].get("name", None)
