@@ -600,8 +600,6 @@ class GeocodeNameHandler(AbstractHandler):
             # No need to avoid throttling. We can parallelize.
             tasks = []
 
-            print("parallelize batch")
-
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 for guess in guesses.values():
                     future = executor.submit(self._guess_one, guess)
