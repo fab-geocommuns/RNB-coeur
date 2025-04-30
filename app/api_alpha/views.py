@@ -75,6 +75,7 @@ from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.serializers import OrganizationSerializer
 from api_alpha.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
+from api_alpha.utils.parse_boolean import parse_boolean
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import get_status_list
@@ -109,8 +110,6 @@ from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import plots_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
 from batid.utils.constants import ADS_GROUP_NAME
-
-from api_alpha.utils.parse_boolean import parse_boolean
 
 
 class IsSuperUser(BasePermission):
