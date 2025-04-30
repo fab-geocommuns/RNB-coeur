@@ -42,11 +42,10 @@ def tileIsValid(tile):
     return True
 
 
-DENSIFY_FACTOR = 4
-
-
 # Calculate envelope in "Spherical Mercator" (https://epsg.io/3857)
 def tileToEnvelope(tile: TileParams) -> Envelope:
+    DENSIFY_FACTOR = 4
+
     # Width of world in EPSG:3857
     worldMercMax = 20037508.3427892
     worldMercMin = -1 * worldMercMax
@@ -155,7 +154,7 @@ def envelopeToBuildingsSQL(
 
     tbl = params.copy()
     tbl["env"] = envelopeToBoundsSQL(env)
-    tbl["active_clause"] = "and t.is_active = true" if only_active else ""
+    tbl["active_clause"] = "AND t.is_active = true" if only_active else ""
     # Materialize the bounds
     # Select the relevant geometry and clip to MVT bounds
     # Convert to MVT format
@@ -168,13 +167,13 @@ def envelopeToBuildingsSQL(
         mvtgeom AS (
             SELECT ST_AsMVTGeom(ST_Transform(t.{geomColumn}, 3857), bounds.b2d) AS geom,
                    {attrColumns}, (select count(*) from batid_contribution c where c.rnb_id = t.rnb_id and c.status = 'pending') as contributions,
-                   t.is_active as is_active,
-                   extract(epoch from now() - t.updated_at)::int as updated_ago_in_seconds,
+                   t.is_active AS is_active,
+                   extract(epoch from now() - t.updated_at)::int AS updated_ago_in_seconds,
                    t.event_user_id AS last_updated_by
             FROM {table} t, bounds
             WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
             {active_clause}
-            and t.status IN ({real_buildings_status})
+            AND t.status IN ({real_buildings_status})
         )
         SELECT ST_AsMVT(mvtgeom.*) FROM mvtgeom
     """
