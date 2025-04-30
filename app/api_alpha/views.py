@@ -2221,6 +2221,7 @@ class RNBAuthToken(ObtainAuthToken):
         user = token.user
         return Response(
             {
+                "id": user.id,
                 "token": token.key,
                 "username": user.username,
                 "groups": [group.name for group in user.groups.all()],

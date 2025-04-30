@@ -168,7 +168,9 @@ def envelopeToBuildingsSQL(
         mvtgeom AS (
             SELECT ST_AsMVTGeom(ST_Transform(t.{geomColumn}, 3857), bounds.b2d) AS geom,
                    {attrColumns}, (select count(*) from batid_contribution c where c.rnb_id = t.rnb_id and c.status = 'pending') as contributions,
-                   t.is_active as is_active
+                   t.is_active as is_active,
+                   extract(epoch from now() - t.updated_at)::int as updated_ago_in_seconds,
+                   t.event_user_id AS last_updated_by
             FROM {table} t, bounds
             WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
             {active_clause}
