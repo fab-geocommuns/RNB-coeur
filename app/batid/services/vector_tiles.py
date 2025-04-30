@@ -16,7 +16,6 @@ class Envelope(TypedDict):
     xmax: float
     ymin: float
     ymax: float
-    segSize: float
 
 
 def get_real_buildings_status():
@@ -44,8 +43,6 @@ def tileIsValid(tile):
 
 # Calculate envelope in "Spherical Mercator" (https://epsg.io/3857)
 def tileToEnvelope(tile: TileParams) -> Envelope:
-    DENSIFY_FACTOR = 4
-
     # Width of world in EPSG:3857
     worldMercMax = 20037508.3427892
     worldMercMin = -1 * worldMercMax
@@ -66,7 +63,6 @@ def tileToEnvelope(tile: TileParams) -> Envelope:
         "xmax": xmax,
         "ymin": ymin,
         "ymax": ymax,
-        "segSize": (xmax - xmin) / DENSIFY_FACTOR,
     }
     return env
 
@@ -75,10 +71,12 @@ def tileToEnvelope(tile: TileParams) -> Envelope:
 # Densify the edges a little so the envelope can be
 # safely converted to other coordinate systems.
 def envelopeToBoundsSQL(env: Envelope) -> str:
+    DENSIFY_FACTOR = 4
+    segSize = (env["xmax"] - env["xmin"]) / DENSIFY_FACTOR
     sql_tmpl = (
         "ST_Segmentize(ST_MakeEnvelope({xmin}, {ymin}, {xmax}, {ymax}, 3857),{segSize})"
     )
-    return sql_tmpl.format(**env)
+    return sql_tmpl.format(**env, segSize=segSize)
 
 
 def envelopeToADSSQL(env):
@@ -189,7 +187,7 @@ def url_params_to_tile(x: str, y: str, z: str) -> TileParams:
     return tile
 
 
-def bdgs_tiles_sql(tile: TileParams, data_type: str, only_active: bool = True) -> str:
+def bdgs_tiles_sql(tile: TileParams, data_type: str, only_active: bool) -> str:
     env = tileToEnvelope(tile)
     if data_type == "shape":
         geometry_column = "shape"
