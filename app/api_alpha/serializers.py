@@ -5,6 +5,7 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
@@ -576,7 +577,7 @@ class UserSerializer(serializers.ModelSerializer):
             email=validated_data["email"],
         )
         user.set_password(validated_data["password"])
-        user.is_active = False
+        user.is_active = settings.ENVIRONMENT == "sandbox"
         user.save()
 
         group = Group.objects.get(name=settings.CONTRIBUTORS_GROUP_NAME)
@@ -584,7 +585,8 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
         Token.objects.get_or_create(user=user)
 
-        send_user_email_with_activation_link(user)
+        if not user.is_active:
+            transaction.on_commit(lambda: send_user_email_with_activation_link(user))
 
         # add info (job_title) in the User profile
         UserProfile.objects.update_or_create(

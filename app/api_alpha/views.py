@@ -1,8 +1,6 @@
 import binascii
 import json
 import os
-import secrets
-import string
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -41,6 +39,7 @@ from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
@@ -79,6 +78,8 @@ from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import get_status_list
 from api_alpha.utils.rnb_doc import rnb_doc
+from api_alpha.utils.sandbox_client import SandboxClient
+from api_alpha.utils.sandbox_client import SandboxClientError
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
@@ -108,6 +109,8 @@ from batid.services.vector_tiles import ads_tiles_sql
 from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import plots_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
+from batid.tasks import create_sandbox_user
+from batid.utils.auth import make_random_password
 from batid.utils.constants import ADS_GROUP_NAME
 
 
@@ -2160,16 +2163,6 @@ def city_ranking():
         return results
 
 
-def make_random_password(length):
-    # https://docs.python.org/3/library/secrets.html#recipes-and-best-practices
-    if length <= 0:
-        raise ValueError("invalid password length")
-
-    alphabet = string.ascii_letters + string.digits
-    password = "".join(secrets.choice(alphabet) for i in range(length))
-    return password
-
-
 @extend_schema(exclude=True)
 class AdsTokenView(APIView):
     permission_classes = [IsSuperUser]
@@ -2235,6 +2228,12 @@ class RNBAuthToken(ObtainAuthToken):
         )
 
 
+def create_user_in_sandbox(user_data: dict) -> None:
+    user_data_without_password = user_data.dict()
+    user_data_without_password.pop("password")
+    create_sandbox_user.delay(user_data_without_password)
+
+
 class CreateUserView(APIView):
     @transaction.atomic
     def post(self, request, *args, **kwargs):
@@ -2257,6 +2256,9 @@ class CreateUserView(APIView):
                 organization.users.add(user)
                 organization.save()
 
+            if settings.HAS_SANDBOX:
+                create_user_in_sandbox(request.data)
+
             return Response(
                 {
                     "user": user_serializer.data,
@@ -2268,6 +2270,65 @@ class CreateUserView(APIView):
                 },
                 status=status.HTTP_201_CREATED,
             )
+
+
+class SandboxAuthenticationError(AuthenticationFailed):
+    pass
+
+
+def sandbox_only(func):
+    def wrapper(self, request, *args, **kwargs):
+        if settings.ENVIRONMENT != "sandbox":
+            print("Sandbox only endpoint called in non-sandbox environment")
+            raise NotFound()
+
+        auth_header = request.headers.get("Authorization")
+        expected_auth_header = f"Bearer {settings.SANDBOX_SECRET_TOKEN}"
+        if not settings.SANDBOX_SECRET_TOKEN or auth_header != expected_auth_header:
+            raise SandboxAuthenticationError()
+        return func(self, request, *args, **kwargs)
+
+    return wrapper
+
+
+class GetUserToken(APIView):
+    @sandbox_only
+    def get(self, request, user_email_b64):
+        user_email = urlsafe_base64_decode(user_email_b64).decode()
+        user = User.objects.get(email=user_email)
+        try:
+            token = Token.objects.get(user=user)
+        except Token.DoesNotExist:
+            token = None
+        return Response({"token": token.key if token else None})
+
+
+class GetCurrentUserTokens(APIView):
+    permission_classes = [RNBContributorPermission]
+
+    def get(self, request) -> Response:
+        user = request.user
+        token = Token.objects.get(
+            user=user
+        )  # Exists because it's used to authenticate the request
+
+        sandbox_token = self._get_sandbox_token(user.email)
+
+        return Response(
+            {
+                "production_token": token.key if token else None,
+                "sandbox_token": sandbox_token,
+            }
+        )
+
+    def _get_sandbox_token(self, user_email: str) -> str | None:
+        if not settings.HAS_SANDBOX:
+            return None
+
+        try:
+            return SandboxClient().get_user_token(user_email)
+        except SandboxClientError:
+            return None
 
 
 class TokenScheme(OpenApiAuthenticationExtension):

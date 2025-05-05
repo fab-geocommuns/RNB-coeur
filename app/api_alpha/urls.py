@@ -20,6 +20,8 @@ from api_alpha.views import DiffView
 from api_alpha.views import get_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
+from api_alpha.views import GetCurrentUserTokens
+from api_alpha.views import GetUserToken
 from api_alpha.views import ListCreateBuildings
 from api_alpha.views import MergeBuildings
 from api_alpha.views import OrganizationView
@@ -70,6 +72,8 @@ urlpatterns = [
     # Authentification
     path("login/", RNBAuthToken.as_view()),
     path("auth/users/", CreateUserView.as_view()),
+    path("auth/users/me/tokens", GetCurrentUserTokens.as_view()),
+    path("auth/users/<str:user_email_b64>/token", GetUserToken.as_view()),
     path("auth/activate/<str:user_id_b64>/<str:token>/", ActivateUser.as_view()),
     path("auth/reset_password/", RequestPasswordReset.as_view()),
     path(
