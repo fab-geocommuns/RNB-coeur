@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from django.core.cache import cache
+from django.test import override_settings
 from nanoid import generate
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
@@ -531,6 +532,7 @@ class GetCurrentUserTokensTest(APITestCase):
         self.user.groups.add(self.group)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
 
+    @override_settings(HAS_SANDBOX="true")
     @mock.patch("api_alpha.utils.sandbox_client.SandboxClient.get_user_token")
     def test_get_user_token_with_sandbox_token(self, mock_get_user_token):
         mock_get_user_token.return_value = "sandbox_token"
@@ -542,6 +544,7 @@ class GetCurrentUserTokensTest(APITestCase):
         self.assertEqual(response.data["production_token"], self.token.key)
         self.assertEqual(response.data["sandbox_token"], "sandbox_token")
 
+    @override_settings(HAS_SANDBOX="true")
     @mock.patch("api_alpha.utils.sandbox_client.SandboxClient.get_user_token")
     def test_get_user_token_without_sandbox_token(self, mock_get_user_token):
         mock_get_user_token.side_effect = SandboxClientError("test")
