@@ -238,9 +238,11 @@ class Guesser:
 
         return guesses, guesses_changed
 
-    def to_csv(self, file_path, ext_id_col_name="ext_id"):
+    def to_csv(self, file_path, ext_id_col_name="ext_id", one_rnb_id_per_row=False):
 
         self.convert_matches()
+
+        rnb_id_col_name = "rnb_id" if one_rnb_id_per_row else "rnb_ids"
 
         rows = []
         for ext_id, guess in self.guesses.items():
@@ -248,17 +250,41 @@ class Guesser:
             matches = guess.get("matches", None)
             reason = guess.get("match_reason", None)
 
-            rows.append(
-                {
-                    ext_id_col_name: ext_id,
-                    "rnb_ids": matches,
-                    "match_reason": reason,
-                }
-            )
+            # Matches is empty
+            if len(matches) == 0:
+
+                rows.append(
+                    {
+                        ext_id_col_name: ext_id,
+                        rnb_id_col_name: "" if one_rnb_id_per_row else [],
+                        "match_reason": reason,
+                    }
+                )
+
+            else:
+
+                # Matches is not empty
+                if one_rnb_id_per_row:
+                    for match in matches:
+                        rows.append(
+                            {
+                                ext_id_col_name: ext_id,
+                                rnb_id_col_name: match,
+                                "match_reason": reason,
+                            }
+                        )
+                else:
+                    rows.append(
+                        {
+                            ext_id_col_name: ext_id,
+                            rnb_id_col_name: matches,
+                            "match_reason": reason,
+                        }
+                    )
 
         with open(file_path, "w") as f:
             writer = csv.DictWriter(
-                f, fieldnames=[ext_id_col_name, "rnb_ids", "match_reason"]
+                f, fieldnames=[ext_id_col_name, rnb_id_col_name, "match_reason"]
             )
             writer.writeheader()
             writer.writerows(rows)
