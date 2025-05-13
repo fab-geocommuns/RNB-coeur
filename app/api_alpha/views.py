@@ -74,6 +74,7 @@ from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.serializers import OrganizationSerializer
 from api_alpha.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
+from api_alpha.utils.parse_boolean import parse_boolean
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import get_status_list
@@ -1854,6 +1855,13 @@ class BuildingsVectorTileView(APIView):
                 type=int,
                 location=OpenApiParameter.PATH,
             ),
+            OpenApiParameter(
+                name="only_active",
+                description="Filtrer les bâtiments actifs",
+                required=False,
+                type=bool,
+                default=True,
+            ),
         ],
         responses={
             200: OpenApiResponse(
@@ -1864,10 +1872,13 @@ class BuildingsVectorTileView(APIView):
         },
     )
     def get(self, request, x, y, z):
+        only_active_and_real_param = request.GET.get("only_active_and_real", "true")
+        only_active_and_real = parse_boolean(only_active_and_real_param)
+
         # Check the request zoom level
         if int(z) >= 16:
             tile_dict = url_params_to_tile(x, y, z)
-            sql = bdgs_tiles_sql(tile_dict, "point")
+            sql = bdgs_tiles_sql(tile_dict, "point", only_active_and_real)
 
             with connection.cursor() as cursor:
                 cursor.execute(sql)
@@ -1881,10 +1892,13 @@ class BuildingsVectorTileView(APIView):
 
 
 def get_tile_shape(request, x, y, z):
+    only_active_and_real_param = request.GET.get("only_active_and_real", "true")
+    only_active_and_real = parse_boolean(only_active_and_real_param)
+
     # Check the request zoom level
     if int(z) >= 16:
         tile_dict = url_params_to_tile(x, y, z)
-        sql = bdgs_tiles_sql(tile_dict, "shape")
+        sql = bdgs_tiles_sql(tile_dict, "shape", only_active_and_real)
 
         with connection.cursor() as cursor:
             cursor.execute(sql)
@@ -2221,6 +2235,7 @@ class RNBAuthToken(ObtainAuthToken):
         user = token.user
         return Response(
             {
+                "id": user.id,
                 "token": token.key,
                 "username": user.username,
                 "groups": [group.name for group in user.groups.all()],
