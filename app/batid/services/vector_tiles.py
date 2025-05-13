@@ -54,14 +54,14 @@ def tileToEnvelope(tile: TileParams) -> Envelope:
     # Calculate geographic bounds from tile coordinates
     # XYZ tile coordinates are in "image space" so origin is
     # top-left, not bottom right
-    xmax = worldMercMin + tileMercSize * (tile["x"] + 1)
-    ymin = worldMercMax - tileMercSize * (tile["y"] + 1)
     xmin = worldMercMin + tileMercSize * tile["x"]
+    ymin = worldMercMax - tileMercSize * (tile["y"] + 1)
+    xmax = worldMercMin + tileMercSize * (tile["x"] + 1)
     ymax = worldMercMax - tileMercSize * (tile["y"])
     env: Envelope = {
         "xmin": xmin,
-        "xmax": xmax,
         "ymin": ymin,
+        "xmax": xmax,
         "ymax": ymax,
     }
     return env
