@@ -1873,13 +1873,13 @@ class BuildingsVectorTileView(APIView):
         },
     )
     def get(self, request, x, y, z):
-        only_active_param = request.GET.get("only_active", "true")
-        only_active = parse_boolean(only_active_param)
+        only_active_and_real_param = request.GET.get("only_active_and_real", "true")
+        only_active_and_real = parse_boolean(only_active_and_real_param)
 
         # Check the request zoom level
         if int(z) >= 16:
             tile_dict = url_params_to_tile(x, y, z)
-            sql = bdgs_tiles_sql(tile_dict, "point", only_active)
+            sql = bdgs_tiles_sql(tile_dict, "point", only_active_and_real)
 
             with connection.cursor() as cursor:
                 cursor.execute(sql)
@@ -1893,13 +1893,13 @@ class BuildingsVectorTileView(APIView):
 
 
 def get_tile_shape(request, x, y, z):
-    only_active_param = request.GET.get("only_active", "true")
-    only_active = parse_boolean(only_active_param)
+    only_active_and_real_param = request.GET.get("only_active_and_real", "true")
+    only_active_and_real = parse_boolean(only_active_and_real_param)
 
     # Check the request zoom level
     if int(z) >= 16:
         tile_dict = url_params_to_tile(x, y, z)
-        sql = bdgs_tiles_sql(tile_dict, "shape", only_active)
+        sql = bdgs_tiles_sql(tile_dict, "shape", only_active_and_real)
 
         with connection.cursor() as cursor:
             cursor.execute(sql)

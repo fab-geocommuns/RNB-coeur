@@ -140,19 +140,23 @@ def envelopeToPlotsSQL(env):
 # Generate a SQL query to pull a tile worth of MVT data
 # from the table of interest.
 def envelopeToBuildingsSQL(
-    env: Envelope, geometry_column: str, only_active: bool = True
+    env: Envelope, geometry_column: str, only_active_and_real: bool = True
 ) -> str:
     params = {
         "table": Building._meta.db_table,
         "srid": str(4326),
         "attrColumns": "rnb_id",
-        "real_buildings_status": get_real_buildings_status(),
     }
     params["geomColumn"] = geometry_column
 
     tbl = params.copy()
     tbl["env"] = envelopeToBoundsSQL(env)
-    tbl["active_clause"] = "AND t.is_active = true" if only_active else ""
+    tbl["active_clause"] = "AND t.is_active = true" if only_active_and_real else ""
+    tbl["status_clause"] = (
+        "AND t.status IN ({status})".format(status=get_real_buildings_status())
+        if only_active_and_real
+        else ""
+    )
     # Materialize the bounds
     # Select the relevant geometry and clip to MVT bounds
     # Convert to MVT format
@@ -166,12 +170,13 @@ def envelopeToBuildingsSQL(
             SELECT ST_AsMVTGeom(ST_Transform(t.{geomColumn}, 3857), bounds.b2d) AS geom,
                    {attrColumns}, (select count(*) from batid_contribution c where c.rnb_id = t.rnb_id and c.status = 'pending') as contributions,
                    t.is_active AS is_active,
+                   t.status AS status,
                    extract(epoch from now() - t.updated_at)::int AS updated_ago_in_seconds,
                    t.event_user_id AS last_updated_by
             FROM {table} t, bounds
             WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
             {active_clause}
-            AND t.status IN ({real_buildings_status})
+            {status_clause}
         )
         SELECT ST_AsMVT(mvtgeom.*) FROM mvtgeom
     """
@@ -187,13 +192,13 @@ def url_params_to_tile(x: str, y: str, z: str) -> TileParams:
     return tile
 
 
-def bdgs_tiles_sql(tile: TileParams, data_type: str, only_active: bool) -> str:
+def bdgs_tiles_sql(tile: TileParams, data_type: str, only_active_and_real: bool) -> str:
     env = tileToEnvelope(tile)
     if data_type == "shape":
         geometry_column = "shape"
     elif data_type == "point":
         geometry_column = "point"
-    sql = envelopeToBuildingsSQL(env, geometry_column, only_active)
+    sql = envelopeToBuildingsSQL(env, geometry_column, only_active_and_real)
 
     return sql
 
