@@ -51,6 +51,7 @@ from rest_framework.utils.urls import replace_query_param
 from rest_framework.views import APIView
 from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
+from django.http import QueryDict
 
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest
@@ -2244,7 +2245,7 @@ class RNBAuthToken(ObtainAuthToken):
 
 
 def create_user_in_sandbox(user_data: dict) -> None:
-    user_data_without_password = user_data.dict()
+    user_data_without_password = {**user_data}
     user_data_without_password.pop("password")
     create_sandbox_user.delay(user_data_without_password)
 
@@ -2252,14 +2253,17 @@ def create_user_in_sandbox(user_data: dict) -> None:
 class CreateUserView(APIView):
     @transaction.atomic
     def post(self, request, *args, **kwargs):
+        request_data = request.data
+        if isinstance(request_data, QueryDict):
+            request_data = request_data.dict()
         # we need French error message for the website
         with translation.override("fr"):
-            user_serializer = UserSerializer(data=request.data)
+            user_serializer = UserSerializer(data=request_data)
             user_serializer.is_valid(raise_exception=True)
             user = user_serializer.save()
 
             organization_serializer = None
-            organization_name = request.data.get("organization_name")
+            organization_name = request_data.get("organization_name")
             if organization_name:
                 organization_serializer = OrganizationSerializer(
                     data={"name": organization_name}
@@ -2272,7 +2276,7 @@ class CreateUserView(APIView):
                 organization.save()
 
             if settings.HAS_SANDBOX:
-                create_user_in_sandbox(request.data)
+                create_user_in_sandbox(request_data)
 
             return Response(
                 {
