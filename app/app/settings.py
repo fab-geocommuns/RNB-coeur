@@ -203,6 +203,8 @@ RNB_SEND_ADDRESS = os.environ.get("RNB_SEND_ADDRESS")
 RNB_SEND_NAME = "Référentiel National des Bâtiments"
 RNB_REPLY_TO_ADDRESS = os.environ.get("RNB_REPLY_TO_ADDRESS")
 
+# Biggest building in RNB is GB97B3AYBKRN and is roughly 487,000m²
+MAX_BUILDING_AREA = 500000
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 

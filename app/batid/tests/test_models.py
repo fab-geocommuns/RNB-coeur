@@ -1,6 +1,7 @@
 import datetime
 
 from django.db.utils import IntegrityError
+from django.test import override_settings
 from django.test import TestCase
 
 from batid.models import Address
@@ -206,6 +207,7 @@ class TestSplitBuilding(TestCase):
         self.adr1 = Address.objects.create(id="cle_interop_1")
         self.adr2 = Address.objects.create(id="cle_interop_2")
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_split_a_building(self):
         # create a building
         b1 = Building.objects.create(rnb_id="1", status="constructed")

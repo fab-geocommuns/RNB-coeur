@@ -84,6 +84,7 @@ from api_alpha.utils.sandbox_client import SandboxClientError
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import BuildingTooLarge
 from batid.exceptions import ImpossibleShapeMerge
 from batid.exceptions import InvalidWGS84Geometry
 from batid.exceptions import NotEnoughBuildings
@@ -894,6 +895,8 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 raise BadRequest(
                     detail="Provided shape is invalid (bad topology or wrong CRS)"
                 )
+            except BuildingTooLarge as e:
+                raise BadRequest(detail=e)
 
             # update the contribution now that the rnb_id is known
             contribution.rnb_id = created_building.rnb_id
@@ -1204,6 +1207,8 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                 raise BadRequest(
                     detail="Provided shape is invalid (bad topology or wrong CRS)"
                 )
+            except BuildingTooLarge as e:
+                raise BadRequest(detail=e)
             except NotEnoughBuildings:
                 raise BadRequest(
                     detail="A split operation requires at least two child buildings"
@@ -1440,6 +1445,8 @@ Si ce paramêtre est :
                     raise BadRequest(
                         detail="Provided shape is invalid (bad topology or wrong CRS)"
                     )
+                except BuildingTooLarge as e:
+                    raise BadRequest(detail=e)
 
         # request is successful, no content to send back
         return Response(status=http_status.HTTP_204_NO_CONTENT)
