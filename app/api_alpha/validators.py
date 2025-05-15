@@ -6,7 +6,7 @@ from batid.models import Building
 def ads_validate_rnbid(rnb_id):
 
     if not Building.objects.filter(rnb_id=rnb_id).exists():
-        raise serializers.ValidationError(f'Building "{rnb_id}" does not exist.')
+        raise serializers.ValidationError(f"L'ID-RNB \"{rnb_id}\" n'existe pas.")
 
 
 def bdg_is_active(rnb_id: str):
@@ -14,10 +14,10 @@ def bdg_is_active(rnb_id: str):
     bdg = Building.objects.filter(rnb_id=rnb_id).first()
 
     if bdg is None:
-        raise serializers.ValidationError(f'Building "{rnb_id}" does not exist.')
+        raise serializers.ValidationError(f"L'ID-RNB \"{rnb_id}\" n'existe pas.")
 
     if not bdg.is_active:
-        raise serializers.ValidationError(f'Building "{rnb_id}" is not active.')
+        raise serializers.ValidationError(f"L'ID-RNB \"{rnb_id}\" n'est pas actif.")
 
 
 class BdgInADSValidator:
@@ -27,20 +27,12 @@ class BdgInADSValidator:
         shape = value.get("shape", None)
 
         if rnb_id is None and shape is None:
-            raise serializers.ValidationError("Either rnb_id or shape is required.")
+            raise serializers.ValidationError("Soit 'rnb_id' soit 'shape' est requis.")
 
         if rnb_id is not None and shape is not None:
             raise serializers.ValidationError(
-                "You can't provide a rnb_id and a shape, you should remove the shape."
+                "Vous ne pouvez pas fournir à la fois un 'rnb_id' et une forme, vous devez supprimer la forme."
             )
-
-        # if shape is not None:
-        #     try:
-        #         print("-- transform !!")
-        #         GEOSGeometry(shape)
-        #
-        #     except GEOSException as e:
-        #         raise serializers.ValidationError("Invalid GeoJSON geometry.")
 
 
 class ADSValidator:
@@ -51,11 +43,11 @@ class ADSValidator:
     def validate_has_bdg(self, data):
         if data.get("buildings_operations") is None:
             raise serializers.ValidationError(
-                {"buildings_operations": "This field is required."}
+                {"buildings_operations": "Ce champ est requis."}
             )
         if len(data["buildings_operations"]) == 0:
             raise serializers.ValidationError(
-                {"buildings_operations": "At least one building is required."}
+                {"buildings_operations": "Au moins un bâtiment est requis."}
             )
 
     def validate_bdg_once(self, data):
@@ -69,5 +61,7 @@ class ADSValidator:
         ]
         if len(rnb_ids) != len(set(rnb_ids)):
             raise serializers.ValidationError(
-                {"buildings_operations": "A RNB id can only be present once in an ADS."}
+                {
+                    "buildings_operations": "Un identifiant RNB ne peut être présent qu'une seule fois dans un ADS."
+                }
             )
