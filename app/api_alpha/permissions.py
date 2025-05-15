@@ -76,33 +76,6 @@ class ADSPermission(permissions.DjangoModelPermissions):
         raise NotImplementedError(f"Unknown action {view.action}")
 
 
-# def get_city_from_request(data, user, view):
-#     cities = calc_ads_cities(data)
-#
-#     # First we validate we have only one city
-#
-#     if len(cities) == 0:
-#         raise serializers.ValidationError(
-#             {"buildings_operations": ["Buildings are in an unknown city"]}
-#         )
-#
-#     if len(cities) > 1:
-#         raise serializers.ValidationError(
-#             {"buildings_operations": ["Buildings must be in only one city"]}
-#         )
-#
-#     city = cities[0]
-#
-#     # Then we do permission
-#
-#     perm = ADSCityPermission()
-#
-#     if not perm.user_has_permission(city, user, view):
-#         raise exceptions.PermissionDenied(detail="You can not edit ADS in this city.")
-#
-#     return city
-
-
 def is_in_group(user, group_name):
     try:
         return Group.objects.get(name=group_name).user_set.filter(id=user.id).exists()

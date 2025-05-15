@@ -58,7 +58,7 @@ class ADSEnpointsNoAuthTest(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.data["non_field_errors"][0],
-            "Unable to log in with provided credentials.",
+            "Impossible de se connecter avec les informations d'identification fournies.",
         )
 
 

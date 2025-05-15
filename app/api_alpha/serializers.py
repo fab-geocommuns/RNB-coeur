@@ -164,35 +164,39 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
 
 def validate_point(coords_str: str):
     if not coords_str:
-        raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+        raise serializers.ValidationError(
+            "Le point n'est pas valide, doit être 'lat,lng'"
+        )
 
     coords = coords_str.split(",")
 
     if len(coords) != 2:
-        raise serializers.ValidationError("Point is not valid, must be 'lat,lng'")
+        raise serializers.ValidationError(
+            "Le point n'est pas valide, doit être 'lat,lng'"
+        )
 
     try:
         lat = float(coords[0])
     except:
         raise serializers.ValidationError(
-            "Point is not valid, because latitude is not valid"
+            "Le point n'est pas valide car la latitude n'est pas valide"
         )
 
     try:
         lon = float(coords[1])
     except:
         raise serializers.ValidationError(
-            "Point is not valid, because longitude is not valid"
+            "Le point n'est pas valide car la longitude n'est pas valide"
         )
 
     if lat < -90 or lat > 90 or math.isnan(lat):
         raise serializers.ValidationError(
-            "Point is not valid, latitude must be between -90 and 90"
+            "Le point n'est pas valide, la latitude doit être entre -90 et 90"
         )
 
     if lon < -180 or lon > 180 or math.isnan(lon):
         raise serializers.ValidationError(
-            "Point is not valid, longitude must be between -180 and 180"
+            "Le point n'est pas valide, la longitude doit être entre -180 et 180"
         )
 
 
@@ -202,10 +206,12 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
 
     def validate_radius(self, value):
         if value < 0:
-            raise serializers.ValidationError("Radius must be positive")
+            raise serializers.ValidationError("Le rayon doit être positif")
 
         if value > 1000:
-            raise serializers.ValidationError("Radius must be less than 1000 meters")
+            raise serializers.ValidationError(
+                "Le rayon doit être inférieur à 1000 mètres"
+            )
 
         return value
 
@@ -217,7 +223,7 @@ class BuildingAddressQuerySerializer(serializers.Serializer):
 
     def validate_min_score(self, min_score):
         if min_score < 0 or min_score > 1:
-            raise serializers.ValidationError("min_score must be between 0. and 1.0")
+            raise serializers.ValidationError("'min_score' doit être entre 0. et 1.0")
         return min_score
 
     def validate(self, data):
@@ -226,12 +232,12 @@ class BuildingAddressQuerySerializer(serializers.Serializer):
             data.get("q") is not None and data.get("cle_interop_ban") is not None
         ):
             raise serializers.ValidationError(
-                "you need to either set 'q' or 'cle_interop_ban'."
+                "Vous devez définir soit 'q' soit 'cle_interop_ban'."
             )
 
         if data.get("cle_interop_ban") and data.get("min_score"):
             raise serializers.ValidationError(
-                "'min_score' is only relevant with a text address"
+                "'min_score' n'est pertinent qu'avec une adresse textuelle"
             )
 
         return data
@@ -269,7 +275,7 @@ def shape_is_valid(shape):
             raise Exception
     except:
         raise serializers.ValidationError(
-            "the given shape could not be parsed or is not valid"
+            "La forme fournie n'a pas pu être analysée ou n'est pas valide"
         )
     return shape
 
@@ -294,7 +300,7 @@ class BuildingUpdateSerializer(serializers.Serializer):
             or data.get("shape") is not None
         ):
             raise serializers.ValidationError(
-                "you need to either set is_active or set status/addresses, not both at the same time"
+                "Vous devez définir soit 'is_active' soit 'status'/'addresses_cle_interop'/'shape', pas les deux en même temps"
             )
         if (
             data.get("is_active") is None
@@ -302,7 +308,9 @@ class BuildingUpdateSerializer(serializers.Serializer):
             and data.get("addresses_cle_interop") is None
             and data.get("shape") is None
         ):
-            raise serializers.ValidationError("empty arguments in the request body")
+            raise serializers.ValidationError(
+                "Arguments vides dans le corps de la requête"
+            )
 
         return data
 
@@ -344,14 +352,14 @@ class BuildingMergeSerializer(serializers.Serializer):
     def validate(self, data):
         if data.get("merge_existing_addresses") and data.get("addresses_cle_interop"):
             raise serializers.ValidationError(
-                "If merge_existing_addresses is set to True, you cannot specify addresses_cle_interop"
+                "Si 'merge_existing_addresses' est défini à True, vous ne pouvez pas spécifier 'addresses_cle_interop'"
             )
         if (
             not data.get("merge_existing_addresses")
             and data.get("addresses_cle_interop") is None
         ):
             raise serializers.ValidationError(
-                "merge_existing_addresses or addresses_cle_interop must be set"
+                "'merge_existing_addresses' ou 'addresses_cle_interop' doit être défini"
             )
 
         return data
@@ -380,7 +388,7 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
         required=True,
         choices=BuildingADSLogic.OPERATIONS,
         error_messages={
-            "invalid_choice": "'{input}' is not a valid operation. Valid operations are: "
+            "invalid_choice": "'{input}' n'est pas une opération valide. Les opérations valides sont : "
             + f"{BuildingADSLogic.OPERATIONS}."
         },
         help_text="build",
@@ -416,7 +424,7 @@ class ADSSerializer(serializers.ModelSerializer):
         help_text="TEST03818519U9999",
         validators=[
             UniqueValidator(
-                queryset=ADS.objects.all(), message="This file number already exists"
+                queryset=ADS.objects.all(), message="Ce numéro de dossier existe déjà"
             )
         ],
     )
@@ -437,7 +445,7 @@ class ADSSerializer(serializers.ModelSerializer):
         if not can_manage_ads_in_request(user, self.initial_data):
             raise serializers.ValidationError(
                 {
-                    "buildings_operations": "You are not allowed to manage ADS in this city."
+                    "buildings_operations": "Vous n'êtes pas autorisé à gérer les ADS dans cette ville."
                 }
             )
 
