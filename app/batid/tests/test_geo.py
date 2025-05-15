@@ -1,6 +1,8 @@
 from django.contrib.gis.geos import GEOSGeometry
+from django.test import override_settings
 from django.test import TestCase
 
+from batid.exceptions import BuildingTooLarge
 from batid.exceptions import InvalidWGS84Geometry
 from batid.utils.geo import assert_shape_is_valid
 from batid.utils.geo import fix_nested_shells
@@ -92,10 +94,12 @@ class TestShapeVerification(TestCase):
         shape = GEOSGeometry("POINT (25 12)")
         self.assertTrue(assert_shape_is_valid(shape))
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_valid_geometry_polygon(self):
         shape = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
         self.assertTrue(assert_shape_is_valid(shape))
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_valid_geometry_multipolygon(self):
         shape = GEOSGeometry(
             "MULTIPOLYGON (((0 0, 0 1, 1 1, 1 0, 0 0)),((10 0, 10 1, 11 1, 11 0, 10 0)))"
@@ -112,4 +116,11 @@ class TestShapeVerification(TestCase):
     def test_invalid_geometry_crs(self):
         shape = GEOSGeometry("POLYGON ((1000 0, 1000 1, 1001 1, 1001 0, 1000 0))")
         with self.assertRaises(InvalidWGS84Geometry):
+            assert_shape_is_valid(shape)
+
+    def test_maximum_building_area(self):
+        shape = GEOSGeometry(
+            "MULTIPOLYGON (((0 0, 0 1, 1 1, 1 0, 0 0)),((10 0, 10 1, 11 1, 11 0, 10 0)))"
+        )
+        with self.assertRaises(BuildingTooLarge):
             assert_shape_is_valid(shape)

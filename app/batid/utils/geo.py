@@ -1,7 +1,9 @@
+from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
 
+from batid.exceptions import BuildingTooLarge
 from batid.exceptions import ImpossibleShapeMerge
 from batid.exceptions import InvalidWGS84Geometry
 
@@ -103,5 +105,19 @@ def assert_shape_is_valid(geom: GEOSGeometry):
             for coord in coords:
                 check_coords(coord)
 
+    def check_area(g):
+        g.srid = 4326
+        # web mercator reprojection
+        # fine for a rough estimation of a building area (few % in France)
+        # error is higher close to the poles
+        geom_projected = g.transform(3857, clone=True)
+        surface = geom_projected.area
+        surface = round(surface)
+        if surface > settings.MAX_BUILDING_AREA:
+            raise BuildingTooLarge(
+                f"La surface du bâtiment ({surface}m²) est trop grande"
+            )
+
     check_coords(geom)
+    check_area(geom)
     return True
