@@ -2403,7 +2403,7 @@ class RequestPasswordReset(RNBLoggingMixin, APIView):
 
         email = request.data.get("email")
         if email is None:
-            return JsonResponse({"error": "Email is required"}, status=400)
+            return JsonResponse({"error": "L'adresse email est requise"}, status=400)
 
         try:
             user = User.objects.get(email=email)
