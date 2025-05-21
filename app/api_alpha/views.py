@@ -9,6 +9,7 @@ from typing import Any
 
 import requests
 import yaml
+import urllib.parse
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
@@ -2425,7 +2426,9 @@ class ActivateUser(APIView):
         if user and default_token_generator.check_token(user, token):
             user.is_active = True
             user.save()
-            return redirect(f"{site_url}/activation?status=success&email={user.email}")
+            return redirect(
+                f"{site_url}/activation?status=success&email={urllib.parse.quote(user.email)}"
+            )
         else:
             return redirect(f"{site_url}/activation?status=error")
 
