@@ -7,6 +7,7 @@ from unittest import mock
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.core import signing
+from django.test import override_settings
 from django.test import TransactionTestCase
 from django.utils.http import urlencode
 from rest_framework.test import APITestCase
@@ -320,6 +321,7 @@ class DiffTest(TransactionTestCase):
         # event_id: we check the three rows share the same event_id
         self.assertEqual(rows[2]["event_id"], rows[0]["event_id"])
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_diff_split(self):
         user = User(email="test@exemple.fr")
         user.save()

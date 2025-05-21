@@ -20,6 +20,7 @@ from django.db import connection
 from django.db import transaction
 from django.http import HttpResponse
 from django.http import JsonResponse
+from django.http import QueryDict
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
@@ -74,6 +75,7 @@ from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.serializers import OrganizationSerializer
 from api_alpha.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
+from api_alpha.utils.parse_boolean import parse_boolean
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import get_status_list
@@ -83,6 +85,7 @@ from api_alpha.utils.sandbox_client import SandboxClientError
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import BuildingTooLarge
 from batid.exceptions import ImpossibleShapeMerge
 from batid.exceptions import InvalidWGS84Geometry
 from batid.exceptions import NotEnoughBuildings
@@ -893,6 +896,10 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 raise BadRequest(
                     detail="Provided shape is invalid (bad topology or wrong CRS)"
                 )
+            except BuildingTooLarge:
+                raise BadRequest(
+                    detail="Building area too large. Maximum allowed: 500000m²"
+                )
 
             # update the contribution now that the rnb_id is known
             contribution.rnb_id = created_building.rnb_id
@@ -1203,6 +1210,10 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                 raise BadRequest(
                     detail="Provided shape is invalid (bad topology or wrong CRS)"
                 )
+            except BuildingTooLarge:
+                raise BadRequest(
+                    detail="Building area too large. Maximum allowed: 500000m²"
+                )
             except NotEnoughBuildings:
                 raise BadRequest(
                     detail="A split operation requires at least two child buildings"
@@ -1438,6 +1449,10 @@ Si ce paramêtre est :
                 except InvalidWGS84Geometry:
                     raise BadRequest(
                         detail="Provided shape is invalid (bad topology or wrong CRS)"
+                    )
+                except BuildingTooLarge:
+                    raise BadRequest(
+                        detail="Building area too large. Maximum allowed: 500000m²"
                     )
 
         # request is successful, no content to send back
@@ -1854,6 +1869,13 @@ class BuildingsVectorTileView(APIView):
                 type=int,
                 location=OpenApiParameter.PATH,
             ),
+            OpenApiParameter(
+                name="only_active",
+                description="Filtrer les bâtiments actifs",
+                required=False,
+                type=bool,
+                default=True,
+            ),
         ],
         responses={
             200: OpenApiResponse(
@@ -1864,10 +1886,13 @@ class BuildingsVectorTileView(APIView):
         },
     )
     def get(self, request, x, y, z):
+        only_active_and_real_param = request.GET.get("only_active_and_real", "true")
+        only_active_and_real = parse_boolean(only_active_and_real_param)
+
         # Check the request zoom level
         if int(z) >= 16:
             tile_dict = url_params_to_tile(x, y, z)
-            sql = bdgs_tiles_sql(tile_dict, "point")
+            sql = bdgs_tiles_sql(tile_dict, "point", only_active_and_real)
 
             with connection.cursor() as cursor:
                 cursor.execute(sql)
@@ -1881,10 +1906,13 @@ class BuildingsVectorTileView(APIView):
 
 
 def get_tile_shape(request, x, y, z):
+    only_active_and_real_param = request.GET.get("only_active_and_real", "true")
+    only_active_and_real = parse_boolean(only_active_and_real_param)
+
     # Check the request zoom level
     if int(z) >= 16:
         tile_dict = url_params_to_tile(x, y, z)
-        sql = bdgs_tiles_sql(tile_dict, "shape")
+        sql = bdgs_tiles_sql(tile_dict, "shape", only_active_and_real)
 
         with connection.cursor() as cursor:
             cursor.execute(sql)
@@ -2221,6 +2249,7 @@ class RNBAuthToken(ObtainAuthToken):
         user = token.user
         return Response(
             {
+                "id": user.id,
                 "token": token.key,
                 "username": user.username,
                 "groups": [group.name for group in user.groups.all()],
@@ -2229,7 +2258,7 @@ class RNBAuthToken(ObtainAuthToken):
 
 
 def create_user_in_sandbox(user_data: dict) -> None:
-    user_data_without_password = user_data.dict()
+    user_data_without_password = {**user_data}
     user_data_without_password.pop("password")
     create_sandbox_user.delay(user_data_without_password)
 
@@ -2237,14 +2266,17 @@ def create_user_in_sandbox(user_data: dict) -> None:
 class CreateUserView(APIView):
     @transaction.atomic
     def post(self, request, *args, **kwargs):
+        request_data = request.data
+        if isinstance(request_data, QueryDict):
+            request_data = request_data.dict()
         # we need French error message for the website
         with translation.override("fr"):
-            user_serializer = UserSerializer(data=request.data)
+            user_serializer = UserSerializer(data=request_data)
             user_serializer.is_valid(raise_exception=True)
             user = user_serializer.save()
 
             organization_serializer = None
-            organization_name = request.data.get("organization_name")
+            organization_name = request_data.get("organization_name")
             if organization_name:
                 organization_serializer = OrganizationSerializer(
                     data={"name": organization_name}
@@ -2257,7 +2289,7 @@ class CreateUserView(APIView):
                 organization.save()
 
             if settings.HAS_SANDBOX:
-                create_user_in_sandbox(request.data)
+                create_user_in_sandbox(request_data)
 
             return Response(
                 {
