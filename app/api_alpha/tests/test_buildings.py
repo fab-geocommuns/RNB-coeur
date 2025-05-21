@@ -2676,9 +2676,10 @@ class BuildingSplitTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
+        unicode_content = r.content.decode("utf-8")
         self.assertEqual(
-            r.content,
-            b'{"created_buildings":{"1":{"shape":["the given shape could not be parsed or is not valid"]}}}',
+            unicode_content,
+            '{"created_buildings":{"1":{"shape":["La forme fournie n\'a pas pu être analysée ou n\'est pas valide"]}}}',
         )
 
     @mock.patch("batid.models.requests.get")
