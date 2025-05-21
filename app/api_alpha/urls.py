@@ -3,7 +3,7 @@ from django.urls import path
 from django.urls import re_path
 from rest_framework import routers
 
-from api_alpha.views import ActivateUser
+from api_alpha.views.auth import ActivateUser
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSVectorTileView
 from api_alpha.views import ADSViewSet
@@ -14,20 +14,20 @@ from api_alpha.views import BuildingPlotView
 from api_alpha.views import BuildingsVectorTileView
 from api_alpha.views import ChangePassword
 from api_alpha.views import ContributionsViewSet
-from api_alpha.views import CreateUserView
+from api_alpha.views.auth import CreateUserView
 from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import DiffView
 from api_alpha.views import get_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_tile_shape
-from api_alpha.views import GetCurrentUserTokens
-from api_alpha.views import GetUserToken
+from api_alpha.views.auth import GetCurrentUserTokens
+from api_alpha.views.auth import GetUserToken
 from api_alpha.views import ListCreateBuildings
 from api_alpha.views import MergeBuildings
 from api_alpha.views import OrganizationView
 from api_alpha.views import PlotsVectorTileView
-from api_alpha.views import RequestPasswordReset
-from api_alpha.views import RNBAuthToken
+from api_alpha.views.auth import RequestPasswordReset
+from api_alpha.views.auth import RNBAuthToken
 from api_alpha.views import SingleBuilding
 from api_alpha.views import SplitBuildings
 
