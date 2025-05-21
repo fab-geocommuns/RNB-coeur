@@ -2435,7 +2435,7 @@ class RequestPasswordReset(RNBLoggingMixin, APIView):
 
         email = request.data.get("email")
         if email is None:
-            return JsonResponse({"error": "Email is required"}, status=400)
+            return JsonResponse({"error": "L'adresse email est requise"}, status=400)
 
         try:
             user = User.objects.get(email=email)
@@ -2508,16 +2508,21 @@ class ChangePassword(RNBLoggingMixin, APIView):
 
         password = request.data.get("password")
         if password is None:
-            return JsonResponse({"error": "Password is required"}, status=400)
+            return JsonResponse(
+                {"error": ["Le nouveau mot de passe est requis"]}, status=400
+            )
 
         confirm_password = request.data.get("confirm_password")
         if confirm_password is None:
             return JsonResponse(
-                {"error": "Password confirmation is required"}, status=400
+                {"error": ["La confirmation du nouveau mot de passe est requise"]},
+                status=400,
             )
 
         if password != confirm_password:
-            return JsonResponse({"error": "Passwords do not match"}, status=400)
+            return JsonResponse(
+                {"error": ["Les deux mots de passe ne correspondent pas"]}, status=400
+            )
 
         # Verify the password is strong enough (validated against the AUTH_PASSWORD_VALIDATORS validators set in settings.py)
         try:
