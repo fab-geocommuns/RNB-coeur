@@ -32,7 +32,7 @@ def build_reset_password_email(
 
 def _reset_password_url(user_id_b64: str, token: str) -> str:
     site_url = settings.FRONTEND_URL
-    return f"{site_url}/reset_password/{user_id_b64}/{token}"
+    return f"{site_url}/auth/mdp-nouveau/{user_id_b64}/{token}"
 
 
 def get_rnb_email_sender() -> str:
