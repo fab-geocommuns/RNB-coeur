@@ -3,6 +3,7 @@ from unittest import mock
 
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
+from django.test import override_settings
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
@@ -1393,6 +1394,7 @@ class BuildingPatchTest(APITestCase):
             # not active, but not deactivated by a "deactivation" event
             self.building.reactivate()
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_update_building(self):
         self.user.groups.add(self.group)
         comment = "maj du batiment"
@@ -1428,6 +1430,7 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_update_building_shape_hex(self):
         self.user.groups.add(self.group)
         comment = "maj du batiment"
@@ -1630,6 +1633,7 @@ class BuildingPostTest(APITestCase):
         self.adr1 = Address.objects.create(id="cle_interop_1")
         self.adr2 = Address.objects.create(id="cle_interop_2")
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_create_building(self):
         data = {
             "status": "constructed",
@@ -1705,6 +1709,7 @@ class BuildingPostTest(APITestCase):
 
         self.assertEqual(r.status_code, 400)
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     @mock.patch("batid.models.requests.get")
     def test_create_building_ban_is_down(self, get_mock):
         get_mock.return_value.status_code = 500
@@ -2378,6 +2383,7 @@ class BuildingSplitTest(APITestCase):
             ],
         )
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_split_buildings(self):
         data = {
             "comment": "Ces deux bâtiments ne font qu'un !",
@@ -2488,6 +2494,7 @@ class BuildingSplitTest(APITestCase):
         self.assertEqual(contribution.review_user.id, self.building_1.event_user.id)
         self.assertEqual(contribution.text, data["comment"])
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_split_buildings_missing_info(self):
         self.user.groups.add(self.group)
 
