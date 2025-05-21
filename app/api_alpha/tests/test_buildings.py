@@ -651,8 +651,6 @@ class BuildingClosestViewTest(APITestCase):
 
         # Check that the closest building is first
         self.assertEqual(data["results"][0]["rnb_id"], closest_bdg.rnb_id)
-        print(type(data["results"][0]["shape"]))
-        print(type(closest_bdg.shape.geojson))
         self.assertDictEqual(
             data["results"][0]["shape"], json.loads(closest_bdg.shape.geojson)
         )
