@@ -486,11 +486,11 @@ class BuildingClosestViewTest(APITestCase):
                     {
                         "coordinates": [
                             [
-                                [-0.5682035663317322, 44.83085542749811],
-                                [-0.56843602659049, 44.83031112933102],
-                                [-0.5673438323587163, 44.83007299726728],
-                                [-0.5671003025640005, 44.83061468086615],
-                                [-0.5682035663317322, 44.83085542749811],
+                                [-0.56820356, 44.830855],
+                                [-0.56843602, 44.830311],
+                                [-0.56734383, 44.830072],
+                                [-0.56710030, 44.830614],
+                                [-0.56820356, 44.830855],
                             ]
                         ],
                         "type": "Polygon",
@@ -651,6 +651,11 @@ class BuildingClosestViewTest(APITestCase):
 
         # Check that the closest building is first
         self.assertEqual(data["results"][0]["rnb_id"], closest_bdg.rnb_id)
+        print(type(data["results"][0]["shape"]))
+        print(type(closest_bdg.shape.geojson))
+        self.assertDictEqual(
+            data["results"][0]["shape"], json.loads(closest_bdg.shape.geojson)
+        )
 
         # Check that the further building is second
         self.assertEqual(data["results"][1]["rnb_id"], further_bdg.rnb_id)
@@ -722,6 +727,14 @@ class BuildingClosestViewTest(APITestCase):
     def test_closest_no_building(self):
         r = self.client.get(
             "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=10"
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
+
+    def test_closest_float_radius(self):
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=30.2"
         )
 
         self.assertEqual(r.status_code, 200)

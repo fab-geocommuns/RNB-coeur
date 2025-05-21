@@ -159,6 +159,7 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
             "point",
             "addresses",
             "ext_ids",
+            "shape",
         ]
 
 

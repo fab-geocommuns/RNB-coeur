@@ -245,7 +245,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": "Rayon de recherche en mètres, autour du point. Compris entre 0 et 1000 mètres.",
                         "required": True,
-                        "schema": {"type": "integer"},
+                        "schema": {"type": "number"},
                         "example": 1000,
                     },
                 ],
@@ -307,7 +307,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
             lat, lng = point.split(",")
             lat = float(lat)
             lng = float(lng)
-            radius = int(radius)
+            radius = float(radius)
 
             # Get results and paginate
             bdgs = get_closest_from_point(lat, lng, radius)
