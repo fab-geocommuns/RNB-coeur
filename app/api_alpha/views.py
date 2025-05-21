@@ -1,6 +1,7 @@
 import binascii
 import json
 import os
+import urllib.parse
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -9,7 +10,6 @@ from typing import Any
 
 import requests
 import yaml
-import urllib.parse
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
