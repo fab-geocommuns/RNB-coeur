@@ -301,7 +301,7 @@ class UserCreation(APITestCase):
         self.julie_data = {
             "last_name": "B",
             "first_name": "Julie",
-            "email": "julie.b@exemple.com",
+            "email": "julie.b+test@exemple.com",
             "username": "juju",
             "password": "tajine",
             "organization_name": "Mairie d'Angoulème",
@@ -325,7 +325,7 @@ class UserCreation(APITestCase):
             first_name="Julie"
         )
         self.assertEqual(julie.last_name, "B")
-        self.assertEqual(julie.email, "julie.b@exemple.com")
+        self.assertEqual(julie.email, "julie.b+test@exemple.com")
         # we check the password is properly hashed
         self.assertNotEqual(julie.password, "tajine")
         self.assertIsNotNone(julie.password)
@@ -440,7 +440,7 @@ class UserCreation(APITestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(
             resp["Location"],
-            f"https://rnb.beta.gouv.fr/activation?status=success&email={julie.email}",
+            f"https://rnb.beta.gouv.fr/activation?status=success&email=julie.b%2Btest%40exemple.com",
         )
 
         # her account is now active!

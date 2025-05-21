@@ -1,6 +1,7 @@
 import binascii
 import json
 import os
+import urllib.parse
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -2420,7 +2421,9 @@ class ActivateUser(APIView):
         if user and default_token_generator.check_token(user, token):
             user.is_active = True
             user.save()
-            return redirect(f"{site_url}/activation?status=success&email={user.email}")
+            return redirect(
+                f"{site_url}/activation?status=success&email={urllib.parse.quote(user.email)}"
+            )
         else:
             return redirect(f"{site_url}/activation?status=error")
 
