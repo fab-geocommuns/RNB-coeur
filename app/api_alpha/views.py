@@ -1,6 +1,7 @@
 import binascii
 import json
 import os
+import urllib.parse
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -24,7 +25,6 @@ from django.http import QueryDict
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
-from django.utils import translation
 from django.utils.dateparse import parse_datetime
 from django.utils.http import urlsafe_base64_decode
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
@@ -2269,39 +2269,35 @@ class CreateUserView(APIView):
         request_data = request.data
         if isinstance(request_data, QueryDict):
             request_data = request_data.dict()
-        # we need French error message for the website
-        with translation.override("fr"):
-            user_serializer = UserSerializer(data=request_data)
-            user_serializer.is_valid(raise_exception=True)
-            user = user_serializer.save()
+        user_serializer = UserSerializer(data=request_data)
+        user_serializer.is_valid(raise_exception=True)
+        user = user_serializer.save()
 
-            organization_serializer = None
-            organization_name = request_data.get("organization_name")
-            if organization_name:
-                organization_serializer = OrganizationSerializer(
-                    data={"name": organization_name}
-                )
-                organization_serializer.is_valid(raise_exception=True)
-                organization, created = Organization.objects.get_or_create(
-                    name=organization_name
-                )
-                organization.users.add(user)
-                organization.save()
-
-            if settings.HAS_SANDBOX:
-                create_user_in_sandbox(request_data)
-
-            return Response(
-                {
-                    "user": user_serializer.data,
-                    "organization": (
-                        organization_serializer.data
-                        if organization_serializer
-                        else None
-                    ),
-                },
-                status=status.HTTP_201_CREATED,
+        organization_serializer = None
+        organization_name = request_data.get("organization_name")
+        if organization_name:
+            organization_serializer = OrganizationSerializer(
+                data={"name": organization_name}
             )
+            organization_serializer.is_valid(raise_exception=True)
+            organization, created = Organization.objects.get_or_create(
+                name=organization_name
+            )
+            organization.users.add(user)
+            organization.save()
+
+        if settings.HAS_SANDBOX:
+            create_user_in_sandbox(request_data)
+
+        return Response(
+            {
+                "user": user_serializer.data,
+                "organization": (
+                    organization_serializer.data if organization_serializer else None
+                ),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class SandboxAuthenticationError(AuthenticationFailed):
@@ -2425,7 +2421,9 @@ class ActivateUser(APIView):
         if user and default_token_generator.check_token(user, token):
             user.is_active = True
             user.save()
-            return redirect(f"{site_url}/activation?status=success&email={user.email}")
+            return redirect(
+                f"{site_url}/activation?status=success&email={urllib.parse.quote(user.email)}"
+            )
         else:
             return redirect(f"{site_url}/activation?status=error")
 

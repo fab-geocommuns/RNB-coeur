@@ -512,7 +512,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         for op in r_data["buildings_operations"]:
             if "non_field_errors" in op:
                 self.assertIn(
-                    "Either rnb_id or shape is required.", op["non_field_errors"]
+                    "Soit 'rnb_id' soit 'shape' est requis.", op["non_field_errors"]
                 )
 
     def test_create_ads_with_shape_and_rnd_id(self):
@@ -540,7 +540,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         for op in r_data["buildings_operations"]:
             if "non_field_errors" in op:
                 self.assertIn(
-                    "You can't provide a rnb_id and a shape, you should remove the shape.",
+                    "Vous ne pouvez pas fournir à la fois un 'rnb_id' et une forme, vous devez supprimer la forme.",
                     op["non_field_errors"],
                 )
 
@@ -741,7 +741,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
 
         self.assertIn(
-            "A RNB id can only be present once in an ADS.",
+            "Un identifiant RNB ne peut être présent qu'une seule fois dans un ADS.",
             r_data["buildings_operations"],
         )
 
@@ -763,7 +763,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        self.assertIn("This file number already exists", r_data["file_number"])
+        self.assertIn("Ce numéro de dossier existe déjà", r_data["file_number"])
 
     def test_ads_wrong_decided_at(self):
         data = {
@@ -784,7 +784,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
         r_data = r.json()
 
         self.assertIn(
-            "Date has wrong format. Use one of these formats instead: YYYY-MM-DD.",
+            "La date n'a pas le bon format. Utilisez un des formats suivants\xa0: YYYY-MM-DD.",
             r_data["decided_at"],
         )
 
@@ -806,7 +806,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        self.assertIn("This field is required.", r_data["decided_at"])
+        self.assertIn("Ce champ est obligatoire.", r_data["decided_at"])
 
     def test_ads_wrong_bdg_rnbid(self):
         data = {
@@ -826,7 +826,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = 'Building "BDGDOESNOTEXIST" does not exist.'
+        msg_to_check = "L'ID-RNB \"BDGDOESNOTEXIST\" n'existe pas."
 
         for op in r_data["buildings_operations"]:
             if "rnb_id" in op:
@@ -850,7 +850,7 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         r_data = r.json()
 
-        msg_to_check = "'destroy' is not a valid operation. Valid operations are: ['build', 'modify', 'demolish']."
+        msg_to_check = "'destroy' n'est pas une opération valide. Les opérations valides sont : ['build', 'modify', 'demolish']."
 
         for op in r_data["buildings_operations"]:
             if "operation" in op:
