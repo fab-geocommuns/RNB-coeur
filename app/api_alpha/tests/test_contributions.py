@@ -39,4 +39,4 @@ class TestContribution(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
-        self.assertEqual(r.json(), {"rnb_id": ['Building "AAA" is not active.']})
+        self.assertEqual(r.json(), {"rnb_id": ["L'ID-RNB \"AAA\" n'est pas actif."]})
