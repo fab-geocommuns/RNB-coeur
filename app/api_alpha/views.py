@@ -818,7 +818,11 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                         "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
                                     },
                                 },
-                                "required": ["status", "shape"],
+                                "required": [
+                                    "status",
+                                    "shape",
+                                    "addresses_cle_interop",
+                                ],
                             }
                         }
                     },
