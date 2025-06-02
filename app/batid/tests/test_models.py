@@ -1,6 +1,7 @@
 import datetime
 import json
 
+from django.contrib.gis.geos import GEOSGeometry
 from django.db.utils import IntegrityError
 from django.test import override_settings
 from django.test import TestCase
@@ -9,8 +10,6 @@ from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import User
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import GEOSGeometry
 
 
 class TestBuilding(TestCase):
@@ -340,7 +339,6 @@ class TestSplitBuilding(TestCase):
 
 
 class TestUpdateBuilding(TestCase):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
