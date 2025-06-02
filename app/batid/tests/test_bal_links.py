@@ -4,7 +4,8 @@ from unittest.mock import patch
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase
+from django.test import TransactionTestCase
 
 import batid.tests.helpers as helpers
 from batid.exceptions import BANUnknownCleInterop
@@ -16,7 +17,6 @@ from batid.services.imports.import_bal import find_bdg_to_link
 
 
 class BALImport(TransactionTestCase):
-
     def setUp(self):
 
         # Building ONE
