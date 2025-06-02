@@ -202,6 +202,7 @@ class Building(BuildingAbstract):
         ext_ids: list | None = None,
         shape: GEOSGeometry | None = None,
     ):
+
         if (
             status is None
             and addresses_id is None
