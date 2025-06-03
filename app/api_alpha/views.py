@@ -25,7 +25,6 @@ from django.http import QueryDict
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
-from django.utils import translation
 from django.utils.dateparse import parse_datetime
 from django.utils.http import urlsafe_base64_decode
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
@@ -246,7 +245,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": "Rayon de recherche en mètres, autour du point. Compris entre 0 et 1000 mètres.",
                         "required": True,
-                        "schema": {"type": "integer"},
+                        "schema": {"type": "number"},
                         "example": 1000,
                     },
                 ],
@@ -308,7 +307,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
             lat, lng = point.split(",")
             lat = float(lat)
             lng = float(lng)
-            radius = int(radius)
+            radius = float(radius)
 
             # Get results and paginate
             bdgs = get_closest_from_point(lat, lng, radius)
@@ -819,7 +818,11 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                         "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
                                     },
                                 },
-                                "required": ["status", "shape"],
+                                "required": [
+                                    "status",
+                                    "shape",
+                                    "addresses_cle_interop",
+                                ],
                             }
                         }
                     },
@@ -2270,39 +2273,35 @@ class CreateUserView(APIView):
         request_data = request.data
         if isinstance(request_data, QueryDict):
             request_data = request_data.dict()
-        # we need French error message for the website
-        with translation.override("fr"):
-            user_serializer = UserSerializer(data=request_data)
-            user_serializer.is_valid(raise_exception=True)
-            user = user_serializer.save()
+        user_serializer = UserSerializer(data=request_data)
+        user_serializer.is_valid(raise_exception=True)
+        user = user_serializer.save()
 
-            organization_serializer = None
-            organization_name = request_data.get("organization_name")
-            if organization_name:
-                organization_serializer = OrganizationSerializer(
-                    data={"name": organization_name}
-                )
-                organization_serializer.is_valid(raise_exception=True)
-                organization, created = Organization.objects.get_or_create(
-                    name=organization_name
-                )
-                organization.users.add(user)
-                organization.save()
-
-            if settings.HAS_SANDBOX:
-                create_user_in_sandbox(request_data)
-
-            return Response(
-                {
-                    "user": user_serializer.data,
-                    "organization": (
-                        organization_serializer.data
-                        if organization_serializer
-                        else None
-                    ),
-                },
-                status=status.HTTP_201_CREATED,
+        organization_serializer = None
+        organization_name = request_data.get("organization_name")
+        if organization_name:
+            organization_serializer = OrganizationSerializer(
+                data={"name": organization_name}
             )
+            organization_serializer.is_valid(raise_exception=True)
+            organization, created = Organization.objects.get_or_create(
+                name=organization_name
+            )
+            organization.users.add(user)
+            organization.save()
+
+        if settings.HAS_SANDBOX:
+            create_user_in_sandbox(request_data)
+
+        return Response(
+            {
+                "user": user_serializer.data,
+                "organization": (
+                    organization_serializer.data if organization_serializer else None
+                ),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class SandboxAuthenticationError(AuthenticationFailed):

@@ -29,10 +29,6 @@ def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:
                 r = geom.buffer(0)
                 return r
 
-                # raise ValueError(
-                #     "We have a sub-polygon with holes, we can't rebuild a clean polygon."
-                # )
-
             if p.area > big_area:
                 big_area = p.area
                 big_idx = idx
