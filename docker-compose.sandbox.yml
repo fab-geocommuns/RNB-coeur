@@ -1,0 +1,74 @@
+name: rnb-coeur
+
+services:
+
+  nginx-proxy:
+    extends:
+      file: common-services.yml
+      service: nginx-proxy
+
+  nginx-letsencrypt:
+    extends:
+      file: common-services.yml
+      service: nginx-letsencrypt
+    env_file:
+      - ./.env.nginx-encrypt.sandbox
+
+  web:
+    extends:
+      file: common-services.yml
+      service: web
+    restart: unless-stopped
+    env_file:
+      - ./.env.db_auth.sandbox
+      - ./.env.app.sandbox
+      - ./.env.rnb.sandbox
+      - ./.env.worker.sandbox
+      - ./.env.sentry.sandbox
+    command: gunicorn app.wsgi:application --bind 0.0.0.0:8000 --threads 6 --workers 6
+    volumes:
+      - ./source_data:/home/app/source_data
+    environment:
+      - VIRTUAL_HOST=sandbox.rnb-api.beta.gouv.fr
+      - VIRTUAL_PORT=8000
+      - LETSENCRYPT_HOST=sandbox.rnb-api.beta.gouv.fr
+      - URL=https://sandbox.rnb-api.beta.gouv.fr
+
+  worker:
+    extends:
+      file: common-services.yml
+      service: worker
+    command: celery -A app worker --concurrency=6 --loglevel=INFO
+    volumes:
+      - ./source_data:/home/app/source_data
+    env_file:
+      - ./.env.db_auth.sandbox
+      - ./.env.app.sandbox
+      - ./.env.worker.sandbox
+      - ./.env.rnb.sandbox
+      - ./.env.sentry.sandbox
+  rabbitmq:
+    extends:
+      file: common-services.yml
+      service: rabbitmq
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+
+  redis:
+    extends:
+      file: common-services.yml
+      service: redis
+    command: redis-server --appendonly yes --replica-read-only no
+
+  flower:
+    extends:
+      file: common-services.yml
+      service: flower
+    env_file:
+      - ./.env.worker.sandbox
+
+volumes:
+  certs:
+  vhost:
+  acme:
+  html:
