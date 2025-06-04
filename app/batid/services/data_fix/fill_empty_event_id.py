@@ -1,7 +1,7 @@
 import uuid
 
-from django.db import transaction
-from batid.models import BuildingHistoryOnly
+from django.db import transaction, connection
+from batid.models import Building, BuildingHistoryOnly
 
 
 def _fetch_old_rows(batch_size=10_000):
@@ -12,9 +12,17 @@ def _fetch_old_rows(batch_size=10_000):
     )[:batch_size]
 
 
-def fill_empty_event_id() -> bool:
+def _fetch_current_rows(batch_size=10_000):
 
-    updated_some_rows = False
+    # Django select for update
+    return Building.objects.select_for_update(skip_locked=True).filter(
+        event_id=None, event_type__in=["creation", "update"]
+    )[:batch_size]
+
+
+def fill_empty_event_id() -> int:
+
+    updated_rows = False
 
     # Do past versions first
     with transaction.atomic():
@@ -28,8 +36,29 @@ def fill_empty_event_id() -> bool:
                 row.event_id = uuid.uuid4()
 
             # Save in bulk to avoid multiple queries
-            BuildingHistoryOnly.objects.bulk_update(old_rows, ["event_id"])
+            updated_rows += BuildingHistoryOnly.objects.bulk_update(
+                old_rows, ["event_id"]
+            )
 
-            updated_some_rows = True
+    # Do current versions next
+    with transaction.atomic():
+        with connection.cursor() as cursor:
 
-    return updated_some_rows
+            disable_trigger_sql = "ALTER TABLE public.batid_building DISABLE TRIGGER building_versioning_trigger;"
+            cursor.execute(disable_trigger_sql)
+
+            current_rows = _fetch_current_rows()
+
+            if current_rows:
+
+                # Assign a new UUID to each ro
+                for row in current_rows:
+                    row.event_id = uuid.uuid4()
+
+                # Save in bulk to avoid multiple queries
+                updated_rows += Building.objects.bulk_update(current_rows, ["event_id"])
+
+            enable_trigger_sql = "ALTER TABLE public.batid_building ENABLE TRIGGER building_versioning_trigger;"
+            cursor.execute(enable_trigger_sql)
+
+    return updated_rows

@@ -1,10 +1,10 @@
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 
 from batid.models import Building, BuildingWithHistory, BuildingHistoryOnly
 from batid.services.data_fix.fill_empty_event_id import fill_empty_event_id
 
 
-class TestMissingEventId(TestCase):
+class TestMissingEventId(TransactionTestCase):
 
     def setUp(self):
 
@@ -53,28 +53,54 @@ class TestMissingEventId(TestCase):
         versions_count = BuildingWithHistory.objects.all().count()
         self.assertEqual(versions_count, 4)
 
-        past_version = BuildingHistoryOnly.objects.get(rnb_id="one")
-        self.assertIsNone(past_version.event_id)
-        old_updated_at = past_version.updated_at
+        history_row = BuildingHistoryOnly.objects.get(rnb_id="one")
+        self.assertIsNone(history_row.event_id)
+        history_old_updated_at = history_row.updated_at
+
+        current_row = Building.objects.get(rnb_id="one")
+        self.assertIsNone(current_row.event_id)
+        current_old_updated_at = current_row.updated_at
 
         # ###### Trigger the fix ######
         # Correct the missing event_ids
-        fill_empty_event_id()
+        updated_rows = fill_empty_event_id()
+        self.assertEqual(updated_rows, 2)
 
         # The history trigger should have been disabled. The total number of versions should remain the same
         versions_count = BuildingWithHistory.objects.all().count()
         self.assertEqual(versions_count, 4)
 
+        # ##### Check history row #####
+
         # The past version should now have an event_id
-        past_version = BuildingHistoryOnly.objects.get(rnb_id="one")
-        self.assertIsNotNone(past_version.event_id)
+        history_row.refresh_from_db()
+        self.assertIsNotNone(history_row.event_id)
 
         # We want the updated_at value to remain unchanged despite the auto_now=True field setting
-        new_updated_at = past_version.updated_at
-        self.assertEqual(old_updated_at, new_updated_at)
+        history_new_updated_at = history_row.updated_at
+        self.assertEqual(history_old_updated_at, history_new_updated_at)
+
+        # ##### Check current row #####
+
+        # The current version should now have an event_id
+        current_row.refresh_from_db()
+        self.assertIsNotNone(current_row.event_id)
+
+        # We want the updated_at value to remain unchanged despite the auto_now=True field setting
+        current_new_updated_at = current_row.updated_at
+        self.assertEqual(current_old_updated_at, current_new_updated_at)
+
+        # ##### Other checks #####
 
         # The merge and split buildings should not have been modified
         merge_building = Building.objects.get(rnb_id="merge")
         self.assertIsNone(merge_building.event_id)
         split_building = Building.objects.get(rnb_id="split")
         self.assertIsNone(split_building.event_id)
+
+        # Check the trigger is restored
+        current_row.status = "constructed"
+        current_row.save()
+
+        bdg_one_rows = BuildingWithHistory.objects.filter(rnb_id="one")
+        self.assertEqual(len(bdg_one_rows), 3)
