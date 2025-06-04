@@ -1,11 +1,12 @@
-from django.test import TestCase, TransactionTestCase
+from django.test import TransactionTestCase
 
-from batid.models import Building, BuildingWithHistory, BuildingHistoryOnly
+from batid.models import Building
+from batid.models import BuildingHistoryOnly
+from batid.models import BuildingWithHistory
 from batid.services.data_fix.fill_empty_event_id import fill_empty_event_id
 
 
 class TestMissingEventId(TransactionTestCase):
-
     def setUp(self):
 
         # The building to fill
