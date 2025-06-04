@@ -353,3 +353,10 @@ def create_sandbox_user(user_data: dict) -> None:
     random_password = make_random_password(length=24)
     SandboxClient().create_user({**user_data, "password": random_password})
     return None
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def fill_empty_event_id() -> int:
+    from batid.services.data_fix.fill_empty_event_id import fill_empty_event_id
+
+    return fill_empty_event_id()
