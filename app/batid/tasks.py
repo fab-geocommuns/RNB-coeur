@@ -359,4 +359,14 @@ def create_sandbox_user(user_data: dict) -> None:
 def fill_empty_event_id() -> int:
     from batid.services.data_fix.fill_empty_event_id import fill_empty_event_id
 
-    return fill_empty_event_id()
+    total = 0
+
+    while True:
+        # Fill empty event_id in batches of 50_000 rows
+        # If no rows are updated, we can stop
+        updated_rows = fill_empty_event_id(batch_size=50_000)
+        total += updated_rows
+        if updated_rows == 0:
+            break
+
+    return f"Total updated rows: {total}"
