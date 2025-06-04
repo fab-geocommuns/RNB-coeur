@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "docker"
+    directory: "/nginx/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "pip"
+    directory: "/app/"
+    schedule:
+      interval: "daily"
