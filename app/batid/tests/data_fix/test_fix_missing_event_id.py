@@ -104,3 +104,25 @@ class TestMissingEventId(TransactionTestCase):
 
         bdg_one_rows = BuildingWithHistory.objects.filter(rnb_id="one")
         self.assertEqual(len(bdg_one_rows), 3)
+
+    def test_batch_size(self):
+
+        history_row = BuildingHistoryOnly.objects.get(rnb_id="one")
+        self.assertIsNone(history_row.event_id)
+
+        current_row = Building.objects.get(rnb_id="one")
+        self.assertIsNone(current_row.event_id)
+
+        updated_rows = fill_empty_event_id(batch_size=1)
+        self.assertEqual(updated_rows, 1)
+
+        # We updated only one row
+        # The script starts with the history rows
+        # So the history row should have an event_id now
+        history_row.refresh_from_db()
+        self.assertIsNotNone(history_row.event_id)
+
+        # The current row should still have no event_id
+        # since the batch size was 1
+        current_row.refresh_from_db()
+        self.assertIsNone(current_row.event_id)
