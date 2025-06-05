@@ -238,9 +238,11 @@ class Guesser:
 
         return guesses, guesses_changed
 
-    def to_csv(self, file_path, ext_id_col_name="ext_id"):
+    def to_csv(self, file_path, ext_id_col_name="ext_id", one_rnb_id_per_row=False):
 
         self.convert_matches()
+
+        rnb_id_col_name = "rnb_id" if one_rnb_id_per_row else "rnb_ids"
 
         rows = []
         for ext_id, guess in self.guesses.items():
@@ -248,17 +250,41 @@ class Guesser:
             matches = guess.get("matches", None)
             reason = guess.get("match_reason", None)
 
-            rows.append(
-                {
-                    ext_id_col_name: ext_id,
-                    "rnb_ids": matches,
-                    "match_reason": reason,
-                }
-            )
+            # Matches is empty
+            if len(matches) == 0:
+
+                rows.append(
+                    {
+                        ext_id_col_name: ext_id,
+                        rnb_id_col_name: "" if one_rnb_id_per_row else [],
+                        "match_reason": reason,
+                    }
+                )
+
+            else:
+
+                # Matches is not empty
+                if one_rnb_id_per_row:
+                    for match in matches:
+                        rows.append(
+                            {
+                                ext_id_col_name: ext_id,
+                                rnb_id_col_name: match,
+                                "match_reason": reason,
+                            }
+                        )
+                else:
+                    rows.append(
+                        {
+                            ext_id_col_name: ext_id,
+                            rnb_id_col_name: matches,
+                            "match_reason": reason,
+                        }
+                    )
 
         with open(file_path, "w") as f:
             writer = csv.DictWriter(
-                f, fieldnames=[ext_id_col_name, "rnb_ids", "match_reason"]
+                f, fieldnames=[ext_id_col_name, rnb_id_col_name, "match_reason"]
             )
             writer.writeheader()
             writer.writerows(rows)
@@ -589,13 +615,32 @@ class GeocodeNameHandler(AbstractHandler):
 
     def _guess_batch(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
 
-        for guess in guesses.values():
-            guess = self._guess_one(guess)
-            guesses[guess["input"]["ext_id"]] = guess
+        if self.sleep_time > 0:
+
+            # We need to avoid throttling. We do one by one.
+            for guess in guesses.values():
+                guess = self._guess_one(guess)
+                guesses[guess["input"]["ext_id"]] = guess
+        else:
+
+            # No need to avoid throttling. We can parallelize.
+            tasks = []
+
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                for guess in guesses.values():
+                    future = executor.submit(self._guess_one, guess)
+                    # We comment out the line below since closing all connections might provoke with open connection where the query is not yet executed
+                    # future.add_done_callback(lambda future: connections.close_all())
+                    tasks.append(future)
+
+                for future in concurrent.futures.as_completed(tasks):
+                    guess = future.result()
+                    guesses[guess["input"]["ext_id"]] = guess
 
         return guesses
 
     def _guess_one(self, guess: Guess) -> Guess:
+
         lat = guess["input"].get("lat", None)
         lng = guess["input"].get("lng", None)
         name = guess["input"].get("name", None)
