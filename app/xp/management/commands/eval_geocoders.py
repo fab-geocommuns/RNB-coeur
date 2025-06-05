@@ -7,7 +7,6 @@ from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand
 
 from batid.services.geocoders import BanGeocoder
-from batid.services.geocoders import GeocodeEarthGeocoder
 from batid.services.geocoders import NominatimGeocoder
 from batid.services.geocoders import PhotonGeocoder
 
@@ -310,31 +309,6 @@ class Command(BaseCommand):
 
         if isinstance(params["q"], str):
             r = photon.geocode(params)
-
-            if r["features"]:
-                point = GEOSGeometry(json.dumps(r["features"][0]["geometry"]))
-
-        return point
-
-    def geocode_earth_point(self, test) -> Optional[GEOSGeometry]:
-        point = None
-
-        g = GeocodeEarthGeocoder()
-
-        params = {
-            "text": test["name"],
-            "boundary.country": "FR",
-        }
-
-        if isinstance(test["ban_point"], Point):
-            params["focus.point.lat"] = test["ban_point"].y
-            params["focus.point.lon"] = test["ban_point"].x
-
-        elif isinstance(test["address"], str):
-            params["text"] = f"{test['name']} {test['address']}"
-
-        if isinstance(params["text"], str):
-            r = g.geocode(params)
 
             if r["features"]:
                 point = GEOSGeometry(json.dumps(r["features"][0]["geometry"]))
