@@ -135,20 +135,3 @@ class NominatimGeocoder:
         geocode_result = response.json()
 
         return geocode_result
-
-
-class GeocodeEarthGeocoder:
-    API_KEY = "ge-9b206ad0e734c565"
-    GEOCODE_URL = "https://api.geocode.earth/v1/search"
-
-    def geocode(self, params):
-        if "text" not in params:
-            raise Exception("Missing 'text' parameter for GeocodeEarth geocoding")
-
-        params["api_key"] = self.API_KEY
-
-        response = requests.get(self.GEOCODE_URL, params=params)
-
-        geocode_result = response.json()
-
-        return geocode_result
