@@ -6,7 +6,7 @@ authors = ["RNB team <tech@rnb.beta.gouv.fr>"]
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "3.12.4"
+python = "3.13.4"
 boto3 = "~1.37.18"
 Django = "~5.2.1"
 drf-spectacular = "~0.28.0"
