@@ -370,3 +370,20 @@ def fill_empty_event_id() -> int:
             break
 
     return f"Total updated rows: {total}"
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def fill_empty_event_type() -> int:
+    from batid.services.data_fix.fill_empty_event_type import fill_empty_event_type
+
+    total = 0
+
+    while True:
+        # Fill empty event_type in batches of 50_000 rows
+        # If no rows are updated, we can stop
+        updated_rows = fill_empty_event_type(batch_size=50_000)
+        total += updated_rows
+        if updated_rows == 0:
+            break
+
+    return f"Total updated rows: {total}"
