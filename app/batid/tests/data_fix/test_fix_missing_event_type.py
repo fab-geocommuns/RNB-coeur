@@ -1,15 +1,14 @@
 from datetime import timedelta
-from django.utils import timezone
 
-from django.test import TransactionTestCase, TestCase
+from django.test import TestCase
 
-from batid.services.data_fix.fill_empty_event_type import _fetch, fill_empty_event_type
 from batid.models import Building
 from batid.models import BuildingHistoryOnly
+from batid.services.data_fix.fill_empty_event_type import _fetch
+from batid.services.data_fix.fill_empty_event_type import fill_empty_event_type
 
 
 class TestFix(TestCase):
-
     def setUp(self):
 
         # One with empty Building and BuildingHistoryOnly
@@ -56,7 +55,6 @@ class TestFix(TestCase):
 
 
 class TestFixCreationOnly(TestCase):
-
     def setUp(self):
 
         # We will create two history rows with event_type=None
@@ -112,7 +110,6 @@ class TestFixCreationOnly(TestCase):
 
 
 class TestBatchSize(TestCase):
-
     def setUp(self):
 
         b = Building.objects.create(
