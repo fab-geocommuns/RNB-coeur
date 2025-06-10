@@ -56,7 +56,7 @@ def fill_empty_event_id(batch_size: int = 50_000) -> int:
                 disable_trigger_sql = "ALTER TABLE public.batid_building DISABLE TRIGGER building_versioning_trigger;"
                 cursor.execute(disable_trigger_sql)
 
-                # Assign a new UUID to each ro
+                # Assign a new UUID to each row
                 for row in current_rows:
                     row.event_id = uuid.uuid4()
 
