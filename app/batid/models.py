@@ -12,9 +12,10 @@ from django.contrib.postgres.fields import DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import transaction
 from django.db.models import CheckConstraint
-from django.db.models import Q
+from django.db.models import Q, UniqueConstraint
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
+
 
 from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import BANAPIDown
@@ -84,6 +85,12 @@ class BuildingAbstract(models.Model):
 
     class Meta:
         abstract = True
+        constraints = [
+            UniqueConstraint(
+                fields=["rnb_id", "event_id"],
+                name="unique_rnb_id_event_type_%(class)s",
+            ),
+        ]
 
 
 class BuildingAddressesReadOnly(models.Model):
