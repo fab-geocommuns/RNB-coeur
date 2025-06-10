@@ -3,6 +3,7 @@ from unittest import mock
 
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
+from django.test import override_settings
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
@@ -485,11 +486,11 @@ class BuildingClosestViewTest(APITestCase):
                     {
                         "coordinates": [
                             [
-                                [-0.5682035663317322, 44.83085542749811],
-                                [-0.56843602659049, 44.83031112933102],
-                                [-0.5673438323587163, 44.83007299726728],
-                                [-0.5671003025640005, 44.83061468086615],
-                                [-0.5682035663317322, 44.83085542749811],
+                                [-0.56820356, 44.830855],
+                                [-0.56843602, 44.830311],
+                                [-0.56734383, 44.830072],
+                                [-0.56710030, 44.830614],
+                                [-0.56820356, 44.830855],
                             ]
                         ],
                         "type": "Polygon",
@@ -650,6 +651,9 @@ class BuildingClosestViewTest(APITestCase):
 
         # Check that the closest building is first
         self.assertEqual(data["results"][0]["rnb_id"], closest_bdg.rnb_id)
+        self.assertDictEqual(
+            data["results"][0]["shape"], json.loads(closest_bdg.shape.geojson)
+        )
 
         # Check that the further building is second
         self.assertEqual(data["results"][1]["rnb_id"], further_bdg.rnb_id)
@@ -721,6 +725,14 @@ class BuildingClosestViewTest(APITestCase):
     def test_closest_no_building(self):
         r = self.client.get(
             "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=10"
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
+
+    def test_closest_float_radius(self):
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=46.63423852982024,1.0654705955877262&radius=30.2"
         )
 
         self.assertEqual(r.status_code, 200)
@@ -1393,6 +1405,7 @@ class BuildingPatchTest(APITestCase):
             # not active, but not deactivated by a "deactivation" event
             self.building.reactivate()
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_update_building(self):
         self.user.groups.add(self.group)
         comment = "maj du batiment"
@@ -1428,6 +1441,7 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_update_building_shape_hex(self):
         self.user.groups.add(self.group)
         comment = "maj du batiment"
@@ -1630,6 +1644,7 @@ class BuildingPostTest(APITestCase):
         self.adr1 = Address.objects.create(id="cle_interop_1")
         self.adr2 = Address.objects.create(id="cle_interop_2")
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_create_building(self):
         data = {
             "status": "constructed",
@@ -1705,6 +1720,7 @@ class BuildingPostTest(APITestCase):
 
         self.assertEqual(r.status_code, 400)
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     @mock.patch("batid.models.requests.get")
     def test_create_building_ban_is_down(self, get_mock):
         get_mock.return_value.status_code = 500
@@ -2378,6 +2394,7 @@ class BuildingSplitTest(APITestCase):
             ],
         )
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_split_buildings(self):
         data = {
             "comment": "Ces deux bâtiments ne font qu'un !",
@@ -2488,6 +2505,7 @@ class BuildingSplitTest(APITestCase):
         self.assertEqual(contribution.review_user.id, self.building_1.event_user.id)
         self.assertEqual(contribution.text, data["comment"])
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_split_buildings_missing_info(self):
         self.user.groups.add(self.group)
 
@@ -2616,7 +2634,7 @@ class BuildingSplitTest(APITestCase):
         self.assertEqual(r.status_code, 400)
         self.assertEqual(
             r.content,
-            b'{"created_buildings":{"1":{"status":["This field is required."]}}}',
+            b'{"created_buildings":{"1":{"status":["Ce champ est obligatoire."]}}}',
         )
 
         # missing address in child building
@@ -2643,7 +2661,7 @@ class BuildingSplitTest(APITestCase):
         self.assertEqual(r.status_code, 400)
         self.assertEqual(
             r.content,
-            b'{"created_buildings":{"1":{"addresses_cle_interop":["This field is required."]}}}',
+            b'{"created_buildings":{"1":{"addresses_cle_interop":["Ce champ est obligatoire."]}}}',
         )
 
         # invalid shape
@@ -2669,9 +2687,10 @@ class BuildingSplitTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
+        unicode_content = r.content.decode("utf-8")
         self.assertEqual(
-            r.content,
-            b'{"created_buildings":{"1":{"shape":["the given shape could not be parsed or is not valid"]}}}',
+            unicode_content,
+            '{"created_buildings":{"1":{"shape":["La forme fournie n\'a pas pu être analysée ou n\'est pas valide"]}}}',
         )
 
     @mock.patch("batid.models.requests.get")

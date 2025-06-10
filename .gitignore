@@ -12,12 +12,14 @@
 .env.rnb.sandbox
 
 .env.app.dev
+.env.app.dev_sandbox
 .env.app.prod
 .env.app.staging
 .env.app.import
 .env.app.sandbox
 
 .env.db_auth.dev
+.env.db_auth.dev_sandbox
 .env.db_auth.prod
 .env.db_auth.staging
 .env.db_auth.import
@@ -64,6 +66,15 @@ app/.Trash-0/*
 /app/notebooks/rapprochements/**/*.shp
 /app/notebooks/rapprochements/**/*.shx
 /app/notebooks/rapprochements/**/*.xlsx
+
+/app/notebooks/croisements/**/*.csv
+/app/notebooks/croisements/**/*.json
+/app/notebooks/croisements/**/*.cpg
+/app/notebooks/croisements/**/*.dbf
+/app/notebooks/croisements/**/*.prj
+/app/notebooks/croisements/**/*.shp
+/app/notebooks/croisements/**/*.shx
+/app/notebooks/croisements/**/*.xlsx
 
 /app/notebooks/evaluation_bal/**/*.csv
 

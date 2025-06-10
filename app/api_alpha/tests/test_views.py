@@ -7,6 +7,7 @@ from unittest import mock
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.core import signing
+from django.test import override_settings
 from django.test import TransactionTestCase
 from django.utils.http import urlencode
 from rest_framework.test import APITestCase
@@ -31,8 +32,12 @@ class StatsTest(APITestCase):
         # trigger the stats computation for building count
         compute_today_kpis()
 
-        # create one contribution
-        Contribution.objects.create()
+        # create one "report" (signalement) contribution
+        Contribution.objects.create(report=True)
+        # and one edition
+        Contribution.objects.create(report=False)
+
+        DiffusionDatabase.objects.create()
 
         # log 2 API request, one is older than 2024
         APIRequestLog.objects.create(requested_at="2023-01-01T00:00:00Z")
@@ -49,8 +54,10 @@ class StatsTest(APITestCase):
         self.assertEqual(results["building_counts"], 2)
         self.assertLess(results["building_counts"], 4)
         self.assertEqual(results["api_calls_since_2024_count"], 1)
-        self.assertEqual(results["contributions_count"], 1)
+        self.assertEqual(results["reports_count"], 1)
+        self.assertEqual(results["editions_count"], 1)
         self.assertEqual(results["data_gouv_publication_count"], 11)
+        self.assertEqual(results["diffusion_databases_count"], 1)
 
         # assert the mock was called
         get_mock.assert_called_with("https://www.data.gouv.fr/api/1/datasets/?tag=rnb")
@@ -320,6 +327,7 @@ class DiffTest(TransactionTestCase):
         # event_id: we check the three rows share the same event_id
         self.assertEqual(rows[2]["event_id"], rows[0]["event_id"])
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_diff_split(self):
         user = User(email="test@exemple.fr")
         user.save()

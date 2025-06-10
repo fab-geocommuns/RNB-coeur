@@ -7,7 +7,7 @@ services:
   #     file: common-services.yml
   #     service: nginx-proxy
 
-  web:
+  web: &web_base
     extends:
       file: common-services.yml
       service: web
@@ -41,6 +41,19 @@ services:
       # - VIRTUAL_PORT=8000
       # - VIRTUAL_PROTO=http
 
+  # Uncomment this to fake a local sandbox
+  # dev_sandbox:
+  #   <<: *web_base
+  #   container_name: dev_sandbox
+  #   ports: !override
+  #     - '8001:8000'
+  #   env_file:
+  #     - ./.env.db_auth.dev_sandbox
+  #     - ./.env.app.dev_sandbox
+  #     - ./.env.worker.dev
+  #     - ./.env.rnb.dev
+  #   environment:
+  #     - URL=http://localhost:8001
 
   db:
     extends:

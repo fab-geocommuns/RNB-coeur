@@ -28,6 +28,11 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DEBUG", default=0))
 
+ENVIRONMENT = os.environ["DJANGO_ENV"]  # This is mandatory
+HAS_SANDBOX = str(os.environ.get("HAS_SANDBOX", default="false")) == "true"
+SANDBOX_URL = os.environ.get("SANDBOX_URL", default=None)
+SANDBOX_SECRET_TOKEN = os.environ.get("SANDBOX_SECRET_TOKEN", default=None)
+
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOST").split(" ")
 CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS").split(" ")
 
@@ -85,6 +90,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -198,13 +204,15 @@ RNB_SEND_ADDRESS = os.environ.get("RNB_SEND_ADDRESS")
 RNB_SEND_NAME = "Référentiel National des Bâtiments"
 RNB_REPLY_TO_ADDRESS = os.environ.get("RNB_REPLY_TO_ADDRESS")
 
+# Biggest building in RNB is GB97B3AYBKRN and is roughly 487,000m²
+MAX_BUILDING_AREA = 500000
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "fr"
 
 TIME_ZONE = "UTC"
 

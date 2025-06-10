@@ -74,8 +74,8 @@ def __validate_poly(poly):
 def __validate_radius(radius):
     if radius is None:
         raise ValueError("radius is required")
-    if not isinstance(radius, int):
-        raise ValueError("radius must be an int")
+    if not isinstance(radius, float) and not isinstance(radius, int):
+        raise ValueError("radius must be a number")
     if radius < 0:
         raise ValueError("radius must be positive")
 

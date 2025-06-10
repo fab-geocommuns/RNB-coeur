@@ -1,8 +1,7 @@
 import binascii
 import json
 import os
-import secrets
-import string
+import urllib.parse
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -22,10 +21,10 @@ from django.db import connection
 from django.db import transaction
 from django.http import HttpResponse
 from django.http import JsonResponse
+from django.http import QueryDict
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
-from django.utils import translation
 from django.utils.dateparse import parse_datetime
 from django.utils.http import urlsafe_base64_decode
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
@@ -41,6 +40,7 @@ from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import BasePagination
@@ -75,13 +75,17 @@ from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.serializers import OrganizationSerializer
 from api_alpha.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
+from api_alpha.utils.parse_boolean import parse_boolean
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import get_status_list
 from api_alpha.utils.rnb_doc import rnb_doc
+from api_alpha.utils.sandbox_client import SandboxClient
+from api_alpha.utils.sandbox_client import SandboxClientError
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import BuildingTooLarge
 from batid.exceptions import ImpossibleShapeMerge
 from batid.exceptions import InvalidWGS84Geometry
 from batid.exceptions import NotEnoughBuildings
@@ -108,6 +112,8 @@ from batid.services.vector_tiles import ads_tiles_sql
 from batid.services.vector_tiles import bdgs_tiles_sql
 from batid.services.vector_tiles import plots_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
+from batid.tasks import create_sandbox_user
+from batid.utils.auth import make_random_password
 from batid.utils.constants import ADS_GROUP_NAME
 
 
@@ -239,7 +245,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": "Rayon de recherche en mètres, autour du point. Compris entre 0 et 1000 mètres.",
                         "required": True,
-                        "schema": {"type": "integer"},
+                        "schema": {"type": "number"},
                         "example": 1000,
                     },
                 ],
@@ -301,7 +307,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
             lat, lng = point.split(",")
             lat = float(lat)
             lng = float(lng)
-            radius = int(radius)
+            radius = float(radius)
 
             # Get results and paginate
             bdgs = get_closest_from_point(lat, lng, radius)
@@ -812,7 +818,11 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                         "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
                                     },
                                 },
-                                "required": ["status", "shape"],
+                                "required": [
+                                    "status",
+                                    "shape",
+                                    "addresses_cle_interop",
+                                ],
                             }
                         }
                     },
@@ -889,6 +899,10 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             except InvalidWGS84Geometry:
                 raise BadRequest(
                     detail="Provided shape is invalid (bad topology or wrong CRS)"
+                )
+            except BuildingTooLarge:
+                raise BadRequest(
+                    detail="Building area too large. Maximum allowed: 500000m²"
                 )
 
             # update the contribution now that the rnb_id is known
@@ -1200,6 +1214,10 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                 raise BadRequest(
                     detail="Provided shape is invalid (bad topology or wrong CRS)"
                 )
+            except BuildingTooLarge:
+                raise BadRequest(
+                    detail="Building area too large. Maximum allowed: 500000m²"
+                )
             except NotEnoughBuildings:
                 raise BadRequest(
                     detail="A split operation requires at least two child buildings"
@@ -1435,6 +1453,10 @@ Si ce paramêtre est :
                 except InvalidWGS84Geometry:
                     raise BadRequest(
                         detail="Provided shape is invalid (bad topology or wrong CRS)"
+                    )
+                except BuildingTooLarge:
+                    raise BadRequest(
+                        detail="Building area too large. Maximum allowed: 500000m²"
                     )
 
         # request is successful, no content to send back
@@ -1851,6 +1873,13 @@ class BuildingsVectorTileView(APIView):
                 type=int,
                 location=OpenApiParameter.PATH,
             ),
+            OpenApiParameter(
+                name="only_active",
+                description="Filtrer les bâtiments actifs",
+                required=False,
+                type=bool,
+                default=True,
+            ),
         ],
         responses={
             200: OpenApiResponse(
@@ -1861,10 +1890,13 @@ class BuildingsVectorTileView(APIView):
         },
     )
     def get(self, request, x, y, z):
+        only_active_and_real_param = request.GET.get("only_active_and_real", "true")
+        only_active_and_real = parse_boolean(only_active_and_real_param)
+
         # Check the request zoom level
         if int(z) >= 16:
             tile_dict = url_params_to_tile(x, y, z)
-            sql = bdgs_tiles_sql(tile_dict, "point")
+            sql = bdgs_tiles_sql(tile_dict, "point", only_active_and_real)
 
             with connection.cursor() as cursor:
                 cursor.execute(sql)
@@ -1878,10 +1910,13 @@ class BuildingsVectorTileView(APIView):
 
 
 def get_tile_shape(request, x, y, z):
+    only_active_and_real_param = request.GET.get("only_active_and_real", "true")
+    only_active_and_real = parse_boolean(only_active_and_real_param)
+
     # Check the request zoom level
     if int(z) >= 16:
         tile_dict = url_params_to_tile(x, y, z)
-        sql = bdgs_tiles_sql(tile_dict, "shape")
+        sql = bdgs_tiles_sql(tile_dict, "shape", only_active_and_real)
 
         with connection.cursor() as cursor:
             cursor.execute(sql)
@@ -1909,8 +1944,10 @@ def get_stats(request):
     api_calls_since_2024_count = APIRequestLog.objects.filter(
         requested_at__gte="2024-01-01T00:00:00Z"
     ).count()
-    contributions_count = Contribution.objects.count()
+    reports_count = Contribution.objects.filter(report=True).count()
+    editions_count = Contribution.objects.filter(report=False).count()
     data_gouv_publication_count = get_data_gouv_publication_count()
+    diffusion_databases_count = DiffusionDatabase.objects.count()
 
     # Get the cached value of the building count
     bdg_count_kpi = get_kpi_most_recent(KPI_ACTIVE_BUILDINGS_COUNT)
@@ -1918,8 +1955,10 @@ def get_stats(request):
     data = {
         "building_counts": bdg_count_kpi.value,
         "api_calls_since_2024_count": api_calls_since_2024_count,
-        "contributions_count": contributions_count,
+        "reports_count": reports_count,
+        "editions_count": editions_count,
         "data_gouv_publication_count": data_gouv_publication_count,
+        "diffusion_databases_count": diffusion_databases_count,
     }
 
     renderer = JSONRenderer()
@@ -2160,16 +2199,6 @@ def city_ranking():
         return results
 
 
-def make_random_password(length):
-    # https://docs.python.org/3/library/secrets.html#recipes-and-best-practices
-    if length <= 0:
-        raise ValueError("invalid password length")
-
-    alphabet = string.ascii_letters + string.digits
-    password = "".join(secrets.choice(alphabet) for i in range(length))
-    return password
-
-
 @extend_schema(exclude=True)
 class AdsTokenView(APIView):
     permission_classes = [IsSuperUser]
@@ -2228,6 +2257,7 @@ class RNBAuthToken(ObtainAuthToken):
         user = token.user
         return Response(
             {
+                "id": user.id,
                 "token": token.key,
                 "username": user.username,
                 "groups": [group.name for group in user.groups.all()],
@@ -2235,39 +2265,106 @@ class RNBAuthToken(ObtainAuthToken):
         )
 
 
+def create_user_in_sandbox(user_data: dict) -> None:
+    user_data_without_password = {**user_data}
+    user_data_without_password.pop("password")
+    create_sandbox_user.delay(user_data_without_password)
+
+
 class CreateUserView(APIView):
     @transaction.atomic
     def post(self, request, *args, **kwargs):
-        # we need French error message for the website
-        with translation.override("fr"):
-            user_serializer = UserSerializer(data=request.data)
-            user_serializer.is_valid(raise_exception=True)
-            user = user_serializer.save()
+        request_data = request.data
+        if isinstance(request_data, QueryDict):
+            request_data = request_data.dict()
+        user_serializer = UserSerializer(data=request_data)
+        user_serializer.is_valid(raise_exception=True)
+        user = user_serializer.save()
 
-            organization_serializer = None
-            organization_name = request.data.get("organization_name")
-            if organization_name:
-                organization_serializer = OrganizationSerializer(
-                    data={"name": organization_name}
-                )
-                organization_serializer.is_valid(raise_exception=True)
-                organization, created = Organization.objects.get_or_create(
-                    name=organization_name
-                )
-                organization.users.add(user)
-                organization.save()
-
-            return Response(
-                {
-                    "user": user_serializer.data,
-                    "organization": (
-                        organization_serializer.data
-                        if organization_serializer
-                        else None
-                    ),
-                },
-                status=status.HTTP_201_CREATED,
+        organization_serializer = None
+        organization_name = request_data.get("organization_name")
+        if organization_name:
+            organization_serializer = OrganizationSerializer(
+                data={"name": organization_name}
             )
+            organization_serializer.is_valid(raise_exception=True)
+            organization, created = Organization.objects.get_or_create(
+                name=organization_name
+            )
+            organization.users.add(user)
+            organization.save()
+
+        if settings.HAS_SANDBOX:
+            create_user_in_sandbox(request_data)
+
+        return Response(
+            {
+                "user": user_serializer.data,
+                "organization": (
+                    organization_serializer.data if organization_serializer else None
+                ),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class SandboxAuthenticationError(AuthenticationFailed):
+    pass
+
+
+def sandbox_only(func):
+    def wrapper(self, request, *args, **kwargs):
+        if settings.ENVIRONMENT != "sandbox":
+            print("Sandbox only endpoint called in non-sandbox environment")
+            raise NotFound()
+
+        auth_header = request.headers.get("Authorization")
+        expected_auth_header = f"Bearer {settings.SANDBOX_SECRET_TOKEN}"
+        if not settings.SANDBOX_SECRET_TOKEN or auth_header != expected_auth_header:
+            raise SandboxAuthenticationError()
+        return func(self, request, *args, **kwargs)
+
+    return wrapper
+
+
+class GetUserToken(APIView):
+    @sandbox_only
+    def get(self, request, user_email_b64):
+        user_email = urlsafe_base64_decode(user_email_b64).decode()
+        user = User.objects.get(email=user_email)
+        try:
+            token = Token.objects.get(user=user)
+        except Token.DoesNotExist:
+            token = None
+        return Response({"token": token.key if token else None})
+
+
+class GetCurrentUserTokens(APIView):
+    permission_classes = [RNBContributorPermission]
+
+    def get(self, request) -> Response:
+        user = request.user
+        token = Token.objects.get(
+            user=user
+        )  # Exists because it's used to authenticate the request
+
+        sandbox_token = self._get_sandbox_token(user.email)
+
+        return Response(
+            {
+                "production_token": token.key if token else None,
+                "sandbox_token": sandbox_token,
+            }
+        )
+
+    def _get_sandbox_token(self, user_email: str) -> str | None:
+        if not settings.HAS_SANDBOX:
+            return None
+
+        try:
+            return SandboxClient().get_user_token(user_email)
+        except SandboxClientError:
+            return None
 
 
 class TokenScheme(OpenApiAuthenticationExtension):
@@ -2332,7 +2429,9 @@ class ActivateUser(APIView):
         if user and default_token_generator.check_token(user, token):
             user.is_active = True
             user.save()
-            return redirect(f"{site_url}/activation?status=success&email={user.email}")
+            return redirect(
+                f"{site_url}/activation?status=success&email={urllib.parse.quote(user.email)}"
+            )
         else:
             return redirect(f"{site_url}/activation?status=error")
 
@@ -2342,7 +2441,7 @@ class RequestPasswordReset(RNBLoggingMixin, APIView):
 
         email = request.data.get("email")
         if email is None:
-            return JsonResponse({"error": "Email is required"}, status=400)
+            return JsonResponse({"error": "L'adresse email est requise"}, status=400)
 
         try:
             user = User.objects.get(email=email)
@@ -2415,16 +2514,21 @@ class ChangePassword(RNBLoggingMixin, APIView):
 
         password = request.data.get("password")
         if password is None:
-            return JsonResponse({"error": "Password is required"}, status=400)
+            return JsonResponse(
+                {"error": ["Le nouveau mot de passe est requis"]}, status=400
+            )
 
         confirm_password = request.data.get("confirm_password")
         if confirm_password is None:
             return JsonResponse(
-                {"error": "Password confirmation is required"}, status=400
+                {"error": ["La confirmation du nouveau mot de passe est requise"]},
+                status=400,
             )
 
         if password != confirm_password:
-            return JsonResponse({"error": "Passwords do not match"}, status=400)
+            return JsonResponse(
+                {"error": ["Les deux mots de passe ne correspondent pas"]}, status=400
+            )
 
         # Verify the password is strong enough (validated against the AUTH_PASSWORD_VALIDATORS validators set in settings.py)
         try:

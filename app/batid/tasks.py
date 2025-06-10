@@ -4,6 +4,7 @@ from typing import Optional
 from celery import chain
 from celery import shared_task
 
+from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list
 from batid.services.administrative_areas import slice_dpts
 from batid.services.building import export_city as export_city_job
@@ -48,6 +49,7 @@ from batid.services.mattermost import notify_if_error
 from batid.services.mattermost import notify_tech
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.source import Source
+from batid.utils.auth import make_random_password
 
 
 @shared_task
@@ -344,3 +346,10 @@ def queue_full_bal_rnb_links(
 def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid: Optional[str] = None):
 
     return create_dpt_bal_rnb_links_job(src_params, bulk_launch_uuid)
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def create_sandbox_user(user_data: dict) -> None:
+    random_password = make_random_password(length=24)
+    SandboxClient().create_user({**user_data, "password": random_password})
+    return None
