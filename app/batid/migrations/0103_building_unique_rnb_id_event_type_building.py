@@ -7,13 +7,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('batid', '0102_kpi'),
+        ("batid", "0102_kpi"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddConstraint(
-            model_name='building',
-            constraint=models.UniqueConstraint(fields=('rnb_id', 'event_id'), name='unique_rnb_id_event_type_building'),
+            model_name="buildinghistoryonly",
+            constraint=models.UniqueConstraint(
+                fields=("rnb_id", "event_id"), name="unique_rnb_id_event_type"
+            ),
         ),
     ]
