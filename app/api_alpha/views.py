@@ -1955,7 +1955,7 @@ def get_stats(request):
     data = {
         "building_counts": bdg_count_kpi.value,
         "api_calls_since_2024_count": api_calls_since_2024_count,
-        "contributions_count": contributions_count,
+        "reports_count": reports_count,
         "editions_count": editions_count,
         "data_gouv_publication_count": data_gouv_publication_count,
         "diffusion_databases_count": diffusion_databases_count,

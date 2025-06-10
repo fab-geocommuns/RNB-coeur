@@ -54,7 +54,7 @@ class StatsTest(APITestCase):
         self.assertEqual(results["building_counts"], 2)
         self.assertLess(results["building_counts"], 4)
         self.assertEqual(results["api_calls_since_2024_count"], 1)
-        self.assertEqual(results["contributions_count"], 1)
+        self.assertEqual(results["reports_count"], 1)
         self.assertEqual(results["editions_count"], 1)
         self.assertEqual(results["data_gouv_publication_count"], 11)
         self.assertEqual(results["diffusion_databases_count"], 1)
