@@ -85,12 +85,6 @@ class BuildingAbstract(models.Model):
 
     class Meta:
         abstract = True
-        constraints = [
-            UniqueConstraint(
-                fields=["rnb_id", "event_id"],
-                name="unique_rnb_id_event_type_%(class)s",
-            ),
-        ]
 
 
 class BuildingAddressesReadOnly(models.Model):
@@ -485,7 +479,12 @@ class Building(BuildingAbstract):
             CheckConstraint(
                 check=Q(event_type__in=BuildingAbstract.EVENT_TYPES),
                 name="valid_event_type_check",
-            )
+            ),
+            # verify the couple rnb_id/event_id is unique
+            UniqueConstraint(
+                fields=["rnb_id", "event_id"],
+                name="unique_rnb_id_event_type_%(class)s",
+            ),
         ]
 
 
