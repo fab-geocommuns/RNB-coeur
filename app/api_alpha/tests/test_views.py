@@ -32,8 +32,10 @@ class StatsTest(APITestCase):
         # trigger the stats computation for building count
         compute_today_kpis()
 
-        # create one contribution
-        Contribution.objects.create()
+        # create one "report" (signalement) contribution
+        Contribution.objects.create(report=True)
+        # and one edition
+        Contribution.objects.create(report=False)
 
         # log 2 API request, one is older than 2024
         APIRequestLog.objects.create(requested_at="2023-01-01T00:00:00Z")
@@ -51,6 +53,7 @@ class StatsTest(APITestCase):
         self.assertLess(results["building_counts"], 4)
         self.assertEqual(results["api_calls_since_2024_count"], 1)
         self.assertEqual(results["contributions_count"], 1)
+        self.assertEqual(results["editions_count"], 1)
         self.assertEqual(results["data_gouv_publication_count"], 11)
 
         # assert the mock was called

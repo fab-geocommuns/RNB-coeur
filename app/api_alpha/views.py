@@ -1944,7 +1944,8 @@ def get_stats(request):
     api_calls_since_2024_count = APIRequestLog.objects.filter(
         requested_at__gte="2024-01-01T00:00:00Z"
     ).count()
-    contributions_count = Contribution.objects.count()
+    contributions_count = Contribution.objects.filter(report=True).count()
+    editions_count = Contribution.objects.filter(report=False).count()
     data_gouv_publication_count = get_data_gouv_publication_count()
 
     # Get the cached value of the building count
@@ -1954,6 +1955,7 @@ def get_stats(request):
         "building_counts": bdg_count_kpi.value,
         "api_calls_since_2024_count": api_calls_since_2024_count,
         "contributions_count": contributions_count,
+        "editions_count": editions_count,
         "data_gouv_publication_count": data_gouv_publication_count,
     }
 
