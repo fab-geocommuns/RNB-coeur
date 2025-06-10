@@ -37,6 +37,8 @@ class StatsTest(APITestCase):
         # and one edition
         Contribution.objects.create(report=False)
 
+        DiffusionDatabase.objects.create()
+
         # log 2 API request, one is older than 2024
         APIRequestLog.objects.create(requested_at="2023-01-01T00:00:00Z")
         APIRequestLog.objects.create(requested_at="2024-01-02T00:00:00Z")
@@ -55,6 +57,7 @@ class StatsTest(APITestCase):
         self.assertEqual(results["contributions_count"], 1)
         self.assertEqual(results["editions_count"], 1)
         self.assertEqual(results["data_gouv_publication_count"], 11)
+        self.assertEqual(results["diffusion_databases_count"], 1)
 
         # assert the mock was called
         get_mock.assert_called_with("https://www.data.gouv.fr/api/1/datasets/?tag=rnb")
