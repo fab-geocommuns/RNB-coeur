@@ -1,4 +1,5 @@
 import datetime
+import uuid
 
 from django.db.utils import IntegrityError
 from django.test import override_settings
@@ -339,12 +340,15 @@ class TestSplitBuilding(TestCase):
 class TestUniqueRNBIDEventID(TestCase):
 
     def test_unique_rnb_id_event_type(self):
+
+        event_id = uuid.uuid4()
+
         # Create a building with a specific rnb_id and event_type
         building = Building.objects.create(
             rnb_id="UNIQUE123",
             status="constructed",
             event_type="creation",
-            event_id="event-123",
+            event_id=event_id,
             shape="POINT(0 0)",
         )
 
