@@ -1,129 +1,133 @@
-from django.test import TransactionTestCase
-
-from batid.models import Building
-from batid.models import BuildingHistoryOnly
-from batid.models import BuildingWithHistory
-from batid.services.data_fix.fill_empty_event_id import fill_empty_event_id
+# Thoses were used only during the development and execution of the fill_event_id fix
+# They cannot be used in normal situation since they require to disable the write protection set in dbrouters.py
 
 
-class TestMissingEventId(TransactionTestCase):
-    def setUp(self):
+# from django.test import TransactionTestCase
 
-        # The building to fill
+# from batid.models import Building
+# from batid.models import BuildingHistoryOnly
+# from batid.models import BuildingWithHistory
+# from batid.services.data_fix.fill_empty_event_id import fill_empty_event_id
 
-        b = Building.objects.create(
-            rnb_id="one",
-            status="constructed",
-            shape="POINT(1 1)",
-            is_active=True,
-            event_type="creation",
-            event_id=None,  # Missing event_id
-        )
 
-        b.event_type = "update"
-        b.status = "demolished"
-        b.save()
+# class TestMissingEventId(TransactionTestCase):
+#     def setUp(self):
 
-        # Two buildings with merge and split event_type
-        # They must not be fixed by the fill_empty_event_id function
-        # Merge and split are more complex operations concerning multiple buildings
-        # All those buildings should have the same event_id
-        # The fill_empty_event_id function handles buildings one by one
+#         # The building to fill
 
-        Building.objects.create(
-            rnb_id="merge",
-            status="constructed",
-            shape="POINT(1 1)",
-            is_active=True,
-            event_type="merge",
-            event_id=None,  # Missing event_id
-        )
+#         b = Building.objects.create(
+#             rnb_id="one",
+#             status="constructed",
+#             shape="POINT(1 1)",
+#             is_active=True,
+#             event_type="creation",
+#             event_id=None,  # Missing event_id
+#         )
 
-        Building.objects.create(
-            rnb_id="split",
-            status="constructed",
-            shape="POINT(1 1)",
-            is_active=True,
-            event_type="merge",
-            event_id=None,  # Missing event_id
-        )
+#         b.event_type = "update"
+#         b.status = "demolished"
+#         b.save()
 
-    def test_missing_event_id(self):
+#         # Two buildings with merge and split event_type
+#         # They must not be fixed by the fill_empty_event_id function
+#         # Merge and split are more complex operations concerning multiple buildings
+#         # All those buildings should have the same event_id
+#         # The fill_empty_event_id function handles buildings one by one
 
-        # Verify some values before the fix
-        versions_count = BuildingWithHistory.objects.all().count()
-        self.assertEqual(versions_count, 4)
+#         Building.objects.create(
+#             rnb_id="merge",
+#             status="constructed",
+#             shape="POINT(1 1)",
+#             is_active=True,
+#             event_type="merge",
+#             event_id=None,  # Missing event_id
+#         )
 
-        history_row = BuildingHistoryOnly.objects.get(rnb_id="one")
-        self.assertIsNone(history_row.event_id)
-        history_old_updated_at = history_row.updated_at
+#         Building.objects.create(
+#             rnb_id="split",
+#             status="constructed",
+#             shape="POINT(1 1)",
+#             is_active=True,
+#             event_type="merge",
+#             event_id=None,  # Missing event_id
+#         )
 
-        current_row = Building.objects.get(rnb_id="one")
-        self.assertIsNone(current_row.event_id)
-        current_old_updated_at = current_row.updated_at
+#     def test_missing_event_id(self):
 
-        # ###### Trigger the fix ######
-        # Correct the missing event_ids
-        updated_rows = fill_empty_event_id()
-        self.assertEqual(updated_rows, 2)
+#         # Verify some values before the fix
+#         versions_count = BuildingWithHistory.objects.all().count()
+#         self.assertEqual(versions_count, 4)
 
-        # The history trigger should have been disabled. The total number of versions should remain the same
-        versions_count = BuildingWithHistory.objects.all().count()
-        self.assertEqual(versions_count, 4)
+#         history_row = BuildingHistoryOnly.objects.get(rnb_id="one")
+#         self.assertIsNone(history_row.event_id)
+#         history_old_updated_at = history_row.updated_at
 
-        # ##### Check history row #####
+#         current_row = Building.objects.get(rnb_id="one")
+#         self.assertIsNone(current_row.event_id)
+#         current_old_updated_at = current_row.updated_at
 
-        # The past version should now have an event_id
-        history_row.refresh_from_db()
-        self.assertIsNotNone(history_row.event_id)
+#         # ###### Trigger the fix ######
+#         # Correct the missing event_ids
+#         updated_rows = fill_empty_event_id()
+#         self.assertEqual(updated_rows, 2)
 
-        # We want the updated_at value to remain unchanged despite the auto_now=True field setting
-        history_new_updated_at = history_row.updated_at
-        self.assertEqual(history_old_updated_at, history_new_updated_at)
+#         # The history trigger should have been disabled. The total number of versions should remain the same
+#         versions_count = BuildingWithHistory.objects.all().count()
+#         self.assertEqual(versions_count, 4)
 
-        # ##### Check current row #####
+#         # ##### Check history row #####
 
-        # The current version should now have an event_id
-        current_row.refresh_from_db()
-        self.assertIsNotNone(current_row.event_id)
+#         # The past version should now have an event_id
+#         history_row.refresh_from_db()
+#         self.assertIsNotNone(history_row.event_id)
 
-        # We want the updated_at value to remain unchanged despite the auto_now=True field setting
-        current_new_updated_at = current_row.updated_at
-        self.assertEqual(current_old_updated_at, current_new_updated_at)
+#         # We want the updated_at value to remain unchanged despite the auto_now=True field setting
+#         history_new_updated_at = history_row.updated_at
+#         self.assertEqual(history_old_updated_at, history_new_updated_at)
 
-        # ##### Other checks #####
+#         # ##### Check current row #####
 
-        # The merge and split buildings should not have been modified
-        merge_building = Building.objects.get(rnb_id="merge")
-        self.assertIsNone(merge_building.event_id)
-        split_building = Building.objects.get(rnb_id="split")
-        self.assertIsNone(split_building.event_id)
+#         # The current version should now have an event_id
+#         current_row.refresh_from_db()
+#         self.assertIsNotNone(current_row.event_id)
 
-        # Check the trigger is restored
-        current_row.status = "constructed"
-        current_row.save()
+#         # We want the updated_at value to remain unchanged despite the auto_now=True field setting
+#         current_new_updated_at = current_row.updated_at
+#         self.assertEqual(current_old_updated_at, current_new_updated_at)
 
-        bdg_one_rows = BuildingWithHistory.objects.filter(rnb_id="one")
-        self.assertEqual(len(bdg_one_rows), 3)
+#         # ##### Other checks #####
 
-    def test_batch_size(self):
+#         # The merge and split buildings should not have been modified
+#         merge_building = Building.objects.get(rnb_id="merge")
+#         self.assertIsNone(merge_building.event_id)
+#         split_building = Building.objects.get(rnb_id="split")
+#         self.assertIsNone(split_building.event_id)
 
-        history_row = BuildingHistoryOnly.objects.get(rnb_id="one")
-        self.assertIsNone(history_row.event_id)
+#         # Check the trigger is restored
+#         current_row.status = "constructed"
+#         current_row.save()
 
-        current_row = Building.objects.get(rnb_id="one")
-        self.assertIsNone(current_row.event_id)
+#         bdg_one_rows = BuildingWithHistory.objects.filter(rnb_id="one")
+#         self.assertEqual(len(bdg_one_rows), 3)
 
-        updated_rows = fill_empty_event_id(batch_size=1)
-        self.assertEqual(updated_rows, 1)
+#     def test_batch_size(self):
 
-        # We updated only one row
-        # The script starts with the history rows
-        # So the history row should have an event_id now
-        history_row.refresh_from_db()
-        self.assertIsNotNone(history_row.event_id)
+#         history_row = BuildingHistoryOnly.objects.get(rnb_id="one")
+#         self.assertIsNone(history_row.event_id)
 
-        # The current row should still have no event_id
-        # since the batch size was 1
-        current_row.refresh_from_db()
-        self.assertIsNone(current_row.event_id)
+#         current_row = Building.objects.get(rnb_id="one")
+#         self.assertIsNone(current_row.event_id)
+
+#         updated_rows = fill_empty_event_id(batch_size=1)
+#         self.assertEqual(updated_rows, 1)
+
+#         # We updated only one row
+#         # The script starts with the history rows
+#         # So the history row should have an event_id now
+#         history_row.refresh_from_db()
+#         self.assertIsNotNone(history_row.event_id)
+
+#         # The current row should still have no event_id
+#         # since the batch size was 1
+#         current_row.refresh_from_db()
+#         self.assertIsNone(current_row.event_id)
