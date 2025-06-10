@@ -1944,7 +1944,7 @@ def get_stats(request):
     api_calls_since_2024_count = APIRequestLog.objects.filter(
         requested_at__gte="2024-01-01T00:00:00Z"
     ).count()
-    contributions_count = Contribution.objects.filter(report=True).count()
+    reports_count = Contribution.objects.filter(report=True).count()
     editions_count = Contribution.objects.filter(report=False).count()
     data_gouv_publication_count = get_data_gouv_publication_count()
     diffusion_databases_count = DiffusionDatabase.objects.count()
