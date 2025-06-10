@@ -366,6 +366,11 @@ def fill_empty_event_id(batch_size) -> int:
         updated_rows = fill_empty_event_id(batch_size=batch_size)
         print(f"Updated {updated_rows} rows")
         total += updated_rows
+
+        print("-------------")
+        print(f"Updated {updated_rows} rows")
+        print("Total so far: ", total)
+
         if updated_rows == 0:
             break
 
@@ -382,8 +387,12 @@ def fill_empty_event_type(batch_size: int) -> int:
         # Fill empty event_type in batches of 50_000 rows
         # If no rows are updated, we can stop
         updated_rows = fill_empty_event_type(batch_size=batch_size)
-        print(f"Updated {updated_rows} rows")
         total += updated_rows
+
+        print("-------------")
+        print(f"Updated {updated_rows} rows")
+        print("Total so far: ", total)
+
         if updated_rows == 0:
             break
 
