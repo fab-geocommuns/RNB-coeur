@@ -334,3 +334,21 @@ class TestSplitBuilding(TestCase):
                 self.user,
                 event_origin,
             )
+
+
+class TestUniqueRNBIDEventType(TestCase):
+    def test_unique_rnb_id_event_type(self):
+        # create a building with a specific rnb_id and event_type
+        b1 = Building.objects.create(
+            rnb_id="unique_rnb_id",
+            event_type="creation",
+            shape="POINT(0 0)",
+        )
+
+        # try to create another building with the same rnb_id and event_type
+        with self.assertRaises(IntegrityError):
+            Building.objects.create(
+                rnb_id="unique_rnb_id",
+                event_type="creation",
+                shape="POINT(1 1)",
+            )
