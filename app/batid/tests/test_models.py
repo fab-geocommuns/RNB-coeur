@@ -336,19 +336,25 @@ class TestSplitBuilding(TestCase):
             )
 
 
-class TestUniqueRNBIDEventType(TestCase):
+class TestUniqueRNBIDEventID(TestCase):
+
     def test_unique_rnb_id_event_type(self):
-        # create a building with a specific rnb_id and event_type
-        b1 = Building.objects.create(
-            rnb_id="unique_rnb_id",
+        # Create a building with a specific rnb_id and event_type
+        building = Building.objects.create(
+            rnb_id="UNIQUE123",
+            status="constructed",
             event_type="creation",
+            event_id="event-123",
             shape="POINT(0 0)",
         )
 
-        # try to create another building with the same rnb_id and event_type
+        # Modify once to create the first history entry
+        building.event_type = "update"
+        building.status = "demolished"
+        building.save()
+
+        # Attempt to update the building and let the event_id unchanged
         with self.assertRaises(IntegrityError):
-            Building.objects.create(
-                rnb_id="unique_rnb_id",
-                event_type="creation",
-                shape="POINT(1 1)",
-            )
+            building.event_type = "update"
+            building.status = "constructed"
+            building.save()
