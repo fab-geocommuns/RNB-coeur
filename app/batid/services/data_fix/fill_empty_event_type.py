@@ -29,14 +29,13 @@ def fill_empty_event_type(batch_size: int = 50_000) -> int:
 
         for row in rows:
 
-            print(f"Processing row: {row.rnb_id}")
-            print(row.created_at, row.sys_period.lower)
-
             if not isinstance(row, BuildingHistoryOnly):
 
                 raise TypeError(
                     f"Expected BuildingHistoryOnly instance got {type(row)}"
                 )
+
+            row.event_type = "creation"
 
         updated_rows += BuildingHistoryOnly.objects.bulk_update(rows, ["event_type"])
 

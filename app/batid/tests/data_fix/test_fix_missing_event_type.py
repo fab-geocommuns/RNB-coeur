@@ -45,7 +45,7 @@ class TestFix(TestCase):
         self.assertIsNone(rows[0].event_type)
         self.assertIsInstance(rows[0], BuildingHistoryOnly)
 
-    def fix(self):
+    def test_fix(self):
 
         updated_rows = fill_empty_event_type(10)
 
