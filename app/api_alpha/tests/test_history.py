@@ -83,4 +83,9 @@ class SimpleHistoryTest(APITestCase):
         data = r.json()
 
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(data, [])
+        self.assertEqual(data["rnb_id"], self.rnb_id)
+
+    def test_empty_results(self):
+
+        # todo: empty list or 404 ?
+        pass

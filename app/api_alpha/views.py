@@ -27,6 +27,7 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.utils.dateparse import parse_datetime
 from django.utils.http import urlsafe_base64_decode
+from batid.services.bdg_history import get_history_rows
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
@@ -67,6 +68,7 @@ from api_alpha.serializers import BuildingCreateSerializer
 from api_alpha.serializers import BuildingMergeSerializer
 from api_alpha.serializers import BuildingPlotSerializer
 from api_alpha.serializers import BuildingSerializer
+from api_alpha.serializers import BuildingHistorySerializer
 from api_alpha.serializers import BuildingSplitSerializer
 from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
@@ -1233,7 +1235,11 @@ class SingleBuildingHistory(APIView):
 
     def get(self, request, rnb_id, event_id):
 
-        return Response([])
+        rows = get_history_rows(rnb_id=rnb_id, event_id=event_id)
+
+        serializer = BuildingHistorySerializer(rows[0])
+
+        return Response(serializer.data)
 
 
 class SingleBuilding(APIView):

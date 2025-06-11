@@ -19,6 +19,7 @@ from api_alpha.validators import BdgInADSValidator
 from batid.models import Address
 from batid.models import ADS
 from batid.models import Building
+from batid.models import BuildingWithHistory
 from batid.models import BuildingADS
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
@@ -75,6 +76,26 @@ class ExtIdSerializer(serializers.Serializer):
     source = serializers.CharField(help_text="bdnb")
     created_at = serializers.DateTimeField(help_text="2023-12-07T13:20:58.310444+00:00")
     source_version = serializers.CharField(help_text="2023_01")
+
+
+class BuildingHistorySerializer(serializers.Serializer):
+    rnb_id = RNBIdField()
+    # point = serializers.DictField(
+    #     source="point_geojson",
+    #     read_only=True,
+    # )
+    # shape = serializers.DictField(
+    #     source="shape_geojson",
+    #     read_only=True,
+    # )
+    # addresses = AddressSerializer(
+    #     many=True, read_only=True, source="addresses_read_only"
+    # )
+    # ext_ids = ExtIdSerializer(many=True, read_only=True)
+
+    class Meta:
+        # No model specified, this is a plain Serializer, not a ModelSerializer
+        fields = ["rnb_id"]
 
 
 class BuildingSerializer(serializers.ModelSerializer):
