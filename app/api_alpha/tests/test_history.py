@@ -76,7 +76,7 @@ class SimpleHistoryTest(APITestCase):
         self.client.credentials()
 
         bdg = Building.objects.get(rnb_id=self.rnb_id)
-        updated_at = bdg.updated_at
+        updated_at = bdg.sys_period.lower
 
         r = self.client.get(
             f"/api/alpha/buildings/{self.rnb_id}/history/{bdg.event_id}/"
