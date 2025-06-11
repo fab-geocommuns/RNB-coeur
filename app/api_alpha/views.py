@@ -1237,8 +1237,6 @@ class SingleBuildingHistory(APIView):
 
         rows = get_history_rows(rnb_id=rnb_id, event_id=event_id)
 
-        print(rows[0])
-
         serializer = BuildingHistorySerializer(rows[0])
 
         return Response(serializer.data)

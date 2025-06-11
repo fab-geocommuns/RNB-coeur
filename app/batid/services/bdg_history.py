@@ -11,7 +11,10 @@ def get_history_rows(rnb_id: str = None, event_id: str = None) -> QuerySet:
     q = """
     SELECT 
     rnb_id, 
-    ST_AsGeoJSON(shape)::json AS shape
+    ST_AsGeoJSON(shape)::json AS shape,
+    status,
+    ext_ids::json as ext_ids,
+    updated_at
     FROM batid_building_with_history
     WHERE 1=1
     """

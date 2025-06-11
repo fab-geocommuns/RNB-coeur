@@ -76,6 +76,7 @@ class SimpleHistoryTest(APITestCase):
         self.client.credentials()
 
         bdg = Building.objects.get(rnb_id=self.rnb_id)
+        updated_at = bdg.updated_at
 
         r = self.client.get(
             f"/api/alpha/buildings/{self.rnb_id}/history/{bdg.event_id}/"
@@ -83,20 +84,26 @@ class SimpleHistoryTest(APITestCase):
         data = r.json()
 
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(data["rnb_id"], self.rnb_id)
+
         self.assertDictEqual(
-            data["shape"],
+            data,
             {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [1.36536097, 48.7328557],
-                        [1.365308684, 48.732734997],
-                        [1.365708095, 48.732659317],
-                        [1.365760382, 48.732775231],
-                        [1.36536097, 48.7328557],
-                    ]
-                ],
+                "rnb_id": self.rnb_id,
+                "shape": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [1.36536097, 48.7328557],
+                            [1.365308684, 48.732734997],
+                            [1.365708095, 48.732659317],
+                            [1.365760382, 48.732775231],
+                            [1.36536097, 48.7328557],
+                        ]
+                    ],
+                },
+                "status": "constructed",
+                "ext_ids": [],
+                "updated_at": updated_at.isoformat().replace("+00:00", "Z"),
             },
         )
 

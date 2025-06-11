@@ -80,7 +80,10 @@ class ExtIdSerializer(serializers.Serializer):
 
 class BuildingHistorySerializer(serializers.Serializer):
     rnb_id = RNBIdField()
-    shape = serializers.JSONField(read_only=True)
+    shape = serializers.JSONField()
+    status = serializers.CharField()
+    ext_ids = serializers.JSONField()
+    updated_at = serializers.DateTimeField()
 
     # addresses = AddressSerializer(
     #     many=True, read_only=True, source="addresses_read_only"
