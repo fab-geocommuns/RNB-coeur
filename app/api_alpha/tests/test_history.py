@@ -84,6 +84,30 @@ class SimpleHistoryTest(APITestCase):
 
         self.assertEqual(r.status_code, 200)
         self.assertEqual(data["rnb_id"], self.rnb_id)
+        self.assertDictEqual(
+            data["shape"],
+            {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [1.36536097, 48.7328557],
+                        [1.365308684, 48.732734997],
+                        [1.365708095, 48.732659317],
+                        [1.365760382, 48.732775231],
+                        [1.36536097, 48.7328557],
+                    ]
+                ],
+            },
+        )
+
+    def test_many_history_rows(self):
+
+        # test rnb_id parameter
+        # test event_id parameter
+        # test both together
+        # verify the order
+
+        pass
 
     def test_empty_results(self):
 

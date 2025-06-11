@@ -80,14 +80,8 @@ class ExtIdSerializer(serializers.Serializer):
 
 class BuildingHistorySerializer(serializers.Serializer):
     rnb_id = RNBIdField()
-    # point = serializers.DictField(
-    #     source="point_geojson",
-    #     read_only=True,
-    # )
-    # shape = serializers.DictField(
-    #     source="shape_geojson",
-    #     read_only=True,
-    # )
+    shape = serializers.JSONField(read_only=True)
+
     # addresses = AddressSerializer(
     #     many=True, read_only=True, source="addresses_read_only"
     # )

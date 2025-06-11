@@ -9,7 +9,10 @@ from batid.models import BuildingWithHistory
 def get_history_rows(rnb_id: str = None, event_id: str = None) -> QuerySet:
 
     q = """
-    SELECT rnb_id FROM batid_building_with_history
+    SELECT 
+    rnb_id, 
+    ST_AsGeoJSON(shape)::json AS shape
+    FROM batid_building_with_history
     WHERE 1=1
     """
     params = {}
