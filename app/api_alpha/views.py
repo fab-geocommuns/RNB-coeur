@@ -1229,6 +1229,13 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
+class SingleBuildingHistory(APIView):
+
+    def get(self, request, rnb_id, event_id):
+
+        return Response([])
+
+
 class SingleBuilding(APIView):
     permission_classes = [ReadOnly | RNBContributorPermission]
 
