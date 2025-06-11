@@ -53,8 +53,8 @@ from batid.utils.auth import make_random_password
 
 
 @shared_task
-def test_all() -> str:
-    print("test_all")
+def test() -> str:
+    print("test")
     return "done"
 
 

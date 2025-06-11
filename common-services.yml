@@ -37,8 +37,6 @@ services:
     volumes:
       - ./app:/app
     depends_on:
-      rabbitmq:
-        condition: service_healthy
       redis:
         condition: service_healthy
     container_name: web
@@ -66,8 +64,6 @@ services:
       - ./app:/app
       - ./source_data:/data/downloads
     depends_on:
-      rabbitmq:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -82,22 +78,10 @@ services:
     volumes:
       - ./app:/app
     depends_on:
-      rabbitmq:
-        condition: service_healthy
       redis:
         condition: service_healthy
     container_name: celery_beat
     restart: unless-stopped
-
-  rabbitmq:
-    restart: unless-stopped
-    image: rabbitmq:4.1-alpine
-    healthcheck:
-      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
-      interval: 15s
-      retries: 5
-      start_period: 20s
-      timeout: 5s
 
   redis:
     image: redis:latest

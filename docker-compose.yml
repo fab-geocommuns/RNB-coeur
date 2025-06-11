@@ -81,14 +81,6 @@ services:
       db:
         condition: service_healthy
 
-  rabbitmq:
-    extends:
-      file: common-services.yml
-      service: rabbitmq
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
-
   redis:
     extends:
       file: common-services.yml
