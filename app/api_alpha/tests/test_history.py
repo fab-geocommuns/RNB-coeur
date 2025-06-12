@@ -16,6 +16,7 @@ class SimpleHistoryTest(APITestCase):
         super().__init__(*args, **kwargs)
 
         self.rnb_id = None
+        self.user_id = None
 
     def setUp(self):
 
@@ -23,6 +24,7 @@ class SimpleHistoryTest(APITestCase):
         user = User.objects.create_user(
             first_name="Julie", last_name="Sigiste", username="ju_sig"
         )
+        self.user_id = user.id
 
         # She is working in this org
         org = Organization.objects.create(name="Mairie de Dreux")
@@ -86,7 +88,7 @@ class SimpleHistoryTest(APITestCase):
         data = r.json()
         self.rnb_id = data["rnb_id"]
 
-    def test_one_history(self):
+    def test_bdg_history(self):
 
         # Remove Julie from client credentials
         # The endpoint is public
@@ -95,15 +97,17 @@ class SimpleHistoryTest(APITestCase):
         bdg = Building.objects.get(rnb_id=self.rnb_id)
         updated_at = bdg.sys_period.lower
 
-        r = self.client.get(
-            f"/api/alpha/buildings/{self.rnb_id}/history/{bdg.event_id}/"
-        )
+        r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
         data = r.json()
 
         self.assertEqual(r.status_code, 200)
 
+        self.assertEqual(len(data), 1)
+
+        self.maxDiff = None
+
         self.assertDictEqual(
-            data,
+            data[0],
             {
                 "rnb_id": self.rnb_id,
                 "is_active": True,
@@ -142,6 +146,26 @@ class SimpleHistoryTest(APITestCase):
                     },
                 ],
                 "status": "constructed",
+                "event": {
+                    "id": str(bdg.event_id),
+                    "type": "creation",
+                    "details": None,
+                    "author": {
+                        "id": self.user_id,
+                        "first_name": "Julie",
+                        "last_name": "S.",
+                        "organizations_names": ["Mairie de Dreux"],
+                    },
+                    "origin": {
+                        "type": "contribution",
+                        "details": {
+                            "is_report": False,
+                            "posted_on": self.rnb_id,
+                            "report_text": "nouveau bâtiment",
+                            "review_comment": None,
+                        },
+                    },
+                },
                 "ext_ids": [],
                 "updated_at": updated_at.isoformat().replace("+00:00", "Z"),
             },

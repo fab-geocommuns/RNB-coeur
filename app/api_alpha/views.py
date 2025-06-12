@@ -28,7 +28,7 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.utils.dateparse import parse_datetime
 from django.utils.http import urlsafe_base64_decode
-from batid.services.bdg_history import get_history_rows
+from batid.services.bdg_history import get_bdg_history
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
@@ -1232,15 +1232,13 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
-class SingleBuildingHistory(APIView):
+class BuildingHistory(APIView):
 
-    def get(self, request, rnb_id, event_id):
+    def get(self, request, rnb_id):
 
-        rows = get_history_rows(rnb_id=rnb_id, event_id=event_id)
+        rows = get_bdg_history(rnb_id=rnb_id)
 
-        pprint(rows[0], indent=2)
-
-        serializer = BuildingHistorySerializer(rows[0])
+        serializer = BuildingHistorySerializer(rows, many=True)
 
         return Response(serializer.data)
 

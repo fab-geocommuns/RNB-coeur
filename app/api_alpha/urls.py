@@ -30,7 +30,7 @@ from api_alpha.views import RequestPasswordReset
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SingleBuilding
 from api_alpha.views import SplitBuildings
-from api_alpha.views import SingleBuildingHistory
+from api_alpha.views import BuildingHistory
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
@@ -59,8 +59,8 @@ urlpatterns = [
         SplitBuildings.as_view(),
     ),
     path(
-        "buildings/<str:rnb_id>/history/<str:event_id>/",
-        SingleBuildingHistory.as_view(),
+        "buildings/<str:rnb_id>/history/",
+        BuildingHistory.as_view(),
     ),
     re_path(
         r"buildings/(?P<rnb_id>[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4})/",

@@ -100,7 +100,7 @@ class BuildingHistorySerializer(serializers.Serializer):
     is_active = serializers.BooleanField()
     shape = serializers.JSONField()
     status = serializers.CharField()
-
+    event = serializers.JSONField()
     ext_ids = ExtIdSerializer(many=True)
     updated_at = serializers.DateTimeField()
     addresses = PlainAddressSerializer(many=True, read_only=True)
