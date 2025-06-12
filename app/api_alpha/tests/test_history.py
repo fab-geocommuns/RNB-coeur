@@ -1,17 +1,17 @@
 import json
 
-from django.contrib.auth.models import User
 from django.contrib.auth.models import Group
-
-from rest_framework.test import APITestCase
+from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
+from rest_framework.test import APITestCase
 
-from batid.models import Building, Organization, Address
 from api_alpha.permissions import RNBContributorPermission
+from batid.models import Address
+from batid.models import Building
+from batid.models import Organization
 
 
 class SimpleHistoryTest(APITestCase):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
