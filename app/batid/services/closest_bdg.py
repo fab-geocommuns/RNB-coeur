@@ -16,11 +16,7 @@ def get_closest_from_poly(poly: Polygon, radius) -> Optional[QuerySet]:
     qs = __get_real_bdg_qs()
 
     qs = (
-        qs.extra(
-            where=[
-                f"ST_DWITHIN(shape::geography, ST_GeomFromText('{poly.wkt}', 4326)::geography, {radius})"
-            ]
-        )
+        qs.filter(shape__dwithin=(poly, radius))
         .annotate(distance=Distance("shape", poly))
         .order_by("distance")
     )
@@ -43,11 +39,11 @@ def __get_qs(lat, lng, radius):
 
     point_geom = Point(lng, lat, srid=4326)
 
+    where_sql = "ST_DWithin(shape::geography, ST_MakePoint(%s, %s)::geography, %s)"
+
     qs = (
-        qs.extra(
-            where=[
-                f"ST_DWITHIN(shape::geography, ST_MakePoint({lng}, {lat})::geography, {radius})"
-            ]
+        qs.extra(  # nosec B610: params are properly escaped. Better yet: use filter
+            where=[where_sql], params=[lng, lat, radius]
         )
         .annotate(distance=Distance("shape", point_geom))
         .order_by("distance")
