@@ -46,6 +46,23 @@ class ContributionSerializer(serializers.ModelSerializer):
         fields = ["rnb_id", "text", "email"]
 
 
+class PlainAddressSerializer(serializers.Serializer):
+    """
+    Serializer for address data, used in the BuildingWithHistorySerializer.
+    It is not a ModelSerializer, but a plain Serializer.
+    The fields must be a copy of the AddressSerializer fields.
+    """
+
+    id = serializers.CharField()
+    source = serializers.CharField()
+    street_number = serializers.CharField()
+    street_rep = serializers.CharField()
+    street = serializers.CharField()
+    city_name = serializers.CharField()
+    city_zipcode = serializers.CharField()
+    city_insee_code = serializers.CharField()
+
+
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
@@ -80,19 +97,13 @@ class ExtIdSerializer(serializers.Serializer):
 
 class BuildingHistorySerializer(serializers.Serializer):
     rnb_id = RNBIdField()
+    is_active = serializers.BooleanField()
     shape = serializers.JSONField()
     status = serializers.CharField()
-    ext_ids = serializers.JSONField()
+
+    ext_ids = ExtIdSerializer(many=True)
     updated_at = serializers.DateTimeField()
-
-    # addresses = AddressSerializer(
-    #     many=True, read_only=True, source="addresses_read_only"
-    # )
-    # ext_ids = ExtIdSerializer(many=True, read_only=True)
-
-    class Meta:
-        # No model specified, this is a plain Serializer, not a ModelSerializer
-        fields = ["rnb_id"]
+    addresses = PlainAddressSerializer(many=True, read_only=True)
 
 
 class BuildingSerializer(serializers.ModelSerializer):

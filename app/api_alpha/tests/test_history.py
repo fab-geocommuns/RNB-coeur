@@ -37,8 +37,25 @@ class SimpleHistoryTest(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
         # We need some addresses
-        Address.objects.create(id="cle_interop_1")
-        Address.objects.create(id="cle_interop_2")
+        Address.objects.create(
+            id="cle_interop_1",
+            source="source1",
+            street_number="1",
+            street="Rue de la Paix",
+            city_name="Paris",
+            city_zipcode="75001",
+            city_insee_code="75056",
+        )
+        Address.objects.create(
+            id="cle_interop_2",
+            source="source2",
+            street_number="2",
+            street_rep="bis",
+            street="Rue de la Paix",
+            city_name="Paris",
+            city_zipcode="75001",
+            city_insee_code="75056",
+        )
 
         # She creates a building
         data = {
@@ -89,6 +106,7 @@ class SimpleHistoryTest(APITestCase):
             data,
             {
                 "rnb_id": self.rnb_id,
+                "is_active": True,
                 "shape": {
                     "type": "Polygon",
                     "coordinates": [
@@ -101,6 +119,28 @@ class SimpleHistoryTest(APITestCase):
                         ]
                     ],
                 },
+                "addresses": [
+                    {
+                        "id": "cle_interop_1",
+                        "source": "source1",
+                        "street_number": "1",
+                        "street_rep": None,
+                        "street": "Rue de la Paix",
+                        "city_name": "Paris",
+                        "city_zipcode": "75001",
+                        "city_insee_code": "75056",
+                    },
+                    {
+                        "id": "cle_interop_2",
+                        "source": "source2",
+                        "street_number": "2",
+                        "street_rep": "bis",
+                        "street": "Rue de la Paix",
+                        "city_name": "Paris",
+                        "city_zipcode": "75001",
+                        "city_insee_code": "75056",
+                    },
+                ],
                 "status": "constructed",
                 "ext_ids": [],
                 "updated_at": updated_at.isoformat().replace("+00:00", "Z"),
@@ -119,4 +159,8 @@ class SimpleHistoryTest(APITestCase):
     def test_empty_results(self):
 
         # todo: empty list or 404 ?
+        pass
+
+    def test_pagination(self):
+
         pass

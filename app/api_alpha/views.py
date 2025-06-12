@@ -7,6 +7,7 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 from typing import Any
+from pprint import pprint
 
 import requests
 import yaml
@@ -1236,6 +1237,8 @@ class SingleBuildingHistory(APIView):
     def get(self, request, rnb_id, event_id):
 
         rows = get_history_rows(rnb_id=rnb_id, event_id=event_id)
+
+        pprint(rows[0], indent=2)
 
         serializer = BuildingHistorySerializer(rows[0])
 
