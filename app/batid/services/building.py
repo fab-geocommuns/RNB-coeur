@@ -4,6 +4,7 @@ from datetime import timezone
 from django.conf import settings
 from django.core.serializers import serialize
 from django.db import connection
+from psycopg2 import sql
 from psycopg2.extras import RealDictCursor
 
 from batid.models import Building
@@ -27,10 +28,12 @@ def remove_light_bdgs(dpt):
 
     print(f"########## REMOVE LIGHT BDGS in DPT {dpt} ##########")
 
-    q = (
-        f"SELECT id FROM {Building._meta.db_table} WHERE "
+    q = sql.SQL(
+        "SELECT id FROM {building} WHERE "
         "ST_DWithin(shape, ST_GeomFromText(%(light_shape)s, %(db_srid)s), 0) AND "
         "ST_Equals(shape, ST_GeomFromText(%(light_shape)s, %(db_srid)s))"
+    ).format(
+        building=sql.Identifier(Building._meta.db_table),
     )
 
     ids = []
@@ -63,7 +66,9 @@ def _remove(ids, conn):
     if len(ids) > 0:
         print(f"##############################")
         print(f"Remove {len(ids)}")
-        del_q = f"DELETE FROM {Building._meta.db_table} WHERE id in %(ids)s"
+        del_q = sql.SQL("DELETE FROM {building} WHERE id in %(ids)s").format(
+            building=sql.Identifier(Building._meta.db_table),
+        )
         params = {"ids": tuple(ids)}
         with conn.cursor() as cur:
             cur.execute(del_q, params)

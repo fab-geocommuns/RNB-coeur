@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
@@ -54,7 +55,7 @@ if DEBUG:
 
     NOTEBOOK_ARGUMENTS = [
         "--ip",
-        "0.0.0.0",
+        "0.0.0.0",  # nosec B104
         "--allow-root",
         "--no-browser",
     ]  # see https://stackoverflow.com/a/47063057/1892308
