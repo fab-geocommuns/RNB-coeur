@@ -97,7 +97,7 @@ def export_format() -> list:
         "ads_bdg.operation, u.id AS user_id, u.username, u.email "
         "FROM {ads} AS ads "
         "LEFT JOIN {bdg} AS ads_bdg ON ads.id = ads_bdg.ads_id "
-        "LEFT JOIN {usr} AS u ON u.id = u.creator_id "
+        "LEFT JOIN {usr} AS u ON u.id = ads.creator_id "
         "ORDER BY ads.id DESC"
     ).format(
         ads=sql.Identifier(ADS._meta.db_table),
