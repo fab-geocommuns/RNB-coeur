@@ -61,7 +61,6 @@ services:
       service: rabbitmq
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-    env_file: []
 
   redis:
     extends:

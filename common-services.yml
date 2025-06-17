@@ -92,8 +92,6 @@ services:
   rabbitmq:
     restart: unless-stopped
     image: rabbitmq:4.1-alpine
-    env_file:
-      - ./.env.rabbitmq
     healthcheck:
       test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
       interval: 15s
