@@ -98,7 +98,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "batid.middleware.BlockIPMiddleware",
+    "batid.middlewares.BlockIPMiddleware",
     "batid.middlewares.SimpleRequestLoggerMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
