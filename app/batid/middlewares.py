@@ -23,6 +23,8 @@ class BlockIPMiddleware:
         # Get client IP
         ip = request.META.get("REMOTE_ADDR")
 
+        print(f"Client IP: {ip}")
+
         if ip in getattr(settings, "BLOCKED_IPS", []):
             return HttpResponseForbidden("🚫 Access Denied: Your IP is blocked.")
 
