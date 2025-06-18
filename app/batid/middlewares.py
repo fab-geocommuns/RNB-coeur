@@ -4,6 +4,8 @@ import logging
 from django.conf import settings
 from django.http import HttpResponseForbidden
 
+from batid.services.request import get_client_ip
+
 
 class SimpleRequestLoggerMiddleware:
     def __init__(self, get_response):
@@ -21,7 +23,7 @@ class BlockIPMiddleware:
 
     def __call__(self, request):
         # Get client IP
-        ip = request.META.get("REMOTE_ADDR")
+        ip = get_client_ip(request)
 
         print(f"Client IP: {ip}")
 
