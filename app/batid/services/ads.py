@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
+from psycopg2 import sql
 
 from batid.models import ADS
 from batid.models import BuildingADS
@@ -76,7 +77,7 @@ def get_cities(rnb_ids: list, geojson_geometries: list[GEOSGeometry]) -> list:
 
     q = (
         "SELECT c.id, c.code_insee, c.name FROM batid_city as c "
-        f"WHERE {wheres_str} "
+        f"WHERE {wheres_str} "  # nosec B608: Each where is safe
         "ORDER BY c.code_insee"
     )
 
@@ -91,12 +92,17 @@ class CsvDictWriter:
 
 def export_format() -> list:
 
-    q = (
-        "SELECT ads.*, ads_bdg.rnb_id, ST_AsText(ads_bdg.shape) as shape, ads_bdg.operation, u.id as user_id, u.username, u.email "
-        f"FROM {ADS._meta.db_table} as ads "
-        f"left join {BuildingADS._meta.db_table} as ads_bdg on ads.id = ads_bdg.ads_id "
-        f"left join {User._meta.db_table} as u on u.id = ads.creator_id "
-        "order by id desc"
+    q = sql.SQL(
+        "SELECT ads.*, ads_bdg.rnb_id, ST_AsText(ads_bdg.shape) AS shape, "
+        "ads_bdg.operation, u.id AS user_id, u.username, u.email "
+        "FROM {ads} AS ads "
+        "LEFT JOIN {bdg} AS ads_bdg ON ads.id = ads_bdg.ads_id "
+        "LEFT JOIN {usr} AS u ON u.id = ads.creator_id "
+        "ORDER BY ads.id DESC"
+    ).format(
+        ads=sql.Identifier(ADS._meta.db_table),
+        bdg=sql.Identifier(BuildingADS._meta.db_table),
+        usr=sql.Identifier(User._meta.db_table),
     )
 
     with connection.cursor() as cursor:
