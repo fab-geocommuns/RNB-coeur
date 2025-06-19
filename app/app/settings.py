@@ -177,7 +177,10 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.ScopedRateThrottle",
     ],
-    "DEFAULT_THROTTLE_RATES": {"change_password": "10/day"},
+    "DEFAULT_THROTTLE_RATES": {
+        "change_password": "10/day",
+        "create_user": "10/day",
+    },
 }
 
 

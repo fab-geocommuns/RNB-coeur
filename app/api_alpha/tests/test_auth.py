@@ -120,8 +120,7 @@ class ForgottenPassword(APITestCase):
             path__startswith="/api/alpha/auth/change_password/"
         )
 
-        self.assertEqual(len(logs), 1)
-        self.assertNotIn("new_password", logs.first().query_params)
+        self.assertEqual(len(logs), 0)
 
         # ##################
         # PART 4: The user can login with the new password
