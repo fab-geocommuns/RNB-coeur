@@ -8,9 +8,17 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
 
         start = time.perf_counter()
-        c = fill_empty_event_id(1000)
+        c = fill_empty_event_id(5000)
         end = time.perf_counter()
-        print(f"Time taken: {end - start:.2f} seconds")
+        duration = end - start
+        print(f"Time taken: {duration:.2f} seconds")
         print(f"Updated {c} rows with empty event_id")
 
-        pass
+        duration_per_row = duration / c if c > 0 else 0
+        objective = 40_000_000
+        estimated_seconds = (objective / c) * duration if c > 0 else float("inf")
+        estimated_hours = estimated_seconds / 3600
+        estimated_days = estimated_hours / 24
+        print(
+            f"Estimated time to complete {objective} rows: {estimated_hours:.2f} hours ({estimated_days:.2f} days)"
+        )
