@@ -1,4 +1,5 @@
 import time
+
 from django.core.management.base import BaseCommand
 
 from batid.services.data_fix.fill_empty_event_id import fill_empty_event_id
