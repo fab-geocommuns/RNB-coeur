@@ -1944,8 +1944,10 @@ def get_stats(request):
     api_calls_since_2024_count = APIRequestLog.objects.filter(
         requested_at__gte="2024-01-01T00:00:00Z"
     ).count()
-    contributions_count = Contribution.objects.count()
+    reports_count = Contribution.objects.filter(report=True).count()
+    editions_count = Contribution.objects.filter(report=False).count()
     data_gouv_publication_count = get_data_gouv_publication_count()
+    diffusion_databases_count = DiffusionDatabase.objects.count()
 
     # Get the cached value of the building count
     bdg_count_kpi = get_kpi_most_recent(KPI_ACTIVE_BUILDINGS_COUNT)
@@ -1953,8 +1955,10 @@ def get_stats(request):
     data = {
         "building_counts": bdg_count_kpi.value,
         "api_calls_since_2024_count": api_calls_since_2024_count,
-        "contributions_count": contributions_count,
+        "reports_count": reports_count,
+        "editions_count": editions_count,
         "data_gouv_publication_count": data_gouv_publication_count,
+        "diffusion_databases_count": diffusion_databases_count,
     }
 
     renderer = JSONRenderer()
