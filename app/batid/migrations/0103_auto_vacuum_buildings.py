@@ -42,7 +42,4 @@ class Migration(migrations.Migration):
                 ),
             ],
         ),
-        migrations.RemoveIndex(
-            name="batid_building_event_id_82b1dcb8", model_name="building"
-        ),
     ]
