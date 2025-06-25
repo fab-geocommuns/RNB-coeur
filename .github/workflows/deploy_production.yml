@@ -3,6 +3,10 @@ on:
     push:
         branches:
             - main
+
+permissions:
+  contents: read
+
 jobs:
     deployment:
         name: Deployment on production & sandbox servers

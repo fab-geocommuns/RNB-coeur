@@ -2,6 +2,9 @@ name: Deploy application on staging server
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
     deployment:
         name: Deployment on staging server
