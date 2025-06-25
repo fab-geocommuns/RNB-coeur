@@ -25,7 +25,6 @@ class BlockIPMiddleware:
         # Get client IP
         ip = get_client_ip(request)
 
-        print(f"Client IP: {ip}")
 
         if ip in getattr(settings, "BLOCKED_IPS", []):
             return HttpResponseForbidden("🚫 Access Denied: Your IP is blocked.")
