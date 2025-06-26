@@ -54,7 +54,7 @@ if DEBUG:
 
     NOTEBOOK_ARGUMENTS = [
         "--ip",
-        "0.0.0.0",
+        "0.0.0.0",  # nosec B104
         "--allow-root",
         "--no-browser",
     ]  # see https://stackoverflow.com/a/47063057/1892308

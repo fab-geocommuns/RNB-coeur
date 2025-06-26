@@ -58,7 +58,7 @@ class BuildingGuess:
             # ON THIS SIDE OF THE ROAD SCORE
             # We give more score (2 points) when point comes from OSM than from query
             # todo : if we have both point and address, we should use the same cluster for both
-            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(osm_point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(osm_point)s) ASC LIMIT 1"
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(osm_point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(osm_point)s) ASC LIMIT 1"  # nosec B608: meta.db_table is safe
             self.scores[
                 "osm_point_plot_cluster"
             ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
@@ -94,7 +94,7 @@ class BuildingGuess:
             # ON THIS SIDE OF THE ROAD SCORE
             # We give more score (2 points) when point comes from BAN than from query
             # todo : if we have both point and address, we should use the same cluster for both
-            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(ban_point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(ban_point)s) ASC LIMIT 1"
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(ban_point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(ban_point)s) ASC LIMIT 1"  # nosec B608: meta.db_table is safe
             self.scores[
                 "ban_point_plot_cluster"
             ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 2 ELSE 0 END"
@@ -117,7 +117,7 @@ class BuildingGuess:
             # Points tend to be on the right side of the road. We can filter out buildings that are on the other side of the road.
             # Public roads are not in cadastre plots. By grouping contiguous plots we can recreate simili-roads and keep only buildings intersecting this plot group.
             # todo : it might be interesting to pre-calculate cluster and store them in DB. It would be faster.
-            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(point)s) ASC LIMIT 1"
+            cluster_q = f"SELECT c.cluster FROM (SELECT ST_UnaryUnion(unnest(ST_ClusterIntersecting(shape))) as cluster FROM {Plot._meta.db_table} WHERE ST_DWithin(shape::geography, %(point)s::geography, 300)) c ORDER BY ST_DistanceSphere(c.cluster, %(point)s) ASC LIMIT 1"  # nosec B608: meta.db_table is safe
             self.scores[
                 "point_plot_cluster"
             ] = f"CASE WHEN ST_Intersects(shape, ({cluster_q})) THEN 1 ELSE 0 END"
@@ -215,15 +215,20 @@ class BuildingGuess:
         # ######################
         # Assembling the queries
 
+        # FIXME: we want to get rid of this endpoint. It's hard to reason about and we don't want to invest rewriting it.
+        # As it is reading it safe directly is hard, but:
+        #  - each query param is whitelisted before usage
+        #  - we use parameters to build the query
+        # It's still very brittle, and we should get rid of it.
         score_query = (
-            f"SELECT {select_str} {score_cases_str} "
+            f"SELECT {select_str} {score_cases_str} "  # nosec B608
             f"FROM {Building._meta.db_table} as b {joins_str} "
             f"{where_str} {group_by_str} {order_str}"
         )
 
         global_query = (
-            f"WITH scored_bdgs AS ({score_query}) "
-            f"SELECT *  {scores_sum} {subscores_obj} "
+            f"WITH scored_bdgs AS ({score_query}) "  # nosec B608
+            f"SELECT * {scores_sum} {subscores_obj} "
             f"FROM scored_bdgs "
             "ORDER BY score DESC "
             f"{pagination_str}"
