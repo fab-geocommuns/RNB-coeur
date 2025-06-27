@@ -64,6 +64,7 @@ from api_alpha.serializers import BuildingAddressQuerySerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingCreateSerializer
+from api_alpha.serializers import BuildingHistorySerializer
 from api_alpha.serializers import BuildingMergeSerializer
 from api_alpha.serializers import BuildingPlotSerializer
 from api_alpha.serializers import BuildingSerializer
@@ -97,6 +98,7 @@ from batid.models import Building
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
+from batid.services.bdg_history import get_bdg_history
 from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
@@ -1227,6 +1229,16 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
 
         serializer = BuildingSerializer(new_buildings, with_plots=False, many=True)
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
+
+
+class BuildingHistory(APIView):
+    def get(self, request, rnb_id):
+
+        rows = get_bdg_history(rnb_id=rnb_id)
+
+        serializer = BuildingHistorySerializer(rows, many=True)
+
+        return Response(serializer.data)
 
 
 class SingleBuilding(APIView):
