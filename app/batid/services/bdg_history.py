@@ -130,7 +130,7 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
 	    			'status', bdg.status,
 	    			'shape', bdg.shape,
 	    			'ext_ids', bdg.ext_ids,
-	    			'addresses_id', bdg.addresses_id	
+	    			'addresses_id', bdg.addresses_id
                 )
 	    	)
 
@@ -181,7 +181,7 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
 		AND lower(prev.sys_period) < lower(bdg.sys_period)
 		ORDER BY lower(prev.sys_period) DESC
 		LIMIT 1
-	) AS prev_data ON TRUE 
+	) AS prev_data ON TRUE
     WHERE bdg.rnb_id = %(rnb_id)s
     ORDER BY lower(sys_period) DESC
     """

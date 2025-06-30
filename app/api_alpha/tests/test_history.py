@@ -1,5 +1,4 @@
 import json
-from pprint import pprint
 
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User

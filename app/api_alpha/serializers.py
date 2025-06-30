@@ -95,7 +95,6 @@ class ExtIdSerializer(serializers.Serializer):
 
 
 class BuildingEventSerializer(serializers.Serializer):
-
     def to_representation(self, instance):
 
         if (
