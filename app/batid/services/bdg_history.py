@@ -1,5 +1,5 @@
-from django.db.models.query import QuerySet
 from django.db import connection
+from django.db.models.query import QuerySet
 
 from batid.utils.db import dictfetchall
 
@@ -7,8 +7,8 @@ from batid.utils.db import dictfetchall
 def get_bdg_history(rnb_id: str) -> QuerySet:
 
     q = """
-    SELECT 
-    bdg.rnb_id, 
+    SELECT
+    bdg.rnb_id,
     bdg.is_active,
     ST_AsGeoJSON(bdg.shape)::json AS shape,
     bdg.status,
@@ -27,16 +27,16 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
                 'city_name', adr.city_name,
                 'city_zipcode', adr.city_zipcode,
                 'city_insee_code', adr.city_insee_code
-            ) 
+            )
         ), '[]'::json)
-        FROM public.batid_address AS adr 
-        WHERE adr.id = ANY(bdg.addresses_id) 
+        FROM public.batid_address AS adr
+        WHERE adr.id = ANY(bdg.addresses_id)
     ) as addresses,
 
     -----------------------
     -----------------------
     -- The big hairy 'event' part
-    -- 'event' is a custom object built in the query since the source data is located in multiple tables 
+    -- 'event' is a custom object built in the query since the source data is located in multiple tables
     -- and has different format depending on the event type and origin
 
     json_build_object(
@@ -45,14 +45,14 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
 
         ----------------------
         -- The event author
-    	'author', 
-    	case 
+    	'author',
+    	case
     		when u.id is not null
 	    	then json_build_object(
     			'id', u.id,
                 'username', u.username,
     			'first_name', u.first_name,
-    			'last_name', 
+    			'last_name',
 	    		case
 	    			when u.last_name is not null and u.last_name <> ''
 	    			then substring(u.last_name, 1, 1) || '.' else null
@@ -70,18 +70,18 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
         -- The event origin
         -- is it a contribution, an import, a data fix, etc.
 
-	    'origin', 
+	    'origin',
 	    json_build_object(
 	    	'type', bdg.event_origin ->> 'source',
-	    	'id', 
+	    	'id',
 	    	case
 	    		when bdg.event_origin ->> 'source' = 'contribution'
 	    		then (bdg.event_origin ->> 'contribution_id')::bigint
 	    		else (bdg.event_origin ->> 'id')::bigint
 	    	end,
 	    	'details',
-	    	case 
-	    		WHEN bdg.event_origin ->> 'source' = 'import' 
+	    	case
+	    		WHEN bdg.event_origin ->> 'source' = 'import'
 	    		then (
 	    			select json_build_object
 	    			(
@@ -96,7 +96,7 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
 	    		)
 	    		when bdg.event_origin ->> 'source' = 'contribution'
 	    		then (
-	    			select json_build_object 
+	    			select json_build_object
 	    			(
 	    				'is_report', con.report,
 	    				'report_text', con.text,
@@ -105,7 +105,7 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
 	    			) from batid_contribution as con where con.id = (bdg.event_origin ->> 'contribution_id')::bigint
 	    		)
 	    		else null
-	    		
+
 	    	end
 	    ),
 
@@ -152,7 +152,7 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
 	        	)
 				 FROM batid_building_with_history AS mc
 				 WHERE mc.event_id = bdg.event_id AND mc.is_active
-				 LIMIT 1 
+				 LIMIT 1
 			)
 
             -- The row is a split child
@@ -169,7 +169,7 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
 	    		'split_children', (select coalesce(json_agg(sc.rnb_id), '[]'::json) from batid_building_with_history sc where sc.is_active and sc.event_id = bdg.event_id)
 	    	)
 	    end
-	    
+
     ) as event
     FROM batid_building_with_history as bdg
     left join auth_user as u on bdg.event_user_id  = u.id

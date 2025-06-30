@@ -19,7 +19,6 @@ from api_alpha.validators import BdgInADSValidator
 from batid.models import Address
 from batid.models import ADS
 from batid.models import Building
-from batid.models import BuildingWithHistory
 from batid.models import BuildingADS
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
