@@ -1,4 +1,5 @@
 import json
+from pprint import pprint
 
 from django.contrib.auth.models import User
 from django.contrib.auth.models import Group
@@ -90,8 +91,8 @@ class SimpleHistoryTest(APITestCase):
 
     def test_bdg_history(self):
 
-        # Remove Julie from client credentials
-        # The endpoint is public
+        # The history endpoint is public, we have to check it works without credentials
+        # We, remove Julie from client credentials
         self.client.credentials()
 
         bdg = Building.objects.get(rnb_id=self.rnb_id)
@@ -103,8 +104,6 @@ class SimpleHistoryTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         self.assertEqual(len(data), 1)
-
-        self.maxDiff = None
 
         self.assertDictEqual(
             data[0],
@@ -155,6 +154,7 @@ class SimpleHistoryTest(APITestCase):
                         "first_name": "Julie",
                         "last_name": "S.",
                         "organizations_names": ["Mairie de Dreux"],
+                        "username": "ju_sig",
                     },
                     "origin": {
                         "type": "contribution",
@@ -164,6 +164,7 @@ class SimpleHistoryTest(APITestCase):
                             "report_text": "nouveau bâtiment",
                             "review_comment": None,
                         },
+                        "id": 1,
                     },
                 },
                 "ext_ids": [],
@@ -171,20 +172,70 @@ class SimpleHistoryTest(APITestCase):
             },
         )
 
-    def test_many_history_rows(self):
+    def test_update(self):
 
-        # test rnb_id parameter
-        # test event_id parameter
-        # test both together
-        # verify the order
+        # We update the building with a new status and a new shape
+        data = {
+            "status": "demolished",
+            "shape": json.dumps(
+                {
+                    "coordinates": [
+                        [
+                            [1.3653609702393795, 48.732855700163356],
+                            [1.365308683629877, 48.73273499650409],
+                            [1.3657080952289675, 48.73265931707786],
+                            [1.3657603818384416, 48.73277523108939],
+                            [1.3653609702393795, 48.732855700163356],
+                        ]
+                    ],
+                    "type": "Polygon",
+                }
+            ),
+        }
+        self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        # We now verify the history endpoint
+        r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
+
+        data = r.json()
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(data), 2)
+
+        # Verify the order of the history
+        self.assertEqual(data[0]["event"]["type"], "update")
+        self.assertEqual(data[1]["event"]["type"], "creation")
+
+        # Verify the updated_fields
+        self.assertEqual(
+            data[0]["event"]["details"]["updated_fields"],
+            ["status", "shape"],
+        )
+
+    def test_merge(self):
+
+        pass
+
+    def test_split(self):
+
+        pass
+
+    def test_contribution(self):
+
+        pass
+
+    def test_import(self):
+
+        pass
+
+    def test_data_fix(self):
 
         pass
 
     def test_empty_results(self):
 
         # todo: empty list or 404 ?
-        pass
-
-    def test_pagination(self):
-
         pass

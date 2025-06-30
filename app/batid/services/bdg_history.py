@@ -116,9 +116,22 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
 	    'details',
 	    case
             -- The row is a an update
+			-- We attach previous and current versions of the building to calculate the diff
+            -- The diff is done by Python in the serializer
 	    	when bdg.event_type = 'update'
 	    	then json_build_object(
-	    		'updated_fields', json_build_array('dummy', 'todo', 'to_calculate')
+	    		'previous_version', json_build_object(
+	    			'status', prev_data.status,
+	    			'shape', prev_data.shape,
+	    			'ext_ids', prev_data.ext_ids,
+	    			'addresses_id', prev_data.addresses_id
+	    		),
+                'current_version', json_build_object(
+	    			'status', bdg.status,
+	    			'shape', bdg.shape,
+	    			'ext_ids', bdg.ext_ids,
+	    			'addresses_id', bdg.addresses_id	
+                )
 	    	)
 
             -- The row is a merge child
@@ -158,10 +171,17 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
 	    end
 	    
     ) as event
-
-
     FROM batid_building_with_history as bdg
     left join auth_user as u on bdg.event_user_id  = u.id
+    LEFT JOIN LATERAL (
+		SELECT
+			prev.rnb_id, prev.status, prev.shape, prev.ext_ids, prev.addresses_id
+		FROM batid_building_with_history AS prev
+		WHERE prev.rnb_id = bdg.rnb_id
+		AND lower(prev.sys_period) < lower(bdg.sys_period)
+		ORDER BY lower(prev.sys_period) DESC
+		LIMIT 1
+	) AS prev_data ON TRUE 
     WHERE bdg.rnb_id = %(rnb_id)s
     ORDER BY lower(sys_period) DESC
     """

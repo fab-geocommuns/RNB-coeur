@@ -95,12 +95,49 @@ class ExtIdSerializer(serializers.Serializer):
     source_version = serializers.CharField(help_text="2023_01")
 
 
+class BuildingEventSerializer(serializers.Serializer):
+
+    def to_representation(self, instance):
+
+        if (
+            instance["type"] == "update"
+            and "previous_version" in instance["details"]
+            and "current_version" in instance["details"]
+        ):
+
+            updated_fields = []
+
+            previous = instance["details"]["previous_version"]
+            current = instance["details"]["current_version"]
+
+            if previous.get("status") != current.get("status"):
+                updated_fields.append("status")
+
+            if previous.get("shape") != current.get("shape"):
+                updated_fields.append("shape")
+
+            if previous.get("ext_ids") != current.get("ext_ids"):
+                updated_fields.append("ext_ids")
+
+            if set(previous.get("addresses_id")) != set(current.get("addresses_id")):
+                updated_fields.append("addresses_id")
+
+            instance["details"]["updated_fields"] = updated_fields
+
+            # remove the previous_version and current_version fields
+            del instance["details"]["previous_version"]
+            del instance["details"]["current_version"]
+
+        return instance
+
+
 class BuildingHistorySerializer(serializers.Serializer):
     rnb_id = RNBIdField()
     is_active = serializers.BooleanField()
     shape = serializers.JSONField()
     status = serializers.CharField()
-    event = serializers.JSONField()
+    # event = serializers.JSONField()
+    event = BuildingEventSerializer()
     ext_ids = ExtIdSerializer(many=True)
     updated_at = serializers.DateTimeField()
     addresses = PlainAddressSerializer(many=True, read_only=True)
