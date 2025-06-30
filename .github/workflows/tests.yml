@@ -2,7 +2,7 @@ name: tests
 
 on:
   pull_request:
-    branches: [main]
+    branches: [the_import,main]
 
 jobs:
   pytest:
@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: [3.13]
+        python: [3.12]
     steps:
       - uses: actions/checkout@v3
       - name: Build & run docker
