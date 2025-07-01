@@ -912,102 +912,112 @@ class SummerChallenge(models.Model):
 
     @staticmethod
     def get_areas(point):
-        return (SummerChallenge.get_city(point), SummerChallenge.get_dpt(point))
+        if point:
+            return (SummerChallenge.get_city(point), SummerChallenge.get_dpt(point))
+        else:
+            return (None, None)
 
     @staticmethod
     def score_address(user, point, rnb_id, event_id):
-        (city, dpt) = SummerChallenge.get_areas(point)
-        sc = SummerChallenge(
-            score=3,
-            user=user,
-            action="update_address",
-            city=city,
-            department=dpt,
-            rnb_id=rnb_id,
-            event_id=event_id,
-        )
-        sc.save()
+        if user:
+            (city, dpt) = SummerChallenge.get_areas(point)
+            sc = SummerChallenge(
+                score=3,
+                user=user,
+                action="update_address",
+                city=city,
+                department=dpt,
+                rnb_id=rnb_id,
+                event_id=event_id,
+            )
+            sc.save()
 
     @staticmethod
     def score_creation(user, point, rnb_id, event_id):
-        (city, dpt) = SummerChallenge.get_areas(point)
-        sc = SummerChallenge(
-            score=2,
-            user=user,
-            action="creation",
-            city=city,
-            department=dpt,
-            rnb_id=rnb_id,
-            event_id=event_id,
-        )
-        sc.save()
+        if user:
+            (city, dpt) = SummerChallenge.get_areas(point)
+            sc = SummerChallenge(
+                score=2,
+                user=user,
+                action="creation",
+                city=city,
+                department=dpt,
+                rnb_id=rnb_id,
+                event_id=event_id,
+            )
+            sc.save()
 
     @staticmethod
     def score_shape(user, point, rnb_id, event_id):
-        (city, dpt) = SummerChallenge.get_areas(point)
-        sc = SummerChallenge(
-            score=1,
-            user=user,
-            action="update_shape",
-            city=city,
-            department=dpt,
-            rnb_id=rnb_id,
-            event_id=event_id,
-        )
-        sc.save()
+        if user:
+            (city, dpt) = SummerChallenge.get_areas(point)
+            sc = SummerChallenge(
+                score=1,
+                user=user,
+                action="update_shape",
+                city=city,
+                department=dpt,
+                rnb_id=rnb_id,
+                event_id=event_id,
+            )
+            sc.save()
 
     @staticmethod
     def score_status(user, point, rnb_id, event_id):
-        (city, dpt) = SummerChallenge.get_areas(point)
-        sc = SummerChallenge(
-            score=1,
-            user=user,
-            action="update_status",
-            city=city,
-            department=dpt,
-            rnb_id=rnb_id,
-            event_id=event_id,
-        )
-        sc.save()
+        if user:
+            (city, dpt) = SummerChallenge.get_areas(point)
+            sc = SummerChallenge(
+                score=1,
+                user=user,
+                action="update_status",
+                city=city,
+                department=dpt,
+                rnb_id=rnb_id,
+                event_id=event_id,
+            )
+            sc.save()
 
     @staticmethod
     def score_deactivation(user, point, rnb_id, event_id):
-        (city, dpt) = SummerChallenge.get_areas(point)
-        sc = SummerChallenge(
-            score=1,
-            user=user,
-            action="deactivation",
-            city=city,
-            department=dpt,
-            rnb_id=rnb_id,
-            event_id=event_id,
-        )
-        sc.save()
+        if user:
+            (city, dpt) = SummerChallenge.get_areas(point)
+            sc = SummerChallenge(
+                score=1,
+                user=user,
+                action="deactivation",
+                city=city,
+                department=dpt,
+                rnb_id=rnb_id,
+                event_id=event_id,
+            )
+            sc.save()
 
     @staticmethod
     def score_split(user, point, rnb_id, event_id):
-        (city, dpt) = SummerChallenge.get_areas(point)
-        sc = SummerChallenge(
-            score=1,
-            user=user,
-            action="split",
-            city=city,
-            department=dpt,
-            rnb_id=rnb_id,
-            event_id=event_id,
-        )
-        sc.save()
+        if user:
+            (city, dpt) = SummerChallenge.get_areas(point)
+            sc = SummerChallenge(
+                score=1,
+                user=user,
+                action="split",
+                city=city,
+                department=dpt,
+                rnb_id=rnb_id,
+                event_id=event_id,
+            )
+            sc.save()
 
     @staticmethod
     def score_merge(user, point, rnb_id, event_id):
-        (city, dpt) = SummerChallenge.get_areas(point)
-        sc = SummerChallenge(
-            score=1,
-            user=user,
-            action="merge",
-            city=city,
-            department=dpt,
-            rnb_id=rnb_id,
-            event_id=event_id,
-        )
-        sc.save()
+        if user:
+            (city, dpt) = SummerChallenge.get_areas(point)
+            sc = SummerChallenge(
+                score=1,
+                user=user,
+                action="merge",
+                city=city,
+                department=dpt,
+                rnb_id=rnb_id,
+                event_id=event_id,
+            )
+            sc.save()
