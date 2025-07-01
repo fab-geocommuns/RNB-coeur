@@ -19,6 +19,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.db import transaction
+from django.db.models import Sum
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.http import QueryDict
@@ -97,6 +98,7 @@ from batid.models import Building
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
+from batid.models import SummerChallenge
 from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
@@ -2197,6 +2199,79 @@ def city_ranking():
         cursor.execute(rawSql)
         results = cursor.fetchall()
         return results
+
+
+def summer_challenge_targeted_score():
+    return 2000
+
+
+def summer_challenge_global_score():
+    global_score = SummerChallenge.objects.aggregate(score=Sum("score"))
+    return global_score["score"]
+
+
+def summer_challenge_leaderboard(max_rank):
+    global_score = summer_challenge_global_score()
+
+    individual_ranking = (
+        SummerChallenge.objects.values_list("user__username")
+        .annotate(score=Sum("score"))
+        .order_by("-score")[:max_rank]
+    )
+    individual_ranking = [list(row) for row in individual_ranking]
+
+    city_ranking = (
+        SummerChallenge.objects.exclude(city__isnull=True)
+        .values_list("city__code_insee", "city__name")
+        .annotate(score=Sum("score"))
+        .order_by("-score")[:max_rank]
+    )
+    city_ranking = [list(row) for row in city_ranking]
+
+    departement = (
+        SummerChallenge.objects.exclude(department__isnull=True)
+        .values_list("department__code", "department__name")
+        .annotate(score=Sum("score"))
+        .order_by("-score")[:max_rank]
+    )
+    departement_ranking = [list(row) for row in departement]
+
+    return {
+        "goal": summer_challenge_targeted_score(),
+        "global": global_score,
+        "individual": individual_ranking,
+        "city": city_ranking,
+        "departement": departement_ranking,
+    }
+
+
+def get_summer_challenge_leaderboard(request):
+    max_rank = int(request.GET.get("max_rank", 5))
+    leaderboard = summer_challenge_leaderboard(max_rank)
+    return JsonResponse(leaderboard)
+
+
+def get_summer_challenge_user_score(request, user_id):
+    global_score = summer_challenge_global_score()
+    individual_ranking = (
+        SummerChallenge.objects.values("user__id")
+        .annotate(score=Sum("score"))
+        .order_by("-score")
+    )
+
+    user_index, user_info = next(
+        (i, x)
+        for i, x in enumerate(individual_ranking)
+        if x["user__id"] == int(user_id)
+    )
+
+    data = {
+        "goal": summer_challenge_targeted_score(),
+        "global": global_score,
+        "user_score": user_info["score"],
+        "user_rank": user_index + 1,
+    }
+    return JsonResponse(data)
 
 
 @extend_schema(exclude=True)
