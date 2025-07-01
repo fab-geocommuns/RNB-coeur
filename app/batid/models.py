@@ -161,6 +161,10 @@ class Building(BuildingAbstract):
             self.event_origin = event_origin
             self.save()
 
+            SummerChallenge.score_deactivation(
+                user, self.point, self.rnb_id, self.event_id
+            )
+
             except_for_this_contribution = get_contribution_id_from_event_origin(
                 event_origin
             )
@@ -193,6 +197,7 @@ class Building(BuildingAbstract):
                 f"Cannot reactivate RNB ID : {self.rnb_id}. Can only reactivate a previously deactivated RNB ID."
             )
 
+    @transaction.atomic
     def update(
         self,
         user: User | None,
@@ -223,12 +228,9 @@ class Building(BuildingAbstract):
         self.event_user = user
         self.event_origin = event_origin
 
-        if addresses_id is not None:
-            Address.add_addresses_to_db_if_needed(addresses_id)
-            self.addresses_id = addresses_id
-
         if status is not None:
             self.status = status
+            SummerChallenge.score_status(user, self.point, self.rnb_id, self.event_id)
 
         if ext_ids is not None:
             self.ext_ids = ext_ids
@@ -236,6 +238,19 @@ class Building(BuildingAbstract):
         if shape is not None:
             self.shape = shape
             self.point = shape.point_on_surface
+            # Summer Challenge!
+            SummerChallenge.score_shape(user, self.point, self.rnb_id, self.event_id)
+
+        if addresses_id is not None:
+            Address.add_addresses_to_db_if_needed(addresses_id)
+
+            # Summer Challenge!
+            if self.addresses_id != addresses_id:
+                SummerChallenge.score_address(
+                    user, self.point, self.rnb_id, self.event_id
+                )
+
+            self.addresses_id = addresses_id
 
         self.save()
 
@@ -285,6 +300,7 @@ class Building(BuildingAbstract):
         return new_ext_ids
 
     @staticmethod
+    @transaction.atomic
     def create_new(
         user: User | None,
         event_origin: dict | None,
@@ -305,18 +321,26 @@ class Building(BuildingAbstract):
         assert_shape_is_valid(shape)
 
         point = shape if shape.geom_type == "Point" else shape.point_on_surface
+        rnb_id = generate_rnb_id()
+        event_id = uuid.uuid4()
 
-        if addresses_id is not None:
+        # Summer Challenge!
+        SummerChallenge.score_creation(user, point, rnb_id, event_id)
+
+        if addresses_id is not None and len(addresses_id) > 0:
             Address.add_addresses_to_db_if_needed(addresses_id)
 
+            # Summer Challenge!
+            SummerChallenge.score_address(user, point, rnb_id, event_id)
+
         return Building.objects.create(
-            rnb_id=generate_rnb_id(),
+            rnb_id=rnb_id,
             point=point,
             shape=shape,
             ext_ids=ext_ids,
             event_origin=event_origin,
             status=status,
-            event_id=uuid.uuid4(),
+            event_id=event_id,
             event_type="creation",
             event_user=user,
             is_active=True,
@@ -386,6 +410,8 @@ class Building(BuildingAbstract):
         building.ext_ids = merged_ext_ids
         building.save()
 
+        SummerChallenge.score_merge(user, building.point, building.rnb_id, event_id)
+
         return building
 
     @transaction.atomic
@@ -451,6 +477,8 @@ class Building(BuildingAbstract):
             child_buildings.append(
                 create_child_building(status, addresses_cle_interop, shape)
             )
+
+        SummerChallenge.score_split(user, self.point, self.rnb_id, event_id)
 
         return child_buildings
 
@@ -846,3 +874,140 @@ class KPI(models.Model):
     class Meta:
         ordering = ["value_date"]
         unique_together = ("name", "value_date")
+
+
+class SummerChallenge(models.Model):
+    score = models.IntegerField(null=False)
+    user = models.ForeignKey(User, on_delete=models.PROTECT, null=False, db_index=True)
+    rnb_id = models.CharField(max_length=12, null=False, db_index=True)
+
+    ACTIONS = [
+        "update_address",
+        "update_shape",
+        "update_status",
+        "creation",
+        "merge",
+        "split",
+        "deactivation",
+    ]
+    action = models.CharField(
+        choices=[(e, e) for e in ACTIONS], max_length=14, null=False, db_index=True
+    )
+    city = models.ForeignKey(City, on_delete=models.PROTECT, null=True, db_index=True)
+    department = models.ForeignKey(
+        Department, on_delete=models.PROTECT, null=True, db_index=True
+    )
+    event_id = models.UUIDField(null=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @staticmethod
+    def get_dpt(point):
+        d = Department_subdivided.objects.filter(shape__intersects=point).first()
+        return Department.objects.filter(code=d.code).first() if d else None
+
+    @staticmethod
+    def get_city(point):
+        return City.objects.filter(shape__intersects=point).first()
+
+    @staticmethod
+    def get_areas(point):
+        return (SummerChallenge.get_city(point), SummerChallenge.get_dpt(point))
+
+    @staticmethod
+    def score_address(user, point, rnb_id, event_id):
+        (city, dpt) = SummerChallenge.get_areas(point)
+        sc = SummerChallenge(
+            score=3,
+            user=user,
+            action="update_address",
+            city=city,
+            department=dpt,
+            rnb_id=rnb_id,
+            event_id=event_id,
+        )
+        sc.save()
+
+    @staticmethod
+    def score_creation(user, point, rnb_id, event_id):
+        (city, dpt) = SummerChallenge.get_areas(point)
+        sc = SummerChallenge(
+            score=2,
+            user=user,
+            action="creation",
+            city=city,
+            department=dpt,
+            rnb_id=rnb_id,
+            event_id=event_id,
+        )
+        sc.save()
+
+    @staticmethod
+    def score_shape(user, point, rnb_id, event_id):
+        (city, dpt) = SummerChallenge.get_areas(point)
+        sc = SummerChallenge(
+            score=1,
+            user=user,
+            action="update_shape",
+            city=city,
+            department=dpt,
+            rnb_id=rnb_id,
+            event_id=event_id,
+        )
+        sc.save()
+
+    @staticmethod
+    def score_status(user, point, rnb_id, event_id):
+        (city, dpt) = SummerChallenge.get_areas(point)
+        sc = SummerChallenge(
+            score=1,
+            user=user,
+            action="update_status",
+            city=city,
+            department=dpt,
+            rnb_id=rnb_id,
+            event_id=event_id,
+        )
+        sc.save()
+
+    @staticmethod
+    def score_deactivation(user, point, rnb_id, event_id):
+        (city, dpt) = SummerChallenge.get_areas(point)
+        sc = SummerChallenge(
+            score=1,
+            user=user,
+            action="deactivation",
+            city=city,
+            department=dpt,
+            rnb_id=rnb_id,
+            event_id=event_id,
+        )
+        sc.save()
+
+    @staticmethod
+    def score_split(user, point, rnb_id, event_id):
+        (city, dpt) = SummerChallenge.get_areas(point)
+        sc = SummerChallenge(
+            score=1,
+            user=user,
+            action="split",
+            city=city,
+            department=dpt,
+            rnb_id=rnb_id,
+            event_id=event_id,
+        )
+        sc.save()
+
+    @staticmethod
+    def score_merge(user, point, rnb_id, event_id):
+        (city, dpt) = SummerChallenge.get_areas(point)
+        sc = SummerChallenge(
+            score=1,
+            user=user,
+            action="merge",
+            city=city,
+            department=dpt,
+            rnb_id=rnb_id,
+            event_id=event_id,
+        )
+        sc.save()
