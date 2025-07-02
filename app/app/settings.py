@@ -140,8 +140,19 @@ DATABASES = {
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD"),
         "HOST": os.environ.get("POSTGRES_HOST"),
         "PORT": os.environ.get("POSTGRES_PORT"),
+        "OPTIONS": {},
     }
 }
+
+POSTGRES_STATEMENT_TIMEOUT = os.environ.get("POSTGRES_STATEMENT_TIMEOUT")
+DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT = os.environ.get(
+    "DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT", "0"
+)
+if POSTGRES_STATEMENT_TIMEOUT:
+    DATABASES["default"]["OPTIONS"][
+        "options"
+    ] = f"-c statement_timeout={POSTGRES_STATEMENT_TIMEOUT}"
+
 
 # any active user part of this group can edit the RNB
 CONTRIBUTORS_GROUP_NAME = "Contributors"
