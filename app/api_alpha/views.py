@@ -2281,6 +2281,8 @@ def create_user_in_sandbox(user_data: dict) -> None:
 
 
 class CreateUserView(APIView):
+    throttle_scope = "create_user"
+
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         request_data = request.data
@@ -2445,7 +2447,7 @@ class ActivateUser(APIView):
             return redirect(f"{site_url}/activation?status=error")
 
 
-class RequestPasswordReset(RNBLoggingMixin, APIView):
+class RequestPasswordReset(APIView):
     def post(self, request):
 
         email = request.data.get("email")
@@ -2478,7 +2480,7 @@ class RequestPasswordReset(RNBLoggingMixin, APIView):
         return Response(None, status=204)
 
 
-class ChangePassword(RNBLoggingMixin, APIView):
+class ChangePassword(APIView):
 
     # About security:
     # This endpoint is used to change the password of a user. It is very sensitive. It should be hardened.

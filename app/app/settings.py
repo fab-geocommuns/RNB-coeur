@@ -54,7 +54,7 @@ if DEBUG:
 
     NOTEBOOK_ARGUMENTS = [
         "--ip",
-        "0.0.0.0",
+        "0.0.0.0",  # nosec B104
         "--allow-root",
         "--no-browser",
     ]  # see https://stackoverflow.com/a/47063057/1892308
@@ -97,6 +97,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "batid.middlewares.BlockIPMiddleware",
     "batid.middlewares.SimpleRequestLoggerMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
@@ -188,7 +189,10 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.ScopedRateThrottle",
     ],
-    "DEFAULT_THROTTLE_RATES": {"change_password": "10/day"},
+    "DEFAULT_THROTTLE_RATES": {
+        "change_password": "10/day",
+        "create_user": "10/day",
+    },
 }
 
 
@@ -282,6 +286,9 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute=0, hour=0, day_of_month="2,16"),
     },
 }
+
+
+BLOCKED_IPS = os.environ.get("BLOCKED_IPS", "").split(",")
 
 # URL of the project
 URL = os.environ.get("URL")

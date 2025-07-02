@@ -63,6 +63,8 @@ services:
     extends:
       file: common-services.yml
       service: rabbitmq
+    env_file:
+      - ./.env.rabbitmq.prod
     volumes:
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
 
