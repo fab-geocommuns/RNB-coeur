@@ -49,3 +49,14 @@ tqdm = "^4.67.1"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.bandit]
+exclude_dirs = ["tests", "notebooks",
+  "batid/services/imports", # Should be added back, but attack vector less likely
+  "batid/services/data_gouv_publication.py",
+  "batid/services/data_fix"
+]
+skips = [
+  "B113", # Lots of requests without timeout to be fixed, but we need to address more important things first
+  "B202" # We do have unsanitized extracts, but from hardcoded sources. It must be fixed, but the attack vector is more intricated
+]

@@ -1,0 +1,26 @@
+name: tests
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  bandit:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python: [3.13]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+      - name: Install Bandit
+        run: pip install bandit
+      - name: Run bandit
+        run: cd app && bandit -r . -c pyproject.toml
