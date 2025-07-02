@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [the_import,main]
 
+permissions:
+  contents: read
+
 jobs:
   pytest:
     runs-on: ${{ matrix.os }}
