@@ -182,7 +182,7 @@ class TestContributionsViews(TestCase):
         self.assertEqual(contribution.review_comment, "faux ! il existe.")
         self.assertEqual(contribution.review_user, self.superuser)
 
-    def test_update_addresses_contribution_403(self):
+    def test_set_addresses_contribution_403(self):
         rnb_id = "1234"
         Building.objects.create(rnb_id=rnb_id)
 
@@ -199,7 +199,7 @@ class TestContributionsViews(TestCase):
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 403)
 
-    def test_update_addresses_contribution(self):
+    def test_set_addresses_contribution(self):
         create_superuser_and_login(self)
 
         rnb_id = "1234"
