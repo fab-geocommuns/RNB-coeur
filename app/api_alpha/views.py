@@ -2034,7 +2034,12 @@ class DiffView(APIView):
                 status=400,
             )
 
+        local_statement_timeout = settings.DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT
         with connection.cursor() as cursor:
+            cursor.execute(
+                "SET statement_timeout = %(statement_timeout)s;",
+                {"statement_timeout": local_statement_timeout},
+            )
             most_recent_modification_query = sql.SQL(
                 """
                 select max(lower(sys_period)) from batid_building_with_history
@@ -2071,6 +2076,10 @@ class DiffView(APIView):
             w = os.fdopen(w, "w")
 
             with connection.cursor() as cursor:
+                cursor.execute(
+                    "SET statement_timeout = %(statement_timeout)s;",
+                    {"statement_timeout": local_statement_timeout},
+                )
                 start_ts = since
                 first_query = True
 
