@@ -882,7 +882,7 @@ class SummerChallenge(models.Model):
     rnb_id = models.CharField(max_length=12, null=False, db_index=True)
 
     ACTIONS = [
-        "update_address",
+        "set_address",
         "update_shape",
         "update_status",
         "creation",
@@ -924,7 +924,7 @@ class SummerChallenge(models.Model):
             sc = SummerChallenge(
                 score=3,
                 user=user,
-                action="update_address",
+                action="set_address",
                 city=city,
                 department=dpt,
                 rnb_id=rnb_id,

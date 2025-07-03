@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
                     "action",
                     models.CharField(
                         choices=[
-                            ("update_address", "update_address"),
+                            ("set_address", "set_address"),
                             ("update_shape", "update_shape"),
                             ("update_status", "update_status"),
                             ("creation", "creation"),

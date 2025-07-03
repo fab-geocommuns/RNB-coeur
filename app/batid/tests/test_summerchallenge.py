@@ -79,7 +79,7 @@ class TestSummerChallenge(TestCase):
     def test_score_address_building_creation(self):
         scores = (
             SummerChallenge.objects.filter(rnb_id=self.building_1.rnb_id)
-            .filter(action="update_address")
+            .filter(action="set_address")
             .all()
         )
         self.assertEqual(len(scores), 1)
@@ -87,7 +87,7 @@ class TestSummerChallenge(TestCase):
         self.assertEqual(score.user, self.user)
         self.assertEqual(score.rnb_id, self.building_1.rnb_id)
         self.assertEqual(score.score, 3)
-        self.assertEqual(score.action, "update_address")
+        self.assertEqual(score.action, "set_address")
         self.assertEqual(score.city, self.city_1)
         self.assertEqual(score.department, self.dpt_1)
         self.assertEqual(score.event_id, self.building_1.event_id)
@@ -199,7 +199,7 @@ class TestSummerChallenge(TestCase):
 
         scores = (
             SummerChallenge.objects.filter(rnb_id=building.rnb_id)
-            .filter(action="update_address")
+            .filter(action="set_address")
             .all()
         )
         self.assertEqual(len(scores), 1)
@@ -207,7 +207,7 @@ class TestSummerChallenge(TestCase):
         self.assertEqual(score.user, self.user)
         self.assertEqual(score.rnb_id, building.rnb_id)
         self.assertEqual(score.score, 3)
-        self.assertEqual(score.action, "update_address")
+        self.assertEqual(score.action, "set_address")
         self.assertEqual(score.city, self.city_1)
         self.assertEqual(score.department, self.dpt_1)
         self.assertEqual(score.event_id, building.event_id)
