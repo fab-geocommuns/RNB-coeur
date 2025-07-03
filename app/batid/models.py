@@ -228,14 +228,14 @@ class Building(BuildingAbstract):
         self.event_user = user
         self.event_origin = event_origin
 
-        if status is not None:
+        if status is not None and self.status != status:
             self.status = status
             SummerChallenge.score_status(user, self.point, self.rnb_id, self.event_id)
 
         if ext_ids is not None:
             self.ext_ids = ext_ids
 
-        if shape is not None:
+        if shape is not None and self.shape != shape:
             self.shape = shape
             self.point = shape.point_on_surface
             # Summer Challenge!
