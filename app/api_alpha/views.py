@@ -41,6 +41,7 @@ from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.decorators import api_view
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
@@ -2245,25 +2246,30 @@ def summer_challenge_leaderboard(max_rank):
     }
 
 
+@api_view(["GET"])
 def get_summer_challenge_leaderboard(request):
     max_rank = int(request.GET.get("max_rank", 5))
     leaderboard = summer_challenge_leaderboard(max_rank)
     return JsonResponse(leaderboard)
 
 
-def get_summer_challenge_user_score(request, user_id):
+@api_view(["GET"])
+def get_summer_challenge_user_score(request, username):
     global_score = summer_challenge_global_score()
     individual_ranking = (
-        SummerChallenge.objects.values("user__id")
+        SummerChallenge.objects.values("user__username")
         .annotate(score=Sum("score"))
         .order_by("-score")
     )
 
-    user_index, user_info = next(
-        (i, x)
-        for i, x in enumerate(individual_ranking)
-        if x["user__id"] == int(user_id)
-    )
+    try:
+        user_index, user_info = next(
+            (i, x)
+            for i, x in enumerate(individual_ranking)
+            if x["user__username"] == username
+        )
+    except StopIteration:
+        raise NotFound()
 
     data = {
         "goal": summer_challenge_targeted_score(),

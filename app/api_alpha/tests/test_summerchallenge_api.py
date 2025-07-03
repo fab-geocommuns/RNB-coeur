@@ -124,7 +124,7 @@ class TestSummerChallengeRanking(APITestCase):
         )
 
         # individual ranking of user_2
-        r = self.client.get(f"/api/alpha/editions/ranking/{user_2.id}/")
+        r = self.client.get(f"/api/alpha/editions/ranking/{user_2.username}/")
         score = r.json()
         self.assertDictEqual(
             score,
@@ -135,3 +135,7 @@ class TestSummerChallengeRanking(APITestCase):
                 "user_rank": 2,
             },
         )
+
+        # individual ranking of non existing user
+        r = self.client.get(f"/api/alpha/editions/ranking/coucou/")
+        self.assertEqual(r.status_code, 404)

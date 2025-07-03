@@ -82,7 +82,7 @@ urlpatterns = [
         "auth/change_password/<str:user_id_b64>/<str:token>", ChangePassword.as_view()
     ),
     path("editions/ranking/", get_summer_challenge_leaderboard),
-    path("editions/ranking/<str:user_id>/", get_summer_challenge_user_score),
+    path("editions/ranking/<str:username>/", get_summer_challenge_user_score),
 ]
 
 
