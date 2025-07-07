@@ -473,10 +473,10 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
 
 class BuildingClosestViewTest(APITestCase):
     def test_closest(self):
-
+        user = User.objects.create_user(username="user")
         # It should be first in the results
         closest_bdg = Building.create_new(
-            user=None,
+            user=user,
             event_origin={"source": "test"},
             status="constructed",
             addresses_id=[],
@@ -502,7 +502,7 @@ class BuildingClosestViewTest(APITestCase):
 
         # It should appear second in the results
         further_bdg = Building.create_new(
-            user=None,
+            user=user,
             event_origin={"source": "test"},
             status="constructed",
             addresses_id=[],
@@ -530,7 +530,7 @@ class BuildingClosestViewTest(APITestCase):
         # They are in range and should appear in the results
         for i in range(20):
             Building.create_new(
-                user=None,
+                user=user,
                 status="constructed",
                 event_origin={"source": "test"},
                 addresses_id=[],
@@ -557,7 +557,7 @@ class BuildingClosestViewTest(APITestCase):
         # One deactivated building, in radius range
         # It should not appear in the results
         deactivated_bdg = Building.create_new(
-            user=None,
+            user=user,
             status="constructed",
             event_origin={"source": "test"},
             addresses_id=[],
@@ -579,12 +579,12 @@ class BuildingClosestViewTest(APITestCase):
                 srid=4326,
             ),
         )
-        deactivated_bdg.deactivate(user=None, event_origin={"source": "test"})
+        deactivated_bdg.deactivate(user=user, event_origin={"source": "test"})
 
         # One demolished building, in radius range
         # It should not appear in the results
         demolished_bdg = Building.create_new(
-            user=None,
+            user=user,
             status="demolished",
             event_origin={"source": "test"},
             addresses_id=[],
@@ -610,7 +610,7 @@ class BuildingClosestViewTest(APITestCase):
         # One building way too far
         # It should not appear in the results
         very_far_bdg = Building.create_new(
-            user=None,
+            user=user,
             status="constructed",
             event_origin={"source": "test"},
             addresses_id=[],
@@ -747,8 +747,10 @@ class BuildingClosestViewTest(APITestCase):
         self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
 
     def test_closes_no_n_plus_1(self):
+        user = User.objects.create_user(username="user")
+
         Building.create_new(
-            user=None,
+            user=user,
             event_origin={"source": "test"},
             status="constructed",
             addresses_id=[],
@@ -772,7 +774,7 @@ class BuildingClosestViewTest(APITestCase):
             ),
         )
         Building.create_new(
-            user=None,
+            user=user,
             event_origin={"source": "test"},
             status="constructed",
             addresses_id=[],
@@ -814,8 +816,10 @@ class BuildingAddressViewTest(APITestCase):
         self.cle_interop_ban_3 = "33522_2620_00023"
         self.address_3 = Address.objects.create(id=self.cle_interop_ban_3)
 
+        user = User.objects.create_user(username="user")
+
         self.building_1 = Building.create_new(
-            user=None,
+            user=user,
             event_origin={"source": "test"},
             status="constructed",
             addresses_id=[self.cle_interop_ban_1, self.cle_interop_ban_2],
@@ -840,7 +844,7 @@ class BuildingAddressViewTest(APITestCase):
         )
 
         self.building_2 = Building.create_new(
-            user=None,
+            user=user,
             event_origin={"source": "test"},
             status="constructed",
             addresses_id=[self.cle_interop_ban_1],
@@ -1311,7 +1315,7 @@ class BuildingPatchTest(APITestCase):
         )
 
         other_building = Building.create_new(
-            user=None,
+            user=self.user,
             status="constructed",
             event_origin="test",
             addresses_id=[],
@@ -2116,6 +2120,8 @@ class BuildingsWithPlots(APITestCase):
     def setUp(self):
         # The two plots are side by side
 
+        user = User.objects.create_user(username="user")
+
         Plot.objects.create(
             id="one",
             shape=GEOSGeometry(
@@ -2166,7 +2172,7 @@ class BuildingsWithPlots(APITestCase):
         )
 
         self.bdg_one = Building.create_new(
-            user=None,
+            user=user,
             event_origin={"dummy": "dummy"},
             status="constructed",
             addresses_id=[],
@@ -2191,7 +2197,7 @@ class BuildingsWithPlots(APITestCase):
         )
 
         self.bdg_two = Building.create_new(
-            user=None,
+            user=user,
             event_origin={"dummy": "dummy"},
             status="constructed",
             addresses_id=[],

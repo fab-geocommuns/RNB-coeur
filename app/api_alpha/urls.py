@@ -19,6 +19,8 @@ from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import DiffView
 from api_alpha.views import get_schema
 from api_alpha.views import get_stats
+from api_alpha.views import get_summer_challenge_leaderboard
+from api_alpha.views import get_summer_challenge_user_score
 from api_alpha.views import get_tile_shape
 from api_alpha.views import GetCurrentUserTokens
 from api_alpha.views import GetUserToken
@@ -79,6 +81,8 @@ urlpatterns = [
     path(
         "auth/change_password/<str:user_id_b64>/<str:token>", ChangePassword.as_view()
     ),
+    path("editions/ranking/", get_summer_challenge_leaderboard),
+    path("editions/ranking/<str:username>/", get_summer_challenge_user_score),
 ]
 
 
