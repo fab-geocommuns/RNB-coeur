@@ -20,7 +20,6 @@ services:
     env_file:
       - ./.env.db_auth.dev
       - ./.env.app.dev
-      - ./.env.worker.dev
       - ./.env.rnb.dev
     build:
       args:

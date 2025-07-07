@@ -2031,7 +2031,12 @@ class DiffView(APIView):
                 status=400,
             )
 
+        local_statement_timeout = settings.DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT
         with connection.cursor() as cursor:
+            cursor.execute(
+                "SET statement_timeout = %(statement_timeout)s;",
+                {"statement_timeout": local_statement_timeout},
+            )
             most_recent_modification_query = sql.SQL(
                 """
                 select max(lower(sys_period)) from batid_building_with_history
@@ -2068,6 +2073,10 @@ class DiffView(APIView):
             w = os.fdopen(w, "w")
 
             with connection.cursor() as cursor:
+                cursor.execute(
+                    "SET statement_timeout = %(statement_timeout)s;",
+                    {"statement_timeout": local_statement_timeout},
+                )
                 start_ts = since
                 first_query = True
 
@@ -2272,6 +2281,8 @@ def create_user_in_sandbox(user_data: dict) -> None:
 
 
 class CreateUserView(APIView):
+    throttle_scope = "create_user"
+
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         request_data = request.data
@@ -2436,7 +2447,7 @@ class ActivateUser(APIView):
             return redirect(f"{site_url}/activation?status=error")
 
 
-class RequestPasswordReset(RNBLoggingMixin, APIView):
+class RequestPasswordReset(APIView):
     def post(self, request):
 
         email = request.data.get("email")
@@ -2469,7 +2480,7 @@ class RequestPasswordReset(RNBLoggingMixin, APIView):
         return Response(None, status=204)
 
 
-class ChangePassword(RNBLoggingMixin, APIView):
+class ChangePassword(APIView):
 
     # About security:
     # This endpoint is used to change the password of a user. It is very sensitive. It should be hardened.

@@ -5,6 +5,7 @@ from unittest.mock import patch
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.test import TestCase
+from django.test import TransactionTestCase
 
 import batid.tests.helpers as helpers
 from batid.exceptions import BANUnknownCleInterop
@@ -15,13 +16,8 @@ from batid.services.imports.import_bal import create_dpt_bal_rnb_links
 from batid.services.imports.import_bal import find_bdg_to_link
 
 
-class BALImport(TestCase):
-    @patch("batid.services.imports.import_bal.Source.find")
-    def test_bal_import(self, source_mock):
-
-        source_mock.return_value = helpers.copy_fixture(
-            "bal_import_test_data.csv", "bal_import_test_data_COPY.csv"
-        )
+class BALImport(TransactionTestCase):
+    def setUp(self):
 
         # Building ONE
 
@@ -43,7 +39,7 @@ class BALImport(TestCase):
             ),
         )
 
-        Building.objects.create(
+        b_one = Building.objects.create(
             rnb_id="ONE",
             addresses_id=["OLD_ON_ONE"],
             status="constructed",
@@ -96,6 +92,15 @@ class BALImport(TestCase):
             ),
         )
 
+    @patch("batid.services.imports.import_bal.Source.find")
+    def test_bal_import(self, source_mock):
+
+        source_mock.return_value = helpers.copy_fixture(
+            "bal_import_test_data.csv", "bal_import_test_data_COPY.csv"
+        )
+
+        old_updated_at = Building.objects.get(rnb_id="ONE").updated_at
+
         # We execute the BAL import
         bulk_launch_uuid = uuid.uuid4()
 
@@ -111,10 +116,15 @@ class BALImport(TestCase):
 
         # We check the buildings
         bdg_one = Building.objects.get(rnb_id="ONE")
+        new_updated_at = bdg_one.updated_at
+
         self.assertListEqual(bdg_one.addresses_id, ["OLD_ON_ONE", "GO_ON_ONE"])
         self.assertDictEqual(
             bdg_one.event_origin, {"source": "import", "id": report.id}
         )
+
+        # We check the updated_at field has changed automatically
+        self.assertNotEqual(old_updated_at, new_updated_at)
 
         bdg_two = Building.objects.get(rnb_id="TWO")
         self.assertListEqual(bdg_two.addresses_id, ["GO_ON_TWO"])
