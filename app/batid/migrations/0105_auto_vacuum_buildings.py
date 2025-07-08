@@ -23,7 +23,7 @@ RESET (autovacuum_vacuum_scale_factor, autovacuum_vacuum_threshold);
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0102_kpi"),
+        ("batid", "0104_summerchallenge"),
     ]
 
     operations = [

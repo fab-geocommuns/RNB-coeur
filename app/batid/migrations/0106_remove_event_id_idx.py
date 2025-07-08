@@ -13,7 +13,7 @@ CREATE INDEX batid_building_event_id_82b1dcb8 ON public.batid_building USING btr
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0103_auto_vacuum_buildings"),
+        ("batid", "0105_auto_vacuum_buildings"),
     ]
 
     operations = [
