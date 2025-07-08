@@ -710,9 +710,9 @@ class BuildingPatchTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
-        self.assertEqual(
-            r.json(),
-            {"detail": "Provided shape is invalid (bad topology or wrong CRS)"},
+        self.assertIn(
+            "La géométrie n'est pas valide",
+            r.json()["detail"],
         )
 
     def test_update_a_building_parameters(self):
@@ -940,18 +940,28 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(c4.status, "pending")
 
     def test_cannot_reactivate_everything(self):
-        with self.assertRaises(Exception) as e:
-            # the building is active
-            self.building.reactivate()
+        self.user.groups.add(self.group)
 
         # now we set the building as if it has been deactivated during a merge
         self.building.event_type = "merge"
         self.building.is_active = False
         self.building.save()
 
-        with self.assertRaises(Exception) as e:
-            # not active, but not deactivated by a "deactivation" event
-            self.building.reactivate()
+        data = {"is_active": True}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json()["detail"],
+            "Cet identifiant n'est pas la version la plus récente du bâtiment et ne peut pas être réactivé",
+        )
+
+        self.building.refresh_from_db()
+        self.assertFalse(self.building.is_active)
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_update_building(self):
@@ -1452,11 +1462,9 @@ class BuildingMergeTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
-        self.assertEqual(
-            r.json(),
-            {
-                "detail": "To merge buildings, their shapes must be contiguous polygons. Consider updating the buildings's shapes first."
-            },
+        self.assertIn(
+            "Pour fusionner des bâtiments, leurs géométries doivent être des polygones contigus. Veuillez d'abord mettre à jour les géométries des bâtiments",
+            r.json()["detail"],
         )
 
         # one building is not enough
@@ -1491,7 +1499,10 @@ class BuildingMergeTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
-        self.assertEqual(r.json(), {"detail": "Cannot merge inactive buildings"})
+        self.assertIn(
+            "Cette opération est impossible sur un ID-RNB inactif",
+            r.json()["detail"],
+        )
 
         # comment is not mandatory
         data = {
