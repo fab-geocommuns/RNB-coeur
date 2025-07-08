@@ -277,7 +277,7 @@ class TestSummerChallenge(TestCase):
         score = scores[0]
         self.assertEqual(score.user, self.user)
         self.assertEqual(score.rnb_id, building.rnb_id)
-        self.assertEqual(score.score, 1)
+        self.assertEqual(score.score, 2)
         self.assertEqual(score.action, "deactivation")
         self.assertEqual(score.city, self.city_1)
         self.assertEqual(score.department, self.dpt_1)

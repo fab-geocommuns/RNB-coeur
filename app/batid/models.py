@@ -982,7 +982,7 @@ class SummerChallenge(models.Model):
         if user:
             (city, dpt) = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=1,
+                score=2,
                 user=user,
                 action="deactivation",
                 city=city,
