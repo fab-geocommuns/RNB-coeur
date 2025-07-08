@@ -1,6 +1,7 @@
 from django.db import connection
 from django.http import HttpResponse
 from rest_framework.views import APIView
+
 from batid.services.vector_tiles import plots_tiles_sql
 from batid.services.vector_tiles import url_params_to_tile
 

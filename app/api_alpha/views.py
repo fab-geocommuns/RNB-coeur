@@ -30,7 +30,6 @@ from django.utils.http import urlsafe_base64_decode
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
-from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.utils import OpenApiResponse
 from psycopg2 import sql
@@ -75,7 +74,6 @@ from api_alpha.serializers import OrganizationSerializer
 from api_alpha.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.parse_boolean import parse_boolean
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_list
 from api_alpha.utils.rnb_doc import rnb_doc
@@ -108,10 +106,6 @@ from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.user import get_user_id_b64
 from batid.services.user import get_user_id_from_b64
-from batid.services.vector_tiles import ads_tiles_sql
-from batid.services.vector_tiles import bdgs_tiles_sql
-from batid.services.vector_tiles import plots_tiles_sql
-from batid.services.vector_tiles import url_params_to_tile
 from batid.tasks import create_sandbox_user
 from batid.utils.auth import make_random_password
 from batid.utils.constants import ADS_GROUP_NAME
