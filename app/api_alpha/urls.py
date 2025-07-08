@@ -24,7 +24,7 @@ from api_alpha.views import get_summer_challenge_user_score
 from api_alpha.views import get_tile_shape
 from api_alpha.views import GetCurrentUserTokens
 from api_alpha.views import GetUserToken
-from api_alpha.views import ListCreateBuildings
+from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.views import MergeBuildings
 from api_alpha.views import OrganizationView
 from api_alpha.views import PlotsVectorTileView
