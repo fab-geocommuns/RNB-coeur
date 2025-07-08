@@ -6,13 +6,11 @@ from rest_framework import routers
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.views import ActivateUser
 from api_alpha.views import AdsTokenView
-from api_alpha.views import ADSVectorTileView
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingAddressView
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
 from api_alpha.views import BuildingPlotView
-from api_alpha.views import BuildingsVectorTileView
 from api_alpha.views import ChangePassword
 from api_alpha.views import ContributionsViewSet
 from api_alpha.views import CreateUserView
@@ -22,16 +20,21 @@ from api_alpha.views import get_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_summer_challenge_leaderboard
 from api_alpha.views import get_summer_challenge_user_score
-from api_alpha.views import get_tile_shape
 from api_alpha.views import GetCurrentUserTokens
 from api_alpha.views import GetUserToken
 from api_alpha.views import MergeBuildings
 from api_alpha.views import OrganizationView
-from api_alpha.views import PlotsVectorTileView
 from api_alpha.views import RequestPasswordReset
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SingleBuilding
 from api_alpha.views import SplitBuildings
+from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
+from api_alpha.endpoints.tiles.plots_vector_tile import PlotsVectorTileView
+from api_alpha.endpoints.tiles.building_vector_tile import (
+    get_tile_shape,
+    BuildingsVectorTileView,
+)
+
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
