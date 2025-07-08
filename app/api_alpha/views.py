@@ -84,13 +84,8 @@ from api_alpha.utils.sandbox_client import SandboxClientError
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
-from batid.exceptions import BuildingTooLarge
-from batid.exceptions import ImpossibleShapeMerge
-from batid.exceptions import InvalidWGS84Geometry
-from batid.exceptions import NotEnoughBuildings
-from batid.exceptions import OperationOnInactiveBuilding
-from batid.exceptions import PlotUnknown
 from batid.exceptions import InvalidOperation
+from batid.exceptions import PlotUnknown
 from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
