@@ -6,6 +6,7 @@ from django.db.utils import IntegrityError
 from django.test import override_settings
 from django.test import TestCase
 
+from batid.exceptions import OperationOnInactiveBuilding
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
@@ -135,7 +136,8 @@ class TestBuilding(TestCase):
         """
         bdg = Building.objects.create(rnb_id="AAA", shape="POINT(0 0)", is_active=False)
         user = User.objects.create_user(username="dummy")
-        bdg.deactivate(user, {"k": "v"})
+        with self.assertRaises(OperationOnInactiveBuilding):
+            bdg.deactivate(user, {"k": "v"})
         bdg.refresh_from_db()
 
         # nothing has changed

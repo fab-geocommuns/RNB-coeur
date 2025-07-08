@@ -277,14 +277,8 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 raise BadRequest(
                     detail="BAN result has not the expected type (must be 'numero')"
                 )
-            except InvalidWGS84Geometry:
-                raise BadRequest(
-                    detail="Provided shape is invalid (bad topology or wrong CRS)"
-                )
-            except BuildingTooLarge:
-                raise BadRequest(
-                    detail="Building area too large. Maximum allowed: 500000m²"
-                )
+            except InvalidOperation as e:
+                raise BadRequest(detail=e.api_message_with_details())
 
             # update the contribution now that the rnb_id is known
             contribution.rnb_id = created_building.rnb_id

@@ -23,6 +23,7 @@ from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
 from batid.exceptions import NotEnoughBuildings
 from batid.exceptions import OperationOnInactiveBuilding
+from batid.exceptions import ReactivationNotAllowed
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
@@ -173,7 +174,9 @@ class Building(BuildingAbstract):
                 user, event_id, except_for_this_contribution
             )
         else:
-            print(f"Cannot deactivate an inactive building: {self.rnb_id}")
+            raise OperationOnInactiveBuilding(
+                f"Cannot deactivate an inactive building: {self.rnb_id}"
+            )
 
     @transaction.atomic
     def reactivate(self, user: User, event_origin):
@@ -193,9 +196,7 @@ class Building(BuildingAbstract):
 
             self._reset_linked_contributions(user, previous_event_id)
         else:
-            print(
-                f"Cannot reactivate RNB ID : {self.rnb_id}. Can only reactivate a previously deactivated RNB ID."
-            )
+            raise ReactivationNotAllowed()
 
     @transaction.atomic
     def update(

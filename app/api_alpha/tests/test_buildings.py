@@ -913,11 +913,9 @@ class BuildingMergeTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
-        self.assertEqual(
-            r.json(),
-            {
-                "detail": "To merge buildings, their shapes must be contiguous polygons. Consider updating the buildings's shapes first."
-            },
+        self.assertIn(
+            "Pour fusionner des bâtiments, leurs géométries doivent être des polygones contigus. Veuillez d'abord mettre à jour les géométries des bâtiments",
+            r.json()["detail"],
         )
 
         # one building is not enough
@@ -952,7 +950,10 @@ class BuildingMergeTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
-        self.assertEqual(r.json(), {"detail": "Cannot merge inactive buildings"})
+        self.assertIn(
+            "Cette opération est impossible sur un ID-RNB inactif",
+            r.json()["detail"],
+        )
 
         # comment is not mandatory
         data = {
