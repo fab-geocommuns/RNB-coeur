@@ -53,7 +53,7 @@ class BuildingAbstract(models.Model):
     )
     # an event can modify several buildings at once
     # all the buildings modified by the same event will have the same event_id
-    event_id = models.UUIDField(null=True, db_index=True)
+    event_id = models.UUIDField(null=True)
     # the possible event types
     # creation: the building is created for the first time
     # update: some fields of an existing building are modified
@@ -982,7 +982,7 @@ class SummerChallenge(models.Model):
         if user:
             (city, dpt) = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=1,
+                score=2,
                 user=user,
                 action="deactivation",
                 city=city,
