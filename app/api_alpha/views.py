@@ -19,6 +19,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.db import transaction
+from django.db.models import Sum
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.http import QueryDict
@@ -40,6 +41,7 @@ from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.decorators import api_view
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
@@ -97,6 +99,7 @@ from batid.models import Building
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
+from batid.models import SummerChallenge
 from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
@@ -2031,7 +2034,12 @@ class DiffView(APIView):
                 status=400,
             )
 
+        local_statement_timeout = settings.DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT
         with connection.cursor() as cursor:
+            cursor.execute(
+                "SET statement_timeout = %(statement_timeout)s;",
+                {"statement_timeout": local_statement_timeout},
+            )
             most_recent_modification_query = sql.SQL(
                 """
                 select max(lower(sys_period)) from batid_building_with_history
@@ -2068,6 +2076,10 @@ class DiffView(APIView):
             w = os.fdopen(w, "w")
 
             with connection.cursor() as cursor:
+                cursor.execute(
+                    "SET statement_timeout = %(statement_timeout)s;",
+                    {"statement_timeout": local_statement_timeout},
+                )
                 start_ts = since
                 first_query = True
 
@@ -2199,6 +2211,84 @@ def city_ranking():
         return results
 
 
+def summer_challenge_targeted_score():
+    return 2000
+
+
+def summer_challenge_global_score():
+    global_score = SummerChallenge.objects.aggregate(score=Sum("score"))
+    return global_score["score"]
+
+
+def summer_challenge_leaderboard(max_rank):
+    global_score = summer_challenge_global_score()
+
+    individual_ranking = (
+        SummerChallenge.objects.values_list("user__username")
+        .annotate(score=Sum("score"))
+        .order_by("-score")[:max_rank]
+    )
+    individual_ranking = [list(row) for row in individual_ranking]
+
+    city_ranking = (
+        SummerChallenge.objects.exclude(city__isnull=True)
+        .values_list("city__code_insee", "city__name")
+        .annotate(score=Sum("score"))
+        .order_by("-score")[:max_rank]
+    )
+    city_ranking = [list(row) for row in city_ranking]
+
+    departement = (
+        SummerChallenge.objects.exclude(department__isnull=True)
+        .values_list("department__code", "department__name")
+        .annotate(score=Sum("score"))
+        .order_by("-score")[:max_rank]
+    )
+    departement_ranking = [list(row) for row in departement]
+
+    return {
+        "goal": summer_challenge_targeted_score(),
+        "global": global_score,
+        "individual": individual_ranking,
+        "city": city_ranking,
+        "departement": departement_ranking,
+    }
+
+
+@api_view(["GET"])
+def get_summer_challenge_leaderboard(request):
+    max_rank = int(request.GET.get("max_rank", 5))
+    leaderboard = summer_challenge_leaderboard(max_rank)
+    return JsonResponse(leaderboard)
+
+
+@api_view(["GET"])
+def get_summer_challenge_user_score(request, username):
+    global_score = summer_challenge_global_score()
+    individual_ranking = (
+        SummerChallenge.objects.values("user__username")
+        .annotate(score=Sum("score"))
+        .order_by("-score")
+    )
+
+    try:
+        user_index, user_info = next(
+            (i, x)
+            for i, x in enumerate(individual_ranking)
+            if x["user__username"] == username
+        )
+    except StopIteration:
+        raise NotFound()
+
+    data = {
+        "goal": summer_challenge_targeted_score(),
+        "global": global_score,
+        "user_score": user_info["score"],
+        "user_rank": user_index + 1,
+    }
+    return JsonResponse(data)
+
+
 @extend_schema(exclude=True)
 class AdsTokenView(APIView):
     permission_classes = [IsSuperUser]
@@ -2272,6 +2362,8 @@ def create_user_in_sandbox(user_data: dict) -> None:
 
 
 class CreateUserView(APIView):
+    throttle_scope = "create_user"
+
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         request_data = request.data
@@ -2436,7 +2528,7 @@ class ActivateUser(APIView):
             return redirect(f"{site_url}/activation?status=error")
 
 
-class RequestPasswordReset(RNBLoggingMixin, APIView):
+class RequestPasswordReset(APIView):
     def post(self, request):
 
         email = request.data.get("email")
@@ -2469,7 +2561,7 @@ class RequestPasswordReset(RNBLoggingMixin, APIView):
         return Response(None, status=204)
 
 
-class ChangePassword(RNBLoggingMixin, APIView):
+class ChangePassword(APIView):
 
     # About security:
     # This endpoint is used to change the password of a user. It is very sensitive. It should be hardened.
