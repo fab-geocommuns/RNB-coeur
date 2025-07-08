@@ -1,29 +1,30 @@
 from datetime import datetime
 from datetime import timezone
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status as http_status
-
 from django.conf import settings
-from django.db import transaction
 from django.contrib.gis.geos import GEOSGeometry
-from api_alpha.exceptions import ServiceUnavailable
+from django.db import transaction
+from rest_framework import status as http_status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from api_alpha.utils.logging_mixin import RNBLoggingMixin
+from api_alpha.exceptions import ServiceUnavailable
+from api_alpha.pagination import BuildingCursorPagination
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
-from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import BuildingCreateSerializer
+from api_alpha.serializers import BuildingSerializer
+from api_alpha.utils.logging_mixin import RNBLoggingMixin
+from api_alpha.utils.rnb_doc import get_status_html_list
+from api_alpha.utils.rnb_doc import get_status_list
+from api_alpha.utils.rnb_doc import rnb_doc
+from batid.exceptions import BANAPIDown
+from batid.exceptions import BANBadResultType
+from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import InvalidWGS84Geometry
+from batid.list_bdg import list_bdgs
 from batid.models import Building
 from batid.models import Contribution
-from batid.exceptions import BANAPIDown
-from batid.exceptions import BANUnknownCleInterop
-from batid.exceptions import BANBadResultType
-from batid.exceptions import InvalidWGS84Geometry
-from api_alpha.utils.rnb_doc import rnb_doc, get_status_html_list, get_status_list
-from api_alpha.pagination import BuildingCursorPagination
-from batid.list_bdg import list_bdgs
 
 
 class ListCreateBuildings(RNBLoggingMixin, APIView):
