@@ -25,23 +25,6 @@ def get_real_buildings_status():
     )
 
 
-def tileIsValid(tile):
-    if not ("x" in tile and "y" in tile and "zoom" in tile):
-        return False
-    if not (
-        isinstance(tile["x"], int)
-        and isinstance(tile["y"], int)
-        and isinstance(tile["zoom"], int)
-    ):
-        return False
-    size = 2 ** tile["zoom"]
-    if tile["x"] >= size or tile["y"] >= size:
-        return False
-    if tile["x"] < 0 or tile["y"] < 0:
-        return False
-    return True
-
-
 # Calculate envelope in "Spherical Mercator" (https://epsg.io/3857)
 def tileToEnvelope(tile: TileParams) -> Envelope:
     # Width of world in EPSG:3857
@@ -180,15 +163,6 @@ def envelopeToBuildingsSQL(
         SELECT ST_AsMVT(mvtgeom.*) FROM mvtgeom
     """
     return sql_tmpl.format(**tbl)
-
-
-def url_params_to_tile(x: str, y: str, z: str) -> TileParams:
-    tile: TileParams = {"x": int(x), "y": int(y), "zoom": int(z)}
-
-    if not tileIsValid(tile):
-        raise ValueError("Invalid tile coordinates")
-
-    return tile
 
 
 def bdgs_tiles_sql(tile: TileParams, data_type: str, only_active_and_real: bool) -> str:

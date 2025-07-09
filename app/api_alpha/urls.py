@@ -31,8 +31,8 @@ from api_alpha.views import SplitBuildings
 from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
 from api_alpha.endpoints.tiles.plots_vector_tile import PlotsVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import (
-    get_tile_shape,
     BuildingsVectorTileView,
+    BuildingsShapeVectorTileView,
 )
 
 
@@ -71,7 +71,10 @@ urlpatterns = [
     path("ads/tiles/<int:x>/<int:y>/<int:z>.pbf", ADSVectorTileView.as_view()),
     # Buildings vector tiles
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", BuildingsVectorTileView.as_view()),
-    path("tiles/shapes/<int:x>/<int:y>/<int:z>.pbf", get_tile_shape),
+    path(
+        "tiles/shapes/<int:x>/<int:y>/<int:z>.pbf",
+        BuildingsShapeVectorTileView.as_view(),
+    ),
     # Plots vector tiles
     path("plots/tiles/<int:x>/<int:y>/<int:z>.pbf", PlotsVectorTileView.as_view()),
     # Authentification

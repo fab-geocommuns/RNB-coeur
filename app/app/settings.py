@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
@@ -295,10 +296,6 @@ URL = os.environ.get("URL")
 
 # Bat ID custom settings
 MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))
-
-# Zoom range for vector tiles generation
-VCTR_TILES_MIN_ZOOM = 14
-VCTR_TILES_MAX_ZOOM = 18
 
 # Mattermost
 MATTERMOST_NOTIFICATIONS = (
