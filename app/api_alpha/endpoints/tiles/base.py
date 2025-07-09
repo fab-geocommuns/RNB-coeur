@@ -8,11 +8,12 @@ from batid.services.vector_tiles import TileParams
 
 class BaseVectorTileView(APIView):
     min_zoom = 16
+    max_zoom = 22
     content_type = "application/vnd.mapbox-vector-tile"
 
     def get(self, request, x, y, z):
         z = int(z)
-        if z < self.min_zoom:
+        if z < self.min_zoom or z > self.max_zoom:
             return HttpResponse(status=204)
 
         tile_params = self._url_params_to_tile(x, y, z)

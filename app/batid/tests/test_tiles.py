@@ -24,6 +24,10 @@ class TestVectorTiles(TestCase):
         response = self.client.get("/api/alpha/tiles/8166/5902/16.pbf")
         self.assertEqual(response.status_code, 200)
 
+    def test_tiles_endpoint_zoomin(self):
+        response = self.client.get("/api/alpha/tiles/shapes/11/1037/703.pbf")
+        self.assertEqual(response.status_code, 204)
+
     def test_tiles_endpoint_zoomout(self):
         response = self.client.get("/api/alpha/tiles/8166/5902/12.pbf")
         self.assertEqual(response.status_code, 204)
