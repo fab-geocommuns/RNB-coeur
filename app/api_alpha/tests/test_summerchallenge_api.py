@@ -1,5 +1,6 @@
 import json
 from urllib.parse import quote
+
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
