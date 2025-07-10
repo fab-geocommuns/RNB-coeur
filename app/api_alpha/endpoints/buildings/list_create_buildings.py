@@ -5,10 +5,12 @@ from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
 from rest_framework import status as http_status
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import NotFound
 
-from api_alpha.exceptions import ServiceUnavailable
+from api_alpha.exceptions import ServiceUnavailable, BadRequest
 from api_alpha.pagination import BuildingCursorPagination
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
@@ -22,6 +24,7 @@ from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
 from batid.exceptions import InvalidWGS84Geometry
+from batid.exceptions import BuildingTooLarge
 from batid.list_bdg import list_bdgs
 from batid.models import Building
 from batid.models import Contribution
@@ -136,7 +139,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             },
         },
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         query_params = request.query_params.dict()
 
         # check if we need to include plots
@@ -231,7 +234,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             }
         }
     )
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         serializer = BuildingCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -288,5 +291,9 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             contribution.rnb_id = created_building.rnb_id
             contribution.save()
 
-        serializer = BuildingSerializer(created_building, with_plots=True)
-        return Response(serializer.data, status=http_status.HTTP_201_CREATED)
+        created_building_serializer = BuildingSerializer(
+            created_building, with_plots=True
+        )
+        return Response(
+            created_building_serializer.data, status=http_status.HTTP_201_CREATED
+        )
