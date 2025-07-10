@@ -44,6 +44,13 @@ notebook = "~7.4.2"
 jupyter = "^1.0.0"
 openpyxl = "^3.1.5"
 tqdm = "^4.67.1"
+mypy = "^1.16.1"
+django-stubs = {extras = ["compatible-mypy"], version = "^5.2.1"}
+types-psycopg2 = "^2.9.21.20250516"
+types-nanoid = "^2.0.0.20240601"
+celery-types = "^0.23.0"
+pandas-stubs = "^2.3.0.250703"
+types-requests = "^2.32.4.20250611"
 
 
 [build-system]
@@ -60,3 +67,19 @@ skips = [
   "B113", # Lots of requests without timeout to be fixed, but we need to address more important things first
   "B202" # We do have unsanitized extracts, but from hardcoded sources. It must be fixed, but the attack vector is more intricated
 ]
+
+[tool.mypy]
+exclude = [
+  "batid/tests/",
+  "api_alpha/tests/",
+  "xp/",
+  "scripts/",
+  "notebooks/",
+  "webhook/",
+  "manage.py",
+]
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["boto3.*", "rest_framework", "rest_framework.*", "rest_framework_tracking.*", "geopandas"]
+follow_untyped_imports = true
