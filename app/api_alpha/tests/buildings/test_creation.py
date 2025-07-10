@@ -28,6 +28,27 @@ class BuildingPostTest(APITestCase):
         self.adr1 = Address.objects.create(id="cle_interop_1")
         self.adr2 = Address.objects.create(id="cle_interop_2")
 
+    def test_empty_shape(self):
+        self.user.groups.add(self.group)
+        data = {
+            "status": "constructed",
+            "addresses_cle_interop": ["cle_interop_1", "cle_interop_2"],
+            "shape": "POLYGON EMPTY",
+            "comment": "nouveau bâtiment",
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json(),
+            {"shape": ["La forme fournie est vide"]},
+        )
+
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_create_building(self):
         data = {

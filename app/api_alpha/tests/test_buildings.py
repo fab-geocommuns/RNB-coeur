@@ -696,6 +696,25 @@ class BuildingPatchTest(APITestCase):
 
         self.assertEqual(r.status_code, 204)
 
+    def test_update_empty_shape(self):
+        self.user.groups.add(self.group)
+
+        data = {
+            "shape": "POlYGON EMPTY",
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json(),
+            {"shape": ["La forme fournie est vide"]},
+        )
+
     def test_update_a_building_invalid_shape(self):
         self.user.groups.add(self.group)
 
