@@ -1,5 +1,5 @@
 import json
-
+from urllib.parse import quote
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
@@ -15,7 +15,9 @@ from batid.tests.test_summerchallenge import create_city_dpt
 class TestSummerChallengeRanking(APITestCase):
     def test_leaderboard(self):
         user_1 = User.objects.create_user(username="user_1", email="email_1")
-        user_2 = User.objects.create_user(username="user_2", email="email_2")
+        user_2 = User.objects.create_user(
+            username="user_2@email.com", email="email_2@rnb.fr"
+        )
         user_3 = User.objects.create_user(username="user_3", email="email_3")
 
         Address.objects.create(id="addr1")
@@ -100,7 +102,7 @@ class TestSummerChallengeRanking(APITestCase):
                 "global": 8,  # 2 creations, 1 address update, 1 status update
                 "individual": [
                     ["user_1", 4],
-                    ["user_2", 3],
+                    ["user_2@email.com", 3],
                     ["user_3", 1],
                 ],  # user_1 : 2 creations, user_2 : address update, user_3 : status update
                 "city": [["101", "city_1", 5]],  # creation + address update in city
@@ -135,6 +137,12 @@ class TestSummerChallengeRanking(APITestCase):
                 "user_rank": 2,
             },
         )
+
+        # check the url accepts the email
+        encoded_email = quote(user_2.email)
+
+        r = self.client.get(f"/api/alpha/editions/ranking/{encoded_email}/")
+        self.assertEqual(r.status_code, 200)
 
         # individual ranking of non existing user
         r = self.client.get(f"/api/alpha/editions/ranking/coucou/")
