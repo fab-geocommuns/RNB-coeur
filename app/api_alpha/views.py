@@ -521,7 +521,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
             return Response(query_serializer.errors, status=400)
 
 
-class MergeBuildings(APIView):
+class MergeBuildings(RNBLoggingMixin, APIView):
     permission_classes = [RNBContributorPermission]
 
     @rnb_doc(
@@ -679,7 +679,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
-class SplitBuildings(APIView):
+class SplitBuildings(RNBLoggingMixin, APIView):
     permission_classes = [RNBContributorPermission]
 
     @rnb_doc(
@@ -837,7 +837,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
-class SingleBuilding(APIView):
+class SingleBuilding(RNBLoggingMixin, APIView):
     permission_classes = [ReadOnly | RNBContributorPermission]
 
     @rnb_doc(
