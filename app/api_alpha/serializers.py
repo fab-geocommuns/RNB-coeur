@@ -278,6 +278,10 @@ def shape_is_valid(shape):
         raise serializers.ValidationError(
             "La forme fournie n'a pas pu être analysée ou n'est pas valide"
         )
+
+    if g.empty:
+        raise serializers.ValidationError("La forme fournie est vide")
+
     return shape
 
 
