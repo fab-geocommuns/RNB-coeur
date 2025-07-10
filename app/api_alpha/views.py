@@ -1870,7 +1870,7 @@ def get_summer_challenge_leaderboard(request):
 def get_summer_challenge_user_score(request, username):
     global_score = summer_challenge_global_score()
     individual_ranking = (
-        SummerChallenge.objects.values("user__username")
+        SummerChallenge.objects.values("user__username", "user__email")
         .annotate(score=Sum("score"))
         .order_by("-score")
     )
@@ -1879,7 +1879,7 @@ def get_summer_challenge_user_score(request, username):
         user_index, user_info = next(
             (i, x)
             for i, x in enumerate(individual_ranking)
-            if x["user__username"] == username
+            if x["user__username"] == username or x["user__email"] == username
         )
     except StopIteration:
         raise NotFound()
