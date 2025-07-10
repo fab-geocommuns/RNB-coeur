@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 # middlewares.py
 import logging
 

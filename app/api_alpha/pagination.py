@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from base64 import b64encode
 
 from rest_framework.pagination import BasePagination

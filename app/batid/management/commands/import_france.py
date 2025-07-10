@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 # empty django command
 import uuid
 

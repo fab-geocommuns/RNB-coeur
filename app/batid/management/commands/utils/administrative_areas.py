@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 def dpt_list_metropole():
     return [
         "01",

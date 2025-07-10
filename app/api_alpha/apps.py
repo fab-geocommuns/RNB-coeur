@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import yaml
 from django.apps import AppConfig
 

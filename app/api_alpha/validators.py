@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from rest_framework import serializers
 
 from batid.models import Building

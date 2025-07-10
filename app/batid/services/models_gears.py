@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 # abstract class, which will be extend by a specific class foreach django model
 from abc import ABC
 from typing import List

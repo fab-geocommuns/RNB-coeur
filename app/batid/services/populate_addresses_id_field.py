@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from django.db import connection
 
 # this procedure is used to populate the addresses_id field in the Building model

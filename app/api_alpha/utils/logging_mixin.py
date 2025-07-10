@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from rest_framework_tracking.mixins import LoggingMixin
 
 

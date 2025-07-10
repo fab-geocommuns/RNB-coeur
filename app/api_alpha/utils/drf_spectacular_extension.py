@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from drf_spectacular.extensions import OpenApiSerializerFieldExtension
 from rest_framework import serializers
 

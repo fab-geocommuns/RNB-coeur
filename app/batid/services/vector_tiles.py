@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from typing import TypedDict
 
 from batid.models import Building

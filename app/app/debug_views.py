@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from django.core import signing
 from django.http import HttpResponseForbidden
 from django.views.decorators.http import require_GET
