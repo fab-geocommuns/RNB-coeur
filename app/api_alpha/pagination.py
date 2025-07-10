@@ -1,6 +1,7 @@
+from typing import Any
+
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
-from typing import Any
 
 
 class BuildingCursorPagination(CursorPagination):
