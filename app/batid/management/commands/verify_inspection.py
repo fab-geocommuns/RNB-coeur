@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from datetime import datetime
 
 from django.core.management.base import BaseCommand

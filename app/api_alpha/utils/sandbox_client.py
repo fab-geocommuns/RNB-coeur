@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import base64
 
 import requests

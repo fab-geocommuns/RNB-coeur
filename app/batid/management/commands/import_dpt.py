@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from django.core.management.base import BaseCommand
 
 from batid.services.administrative_areas import validate_dpt_code

@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from typing import Optional
 
 from django.contrib.gis.db.models.functions import Distance

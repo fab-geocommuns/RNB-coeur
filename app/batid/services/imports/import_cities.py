@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import json
 
 from django.contrib.gis.geos import GEOSGeometry

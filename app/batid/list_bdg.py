@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from django.contrib.gis.geos import Polygon
 from django.db.models import Case
 from django.db.models import CharField

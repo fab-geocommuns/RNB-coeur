@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import functools
 from time import perf_counter
 

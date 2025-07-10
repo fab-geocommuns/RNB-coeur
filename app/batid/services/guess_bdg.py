@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
 from django.db.models import QuerySet

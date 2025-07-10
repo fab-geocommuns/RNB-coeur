@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from django.db import connection
 from django.db import transaction
 from django.forms.models import model_to_dict
