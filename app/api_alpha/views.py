@@ -7,9 +7,6 @@ from datetime import timedelta
 from datetime import timezone
 from typing import Any
 
-
-from django.db.models import Q
-
 import requests
 import yaml
 from django.conf import settings
@@ -21,6 +18,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.db import transaction
+from django.db.models import Q
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.http import JsonResponse
