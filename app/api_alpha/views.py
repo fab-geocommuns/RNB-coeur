@@ -7,6 +7,9 @@ from datetime import timedelta
 from datetime import timezone
 from typing import Any
 
+
+from django.db.models import Q
+
 import requests
 import yaml
 from django.conf import settings
@@ -1868,6 +1871,15 @@ def get_summer_challenge_leaderboard(request):
 
 @api_view(["GET"])
 def get_summer_challenge_user_score(request, username):
+
+    # Check the user exists, we by ursername or email
+    try:
+        User.objects.get(
+            Q(username=username) | Q(email=username)
+        )  # This will raise an exception if the user does not exist
+    except User.DoesNotExist:
+        raise NotFound()
+
     global_score = summer_challenge_global_score()
     individual_ranking = (
         SummerChallenge.objects.values("user__username", "user__email")
@@ -1875,20 +1887,20 @@ def get_summer_challenge_user_score(request, username):
         .order_by("-score")
     )
 
-    try:
-        user_index, user_info = next(
-            (i, x)
-            for i, x in enumerate(individual_ranking)
-            if x["user__username"] == username or x["user__email"] == username
-        )
-    except StopIteration:
-        raise NotFound()
+    user_score = 0
+    user_rank = None
+
+    for i, rank in enumerate(individual_ranking):
+        if rank["user__username"] == username or rank["user__email"] == username:
+            user_score = rank["score"]
+            user_rank = i + 1
+            break
 
     data = {
         "goal": summer_challenge_targeted_score(),
         "global": global_score,
-        "user_score": user_info["score"],
-        "user_rank": user_index + 1,
+        "user_score": user_score,
+        "user_rank": user_rank,
     }
     return JsonResponse(data)
 

@@ -19,6 +19,7 @@ class TestSummerChallengeRanking(APITestCase):
             username="user_2@email.com", email="email_2@rnb.fr"
         )
         user_3 = User.objects.create_user(username="user_3", email="email_3")
+        user_4 = User.objects.create_user(username="user_4", email="email_4")
 
         Address.objects.create(id="addr1")
         Address.objects.create(id="addr2")
@@ -147,3 +148,16 @@ class TestSummerChallengeRanking(APITestCase):
         # individual ranking of non existing user
         r = self.client.get(f"/api/alpha/editions/ranking/coucou/")
         self.assertEqual(r.status_code, 404)
+
+        # check user 4 has a score of 0 and not in the ranking
+        r = self.client.get(f"/api/alpha/editions/ranking/{user_4.username}/")
+        score = r.json()
+        self.assertDictEqual(
+            score,
+            {
+                "goal": summer_challenge_targeted_score(),
+                "global": 8,
+                "user_score": 0,
+                "user_rank": None,
+            },
+        )
