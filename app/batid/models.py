@@ -175,7 +175,7 @@ class Building(BuildingAbstract):
             )
         else:
             raise OperationOnInactiveBuilding(
-                f"Impossible de désactiver un identifiant déjà inactif: {self.rnb_id}"
+                f"Impossible de désactiver un identifiant déjà inactif : {self.rnb_id}"
             )
 
     @transaction.atomic
@@ -219,7 +219,7 @@ class Building(BuildingAbstract):
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(
-                f"Impossible de mettre à jour un identifiant inactif: {self.rnb_id}"
+                f"Impossible de mettre à jour un identifiant inactif : {self.rnb_id}"
             )
         if shape:
             assert_shape_is_valid(shape)
@@ -429,7 +429,7 @@ class Building(BuildingAbstract):
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(
-                f"Impossible de diviser un identifiant inactif: {self.rnb_id}"
+                f"Impossible de diviser un identifiant inactif : {self.rnb_id}"
             )
 
         if not isinstance(created_buildings, list) or len(created_buildings) < 2:

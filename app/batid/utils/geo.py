@@ -82,7 +82,7 @@ def assert_shape_is_valid(geom: GEOSGeometry):
         (lon, lat) = t
         if not (-180 <= lon <= 180):
             raise InvalidWGS84Geometry(
-                f"La longitude est hors de la plage autorisée pour WGS84 (±180°): {lon}"
+                f"La longitude est hors de la plage autorisée pour WGS84 (±180°) : {lon}"
             )
         if not (-90 <= lat <= 90):
             raise InvalidWGS84Geometry(

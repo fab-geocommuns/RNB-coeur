@@ -321,7 +321,7 @@ class TestSplitBuilding(TestCase):
         event_origin = {"source": "xxx"}
 
         with self.assertRaisesRegex(
-            Exception, "Impossible de diviser un identifiant inactif: 1"
+            Exception, "Impossible de diviser un identifiant inactif : 1"
         ):
             b1.split(
                 [
