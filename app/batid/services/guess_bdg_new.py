@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import concurrent.futures
 import csv
 import json

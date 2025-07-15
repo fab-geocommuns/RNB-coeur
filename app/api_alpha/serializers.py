@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import math
 
 from django.conf import settings

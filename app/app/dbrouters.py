@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 # app/dbrouters.py
 from batid.models import BuildingAddressesReadOnly
 

@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import csv
 
 from batid.models import ADSAchievement

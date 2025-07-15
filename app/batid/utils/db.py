@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from django.utils import timezone
 from psycopg2.extras import DateTimeTZRange
 

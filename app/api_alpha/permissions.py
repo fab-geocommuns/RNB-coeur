@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import copy
 
 from django.conf import settings

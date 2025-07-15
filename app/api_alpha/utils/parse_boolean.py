@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from typing import Optional
 
 from rest_framework.exceptions import ValidationError

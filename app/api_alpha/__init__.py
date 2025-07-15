@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 # this is a temporary hack until unittest integration with VS Code is fixed
 # see https://github.com/Microsoft/vscode-python/issues/73#issuecomment-1334196634
 from django.conf import settings

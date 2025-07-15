@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection

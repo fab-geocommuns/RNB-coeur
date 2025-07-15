@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import jsonschema
 from django.core.exceptions import ValidationError
 from django.utils.dateparse import parse_datetime

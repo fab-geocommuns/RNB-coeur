@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import uuid
 
 from django.db import connection

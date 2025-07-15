@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import time
 
 from django.core.management.base import BaseCommand

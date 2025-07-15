@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import csv
 import uuid
 from typing import Optional

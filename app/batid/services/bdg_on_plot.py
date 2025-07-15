@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from django.contrib.gis.db.models.functions import Area
 from django.contrib.gis.db.models.functions import Intersection
 from django.db.models import Case

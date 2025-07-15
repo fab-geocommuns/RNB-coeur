@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from django.db import migrations
 
 

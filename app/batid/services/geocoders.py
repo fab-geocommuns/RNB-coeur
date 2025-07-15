@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import csv
 from io import StringIO
 

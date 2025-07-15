@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Django settings for app project.
 

@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon

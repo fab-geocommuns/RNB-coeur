@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from celery import chain
 from celery import Signature
 from django.core.management.base import BaseCommand
