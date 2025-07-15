@@ -126,6 +126,29 @@ class BuildingPostTest(APITestCase):
         self.assertEqual(r.status_code, 400)
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_create_building_duplicate_address(self):
+        data = {
+            "status": "constructed",
+            "addresses_cle_interop": ["cle_interop_1", "cle_interop_1"],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+            "comment": "nouveau bâtiment",
+        }
+
+        self.user.groups.add(self.group)
+
+        r = self.client.post(
+            f"/api/alpha/buildings/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+        res = r.json()
+
+        building = Building.objects.get(rnb_id=res["rnb_id"])
+
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(building.addresses_id, ["cle_interop_1"])
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     @mock.patch("batid.models.requests.get")
     def test_create_building_ban_is_down(self, get_mock):
         get_mock.return_value.status_code = 500

@@ -258,12 +258,14 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             addresses_cle_interop = data.get("addresses_cle_interop")
             shape = GEOSGeometry(data.get("shape"))
 
+            addresses_id = list(set(addresses_cle_interop))
+
             try:
                 created_building = Building.create_new(
                     user=user,
                     event_origin=event_origin,
                     status=status,
-                    addresses_id=addresses_cle_interop,
+                    addresses_id=addresses_id,
                     shape=shape,
                     ext_ids=[],
                 )
