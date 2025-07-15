@@ -1,6 +1,6 @@
+from api_alpha.endpoints.tiles.base import BaseVectorTileView
 from api_alpha.utils.parse_boolean import parse_boolean
 from batid.services.vector_tiles import bdgs_tiles_sql
-from api_alpha.endpoints.tiles.base import BaseVectorTileView
 
 
 class BuildingsVectorTileView(BaseVectorTileView):
