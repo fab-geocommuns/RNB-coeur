@@ -228,6 +228,9 @@ Si ce paramêtre est :
             else:
                 status = data.get("status")
                 addresses_cle_interop = data.get("addresses_cle_interop")
+                addresses_id = (
+                    list(set(addresses_cle_interop)) if addresses_cle_interop else None
+                )
                 shape = GEOSGeometry(data.get("shape")) if data.get("shape") else None
 
                 try:
@@ -235,7 +238,7 @@ Si ce paramêtre est :
                         user,
                         event_origin,
                         status,
-                        addresses_cle_interop,
+                        addresses_id,
                         shape=shape,
                     )
                 except BANAPIDown:

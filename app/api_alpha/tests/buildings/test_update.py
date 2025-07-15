@@ -372,7 +372,43 @@ class BuildingPatchTest(APITestCase):
 
         self.assertEqual(self.building.event_type, "update")
         self.assertEqual(self.building.status, "notUsable")
-        self.assertEqual(self.building.addresses_id, [self.adr1.id, self.adr2.id])
+        self.assertCountEqual(self.building.addresses_id, [self.adr1.id, self.adr2.id])
+        self.assertEqual(
+            self.building.event_origin,
+            {"source": "contribution", "contribution_id": contribution.id},
+        )
+        g = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
+        self.assertEqual(self.building.shape.wkt, g.wkt)
+        self.assertTrue(g.contains(self.building.point))
+        self.assertEqual(contribution.status, "fixed")
+        self.assertEqual(contribution.text, comment)
+        self.assertEqual(contribution.review_user, self.user)
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_update_building_duplicate_address(self):
+        self.user.groups.add(self.group)
+        comment = "maj du batiment"
+        data = {
+            "status": "notUsable",
+            "addresses_cle_interop": [self.adr1.id, self.adr1.id],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+            "comment": comment,
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.building.refresh_from_db()
+        contributions = Contribution.objects.all()
+        contribution = contributions[0]
+
+        self.assertEqual(self.building.event_type, "update")
+        self.assertEqual(self.building.status, "notUsable")
+        self.assertEqual(self.building.addresses_id, [self.adr1.id])
         self.assertEqual(
             self.building.event_origin,
             {"source": "contribution", "contribution_id": contribution.id},
