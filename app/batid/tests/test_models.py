@@ -6,7 +6,8 @@ from django.db.utils import IntegrityError
 from django.test import override_settings
 from django.test import TestCase
 
-from batid.exceptions import OperationOnInactiveBuilding, NotEnoughBuildings
+from batid.exceptions import NotEnoughBuildings
+from batid.exceptions import OperationOnInactiveBuilding
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
