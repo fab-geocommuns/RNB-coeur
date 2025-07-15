@@ -21,9 +21,7 @@ from api_alpha.utils.rnb_doc import rnb_doc
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
-from batid.exceptions import BuildingTooLarge
-from batid.exceptions import InvalidWGS84Geometry
-from batid.exceptions import OperationOnInactiveBuilding
+from batid.exceptions import InvalidOperation
 from batid.list_bdg import list_bdgs
 from batid.models import Building
 from batid.models import Contribution
@@ -220,21 +218,24 @@ Si ce paramêtre est :
                 "contribution_id": contribution.id,
             }
 
-            if data.get("is_active") == False:
-                # a building that is not a building has its RNB ID deactivated from the base
-                building.deactivate(user, event_origin)
-            elif data.get("is_active") == True:
-                # a building is reactivated, after a deactivation that should not have
-                building.reactivate(user, event_origin)
-            else:
-                status = data.get("status")
-                addresses_cle_interop = data.get("addresses_cle_interop")
-                addresses_id = (
-                    list(set(addresses_cle_interop)) if addresses_cle_interop else None
-                )
-                shape = GEOSGeometry(data.get("shape")) if data.get("shape") else None
-
-                try:
+            try:
+                if data.get("is_active") == False:
+                    # a building that is not a building has its RNB ID deactivated from the base
+                    building.deactivate(user, event_origin)
+                elif data.get("is_active") == True:
+                    # a building is reactivated, after a deactivation that should not have
+                    building.reactivate(user, event_origin)
+                else:
+                    status = data.get("status")
+                    addresses_cle_interop = data.get("addresses_cle_interop")
+                    addresses_id = (
+                        list(set(addresses_cle_interop))
+                        if addresses_cle_interop
+                        else None
+                    )
+                    shape = (
+                        GEOSGeometry(data.get("shape")) if data.get("shape") else None
+                    )
                     building.update(
                         user,
                         event_origin,
@@ -242,26 +243,16 @@ Si ce paramêtre est :
                         addresses_id,
                         shape=shape,
                     )
-                except BANAPIDown:
-                    raise ServiceUnavailable(detail="BAN API is currently down")
-                except BANUnknownCleInterop:
-                    raise NotFound(
-                        detail="Cle d'intéropérabilité not found on the BAN API"
-                    )
-                except BANBadResultType:
-                    raise BadRequest(
-                        detail="BAN result has not the expected type (must be 'numero')"
-                    )
-                except OperationOnInactiveBuilding:
-                    raise BadRequest(detail="Cannot update inactive buildings")
-                except InvalidWGS84Geometry:
-                    raise BadRequest(
-                        detail="Provided shape is invalid (bad topology or wrong CRS)"
-                    )
-                except BuildingTooLarge:
-                    raise BadRequest(
-                        detail="Building area too large. Maximum allowed: 500000m²"
-                    )
+            except BANAPIDown:
+                raise ServiceUnavailable(detail="BAN API is currently down")
+            except BANUnknownCleInterop:
+                raise NotFound(detail="Cle d'intéropérabilité not found on the BAN API")
+            except BANBadResultType:
+                raise BadRequest(
+                    detail="BAN result has not the expected type (must be 'numero')"
+                )
+            except InvalidOperation as e:
+                raise BadRequest(detail=e.api_message_with_details())
 
         # request is successful, no content to send back
         return Response(status=http_status.HTTP_204_NO_CONTENT)

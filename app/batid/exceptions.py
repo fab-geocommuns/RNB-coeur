@@ -32,7 +32,7 @@ class InvalidOperation(Exception):
         details = str(self).strip()
         api_message = self.api_message()
         if details:
-            api_message = f"{api_message}. Détails techniques : {details}"
+            api_message = f"{api_message}. {details}"
         return api_message
 
     def api_message(self):
