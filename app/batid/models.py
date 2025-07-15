@@ -23,6 +23,7 @@ from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
 from batid.exceptions import NotEnoughBuildings
 from batid.exceptions import OperationOnInactiveBuilding
+from batid.exceptions import ReactivationNotAllowed
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
@@ -173,7 +174,9 @@ class Building(BuildingAbstract):
                 user, event_id, except_for_this_contribution
             )
         else:
-            print(f"Cannot deactivate an inactive building: {self.rnb_id}")
+            raise OperationOnInactiveBuilding(
+                f"Impossible de désactiver un identifiant déjà inactif : {self.rnb_id}"
+            )
 
     @transaction.atomic
     def reactivate(self, user: User, event_origin):
@@ -193,9 +196,7 @@ class Building(BuildingAbstract):
 
             self._reset_linked_contributions(user, previous_event_id)
         else:
-            print(
-                f"Cannot reactivate RNB ID : {self.rnb_id}. Can only reactivate a previously deactivated RNB ID."
-            )
+            raise ReactivationNotAllowed()
 
     @transaction.atomic
     def update(
@@ -218,7 +219,7 @@ class Building(BuildingAbstract):
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(
-                f"Cannot update inactive building {self.rnb_id}"
+                f"Impossible de mettre à jour un identifiant inactif : {self.rnb_id}"
             )
         if shape:
             assert_shape_is_valid(shape)
@@ -353,10 +354,12 @@ class Building(BuildingAbstract):
         from batid.utils.geo import merge_contiguous_shapes
 
         if not isinstance(buildings, list) or len(buildings) < 2:
-            raise NotEnoughBuildings("Not enough buildings to merge.")
+            raise NotEnoughBuildings()
 
         if any([not building.is_active for building in buildings]):
-            raise OperationOnInactiveBuilding("Cannot merge inactive buildings.")
+            raise OperationOnInactiveBuilding(
+                "Impossible de fusionner des identifiants inactifs"
+            )
 
         event_id = uuid.uuid4()
         parent_buildings = [building.rnb_id for building in buildings]
@@ -426,11 +429,11 @@ class Building(BuildingAbstract):
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(
-                f"Cannot split inactive building {self.rnb_id}"
+                f"Impossible de diviser un identifiant inactif : {self.rnb_id}"
             )
 
         if not isinstance(created_buildings, list) or len(created_buildings) < 2:
-            raise NotEnoughBuildings("A building must be split at least in two")
+            raise NotEnoughBuildings()
 
         event_id = uuid.uuid4()
 

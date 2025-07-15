@@ -105,9 +105,9 @@ class BuildingPatchTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 400)
-        self.assertEqual(
-            r.json(),
-            {"detail": "Provided shape is invalid (bad topology or wrong CRS)"},
+        self.assertIn(
+            "La géométrie n'est pas valide",
+            r.json()["detail"],
         )
 
     def test_update_a_building_parameters(self):

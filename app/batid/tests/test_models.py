@@ -6,6 +6,8 @@ from django.db.utils import IntegrityError
 from django.test import override_settings
 from django.test import TestCase
 
+from batid.exceptions import NotEnoughBuildings
+from batid.exceptions import OperationOnInactiveBuilding
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
@@ -135,7 +137,8 @@ class TestBuilding(TestCase):
         """
         bdg = Building.objects.create(rnb_id="AAA", shape="POINT(0 0)", is_active=False)
         user = User.objects.create_user(username="dummy")
-        bdg.deactivate(user, {"k": "v"})
+        with self.assertRaises(OperationOnInactiveBuilding):
+            bdg.deactivate(user, {"k": "v"})
         bdg.refresh_from_db()
 
         # nothing has changed
@@ -298,9 +301,7 @@ class TestSplitBuilding(TestCase):
         b1 = Building.objects.create(rnb_id="1", status="constructed")
         event_origin = {"source": "xxx"}
 
-        with self.assertRaisesRegex(
-            Exception, "A building must be split at least in two"
-        ):
+        with self.assertRaises(NotEnoughBuildings):
             # cannot split in 1
             b1.split(
                 [
@@ -319,7 +320,9 @@ class TestSplitBuilding(TestCase):
         b1 = Building.objects.create(rnb_id="1", status="constructed", is_active=False)
         event_origin = {"source": "xxx"}
 
-        with self.assertRaisesRegex(Exception, "Cannot split inactive building 1"):
+        with self.assertRaisesRegex(
+            Exception, "Impossible de diviser un identifiant inactif : 1"
+        ):
             b1.split(
                 [
                     {
