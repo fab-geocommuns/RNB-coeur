@@ -80,11 +80,7 @@ from api_alpha.utils.sandbox_client import SandboxClientError
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
-from batid.exceptions import BuildingTooLarge
-from batid.exceptions import ImpossibleShapeMerge
-from batid.exceptions import InvalidWGS84Geometry
-from batid.exceptions import NotEnoughBuildings
-from batid.exceptions import OperationOnInactiveBuilding
+from batid.exceptions import InvalidOperation
 from batid.exceptions import PlotUnknown
 from batid.models import ADS
 from batid.models import Building
@@ -650,16 +646,8 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                 raise BadRequest(
                     detail="BAN result has not the expected type (must be 'numero')"
                 )
-            except OperationOnInactiveBuilding:
-                raise BadRequest(detail="Cannot merge inactive buildings")
-            except NotEnoughBuildings:
-                raise BadRequest(
-                    detail="A merge operation requires at least two buildings"
-                )
-            except ImpossibleShapeMerge:
-                raise BadRequest(
-                    detail="To merge buildings, their shapes must be contiguous polygons. Consider updating the buildings's shapes first."
-                )
+            except InvalidOperation as e:
+                raise BadRequest(detail=e.api_message_with_details())
 
             # update the contribution now that the rnb_id is known
             contribution.rnb_id = new_building.rnb_id
@@ -808,20 +796,8 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                 raise BadRequest(
                     detail="BAN result has not the expected type (must be 'numero')"
                 )
-            except InvalidWGS84Geometry:
-                raise BadRequest(
-                    detail="Provided shape is invalid (bad topology or wrong CRS)"
-                )
-            except BuildingTooLarge:
-                raise BadRequest(
-                    detail="Building area too large. Maximum allowed: 500000m²"
-                )
-            except NotEnoughBuildings:
-                raise BadRequest(
-                    detail="A split operation requires at least two child buildings"
-                )
-            except OperationOnInactiveBuilding:
-                raise BadRequest(detail="Cannot split an inactive building")
+            except InvalidOperation as e:
+                raise BadRequest(detail=e.api_message_with_details())
 
         serializer = BuildingSerializer(new_buildings, with_plots=False, many=True)
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
