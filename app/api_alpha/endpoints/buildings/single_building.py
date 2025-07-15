@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
 from django.shortcuts import get_object_or_404
