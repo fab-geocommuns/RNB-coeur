@@ -175,7 +175,7 @@ class Building(BuildingAbstract):
             )
         else:
             raise OperationOnInactiveBuilding(
-                f"Cannot deactivate an inactive building: {self.rnb_id}"
+                f"Impossible de désactiver un identifiant déjà inactif: {self.rnb_id}"
             )
 
     @transaction.atomic
@@ -219,7 +219,7 @@ class Building(BuildingAbstract):
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(
-                f"Cannot update inactive building {self.rnb_id}"
+                f"Impossible de mettre à jour un identifiant inactif: {self.rnb_id}"
             )
         if shape:
             assert_shape_is_valid(shape)
@@ -354,10 +354,12 @@ class Building(BuildingAbstract):
         from batid.utils.geo import merge_contiguous_shapes
 
         if not isinstance(buildings, list) or len(buildings) < 2:
-            raise NotEnoughBuildings("Not enough buildings to merge.")
+            raise NotEnoughBuildings()
 
         if any([not building.is_active for building in buildings]):
-            raise OperationOnInactiveBuilding("Cannot merge inactive buildings.")
+            raise OperationOnInactiveBuilding(
+                "Impossible de fusionner des identifiants inactifs"
+            )
 
         event_id = uuid.uuid4()
         parent_buildings = [building.rnb_id for building in buildings]
@@ -427,11 +429,11 @@ class Building(BuildingAbstract):
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(
-                f"Cannot split inactive building {self.rnb_id}"
+                f"Impossible de diviser un identifiant inactif: {self.rnb_id}"
             )
 
         if not isinstance(created_buildings, list) or len(created_buildings) < 2:
-            raise NotEnoughBuildings("A building must be split at least in two")
+            raise NotEnoughBuildings()
 
         event_id = uuid.uuid4()
 
