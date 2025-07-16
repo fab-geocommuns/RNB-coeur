@@ -23,7 +23,6 @@ services:
       - ./.env.db_auth.staging
       - ./.env.app.staging
       - ./.env.rnb.staging
-      - ./.env.worker.staging
       - ./.env.sentry.staging
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000 --threads 6 --workers 6
     volumes:
@@ -51,6 +50,8 @@ services:
     extends:
       file: common-services.yml
       service: rabbitmq
+    env_file:
+      - ./.env.rabbitmq.staging
     volumes:
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
 

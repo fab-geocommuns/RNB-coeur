@@ -3,6 +3,8 @@ from django.urls import path
 from django.urls import re_path
 from rest_framework import routers
 
+from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
+from api_alpha.endpoints.buildings.single_building import SingleBuilding
 from api_alpha.views import ActivateUser
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSVectorTileView
@@ -20,16 +22,16 @@ from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import DiffView
 from api_alpha.views import get_schema
 from api_alpha.views import get_stats
+from api_alpha.views import get_summer_challenge_leaderboard
+from api_alpha.views import get_summer_challenge_user_score
 from api_alpha.views import get_tile_shape
 from api_alpha.views import GetCurrentUserTokens
 from api_alpha.views import GetUserToken
-from api_alpha.views import ListCreateBuildings
 from api_alpha.views import MergeBuildings
 from api_alpha.views import OrganizationView
 from api_alpha.views import PlotsVectorTileView
 from api_alpha.views import RequestPasswordReset
 from api_alpha.views import RNBAuthToken
-from api_alpha.views import SingleBuilding
 from api_alpha.views import SplitBuildings
 
 # Routers provide an easy way of automatically determining the URL conf.
@@ -84,6 +86,8 @@ urlpatterns = [
     path(
         "auth/change_password/<str:user_id_b64>/<str:token>", ChangePassword.as_view()
     ),
+    path("editions/ranking/", get_summer_challenge_leaderboard),
+    path("editions/ranking/<str:username>/", get_summer_challenge_user_score),
 ]
 
 

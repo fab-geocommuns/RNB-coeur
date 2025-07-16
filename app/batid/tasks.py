@@ -353,3 +353,47 @@ def create_sandbox_user(user_data: dict) -> None:
     random_password = make_random_password(length=24)
     SandboxClient().create_user({**user_data, "password": random_password})
     return None
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def fill_empty_event_id(batch_size) -> int:
+    from batid.services.data_fix.fill_empty_event_id import fill_empty_event_id
+
+    total = 0
+
+    while True:
+        # If no rows are updated, we can stop
+        updated_rows = fill_empty_event_id(batch_size=batch_size)
+        print(f"Updated {updated_rows} rows")
+        total += updated_rows
+
+        print("-------------")
+        print(f"Updated {updated_rows} rows")
+        print("Total so far: ", total)
+
+        if updated_rows == 0:
+            break
+
+    return f"Total updated rows: {total}"
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def fill_empty_event_type(batch_size: int) -> int:
+    from batid.services.data_fix.fill_empty_event_type import fill_empty_event_type
+
+    total = 0
+
+    while True:
+        # Fill empty event_type in batches of 50_000 rows
+        # If no rows are updated, we can stop
+        updated_rows = fill_empty_event_type(batch_size=batch_size)
+        total += updated_rows
+
+        print("-------------")
+        print(f"Updated {updated_rows} rows")
+        print("Total so far: ", total)
+
+        if updated_rows == 0:
+            break
+
+    return f"Total updated rows: {total}"

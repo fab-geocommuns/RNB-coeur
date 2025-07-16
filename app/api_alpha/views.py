@@ -2,7 +2,6 @@ import binascii
 import json
 import os
 import urllib.parse
-from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -15,10 +14,11 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
-from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.db import transaction
+from django.db.models import Q
+from django.db.models import Sum
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.http import QueryDict
@@ -40,24 +40,23 @@ from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.decorators import api_view
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
-from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import BasePermission
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
-from rest_framework.utils.urls import replace_query_param
 from rest_framework.views import APIView
-from rest_framework_tracking.mixins import LoggingMixin
 from rest_framework_tracking.models import APIRequestLog
 
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
+from api_alpha.pagination import BuildingAddressCursorPagination
+from api_alpha.pagination import BuildingCursorPagination
 from api_alpha.permissions import ADSPermission
-from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers import ADSSerializer
 from api_alpha.serializers import BuildingAddressQuerySerializer
@@ -69,16 +68,15 @@ from api_alpha.serializers import BuildingMergeSerializer
 from api_alpha.serializers import BuildingPlotSerializer
 from api_alpha.serializers import BuildingSerializer
 from api_alpha.serializers import BuildingSplitSerializer
-from api_alpha.serializers import BuildingUpdateSerializer
 from api_alpha.serializers import ContributionSerializer
 from api_alpha.serializers import DiffusionDatabaseSerializer
 from api_alpha.serializers import GuessBuildingSerializer
 from api_alpha.serializers import OrganizationSerializer
 from api_alpha.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
+from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.parse_boolean import parse_boolean
 from api_alpha.utils.rnb_doc import build_schema_dict
-from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import get_status_list
 from api_alpha.utils.rnb_doc import rnb_doc
 from api_alpha.utils.sandbox_client import SandboxClient
@@ -86,18 +84,14 @@ from api_alpha.utils.sandbox_client import SandboxClientError
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
-from batid.exceptions import BuildingTooLarge
-from batid.exceptions import ImpossibleShapeMerge
-from batid.exceptions import InvalidWGS84Geometry
-from batid.exceptions import NotEnoughBuildings
-from batid.exceptions import OperationOnInactiveBuilding
+from batid.exceptions import InvalidOperation
 from batid.exceptions import PlotUnknown
-from batid.list_bdg import list_bdgs
 from batid.models import ADS
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
+from batid.models import SummerChallenge
 from batid.services.bdg_history import get_bdg_history
 from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
@@ -122,14 +116,6 @@ from batid.utils.constants import ADS_GROUP_NAME
 class IsSuperUser(BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_superuser)
-
-
-class RNBLoggingMixin(LoggingMixin):
-
-    sensitive_fields = {"confirm_password"}
-
-    def should_log(self, request, response):
-        return request.query_params.get("from") != "monitoring"
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
@@ -530,392 +516,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
             return Response(query_serializer.errors, status=400)
 
 
-class BuildingCursorPagination(BasePagination):
-    page_size = 20
-
-    cursor_query_param = "cursor"
-
-    def __init__(self):
-        self.base_url = None
-        self.current_page = None
-
-        self.has_next = False
-        self.has_previous = False
-
-        self.page = None
-
-    def get_paginated_response_schema(self, schema):
-        return {
-            "type": "object",
-            "properties": {
-                "next": {
-                    "type": "string",
-                    "nullable": True,
-                },
-                "previous": {
-                    "type": "string",
-                    "nullable": True,
-                },
-                "results": schema,
-            },
-        }
-
-    def get_html_context(self):
-        return {
-            "previous_url": self.get_previous_link(),
-            "next_url": self.get_next_link(),
-        }
-
-    def get_paginated_response(self, data):
-
-        return Response(
-            {
-                "next": self.get_next_link(),
-                "previous": self.get_previous_link(),
-                "results": data,
-            }
-        )
-
-    def get_next_link(self):
-
-        if self.has_next:
-            next_cursor = str(self.current_page + 1)
-            return replace_query_param(
-                self.base_url, self.cursor_query_param, next_cursor
-            )
-
-        return None
-
-    def get_previous_link(self):
-
-        if self.has_previous:
-            previous_cursor = str(self.current_page - 1)
-            return replace_query_param(
-                self.base_url, self.cursor_query_param, previous_cursor
-            )
-
-        return None
-
-    def paginate_queryset(self, queryset, request, view=None):
-
-        # Get the current URL with all parameters
-        self.base_url = request.build_absolute_uri()
-
-        self.current_page = self.get_page(request)
-        if self.current_page is None:
-            self.current_page = 1
-
-        offset = (self.current_page - 1) * self.page_size
-
-        # If we have an offset cursor then offset the entire page by that amount.
-        # We also always fetch an extra item in order to determine if there is a
-        # page following on from this one.
-        results = queryset[offset : offset + self.page_size + 1]
-
-        if len(results) > self.page_size:
-            self.has_next = True
-
-        if self.current_page > 1:
-            self.has_previous = True
-
-        return results[: self.page_size]
-
-    def get_page(self, request):
-
-        request_page = request.query_params.get(self.cursor_query_param)
-        if request_page:
-            try:
-                return int(request_page)
-            except ValueError:
-                return None
-
-        return None
-
-    def encode_cursor(self, cursor):
-
-        return b64encode(cursor.encode("ascii")).decode("ascii")
-
-
-class BuildingAddressCursorPagination(BuildingCursorPagination):
-    def get_paginated_response(self, data, infos):
-        return Response(
-            {
-                "next": self.get_next_link(),
-                "previous": self.get_previous_link(),
-                "status": infos["status"],
-                "cle_interop_ban": infos["cle_interop_ban"],
-                "score_ban": infos["score_ban"],
-                "results": data,
-            }
-        )
-
-
-class ListCreateBuildings(RNBLoggingMixin, APIView):
-    permission_classes = [ReadOnly | RNBContributorPermission]
-
-    @rnb_doc(
-        {
-            "get": {
-                "summary": "Liste des batiments",
-                "description": (
-                    "Cet endpoint permet de récupérer une liste paginée de bâtiments. "
-                    "Des filtres, notamment par code INSEE de la commune, sont disponibles. NB : l'URL se termine nécessairement par un slash (/)."
-                ),
-                "operationId": "listBuildings",
-                "parameters": [
-                    {
-                        "name": "insee_code",
-                        "in": "query",
-                        "description": "Filtre les bâtiments dont l'emprise au sol est située dans les limites géographiques de la commune ayant ce code INSEE.",
-                        "required": False,
-                        "schema": {"type": "string"},
-                        "example": "75101",
-                    },
-                    {
-                        "name": "status",
-                        "in": "query",
-                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />",
-                        "required": False,
-                        "schema": {"type": "string"},
-                        "example": "constructed,demolished",
-                    },
-                    {
-                        "name": "cle_interop_ban",
-                        "in": "query",
-                        "description": "Filtre les bâtiments associés à cette clé d'interopérabilité BAN.",
-                        "required": False,
-                        "schema": {"type": "string"},
-                        "example": "94067_7115_00073",
-                    },
-                    {
-                        "name": "bb",
-                        "in": "query",
-                        "description": (
-                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box"
-                            "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
-                            "Le format est <code>nw_lat,nw_lng,se_lat,se_lng</code> où : <br/>"
-                            "<ul>"
-                            "<li><b>nw_lat</b> : latitude du point Nord Ouest de la bounding box</li>"
-                            "<li><b>nw_lng</b> : longitude du point Nord Ouest de la bounding box</li>"
-                            "<li><b>se_lat</b> : latitude du point Sud Est de la bounding box</li>"
-                            "<li><b>se_lng</b> : longitude du point Sud Est de la bounding box</li>"
-                            "</ul><br />"
-                        ),
-                        "required": False,
-                        "schema": {"type": "string"},
-                        "example": "48.845782,2.424525,48.839201,2.434158",
-                    },
-                    {
-                        "name": "withPlots",
-                        "in": "query",
-                        "description": "Inclure les parcelles intersectant les bâtiments de la réponse. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment.",
-                        "required": False,
-                        "schema": {
-                            "type": "boolean",
-                            "default": False,
-                        },
-                        "example": "1",
-                    },
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Liste paginée de bâtiments",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "next": {
-                                            "type": "string",
-                                            "description": "<br />URL de la page de résultats suivante<br />",
-                                            "nullable": True,
-                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1",
-                                        },
-                                        "previous": {
-                                            "type": "string",
-                                            "description": "<br />URL de la page de résultats précédente<br />",
-                                            "nullable": True,
-                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR",
-                                        },
-                                        "results": {
-                                            "type": "array",
-                                            "items": {
-                                                "allOf": [
-                                                    {
-                                                        "$ref": "#/components/schemas/Building"
-                                                    },
-                                                    {
-                                                        "$ref": "#/components/schemas/BuildingWPlots"
-                                                    },
-                                                ]
-                                            },
-                                        },
-                                    },
-                                }
-                            }
-                        },
-                    }
-                },
-            },
-        },
-    )
-    def get(self, request):
-        query_params = request.query_params.dict()
-
-        # check if we need to include plots
-        with_plots_param = request.query_params.get("withPlots", None)
-        with_plots = True if with_plots_param == "1" else False
-        query_params["with_plots"] = with_plots
-
-        # add user to query params
-        query_params["user"] = request.user
-        buildings = list_bdgs(query_params)
-        paginator = BuildingCursorPagination()
-
-        # paginate
-        paginated_buildings = paginator.paginate_queryset(buildings, request)
-        serializer = BuildingSerializer(
-            paginated_buildings, with_plots=with_plots, many=True
-        )
-
-        return paginator.get_paginated_response(serializer.data)
-
-    @rnb_doc(
-        {
-            "post": {
-                "summary": "Création d'un bâtiment",
-                "description": "Cet endpoint permet de créer un bâtiment dans le RNB. Lors de la création, un identifiant RNB (ID-RNB) est généré. L'utilisateur doit être identifié et disposer des droits nécessaires pour écrire dans le RNB.",
-                "operationId": "postBuilding",
-                "requestBody": {
-                    "required": True,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "comment": {
-                                        "type": "string",
-                                        "description": "Commentaire optionnel associé à la création du bâtiment.",
-                                        "example": "Bâtiment ajouté suite à une nouvelle construction, visible sur la vue satellite.",
-                                    },
-                                    "status": {
-                                        "type": "string",
-                                        "enum": get_status_list(),
-                                        "description": "Statut du bâtiment.",
-                                        "example": "constructed",
-                                    },
-                                    "addresses_cle_interop": {
-                                        "type": "array",
-                                        # currently a bug in gitbook, addding info on items hides the description
-                                        # "items": {"type": "string"},
-                                        "description": "Liste des clés d'interopérabilité BAN liées au bâtiment.",
-                                        "example": [
-                                            "75105_8884_00004",
-                                            "75105_8884_00006",
-                                        ],
-                                    },
-                                    "shape": {
-                                        "type": "string",
-                                        "description": "Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.",
-                                        "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
-                                    },
-                                },
-                                "required": [
-                                    "status",
-                                    "shape",
-                                    "addresses_cle_interop",
-                                ],
-                            }
-                        }
-                    },
-                },
-                "responses": {
-                    "200": {
-                        "description": "Détails du bâtiment nouvellement créé dans le RNB",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "allOf": [
-                                        {"$ref": "#/components/schemas/Building"},
-                                        {"$ref": "#/components/schemas/BuildingWPlots"},
-                                    ]
-                                }
-                            }
-                        },
-                    },
-                    "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
-                    },
-                    "503": {"description": "Service temporairement indisponible"},
-                    "404": {
-                        "description": "Une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
-                    },
-                },
-            }
-        }
-    )
-    def post(self, request):
-        serializer = BuildingCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        data = serializer.data
-        user = request.user
-
-        with transaction.atomic():
-            # create a contribution
-            contribution = Contribution(
-                text=data.get("comment"),
-                status="fixed",
-                status_changed_at=datetime.now(timezone.utc),
-                report=False,
-                review_user=user,
-            )
-            contribution.save()
-
-            event_origin = {
-                "source": "contribution",
-                "contribution_id": contribution.id,
-            }
-
-            status = data.get("status")
-            addresses_cle_interop = data.get("addresses_cle_interop")
-            shape = GEOSGeometry(data.get("shape"))
-
-            try:
-                created_building = Building.create_new(
-                    user=user,
-                    event_origin=event_origin,
-                    status=status,
-                    addresses_id=addresses_cle_interop,
-                    shape=shape,
-                    ext_ids=[],
-                )
-            except BANAPIDown:
-                raise ServiceUnavailable(detail="BAN API is currently down")
-            except BANUnknownCleInterop:
-                raise NotFound(detail="Cle d'intéropérabilité not found on the BAN API")
-            except BANBadResultType:
-                raise BadRequest(
-                    detail="BAN result has not the expected type (must be 'numero')"
-                )
-            except InvalidWGS84Geometry:
-                raise BadRequest(
-                    detail="Provided shape is invalid (bad topology or wrong CRS)"
-                )
-            except BuildingTooLarge:
-                raise BadRequest(
-                    detail="Building area too large. Maximum allowed: 500000m²"
-                )
-
-            # update the contribution now that the rnb_id is known
-            contribution.rnb_id = created_building.rnb_id
-            contribution.save()
-
-        serializer = BuildingSerializer(created_building, with_plots=True)
-        return Response(serializer.data, status=http_status.HTTP_201_CREATED)
-
-
-class MergeBuildings(APIView):
+class MergeBuildings(RNBLoggingMixin, APIView):
     permission_classes = [RNBContributorPermission]
 
     @rnb_doc(
@@ -1054,16 +655,8 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                 raise BadRequest(
                     detail="BAN result has not the expected type (must be 'numero')"
                 )
-            except OperationOnInactiveBuilding:
-                raise BadRequest(detail="Cannot merge inactive buildings")
-            except NotEnoughBuildings:
-                raise BadRequest(
-                    detail="A merge operation requires at least two buildings"
-                )
-            except ImpossibleShapeMerge:
-                raise BadRequest(
-                    detail="To merge buildings, their shapes must be contiguous polygons. Consider updating the buildings's shapes first."
-                )
+            except InvalidOperation as e:
+                raise BadRequest(detail=e.api_message_with_details())
 
             # update the contribution now that the rnb_id is known
             contribution.rnb_id = new_building.rnb_id
@@ -1073,7 +666,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
-class SplitBuildings(APIView):
+class SplitBuildings(RNBLoggingMixin, APIView):
     permission_classes = [RNBContributorPermission]
 
     @rnb_doc(
@@ -1212,20 +805,8 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                 raise BadRequest(
                     detail="BAN result has not the expected type (must be 'numero')"
                 )
-            except InvalidWGS84Geometry:
-                raise BadRequest(
-                    detail="Provided shape is invalid (bad topology or wrong CRS)"
-                )
-            except BuildingTooLarge:
-                raise BadRequest(
-                    detail="Building area too large. Maximum allowed: 500000m²"
-                )
-            except NotEnoughBuildings:
-                raise BadRequest(
-                    detail="A split operation requires at least two child buildings"
-                )
-            except OperationOnInactiveBuilding:
-                raise BadRequest(detail="Cannot split an inactive building")
+            except InvalidOperation as e:
+                raise BadRequest(detail=e.api_message_with_details())
 
         serializer = BuildingSerializer(new_buildings, with_plots=False, many=True)
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
@@ -2043,7 +1624,12 @@ class DiffView(APIView):
                 status=400,
             )
 
+        local_statement_timeout = settings.DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT
         with connection.cursor() as cursor:
+            cursor.execute(
+                "SET statement_timeout = %(statement_timeout)s;",
+                {"statement_timeout": local_statement_timeout},
+            )
             most_recent_modification_query = sql.SQL(
                 """
                 select max(lower(sys_period)) from batid_building_with_history
@@ -2080,6 +1666,10 @@ class DiffView(APIView):
             w = os.fdopen(w, "w")
 
             with connection.cursor() as cursor:
+                cursor.execute(
+                    "SET statement_timeout = %(statement_timeout)s;",
+                    {"statement_timeout": local_statement_timeout},
+                )
                 start_ts = since
                 first_query = True
 
@@ -2211,6 +1801,93 @@ def city_ranking():
         return results
 
 
+def summer_challenge_targeted_score():
+    return 10_000
+
+
+def summer_challenge_global_score():
+    global_score = SummerChallenge.objects.aggregate(score=Sum("score"))
+    return global_score["score"]
+
+
+def summer_challenge_leaderboard(max_rank):
+    global_score = summer_challenge_global_score()
+
+    individual_ranking = (
+        SummerChallenge.objects.values_list("user__username")
+        .annotate(score=Sum("score"))
+        .order_by("-score")[:max_rank]
+    )
+    individual_ranking = [list(row) for row in individual_ranking]
+
+    city_ranking = (
+        SummerChallenge.objects.exclude(city__isnull=True)
+        .values_list("city__code_insee", "city__name")
+        .annotate(score=Sum("score"))
+        .order_by("-score")[:max_rank]
+    )
+    city_ranking = [list(row) for row in city_ranking]
+
+    departement = (
+        SummerChallenge.objects.exclude(department__isnull=True)
+        .values_list("department__code", "department__name")
+        .annotate(score=Sum("score"))
+        .order_by("-score")[:max_rank]
+    )
+    departement_ranking = [list(row) for row in departement]
+
+    return {
+        "goal": summer_challenge_targeted_score(),
+        "global": global_score,
+        "individual": individual_ranking,
+        "city": city_ranking,
+        "departement": departement_ranking,
+    }
+
+
+@api_view(["GET"])
+def get_summer_challenge_leaderboard(request):
+    max_rank = int(request.GET.get("max_rank", 5))
+    leaderboard = summer_challenge_leaderboard(max_rank)
+    return JsonResponse(leaderboard)
+
+
+@api_view(["GET"])
+def get_summer_challenge_user_score(request, username):
+
+    # Check the user exists, we by ursername or email
+    try:
+        User.objects.get(
+            Q(username=username) | Q(email=username)
+        )  # This will raise an exception if the user does not exist
+    except User.DoesNotExist:
+        raise NotFound()
+
+    global_score = summer_challenge_global_score()
+    individual_ranking = (
+        SummerChallenge.objects.values("user__username", "user__email")
+        .annotate(score=Sum("score"))
+        .order_by("-score")
+    )
+
+    user_score = 0
+    user_rank = None
+
+    for i, rank in enumerate(individual_ranking):
+        if rank["user__username"] == username or rank["user__email"] == username:
+            user_score = rank["score"]
+            user_rank = i + 1
+            break
+
+    data = {
+        "goal": summer_challenge_targeted_score(),
+        "global": global_score,
+        "user_score": user_score,
+        "user_rank": user_rank,
+    }
+    return JsonResponse(data)
+
+
 @extend_schema(exclude=True)
 class AdsTokenView(APIView):
     permission_classes = [IsSuperUser]
@@ -2284,6 +1961,8 @@ def create_user_in_sandbox(user_data: dict) -> None:
 
 
 class CreateUserView(APIView):
+    throttle_scope = "create_user"
+
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         request_data = request.data
@@ -2448,7 +2127,7 @@ class ActivateUser(APIView):
             return redirect(f"{site_url}/activation?status=error")
 
 
-class RequestPasswordReset(RNBLoggingMixin, APIView):
+class RequestPasswordReset(APIView):
     def post(self, request):
 
         email = request.data.get("email")
@@ -2481,7 +2160,7 @@ class RequestPasswordReset(RNBLoggingMixin, APIView):
         return Response(None, status=204)
 
 
-class ChangePassword(RNBLoggingMixin, APIView):
+class ChangePassword(APIView):
 
     # About security:
     # This endpoint is used to change the password of a user. It is very sensitive. It should be hardened.

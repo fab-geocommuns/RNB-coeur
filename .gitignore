@@ -49,6 +49,11 @@
 .env.metabase.import
 .env.metabase.sandbox
 
+.env.rabbitmq.dev
+.env.rabbitmq.prod
+.env.rabbitmq.staging
+.env.rabbitmq.sandbox
+
 # Jupyter notebooks trash
 app/.Trash-0/*
 
