@@ -62,7 +62,6 @@ from api_alpha.serializers import ADSSerializer
 from api_alpha.serializers import BuildingAddressQuerySerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
-
 from api_alpha.serializers import BuildingMergeSerializer
 from api_alpha.serializers import BuildingPlotSerializer
 from api_alpha.serializers import BuildingSerializer
@@ -91,7 +90,6 @@ from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.models import SummerChallenge
-
 from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
@@ -110,7 +108,6 @@ from batid.services.vector_tiles import url_params_to_tile
 from batid.tasks import create_sandbox_user
 from batid.utils.auth import make_random_password
 from batid.utils.constants import ADS_GROUP_NAME
-from api_alpha.permissions import ReadOnly
 
 
 class IsSuperUser(BasePermission):

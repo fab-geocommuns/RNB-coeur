@@ -13,7 +13,6 @@ from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingAddressView
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
-
 from api_alpha.views import BuildingPlotView
 from api_alpha.views import BuildingsVectorTileView
 from api_alpha.views import ChangePassword
