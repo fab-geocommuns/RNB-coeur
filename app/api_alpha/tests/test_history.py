@@ -251,8 +251,70 @@ class SimpleHistoryTest(APITestCase):
         )
 
     def test_merge(self):
+        """Merge specifics:
+        - event type is 'merge'
+        - event.details contains the merge child and parents' RNB IDs
+        """
 
-        pass
+        # We create a second building
+        data = {
+            "status": "constructed",
+            "addresses_cle_interop": ["cle_interop_1"],
+            "shape": json.dumps(
+                {
+                    "coordinates": [
+                        [
+                            [1.3653609702393794, 48.732855700163356],
+                            [1.365308683629877, 48.73273499650409],
+                            [1.3657080952289675, 48.73265931707786],
+                            [1.3657603818384416, 48.73277523108939],
+                            [1.3653609702393794, 48.732855700163356],
+                        ]
+                    ],
+                    "type": "Polygon",
+                }
+            ),
+            "comment": "nouveau bâtiment qui va être fusionné",
+        }
+        r = self.client.post(
+            f"/api/alpha/buildings/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+        data = r.json()
+        rnb_id2 = data["rnb_id"]
+
+        # We merge the two buildings
+        data = {
+            "status": "constructed",
+            "merge_existing_addresses": True,
+            "rnb_ids": [self.rnb_id, rnb_id2],
+        }
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+        data = r.json()
+        child_rnb_id = data["rnb_id"]
+
+        self.assertEqual(r.status_code, 201)
+
+        # ###########
+        # We are ready to test the history endpoint
+
+        # First we test one of the parents
+        r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
+        data = r.json()
+        self.assertEqual(r.status_code, 200)
+
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]["event"]["type"], "merge")
+        self.assertEqual(data[0]["event"]["details"]["merge_child"], child_rnb_id)
+        self.assertListEqual(
+            data[0]["event"]["details"]["merge_parents"],
+            [self.rnb_id, rnb_id2],
+        )
 
     def test_split(self):
 
