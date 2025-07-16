@@ -26,6 +26,18 @@ from batid.list_bdg import list_bdgs
 from batid.models import Building
 from batid.models import Contribution
 from batid.services.rnb_id import clean_rnb_id
+from batid.services.bdg_history import get_bdg_history
+from api_alpha.serializers import BuildingHistorySerializer
+
+
+class SingleBuildingHistory(APIView):
+    def get(self, request, rnb_id):
+
+        rows = get_bdg_history(rnb_id=rnb_id)
+
+        serializer = BuildingHistorySerializer(rows, many=True)
+
+        return Response(serializer.data)
 
 
 class SingleBuilding(RNBLoggingMixin, APIView):

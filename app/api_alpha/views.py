@@ -63,7 +63,7 @@ from api_alpha.serializers import BuildingAddressQuerySerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
 from api_alpha.serializers import BuildingCreateSerializer
-from api_alpha.serializers import BuildingHistorySerializer
+
 from api_alpha.serializers import BuildingMergeSerializer
 from api_alpha.serializers import BuildingPlotSerializer
 from api_alpha.serializers import BuildingSerializer
@@ -92,7 +92,7 @@ from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.models import SummerChallenge
-from batid.services.bdg_history import get_bdg_history
+
 from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
@@ -111,6 +111,7 @@ from batid.services.vector_tiles import url_params_to_tile
 from batid.tasks import create_sandbox_user
 from batid.utils.auth import make_random_password
 from batid.utils.constants import ADS_GROUP_NAME
+from api_alpha.permissions import ReadOnly
 
 
 class IsSuperUser(BasePermission):
@@ -811,184 +812,6 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         serializer = BuildingSerializer(new_buildings, with_plots=False, many=True)
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
-
-class BuildingHistory(APIView):
-    def get(self, request, rnb_id):
-
-        rows = get_bdg_history(rnb_id=rnb_id)
-
-        serializer = BuildingHistorySerializer(rows, many=True)
-
-        return Response(serializer.data)
-
-
-class SingleBuilding(APIView):
-    permission_classes = [ReadOnly | RNBContributorPermission]
-
-    @rnb_doc(
-        {
-            "get": {
-                "summary": "Consultation d'un bâtiment",
-                "description": "Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
-                "operationId": "getBuilding",
-                "parameters": [
-                    {
-                        "name": "rnb_id",
-                        "in": "path",
-                        "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
-                        "required": True,
-                        "schema": {"type": "string"},
-                        "example": "PG46YY6YWCX8",
-                    },
-                    {
-                        "name": "withPlots",
-                        "in": "query",
-                        "description": "Inclure les parcelles intersectant le bâtiment. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment par cette parcelle.",
-                        "required": False,
-                        "schema": {"type": "string"},
-                        "example": "1",
-                    },
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Détails du bâtiment",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "allOf": [
-                                        {"$ref": "#/components/schemas/Building"},
-                                        {"$ref": "#/components/schemas/BuildingWPlots"},
-                                    ]
-                                }
-                            }
-                        },
-                    }
-                },
-            }
-        }
-    )
-    def get(self, request, rnb_id):
-
-        # check if we need to include plots
-        with_plots_param = request.query_params.get("withPlots", False)
-        with_plots = with_plots_param == "1"
-
-        qs = list_bdgs(
-            {"user": request.user, "status": "all", "with_plots": with_plots},
-            only_active=False,
-        )
-        building = get_object_or_404(qs, rnb_id=clean_rnb_id(rnb_id))
-        serializer = BuildingSerializer(building, with_plots=with_plots)
-
-        return Response(serializer.data)
-
-    @rnb_doc(
-        {
-            "patch": {
-                "summary": "Mise à jour ou désactivation/réactivation d'un bâtiment",
-                "description": LiteralStr(
-                    """\
-Cet endpoint permet de :
-* mettre à jour un bâtiment existant (status, addresses_cle_interop, shape)
-* désactiver son ID-RNB s'il s'avère qu'il ne devrait pas faire partie du
-  RNB. Par exemple un arbre qui aurait été par erreur répertorié comme un
-  bâtiment du RNB.
-* réactiver un ID-RNB, si celui-ci a été désactivé par erreur.
-
-Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver/réactiver.
-
-Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
-
-Exemples valides:
-* ```{"comment": "faux bâtiment", "is_active": False}```
-* ```{"comment": "RNB ID désactivé par erreur, on le réactive", "is_active": True}```
-* ```{"comment": "bâtiment démoli", "status": "demolished"}```
-* ```{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}```
-"""
-                ),
-                "operationId": "patchBuilding",
-                "parameters": [
-                    {
-                        "name": "rnb_id",
-                        "in": "path",
-                        "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
-                        "required": True,
-                        "schema": {"type": "string"},
-                        "example": "PG46YY6YWCX8",
-                    }
-                ],
-                "requestBody": {
-                    "required": True,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "comment": {
-                                        "type": "string",
-                                        "description": "Texte associé à la modification et la justifiant.",
-                                        "exemple": "Ce n'est pas un bâtiment mais un arbre.",
-                                    },
-                                    "is_active": {
-                                        "type": "boolean",
-                                        "description": LiteralStr(
-                                            """\
-* `False` : l' ID-RNB est désactivé, car sa présence dans le RNB est une erreur. Ne permet *pas* de signaler une démolition, qui doit se faire par une mise à jour du statut.
-* `True` : l'ID-RNB est réactivé. À utiliser uniquement pour annuler une désactivation accidentelle."""
-                                        ),
-                                    },
-                                    "status": {
-                                        "type": "string",
-                                        "enum": get_status_list(),
-                                        "description": f"Statut du bâtiment.",
-                                        "exemple": "demolished",
-                                    },
-                                    "addresses_cle_interop": {
-                                        "type": "array",
-                                        # currently a bug in gitbook, addding info on items hides the description
-                                        # "items": {"type": "string"},
-                                        "description": LiteralStr(
-                                            """\
-Liste des clés d'interopérabilité BAN liées au bâtiment.
-
-Si ce paramêtre est :
-* absent, alors les clés ne sont pas modifiées.
-* présent et que sa valeur est une liste vide, alors le bâtiment ne sera plus lié à aucune adresse."""
-                                        ),
-                                        "exemple": [
-                                            "75105_8884_00004",
-                                            "75105_8884_00006",
-                                        ],
-                                    },
-                                    "shape": {
-                                        "type": "string",
-                                        "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
-                                    },
-                                },
-                                "required": [],
-                            }
-                        }
-                    },
-                },
-                "responses": {
-                    "204": {
-                        "description": "Pas de contenu attendu dans la réponse en cas de succès",
-                    },
-                    "400": {
-                        "description": "Requête invalide (données mal formatées ou incomplètes)."
-                    },
-                    "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
-                    },
-                    "503": {"description": "Service temporairement indisponible"},
-                    "404": {
-                        "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
-                    },
-                },
-            }
-        }
-    )
-    def patch(self, request, rnb_id):
         serializer = BuildingUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

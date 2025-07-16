@@ -5,6 +5,7 @@ from rest_framework import routers
 
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.single_building import SingleBuilding
+from api_alpha.endpoints.buildings.single_building import SingleBuildingHistory
 from api_alpha.views import ActivateUser
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSVectorTileView
@@ -12,7 +13,7 @@ from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingAddressView
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
-from api_alpha.views import BuildingHistory
+
 from api_alpha.views import BuildingPlotView
 from api_alpha.views import BuildingsVectorTileView
 from api_alpha.views import ChangePassword
@@ -62,7 +63,7 @@ urlpatterns = [
     ),
     path(
         "buildings/<str:rnb_id>/history/",
-        BuildingHistory.as_view(),
+        SingleBuildingHistory.as_view(),
     ),
     re_path(
         r"buildings/(?P<rnb_id>[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4})/",
