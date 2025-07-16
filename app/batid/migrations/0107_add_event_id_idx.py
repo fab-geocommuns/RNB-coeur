@@ -7,6 +7,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
+    atomic = False
     dependencies = [
         ("batid", "0106_remove_event_id_idx"),
     ]
