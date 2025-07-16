@@ -2,6 +2,7 @@ import json
 
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.utils.timezone import now
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
@@ -172,10 +173,17 @@ class SimpleHistoryTest(APITestCase):
         )
 
     def test_update(self):
+        """
+        Update specifics:
+        - the list of updated fields should be available in event.details.updated_fields
 
-        # We update the building with a new status and a new shape
+        (the updated_fields can contain: status, shape, addresses, ext_ids)
+        """
+
+        # We update the building with a new status, a new shape and we remove one address
         data = {
             "status": "demolished",
+            "addresses_cle_interop": ["cle_interop_1"],
             "shape": json.dumps(
                 {
                     "coordinates": [
@@ -204,14 +212,42 @@ class SimpleHistoryTest(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(len(data), 2)
 
-        # Verify the order of the history
+        # Verify the order of the history (most recent first)
         self.assertEqual(data[0]["event"]["type"], "update")
         self.assertEqual(data[1]["event"]["type"], "creation")
 
         # Verify the updated_fields
+        # NB: we can not change the ext_ids from the API, so it should not be in the updated_fields
         self.assertEqual(
             data[0]["event"]["details"]["updated_fields"],
-            ["status", "shape"],
+            ["status", "shape", "addresses"],
+        )
+
+        # Spcific assetions for ext_ids
+        bdg = Building.objects.get(rnb_id=self.rnb_id)
+        new_ext_ids = Building.add_ext_id(
+            bdg.ext_ids,
+            source="dummy",
+            source_version="1.0",
+            id="id123",
+            created_at=str(now()),
+        )
+        bdg.update(
+            user=None,
+            event_origin=None,
+            status=None,
+            addresses_id=None,
+            shape=None,
+            ext_ids=new_ext_ids,
+        )
+
+        r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
+        data = r.json()
+        self.assertEqual(r.status_code, 200)
+
+        most_recent = data[0]
+        self.assertListEqual(
+            most_recent["event"]["details"]["updated_fields"], ["ext_ids"]
         )
 
     def test_merge(self):

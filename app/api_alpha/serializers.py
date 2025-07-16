@@ -118,7 +118,7 @@ class BuildingEventSerializer(serializers.Serializer):
                 updated_fields.append("ext_ids")
 
             if set(previous.get("addresses_id")) != set(current.get("addresses_id")):
-                updated_fields.append("addresses_id")
+                updated_fields.append("addresses")
 
             instance["details"]["updated_fields"] = updated_fields
 
