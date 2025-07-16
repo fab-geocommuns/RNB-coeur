@@ -62,7 +62,6 @@ from api_alpha.serializers import ADSSerializer
 from api_alpha.serializers import BuildingAddressQuerySerializer
 from api_alpha.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers import BuildingClosestSerializer
-from api_alpha.serializers import BuildingCreateSerializer
 
 from api_alpha.serializers import BuildingMergeSerializer
 from api_alpha.serializers import BuildingPlotSerializer
