@@ -157,17 +157,23 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
 
             -- The row is a split child
 	    	when bdg.event_type = 'split' and bdg.is_active -- We are looking a split child
-	    	then json_build_object(
+	    	then (
+            	select json_build_object(
 	    		'split_parent', bdg.parent_buildings ->> 0,
-	    		'split_children', (select sc.rnb_id from batid_building_with_history sc where sc.is_active and sc.event_id = bdg.event_id)
-	    	)
+	    		'split_children', (select coalesce(json_agg(sc.rnb_id), '[]'::json) from batid_building_with_history sc where sc.is_active and sc.event_id = bdg.event_id)
+	    		)
+            )
 
             -- The row is a split parent
 	    	when bdg.event_type = 'split' and not bdg.is_active -- We are looking the split parent
-	    	then json_build_object(
-	    		'split_parent', bdg.rnb_id,
-	    		'split_children', (select coalesce(json_agg(sc.rnb_id), '[]'::json) from batid_building_with_history sc where sc.is_active and sc.event_id = bdg.event_id)
-	    	)
+	    	then (
+				select json_build_object(
+					'split_parent', bdg.rnb_id,
+					'split_children', (select coalesce(json_agg(sc.rnb_id), '[]'::json) from batid_building_with_history sc where sc.is_active and sc.event_id = bdg.event_id)
+				)
+            )
+            
+            
 	    end
 
     ) as event

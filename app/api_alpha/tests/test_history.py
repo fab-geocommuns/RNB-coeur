@@ -342,34 +342,38 @@ class SimpleHistoryTest(APITestCase):
                 {
                     "status": "constructed",
                     "addresses_cle_interop": [],
-                    "shape": {
-                        "coordinates": [
-                            [
-                                [1.36536097, 48.7328557],
-                                [1.365308684, 48.732734997],
-                                [1.3655, 48.7327],
-                                [1.3655, 48.7328],
-                                [1.36536097, 48.7328557],
-                            ]
-                        ],
-                        "type": "Polygon",
-                    },
+                    "shape": json.dumps(
+                        {
+                            "coordinates": [
+                                [
+                                    [1.36536097, 48.7328557],
+                                    [1.365308684, 48.732734997],
+                                    [1.3655, 48.7327],
+                                    [1.3655, 48.7328],
+                                    [1.36536097, 48.7328557],
+                                ]
+                            ],
+                            "type": "Polygon",
+                        }
+                    ),
                 },
                 {
                     "status": "constructed",
                     "addresses_cle_interop": [],
-                    "shape": {
-                        "coordinates": [
-                            [
-                                [1.3655, 48.7327],
-                                [1.365708095, 48.732659317],
-                                [1.365760382, 48.732775231],
-                                [1.3655, 48.7328],
-                                [1.3655, 48.7327],
-                            ]
-                        ],
-                        "type": "Polygon",
-                    },
+                    "shape": json.dumps(
+                        {
+                            "coordinates": [
+                                [
+                                    [1.3655, 48.7327],
+                                    [1.365708095, 48.732659317],
+                                    [1.365760382, 48.732775231],
+                                    [1.3655, 48.7328],
+                                    [1.3655, 48.7327],
+                                ]
+                            ],
+                            "type": "Polygon",
+                        }
+                    ),
                 },
             ]
         }
@@ -379,6 +383,7 @@ class SimpleHistoryTest(APITestCase):
             content_type="application/json",
         )
         data = r.json()
+
         child_rnb_id1 = data[0]["rnb_id"]
         child_rnb_id2 = data[1]["rnb_id"]
         children_rnb_ids = [child_rnb_id1, child_rnb_id2]
