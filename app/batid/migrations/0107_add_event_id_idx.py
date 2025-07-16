@@ -20,8 +20,4 @@ class Migration(migrations.Migration):
             model_name="building",
             index=models.Index(fields=["event_id"], name="bdg_event_id_idx"),
         ),
-        AddIndexConcurrently(
-            model_name="buildinghistoryonly",
-            index=models.Index(fields=["event_id"], name="bdg_history_event_id_idx"),
-        ),
     ]
