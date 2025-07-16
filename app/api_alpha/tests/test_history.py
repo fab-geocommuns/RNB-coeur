@@ -251,7 +251,8 @@ class SimpleHistoryTest(APITestCase):
         )
 
     def test_merge(self):
-        """Merge specifics:
+        """
+        Merge specifics:
         - event type is 'merge'
         - event.details contains the merge child and parents' RNB IDs
         """
@@ -329,8 +330,88 @@ class SimpleHistoryTest(APITestCase):
         )
 
     def test_split(self):
+        """
+        Split specifics:
+        - event type is 'split'
+        - event.details contains the split children and parent's RNB IDs
+        """
 
-        pass
+        # We split the building into two new buildings
+        data = {
+            "created_buildings": [
+                {
+                    "status": "constructed",
+                    "addresses_cle_interop": [],
+                    "shape": {
+                        "coordinates": [
+                            [
+                                [1.36536097, 48.7328557],
+                                [1.365308684, 48.732734997],
+                                [1.3655, 48.7327],
+                                [1.3655, 48.7328],
+                                [1.36536097, 48.7328557],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                },
+                {
+                    "status": "constructed",
+                    "addresses_cle_interop": [],
+                    "shape": {
+                        "coordinates": [
+                            [
+                                [1.3655, 48.7327],
+                                [1.365708095, 48.732659317],
+                                [1.365760382, 48.732775231],
+                                [1.3655, 48.7328],
+                                [1.3655, 48.7327],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                },
+            ]
+        }
+        r = self.client.post(
+            f"/api/alpha/buildings/{self.rnb_id}/split/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+        data = r.json()
+        child_rnb_id1 = data[0]["rnb_id"]
+        child_rnb_id2 = data[1]["rnb_id"]
+        children_rnb_ids = [child_rnb_id1, child_rnb_id2]
+
+        self.assertEqual(r.status_code, 201)
+
+        # ###########
+        # We are ready to test the history endpoint
+
+        # First we test the parent
+        r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
+        data = r.json()
+        self.assertEqual(r.status_code, 200)
+
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]["event"]["type"], "split")
+        self.assertEqual(data[0]["event"]["details"]["split_parent"], self.rnb_id)
+        self.assertListEqual(
+            sorted(data[0]["event"]["details"]["split_children"]),
+            sorted(children_rnb_ids),
+        )
+
+        # Then, we test one of the children
+        r = self.client.get(f"/api/alpha/buildings/{child_rnb_id1}/history/")
+        data = r.json()
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["event"]["type"], "split")
+        self.assertEqual(data[0]["event"]["details"]["split_parent"], self.rnb_id)
+        self.assertListEqual(
+            sorted(data[0]["event"]["details"]["split_children"]),
+            sorted(children_rnb_ids),
+        )
 
     def test_contribution(self):
 
