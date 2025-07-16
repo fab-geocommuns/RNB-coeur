@@ -172,8 +172,8 @@ def get_bdg_history(rnb_id: str) -> QuerySet:
 					'split_children', (select coalesce(json_agg(sc.rnb_id), '[]'::json) from batid_building_with_history sc where sc.is_active and sc.event_id = bdg.event_id)
 				)
             )
-            
-            
+
+
 	    end
 
     ) as event
