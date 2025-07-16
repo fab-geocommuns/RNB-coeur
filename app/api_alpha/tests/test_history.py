@@ -316,6 +316,18 @@ class SimpleHistoryTest(APITestCase):
             [self.rnb_id, rnb_id2],
         )
 
+        # Then, we test the child
+        r = self.client.get(f"/api/alpha/buildings/{child_rnb_id}/history/")
+        data = r.json()
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["event"]["type"], "merge")
+        self.assertEqual(data[0]["event"]["details"]["merge_child"], child_rnb_id)
+        self.assertListEqual(
+            data[0]["event"]["details"]["merge_parents"],
+            [self.rnb_id, rnb_id2],
+        )
+
     def test_split(self):
 
         pass
