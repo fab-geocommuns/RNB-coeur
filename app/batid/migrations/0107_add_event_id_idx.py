@@ -12,6 +12,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(
+            "SET statement_timeout = '0';",
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         AddIndexConcurrently(
             model_name="building",
             index=models.Index(fields=["event_id"], name="bdg_event_id_idx"),
