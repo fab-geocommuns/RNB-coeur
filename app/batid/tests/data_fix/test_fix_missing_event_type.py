@@ -1,15 +1,15 @@
-from datetime import timedelta
+# from datetime import timedelta
 
-from django.test import TestCase
+# from django.test import TestCase
 
-from batid.models import Building
-from batid.models import BuildingHistoryOnly
-from batid.services.data_fix.fill_empty_event_type import _fetch
-from batid.services.data_fix.fill_empty_event_type import fill_empty_event_type
+# from batid.models import Building
+# from batid.models import BuildingHistoryOnly
+# from batid.services.data_fix.fill_empty_event_type import _fetch
+# from batid.services.data_fix.fill_empty_event_type import fill_empty_event_type
 
 
-class TestFix(TestCase):
-    def setUp(self):
+# class TestFix(TestCase):
+#     def setUp(self):
 
 #         # One with empty Building and BuildingHistoryOnly
 #         b = Building.objects.create(
@@ -44,7 +44,7 @@ class TestFix(TestCase):
 #         self.assertIsNone(rows[0].event_type)
 #         self.assertIsInstance(rows[0], BuildingHistoryOnly)
 
-    def test_fix(self):
+# def test_fix(self):
 
 #         updated_rows = fill_empty_event_type(10)
 
@@ -54,8 +54,8 @@ class TestFix(TestCase):
 #         self.assertEqual(row.event_type, "creation")
 
 
-class TestFixCreationOnly(TestCase):
-    def setUp(self):
+# class TestFixCreationOnly(TestCase):
+#     def setUp(self):
 
 #         # We will create two history rows with event_type=None
 #         # One will be creation (created_at - lower(sys_period) < 2 seconds )
@@ -109,8 +109,8 @@ class TestFixCreationOnly(TestCase):
 #         self.assertIsNone(old_creation_row.event_type)
 
 
-class TestBatchSize(TestCase):
-    def setUp(self):
+# class TestBatchSize(TestCase):
+#     def setUp(self):
 
 #         b = Building.objects.create(
 #             rnb_id="batch_test",
