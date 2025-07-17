@@ -5,6 +5,7 @@ from rest_framework import routers
 
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.single_building import SingleBuilding
+from api_alpha.endpoints.buildings.single_building import SingleBuildingHistory
 from api_alpha.views import ActivateUser
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSVectorTileView
@@ -58,6 +59,10 @@ urlpatterns = [
     re_path(
         r"buildings/(?P<rnb_id>[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4})/split/",
         SplitBuildings.as_view(),
+    ),
+    path(
+        "buildings/<str:rnb_id>/history/",
+        SingleBuildingHistory.as_view(),
     ),
     re_path(
         r"buildings/(?P<rnb_id>[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4})/",
