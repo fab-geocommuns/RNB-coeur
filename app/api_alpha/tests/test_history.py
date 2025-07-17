@@ -7,7 +7,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from api_alpha.permissions import RNBContributorPermission
-from batid.models import Address, BuildingImport
+from batid.models import Address, BuildingImport, DataFix
 from batid.models import Building
 from batid.models import Organization
 
@@ -174,7 +174,7 @@ class SimpleHistoryTest(APITestCase):
 
     def test_update(self):
         """
-        Update specifics:
+        Update specifics to test:
         - the list of updated fields should be available in event.details.updated_fields
 
         (the updated_fields can contain: status, shape, addresses, ext_ids)
@@ -252,7 +252,7 @@ class SimpleHistoryTest(APITestCase):
 
     def test_merge(self):
         """
-        Merge specifics:
+        Merge specifics to test:
         - event type is 'merge'
         - event.details contains the merge child and parents' RNB IDs
         """
@@ -331,7 +331,7 @@ class SimpleHistoryTest(APITestCase):
 
     def test_split(self):
         """
-        Split specifics:
+        Split specifics to test:
         - event type is 'split'
         - event.details contains the split children and parent's RNB IDs
         """
@@ -420,7 +420,7 @@ class SimpleHistoryTest(APITestCase):
 
     def test_contribution(self):
         """
-        Contribution specifics:
+        Contribution specifics to test:
         - event type is 'contribution'
         - event.details contains is_report (boolean), 'report_text', 'review_comment' and 'posted_on' (rnb_id)
         NB: right now, our edit API does not permit to attach a report to a building version. We always attach a new contribution.
@@ -465,6 +465,7 @@ class SimpleHistoryTest(APITestCase):
         r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
         data = r.json()
 
+        # Verify the import specifics
         self.assertEqual(r.status_code, 200)
         self.assertEqual(len(data), 2)
         self.assertEqual(data[0]["event"]["origin"]["type"], "import")
@@ -474,8 +475,33 @@ class SimpleHistoryTest(APITestCase):
         )
 
     def test_data_fix(self):
+        """
+        Data fix specifics to test:
+        - event type is 'data_fix'
+        """
+        df = DataFix.objects.create(text="Test data fix")
 
-        pass
+        bdg = Building.objects.get(rnb_id=self.rnb_id)
+        bdg.update(
+            event_origin={"source": "data_fix", "id": df.id},
+            user=None,
+            status="demolished",
+            shape=None,
+            addresses_id=None,
+            ext_ids=None,
+        )
+
+        r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
+        data = r.json()
+        self.assertEqual(r.status_code, 200)
+
+        # Verify the data fix specifics
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]["event"]["origin"]["type"], "data_fix")
+        self.assertEqual(data[0]["event"]["origin"]["id"], df.id)
+        self.assertEqual(
+            data[0]["event"]["origin"]["details"]["description"], "Test data fix"
+        )
 
     def test_empty_results(self):
 
