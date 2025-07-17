@@ -1,10 +1,14 @@
 import datetime
 import uuid
+import json
 
+from django.contrib.gis.geos import GEOSGeometry
 from django.db.utils import IntegrityError
 from django.test import override_settings
 from django.test import TestCase
 
+from batid.exceptions import NotEnoughBuildings
+from batid.exceptions import OperationOnInactiveBuilding
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
@@ -134,7 +138,8 @@ class TestBuilding(TestCase):
         """
         bdg = Building.objects.create(rnb_id="AAA", shape="POINT(0 0)", is_active=False)
         user = User.objects.create_user(username="dummy")
-        bdg.deactivate(user, {"k": "v"})
+        with self.assertRaises(OperationOnInactiveBuilding):
+            bdg.deactivate(user, {"k": "v"})
         bdg.refresh_from_db()
 
         # nothing has changed
@@ -297,9 +302,7 @@ class TestSplitBuilding(TestCase):
         b1 = Building.objects.create(rnb_id="1", status="constructed")
         event_origin = {"source": "xxx"}
 
-        with self.assertRaisesRegex(
-            Exception, "A building must be split at least in two"
-        ):
+        with self.assertRaises(NotEnoughBuildings):
             # cannot split in 1
             b1.split(
                 [
@@ -318,7 +321,9 @@ class TestSplitBuilding(TestCase):
         b1 = Building.objects.create(rnb_id="1", status="constructed", is_active=False)
         event_origin = {"source": "xxx"}
 
-        with self.assertRaisesRegex(Exception, "Cannot split inactive building 1"):
+        with self.assertRaisesRegex(
+            Exception, "Impossible de diviser un identifiant inactif : 1"
+        ):
             b1.split(
                 [
                     {
@@ -362,3 +367,68 @@ class TestUniqueRNBIDEventID(TestCase):
             building.event_type = "update"
             building.status = "constructed"
             building.save()
+
+
+class TestUpdateBuilding(TestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.rnb_id = None
+        self.user = None
+
+    def setUp(self):
+
+        Address.objects.create(id="addr1")
+        Address.objects.create(id="addr2")
+        Address.objects.create(id="addr3")
+
+        self.user = User.objects.create_user(username="solo_user")
+
+        b = Building.create_new(
+            user=self.user,
+            event_origin={"source": "dummy_creation"},
+            status="constructed",
+            addresses_id=["addr1", "addr2"],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5629838649124963, 44.89830737784746],
+                                [-0.5627894800164768, 44.89622105788288],
+                                [-0.5603213808721534, 44.89635458462783],
+                                [-0.5605098753173934, 44.89844507230214],
+                                [-0.5629838649124963, 44.89830737784746],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+            ext_ids=[],
+        )
+
+        self.rnb_id = b.rnb_id
+
+    def test_updated_at(self):
+        """
+        Test that the updated_at field is set when updating a building.
+        """
+        b = Building.objects.get(rnb_id=self.rnb_id)
+        old_updated_at = b.updated_at
+
+        print(f"Old updated_at: {old_updated_at}")
+
+        # Update the building
+
+        b.update(
+            user=self.user,
+            status="demolished",
+            event_origin={"source": "dummy_update"},
+            addresses_id=None,
+        )
+
+        b.refresh_from_db()
+
+        print(f"New updated_at: {b.updated_at}")
+        self.assertNotEqual(b.updated_at, old_updated_at)

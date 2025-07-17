@@ -356,16 +356,21 @@ def create_sandbox_user(user_data: dict) -> None:
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def fill_empty_event_id() -> int:
+def fill_empty_event_id(batch_size) -> int:
     from batid.services.data_fix.fill_empty_event_id import fill_empty_event_id
 
     total = 0
 
     while True:
-        # Fill empty event_id in batches of 50_000 rows
         # If no rows are updated, we can stop
-        updated_rows = fill_empty_event_id(batch_size=50_000)
+        updated_rows = fill_empty_event_id(batch_size=batch_size)
+        print(f"Updated {updated_rows} rows")
         total += updated_rows
+
+        print("-------------")
+        print(f"Updated {updated_rows} rows")
+        print("Total so far: ", total)
+
         if updated_rows == 0:
             break
 
@@ -373,7 +378,7 @@ def fill_empty_event_id() -> int:
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def fill_empty_event_type() -> int:
+def fill_empty_event_type(batch_size: int) -> int:
     from batid.services.data_fix.fill_empty_event_type import fill_empty_event_type
 
     total = 0
@@ -381,8 +386,13 @@ def fill_empty_event_type() -> int:
     while True:
         # Fill empty event_type in batches of 50_000 rows
         # If no rows are updated, we can stop
-        updated_rows = fill_empty_event_type(batch_size=50_000)
+        updated_rows = fill_empty_event_type(batch_size=batch_size)
         total += updated_rows
+
+        print("-------------")
+        print(f"Updated {updated_rows} rows")
+        print("Total so far: ", total)
+
         if updated_rows == 0:
             break
 

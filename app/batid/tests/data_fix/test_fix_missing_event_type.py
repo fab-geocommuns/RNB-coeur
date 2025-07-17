@@ -1,19 +1,15 @@
-# Thoses were used only during the development and execution of the fill_event_type fix
-# They cannot be used in normal situation since they require to disable the write protection set in dbrouters.py
+from datetime import timedelta
 
-# from datetime import timedelta
-# from django.utils import timezone
+from django.test import TestCase
 
-# from django.test import TransactionTestCase, TestCase
-
-# from batid.services.data_fix.fill_empty_event_type import _fetch, fill_empty_event_type
-# from batid.models import Building
-# from batid.models import BuildingHistoryOnly
+from batid.models import Building
+from batid.models import BuildingHistoryOnly
+from batid.services.data_fix.fill_empty_event_type import _fetch
+from batid.services.data_fix.fill_empty_event_type import fill_empty_event_type
 
 
-# class TestFix(TestCase):
-
-#     def setUp(self):
+class TestFix(TestCase):
+    def setUp(self):
 
 #         # One with empty Building and BuildingHistoryOnly
 #         b = Building.objects.create(
@@ -48,7 +44,7 @@
 #         self.assertIsNone(rows[0].event_type)
 #         self.assertIsInstance(rows[0], BuildingHistoryOnly)
 
-#     def fix(self):
+    def test_fix(self):
 
 #         updated_rows = fill_empty_event_type(10)
 
@@ -58,9 +54,8 @@
 #         self.assertEqual(row.event_type, "creation")
 
 
-# class TestFixCreationOnly(TestCase):
-
-#     def setUp(self):
+class TestFixCreationOnly(TestCase):
+    def setUp(self):
 
 #         # We will create two history rows with event_type=None
 #         # One will be creation (created_at - lower(sys_period) < 2 seconds )
@@ -114,9 +109,8 @@
 #         self.assertIsNone(old_creation_row.event_type)
 
 
-# class TestBatchSize(TestCase):
-
-#     def setUp(self):
+class TestBatchSize(TestCase):
+    def setUp(self):
 
 #         b = Building.objects.create(
 #             rnb_id="batch_test",
