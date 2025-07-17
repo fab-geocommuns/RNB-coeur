@@ -7,8 +7,10 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from api_alpha.permissions import RNBContributorPermission
-from batid.models import Address, BuildingImport, DataFix
+from batid.models import Address
 from batid.models import Building
+from batid.models import BuildingImport
+from batid.models import DataFix
 from batid.models import Organization
 
 
