@@ -12,7 +12,7 @@ from batid.models import Building
 from batid.models import Organization
 
 
-class SimpleHistoryTest(APITestCase):
+class SingleBuildingHistoryTest(APITestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -96,10 +96,14 @@ class SimpleHistoryTest(APITestCase):
         self.client.credentials()
 
         bdg = Building.objects.get(rnb_id=self.rnb_id)
+
+        contrib_id = bdg.event_origin.get("contribution_id", None)
         updated_at = bdg.sys_period.lower
 
         r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
         data = r.json()
+
+        self.maxDiff = None
 
         self.assertEqual(r.status_code, 200)
 
@@ -164,7 +168,7 @@ class SimpleHistoryTest(APITestCase):
                             "report_text": "nouveau bâtiment",
                             "review_comment": None,
                         },
-                        "id": 1,
+                        "id": contrib_id,
                     },
                 },
                 "ext_ids": [],
