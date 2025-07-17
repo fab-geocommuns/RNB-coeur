@@ -1,6 +1,6 @@
 import datetime
-import uuid
 import json
+import uuid
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.db.utils import IntegrityError
@@ -343,7 +343,6 @@ class TestSplitBuilding(TestCase):
 
 
 class TestUniqueRNBIDEventID(TestCase):
-
     def test_unique_rnb_id_event_type(self):
 
         event_id = uuid.uuid4()
