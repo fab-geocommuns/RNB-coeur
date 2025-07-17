@@ -374,6 +374,7 @@ class BuildingPlotView(RNBLoggingMixin, APIView):
             raise NotFound("Plot unknown")
 
         paginator = BuildingCursorPagination()
+        paginator.ordering = "-bdg_cover_ratio"
         paginated_bdgs = paginator.paginate_queryset(bdgs, request)
         serializer = BuildingPlotSerializer(paginated_bdgs, many=True)
 

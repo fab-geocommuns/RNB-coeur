@@ -333,10 +333,20 @@ LOGGING = {
             "datefmt": "%Y-%m-%d %H:%M:%S %z",
         },
     },
+    "filters": {
+        "require_debug_true": {
+            "()": "django.utils.log.RequireDebugTrue",
+        }
+    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "gunicorn_style",
+        },
+        "debug_only_console": {
+            "level": "DEBUG",
+            "filters": ["require_debug_true"],
+            "class": "logging.StreamHandler",
         },
     },
     "root": {
@@ -353,6 +363,10 @@ LOGGING = {
             "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
+        },
+        "django.db.backends": {
+            "level": "DEBUG",
+            "handlers": ["debug_only_console"],
         },
     },
 }

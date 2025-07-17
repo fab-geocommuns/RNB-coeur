@@ -1,122 +1,102 @@
-from base64 import b64encode
+from typing import Any
 
-from rest_framework.pagination import BasePagination
+from django.db.models.expressions import RawSQL
+from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
-from rest_framework.utils.urls import replace_query_param
 
 
-class BuildingCursorPagination(BasePagination):
+class BuildingCursorPagination(CursorPagination):
     page_size = 20
-
-    cursor_query_param = "cursor"
-
-    def __init__(self):
-        self.base_url = None
-        self.current_page = None
-
-        self.has_next = False
-        self.has_previous = False
-
-        self.page = None
-
-    def get_paginated_response_schema(self, schema):
-        return {
-            "type": "object",
-            "properties": {
-                "next": {
-                    "type": "string",
-                    "nullable": True,
-                },
-                "previous": {
-                    "type": "string",
-                    "nullable": True,
-                },
-                "results": schema,
-            },
-        }
-
-    def get_html_context(self):
-        return {
-            "previous_url": self.get_previous_link(),
-            "next_url": self.get_next_link(),
-        }
-
-    def get_paginated_response(self, data):
-
-        return Response(
-            {
-                "next": self.get_next_link(),
-                "previous": self.get_previous_link(),
-                "results": data,
-            }
-        )
-
-    def get_next_link(self):
-
-        if self.has_next:
-            next_cursor = str(self.current_page + 1)
-            return replace_query_param(
-                self.base_url, self.cursor_query_param, next_cursor
-            )
-
-        return None
-
-    def get_previous_link(self):
-
-        if self.has_previous:
-            previous_cursor = str(self.current_page - 1)
-            return replace_query_param(
-                self.base_url, self.cursor_query_param, previous_cursor
-            )
-
-        return None
+    ordering = "id"
 
     def paginate_queryset(self, queryset, request, view=None):
+        self.request = request
+        self.page_size = self.get_page_size(request)
+        if not self.page_size:
+            return None
 
-        # Get the current URL with all parameters
         self.base_url = request.build_absolute_uri()
+        self.ordering = self.get_ordering(request, queryset, view)
 
-        self.current_page = self.get_page(request)
-        if self.current_page is None:
-            self.current_page = 1
+        self.cursor = self.decode_cursor(request)
+        if self.cursor is None:
+            (offset, reverse, current_position) = (0, False, None)
+        else:
+            (offset, reverse, current_position) = self.cursor
 
-        offset = (self.current_page - 1) * self.page_size
+        # Cursor pagination always enforces an ordering.
+        if reverse:
+            queryset = queryset.order_by(*_reverse_ordering(self.ordering))
+        else:
+            queryset = queryset.order_by(RawSQL(f"{self.ordering[0]}+0", []))
+
+        # If we have a cursor with a fixed position then filter by that.
+        if current_position is not None:
+            order = self.ordering[0]
+            is_reversed = order.startswith("-")
+            order_attr = order.lstrip("-")
+
+            # Test for: (cursor reversed) XOR (queryset reversed)
+            if self.cursor.reverse != is_reversed:
+                kwargs = {order_attr + "__lt": current_position}
+            else:
+                kwargs = {order_attr + "__gt": current_position}
+
+            queryset = queryset.filter(**kwargs)
 
         # If we have an offset cursor then offset the entire page by that amount.
         # We also always fetch an extra item in order to determine if there is a
         # page following on from this one.
-        results = queryset[offset : offset + self.page_size + 1]
+        results = list(queryset[offset : offset + self.page_size + 1])
+        self.page = list(results[: self.page_size])
 
-        if len(results) > self.page_size:
-            self.has_next = True
+        # Determine the position of the final item following the page.
+        if len(results) > len(self.page):
+            has_following_position = True
+            following_position = self._get_position_from_instance(
+                results[-1], self.ordering
+            )
+        else:
+            has_following_position = False
+            following_position = None
 
-        if self.current_page > 1:
-            self.has_previous = True
+        if reverse:
+            # If we have a reverse queryset, then the query ordering was in reverse
+            # so we need to reverse the items again before returning them to the user.
+            self.page = list(reversed(self.page))
 
-        return results[: self.page_size]
+            # Determine next and previous positions for reverse cursors.
+            self.has_next = (current_position is not None) or (offset > 0)
+            self.has_previous = has_following_position
+            if self.has_next:
+                self.next_position = current_position
+            if self.has_previous:
+                self.previous_position = following_position
+        else:
+            # Determine next and previous positions for forward cursors.
+            self.has_next = has_following_position
+            self.has_previous = (current_position is not None) or (offset > 0)
+            if self.has_next:
+                self.next_position = following_position
+            if self.has_previous:
+                self.previous_position = current_position
 
-    def get_page(self, request):
+        # Display page controls in the browsable API if there is more
+        # than one page.
+        if (self.has_previous or self.has_next) and self.template is not None:
+            self.display_page_controls = True
 
-        request_page = request.query_params.get(self.cursor_query_param)
-        if request_page:
-            try:
-                return int(request_page)
-            except ValueError:
-                return None
-
-        return None
-
-    def encode_cursor(self, cursor):
-
-        return b64encode(cursor.encode("ascii")).decode("ascii")
+        return self.page
 
 
 class BuildingAddressCursorPagination(BuildingCursorPagination):
-    def get_paginated_response(self, data, infos):
+    def get_paginated_response(
+        self, data: list[Any] | None, infos: dict[str, Any]
+    ) -> Response:
         return Response(
             {
-                "next": self.get_next_link(),
-                "previous": self.get_previous_link(),
+                "next": self.get_next_link() if data else None,
+                "previous": self.get_previous_link() if data else None,
                 "status": infos["status"],
                 "cle_interop_ban": infos["cle_interop_ban"],
                 "score_ban": infos["score_ban"],
