@@ -7,7 +7,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from api_alpha.permissions import RNBContributorPermission
-from batid.models import Address
+from batid.models import Address, BuildingImport
 from batid.models import Building
 from batid.models import Organization
 
@@ -419,12 +419,59 @@ class SimpleHistoryTest(APITestCase):
         )
 
     def test_contribution(self):
+        """
+        Contribution specifics:
+        - event type is 'contribution'
+        - event.details contains is_report (boolean), 'report_text', 'review_comment' and 'posted_on' (rnb_id)
+        NB: right now, our edit API does not permit to attach a report to a building version. We always attach a new contribution.
+        """
 
-        pass
+        # The building created in setUp() has a contribution attached to it
+        # We do not need to create a new one
+
+        r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
+        data = r.json()
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(data), 1)
+
+        # Verify the contribution specifics
+        self.assertEqual(data[0]["event"]["origin"]["type"], "contribution")
+        self.assertFalse(data[0]["event"]["origin"]["details"]["is_report"])
+        self.assertEqual(
+            data[0]["event"]["origin"]["details"]["report_text"], "nouveau bâtiment"
+        )
+        self.assertEqual(
+            data[0]["event"]["origin"]["details"]["posted_on"], self.rnb_id
+        )
+        self.assertIsNone(data[0]["event"]["origin"]["details"]["review_comment"])
 
     def test_import(self):
 
-        pass
+        bdg_import = BuildingImport.objects.create(
+            import_source="bdtopo",
+        )
+
+        bdg = Building.objects.get(rnb_id=self.rnb_id)
+        bdg.update(
+            event_origin={"source": "import", "id": bdg_import.id},
+            user=None,
+            status="demolished",
+            shape=None,
+            addresses_id=None,
+            ext_ids=None,
+        )
+
+        r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
+        data = r.json()
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]["event"]["origin"]["type"], "import")
+        self.assertEqual(data[0]["event"]["origin"]["id"], bdg_import.id)
+        self.assertEqual(
+            data[0]["event"]["origin"]["details"]["imported_database"], "bdtopo"
+        )
 
     def test_data_fix(self):
 
