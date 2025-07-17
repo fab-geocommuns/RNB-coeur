@@ -37,6 +37,12 @@ class SingleBuildingHistory(APIView):
 
         serializer = BuildingHistorySerializer(rows, many=True)
 
+        if not serializer.data:
+            return Response(
+                {"detail": "Aucun historique trouvé pour ce bâtiment"},
+                status=http_status.HTTP_404_NOT_FOUND,
+            )
+
         return Response(serializer.data)
 
 

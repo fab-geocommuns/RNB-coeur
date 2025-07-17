@@ -503,7 +503,9 @@ class SimpleHistoryTest(APITestCase):
             data[0]["event"]["origin"]["details"]["description"], "Test data fix"
         )
 
-    def test_empty_results(self):
-
-        # todo: empty list or 404 ?
-        pass
+    def test_unknwon_rnb_id(self):
+        """
+        Test that the history endpoint returns a 404 when the RNB ID does not exist
+        """
+        r = self.client.get(f"/api/alpha/buildings/1234ABCD1234/history/")
+        self.assertEqual(r.status_code, 404)
