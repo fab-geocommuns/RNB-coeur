@@ -4,7 +4,7 @@ from django.db.models.query import QuerySet
 from batid.utils.db import dictfetchall
 
 
-def get_bdg_history(rnb_id: str) -> QuerySet:
+def get_bdg_history(rnb_id: str) -> list[dict]:
 
     q = """
     SELECT
