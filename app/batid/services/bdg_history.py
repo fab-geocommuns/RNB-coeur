@@ -1,5 +1,4 @@
 from django.db import connection
-from django.db.models.query import QuerySet
 
 from batid.utils.db import dictfetchall
 
