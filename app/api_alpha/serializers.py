@@ -97,16 +97,18 @@ class ExtIdSerializer(serializers.Serializer):
 class BuildingEventSerializer(serializers.Serializer):
     def to_representation(self, instance):
 
+        instance_copy = instance.copy()
+
         if (
-            instance["type"] == "update"
-            and "previous_version" in instance["details"]
-            and "current_version" in instance["details"]
+            instance_copy["type"] == "update"
+            and "previous_version" in instance_copy["details"]
+            and "current_version" in instance_copy["details"]
         ):
 
             updated_fields = []
 
-            previous = instance["details"]["previous_version"]
-            current = instance["details"]["current_version"]
+            previous = instance_copy["details"]["previous_version"]
+            current = instance_copy["details"]["current_version"]
 
             if previous.get("status") != current.get("status"):
                 updated_fields.append("status")
@@ -127,13 +129,13 @@ class BuildingEventSerializer(serializers.Serializer):
             ):
                 updated_fields.append("addresses")
 
-            instance["details"]["updated_fields"] = updated_fields
+            instance_copy["details"]["updated_fields"] = updated_fields
 
             # remove the previous_version and current_version fields
-            del instance["details"]["previous_version"]
-            del instance["details"]["current_version"]
+            del instance_copy["details"]["previous_version"]
+            del instance_copy["details"]["current_version"]
 
-        return instance
+        return instance_copy
 
 
 class BuildingHistorySerializer(serializers.Serializer):
