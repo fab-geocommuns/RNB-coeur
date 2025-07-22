@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
+from batid.utils.misc import ext_ids_equal
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
@@ -116,7 +117,7 @@ class BuildingEventSerializer(serializers.Serializer):
             if previous.get("shape") != current.get("shape"):
                 updated_fields.append("shape")
 
-            if previous.get("ext_ids") != current.get("ext_ids"):
+            if not ext_ids_equal(previous.get("ext_ids"), current.get("ext_ids")):
                 updated_fields.append("ext_ids")
 
             prev_addresses = previous.get("addresses_id")
