@@ -147,9 +147,10 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    	when bdg.event_type = 'merge' and not bdg.is_active -- We are looking a merge parent
 	    	then (
 	    		SELECT json_build_object(
-		            'merge_child', mc.rnb_id,
-    		        'merge_parents', mc.parent_buildings
-	        	)
+                    'merge_child', mc.rnb_id,
+                    'merge_parents', mc.parent_buildings,
+                    'updated_fields', json_build_array('is_active')
+            	)
 				 FROM batid_building_with_history AS mc
 				 WHERE mc.event_id = bdg.event_id AND mc.is_active
 				 LIMIT 1

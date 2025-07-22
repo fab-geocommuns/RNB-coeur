@@ -322,6 +322,9 @@ class SingleBuildingHistoryTest(APITestCase):
             data[0]["event"]["details"]["merge_parents"],
             [self.rnb_id, rnb_id2],
         )
+        self.assertListEqual(
+            data[0]["event"]["details"]["updated_fields"], ["is_active"]
+        )
 
         # Then, we test the child
         r = self.client.get(f"/api/alpha/buildings/{child_rnb_id}/history/")
