@@ -6,13 +6,13 @@ from django.db.utils import IntegrityError
 from django.test import override_settings
 from django.test import TestCase
 
-from batid.utils.misc import ext_ids_equal
 from batid.exceptions import NotEnoughBuildings
 from batid.exceptions import OperationOnInactiveBuilding
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import User
+from batid.utils.misc import ext_ids_equal
 
 
 class TestBuilding(TestCase):
