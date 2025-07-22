@@ -170,7 +170,8 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    	then (
 				select json_build_object(
 					'split_parent', bdg.rnb_id,
-					'split_children', (select coalesce(json_agg(sc.rnb_id), '[]'::json) from batid_building_with_history sc where sc.is_active and sc.event_id = bdg.event_id)
+					'split_children', (select coalesce(json_agg(sc.rnb_id), '[]'::json) from batid_building_with_history sc where sc.is_active and sc.event_id = bdg.event_id),
+					'updated_fields', json_build_array('is_active')
 				)
             )
 
