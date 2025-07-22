@@ -76,7 +76,11 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    	case
 	    		when bdg.event_origin ->> 'source' = 'contribution'
 	    		then (bdg.event_origin ->> 'contribution_id')::bigint
-	    		else (bdg.event_origin ->> 'id')::bigint
+                when bdg.event_origin ->> 'source' = 'import'
+	    		then (bdg.event_origin ->> 'id')::int
+	    		when bdg.event_origin ->> 'source' = 'data_fix'
+	    		then (bdg.event_origin ->> 'id')::int
+	    		else null
 	    	end,
 	    	'details',
 	    	case
