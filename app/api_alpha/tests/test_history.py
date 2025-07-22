@@ -547,6 +547,23 @@ class SingleBuildingHistoryTest(APITestCase):
             data[0]["event"]["details"]["updated_fields"], ["is_active"]
         )
 
+        # We reactivate the building
+        self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps({"is_active": True}),
+            content_type="application/json",
+        )
+
+        # Then we check for the history
+        r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
+        data = r.json()
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(data), 3)
+        self.assertEqual(data[0]["event"]["type"], "reactivation")
+        self.assertListEqual(
+            data[0]["event"]["details"]["updated_fields"], ["is_active"]
+        )
+
     def test_unknwon_rnb_id(self):
         """
         Test that the history endpoint returns a 404 when the RNB ID does not exist

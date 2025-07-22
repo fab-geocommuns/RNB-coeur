@@ -71,6 +71,10 @@ class BuildingEventSerializer(serializers.Serializer):
             and instance_copy["details"].get("split_role") == "parent"
         ):
             instance_copy["details"]["updated_fields"] = ["is_active"]
+        elif instance_copy["type"] == "deactivation":
+            instance_copy["details"] = {"updated_fields": ["is_active"]}
+        elif instance_copy["type"] == "reactivation":
+            instance_copy["details"] = {"updated_fields": ["is_active"]}
 
         return instance_copy
 
