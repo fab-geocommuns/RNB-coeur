@@ -138,7 +138,8 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    	then (
 	    		select json_build_object(
 	    			'merge_child', bdg.rnb_id,
-	    			'merge_parents', bdg.parent_buildings
+	    			'merge_parents', bdg.parent_buildings,
+                    'merge_role', 'child'
 	    		)
 	    	)
 
@@ -148,7 +149,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    		SELECT json_build_object(
                     'merge_child', mc.rnb_id,
                     'merge_parents', mc.parent_buildings,
-                    'updated_fields', json_build_array('is_active')
+                    'merge_role', 'parent'
             	)
 				 FROM batid_building_with_history AS mc
 				 WHERE mc.event_id = bdg.event_id AND mc.is_active
@@ -160,7 +161,8 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    	then (
             	select json_build_object(
 	    		'split_parent', bdg.parent_buildings ->> 0,
-	    		'split_children', (select coalesce(json_agg(sc.rnb_id), '[]'::json) from batid_building_with_history sc where sc.is_active and sc.event_id = bdg.event_id)
+	    		'split_children', (select coalesce(json_agg(sc.rnb_id), '[]'::json) from batid_building_with_history sc where sc.is_active and sc.event_id = bdg.event_id),
+                'split_role', 'child'
 	    		)
             )
 
@@ -170,7 +172,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 				select json_build_object(
 					'split_parent', bdg.rnb_id,
 					'split_children', (select coalesce(json_agg(sc.rnb_id), '[]'::json) from batid_building_with_history sc where sc.is_active and sc.event_id = bdg.event_id),
-					'updated_fields', json_build_array('is_active')
+					'split_role', 'parent'
 				)
             )
 

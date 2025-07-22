@@ -135,6 +135,17 @@ class BuildingEventSerializer(serializers.Serializer):
             del instance_copy["details"]["previous_version"]
             del instance_copy["details"]["current_version"]
 
+        elif (
+            instance_copy["type"] == "merge"
+            and instance_copy["details"].get("merge_role") == "parent"
+        ):
+            instance_copy["details"]["updated_fields"] = ["is_active"]
+        elif (
+            instance_copy["type"] == "split"
+            and instance_copy["details"].get("split_role") == "parent"
+        ):
+            instance_copy["details"]["updated_fields"] = ["is_active"]
+
         return instance_copy
 
 

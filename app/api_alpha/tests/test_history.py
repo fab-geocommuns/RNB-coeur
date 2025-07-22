@@ -325,6 +325,7 @@ class SingleBuildingHistoryTest(APITestCase):
         self.assertListEqual(
             data[0]["event"]["details"]["updated_fields"], ["is_active"]
         )
+        self.assertEqual(data[0]["event"]["details"]["merge_role"], "parent")
 
         # Then, we test the child
         r = self.client.get(f"/api/alpha/buildings/{child_rnb_id}/history/")
@@ -337,6 +338,7 @@ class SingleBuildingHistoryTest(APITestCase):
             data[0]["event"]["details"]["merge_parents"],
             [self.rnb_id, rnb_id2],
         )
+        self.assertEqual(data[0]["event"]["details"]["merge_role"], "child")
 
     def test_split(self):
         """
@@ -417,6 +419,7 @@ class SingleBuildingHistoryTest(APITestCase):
         self.assertListEqual(
             data[0]["event"]["details"]["updated_fields"], ["is_active"]
         )
+        self.assertEqual(data[0]["event"]["details"]["split_role"], "parent")
 
         # Then, we test one of the children
         r = self.client.get(f"/api/alpha/buildings/{child_rnb_id1}/history/")
@@ -429,6 +432,7 @@ class SingleBuildingHistoryTest(APITestCase):
             sorted(data[0]["event"]["details"]["split_children"]),
             sorted(children_rnb_ids),
         )
+        self.assertEqual(data[0]["event"]["details"]["split_role"], "child")
 
     def test_contribution(self):
         """
