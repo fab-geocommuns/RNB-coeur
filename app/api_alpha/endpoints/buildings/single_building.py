@@ -13,9 +13,9 @@ from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
-from api_alpha.serializers import BuildingHistorySerializer
-from api_alpha.serializers import BuildingSerializer
-from api_alpha.serializers import BuildingUpdateSerializer
+from api_alpha.serializers.building_history import BuildingHistorySerializer
+from api_alpha.serializers.serializers import BuildingSerializer
+from api_alpha.serializers.serializers import BuildingUpdateSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import get_status_list
 from api_alpha.utils.rnb_doc import rnb_doc
