@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from api_alpha.serializers.serializers import RNBIdField, ExtIdSerializer
+
+from api_alpha.serializers.serializers import ExtIdSerializer
+from api_alpha.serializers.serializers import RNBIdField
 from batid.utils.misc import ext_ids_equal
 
 
