@@ -50,9 +50,6 @@ class BuildingEventSerializer(serializers.Serializer):
             prev_addresses = previous.get("addresses_id", [])
             curr_addresses = current.get("addresses_id", [])
 
-            print(f"Previous addresses: {prev_addresses}")
-            print(f"Current addresses: {curr_addresses}")
-
             if set(prev_addresses) != set(curr_addresses):
                 updated_fields.append("addresses")
 
