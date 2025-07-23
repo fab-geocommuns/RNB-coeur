@@ -10,6 +10,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
     bdg.rnb_id,
     bdg.is_active,
     ST_AsGeoJSON(bdg.shape)::json AS shape,
+    ST_AsGeoJSON(bdg.point)::json AS point,
     bdg.status,
     bdg.ext_ids::json,
     lower(bdg.sys_period) AS updated_at,
