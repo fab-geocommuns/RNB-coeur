@@ -47,14 +47,13 @@ class BuildingEventSerializer(serializers.Serializer):
             if not ext_ids_equal(previous.get("ext_ids"), current.get("ext_ids")):
                 updated_fields.append("ext_ids")
 
-            prev_addresses = previous.get("addresses_id")
-            curr_addresses = current.get("addresses_id")
+            prev_addresses = previous.get("addresses_id", [])
+            curr_addresses = current.get("addresses_id", [])
 
-            if (
-                prev_addresses
-                and curr_addresses
-                and set(prev_addresses) != set(curr_addresses)
-            ):
+            print(f"Previous addresses: {prev_addresses}")
+            print(f"Current addresses: {curr_addresses}")
+
+            if set(prev_addresses) != set(curr_addresses):
                 updated_fields.append("addresses")
 
             instance_copy["details"]["updated_fields"] = updated_fields
