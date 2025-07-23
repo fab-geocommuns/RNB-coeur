@@ -178,6 +178,62 @@ class SingleBuildingHistoryTest(APITestCase):
             },
         )
 
+    def test_addresses_update(self):
+        """
+        We want to be sure that "addresses" is contained in the updated_fields in somes cases:
+        - when the building had no addresses and we add some
+        - when the building had addresses and we remove all of them
+        """
+
+        bdg = Building.objects.get(rnb_id=self.rnb_id)
+
+        # We remove all addresses
+        data = {
+            "shape": bdg.shape.json,
+            "status": bdg.status,
+            "addresses_cle_interop": [],
+        }
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+
+        # We now verify the history endpoint
+        r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
+        data = r.json()
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(data), 2)
+
+        self.assertListEqual(
+            data[0]["event"]["details"]["updated_fields"], ["addresses"]
+        )
+
+        # We add one addresse
+        data = {
+            "shape": bdg.shape.json,
+            "status": bdg.status,
+            "addresses_cle_interop": ["cle_interop_1"],
+        }
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 204)
+
+        # We now verify the history endpoint
+        r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
+        data = r.json()
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(data), 3)
+
+        self.assertListEqual(
+            data[0]["event"]["details"]["updated_fields"], ["addresses"]
+        )
+
     def test_update(self):
         """
         Update specifics to test:
