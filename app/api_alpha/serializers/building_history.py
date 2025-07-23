@@ -81,6 +81,7 @@ class BuildingHistorySerializer(serializers.Serializer):
     rnb_id = RNBIdField()
     is_active = serializers.BooleanField()
     shape = serializers.JSONField()
+    point = serializers.JSONField()
     status = serializers.CharField()
     event = BuildingEventSerializer()
     ext_ids = ExtIdSerializer(many=True)

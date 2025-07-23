@@ -116,6 +116,7 @@ class SingleBuildingHistoryTest(APITestCase):
             {
                 "rnb_id": self.rnb_id,
                 "is_active": True,
+                "point": None,
                 "shape": {
                     "type": "Polygon",
                     "coordinates": [
