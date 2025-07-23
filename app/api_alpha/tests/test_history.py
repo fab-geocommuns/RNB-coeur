@@ -204,7 +204,6 @@ class SingleBuildingHistoryTest(APITestCase):
         # We now verify the history endpoint
         r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
         data = r.json()
-        print(data)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(len(data), 2)
 

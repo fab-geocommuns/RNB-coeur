@@ -447,7 +447,7 @@ class BuildingPatchTest(APITestCase):
 
         self.assertListEqual(self.building.addresses_id, expected_addresses)
 
-        # We can now empty the addresses
+        # We can now remove all addresses
         data = {
             "shape": self.building.shape.json,
             "status": self.building.status,
