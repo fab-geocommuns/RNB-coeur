@@ -212,7 +212,7 @@ class SingleBuildingHistoryTest(APITestCase):
             data[0]["event"]["details"]["updated_fields"], ["addresses"]
         )
 
-        # We add some one addresse
+        # We add one addresse
         data = {
             "shape": bdg.shape.json,
             "status": bdg.status,
