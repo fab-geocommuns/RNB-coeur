@@ -243,11 +243,11 @@ Si ce paramêtre est :
                 else:
                     status = data.get("status")
                     addresses_cle_interop = data.get("addresses_cle_interop")
-                    addresses_id = (
-                        list(set(addresses_cle_interop))
-                        if addresses_cle_interop
-                        else None
-                    )
+
+                    addresses_id = None
+                    if isinstance(addresses_cle_interop, list):
+                        addresses_id = list(set(addresses_cle_interop))
+
                     shape = (
                         GEOSGeometry(data.get("shape")) if data.get("shape") else None
                     )

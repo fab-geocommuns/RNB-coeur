@@ -439,9 +439,13 @@ class BuildingPatchTest(APITestCase):
 
         self.building.refresh_from_db()
 
-        self.assertListEqual(
-            self.building.addresses_id, ["cle_interop_1", "cle_interop_2"]
-        )
+        # We check that the addresses have been added
+        expected_addresses = ["cle_interop_1", "cle_interop_2"]
+        expected_addresses.sort()
+
+        self.building.addresses_id.sort()
+
+        self.assertListEqual(self.building.addresses_id, expected_addresses)
 
         # We can now empty the addresses
         data = {
