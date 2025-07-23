@@ -13,8 +13,9 @@ from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
-from api_alpha.serializers import BuildingSerializer
-from api_alpha.serializers import BuildingUpdateSerializer
+from api_alpha.serializers.building_history import BuildingHistorySerializer
+from api_alpha.serializers.serializers import BuildingSerializer
+from api_alpha.serializers.serializers import BuildingUpdateSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import get_status_list
 from api_alpha.utils.rnb_doc import rnb_doc
@@ -25,7 +26,21 @@ from batid.exceptions import InvalidOperation
 from batid.list_bdg import list_bdgs
 from batid.models import Building
 from batid.models import Contribution
+from batid.services.bdg_history import get_bdg_history
 from batid.services.rnb_id import clean_rnb_id
+
+
+class SingleBuildingHistory(APIView):
+    def get(self, request, rnb_id):
+
+        # check the building exists
+        get_object_or_404(Building, rnb_id=clean_rnb_id(rnb_id))
+
+        rows = get_bdg_history(rnb_id=rnb_id)
+
+        serializer = BuildingHistorySerializer(rows, many=True)
+
+        return Response(serializer.data)
 
 
 class SingleBuilding(RNBLoggingMixin, APIView):
