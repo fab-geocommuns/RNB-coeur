@@ -1424,7 +1424,7 @@ def city_ranking():
 
 
 def summer_challenge_targeted_score():
-    return 10_000
+    return 100_000
 
 
 def summer_challenge_global_score():
