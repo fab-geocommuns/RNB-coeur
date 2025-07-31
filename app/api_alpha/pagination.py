@@ -8,6 +8,9 @@ class BuildingCursorPagination(CursorPagination):
     page_size = 20
     ordering = "id"
 
+    # We override the `paginate_queryset` method to customize the ordering
+    # with a distance operator to force the usage of a `btree_gist` index.
+    # Check the original implementation in `rest_framework.pagination.CursorPagination`
     def paginate_queryset(self, queryset, request, view=None):
         self.request = request
         self.page_size = self.get_page_size(request)
@@ -25,9 +28,16 @@ class BuildingCursorPagination(CursorPagination):
 
         # Cursor pagination always enforces an ordering.
         if reverse:
-            queryset = queryset.order_by(*_reverse_ordering(self.ordering))
-        else:
-            queryset = queryset.order_by(RawSQL(f"{self.ordering[0]}+0", []))
+            raise NotImplementedError(
+                "Reverse ordering is not supported for BuildingCursorPagination"
+            )
+        if self.ordering[0] != "id" or len(self.ordering) > 1:
+            raise NotImplementedError(
+                "Only id ordering is supported for BuildingCursorPagination"
+            )
+
+        current_id = int(current_position) if current_position else 0
+        queryset = queryset.order_by(RawSQL(f"id <-> {current_id}", []))
 
         # If we have a cursor with a fixed position then filter by that.
         if current_position is not None:
@@ -59,26 +69,13 @@ class BuildingCursorPagination(CursorPagination):
             has_following_position = False
             following_position = None
 
-        if reverse:
-            # If we have a reverse queryset, then the query ordering was in reverse
-            # so we need to reverse the items again before returning them to the user.
-            self.page = list(reversed(self.page))
-
-            # Determine next and previous positions for reverse cursors.
-            self.has_next = (current_position is not None) or (offset > 0)
-            self.has_previous = has_following_position
-            if self.has_next:
-                self.next_position = current_position
-            if self.has_previous:
-                self.previous_position = following_position
-        else:
-            # Determine next and previous positions for forward cursors.
-            self.has_next = has_following_position
-            self.has_previous = (current_position is not None) or (offset > 0)
-            if self.has_next:
-                self.next_position = following_position
-            if self.has_previous:
-                self.previous_position = current_position
+        # Determine next and previous positions for forward cursors.
+        self.has_next = has_following_position
+        self.has_previous = (current_position is not None) or (offset > 0)
+        if self.has_next:
+            self.next_position = following_position
+        if self.has_previous:
+            self.previous_position = current_position
 
         # Display page controls in the browsable API if there is more
         # than one page.
