@@ -12,6 +12,8 @@ from django.db.models import Value
 from django.db.models import When
 from django.db.models.lookups import Exact
 from django.db.models.lookups import In
+from django.contrib.gis.db.models import GeometryField
+from django.db.models.functions import Cast
 
 from batid.models import Building
 from batid.models import City
@@ -96,7 +98,14 @@ def list_bdgs(params, only_active=True) -> QuerySet:
         # - We use a subquery to get the plots ids and the bdg_cover_ratio
         # - We make an array of them in the "plot" field in the main query (PlotsAggSubquery)
         subquery = (
-            Plot.objects.filter(shape__intersects=OuterRef("shape"))
+            Plot.objects.filter(
+                shape__intersects=Func(
+                    OuterRef("shape"),
+                    0.0000001,
+                    function="ST_ReducePrecision",
+                    output_field=GeometryField(),
+                )
+            )
             .annotate(
                 bdg_cover_ratio=Case(
                     # When the building shape is a point, the intersecting ratio is 1 (we hard code it since SQL returns 0 instead of 1)
@@ -124,7 +133,11 @@ def list_bdgs(params, only_active=True) -> QuerySet:
                                     # We get the area of the intersection between the building shape and the plot shape
                                     Func(
                                         Func(
-                                            OuterRef("shape"),
+                                            Func(
+                                                OuterRef("shape"),
+                                                0.0000001,
+                                                function="ST_ReducePrecision",
+                                            ),
                                             F("shape"),
                                             function="ST_Intersection",
                                         ),
@@ -135,7 +148,11 @@ def list_bdgs(params, only_active=True) -> QuerySet:
                                     /
                                     # ... by the area of the building shape
                                     Func(
-                                        OuterRef("shape"),
+                                        Func(
+                                            OuterRef("shape"),
+                                            0.0000001,
+                                            function="ST_ReducePrecision",
+                                        ),
                                         function="ST_Area",
                                         output_field=FloatField(),
                                     )

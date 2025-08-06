@@ -604,8 +604,8 @@ class BuildingsWithPlots(APITestCase):
                     "ext_ids": [],
                     "is_active": True,
                     "plots": [
-                        {"id": "one", "bdg_cover_ratio": 0.529665644404105},
-                        {"id": "two", "bdg_cover_ratio": 0.4490196151882506},
+                        {"id": "one", "bdg_cover_ratio": 0.53},
+                        {"id": "two", "bdg_cover_ratio": 0.45},
                     ],
                 },
                 {
@@ -630,7 +630,7 @@ class BuildingsWithPlots(APITestCase):
                     "addresses": [],
                     "ext_ids": [],
                     "is_active": True,
-                    "plots": [{"id": "two", "bdg_cover_ratio": 0.0016624281607746448}],
+                    "plots": [],
                 },
             ],
         }
@@ -699,8 +699,8 @@ class BuildingsWithPlots(APITestCase):
             "ext_ids": [],
             "is_active": True,
             "plots": [
-                {"id": "one", "bdg_cover_ratio": 0.529665644404105},
-                {"id": "two", "bdg_cover_ratio": 0.4490196151882506},
+                {"id": "one", "bdg_cover_ratio": 0.53},
+                {"id": "two", "bdg_cover_ratio": 0.45},
             ],
         }
 

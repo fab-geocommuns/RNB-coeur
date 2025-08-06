@@ -77,6 +77,11 @@ class ExtIdSerializer(serializers.Serializer):
     source_version = serializers.CharField(help_text="2023_01")
 
 
+class PlotSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    bdg_cover_ratio = serializers.DecimalField(max_digits=3, decimal_places=2)
+
+
 class BuildingSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
 
@@ -90,6 +95,18 @@ class BuildingSerializer(serializers.ModelSerializer):
         if not with_plots:
             self.fields.pop("plots")
 
+    # Filter out plots with bdg_cover_ratio of 0 or close
+    def get_plots(self, obj):
+        plots_data = getattr(obj, "plots", None)
+        if plots_data is None:
+            return []
+
+        filtered_plots = [
+            plot for plot in plots_data if plot.get("bdg_cover_ratio", 0) > 0.006
+        ]
+
+        return PlotSerializer(filtered_plots, read_only=True, many=True).data
+
     point = serializers.DictField(
         source="point_geojson",
         read_only=True,
@@ -102,7 +119,7 @@ class BuildingSerializer(serializers.ModelSerializer):
         many=True, read_only=True, source="addresses_read_only"
     )
     ext_ids = ExtIdSerializer(many=True, read_only=True)
-    plots = serializers.JSONField(read_only=True)
+    plots = serializers.SerializerMethodField()
 
     class Meta:
         model = Building

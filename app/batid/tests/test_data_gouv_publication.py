@@ -24,6 +24,7 @@ from batid.services.data_gouv_publication import publish_on_data_gouv
 from batid.services.data_gouv_publication import update_resource_metadata
 from batid.services.data_gouv_publication import upload_to_s3
 
+
 # Polygone dans Paris
 def get_geom_paris():
     coords = {
@@ -260,7 +261,7 @@ class TestDataGouvPublication(TestCase):
                     }
                 ],
                 # the building sits on two plots
-                "plots": """[{"id" : "plot_1", "bdg_cover_ratio" : 0.4513785723301588}, {"id" : "plot_2", "bdg_cover_ratio" : 0.5510222422494555}]""",
+                "plots": """[{"id" : "plot_1", "bdg_cover_ratio" : 0.45}, {"id" : "plot_2", "bdg_cover_ratio" : 0.55}]""",
             },
             {
                 "rnb_id": "BDG2-PARIS",
@@ -269,7 +270,7 @@ class TestDataGouvPublication(TestCase):
                 "status": "constructed",
                 "ext_ids": {"some_source": "5678"},
                 "addresses": [],
-                "plots": """[{"id" : "plot_1", "bdg_cover_ratio" : 0.4513785723301588}, {"id" : "plot_2", "bdg_cover_ratio" : 0.5510222422494555}]""",
+                "plots": """[{"id" : "plot_1", "bdg_cover_ratio" : 0.45}, {"id" : "plot_2", "bdg_cover_ratio" : 0.55}]""",
             },
             {
                 "rnb_id": "BDG-MANY-ADD",
@@ -296,7 +297,7 @@ class TestDataGouvPublication(TestCase):
                     },
                 ],
                 # we check the cover ratio for points is 1
-                "plots": """[{"id" : "plot_2", "bdg_cover_ratio" : 1}]""",
+                "plots": """[{"id" : "plot_2", "bdg_cover_ratio" : 1.0}]""",
             },
         ]
         expected_rows = sorted(expected_rows, key=lambda x: x["rnb_id"])
