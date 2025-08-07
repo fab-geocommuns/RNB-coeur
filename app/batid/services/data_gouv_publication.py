@@ -109,11 +109,15 @@ def sql_query(code_area):
 
 def create_csv(directory_name, code_area):
     sql = sql_query(code_area)
+    # custom statement timeout set at 72h
+    local_statement_timeout = 259_200_000
     with open(f"{file_path(directory_name, code_area)}.csv", "w") as fp:
         with transaction.atomic():
             with connection.cursor() as cursor:
-                # custom statement timeout set at 48H
-                cursor.execute("SET LOCAL statement_timeout = 172800000;")
+                cursor.execute(
+                    "SET statement_timeout = %(statement_timeout)s;",
+                    {"statement_timeout": local_statement_timeout},
+                )
                 cursor.copy_expert(sql, fp)
 
 
