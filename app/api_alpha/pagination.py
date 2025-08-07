@@ -19,6 +19,10 @@ class BuildingCursorPagination(CursorPagination):
 
         self.base_url = request.build_absolute_uri()
         self.ordering = self.get_ordering(request, queryset, view)
+        if self.ordering[0] != "id" or len(self.ordering) > 1:
+            raise NotImplementedError(
+                "Only id ordering is supported for BuildingCursorPagination"
+            )
 
         self.cursor = self.decode_cursor(request)
         if self.cursor is None:
@@ -26,17 +30,8 @@ class BuildingCursorPagination(CursorPagination):
         else:
             (offset, reverse, current_position) = self.cursor
 
-        # Cursor pagination always enforces an ordering.
-        if reverse:
-            raise NotImplementedError(
-                "Reverse ordering is not supported for BuildingCursorPagination"
-            )
-        if self.ordering[0] != "id" or len(self.ordering) > 1:
-            raise NotImplementedError(
-                "Only id ordering is supported for BuildingCursorPagination"
-            )
-
         current_id = int(current_position) if current_position else 0
+
         queryset = queryset.order_by(RawSQL(f"id <-> {current_id}", []))
 
         # If we have a cursor with a fixed position then filter by that.
@@ -69,13 +64,26 @@ class BuildingCursorPagination(CursorPagination):
             has_following_position = False
             following_position = None
 
-        # Determine next and previous positions for forward cursors.
-        self.has_next = has_following_position
-        self.has_previous = (current_position is not None) or (offset > 0)
-        if self.has_next:
-            self.next_position = following_position
-        if self.has_previous:
-            self.previous_position = current_position
+        if reverse:
+            # If we have a reverse queryset, then the query ordering was in reverse
+            # so we need to reverse the items again before returning them to the user.
+            self.page = list(reversed(self.page))
+
+            # Determine next and previous positions for reverse cursors.
+            self.has_next = (current_position is not None) or (offset > 0)
+            self.has_previous = has_following_position
+            if self.has_next:
+                self.next_position = current_position
+            if self.has_previous:
+                self.previous_position = following_position
+        else:
+            # Determine next and previous positions for forward cursors.
+            self.has_next = has_following_position
+            self.has_previous = (current_position is not None) or (offset > 0)
+            if self.has_next:
+                self.next_position = following_position
+            if self.has_previous:
+                self.previous_position = current_position
 
         # Display page controls in the browsable API if there is more
         # than one page.
