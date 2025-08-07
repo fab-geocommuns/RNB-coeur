@@ -99,11 +99,9 @@ def list_bdgs(params, only_active=True) -> QuerySet:
         # - We make an array of them in the "plot" field in the main query (PlotsAggSubquery)
         subquery = (
             Plot.objects.filter(
-                shape__intersects=Func(
+                shape__intersects=Cast(
                     OuterRef("shape"),
-                    0.0000001,
-                    function="ST_ReducePrecision",
-                    output_field=GeometryField(),
+                    output_field=GeometryField(geography=True),
                 )
             )
             .annotate(
@@ -133,10 +131,11 @@ def list_bdgs(params, only_active=True) -> QuerySet:
                                     # We get the area of the intersection between the building shape and the plot shape
                                     Func(
                                         Func(
-                                            Func(
+                                            Cast(
                                                 OuterRef("shape"),
-                                                0.0000001,
-                                                function="ST_ReducePrecision",
+                                                output_field=GeometryField(
+                                                    geography=True
+                                                ),
                                             ),
                                             F("shape"),
                                             function="ST_Intersection",
@@ -148,10 +147,9 @@ def list_bdgs(params, only_active=True) -> QuerySet:
                                     /
                                     # ... by the area of the building shape
                                     Func(
-                                        Func(
+                                        Cast(
                                             OuterRef("shape"),
-                                            0.0000001,
-                                            function="ST_ReducePrecision",
+                                            output_field=GeometryField(geography=True),
                                         ),
                                         function="ST_Area",
                                         output_field=FloatField(),

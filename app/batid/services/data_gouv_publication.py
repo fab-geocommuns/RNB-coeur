@@ -85,14 +85,14 @@ def sql_query(code_area):
                    WHEN ST_GeometryType(bdg.shape) IN ('ST_Polygon', 'ST_MultiPolygon') THEN
                        CASE
                            WHEN ST_Area(bdg.shape) > 0 THEN
-                               TRUNC(CAST(ST_Area(ST_Intersection(ST_ReducePrecision(bdg.shape, 0.0000001), p.shape)) / ST_Area(bdg.shape) AS NUMERIC), 2)
+                               TRUNC(CAST(ST_Area(ST_Intersection(bdg.shape::geography, p.shape)) / ST_Area(bdg.shape::geography) AS NUMERIC), 2)
                            ELSE 0.0
                        END
                    ELSE 0.0
                END
            ))
            FROM batid_plot p
-           WHERE ST_Intersects(p.shape, ST_ReducePrecision(bdg.shape, 0.0000001))
+           WHERE ST_Intersects(p.shape, bdg.shape::geography)
        ) AS plots
         FROM batid_building bdg
         LEFT JOIN batid_buildingaddressesreadonly bdg_addr ON bdg_addr.building_id = bdg.id
