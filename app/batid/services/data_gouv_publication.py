@@ -15,29 +15,27 @@ from django.db import transaction
 from batid.services.administrative_areas import dpts_list
 
 
-def publish(areas_list):
-    # Publish the RNB on data.gouv.fr
-    print(str(len(areas_list)) + " area(s) to process...")
+def publish(area: str):
+    print(f"Processing area: {area}")
 
-    for area in areas_list:
-        try:
-            directory_name = create_directory(area)
-            print(f"Processing area: {area}")
-            create_csv(directory_name, area)
-            (archive_path, archive_size, archive_sha1) = create_archive(
-                directory_name, area
-            )
+    try:
+        directory_name = create_directory(area)
+        create_csv(directory_name, area)
+        (archive_path, archive_size, archive_sha1) = create_archive(
+            directory_name, area
+        )
 
+        if os.environ.get("ENABLE_DATAGOUV_PUBLICATION") == "true":
             public_url = upload_to_s3(archive_path)
             publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
-        except Exception as e:
-            logging.error(
-                f"Error while publishing the RNB for area {area} on data.gouv.fr: {e}"
-            )
-            raise
-        finally:
-            # we always cleanup the directory, no matter what happens
-            cleanup_directory(directory_name)
+    except Exception as e:
+        logging.error(
+            f"Error while publishing the RNB for area {area} on data.gouv.fr: {e}"
+        )
+        raise
+    finally:
+        # we always cleanup the directory, no matter what happens
+        cleanup_directory(directory_name)
     return True
 
 
