@@ -3,8 +3,10 @@ FROM python:3.13.4 as base
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install --yes libgdal-dev && \
-    apt-get install --no-install-suggests --no-install-recommends --yes pipx
+    apt-get install -y --no-install-recommends python3-pip python3-venv libgdal-dev && \
+    python3 -m pip install --upgrade pip && \
+    python3 -m pip install pipx && \
+    pipx ensurepath
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
