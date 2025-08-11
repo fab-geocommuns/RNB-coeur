@@ -11,6 +11,7 @@ from batid.services.data_fix.remove_light_buildings import buildings_to_remove
 from batid.services.data_fix.remove_light_buildings import remove_light_buildings
 from batid.services.data_fix.remove_light_buildings import save_results_as_file
 
+
 # we use TransactionTestCase beacause of the ThreadPoolExecutor use
 class TestRemoveLightBuildings(TransactionTestCase):
     def test_remove_light_buildings(self):
