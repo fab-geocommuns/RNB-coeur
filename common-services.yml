@@ -17,6 +17,7 @@ services:
       - TRUST_DOWNSTREAM_PROXY=false
 
   nginx-letsencrypt:
+    cap_drop: ["ALL"]
     image: nginxproxy/acme-companion:2.5.0
     restart: unless-stopped
     volumes:
@@ -29,6 +30,7 @@ services:
       - nginx-proxy
 
   web:
+    cap_drop: ["ALL"]
     build:
       context: ./app
       dockerfile: ./Dockerfile
@@ -59,6 +61,7 @@ services:
       retries: 5
 
   worker:
+    cap_drop: ["ALL"]
     build:
       context: ./app
       dockerfile: ./Dockerfile
@@ -76,6 +79,7 @@ services:
     container_name: worker
 
   celery_beat:
+    cap_drop: ["ALL"]
     build:
       context: ./app
       dockerfile: ./Dockerfile
@@ -111,6 +115,7 @@ services:
       retries: 5
 
   flower:
+    cap_drop: ["ALL"]
     image: mher/flower
     container_name: flower
     command: celery flower --url_prefix=flower
@@ -121,6 +126,7 @@ services:
         condition: service_healthy
 
   metabase:
+    cap_drop: ["ALL"]
     image: metabase/metabase
     container_name: metabase
 
