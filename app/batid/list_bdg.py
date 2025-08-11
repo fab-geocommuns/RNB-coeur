@@ -1,3 +1,4 @@
+from django.contrib.gis.db.models import GeometryField
 from django.contrib.gis.geos import Polygon
 from django.db.models import Case
 from django.db.models import CharField
@@ -10,10 +11,9 @@ from django.db.models import QuerySet
 from django.db.models import Subquery
 from django.db.models import Value
 from django.db.models import When
+from django.db.models.functions import Cast
 from django.db.models.lookups import Exact
 from django.db.models.lookups import In
-from django.contrib.gis.db.models import GeometryField
-from django.db.models.functions import Cast
 
 from batid.models import Building
 from batid.models import City
