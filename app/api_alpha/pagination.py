@@ -32,7 +32,9 @@ class BuildingCursorPagination(CursorPagination):
 
         current_id = int(current_position) if current_position else 0
 
-        queryset = queryset.order_by(RawSQL(f"id <-> {current_id}", []))
+        queryset = queryset.order_by(
+            RawSQL('"batid_building"."id" <-> %s', [current_id])
+        )
 
         # If we have a cursor with a fixed position then filter by that.
         if current_position is not None:
