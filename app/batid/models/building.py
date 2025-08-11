@@ -14,6 +14,9 @@ from django.db.models import Q
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
+from .others import Address
+from .others import Contribution
+from .others import SummerChallenge
 from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import NotEnoughBuildings
 from batid.exceptions import OperationOnInactiveBuilding
@@ -23,8 +26,6 @@ from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
 from batid.utils.geo import assert_shape_is_valid
 from batid.validators import validate_one_ext_id
-
-from .others import SummerChallenge, Address, Contribution
 
 
 class BuildingAbstract(models.Model):
