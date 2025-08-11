@@ -27,7 +27,9 @@ RUN ln -s $(poetry env info --path) /venv
 ENV VIRTUAL_ENV=/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN useradd --no-create-home --system --uid 1000 --user-group worker
+RUN useradd --no-create-home --uid 2000 --user-group app
+
+USER app
 
 FROM base as app_web
 COPY entrypoint.sh ./
