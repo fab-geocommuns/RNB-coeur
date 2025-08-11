@@ -17,13 +17,13 @@ class Migration(migrations.Migration):
             reverse_sql=migrations.RunSQL.noop,
         ),
         operations.CreateExtension("btree_gist"),
-        migrations.AddIndex(
+        operations.AddIndexConcurrently(
             model_name="building",
             index=django.contrib.postgres.indexes.GistIndex(
                 fields=["point", "id"], name="bdg_point_id_btree_gist_idx"
             ),
         ),
-        migrations.AddIndex(
+        operations.AddIndexConcurrently(
             model_name="building",
             index=django.contrib.postgres.indexes.GistIndex(
                 fields=["id", "point"], name="bdg_id_point_btree_gist_idx"
