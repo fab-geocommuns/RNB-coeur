@@ -1,3 +1,5 @@
+from typing import List
+
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
@@ -41,7 +43,7 @@ def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:
     return geom
 
 
-def merge_contiguous_shapes(shapes: list):
+def merge_contiguous_shapes(shapes: List[GEOSGeometry]):
     """
     Merge a list of contiguous GEOSGeometry shapes into a single shape.
     Supported GEOSGeometry types are Polygon and MultiPolygon.
@@ -70,6 +72,11 @@ def merge_contiguous_shapes(shapes: list):
                 raise ImpossibleShapeMerge(
                     "Fusionner des bâtiments non contigus n'est pas possible"
                 )
+        # 7th decimal corresponds to approx 1cm
+        # https://wiki.openstreetmap.org/wiki/Precision_of_coordinates
+        merged_shape = merged_shape.buffer_with_style(
+            0.0000001, quadsegs=1, join_style=2
+        )
         return merged_shape
 
 

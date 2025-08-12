@@ -1,7 +1,10 @@
+import json
+
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
 from django.test import TestCase
 
+from api_alpha.tests.utils import coordinates_almost_equal
 from batid.exceptions import BuildingTooLarge
 from batid.exceptions import InvalidWGS84Geometry
 from batid.utils.geo import assert_shape_is_valid
@@ -57,10 +60,13 @@ class TestGeo(TestCase):
         shapes = [shape_1, shape_2, shape_3]
 
         merged_shapes = merge_contiguous_shapes(shapes)
+        res_coordinates = json.loads(merged_shapes.json)["coordinates"]
+        expected_coordinates = [
+            [[3.0, 1.0], [3.0, 0.0], [0.0, 0.0], [0.0, 1.0], [3.0, 1.0]]
+        ]
 
-        self.assertEqual(
-            merged_shapes,
-            GEOSGeometry("POLYGON ((1 1, 2 1, 3 1, 3 0, 2 0, 1 0, 0 0, 0 1, 1 1))"),
+        self.assertTrue(
+            coordinates_almost_equal.check(res_coordinates, expected_coordinates)
         )
 
     def test_merge_contiguous_shapes_not_contiguous(self):

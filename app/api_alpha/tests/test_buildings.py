@@ -8,6 +8,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from api_alpha.permissions import RNBContributorPermission
+from api_alpha.tests.utils import coordinates_almost_equal
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
@@ -725,23 +726,21 @@ class BuildingMergeTest(APITestCase):
         self.assertTrue(res["rnb_id"])
         self.assertEqual(res["status"], "constructed")
         self.assertEqual(res["point"], {"type": "Point", "coordinates": [1.0, 0.5]})
-        self.assertEqual(
-            res["shape"],
-            {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [0.0, 1.0],
-                        [1.0, 1.0],
-                        [2.0, 1.0],
-                        [2.0, 0.0],
-                        [1.0, 0.0],
-                        [0.0, 0.0],
-                        [0.0, 1.0],
-                    ]
-                ],
-            },
+        expectedCoordinates = [
+            [
+                [0.0, 1.0],
+                [2.0, 1.0],
+                [2.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 1.0],
+            ]
+        ]
+        self.assertTrue(
+            coordinates_almost_equal.check(
+                expectedCoordinates, res["shape"]["coordinates"]
+            )
         )
+        self.assertDictEqual(res["shape"]["type"], "Polygon")
         addresses = res["addresses"]
         addresses_ids = [address["id"] for address in addresses]
         addresses_ids.sort()
