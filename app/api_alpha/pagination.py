@@ -1,7 +1,8 @@
+from typing import Any
+
+from django.db.models.expressions import RawSQL
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
-from typing import Any
-from django.db.models.expressions import RawSQL
 
 
 class BuildingCursorPagination(CursorPagination):
