@@ -21,6 +21,7 @@ from api_alpha.utils.rnb_doc import rnb_doc
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import InvalidOperation
 from batid.list_bdg import list_bdgs
 from batid.models import Building
 from batid.models import Contribution

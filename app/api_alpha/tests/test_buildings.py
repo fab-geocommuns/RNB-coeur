@@ -606,17 +606,17 @@ class BuildingPlotViewTest(APITestCase):
         # building_1 is 100% included in the plot
         self.assertEqual(r1["bdg_cover_ratio"], 1.0)
 
-        self.assertEqual(r2["rnb_id"], building_6.rnb_id)
-        # building_6 is 100% included in the plot, it's a point!
-        self.assertEqual(r1["bdg_cover_ratio"], 1.0)
-
-        self.assertEqual(r3["rnb_id"], building_3.rnb_id)
+        self.assertEqual(r2["rnb_id"], building_3.rnb_id)
         # building_3 is 25% included in the plot
+        self.assertEqual(r2["bdg_cover_ratio"], 0.25)
+
+        self.assertEqual(r3["rnb_id"], building_4.rnb_id)
+        # building_4 is 25% included in the plot
         self.assertEqual(r3["bdg_cover_ratio"], 0.25)
 
-        self.assertEqual(r4["rnb_id"], building_4.rnb_id)
-        # building_4 is 25% included in the plot
-        self.assertEqual(r4["bdg_cover_ratio"], 0.25)
+        self.assertEqual(r4["rnb_id"], building_6.rnb_id)
+        # building_6 is 100% included in the plot, it's a point!
+        self.assertEqual(r4["bdg_cover_ratio"], 1.0)
 
         r = self.client.get("/api/alpha/buildings/plot/plot_2/")
         self.assertEqual(r.status_code, 200)
