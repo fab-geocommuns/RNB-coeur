@@ -4,6 +4,7 @@ import os
 import shutil
 import tarfile
 import zipfile
+import tempfile
 
 import nanoid
 import py7zr
@@ -11,7 +12,7 @@ import requests
 
 
 class Source:
-    _dl_dir = os.environ.get("DOWNLOAD_DIR")
+    _dl_dir = tempfile.TemporaryDirectory(prefix="source_data_").name
 
     # Must be prefixed with a dot
 
