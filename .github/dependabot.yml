@@ -4,15 +4,20 @@ updates:
     directories:
       - "/app"
       - "/nginx"
-    schedule: { interval: "daily" }
+    schedule: { interval: "weekly" }
     target-branch: "main"
 
   - package-ecosystem: "docker-compose"
     directory: "."
-    schedule: { interval: "daily" }
+    schedule: { interval: "weekly" }
     target-branch: "main"
 
   - package-ecosystem: "pip"
     directory: "/app"
-    schedule: { interval: "daily" }
+    schedule: { interval: "weekly" }
     target-branch: "main"
+    groups:
+      production:
+        dependency-type: 'production'
+      development:
+        dependency-type: 'development'
