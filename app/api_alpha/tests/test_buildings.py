@@ -740,7 +740,7 @@ class BuildingMergeTest(APITestCase):
                 expectedCoordinates, res["shape"]["coordinates"]
             )
         )
-        self.assertDictEqual(res["shape"]["type"], "Polygon")
+        self.assertEqual(res["shape"]["type"], "Polygon")
         addresses = res["addresses"]
         addresses_ids = [address["id"] for address in addresses]
         addresses_ids.sort()
