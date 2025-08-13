@@ -64,7 +64,6 @@ services:
     command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=WARNING --concurrency=6 --uid 1000
     volumes:
       - ./app:/app
-      - ./source_data:/data/downloads
     depends_on:
       rabbitmq:
         condition: service_healthy
