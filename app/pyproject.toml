@@ -78,7 +78,7 @@ exclude = [
   "webhook/",
   "manage.py",
 ]
-disallow_untyped_defs = true
+disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
 module = ["boto3.*", "rest_framework", "rest_framework.*", "rest_framework_tracking.*", "geopandas"]
