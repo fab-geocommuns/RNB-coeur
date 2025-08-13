@@ -24,7 +24,7 @@ geopy = "^2.4.1"
 whitenoise = "~6.9.0"
 watchdog = {extras = ["watchmedo"], version = "~6.0.0"}
 celery = "~5.5.2"
-py7zr = "~0.22.0"
+py7zr = "~1.0.0"
 ijson = "~3.4.0"
 redis = "~6.1.0"
 gunicorn = "~23.0.0"
@@ -39,7 +39,7 @@ django-jsoneditor = "^0.2.4"
 
 [tool.poetry.group.dev.dependencies]
 moto = "^5.0.9"
-freezegun = "^1.5.1"
+freezegun = "^1.5.5"
 notebook = "~7.4.2"
 jupyter = "^1.0.0"
 openpyxl = "^3.1.5"
