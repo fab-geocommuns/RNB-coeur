@@ -40,7 +40,7 @@ django-jsoneditor = "^0.2.4"
 [tool.poetry.group.dev.dependencies]
 moto = "^5.0.9"
 freezegun = "^1.5.5"
-notebook = "~7.4.2"
+notebook = "~7.4.5"
 jupyter = "^1.0.0"
 openpyxl = "^3.1.5"
 tqdm = "^4.67.1"
