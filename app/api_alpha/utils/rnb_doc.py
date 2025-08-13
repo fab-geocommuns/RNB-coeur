@@ -308,7 +308,7 @@ def _add_fn_doc(path, fn, schema_paths) -> dict:
 
 def _get_paths() -> dict:
 
-    schema_paths = {}
+    schema_paths = {} # type: ignore[var-annotated]
 
     generator = BaseSchemaGenerator()
 

@@ -7,7 +7,7 @@ from datetime import timezone
 from io import StringIO
 from typing import Optional
 
-import ijson
+import ijson # type: ignore[import-untyped]
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
@@ -112,17 +112,17 @@ def create_plots_full_import_tasks(dpt_list: list, release_date: str) -> list:
     for dpt in dpt_list:
 
         # Download the plots
-        dl_task = Signature(
+        dl_task = Signature( # type: ignore[var-annotated]
             "batid.tasks.dl_source",
-            args=["plot", {"dpt": dpt, "date": release_date}],
+            args=["plot", {"dpt": dpt, "date": release_date}], # type: ignore[arg-type]
             immutable=True,
         )
         tasks.append(dl_task)
 
         # Import the plots
-        import_task = Signature(
+        import_task = Signature( # type: ignore[var-annotated]
             "batid.tasks.import_plots",
-            args=[dpt, release_date],
+            args=[dpt, release_date], # type: ignore[arg-type]
             immutable=True,
         )
         tasks.append(import_task)
@@ -130,7 +130,7 @@ def create_plots_full_import_tasks(dpt_list: list, release_date: str) -> list:
     return tasks
 
 
-def etalab_recent_release_date(before: Optional[date] = None) -> str:
+def etalab_recent_release_date(before: Optional[date] = None) -> str: # type: ignore[return]
     # If no date is provided, we use the current date
     if before is None:
         before = datetime.now().date()

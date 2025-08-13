@@ -1,7 +1,7 @@
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
 from django.db.models import QuerySet
-from geopy import distance
+from geopy import distance # type: ignore[import-untyped]
 
 from batid.models import Building
 from batid.models import Plot
@@ -29,7 +29,7 @@ class BuildingGuess:
         # We verify we have at least one required parameter
         self.params.verify_params()
         if not self.params.is_valid():
-            return None
+            return None # type: ignore[return-value]
 
         # Before launching the query, we have to transform/convert some parameters (eg: address->geocode->point)
         self.prepare_params()
@@ -70,7 +70,7 @@ class BuildingGuess:
             ] = f"CASE WHEN ST_DistanceSphere(shape, %(osm_point)s) >= 1 THEN 2 / ST_DistanceSphere(shape, %(osm_point)s) WHEN ST_DistanceSphere(shape, %(osm_point)s) > 0 THEN 2 ELSE 3 END"
 
             # Add the point to the params
-            params["osm_point"] = f"{self.params._osm_point}"
+            params["osm_point"] = f"{self.params._osm_point}" # type: ignore[assignment]
 
         # #########################################
         # BAN ID
@@ -107,7 +107,7 @@ class BuildingGuess:
             ] = f"CASE WHEN ST_DistanceSphere(shape, %(ban_point)s) >= 1 THEN 2 / ST_DistanceSphere(shape, %(ban_point)s) WHEN ST_DistanceSphere(shape, %(ban_point)s) > 0 THEN 2 ELSE 3 END"
 
             # Add the point to the params
-            params["ban_point"] = f"{self.params._ban_point}"
+            params["ban_point"] = f"{self.params._ban_point}" # type: ignore[assignment]
 
         # #########################################
         # Point
@@ -133,7 +133,7 @@ class BuildingGuess:
             wheres.append(f"ST_DWithin(shape::geography, %(point)s::geography, 400)")
 
             # Add the point to the params
-            params["point"] = f"{self.params.point}"
+            params["point"] = f"{self.params.point}" # type: ignore[assignment]
 
         # #########################################
         # Restrict research in a radius around point and address point
@@ -157,8 +157,8 @@ class BuildingGuess:
             wheres = [
                 "ST_HausdorffDistance(ST_Transform(shape, 4087), st_transform(%(poly)s, 4087)) <= %(max_hausdorff_dist)s"
             ]
-            params["poly"] = f"{self.params.poly}"
-            params["max_hausdorff_dist"] = self.MAX_HAUSDORFF_DISTANCE
+            params["poly"] = f"{self.params.poly}" # type: ignore[assignment]
+            params["max_hausdorff_dist"] = self.MAX_HAUSDORFF_DISTANCE # type: ignore[assignment]
 
         # SELECT
 
@@ -241,7 +241,7 @@ class BuildingGuess:
         # print("---- QUERY ---")
         # print(qs.query)
 
-        return qs
+        return qs # type: ignore[return-value]
 
     def prepare_params(self):
         self.params.prepare_params()
@@ -494,7 +494,7 @@ class BuildingGuess:
 
             return Point(float(lng), float(lat), srid=4326)
 
-        def set_point(self, point: Point) -> None:
+        def set_point(self, point: Point) -> None: # type: ignore[no-redef]
             if point is not None:
                 if self.__validate_point(point):
                     self.point = point
@@ -524,7 +524,7 @@ class BuildingGuess:
                 if self.__validate_poly(poly):
                     self.poly = poly
 
-        def __validate_point(self, point: Point) -> bool:
+        def __validate_point(self, point: Point) -> bool: # type: ignore[no-redef]
             if not isinstance(point, Point):
                 self.__errors.append("point : point must be a Point object")
                 return False

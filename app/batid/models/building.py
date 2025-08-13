@@ -29,11 +29,11 @@ from batid.validators import validate_one_ext_id
 
 
 class BuildingAbstract(models.Model):
-    rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)
-    point = models.PointField(null=True, spatial_index=True, srid=4326)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    shape = models.GeometryField(null=True, spatial_index=True, srid=4326)
+    rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True) # type: ignore[var-annotated]
+    point = models.PointField(null=True, spatial_index=True, srid=4326) # type: ignore[var-annotated]
+    created_at = models.DateTimeField(auto_now_add=True) # type: ignore[var-annotated]
+    updated_at = models.DateTimeField(auto_now=True) # type: ignore[var-annotated]
+    shape = models.GeometryField(null=True, spatial_index=True, srid=4326) # type: ignore[var-annotated]
     ext_ids = models.JSONField(null=True)
     event_origin = models.JSONField(null=True)
     # temporal table field
@@ -42,7 +42,7 @@ class BuildingAbstract(models.Model):
     # not implemented for now
     parent_buildings = models.JSONField(null=True)
     # enum field for the building status
-    status = models.CharField(
+    status = models.CharField( # type: ignore[var-annotated]
         choices=BuildingStatusModel.TYPES_CHOICES,
         null=False,
         max_length=30,
@@ -50,7 +50,7 @@ class BuildingAbstract(models.Model):
     )
     # an event can modify several buildings at once
     # all the buildings modified by the same event will have the same event_id
-    event_id = models.UUIDField(null=True)
+    event_id = models.UUIDField(null=True) # type: ignore[var-annotated]
     # the possible event types
     # creation: the building is created for the first time
     # update: some fields of an existing building are modified
@@ -66,18 +66,18 @@ class BuildingAbstract(models.Model):
         "merge",
         "split",
     ]
-    event_type = models.CharField(
+    event_type = models.CharField( # type: ignore[var-annotated]
         choices=[(e, e) for e in EVENT_TYPES],
         max_length=12,
         null=True,
     )
     # the user at the origin of the event
-    event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
+    event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True) # type: ignore[var-annotated]
     # only currently active buildings are considered part of the RNB
-    is_active = models.BooleanField(db_index=True, default=True)
+    is_active = models.BooleanField(db_index=True, default=True) # type: ignore[var-annotated]
     # this field is the source of truth for the building <> address link
     # it contains BAN ids (clé d'interopérabilité)
-    addresses_id = ArrayField(models.CharField(max_length=40), null=True)
+    addresses_id = ArrayField(models.CharField(max_length=40), null=True) # type: ignore[var-annotated]
 
     class Meta:
         abstract = True
@@ -87,7 +87,7 @@ class Building(BuildingAbstract):
     # this only exists to make it possible for the Django ORM to access the associated addresses
     # but this field is read-only : you should not attempt to save a building/address association through this field
     # use addresses_id instead.
-    addresses_read_only = models.ManyToManyField(
+    addresses_read_only = models.ManyToManyField( # type: ignore[var-annotated]
         "Address",
         blank=True,
         related_name="buildings_read_only",
@@ -525,11 +525,11 @@ class BuildingHistoryOnly(BuildingAbstract):
     # it is created only so that any change in the Building model is reflected in the history table
 
     # primary key for this table, because Django ORM wants one
-    bh_id = models.BigAutoField(
+    bh_id = models.BigAutoField( # type: ignore[var-annotated]
         auto_created=True, primary_key=True, serialize=False, verbose_name="BH_ID"
     )
     # primary key coming from the Building table, but not unique here.
-    id = models.BigIntegerField()
+    id = models.BigIntegerField() # type: ignore[var-annotated]
     rnb_id = models.CharField(max_length=12, null=False, unique=False, db_index=True)
 
     class Meta:

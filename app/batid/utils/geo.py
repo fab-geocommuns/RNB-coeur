@@ -27,16 +27,16 @@ def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:
         big_idx = None
         big_area = 0
         for idx, p in enumerate(polys):
-            if p.num_interior_rings > 0:
+            if p.num_interior_rings > 0:  # type: ignore[attr-defined]
                 r = geom.buffer(0)
                 return r
 
             if p.area > big_area:
-                big_area = p.area
+                big_area = p.area  # type: ignore[assignment]
                 big_idx = idx
 
-        big_poly_ring = polys.pop(big_idx).coords[0]
-        small_polys_rings = [p.coords[0] for p in polys]
+        big_poly_ring = polys.pop(big_idx).coords[0]  # type: ignore[attr-defined,arg-type]
+        small_polys_rings = [p.coords[0] for p in polys]  # type: ignore[attr-defined]
 
         geom = Polygon(big_poly_ring, *small_polys_rings)
 

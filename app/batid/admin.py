@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.db.models.fields.json import JSONField
 from django.urls import path
 from django.utils.html import format_html
-from jsoneditor.forms import JSONEditor
+from jsoneditor.forms import JSONEditor # type: ignore[import-untyped]
 
 from batid.models import Address
 from batid.models import ADS
@@ -130,7 +130,7 @@ def get_admin_urls(urls):
     return get_urls
 
 
-admin.site.get_urls = get_admin_urls(admin.site.get_urls())
+admin.site.get_urls = get_admin_urls(admin.site.get_urls()) # type: ignore[method-assign]
 
 
 class CustomUserCreationForm(UserCreationForm):

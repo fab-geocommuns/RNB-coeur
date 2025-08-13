@@ -8,7 +8,7 @@ from datetime import timezone
 
 import boto3
 import requests
-from botocore.config import Config
+from botocore.config import Config # type: ignore[import-untyped]
 
 from batid.services.mattermost import notify_tech
 

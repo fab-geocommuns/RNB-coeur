@@ -39,17 +39,17 @@ def _create_bal_links_dpt_tasks(dpt: str, bulk_launch_uuid=None):
     }
 
     # 1) We download the BAL file
-    dl_task = Signature(
+    dl_task = Signature( # type: ignore[var-annotated]
         "batid.tasks.dl_source",
-        args=["bal", src_params],
+        args=["bal", src_params], # type: ignore[arg-type]
         immutable=True,
     )
     tasks.append(dl_task)
 
     # 2) We create links between BAL and RNB
-    links_task = Signature(
+    links_task = Signature( # type: ignore[var-annotated]
         "batid.tasks.create_dpt_bal_rnb_links",
-        args=[src_params, bulk_launch_uuid],
+        args=[src_params, bulk_launch_uuid], # type: ignore[arg-type]
         immutable=True,
     )
     tasks.append(links_task)
@@ -129,7 +129,7 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
     return bdgs[0]
 
 
-def find_and_update_bdg(
+def find_and_update_bdg( # type: ignore[return]
     address_point: Point, cle_interop: str, bdg_import_id: int
 ) -> Optional[Building]:
 
@@ -137,7 +137,7 @@ def find_and_update_bdg(
 
     if isinstance(bdg_to_link, Building):
 
-        current_addresses = bdg_to_link.current_addresses
+        current_addresses = bdg_to_link.current_addresses # type: ignore[attr-defined]
         current_addresses.append(cle_interop)
 
         bdg_to_link.update(

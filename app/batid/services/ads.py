@@ -11,7 +11,7 @@ from batid.utils.db import dictfetchall
 
 def get_managed_insee_codes(user: User) -> list:
     codes = []
-    for org in user.organizations.all():
+    for org in user.organizations.all(): # type: ignore[attr-defined]
         codes += org.managed_cities
 
     return list(set(codes))
@@ -39,7 +39,7 @@ def can_manage_ads(user: User, ads: ADS) -> bool:
     rnb_ids = []
     geojson_geometries = []
 
-    for op in ads.buildings_operations.all():
+    for op in ads.buildings_operations.all(): # type: ignore[attr-defined]
         rnb_id = op.rnb_id
         if rnb_id:
             rnb_ids.append(rnb_id)
@@ -71,7 +71,7 @@ def get_cities(rnb_ids: list, geojson_geometries: list[GEOSGeometry]) -> list:
         wheres.append(
             "ST_Intersects(ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326), c.shape)"
         )
-        params.append(geojson_geom.json)
+        params.append(geojson_geom.json) # type: ignore[arg-type]
 
     wheres_str = " OR ".join(wheres)
 
