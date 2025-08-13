@@ -94,6 +94,27 @@ class TestGeo(TestCase):
                 str(e), "Only Polygon and MultiPolygon shapes can be merged"
             )
 
+    def test_two_shapes_with_ponctual_intersection(self):
+        # if 2 shapes share only one point, but also almost a vertice, we would like
+        # the additional buffer to give us a little flexibility in that case.
+
+        # those 2 shapes almost share the (1 0)---(1 1) vertice
+        # but there is only one point of contact : (1 0)
+        shape_1 = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
+        shape_2 = GEOSGeometry("POLYGON ((1 0, 1.00000001 1, 2 1, 2 0, 1 0))")
+
+        shapes = [shape_1, shape_2]
+
+        merged_shape = merge_contiguous_shapes(shapes)
+        res_coordinates = json.loads(merged_shape.json)["coordinates"]
+        expected_coordinates = [
+            [[0.0, 1.0], [2.0, 1.0], [2.0, 0.0], [0.0, 0.0], [0.0, 1.0]]
+        ]
+
+        self.assertTrue(
+            coordinates_almost_equal.check(res_coordinates, expected_coordinates)
+        )
+
 
 class TestShapeVerification(TestCase):
     def test_valid_geometry_point(self):
