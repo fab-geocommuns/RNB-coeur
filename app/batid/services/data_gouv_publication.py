@@ -11,7 +11,7 @@ import requests
 from celery import Signature
 from django.db import connection
 from django.db import transaction
-
+from app.settings import WRITABLE_DATA_DIR
 from batid.services.administrative_areas import dpts_list
 
 
@@ -45,8 +45,9 @@ def create_directory(area):
     directory_name = (
         f'datagouvfr_publication_{area}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
     )
-    os.mkdir(directory_name)
-    return directory_name
+    directory_path = os.path.join(WRITABLE_DATA_DIR, directory_name)
+    os.mkdir(directory_path)
+    return directory_path
 
 
 # Return the global path of a file WITHOUT the extension

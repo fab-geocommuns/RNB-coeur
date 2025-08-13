@@ -38,6 +38,10 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 RUN groupadd -r -g 999 app && \
     useradd -r -g app -u 999 app
 
+COPY --chown=999:999 . /app
+RUN mkdir /app/data
+RUN chown 999:999 /app/data
+
 USER app
 
 FROM base as app_web
