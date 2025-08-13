@@ -104,7 +104,7 @@ def queue_full_bdtopo_import(
 ):
 
     # Get list of dpts
-    dpts = bdtopo_dpts_list(dpt_start, dpt_end) # type: ignore[arg-type] # type: ignore[arg-type]
+    dpts = bdtopo_dpts_list(dpt_start, dpt_end)  # type: ignore[arg-type] # type: ignore[arg-type]
 
     notify_tech(
         f"Queuing full BDTopo import tasks.  Dpt start: {dpts[0]}, dpt end: {dpts[-1]}.  Released before: {released_before}"
@@ -265,7 +265,7 @@ def renew_stats():
     It is too expensive to calculate them on the fly, so we calculate them once a day and store them in a file
     """
 
-    from batid.services.stats import compute_stats # type: ignore[import-not-found]
+    from batid.services.stats import compute_stats  # type: ignore[import-not-found]
 
     compute_stats()
     return "done"
@@ -317,7 +317,7 @@ def queue_full_ban_import(
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def import_ban(src_params: dict, bulk_launch_uuid: str = None): # type: ignore[assignment]
+def import_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
     return import_ban_addresses(src_params, bulk_launch_uuid)
 
 
@@ -374,7 +374,7 @@ def fill_empty_event_id(batch_size) -> int:
         if updated_rows == 0:
             break
 
-    return f"Total updated rows: {total}" # type: ignore[return-value]
+    return f"Total updated rows: {total}"  # type: ignore[return-value]
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
@@ -396,4 +396,4 @@ def fill_empty_event_type(batch_size: int) -> int:
         if updated_rows == 0:
             break
 
-    return f"Total updated rows: {total}" # type: ignore[return-value]
+    return f"Total updated rows: {total}"  # type: ignore[return-value]

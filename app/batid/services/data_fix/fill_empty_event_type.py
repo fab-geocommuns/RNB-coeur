@@ -14,7 +14,7 @@ def _fetch(batch_size: int) -> QuerySet[BuildingHistoryOnly]:
         ;
         """
 
-    return BuildingHistoryOnly.objects.raw( # type: ignore[return-value]
+    return BuildingHistoryOnly.objects.raw(  # type: ignore[return-value]
         q,
         {"batch_size": batch_size},
     )

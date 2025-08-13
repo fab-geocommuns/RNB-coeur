@@ -28,5 +28,5 @@ class Migration(migrations.Migration):
             )
 
     operations = [
-        migrations.RunPython(add_unique_constraint, remove_unique_constraint), # type: ignore[arg-type] # type: ignore[arg-type]
+        migrations.RunPython(add_unique_constraint, remove_unique_constraint),  # type: ignore[arg-type] # type: ignore[arg-type]
     ]

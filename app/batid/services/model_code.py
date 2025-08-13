@@ -51,7 +51,7 @@ def code_to_model(code: str) -> models.Model:
 
     cls = _cls_name_to_cls(cls_name)
 
-    return cls.objects.filter(pk=pk).first() # type: ignore[return-value]
+    return cls.objects.filter(pk=pk).first()  # type: ignore[return-value]
 
 
 def _cls_name_to_cls(cls_name: str) -> type[models.Model]:

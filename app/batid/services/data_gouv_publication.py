@@ -347,7 +347,7 @@ def get_area_publish_task(area: str):
 
     if area in dpts_list():
         return Signature(
-            "batid.tasks.publish_datagouv_dpt", args=[area], immutable=True # type: ignore[arg-type]
+            "batid.tasks.publish_datagouv_dpt", args=[area], immutable=True  # type: ignore[arg-type]
         )
 
     raise ValueError(

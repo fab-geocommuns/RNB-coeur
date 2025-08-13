@@ -75,7 +75,7 @@ class ADSSearch:
 
             return True
 
-        def __convert_since_str(self, since_str: str) -> datetime.date: # type: ignore[valid-type]
+        def __convert_since_str(self, since_str: str) -> datetime.date:  # type: ignore[valid-type]
             return datetime.strptime(since_str, self.SINCE_FORMAT).date()
 
         def set_q_str(self, q_str):

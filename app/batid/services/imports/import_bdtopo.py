@@ -7,7 +7,7 @@ from datetime import datetime
 from datetime import timezone
 from typing import Optional
 
-import fiona # type: ignore[import-untyped]
+import fiona  # type: ignore[import-untyped]
 import psycopg2
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
@@ -52,16 +52,16 @@ def create_bdtopo_dpt_import_tasks(
 
     src_params = bdtopo_src_params(dpt, release_date)
 
-    dl_task = Signature( # type: ignore[var-annotated]
+    dl_task = Signature(  # type: ignore[var-annotated]
         "batid.tasks.dl_source",
-        args=["bdtopo", src_params], # type: ignore[arg-type]
+        args=["bdtopo", src_params],  # type: ignore[arg-type]
         immutable=True,
     )
     tasks.append(dl_task)
 
-    convert_task = Signature( # type: ignore[var-annotated]
+    convert_task = Signature(  # type: ignore[var-annotated]
         "batid.tasks.convert_bdtopo",
-        args=[src_params, bulk_launch_id], # type: ignore[arg-type]
+        args=[src_params, bulk_launch_id],  # type: ignore[arg-type]
         immutable=True,
     )
     tasks.append(convert_task)
@@ -136,7 +136,7 @@ def _known_bdtopo_id(bdtopo_id: str) -> bool:
 def _transform_bdtopo_feature(feature, from_srid) -> dict:
     geom_wkt = feature_to_wkt(feature, from_srid)
 
-    address_keys = [] # type: ignore[var-annotated]
+    address_keys = []  # type: ignore[var-annotated]
 
     candidate_dict = {
         "shape": geom_wkt,
@@ -211,7 +211,7 @@ def _bdtopo_dpt_projection(dpt: str) -> str:
     return projs.get(dpt, default_proj)
 
 
-def bdtopo_recente_release_date(before: Optional[date] = None) -> str: # type: ignore[return]
+def bdtopo_recente_release_date(before: Optional[date] = None) -> str:  # type: ignore[return]
 
     # If no date is provided, we use the current date
     if before is None:
@@ -273,7 +273,7 @@ def _bdtopo_release_dates() -> list:
     ]
 
 
-def bdtopo_dpts_list(dpt_start: str = None, dpt_end: str = None): # type: ignore[assignment] # type: ignore[assignment]
+def bdtopo_dpts_list(dpt_start: str = None, dpt_end: str = None):  # type: ignore[assignment] # type: ignore[assignment]
 
     # Terres australes et antarctiques françaises (984),
     # Wallis-et-Futuna (986),

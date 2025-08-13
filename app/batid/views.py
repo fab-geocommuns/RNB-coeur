@@ -11,7 +11,7 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 from django.urls import re_path
-from revproxy.views import ProxyView # type: ignore[import-untyped]
+from revproxy.views import ProxyView  # type: ignore[import-untyped]
 
 from app.celery import app as celery_app
 from batid.exceptions import BANAPIDown
