@@ -1,5 +1,6 @@
 import json
 import uuid
+from copy import deepcopy
 from typing import Optional
 
 from django.contrib.auth.models import User
@@ -197,13 +198,13 @@ class Building(BuildingAbstract):
         shape: GEOSGeometry | None = None,
     ):
         if (
-            status is None
-            and addresses_id is None
-            and ext_ids is None
-            and shape is None
+            (status is None or status == self.status)
+            and (addresses_id is None or addresses_id == self.addresses_id)
+            and (ext_ids is None or ext_ids == self.ext_ids)
+            and (shape is None or shape == self.shape)
         ):
-
-            raise Exception("Missing data to update the building")
+            # let's do nothing
+            return
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(
@@ -283,6 +284,10 @@ class Building(BuildingAbstract):
 
         if not existing_ext_ids:
             existing_ext_ids = []
+
+        # we don't want to directly modify existing_ext_ids
+        # in case it is a reference to the object ext_ids
+        existing_ext_ids = deepcopy(existing_ext_ids)
 
         existing_ext_ids.append(ext_id)
         new_ext_ids = sorted(existing_ext_ids, key=lambda k: k["created_at"])
