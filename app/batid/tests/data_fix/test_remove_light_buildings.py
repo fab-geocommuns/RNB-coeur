@@ -2,9 +2,9 @@ import os
 import shutil
 
 import geopandas as gpd
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TransactionTestCase
-from django.conf import settings
 
 from batid.models import Building
 from batid.models import DataFix
