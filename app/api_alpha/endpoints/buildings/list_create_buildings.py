@@ -5,10 +5,12 @@ from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
 from rest_framework import status as http_status
+from rest_framework.exceptions import NotFound
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.pagination import BuildingCursorPagination
 from api_alpha.permissions import ReadOnly
@@ -23,9 +25,6 @@ from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
 from batid.exceptions import InvalidOperation
-from rest_framework.exceptions import NotFound
-from api_alpha.exceptions import BadRequest
-from api_alpha.exceptions import ServiceUnavailable
 from batid.list_bdg import list_bdgs
 from batid.models import Building
 from batid.models import Contribution
