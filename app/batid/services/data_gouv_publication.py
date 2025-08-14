@@ -11,6 +11,7 @@ import requests
 from celery import Signature
 from django.db import connection
 from django.db import transaction
+
 from app.settings import WRITABLE_DATA_DIR
 from batid.services.administrative_areas import dpts_list
 
