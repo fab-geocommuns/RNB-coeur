@@ -9,9 +9,9 @@ from zipfile import ZipFile
 import boto3
 import requests
 from celery import Signature
+from django.conf import settings
 from django.db import connection
 from django.db import transaction
-from django.conf import settings
 
 from batid.services.administrative_areas import dpts_list
 
