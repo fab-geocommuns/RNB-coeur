@@ -412,6 +412,8 @@ class TestUpdateBuilding(TestCase):
         shape = b.shape
         ext_ids = b.ext_ids
         addresses_id = b.addresses_id
+        # order shouldn't matter
+        addresses_id.reverse()
 
         sys_period = b.sys_period
 

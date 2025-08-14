@@ -199,7 +199,7 @@ class Building(BuildingAbstract):
     ):
         if (
             (status is None or status == self.status)
-            and (addresses_id is None or addresses_id == self.addresses_id)
+            and (addresses_id is None or set(addresses_id) == set(self.addresses_id))
             and (ext_ids is None or ext_ids == self.ext_ids)
             and (shape is None or shape == self.shape)
         ):
