@@ -16,7 +16,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
 from django.db import connection
-from tqdm.notebook import tqdm
+from tqdm.notebook import tqdm  # type: ignore[import-untyped]
 
 from batid.models import Building
 from batid.services.closest_bdg import get_closest_from_point
@@ -177,7 +177,7 @@ class Guesser:
     ):
         data = list(self.guesses.values())
 
-        df = pd.json_normalize(data, sep="_")
+        df = pd.json_normalize(data, sep="_")  # type: ignore[arg-type]
 
         reasons = df[df["match_reason"] == match_reason]
 
@@ -186,7 +186,7 @@ class Guesser:
     def unmatched_sample(self, sample_size: int = 10):
         data = list(self.guesses.values())
 
-        df = pd.json_normalize(data, sep="_")
+        df = pd.json_normalize(data, sep="_")  # type: ignore[arg-type]
 
         unmatched = df[df["match_rnb_id"].isnull()]
         unmatched = unmatched[["input_ext_id"]]
@@ -197,7 +197,7 @@ class Guesser:
 
         data = list(self.guesses.values())
 
-        df = pd.json_normalize(data, sep="_")
+        df = pd.json_normalize(data, sep="_")  # type: ignore[arg-type]
 
         # unmatched is where "matches" is empty or null
         unmatched = df[
@@ -379,7 +379,7 @@ class AbstractHandler(ABC):
 
 
 class ClosestFromPointHandler(AbstractHandler):
-    _name = "closest_from_point"
+    _name = "closest_from_point"  # type: ignore[assignment]
 
     def __init__(self, closest_radius=30, isolated_bdg_max_distance=8):
         self.closest_radius = closest_radius
@@ -414,7 +414,7 @@ class ClosestFromPointHandler(AbstractHandler):
 
         if result:
             match, reason = result
-            guess["matches"].append(match)
+            guess["matches"].append(match)  # type: ignore[arg-type]
             guess["match_reason"] = reason
 
         return guess
@@ -424,7 +424,7 @@ class ClosestFromPointHandler(AbstractHandler):
         lat: float, lng: float, closest_radius: int = 30, isolated_max_distance: int = 8
     ) -> Optional[tuple[Building, str]]:
         # Get the two closest buildings
-        closest_bdgs = get_closest_from_point(lat, lng, closest_radius)[:2]
+        closest_bdgs = get_closest_from_point(lat, lng, closest_radius)[:2]  # type: ignore[index]
         # We have to close the connection to avoid a "too many connections" error
         connection.close()
 
@@ -468,7 +468,7 @@ class ClosestFromPointHandler(AbstractHandler):
 
 
 class GeocodeAddressHandler(AbstractHandler):
-    _name = "geocode_address"
+    _name = "geocode_address"  # type: ignore[assignment]
 
     def __init__(self, closest_radius=100, min_score=0.8):
         self.closest_radius = closest_radius
@@ -499,10 +499,10 @@ class GeocodeAddressHandler(AbstractHandler):
 
         # The old version of the query before the "bdg_addresses_id_idx" index disappeared
         # bdgs = qs.filter(addresses_id__contains=[ban_id])
-        bdgs = qs.filter(addresses_read_only__id=ban_id)
+        bdgs = qs.filter(addresses_read_only__id=ban_id)  # type: ignore[union-attr]
 
         if bdgs.count() > 0:
-            guess["matches"] = bdgs
+            guess["matches"] = bdgs  # type: ignore[typeddict-item]
             guess["match_reason"] = "precise_address_match"
 
         return guess
@@ -602,7 +602,7 @@ class GeocodeAddressHandler(AbstractHandler):
 
 
 class GeocodeNameHandler(AbstractHandler):
-    _name = "geocode_name"
+    _name = "geocode_name"  # type: ignore[assignment]
 
     # We allow to geocode a name in a square bounding box around a point.
     # The "apothem" is the radius of the inscribed circle of this square
@@ -662,7 +662,7 @@ class GeocodeNameHandler(AbstractHandler):
 
             if result:
                 bdg, reason = result
-                guess["matches"].append(bdg)
+                guess["matches"].append(bdg)  # type: ignore[arg-type]
                 guess["match_reason"] = f"found_name_in_osm_{reason}"
                 return guess
 
@@ -720,7 +720,7 @@ class PartialRoofHandler(AbstractHandler):
     This handler is used to match a building based on a roof section.
     """
 
-    _name = "partial_roof"
+    _name = "partial_roof"  # type: ignore[assignment]
 
     def __init__(self, isolated_section_max_distance=1, min_second_bdg_distance=6):
         self.isolated_section_max_distance = isolated_section_max_distance
@@ -753,14 +753,14 @@ class PartialRoofHandler(AbstractHandler):
         connection.close()
 
         # Get closest buildings. We have to get many
-        closest_bdgs = get_closest_from_poly(roof_poly, 35)[:20]
+        closest_bdgs = get_closest_from_poly(roof_poly, 35)[:20]  # type: ignore[index,arg-type]
 
         if not closest_bdgs:
             return guess
 
         # Est-ce qu'il y a un seul batiment qui couvre à plus de X% le pan de toit ?
         sole_bdg_intersecting_enough = self._roof_interesected_enough_by_one_bdg(
-            roof_poly, closest_bdgs
+            roof_poly, closest_bdgs  # type: ignore[arg-type]
         )
         if isinstance(sole_bdg_intersecting_enough, Building):
             guess["matches"].append(sole_bdg_intersecting_enough)
@@ -768,12 +768,12 @@ class PartialRoofHandler(AbstractHandler):
             return guess
 
         # Est-ce qu'il y a unn seul bâtiment qui intersecte et le second bâtiment le plus proche est assez loin ?
-        if self._isolated_bdg_intersecting(roof_poly, closest_bdgs):
+        if self._isolated_bdg_intersecting(roof_poly, closest_bdgs):  # type: ignore[arg-type]
             guess["matches"].append(closest_bdgs[0])
             guess["match_reason"] = "isolated_bdg_intersects_roof"
             return guess
 
-        bdgs_covered_enough = self._many_bdgs_covered_enough(roof_poly, closest_bdgs)
+        bdgs_covered_enough = self._many_bdgs_covered_enough(roof_poly, closest_bdgs)  # type: ignore[arg-type] # type: ignore[arg-type]
         if bdgs_covered_enough:
             guess["matches"] = bdgs_covered_enough
             guess["match_reason"] = "many_bdgs_covered_enough_by_roof"

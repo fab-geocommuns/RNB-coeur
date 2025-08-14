@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 
 
 def get_user_id_b64(user: User) -> str:
-    return _int_to_b64(user.id)
+    return _int_to_b64(user.id)  # type: ignore[attr-defined]
 
 
 def get_user_id_from_b64(user_id_b64: str) -> int:
