@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
@@ -147,6 +148,9 @@ DATABASES = {
 POSTGRES_STATEMENT_TIMEOUT = os.environ.get("POSTGRES_STATEMENT_TIMEOUT")
 DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT = os.environ.get(
     "DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT", "0"
+)
+DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT = os.environ.get(
+    "DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT", "259200000"  # Default to 72h
 )
 if POSTGRES_STATEMENT_TIMEOUT:
     DATABASES["default"]["OPTIONS"][

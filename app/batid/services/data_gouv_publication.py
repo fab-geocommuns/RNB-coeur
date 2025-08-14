@@ -11,6 +11,7 @@ import requests
 from celery import Signature
 from django.db import connection
 from django.db import transaction
+from django.conf import settings
 
 from batid.services.administrative_areas import dpts_list
 
@@ -109,8 +110,7 @@ def sql_query(code_area):
 
 def create_csv(directory_name, code_area):
     sql = sql_query(code_area)
-    # custom statement timeout set at 72h
-    local_statement_timeout = 259_200_000
+    local_statement_timeout = settings.DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT
     with open(f"{file_path(directory_name, code_area)}.csv", "w") as fp:
         with transaction.atomic():
             with connection.cursor() as cursor:
