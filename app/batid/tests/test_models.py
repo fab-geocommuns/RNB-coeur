@@ -406,6 +406,31 @@ class TestUpdateBuilding(TestCase):
         print(f"New updated_at: {b.updated_at}")
         self.assertNotEqual(b.updated_at, old_updated_at)
 
+    def test_update_building_without_changing_something_does_nothing(self):
+        b = Building.objects.get(rnb_id=self.rnb_id)
+        status = b.status
+        shape = b.shape
+        ext_ids = b.ext_ids
+        addresses_id = b.addresses_id
+        # order shouldn't matter
+        addresses_id.reverse()
+
+        sys_period = b.sys_period
+
+        b.update(
+            self.user, event_origin={"source": "xxx"}, status=status, addresses_id=None
+        )
+        b.update(
+            self.user,
+            event_origin={"source": "xxx"},
+            status=status,
+            addresses_id=addresses_id,
+            shape=shape,
+            ext_ids=ext_ids,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.sys_period, sys_period)
+
 
 class TestExtIdsComparison(TestCase):
     def test_ext_ids_equal(self):

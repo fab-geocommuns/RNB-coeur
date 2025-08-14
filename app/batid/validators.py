@@ -1,4 +1,4 @@
-import jsonschema
+import jsonschema  # type: ignore[import-untyped]
 from django.core.exceptions import ValidationError
 from django.utils.dateparse import parse_datetime
 from django.utils.deconstruct import deconstructible

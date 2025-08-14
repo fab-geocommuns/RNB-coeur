@@ -134,7 +134,7 @@ version = "3.8.1"
 description = "ASGI specs, helper code, and adapters"
 optional = false
 python-versions = ">=3.8"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "asgiref-3.8.1-py3-none-any.whl", hash = "sha256:3e1e3ecc849832fe52ccf2cb6686b7a55f82bb1d6aee72a58826471390335e47"},
     {file = "asgiref-3.8.1.tar.gz", hash = "sha256:c343bd80a0bec947a9860adb4c432ffa7db769836c64238fc34bdc3fec84d590"},
@@ -533,6 +533,21 @@ tblib = ["tblib (>=1.3.0) ; python_version < \"3.8.0\"", "tblib (>=1.5.0) ; pyth
 yaml = ["PyYAML (>=3.10)"]
 zookeeper = ["kazoo (>=1.3.1)"]
 zstd = ["zstandard (==0.23.0)"]
+
+[[package]]
+name = "celery-types"
+version = "0.23.0"
+description = "Type stubs for Celery and its related packages"
+optional = false
+python-versions = "<4.0,>=3.9"
+groups = ["dev"]
+files = [
+    {file = "celery_types-0.23.0-py3-none-any.whl", hash = "sha256:0cc495b8d7729891b7e070d0ec8d4906d2373209656a6e8b8276fe1ed306af9a"},
+    {file = "celery_types-0.23.0.tar.gz", hash = "sha256:402ed0555aea3cd5e1e6248f4632e4f18eec8edb2435173f9e6dc08449fa101e"},
+]
+
+[package.dependencies]
+typing-extensions = ">=4.9.0,<5.0.0"
 
 [[package]]
 name = "certifi"
@@ -971,7 +986,7 @@ version = "5.2.2"
 description = "A high-level Python web framework that encourages rapid development and clean, pragmatic design."
 optional = false
 python-versions = ">=3.10"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "django-5.2.2-py3-none-any.whl", hash = "sha256:997ef2162d04ead6869551b22cde4e06da1f94cf595f4af3f3d3afeae1f3f6fe"},
     {file = "django-5.2.2.tar.gz", hash = "sha256:85852e517f84435e9b13421379cd6c43ef5b48a9c8b391d29a26f7900967e952"},
@@ -1081,6 +1096,46 @@ urllib3 = ">=1.12"
 [package.extras]
 diazo = ["diazo (>=1.0.5)", "lxml (>=3.4)"]
 tests = ["coverage", "diazo", "flake8", "lxml (>=3.4)"]
+
+[[package]]
+name = "django-stubs"
+version = "5.2.2"
+description = "Mypy stubs for Django"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "django_stubs-5.2.2-py3-none-any.whl", hash = "sha256:79bd0fdbc78958a8f63e0b062bd9d03f1de539664476c0be62ade5f063c9e41e"},
+    {file = "django_stubs-5.2.2.tar.gz", hash = "sha256:2a04b510c7a812f88223fd7e6d87fb4ea98717f19c8e5c8b59691d83ad40a8a6"},
+]
+
+[package.dependencies]
+django = "*"
+django-stubs-ext = ">=5.2.2"
+mypy = {version = ">=1.13,<1.18", optional = true, markers = "extra == \"compatible-mypy\""}
+types-pyyaml = "*"
+typing-extensions = ">=4.11.0"
+
+[package.extras]
+compatible-mypy = ["mypy (>=1.13,<1.18)"]
+oracle = ["oracledb"]
+redis = ["redis", "types-redis"]
+
+[[package]]
+name = "django-stubs-ext"
+version = "5.2.2"
+description = "Monkey-patching and extensions for django-stubs"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "django_stubs_ext-5.2.2-py3-none-any.whl", hash = "sha256:8833bbe32405a2a0ce168d3f75a87168f61bd16939caf0e8bf173bccbd8a44c5"},
+    {file = "django_stubs_ext-5.2.2.tar.gz", hash = "sha256:d9d151b919fe2438760f5bd938f03e1cb08c84d0651f9e5917f1313907e42683"},
+]
+
+[package.dependencies]
+django = "*"
+typing-extensions = "*"
 
 [[package]]
 name = "djangorestframework"
@@ -1276,14 +1331,14 @@ files = [
 
 [[package]]
 name = "freezegun"
-version = "1.5.1"
+version = "1.5.5"
 description = "Let your Python tests travel through time"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 groups = ["dev"]
 files = [
-    {file = "freezegun-1.5.1-py3-none-any.whl", hash = "sha256:bf111d7138a8abe55ab48a71755673dbaa4ab87f4cff5634a4442dfec34c15f1"},
-    {file = "freezegun-1.5.1.tar.gz", hash = "sha256:b29dedfcda6d5e8e083ce71b2b542753ad48cfec44037b3fc79702e2980a89e9"},
+    {file = "freezegun-1.5.5-py3-none-any.whl", hash = "sha256:cd557f4a75cf074e84bc374249b9dd491eaeacd61376b9eb3c423282211619d2"},
+    {file = "freezegun-1.5.5.tar.gz", hash = "sha256:ac7742a6cc6c25a2c35e9292dfd554b897b517d2dec26891a2e8debf205cb94a"},
 ]
 
 [package.dependencies]
@@ -2374,6 +2429,78 @@ test = ["coverage[toml] (>=5.2)", "coveralls (>=2.1.1)", "hypothesis", "pyannota
 type = ["mypy", "mypy-extensions"]
 
 [[package]]
+name = "mypy"
+version = "1.17.1"
+description = "Optional static typing for Python"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "mypy-1.17.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:3fbe6d5555bf608c47203baa3e72dbc6ec9965b3d7c318aa9a4ca76f465bd972"},
+    {file = "mypy-1.17.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:80ef5c058b7bce08c83cac668158cb7edea692e458d21098c7d3bce35a5d43e7"},
+    {file = "mypy-1.17.1-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:c4a580f8a70c69e4a75587bd925d298434057fe2a428faaf927ffe6e4b9a98df"},
+    {file = "mypy-1.17.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:dd86bb649299f09d987a2eebb4d52d10603224500792e1bee18303bbcc1ce390"},
+    {file = "mypy-1.17.1-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:a76906f26bd8d51ea9504966a9c25419f2e668f012e0bdf3da4ea1526c534d94"},
+    {file = "mypy-1.17.1-cp310-cp310-win_amd64.whl", hash = "sha256:e79311f2d904ccb59787477b7bd5d26f3347789c06fcd7656fa500875290264b"},
+    {file = "mypy-1.17.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:ad37544be07c5d7fba814eb370e006df58fed8ad1ef33ed1649cb1889ba6ff58"},
+    {file = "mypy-1.17.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:064e2ff508e5464b4bd807a7c1625bc5047c5022b85c70f030680e18f37273a5"},
+    {file = "mypy-1.17.1-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:70401bbabd2fa1aa7c43bb358f54037baf0586f41e83b0ae67dd0534fc64edfd"},
+    {file = "mypy-1.17.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:e92bdc656b7757c438660f775f872a669b8ff374edc4d18277d86b63edba6b8b"},
+    {file = "mypy-1.17.1-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:c1fdf4abb29ed1cb091cf432979e162c208a5ac676ce35010373ff29247bcad5"},
+    {file = "mypy-1.17.1-cp311-cp311-win_amd64.whl", hash = "sha256:ff2933428516ab63f961644bc49bc4cbe42bbffb2cd3b71cc7277c07d16b1a8b"},
+    {file = "mypy-1.17.1-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:69e83ea6553a3ba79c08c6e15dbd9bfa912ec1e493bf75489ef93beb65209aeb"},
+    {file = "mypy-1.17.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:1b16708a66d38abb1e6b5702f5c2c87e133289da36f6a1d15f6a5221085c6403"},
+    {file = "mypy-1.17.1-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:89e972c0035e9e05823907ad5398c5a73b9f47a002b22359b177d40bdaee7056"},
+    {file = "mypy-1.17.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:03b6d0ed2b188e35ee6d5c36b5580cffd6da23319991c49ab5556c023ccf1341"},
+    {file = "mypy-1.17.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:c837b896b37cd103570d776bda106eabb8737aa6dd4f248451aecf53030cdbeb"},
+    {file = "mypy-1.17.1-cp312-cp312-win_amd64.whl", hash = "sha256:665afab0963a4b39dff7c1fa563cc8b11ecff7910206db4b2e64dd1ba25aed19"},
+    {file = "mypy-1.17.1-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:93378d3203a5c0800c6b6d850ad2f19f7a3cdf1a3701d3416dbf128805c6a6a7"},
+    {file = "mypy-1.17.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:15d54056f7fe7a826d897789f53dd6377ec2ea8ba6f776dc83c2902b899fee81"},
+    {file = "mypy-1.17.1-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:209a58fed9987eccc20f2ca94afe7257a8f46eb5df1fb69958650973230f91e6"},
+    {file = "mypy-1.17.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:099b9a5da47de9e2cb5165e581f158e854d9e19d2e96b6698c0d64de911dd849"},
+    {file = "mypy-1.17.1-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:fa6ffadfbe6994d724c5a1bb6123a7d27dd68fc9c059561cd33b664a79578e14"},
+    {file = "mypy-1.17.1-cp313-cp313-win_amd64.whl", hash = "sha256:9a2b7d9180aed171f033c9f2fc6c204c1245cf60b0cb61cf2e7acc24eea78e0a"},
+    {file = "mypy-1.17.1-cp314-cp314-macosx_10_13_x86_64.whl", hash = "sha256:15a83369400454c41ed3a118e0cc58bd8123921a602f385cb6d6ea5df050c733"},
+    {file = "mypy-1.17.1-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:55b918670f692fc9fba55c3298d8a3beae295c5cded0a55dccdc5bbead814acd"},
+    {file = "mypy-1.17.1-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:62761474061feef6f720149d7ba876122007ddc64adff5ba6f374fda35a018a0"},
+    {file = "mypy-1.17.1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c49562d3d908fd49ed0938e5423daed8d407774a479b595b143a3d7f87cdae6a"},
+    {file = "mypy-1.17.1-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:397fba5d7616a5bc60b45c7ed204717eaddc38f826e3645402c426057ead9a91"},
+    {file = "mypy-1.17.1-cp314-cp314-win_amd64.whl", hash = "sha256:9d6b20b97d373f41617bd0708fd46aa656059af57f2ef72aa8c7d6a2b73b74ed"},
+    {file = "mypy-1.17.1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:5d1092694f166a7e56c805caaf794e0585cabdbf1df36911c414e4e9abb62ae9"},
+    {file = "mypy-1.17.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:79d44f9bfb004941ebb0abe8eff6504223a9c1ac51ef967d1263c6572bbebc99"},
+    {file = "mypy-1.17.1-cp39-cp39-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:b01586eed696ec905e61bd2568f48740f7ac4a45b3a468e6423a03d3788a51a8"},
+    {file = "mypy-1.17.1-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:43808d9476c36b927fbcd0b0255ce75efe1b68a080154a38ae68a7e62de8f0f8"},
+    {file = "mypy-1.17.1-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:feb8cc32d319edd5859da2cc084493b3e2ce5e49a946377663cc90f6c15fb259"},
+    {file = "mypy-1.17.1-cp39-cp39-win_amd64.whl", hash = "sha256:d7598cf74c3e16539d4e2f0b8d8c318e00041553d83d4861f87c7a72e95ac24d"},
+    {file = "mypy-1.17.1-py3-none-any.whl", hash = "sha256:a9f52c0351c21fe24c21d8c0eb1f62967b262d6729393397b6f443c3b773c3b9"},
+    {file = "mypy-1.17.1.tar.gz", hash = "sha256:25e01ec741ab5bb3eec8ba9cdb0f769230368a22c959c4937360efb89b7e9f01"},
+]
+
+[package.dependencies]
+mypy_extensions = ">=1.0.0"
+pathspec = ">=0.9.0"
+typing_extensions = ">=4.6.0"
+
+[package.extras]
+dmypy = ["psutil (>=4.0)"]
+faster-cache = ["orjson"]
+install-types = ["pip"]
+mypyc = ["setuptools (>=50)"]
+reports = ["lxml"]
+
+[[package]]
+name = "mypy-extensions"
+version = "1.1.0"
+description = "Type system extensions for programs checked with the mypy type checker."
+optional = false
+python-versions = ">=3.8"
+groups = ["dev"]
+files = [
+    {file = "mypy_extensions-1.1.0-py3-none-any.whl", hash = "sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505"},
+    {file = "mypy_extensions-1.1.0.tar.gz", hash = "sha256:52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558"},
+]
+
+[[package]]
 name = "nanoid"
 version = "2.0.0"
 description = "A tiny, secure, URL-friendly, unique string ID generator for Python"
@@ -2527,7 +2654,7 @@ version = "2.2.6"
 description = "Fundamental package for array computing in Python"
 optional = false
 python-versions = ">=3.10"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "numpy-2.2.6-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:b412caa66f72040e6d268491a59f2c43bf03eb6c96dd8f0307829feb7fa2b6fb"},
     {file = "numpy-2.2.6-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8e41fd67c52b86603a91c1a505ebaef50b3314de0213461c7a6e99c9a3beff90"},
@@ -2826,6 +2953,22 @@ test = ["hypothesis (>=6.46.1)", "pytest (>=7.3.2)", "pytest-xdist (>=2.2.0)"]
 xml = ["lxml (>=4.9.2)"]
 
 [[package]]
+name = "pandas-stubs"
+version = "2.3.0.250703"
+description = "Type annotations for pandas"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "pandas_stubs-2.3.0.250703-py3-none-any.whl", hash = "sha256:a9265fc69909f0f7a9cabc5f596d86c9d531499fed86b7838fd3278285d76b81"},
+    {file = "pandas_stubs-2.3.0.250703.tar.gz", hash = "sha256:fb6a8478327b16ed65c46b1541de74f5c5947f3601850caf3e885e0140584717"},
+]
+
+[package.dependencies]
+numpy = ">=1.23.5"
+types-pytz = ">=2022.1.1"
+
+[[package]]
 name = "pandocfilters"
 version = "1.5.1"
 description = "Utilities for writing pandoc filters in python"
@@ -2863,6 +3006,18 @@ groups = ["main"]
 files = [
     {file = "pathable-0.4.4-py3-none-any.whl", hash = "sha256:5ae9e94793b6ef5a4cbe0a7ce9dbbefc1eec38df253763fd0aeeacf2762dbbc2"},
     {file = "pathable-0.4.4.tar.gz", hash = "sha256:6905a3cd17804edfac7875b5f6c9142a218c7caef78693c2dbbbfbac186d88b2"},
+]
+
+[[package]]
+name = "pathspec"
+version = "0.12.1"
+description = "Utility library for gitignore style pattern matching of file paths."
+optional = false
+python-versions = ">=3.8"
+groups = ["dev"]
+files = [
+    {file = "pathspec-0.12.1-py3-none-any.whl", hash = "sha256:a0d503e138a4c123b27490a4f7beda6a01c6f288df0e4a8b79c7eb0dc7b4cc08"},
+    {file = "pathspec-0.12.1.tar.gz", hash = "sha256:a482d51503a1ab33b1c67a6c3813a26953dbdc71c31dacaef9a838c4e29f5712"},
 ]
 
 [[package]]
@@ -3003,14 +3158,14 @@ tests = ["pytest"]
 
 [[package]]
 name = "py7zr"
-version = "0.22.0"
+version = "1.0.0"
 description = "Pure python 7-zip library"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "py7zr-0.22.0-py3-none-any.whl", hash = "sha256:993b951b313500697d71113da2681386589b7b74f12e48ba13cc12beca79d078"},
-    {file = "py7zr-0.22.0.tar.gz", hash = "sha256:c6c7aea5913535184003b73938490f9a4d8418598e533f9ca991d3b8e45a139e"},
+    {file = "py7zr-1.0.0-py3-none-any.whl", hash = "sha256:6f42d2ff34c808e9026ad11b721c13b41b0673cf2b4e8f8fb34f9d65ae143dd1"},
+    {file = "py7zr-1.0.0.tar.gz", hash = "sha256:f6bfee81637c9032f6a9f0eb045a4bfc7a7ff4138becfc42d7cb89b54ffbfef1"},
 ]
 
 [package.dependencies]
@@ -3020,16 +3175,16 @@ inflate64 = ">=1.0.0,<1.1.0"
 multivolumefile = ">=0.2.3"
 psutil = {version = "*", markers = "sys_platform != \"cygwin\""}
 pybcj = ">=1.0.0,<1.1.0"
-pycryptodomex = ">=3.16.0"
-pyppmd = ">=1.1.0,<1.2.0"
-pyzstd = ">=0.15.9"
+pycryptodomex = ">=3.20.0"
+pyppmd = ">=1.1.0,<1.3.0"
+pyzstd = ">=0.16.1"
 texttable = "*"
 
 [package.extras]
-check = ["black (>=23.1.0)", "check-manifest", "flake8 (<8)", "flake8-black (>=0.3.6)", "flake8-deprecated", "flake8-isort", "isort (>=5.0.3)", "lxml", "mypy (>=0.940)", "mypy-extensions (>=0.4.1)", "pygments", "readme-renderer", "twine", "types-psutil"]
+check = ["black (>=24.8.0)", "check-manifest", "flake8 (<8)", "flake8-black (>=0.3.6)", "flake8-deprecated", "flake8-isort", "isort (>=5.13.2)", "lxml", "mypy (>=1.10.0)", "mypy_extensions (>=1.0.0)", "pygments", "pylint", "readme-renderer", "twine", "types-psutil"]
 debug = ["pytest", "pytest-leaks", "pytest-profiling"]
-docs = ["docutils", "sphinx (>=5.0)", "sphinx-a4doc", "sphinx-py3doc-enhanced-theme"]
-test = ["coverage[toml] (>=5.2)", "coveralls (>=2.1.1)", "py-cpuinfo", "pytest", "pytest-benchmark", "pytest-cov", "pytest-remotedata", "pytest-timeout"]
+docs = ["docutils", "sphinx (>=7.0.0)", "sphinx-a4doc", "sphinx-py3doc-enhanced-theme"]
+test = ["coverage[toml] (>=5.2)", "coveralls (>=2.1.1)", "py-cpuinfo", "pytest", "pytest-benchmark", "pytest-cov", "pytest-httpserver", "pytest-remotedata", "pytest-timeout", "requests"]
 test-compat = ["libarchive-c"]
 
 [[package]]
@@ -4139,7 +4294,7 @@ version = "0.5.3"
 description = "A non-validating SQL parser."
 optional = false
 python-versions = ">=3.8"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "sqlparse-0.5.3-py3-none-any.whl", hash = "sha256:cf2196ed3418f3ba5de6af7e82c694a9fbdbfecccdfc72e281548517081f16ca"},
     {file = "sqlparse-0.5.3.tar.gz", hash = "sha256:09f67787f56a0b16ecdbde1bfc7f5d9c3371ca683cfeaa8e6ff60b4807ec9272"},
@@ -4283,6 +4438,30 @@ docs = ["myst-parser", "pydata-sphinx-theme", "sphinx"]
 test = ["argcomplete (>=3.0.3)", "mypy (>=1.7.0)", "pre-commit", "pytest (>=7.0,<8.2)", "pytest-mock", "pytest-mypy-testing"]
 
 [[package]]
+name = "types-nanoid"
+version = "2.0.0.20240601"
+description = "Typing stubs for nanoid"
+optional = false
+python-versions = ">=3.8"
+groups = ["dev"]
+files = [
+    {file = "types-nanoid-2.0.0.20240601.tar.gz", hash = "sha256:7246ee685ed55a367fc160d87cde75a550296ecca26e0602619552dae72efda0"},
+    {file = "types_nanoid-2.0.0.20240601-py3-none-any.whl", hash = "sha256:5219f721b80748d82b14edd5429cc888d32eb816966d2a4719730ef3f2e3a417"},
+]
+
+[[package]]
+name = "types-psycopg2"
+version = "2.9.21.20250809"
+description = "Typing stubs for psycopg2"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_psycopg2-2.9.21.20250809-py3-none-any.whl", hash = "sha256:59b7b0ed56dcae9efae62b8373497274fc1a0484bdc5135cdacbe5a8f44e1d7b"},
+    {file = "types_psycopg2-2.9.21.20250809.tar.gz", hash = "sha256:b7c2cbdcf7c0bd16240f59ba694347329b0463e43398de69784ea4dee45f3c6d"},
+]
+
+[[package]]
 name = "types-python-dateutil"
 version = "2.9.0.20250516"
 description = "Typing stubs for python-dateutil"
@@ -4293,6 +4472,45 @@ files = [
     {file = "types_python_dateutil-2.9.0.20250516-py3-none-any.whl", hash = "sha256:2b2b3f57f9c6a61fba26a9c0ffb9ea5681c9b83e69cd897c6b5f668d9c0cab93"},
     {file = "types_python_dateutil-2.9.0.20250516.tar.gz", hash = "sha256:13e80d6c9c47df23ad773d54b2826bd52dbbb41be87c3f339381c1700ad21ee5"},
 ]
+
+[[package]]
+name = "types-pytz"
+version = "2025.2.0.20250809"
+description = "Typing stubs for pytz"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_pytz-2025.2.0.20250809-py3-none-any.whl", hash = "sha256:4f55ed1b43e925cf851a756fe1707e0f5deeb1976e15bf844bcaa025e8fbd0db"},
+    {file = "types_pytz-2025.2.0.20250809.tar.gz", hash = "sha256:222e32e6a29bb28871f8834e8785e3801f2dc4441c715cd2082b271eecbe21e5"},
+]
+
+[[package]]
+name = "types-pyyaml"
+version = "6.0.12.20250809"
+description = "Typing stubs for PyYAML"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_pyyaml-6.0.12.20250809-py3-none-any.whl", hash = "sha256:032b6003b798e7de1a1ddfeefee32fac6486bdfe4845e0ae0e7fb3ee4512b52f"},
+    {file = "types_pyyaml-6.0.12.20250809.tar.gz", hash = "sha256:af4a1aca028f18e75297da2ee0da465f799627370d74073e96fee876524f61b5"},
+]
+
+[[package]]
+name = "types-requests"
+version = "2.32.4.20250809"
+description = "Typing stubs for requests"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_requests-2.32.4.20250809-py3-none-any.whl", hash = "sha256:f73d1832fb519ece02c85b1f09d5f0dd3108938e7d47e7f94bbfa18a6782b163"},
+    {file = "types_requests-2.32.4.20250809.tar.gz", hash = "sha256:d8060de1c8ee599311f56ff58010fb4902f462a1470802cf9f6ed27bc46c4df3"},
+]
+
+[package.dependencies]
+urllib3 = ">=2"
 
 [[package]]
 name = "typing-extensions"
@@ -4312,11 +4530,12 @@ version = "2025.2"
 description = "Provider of IANA time zone data"
 optional = false
 python-versions = ">=2"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "tzdata-2025.2-py2.py3-none-any.whl", hash = "sha256:1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8"},
     {file = "tzdata-2025.2.tar.gz", hash = "sha256:b60a638fcc0daffadf82fe0f57e53d06bdec2f36c4df66280ae79bce6bd6f2b9"},
 ]
+markers = {dev = "sys_platform == \"win32\""}
 
 [[package]]
 name = "uri-template"
@@ -4534,4 +4753,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "3.13.4"
-content-hash = "80ffe39d2f814a6348441616b9aafff7543ab742878cb73ecef87a4013312c69"
+content-hash = "e377378a26c3f44b7da78d8605f0cc2ff0fe2f418dabb7cfa76b7689c21c56d9"
