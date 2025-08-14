@@ -21,9 +21,9 @@ def publish(areas_list):
     print(str(len(areas_list)) + " area(s) to process...")
 
     for area in areas_list:
+        directory_name = create_directory(area)
+        print(f"Processing area: {area} in directory: {directory_name}")
         try:
-            directory_name = create_directory(area)
-            print(f"Processing area: {area}")
             create_csv(directory_name, area)
             (archive_path, archive_size, archive_sha1) = create_archive(
                 directory_name, area
