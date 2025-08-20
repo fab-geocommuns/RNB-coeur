@@ -17,6 +17,7 @@ from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
 from django.db import connection
 from tqdm.notebook import tqdm  # type: ignore[import-untyped]
+import shapely
 
 from batid.models import Building
 from batid.services.closest_bdg import get_closest_from_point
@@ -745,14 +746,23 @@ class PartialRoofHandler(AbstractHandler):
     def _guess_one(self, guess: Guess) -> Guess:
         roof_geojson = guess["input"].get("polygon", None)
 
-        if not roof_geojson:
-            return guess
-
-        roof_poly = GEOSGeometry(json.dumps(roof_geojson))
         # we close the connection to avoid a "too many connections" error due to multi threading
         connection.close()
 
+        if not roof_geojson:
+            return guess
+
+        shape = shapely.from_geojson(json.dumps(roof_geojson))
+        polygons = list(shape.geoms)
+
+        if len(polygons) > 1:
+            print("Partial roof with multiple polygons is not supported")
+            return guess
+
+        polygon = polygons[0]
+
         # Get closest buildings. We have to get many
+        roof_poly = GEOSGeometry(polygon.wkt, 4326)
         closest_bdgs = get_closest_from_poly(roof_poly, 35)[:20]  # type: ignore[index,arg-type]
 
         if not closest_bdgs:
