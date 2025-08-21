@@ -506,6 +506,8 @@ class GeocodeAddressHandler(AbstractHandler):
             guess["matches"] = bdgs  # type: ignore[typeddict-item]
             guess["match_reason"] = "precise_address_match"
 
+        connection.close()
+
         return guess
 
     def _geocode_batch(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
