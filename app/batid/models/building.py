@@ -9,6 +9,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.indexes import GistIndex
 from django.db import transaction
 from django.db.models import CheckConstraint
 from django.db.models import Q
@@ -499,6 +500,8 @@ class Building(BuildingAbstract):
                 ),
                 name="batid_building_active_status",
             ),
+            GistIndex(fields=(["point", "id"]), name="bdg_point_id_btree_gist_idx"),
+            GistIndex(fields=(["id", "point"]), name="bdg_id_point_btree_gist_idx"),
         ]
         constraints = [
             # a DB level constraint on the authorized values for the event_type columns

@@ -64,7 +64,7 @@ def list_bdgs(params, only_active=True) -> QuerySet:
         )
         poly = Polygon(poly_coords, srid=4326)
 
-        qs = qs.filter(shape__intersects=poly)
+        qs = qs.filter(point__intersects=poly)
         # We have to order by created_at to avoid pagination issues on geographic queries
         qs = qs.order_by("created_at")
 
@@ -74,7 +74,7 @@ def list_bdgs(params, only_active=True) -> QuerySet:
     insee_code = params.get("insee_code", None)
     if insee_code:
         city = City.objects.get(code_insee=insee_code)
-        qs = qs.filter(shape__intersects=city.shape)
+        qs = qs.filter(point__intersects=city.shape)
         # We have to order by created_at to avoid pagination issues on geographic queries
         qs = qs.order_by("created_at")
 
