@@ -218,13 +218,13 @@ def populate_addresses_id_field():
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def publish_datagouv_national():
-    publish(["nat"])
+    publish("nat")
     return "done"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
-def publish_datagouv_dpt(dept):
-    publish([dept])
+def publish_datagouv_dpt(dept: str):
+    publish(dept)
     return "done"
 
 
