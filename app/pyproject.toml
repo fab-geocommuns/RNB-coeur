@@ -51,6 +51,7 @@ types-nanoid = "^2.0.0.20240601"
 celery-types = "^0.23.0"
 pandas-stubs = "^2.3.0.250703"
 types-requests = "^2.32.4.20250611"
+pyproj = "^3.7.2"
 
 
 [build-system]
