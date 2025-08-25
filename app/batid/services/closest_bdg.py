@@ -3,10 +3,10 @@ from typing import Optional
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
+from django.db.models import BooleanField
+from django.db.models import ExpressionWrapper
 from django.db.models import QuerySet
 from django.db.models.expressions import RawSQL
-from django.db.models import ExpressionWrapper, BooleanField
-
 
 from batid.models import Building
 from batid.services.bdg_status import BuildingStatus

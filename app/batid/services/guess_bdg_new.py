@@ -12,12 +12,12 @@ from typing import TypedDict
 
 import orjson
 import pandas as pd
+import shapely
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
 from django.db import connection
 from tqdm.notebook import tqdm  # type: ignore[import-untyped]
-import shapely
 
 from batid.models import Building
 from batid.services.closest_bdg import get_closest_from_point
