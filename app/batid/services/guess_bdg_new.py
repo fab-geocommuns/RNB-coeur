@@ -45,6 +45,15 @@ class Guess(TypedDict):
     finished_steps: list[str]
 
 
+class ThreadLocalDBConnection:
+    def __enter__(self):
+        connection.ensure_connection()
+        return connection
+
+    def __exit__(self, exc_type, exc, tb):
+        connection.close()
+
+
 class Guesser:
     def __init__(self, batch_size: int = 5000):
         self.guesses: dict[str, Guess] = {}
@@ -403,22 +412,23 @@ class ClosestFromPointHandler(AbstractHandler):
         return guesses
 
     def _guess_one(self, guess: Guess) -> Guess:
-        lat = guess["input"].get("lat", None)
-        lng = guess["input"].get("lng", None)
+        with ThreadLocalDBConnection() as connection:
+            lat = guess["input"].get("lat", None)
+            lng = guess["input"].get("lng", None)
 
-        if not lat or not lng:
+            if not lat or not lng:
+                return guess
+
+            result = self.__class__.guess_closest_building(
+                lat, lng, self.closest_radius, self.isolated_bdg_max_distance
+            )
+
+            if result:
+                match, reason = result
+                guess["matches"].append(match)  # type: ignore[arg-type]
+                guess["match_reason"] = reason
+
             return guess
-
-        result = self.__class__.guess_closest_building(
-            lat, lng, self.closest_radius, self.isolated_bdg_max_distance
-        )
-
-        if result:
-            match, reason = result
-            guess["matches"].append(match)  # type: ignore[arg-type]
-            guess["match_reason"] = reason
-
-        return guess
 
     @staticmethod
     def guess_closest_building(
@@ -486,29 +496,28 @@ class GeocodeAddressHandler(AbstractHandler):
         return guesses
 
     def _guess_one(self, guess: Guess) -> Guess:
-        lat = guess["input"].get("lat", None)
-        lng = guess["input"].get("lng", None)
-        ban_id = guess["input"].get("ban_id", None)
+        with ThreadLocalDBConnection() as connection:
+            lat = guess["input"].get("lat", None)
+            lng = guess["input"].get("lng", None)
+            ban_id = guess["input"].get("ban_id", None)
 
-        if not ban_id:
+            if not ban_id:
+                return guess
+
+            if lat and lng:
+                qs = get_closest_from_point(lat, lng, self.closest_radius)
+            else:
+                qs = Building.objects.all()
+
+            # The old version of the query before the "bdg_addresses_id_idx" index disappeared
+            # bdgs = qs.filter(addresses_id__contains=[ban_id])
+            bdgs = qs.filter(addresses_read_only__id=ban_id)  # type: ignore[union-attr]
+
+            if bdgs.count() > 0:
+                guess["matches"] = bdgs  # type: ignore[typeddict-item]
+                guess["match_reason"] = "precise_address_match"
+
             return guess
-
-        if lat and lng:
-            qs = get_closest_from_point(lat, lng, self.closest_radius)
-        else:
-            qs = Building.objects.all()
-
-        # The old version of the query before the "bdg_addresses_id_idx" index disappeared
-        # bdgs = qs.filter(addresses_id__contains=[ban_id])
-        bdgs = qs.filter(addresses_read_only__id=ban_id)  # type: ignore[union-attr]
-
-        if bdgs.count() > 0:
-            guess["matches"] = bdgs  # type: ignore[typeddict-item]
-            guess["match_reason"] = "precise_address_match"
-
-        connection.close()
-
-        return guess
 
     def _geocode_batch(self, guesses: dict[str, Guess]) -> dict[str, Guess]:
 
@@ -643,33 +652,33 @@ class GeocodeNameHandler(AbstractHandler):
         return guesses
 
     def _guess_one(self, guess: Guess) -> Guess:
+        with ThreadLocalDBConnection() as connection:
+            lat = guess["input"].get("lat", None)
+            lng = guess["input"].get("lng", None)
+            name = guess["input"].get("name", None)
 
-        lat = guess["input"].get("lat", None)
-        lng = guess["input"].get("lng", None)
-        name = guess["input"].get("name", None)
-
-        if not lat or not lng or not name:
-            return guess
-
-        # We sleep a little bit to avoid being throttled by the geocoder
-        time.sleep(self.sleep_time)
-
-        osm_bdg_point = self._geocode_name_and_point(
-            name, lat, lng, self.bbox_apothem_in_meters
-        )
-
-        if osm_bdg_point:
-            result = ClosestFromPointHandler.guess_closest_building(
-                osm_bdg_point.y, osm_bdg_point.x
-            )
-
-            if result:
-                bdg, reason = result
-                guess["matches"].append(bdg)  # type: ignore[arg-type]
-                guess["match_reason"] = f"found_name_in_osm_{reason}"
+            if not lat or not lng or not name:
                 return guess
 
-        return guess
+            # We sleep a little bit to avoid being throttled by the geocoder
+            time.sleep(self.sleep_time)
+
+            osm_bdg_point = self._geocode_name_and_point(
+                name, lat, lng, self.bbox_apothem_in_meters
+            )
+
+            if osm_bdg_point:
+                result = ClosestFromPointHandler.guess_closest_building(
+                    osm_bdg_point.y, osm_bdg_point.x
+                )
+
+                if result:
+                    bdg, reason = result
+                    guess["matches"].append(bdg)  # type: ignore[arg-type]
+                    guess["match_reason"] = f"found_name_in_osm_{reason}"
+                    return guess
+
+            return guess
 
     @staticmethod
     def _geocode_name_and_point(
@@ -746,53 +755,51 @@ class PartialRoofHandler(AbstractHandler):
         return guesses
 
     def _guess_one(self, guess: Guess) -> Guess:
-        roof_geojson = guess["input"].get("polygon", None)
+        with ThreadLocalDBConnection() as connection:
+            roof_geojson = guess["input"].get("polygon", None)
 
-        # we close the connection to avoid a "too many connections" error due to multi threading
-        connection.close()
+            if not roof_geojson:
+                return guess
 
-        if not roof_geojson:
+            shape = shapely.from_geojson(json.dumps(roof_geojson))
+            polygons = list(shape.geoms)
+
+            if len(polygons) > 1:
+                print("Partial roof with multiple polygons is not supported")
+                return guess
+
+            polygon = polygons[0]
+
+            # Get closest buildings. We have to get many
+            roof_poly = GEOSGeometry(polygon.wkt, 4326)
+            closest_bdgs = get_closest_from_poly(roof_poly, 35)[:20]  # type: ignore[index,arg-type]
+
+            if not closest_bdgs:
+                return guess
+
+            # Est-ce qu'il y a un seul batiment qui couvre à plus de X% le pan de toit ?
+            sole_bdg_intersecting_enough = self._roof_interesected_enough_by_one_bdg(
+                roof_poly, closest_bdgs  # type: ignore[arg-type]
+            )
+            if isinstance(sole_bdg_intersecting_enough, Building):
+                guess["matches"].append(sole_bdg_intersecting_enough)
+                guess["match_reason"] = "sole_bdg_intersects_roof_enough"
+                return guess
+
+            # Est-ce qu'il y a unn seul bâtiment qui intersecte et le second bâtiment le plus proche est assez loin ?
+            if self._isolated_bdg_intersecting(roof_poly, closest_bdgs):  # type: ignore[arg-type]
+                guess["matches"].append(closest_bdgs[0])
+                guess["match_reason"] = "isolated_bdg_intersects_roof"
+                return guess
+
+            bdgs_covered_enough = self._many_bdgs_covered_enough(roof_poly, closest_bdgs)  # type: ignore[arg-type] # type: ignore[arg-type]
+            if bdgs_covered_enough:
+                guess["matches"] = bdgs_covered_enough
+                guess["match_reason"] = "many_bdgs_covered_enough_by_roof"
+                return guess
+
+            # No match :(
             return guess
-
-        shape = shapely.from_geojson(json.dumps(roof_geojson))
-        polygons = list(shape.geoms)
-
-        if len(polygons) > 1:
-            print("Partial roof with multiple polygons is not supported")
-            return guess
-
-        polygon = polygons[0]
-
-        # Get closest buildings. We have to get many
-        roof_poly = GEOSGeometry(polygon.wkt, 4326)
-        closest_bdgs = get_closest_from_poly(roof_poly, 35)[:20]  # type: ignore[index,arg-type]
-
-        if not closest_bdgs:
-            return guess
-
-        # Est-ce qu'il y a un seul batiment qui couvre à plus de X% le pan de toit ?
-        sole_bdg_intersecting_enough = self._roof_interesected_enough_by_one_bdg(
-            roof_poly, closest_bdgs  # type: ignore[arg-type]
-        )
-        if isinstance(sole_bdg_intersecting_enough, Building):
-            guess["matches"].append(sole_bdg_intersecting_enough)
-            guess["match_reason"] = "sole_bdg_intersects_roof_enough"
-            return guess
-
-        # Est-ce qu'il y a unn seul bâtiment qui intersecte et le second bâtiment le plus proche est assez loin ?
-        if self._isolated_bdg_intersecting(roof_poly, closest_bdgs):  # type: ignore[arg-type]
-            guess["matches"].append(closest_bdgs[0])
-            guess["match_reason"] = "isolated_bdg_intersects_roof"
-            return guess
-
-        bdgs_covered_enough = self._many_bdgs_covered_enough(roof_poly, closest_bdgs)  # type: ignore[arg-type] # type: ignore[arg-type]
-        if bdgs_covered_enough:
-            guess["matches"] = bdgs_covered_enough
-            guess["match_reason"] = "many_bdgs_covered_enough_by_roof"
-            return guess
-
-        # No match :(
-        return guess
 
     def _many_bdgs_covered_enough(self, roof_poly: Polygon, closest_bdgs: list) -> list:
         matches = []
