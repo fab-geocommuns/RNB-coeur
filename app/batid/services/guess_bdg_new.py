@@ -833,7 +833,7 @@ class PartialRoofHandler(AbstractHandler):
                 bdg.shape.intersection(roof_poly).area / roof_poly.area
             )
 
-            if intersection_percentage >= 0.25:
+            if intersection_percentage >= 0.85:
                 bdg.match_details = {"intersection_percentage": intersection_percentage}
                 matches.append(bdg)
 
