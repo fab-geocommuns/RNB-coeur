@@ -774,9 +774,11 @@ class PartialRoofHandler(AbstractHandler):
                 return guess
 
             shape = shapely.from_geojson(json.dumps(roof_geojson))
-            if not hasattr(shape, "geoms"):
-                raise Exception("Non-polygon shape found")
-            polygons = list(shape.geoms)
+            polygons: list[shapely.geometry.base.BaseGeometry] = []
+            if isinstance(shape, shapely.MultiPolygon):
+                polygons = list(shape.geoms)
+            else:
+                polygons.append(shape)
 
             if len(polygons) > 1:
                 print("Partial roof with multiple polygons is not supported")
