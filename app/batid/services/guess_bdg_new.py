@@ -774,6 +774,8 @@ class PartialRoofHandler(AbstractHandler):
                 return guess
 
             shape = shapely.from_geojson(json.dumps(roof_geojson))
+            if not hasattr(shape, "geoms"):
+                raise Exception("Non-polygon shape found")
             polygons = list(shape.geoms)
 
             if len(polygons) > 1:
