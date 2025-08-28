@@ -6,15 +6,17 @@ updates:
       - "/nginx"
     schedule: { interval: "weekly" }
     target-branch: "main"
+    open-pull-requests-limit: 0
 
   - package-ecosystem: "docker-compose"
     directory: "."
     schedule: { interval: "weekly" }
     target-branch: "main"
+    open-pull-requests-limit: 0
 
   - package-ecosystem: "pip"
     directory: "/app"
-    schedule: { interval: "weekly" }
+    schedule: { interval: "monthly" }
     target-branch: "main"
     groups:
       production:
