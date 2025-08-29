@@ -26,8 +26,6 @@ services:
       - ./.env.metabase.prod
       - ./.env.sentry.prod
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000 --threads 6 --workers 6
-    volumes:
-      - ./source_data:/home/app/source_data
     environment:
       - VIRTUAL_HOST=rnb-api.beta.gouv.fr
       - VIRTUAL_PORT=8000
@@ -39,8 +37,6 @@ services:
       file: common-services.yml
       service: worker
     command: celery -A app worker --concurrency=3 --loglevel=INFO
-    volumes:
-      - ./source_data:/home/app/source_data
     env_file:
       - ./.env.db_auth.prod
       - ./.env.app.prod
