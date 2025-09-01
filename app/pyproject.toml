@@ -7,12 +7,12 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "3.13.4"
-boto3 = "~1.40.16"
+boto3 = "~1.40.21"
 Django = "~5.2.5"
 drf-spectacular = "~0.28.0"
 drf-api-tracking = "~1.8.4"
 flower = "~2.0.1"
-sentry-sdk = "~2.35.0"
+sentry-sdk = "~2.35.1"
 django-debug-toolbar = "~6.0.0"
 djangorestframework-gis = "~1.2"
 psycopg2 = "~2.9.9"
@@ -34,7 +34,7 @@ Fiona = "~1.10.1"
 djangorestframework = "~3.16.1"
 geopandas = "^1.1.1"
 openapi-spec-validator = "^0.7.2"
-orjson = "^3.11.2"
+orjson = "^3.11.3"
 django-jsoneditor = "^0.2.4"
 
 [tool.poetry.group.dev.dependencies]
