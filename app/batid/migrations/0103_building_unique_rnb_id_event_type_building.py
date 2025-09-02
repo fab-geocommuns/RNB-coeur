@@ -7,7 +7,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0102_kpi"),
+        ("batid", "0106_remove_event_id_idx"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
