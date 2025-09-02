@@ -743,8 +743,14 @@ class BuildingMergeTest(APITestCase):
             },
         )
         addresses = res["addresses"]
-        self.assertEqual(addresses[0]["id"], self.adr1.id)
-        self.assertEqual(addresses[1]["id"], self.adr2.id)
+        addresses_ids = [address["id"] for address in addresses]
+        addresses_ids.sort()
+
+        expected_addresses = [self.adr1.id, self.adr2.id]
+        expected_addresses.sort()
+
+        self.assertListEqual(addresses_ids, expected_addresses)
+
         self.assertEqual(len(addresses), 2)
         self.assertEqual(
             res["ext_ids"],

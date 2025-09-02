@@ -30,7 +30,6 @@ from django.utils.http import urlsafe_base64_decode
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample
 from drf_spectacular.openapi import OpenApiParameter
-from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.utils import OpenApiResponse
 from psycopg2 import sql
@@ -58,22 +57,21 @@ from api_alpha.pagination import BuildingAddressCursorPagination
 from api_alpha.pagination import BuildingCursorPagination
 from api_alpha.permissions import ADSPermission
 from api_alpha.permissions import RNBContributorPermission
-from api_alpha.serializers import ADSSerializer
-from api_alpha.serializers import BuildingAddressQuerySerializer
-from api_alpha.serializers import BuildingClosestQuerySerializer
-from api_alpha.serializers import BuildingClosestSerializer
-from api_alpha.serializers import BuildingMergeSerializer
-from api_alpha.serializers import BuildingPlotSerializer
-from api_alpha.serializers import BuildingSerializer
-from api_alpha.serializers import BuildingSplitSerializer
-from api_alpha.serializers import ContributionSerializer
-from api_alpha.serializers import DiffusionDatabaseSerializer
-from api_alpha.serializers import GuessBuildingSerializer
-from api_alpha.serializers import OrganizationSerializer
-from api_alpha.serializers import UserSerializer
+from api_alpha.serializers.serializers import ADSSerializer
+from api_alpha.serializers.serializers import BuildingAddressQuerySerializer
+from api_alpha.serializers.serializers import BuildingClosestQuerySerializer
+from api_alpha.serializers.serializers import BuildingClosestSerializer
+from api_alpha.serializers.serializers import BuildingMergeSerializer
+from api_alpha.serializers.serializers import BuildingPlotSerializer
+from api_alpha.serializers.serializers import BuildingSerializer
+from api_alpha.serializers.serializers import BuildingSplitSerializer
+from api_alpha.serializers.serializers import ContributionSerializer
+from api_alpha.serializers.serializers import DiffusionDatabaseSerializer
+from api_alpha.serializers.serializers import GuessBuildingSerializer
+from api_alpha.serializers.serializers import OrganizationSerializer
+from api_alpha.serializers.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.parse_boolean import parse_boolean
 from api_alpha.utils.rnb_doc import build_schema_dict
 from api_alpha.utils.rnb_doc import get_status_list
 from api_alpha.utils.rnb_doc import rnb_doc
@@ -101,10 +99,6 @@ from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.user import get_user_id_b64
 from batid.services.user import get_user_id_from_b64
-from batid.services.vector_tiles import ads_tiles_sql
-from batid.services.vector_tiles import bdgs_tiles_sql
-from batid.services.vector_tiles import plots_tiles_sql
-from batid.services.vector_tiles import url_params_to_tile
 from batid.tasks import create_sandbox_user
 from batid.utils.auth import make_random_password
 from batid.utils.constants import ADS_GROUP_NAME
@@ -1148,131 +1142,6 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     )
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
-
-
-class ADSVectorTileView(APIView):
-    def get(self, request, x, y, z):
-
-        # might do : include a minimum zoom level as it is done for buildings
-        tile_dict = url_params_to_tile(x, y, z)
-        sql = ads_tiles_sql(tile_dict)
-
-        with connection.cursor() as cursor:
-            cursor.execute(sql)
-            tile_file = cursor.fetchone()[0]
-
-        return HttpResponse(
-            tile_file, content_type="application/vnd.mapbox-vector-tile"
-        )
-
-
-class PlotsVectorTileView(APIView):
-    def get(self, request, x, y, z):
-
-        if int(z) >= 16:
-
-            tile_dict = url_params_to_tile(x, y, z)
-            sql = plots_tiles_sql(tile_dict)
-
-            with connection.cursor() as cursor:
-                cursor.execute(sql)
-                tile_file = cursor.fetchone()[0]
-
-            return HttpResponse(
-                tile_file, content_type="application/vnd.mapbox-vector-tile"
-            )
-        else:
-            return HttpResponse(status=204)
-
-
-class BuildingsVectorTileView(APIView):
-    @extend_schema(
-        tags=["Tile"],
-        operation_id="get_vector_tile",
-        summary="Obtenir une tuile vectorielle",
-        description=(
-            "Cette API fournit des tuiles vectorielles au format PBF permettant d'intégrer les bâtiments "
-            "du Référentiel National des Bâtiments (RNB) dans une cartographie. Chaque tuile contient des points "
-            "représentant des bâtiments avec un attribut 'rnb_id'. Les tuiles sont utilisables avec un niveau de zoom "
-            "minimal de 16 et peuvent être intégrées dans des outils comme QGIS ou des sites web."
-        ),
-        auth=[],
-        parameters=[
-            OpenApiParameter(
-                name="x",
-                description="Coordonnée X de la tuile",
-                required=True,
-                type=int,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="y",
-                description="Coordonnée Y de la tuile",
-                required=True,
-                type=int,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="z",
-                description="Niveau de zoom de la tuile",
-                required=True,
-                type=int,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="only_active",
-                description="Filtrer les bâtiments actifs",
-                required=False,
-                type=bool,
-                default=True,
-            ),
-        ],
-        responses={
-            200: OpenApiResponse(
-                response=OpenApiTypes.BINARY,
-                description="Fichier PBF contenant les tuiles vectorielles",
-            ),
-            400: {"description": "Requête invalide"},
-        },
-    )
-    def get(self, request, x, y, z):
-        only_active_and_real_param = request.GET.get("only_active_and_real", "true")
-        only_active_and_real = parse_boolean(only_active_and_real_param)
-
-        # Check the request zoom level
-        if int(z) >= 16:
-            tile_dict = url_params_to_tile(x, y, z)
-            sql = bdgs_tiles_sql(tile_dict, "point", only_active_and_real)
-
-            with connection.cursor() as cursor:
-                cursor.execute(sql)
-                tile_file = cursor.fetchone()[0]
-
-            return HttpResponse(
-                tile_file, content_type="application/vnd.mapbox-vector-tile"
-            )
-        else:
-            return HttpResponse(status=204)
-
-
-def get_tile_shape(request, x, y, z):
-    only_active_and_real_param = request.GET.get("only_active_and_real", "true")
-    only_active_and_real = parse_boolean(only_active_and_real_param)
-
-    # Check the request zoom level
-    if int(z) >= 16:
-        tile_dict = url_params_to_tile(x, y, z)
-        sql = bdgs_tiles_sql(tile_dict, "shape", only_active_and_real)
-
-        with connection.cursor() as cursor:
-            cursor.execute(sql)
-            tile_file = cursor.fetchone()[0]
-
-        return HttpResponse(
-            tile_file, content_type="application/vnd.mapbox-vector-tile"
-        )
-    else:
-        return HttpResponse(status=204)
 
 
 def get_data_gouv_publication_count():

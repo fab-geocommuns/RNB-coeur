@@ -13,6 +13,7 @@ from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import User
+from batid.utils.misc import ext_ids_equal
 
 
 class TestBuilding(TestCase):
@@ -431,3 +432,43 @@ class TestUpdateBuilding(TestCase):
 
         print(f"New updated_at: {b.updated_at}")
         self.assertNotEqual(b.updated_at, old_updated_at)
+
+
+class TestExtIdsComparison(TestCase):
+    def test_ext_ids_equal(self):
+        ext_ids1 = [
+            {
+                "source": "source1",
+                "id": "id1",
+                "source_version": "v1",
+                "created_at": "2023-01-01T00:00:00Z",
+            },
+            {
+                "source": "source2",
+                "id": "id2",
+                "source_version": None,
+                "created_at": "2023-01-02T00:00:00Z",
+            },
+        ]
+        ext_ids2 = [
+            {
+                "source": "source2",
+                "id": "id2",
+                "source_version": None,
+                "created_at": "2023-01-02T00:00:00Z",
+            },
+            {
+                "id": "id1",
+                "source": "source1",
+                "created_at": "2023-01-01T00:00:00Z",
+                "source_version": "v1",
+            },
+        ]
+
+        self.assertTrue(ext_ids_equal(ext_ids1, ext_ids2))
+
+    def test_ext_ids_not_equal(self):
+        ext_ids1 = [{"source": "source1", "id": "id1"}]
+        ext_ids2 = [{"source": "source2", "id": "id2"}]
+
+        self.assertFalse(ext_ids_equal(ext_ids1, ext_ids2))

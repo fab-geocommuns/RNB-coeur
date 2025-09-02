@@ -421,6 +421,50 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(contribution.review_user, self.user)
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_update_with_empty_addresses(self):
+        self.user.groups.add(self.group)
+
+        # First, we have to add some addresses to the building
+        data = {
+            "status": "constructed",
+            "addresses_cle_interop": ["cle_interop_1", "cle_interop_2"],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+        }
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 204)
+
+        self.building.refresh_from_db()
+
+        # We check that the addresses have been added
+        expected_addresses = ["cle_interop_1", "cle_interop_2"]
+        expected_addresses.sort()
+
+        self.building.addresses_id.sort()
+
+        self.assertListEqual(self.building.addresses_id, expected_addresses)
+
+        # We can now remove all addresses
+        data = {
+            "shape": self.building.shape.json,
+            "status": self.building.status,
+            "addresses_cle_interop": [],
+            "comment": "maj du batiment avec des adresses vides",
+        }
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 204)
+        self.building.refresh_from_db()
+
+        self.assertListEqual(self.building.addresses_id, [])
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_update_building_shape_hex(self):
         self.user.groups.add(self.group)
         comment = "maj du batiment"
