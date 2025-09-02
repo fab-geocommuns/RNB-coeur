@@ -13,7 +13,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     POETRY_VIRTUALENVS_PATH="/python_venv" \
     PATH="/root/.local/bin:${PATH}"
 
-RUN pipx install poetry==${POETRY_VERSION}
+RUN pipx install --python=python3 poetry==${POETRY_VERSION}
 
 COPY pyproject.toml poetry.lock ./
 RUN poetry env use $(which python3)

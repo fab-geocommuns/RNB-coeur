@@ -47,8 +47,16 @@ class BuildingEventSerializer(serializers.Serializer):
             if not ext_ids_equal(previous.get("ext_ids"), current.get("ext_ids")):
                 updated_fields.append("ext_ids")
 
-            prev_addresses = previous.get("addresses_id", [])
-            curr_addresses = current.get("addresses_id", [])
+            prev_addresses = (
+                []
+                if previous.get("addresses_id") is None
+                else previous.get("addresses_id")
+            )
+            curr_addresses = (
+                []
+                if current.get("addresses_id") is None
+                else current.get("addresses_id")
+            )
 
             if set(prev_addresses) != set(curr_addresses):
                 updated_fields.append("addresses")

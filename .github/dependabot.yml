@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: "docker"
+    directories:
+      - "/app"
+      - "/nginx"
+    schedule: { interval: "weekly" }
+    target-branch: "main"
+
+  - package-ecosystem: "docker-compose"
+    directory: "."
+    schedule: { interval: "weekly" }
+    target-branch: "main"
+
+  - package-ecosystem: "pip"
+    directory: "/app"
+    schedule: { interval: "weekly" }
+    target-branch: "main"
+    groups:
+      production:
+        dependency-type: 'production'
+        patterns:
+          - '*'
+      development:
+        dependency-type: 'development'
+        patterns:
+          - '*'

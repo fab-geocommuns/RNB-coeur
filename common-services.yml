@@ -13,6 +13,8 @@ services:
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
+    environment:
+      - TRUST_DOWNSTREAM_PROXY=false
 
   nginx-letsencrypt:
     image: nginxproxy/acme-companion:2.5.0
@@ -44,7 +46,7 @@ services:
     container_name: web
 
   db:
-    image: postgis/postgis:15-3.3
+    image: postgis/postgis:16-3.5
     platform: linux/amd64
     shm_size: 1gb
     volumes:

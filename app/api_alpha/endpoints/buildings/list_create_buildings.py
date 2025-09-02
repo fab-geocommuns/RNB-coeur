@@ -5,9 +5,12 @@ from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
 from rest_framework import status as http_status
+from rest_framework.exceptions import NotFound
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.pagination import BuildingCursorPagination
 from api_alpha.permissions import ReadOnly
@@ -21,6 +24,7 @@ from api_alpha.utils.rnb_doc import rnb_doc
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
+from batid.exceptions import InvalidOperation
 from batid.list_bdg import list_bdgs
 from batid.models import Building
 from batid.models import Contribution
@@ -135,7 +139,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             },
         },
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         query_params = request.query_params.dict()
 
         # check if we need to include plots
@@ -230,11 +234,11 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             }
         }
     )
-    def post(self, request):
-        serializer = BuildingCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    def post(self, request: Request) -> Response:
+        input_serializer = BuildingCreateSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
 
-        data = serializer.data
+        data = input_serializer.data
         user = request.user
 
         with transaction.atomic():
@@ -283,5 +287,5 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             contribution.rnb_id = created_building.rnb_id
             contribution.save()
 
-        serializer = BuildingSerializer(created_building, with_plots=True)
-        return Response(serializer.data, status=http_status.HTTP_201_CREATED)
+        output_serializer = BuildingSerializer(created_building, with_plots=True)
+        return Response(output_serializer.data, status=http_status.HTTP_201_CREATED)

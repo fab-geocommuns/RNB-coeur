@@ -27,15 +27,15 @@ def _create_ban_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
     }
 
     # 1) We download the BAN file
-    dl_task = Signature(
+    dl_task = Signature(  # type: ignore[var-annotated]
         "batid.tasks.dl_source",
-        args=["ban", src_params],
+        args=["ban", src_params],  # type: ignore[arg-type]
         immutable=True,
     )
     tasks.append(dl_task)
 
-    task = Signature(
-        "batid.tasks.import_ban", args=[src_params, bulk_launch_id], immutable=True
+    task = Signature(  # type: ignore[var-annotated]
+        "batid.tasks.import_ban", args=[src_params, bulk_launch_id], immutable=True  # type: ignore[arg-type]
     )
     tasks.append(task)
 
@@ -79,7 +79,7 @@ def import_ban_addresses(
                 )
             )
 
-            if len(addresses_batch) >= batch_size:
+            if len(addresses_batch) >= batch_size:  # type: ignore[operator]
                 created_addresses = Address.objects.bulk_create(
                     addresses_batch, ignore_conflicts=True
                 )

@@ -41,7 +41,7 @@ def list_bdgs(params, only_active=True) -> QuerySet:
     status_list = BuildingStatus.REAL_BUILDINGS_STATUS
     if "status" in params:
         if params["status"] == "all":
-            status_list = BuildingStatus.ALL_TYPES_KEYS
+            status_list = BuildingStatus.ALL_TYPES_KEYS  # type: ignore[assignment]
         else:
             status_list = params["status"].split(",")
 
