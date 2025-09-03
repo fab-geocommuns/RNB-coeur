@@ -9,6 +9,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
+from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
 from api_alpha.services import BuildingADS as BuildingADSLogic
 from api_alpha.services import can_manage_ads_in_request
@@ -75,6 +76,13 @@ class ExtIdSerializer(serializers.Serializer):
     source = serializers.CharField(help_text="bdnb")
     created_at = serializers.DateTimeField(help_text="2023-12-07T13:20:58.310444+00:00")
     source_version = serializers.CharField(help_text="2023_01")
+
+
+class BuildingGeoJSONSerializer(GeoFeatureModelSerializer):
+    class Meta:
+        model = Building
+        fields = ("rnb_id",)
+        geo_field = "shape"
 
 
 class BuildingSerializer(serializers.ModelSerializer):

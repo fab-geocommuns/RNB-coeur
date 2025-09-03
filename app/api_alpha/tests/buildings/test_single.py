@@ -43,8 +43,6 @@ class SingleBuildingTest(APITestCase):
 
         r = self.client.get("/api/alpha/buildings/1234ABCD5678/?format=geojson")
 
-        print(r.json())
-
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.data["type"], "FeatureCollection")
-        self.assertEqual(r.data["features"][0]["properties"]["rnb_id"], "1234ABCD5678")
+        self.assertEqual(r.data["type"], "Feature")
+        self.assertEqual(r.data["properties"]["rnb_id"], "1234ABCD5678")

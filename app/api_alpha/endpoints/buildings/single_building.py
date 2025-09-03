@@ -16,6 +16,7 @@ from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers.building_history import BuildingHistorySerializer
 from api_alpha.serializers.serializers import BuildingSerializer
 from api_alpha.serializers.serializers import BuildingUpdateSerializer
+from api_alpha.serializers.serializers import BuildingGeoJSONSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import get_status_list
 from api_alpha.utils.rnb_doc import rnb_doc
@@ -99,7 +100,14 @@ class SingleBuilding(RNBLoggingMixin, APIView):
             only_active=False,
         )
         building = get_object_or_404(qs, rnb_id=clean_rnb_id(rnb_id))
-        serializer = BuildingSerializer(building, with_plots=with_plots)
+
+        # get the "format" query parameter
+        format_param = request.query_params.get("format", "json").lower()
+
+        if format_param == "geojson":
+            serializer = BuildingGeoJSONSerializer(building)
+        else:
+            serializer = BuildingSerializer(building, with_plots=with_plots)
 
         return Response(serializer.data)
 
