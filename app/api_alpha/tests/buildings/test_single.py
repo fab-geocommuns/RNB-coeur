@@ -31,6 +31,14 @@ class SingleBuildingTest(APITestCase):
             shape=geom,
             point=geom.point_on_surface,
             status="constructed",
+            ext_ids=[
+                {
+                    "source": "bdnb",
+                    "id": "bdnb-bc-3B85-TYM9-FDSX",
+                    "created_at": "2025-12-25T00:00:00.000000+00:00",
+                    "source_version": "25",
+                }
+            ],
         )
 
     def test_single_bdg(self):
@@ -46,3 +54,17 @@ class SingleBuildingTest(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["type"], "Feature")
         self.assertEqual(r.data["properties"]["rnb_id"], "1234ABCD5678")
+        self.assertEqual(r.data["properties"]["status"], "constructed")
+        self.assertListEqual(
+            r.data["properties"]["ext_ids"],
+            [
+                {
+                    "source": "bdnb",
+                    "source_version": "25",
+                    "id": "bdnb-bc-3B85-TYM9-FDSX",
+                    "created_at": "2025-12-25T00:00:00.000000+00:00",
+                }
+            ],
+        )
+
+    # test if BuildingGeoJSONSerializer.Meta.fields contains all the fields of BuildingSerializer (except shape and point)
