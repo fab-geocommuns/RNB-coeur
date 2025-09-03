@@ -10,6 +10,8 @@ class GeoJSONSerializer(TestCase):
         This test ensures that the fields included in the GeoJSON representation
         of a building are the same as those in the regular representation,
         except for the shape and point fields.
+
+        We may forget to update both serializers in future development.
         """
 
         reference_fields = BuildingSerializer.Meta.fields
