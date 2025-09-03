@@ -3,14 +3,14 @@ import json
 from rest_framework.test import APITestCase
 from django.contrib.gis.geos import GEOSGeometry
 
-from batid.models import Building, Address
+from batid.models import Building, Address, Plot
 
 
 class SingleBuildingTest(APITestCase):
 
     def setUp(self):
 
-        address = Address.objects.create(
+        Address.objects.create(
             id="addr-1",
             source="bdnb",
             street_number="3",
@@ -37,7 +37,7 @@ class SingleBuildingTest(APITestCase):
         }
         geom = GEOSGeometry(json.dumps(coords), srid=4326)
 
-        b = Building.objects.create(
+        Building.objects.create(
             rnb_id="1234ABCD5678",
             shape=geom,
             point=geom.point_on_surface,
@@ -52,6 +52,8 @@ class SingleBuildingTest(APITestCase):
                 }
             ],
         )
+
+        Plot.objects.create(id="plot-1", shape=geom)
 
     def test_single_bdg(self):
 
@@ -98,4 +100,14 @@ class SingleBuildingTest(APITestCase):
 
         self.assertNotIn("plots", r.data["properties"])
 
-    # test if BuildingGeoJSONSerializer.Meta.fields contains all the fields of BuildingSerializer (except shape and point)
+    def test_single_bdg_geojson_w_plots(self):
+
+        r = self.client.get(
+            "/api/alpha/buildings/1234ABCD5678/?format=geojson&withPlots=1"
+        )
+
+        self.assertIn("plots", r.data["properties"])
+        self.assertListEqual(
+            r.data["properties"]["plots"],
+            [{"id": "plot-1", "bdg_cover_ratio": 1}],
+        )

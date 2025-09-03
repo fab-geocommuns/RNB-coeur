@@ -70,6 +70,14 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                         "schema": {"type": "string"},
                         "example": "1",
                     },
+                    {
+                        "name": "format",
+                        "in": "query",
+                        "description": "Format de la réponse. Valeurs possibles : `json` (par défaut) ou `geojson`. En format `geojson`, la réponse est un objet de type Feature tel que défini dans le standard GeoJSON.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "geojson",
+                    },
                 ],
                 "responses": {
                     "200": {
