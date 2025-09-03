@@ -96,4 +96,6 @@ class SingleBuildingTest(APITestCase):
             ],
         )
 
+        self.assertNotIn("plots", r.data["properties"])
+
     # test if BuildingGeoJSONSerializer.Meta.fields contains all the fields of BuildingSerializer (except shape and point)
