@@ -105,7 +105,7 @@ class SingleBuilding(RNBLoggingMixin, APIView):
         format_param = request.query_params.get("format", "json").lower()
 
         if format_param == "geojson":
-            serializer = BuildingGeoJSONSerializer(building)
+            serializer = BuildingGeoJSONSerializer(building, with_plots=with_plots)
         else:
             serializer = BuildingSerializer(building, with_plots=with_plots)
 

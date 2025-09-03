@@ -78,21 +78,6 @@ class ExtIdSerializer(serializers.Serializer):
     source_version = serializers.CharField(help_text="2023_01")
 
 
-class BuildingGeoJSONSerializer(GeoFeatureModelSerializer):
-    class Meta:
-        model = Building
-        fields = ("rnb_id", "status", "ext_ids", "addresses", "is_active", "plots")
-        geo_field = "shape"
-
-    ext_ids = ExtIdSerializer(many=True, read_only=True)
-
-    addresses = AddressSerializer(
-        many=True, read_only=True, source="addresses_read_only"
-    )
-
-    plots = serializers.JSONField(read_only=True)
-
-
 class BuildingSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
 
@@ -132,6 +117,34 @@ class BuildingSerializer(serializers.ModelSerializer):
             "is_active",
             "plots",
         ]
+
+
+class BuildingGeoJSONSerializer(GeoFeatureModelSerializer):
+
+    def __init__(self, *args, **kwargs):
+
+        # We have to intercept the with_plots arguments before passing to the parent class
+        with_plots = kwargs.pop("with_plots", False)
+
+        # Trigger the parent class init
+        super().__init__(*args, **kwargs)
+
+        # If with_plots is False, we remove the plots field from the fields list
+        if not with_plots:
+            self.fields.pop("plots")
+
+    class Meta:
+        model = Building
+        fields = ("rnb_id", "status", "ext_ids", "addresses", "is_active", "plots")
+        geo_field = "shape"
+
+    ext_ids = ExtIdSerializer(many=True, read_only=True)
+
+    addresses = AddressSerializer(
+        many=True, read_only=True, source="addresses_read_only"
+    )
+
+    plots = serializers.JSONField(read_only=True)
 
 
 class GuessBuildingSerializer(serializers.ModelSerializer):

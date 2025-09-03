@@ -14,7 +14,9 @@ class GeoJSONSerializer(TestCase):
         We may forget to update both serializers in future development.
         """
 
-        reference_fields = BuildingSerializer.Meta.fields
+        # make a copy of BuildingSerializer.Meta.fields
+        reference_fields = BuildingSerializer.Meta.fields.copy()
+
         reference_fields.remove("shape")
         reference_fields.remove("point")
 
