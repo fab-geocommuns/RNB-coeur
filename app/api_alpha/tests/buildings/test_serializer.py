@@ -20,4 +20,4 @@ class GeoJSONSerializer(TestCase):
 
         geojson_fields = BuildingGeoJSONSerializer.Meta.fields
 
-        self.assertEqual(geojson_fields, reference_fields)
+        self.assertEqual(set(geojson_fields), set(reference_fields))
