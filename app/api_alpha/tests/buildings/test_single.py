@@ -3,12 +3,23 @@ import json
 from rest_framework.test import APITestCase
 from django.contrib.gis.geos import GEOSGeometry
 
-from batid.models import Building
+from batid.models import Building, Address
 
 
 class SingleBuildingTest(APITestCase):
 
     def setUp(self):
+
+        address = Address.objects.create(
+            id="addr-1",
+            source="bdnb",
+            street_number="3",
+            street_rep="",
+            street="rue de l'eglise",
+            city_name="Chivy-lès-Étouvelles",
+            city_zipcode="02000",
+            city_insee_code="02191",
+        )
 
         coords = {
             "coordinates": [
@@ -31,6 +42,7 @@ class SingleBuildingTest(APITestCase):
             shape=geom,
             point=geom.point_on_surface,
             status="constructed",
+            addresses_id=["addr-1"],
             ext_ids=[
                 {
                     "source": "bdnb",
@@ -63,6 +75,21 @@ class SingleBuildingTest(APITestCase):
                     "source_version": "25",
                     "id": "bdnb-bc-3B85-TYM9-FDSX",
                     "created_at": "2025-12-25T00:00:00.000000+00:00",
+                }
+            ],
+        )
+        self.assertListEqual(
+            r.data["properties"]["addresses"],
+            [
+                {
+                    "id": "addr-1",
+                    "source": "bdnb",
+                    "street_number": "3",
+                    "street_rep": "",
+                    "street": "rue de l'eglise",
+                    "city_name": "Chivy-lès-Étouvelles",
+                    "city_zipcode": "02000",
+                    "city_insee_code": "02191",
                 }
             ],
         )
