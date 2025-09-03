@@ -120,7 +120,6 @@ class BuildingSerializer(serializers.ModelSerializer):
 
 
 class BuildingGeoJSONSerializer(BuildingSerializer, GeoFeatureModelSerializer):
-
     class Meta:
         model = Building
         fields = ("rnb_id", "status", "ext_ids", "addresses", "is_active", "plots")
