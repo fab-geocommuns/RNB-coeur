@@ -81,7 +81,7 @@ class ExtIdSerializer(serializers.Serializer):
 class BuildingGeoJSONSerializer(GeoFeatureModelSerializer):
     class Meta:
         model = Building
-        fields = ("rnb_id", "status", "ext_ids", "addresses")
+        fields = ("rnb_id", "status", "ext_ids", "addresses", "is_active")
         geo_field = "shape"
 
     ext_ids = ExtIdSerializer(many=True, read_only=True)
