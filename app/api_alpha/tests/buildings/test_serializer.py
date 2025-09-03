@@ -1,10 +1,10 @@
 from django.test import TestCase
+
 from api_alpha.serializers.serializers import BuildingGeoJSONSerializer
 from api_alpha.serializers.serializers import BuildingSerializer
 
 
 class GeoJSONSerializer(TestCase):
-
     def test_same_fields(self):
         """
         This test ensures that the fields included in the GeoJSON representation
