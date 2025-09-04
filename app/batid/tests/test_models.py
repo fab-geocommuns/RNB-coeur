@@ -348,7 +348,7 @@ class TestUniqueRNBIDEventID(TestCase):
 
         event_id = uuid.uuid4()
 
-        # Create a building with a specific rnb_id and event_type
+        # Create a building with a specific rnb_id and event_id
         building = Building.objects.create(
             rnb_id="UNIQUE123",
             status="constructed",
