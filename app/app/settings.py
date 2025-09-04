@@ -193,6 +193,7 @@ REST_FRAMEWORK = {
         "change_password": "10/day",
         "create_user": "10/day",
     },
+    "URL_FORMAT_OVERRIDE": None,
 }
 
 

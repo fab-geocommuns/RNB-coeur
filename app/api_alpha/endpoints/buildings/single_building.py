@@ -14,6 +14,7 @@ from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers.building_history import BuildingHistorySerializer
+from api_alpha.serializers.serializers import BuildingGeoJSONSerializer
 from api_alpha.serializers.serializers import BuildingSerializer
 from api_alpha.serializers.serializers import BuildingUpdateSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
@@ -69,6 +70,14 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                         "schema": {"type": "string"},
                         "example": "1",
                     },
+                    {
+                        "name": "format",
+                        "in": "query",
+                        "description": "Format de la réponse. Valeurs possibles : `json` (par défaut) ou `geojson`. En format `geojson`, la réponse est un objet de type Feature tel que défini dans le standard GeoJSON.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "geojson",
+                    },
                 ],
                 "responses": {
                     "200": {
@@ -99,7 +108,14 @@ class SingleBuilding(RNBLoggingMixin, APIView):
             only_active=False,
         )
         building = get_object_or_404(qs, rnb_id=clean_rnb_id(rnb_id))
-        serializer = BuildingSerializer(building, with_plots=with_plots)
+
+        # get the "format" query parameter
+        format_param = request.query_params.get("format", "json").lower()
+
+        if format_param == "geojson":
+            serializer = BuildingGeoJSONSerializer(building, with_plots=with_plots)
+        else:
+            serializer = BuildingSerializer(building, with_plots=with_plots)
 
         return Response(serializer.data)
 
