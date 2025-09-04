@@ -12,6 +12,7 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import transaction
 from django.db.models import CheckConstraint
 from django.db.models import Q
+from django.db.models import UniqueConstraint
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
@@ -505,7 +506,7 @@ class Building(BuildingAbstract):
             CheckConstraint(
                 check=Q(event_type__in=BuildingAbstract.EVENT_TYPES),
                 name="valid_event_type_check",
-            )
+            ),
         ]
 
 
@@ -549,4 +550,12 @@ class BuildingHistoryOnly(BuildingAbstract):
             Index(Lower("sys_period"), name="bdg_hist_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_history_event_type_idx"),
             GinIndex(fields=["parent_buildings"], name="bdg_hist_parent_buildings_idx"),
+        ]
+
+        constraints = [
+            # verify the couple rnb_id/event_id is unique
+            UniqueConstraint(
+                fields=["rnb_id", "event_id"],
+                name="unique_rnb_id_event_id",
+            )
         ]
