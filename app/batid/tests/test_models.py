@@ -344,7 +344,7 @@ class TestSplitBuilding(TestCase):
 
 
 class TestUniqueRNBIDEventID(TestCase):
-    def test_unique_rnb_id_event_type(self):
+    def test_unique_rnb_id_event_id(self):
 
         event_id = uuid.uuid4()
 
