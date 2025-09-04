@@ -97,6 +97,14 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         },
                         "example": "1",
                     },
+                    {
+                        "name": "format",
+                        "in": "query",
+                        "description": "Format de la réponse. Valeurs possibles : `json` (par défaut) ou `geojson`. En format `geojson`, l'attribut `results` de la réponse est un objet de type FeatureCollection tel que défini dans le standard GeoJSON.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "geojson",
+                    },
                 ],
                 "responses": {
                     "200": {
