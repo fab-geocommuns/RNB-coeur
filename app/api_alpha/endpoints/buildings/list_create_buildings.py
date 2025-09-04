@@ -70,24 +70,6 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "example": "94067_7115_00073",
                     },
                     {
-                        "name": "bb",
-                        "in": "query",
-                        "description": (
-                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box"
-                            "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
-                            "Le format est <code>nw_lat,nw_lng,se_lat,se_lng</code> où : <br/>"
-                            "<ul>"
-                            "<li><b>nw_lat</b> : latitude du point Nord Ouest de la bounding box</li>"
-                            "<li><b>nw_lng</b> : longitude du point Nord Ouest de la bounding box</li>"
-                            "<li><b>se_lat</b> : latitude du point Sud Est de la bounding box</li>"
-                            "<li><b>se_lng</b> : longitude du point Sud Est de la bounding box</li>"
-                            "</ul><br />"
-                        ),
-                        "required": False,
-                        "schema": {"type": "string"},
-                        "example": "48.845782,2.424525,48.839201,2.434158",
-                    },
-                    {
                         "name": "withPlots",
                         "in": "query",
                         "description": "Inclure les parcelles intersectant les bâtiments de la réponse. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment.",
@@ -105,6 +87,19 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "geojson",
+                    },
+                    {
+                        "name": "bb",
+                        "in": "query",
+                        "description": (
+                            "OBSOLÈTE - préférez le paramètre `bbox` "
+                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box "
+                            "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
+                            "Le format est <code>nw_lat,nw_lng,se_lat,se_lng"
+                        ),
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "48.845782,2.424525,48.839201,2.434158",
                     },
                 ],
                 "responses": {

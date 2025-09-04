@@ -51,6 +51,8 @@ def list_bdgs(params, only_active=True) -> QuerySet:
 
     # #######################
     # Bounding box filter
+    # NB: this is the legacy bounding parameter. The format nw_lat, nw_lng, se_lat, se_lng does not respect the OGC API standard
+    # but we keep it for backward compatibility
 
     bbox_str = params.get("bb", None)
     if bbox_str:
