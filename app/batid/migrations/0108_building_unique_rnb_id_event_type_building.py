@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="buildinghistoryonly",
             constraint=models.UniqueConstraint(
-                fields=("rnb_id", "event_id"), name="unique_rnb_id_event_type"
+                fields=("rnb_id", "event_id"), name="unique_rnb_id_event_id"
             ),
         ),
     ]
