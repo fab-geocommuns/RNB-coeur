@@ -81,5 +81,5 @@ exclude = [
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = ["boto3.*", "rest_framework", "rest_framework.*", "rest_framework_tracking.*", "geopandas"]
+module = ["boto3.*", "rest_framework", "rest_framework.*", "rest_framework_tracking.*", "rest_framework_gis.*", "geopandas"]
 follow_untyped_imports = true

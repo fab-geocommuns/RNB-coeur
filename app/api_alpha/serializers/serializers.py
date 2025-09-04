@@ -9,6 +9,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
+from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
 from api_alpha.services import BuildingADS as BuildingADSLogic
 from api_alpha.services import can_manage_ads_in_request
@@ -116,6 +117,13 @@ class BuildingSerializer(serializers.ModelSerializer):
             "is_active",
             "plots",
         ]
+
+
+class BuildingGeoJSONSerializer(BuildingSerializer, GeoFeatureModelSerializer):
+    class Meta:
+        model = Building
+        fields = ("rnb_id", "status", "ext_ids", "addresses", "is_active", "plots")
+        geo_field = "shape"
 
 
 class GuessBuildingSerializer(serializers.ModelSerializer):
