@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.pagination import BuildingCursorPagination
+from api_alpha.pagination import OGCApiPagination
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers.serializers import BuildingCreateSerializer
@@ -159,19 +160,21 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         # add user to query params
         query_params["user"] = request.user
         buildings = list_bdgs(query_params)
-        paginator = BuildingCursorPagination()
 
         # paginate
-        paginated_buildings = paginator.paginate_queryset(buildings, request)
 
         # get the "format" query parameter
         format_param = request.query_params.get("format", "json").lower()
 
         if format_param == "geojson":
+            paginator = OGCApiPagination()
+            paginated_buildings = paginator.paginate_queryset(buildings, request)
             serializer = BuildingGeoJSONSerializer(
                 paginated_buildings, with_plots=with_plots, many=True
             )
         else:
+            paginator = BuildingCursorPagination()
+            paginated_buildings = paginator.paginate_queryset(buildings, request)
             serializer = BuildingSerializer(
                 paginated_buildings, with_plots=with_plots, many=True
             )
