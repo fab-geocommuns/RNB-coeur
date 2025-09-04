@@ -14,7 +14,6 @@ from batid.tests.helpers import create_grenoble
 
 
 class BuildingsEndpointsTest(APITestCase):
-
     def setUp(self) -> None:
         coords = {
             "coordinates": [

@@ -16,8 +16,8 @@ from api_alpha.pagination import BuildingCursorPagination
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers.serializers import BuildingCreateSerializer
-from api_alpha.serializers.serializers import BuildingSerializer
 from api_alpha.serializers.serializers import BuildingGeoJSONSerializer
+from api_alpha.serializers.serializers import BuildingSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import get_status_list
