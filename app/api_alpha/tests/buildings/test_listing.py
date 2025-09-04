@@ -77,6 +77,55 @@ class BuildingsEndpointsTest(APITestCase):
         )
 
     def test_bdg_in_bbox(self):
+
+        r = self.client.get(
+            "/api/alpha/buildings/?bbox=5.7211808330356,45.18355043319679,5.722614035153486,45.18468473541278"
+        )
+        self.assertEqual(r.status_code, 200)
+
+        expected = {
+            "previous": None,
+            "next": None,
+            "results": [
+                {
+                    "addresses": [],
+                    "ext_ids": None,
+                    "status": "constructed",
+                    "point": {
+                        "coordinates": [5.721181338205954, 45.18433384981944],
+                        "type": "Point",
+                    },
+                    "shape": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [5.721187072129851, 45.18439363812283],
+                                    [5.721094925229238, 45.184330511384644],
+                                    [5.721122483180295, 45.184274061453465],
+                                    [5.721241326846666, 45.18428316628476],
+                                    [5.721244771590875, 45.184325048490564],
+                                    [5.721269745984984, 45.18433718825423],
+                                    [5.721187072129851, 45.18439363812283],
+                                ]
+                            ]
+                        ],
+                    },
+                    "rnb_id": "INGRENOBLEGO",
+                    "is_active": True,
+                }
+            ],
+        }
+
+        data = r.json()
+
+        self.assertEqual(len(data["results"]), 1)
+        self.assertDictEqual(data, expected)
+
+    def test_bdg_in_bbox_obsolote(self):
+
+        # This test uses the legacy "bb" parameter which is now marked as obsolete in the API documentation
+
         r = self.client.get(
             "/api/alpha/buildings/?bb=45.18468473541278,5.7211808330356,45.18355043319679,5.722614035153486"
         )
