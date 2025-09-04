@@ -556,6 +556,6 @@ class BuildingHistoryOnly(BuildingAbstract):
             # verify the couple rnb_id/event_id is unique
             UniqueConstraint(
                 fields=["rnb_id", "event_id"],
-                name="unique_rnb_id_event_type",
+                name="unique_rnb_id_event_id",
             )
         ]
