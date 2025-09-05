@@ -13,9 +13,11 @@ from rest_framework.views import APIView
 from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.pagination import BuildingCursorPagination
+from api_alpha.pagination import OGCApiPagination
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers.serializers import BuildingCreateSerializer
+from api_alpha.serializers.serializers import BuildingGeoJSONSerializer
 from api_alpha.serializers.serializers import BuildingSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import get_status_html_list
@@ -96,6 +98,14 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         },
                         "example": "1",
                     },
+                    {
+                        "name": "format",
+                        "in": "query",
+                        "description": "Format de la réponse. Valeurs possibles : `json` (par défaut) ou `geojson`. En format `geojson`, l'attribut `results` de la réponse est un objet de type FeatureCollection tel que défini dans le standard GeoJSON.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "geojson",
+                    },
                 ],
                 "responses": {
                     "200": {
@@ -150,13 +160,24 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         # add user to query params
         query_params["user"] = request.user
         buildings = list_bdgs(query_params)
-        paginator = BuildingCursorPagination()
 
         # paginate
-        paginated_buildings = paginator.paginate_queryset(buildings, request)
-        serializer = BuildingSerializer(
-            paginated_buildings, with_plots=with_plots, many=True
-        )
+
+        # get the "format" query parameter
+        format_param = request.query_params.get("format", "json").lower()
+
+        if format_param == "geojson":
+            paginator = OGCApiPagination()
+            paginated_buildings = paginator.paginate_queryset(buildings, request)
+            serializer = BuildingGeoJSONSerializer(
+                paginated_buildings, with_plots=with_plots, many=True
+            )
+        else:
+            paginator = BuildingCursorPagination()
+            paginated_buildings = paginator.paginate_queryset(buildings, request)
+            serializer = BuildingSerializer(
+                paginated_buildings, with_plots=with_plots, many=True
+            )
 
         return paginator.get_paginated_response(serializer.data)
 
