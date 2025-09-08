@@ -1,5 +1,6 @@
 import datetime
 import json
+import uuid
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.db.utils import IntegrityError
@@ -340,6 +341,32 @@ class TestSplitBuilding(TestCase):
                 self.user,
                 event_origin,
             )
+
+
+class TestUniqueRNBIDEventID(TestCase):
+    def test_unique_rnb_id_event_id(self):
+
+        event_id = uuid.uuid4()
+
+        # Create a building with a specific rnb_id and event_id
+        building = Building.objects.create(
+            rnb_id="UNIQUE123",
+            status="constructed",
+            event_type="creation",
+            event_id=event_id,
+            shape="POINT(0 0)",
+        )
+
+        # Modify once to create the first history entry
+        building.event_type = "update"
+        building.status = "demolished"
+        building.save()
+
+        # Attempt to update the building and let the event_id unchanged
+        with self.assertRaises(IntegrityError):
+            building.event_type = "update"
+            building.status = "constructed"
+            building.save()
 
 
 class TestUpdateBuilding(TestCase):

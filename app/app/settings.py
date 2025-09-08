@@ -148,6 +148,9 @@ POSTGRES_STATEMENT_TIMEOUT = os.environ.get("POSTGRES_STATEMENT_TIMEOUT")
 DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT = os.environ.get(
     "DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT", "0"
 )
+DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT = os.environ.get(
+    "DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT", "259200000"  # Default to 72h
+)
 if POSTGRES_STATEMENT_TIMEOUT:
     DATABASES["default"]["OPTIONS"][  # type: ignore[index]
         "options"
@@ -193,6 +196,7 @@ REST_FRAMEWORK = {
         "change_password": "10/day",
         "create_user": "10/day",
     },
+    "URL_FORMAT_OVERRIDE": None,
 }
 
 
