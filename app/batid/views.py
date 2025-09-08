@@ -100,6 +100,7 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
         "/metabase/app/",  # Static resources of metabase (JS scripts)
         "/metabase/api/session/properties",  # App properties
         "/metabase/api/public/",  # Public APIs
+        "/metabase/api/geojson/",  # For the edition's map on stat page
     ]
 
     def test_func(self):
