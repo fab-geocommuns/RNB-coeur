@@ -38,7 +38,7 @@ orjson = "^3.11.2"
 django-jsoneditor = "^0.2.4"
 
 [tool.poetry.group.dev.dependencies]
-moto = "^5.1.11"
+moto = "^5.1.12"
 freezegun = "^1.5.5"
 notebook = "~7.4.5"
 jupyter = "^1.0.0"
