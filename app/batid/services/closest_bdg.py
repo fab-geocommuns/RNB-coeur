@@ -3,7 +3,10 @@ from typing import Optional
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
+from django.db.models import BooleanField
+from django.db.models import ExpressionWrapper
 from django.db.models import QuerySet
+from django.db.models.expressions import RawSQL
 
 from batid.models import Building
 from batid.services.bdg_status import BuildingStatus
@@ -16,7 +19,15 @@ def get_closest_from_poly(poly: Polygon, radius) -> Optional[QuerySet]:
     qs = __get_real_bdg_qs()
 
     qs = (
-        qs.filter(shape__dwithin=(poly, radius))
+        qs.filter(
+            ExpressionWrapper(
+                RawSQL(
+                    "ST_DWithin(shape::geography, ST_GeomFromWKB(%s, 4326), %s)",
+                    (poly.wkb, radius),
+                ),
+                output_field=BooleanField(),
+            )
+        )
         .annotate(distance=Distance("shape", poly))
         .order_by("distance")
     )
