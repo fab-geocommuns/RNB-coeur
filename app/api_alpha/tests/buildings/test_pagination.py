@@ -60,27 +60,25 @@ class EndpointTest(APITestCase):
 
         data = r.json()
 
-        self.assertEqual(
-            data[""]["next"],
-            "http://testserver/api/alpha/buildings/?cursor=2&format=geojson",
-        )
-        self.assertIsNone(data["previous"])
+        # Assert there is a next link
+        links_rels = [link["rel"] for link in data["links"]]
+        self.assertIn("next", links_rels)
+        self.assertNotIn("previous", links_rels)
 
-        self.assertEqual(len(data["results"]["features"]), 20)
+        for link in data["links"]:
+            if link["rel"] == "next":
+                self.assertEqual(
+                    link["href"],
+                    "http://testserver/api/alpha/buildings/?cursor=2&format=geojson",
+                )
+
+        self.assertEqual(len(data["features"]), 20)
 
         # Since the data as no expliciti ORDER BY we want to check the results have a consistent order
-        self.assertEqual(
-            data["results"]["features"][0]["properties"]["rnb_id"], "000000000000"
-        )
-        self.assertEqual(
-            data["results"]["features"][5]["properties"]["rnb_id"], "000000000005"
-        )
-        self.assertEqual(
-            data["results"]["features"][16]["properties"]["rnb_id"], "000000000016"
-        )
-        self.assertEqual(
-            data["results"]["features"][19]["properties"]["rnb_id"], "000000000019"
-        )
+        self.assertEqual(data["features"][0]["properties"]["rnb_id"], "000000000000")
+        self.assertEqual(data["features"][5]["properties"]["rnb_id"], "000000000005")
+        self.assertEqual(data["features"][16]["properties"]["rnb_id"], "000000000016")
+        self.assertEqual(data["features"][19]["properties"]["rnb_id"], "000000000019")
 
     def test_nth_page(self):
 
@@ -104,6 +102,38 @@ class EndpointTest(APITestCase):
         self.assertEqual(data["results"][16]["rnb_id"], "000000000096")
         self.assertEqual(data["results"][19]["rnb_id"], "000000000099")
         self.assertEqual(r.status_code, 200)
+
+    def test_nth_page_geojson(self):
+
+        r = self.client.get("/api/alpha/buildings/?cursor=5&format=geojson")
+        self.assertEqual(r.status_code, 200)
+
+        data = r.json()
+
+        # Assert there is a next link
+        links_rels = [link["rel"] for link in data["links"]]
+        self.assertIn("next", links_rels)
+        self.assertIn("previous", links_rels)
+
+        for link in data["links"]:
+            if link["rel"] == "next":
+                self.assertEqual(
+                    link["href"],
+                    "http://testserver/api/alpha/buildings/?cursor=6&format=geojson",
+                )
+            if link["rel"] == "prev":
+                self.assertEqual(
+                    link["href"],
+                    "http://testserver/api/alpha/buildings/?cursor=4&format=geojson",
+                )
+
+        self.assertEqual(len(data["features"]), 20)
+
+        # Since the data as no expliciti ORDER BY we want to check the results have a consistent order
+        self.assertEqual(data["features"][0]["properties"]["rnb_id"], "000000000080")
+        self.assertEqual(data["features"][5]["properties"]["rnb_id"], "000000000085")
+        self.assertEqual(data["features"][16]["properties"]["rnb_id"], "000000000096")
+        self.assertEqual(data["features"][19]["properties"]["rnb_id"], "000000000099")
 
     def test_params_conservation(self):
 

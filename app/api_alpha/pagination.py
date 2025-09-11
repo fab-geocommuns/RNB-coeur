@@ -7,7 +7,6 @@ from rest_framework.utils.urls import replace_query_param
 
 
 class BuildingCursorPagination(BasePagination):
-    page_size = 20
 
     cursor_query_param = "cursor"
 
@@ -19,6 +18,8 @@ class BuildingCursorPagination(BasePagination):
         self.has_previous = False
 
         self.page = None
+
+        self.page_size = 20
 
     def get_paginated_response_schema(self, schema):
         return {
@@ -164,15 +165,11 @@ class OGCApiPagination(BuildingCursorPagination):
                 }
             )
 
-        return Response(
-            {
-                "type": "FeatureCollection",
-                "features": data,
-                "links": links,
-                "numberReturned": len(data),
-                "timeStamp": datetime.now().isoformat(),
-            }
-        )
+        data["links"] = links
+        data["numberReturned"] = len(data["features"])
+        data["timeStamp"] = datetime.now().isoformat()
+
+        return Response(data)
 
 
 class BuildingAddressCursorPagination(BuildingCursorPagination):
