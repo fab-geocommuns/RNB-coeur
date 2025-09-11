@@ -93,6 +93,7 @@ venv/
 # IDE settings
 .idea/
 .vscode/
+.VSCodeCounter/
 
 # mac os file
 *.DS_Store

@@ -13,9 +13,11 @@ from rest_framework.views import APIView
 from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
 from api_alpha.pagination import BuildingCursorPagination
+from api_alpha.pagination import OGCApiPagination
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers.serializers import BuildingCreateSerializer
+from api_alpha.serializers.serializers import BuildingGeoJSONSerializer
 from api_alpha.serializers.serializers import BuildingSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import get_status_html_list
@@ -68,24 +70,6 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "example": "94067_7115_00073",
                     },
                     {
-                        "name": "bb",
-                        "in": "query",
-                        "description": (
-                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box"
-                            "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
-                            "Le format est <code>nw_lat,nw_lng,se_lat,se_lng</code> où : <br/>"
-                            "<ul>"
-                            "<li><b>nw_lat</b> : latitude du point Nord Ouest de la bounding box</li>"
-                            "<li><b>nw_lng</b> : longitude du point Nord Ouest de la bounding box</li>"
-                            "<li><b>se_lat</b> : latitude du point Sud Est de la bounding box</li>"
-                            "<li><b>se_lng</b> : longitude du point Sud Est de la bounding box</li>"
-                            "</ul><br />"
-                        ),
-                        "required": False,
-                        "schema": {"type": "string"},
-                        "example": "48.845782,2.424525,48.839201,2.434158",
-                    },
-                    {
                         "name": "withPlots",
                         "in": "query",
                         "description": "Inclure les parcelles intersectant les bâtiments de la réponse. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment.",
@@ -95,6 +79,27 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                             "default": False,
                         },
                         "example": "1",
+                    },
+                    {
+                        "name": "format",
+                        "in": "query",
+                        "description": "Format de la réponse. Valeurs possibles : `json` (par défaut) ou `geojson`. En format `geojson`, l'attribut `results` de la réponse est un objet de type FeatureCollection tel que défini dans le standard GeoJSON.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "geojson",
+                    },
+                    {
+                        "name": "bb",
+                        "in": "query",
+                        "description": (
+                            "OBSOLÈTE - préférez le paramètre `bbox` "
+                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box "
+                            "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
+                            "Le format est <code>nw_lat,nw_lng,se_lat,se_lng"
+                        ),
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "48.845782,2.424525,48.839201,2.434158",
                     },
                 ],
                 "responses": {
@@ -150,13 +155,24 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         # add user to query params
         query_params["user"] = request.user
         buildings = list_bdgs(query_params)
-        paginator = BuildingCursorPagination()
 
         # paginate
-        paginated_buildings = paginator.paginate_queryset(buildings, request)
-        serializer = BuildingSerializer(
-            paginated_buildings, with_plots=with_plots, many=True
-        )
+
+        # get the "format" query parameter
+        format_param = request.query_params.get("format", "json").lower()
+
+        if format_param == "geojson":
+            paginator = OGCApiPagination()
+            paginated_buildings = paginator.paginate_queryset(buildings, request)
+            serializer = BuildingGeoJSONSerializer(
+                paginated_buildings, with_plots=with_plots, many=True
+            )
+        else:
+            paginator = BuildingCursorPagination()
+            paginated_buildings = paginator.paginate_queryset(buildings, request)
+            serializer = BuildingSerializer(
+                paginated_buildings, with_plots=with_plots, many=True
+            )
 
         return paginator.get_paginated_response(serializer.data)
 

@@ -16,8 +16,6 @@ class GeoJSONSerializer(TestCase):
 
         # make a copy of BuildingSerializer.Meta.fields
         reference_fields = BuildingSerializer.Meta.fields.copy()
-
-        reference_fields.remove("shape")
         reference_fields.remove("point")
 
         geojson_fields = BuildingGeoJSONSerializer.Meta.fields
