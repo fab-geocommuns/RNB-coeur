@@ -74,6 +74,23 @@ class BuildingCursorPagination(BasePagination):
 
     def paginate_queryset(self, queryset, request, view=None):
 
+        # Add a limit query param
+        limit_param = request.query_params.get("limit", None)
+        if limit_param:
+            try:
+                # This str to int conversion can raise ValueError
+                limit = int(limit_param)
+
+                if limit < 1 or limit > 100:
+                    raise ValueError()
+
+                self.page_size = limit
+
+            except ValueError:
+                raise ValueError(
+                    "The limit parameter must be an integer between 1 and 100"
+                )
+
         # Get the current URL with all parameters
         self.base_url = request.build_absolute_uri()
 

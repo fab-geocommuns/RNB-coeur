@@ -34,6 +34,25 @@ class EndpointTest(APITestCase):
         self.assertEqual(data["results"][16]["rnb_id"], "000000000016")
         self.assertEqual(data["results"][19]["rnb_id"], "000000000019")
 
+    def test_limit_param(self):
+        r = self.client.get("/api/alpha/buildings/?limit=10")
+        self.assertEqual(r.status_code, 200)
+
+        data = r.json()
+
+        self.assertEqual(
+            data["next"], "http://testserver/api/alpha/buildings/?cursor=2&limit=10"
+        )
+        self.assertIsNone(data["previous"])
+
+        self.assertEqual(len(data["results"]), 10)
+
+        # Since the data as no expliciti ORDER BY we want to check the results have a consistent order
+        self.assertEqual(data["results"][0]["rnb_id"], "000000000000")
+        self.assertEqual(data["results"][5]["rnb_id"], "000000000005")
+        self.assertEqual(data["results"][8]["rnb_id"], "000000000008")
+        self.assertEqual(data["results"][9]["rnb_id"], "000000000009")
+
     def test_first_page_geojson(self):
 
         r = self.client.get("/api/alpha/buildings/?format=geojson")
@@ -42,7 +61,7 @@ class EndpointTest(APITestCase):
         data = r.json()
 
         self.assertEqual(
-            data["next"],
+            data[""]["next"],
             "http://testserver/api/alpha/buildings/?cursor=2&format=geojson",
         )
         self.assertIsNone(data["previous"])
