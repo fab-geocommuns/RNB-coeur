@@ -96,9 +96,11 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
     add_x_forwarded = True
     allowed_urls = [
         "/metabase/public/dashboard/",  # HTML pages of public dashboards
+        "/metabase/public/question/",  # HTML pages of public questions
         "/metabase/app/",  # Static resources of metabase (JS scripts)
         "/metabase/api/session/properties",  # App properties
         "/metabase/api/public/",  # Public APIs
+        "/metabase/api/geojson/",  # For the edition's map on stat page
     ]
 
     def test_func(self):
