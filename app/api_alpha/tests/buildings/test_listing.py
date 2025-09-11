@@ -352,66 +352,73 @@ class BuildingsEndpointsTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         data = r.json()
-        self.assertEqual(data["results"]["type"], "FeatureCollection")
+        self.assertEqual(data["type"], "FeatureCollection")
+
+        response_timestamp = data["timeStamp"]
 
         expected = {
-            "next": None,
-            "previous": None,
-            "results": {
-                "type": "FeatureCollection",
-                "features": [
-                    {
-                        "type": "Feature",
-                        "geometry": {
-                            "type": "MultiPolygon",
-                            "coordinates": [
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
                                 [
-                                    [
-                                        [1.065470595587726, 46.63423852982024],
-                                        [1.065454930919401, 46.634105152847496],
-                                        [1.065664837466102, 46.63409009413692],
-                                        [1.065677369200159, 46.63422131990677],
-                                        [1.065470595587726, 46.63423852982024],
-                                    ]
+                                    [1.065470595587726, 46.63423852982024],
+                                    [1.065454930919401, 46.634105152847496],
+                                    [1.065664837466102, 46.63409009413692],
+                                    [1.065677369200159, 46.63422131990677],
+                                    [1.065470595587726, 46.63423852982024],
                                 ]
-                            ],
-                        },
-                        "properties": {
-                            "rnb_id": "BDGSRNBBIDID",
-                            "status": "constructed",
-                            "ext_ids": None,
-                            "addresses": [],
-                            "is_active": True,
-                        },
+                            ]
+                        ],
                     },
-                    {
-                        "type": "Feature",
-                        "geometry": {
-                            "type": "MultiPolygon",
-                            "coordinates": [
+                    "properties": {
+                        "rnb_id": "BDGSRNBBIDID",
+                        "status": "constructed",
+                        "ext_ids": None,
+                        "addresses": [],
+                        "is_active": True,
+                    },
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
                                 [
-                                    [
-                                        [5.721187072129851, 45.18439363812283],
-                                        [5.721094925229238, 45.184330511384644],
-                                        [5.721122483180295, 45.184274061453465],
-                                        [5.721241326846666, 45.18428316628476],
-                                        [5.721244771590875, 45.184325048490564],
-                                        [5.721269745984984, 45.18433718825423],
-                                        [5.721187072129851, 45.18439363812283],
-                                    ]
+                                    [5.721187072129851, 45.18439363812283],
+                                    [5.721094925229238, 45.184330511384644],
+                                    [5.721122483180295, 45.184274061453465],
+                                    [5.721241326846666, 45.18428316628476],
+                                    [5.721244771590875, 45.184325048490564],
+                                    [5.721269745984984, 45.18433718825423],
+                                    [5.721187072129851, 45.18439363812283],
                                 ]
-                            ],
-                        },
-                        "properties": {
-                            "rnb_id": "INGRENOBLEGO",
-                            "status": "constructed",
-                            "ext_ids": None,
-                            "addresses": [],
-                            "is_active": True,
-                        },
+                            ]
+                        ],
                     },
-                ],
-            },
+                    "properties": {
+                        "rnb_id": "INGRENOBLEGO",
+                        "status": "constructed",
+                        "ext_ids": None,
+                        "addresses": [],
+                        "is_active": True,
+                    },
+                },
+            ],
+            "links": [
+                {
+                    "rel": "self",
+                    "title": "This page",
+                    "href": "http://testserver/api/alpha/buildings/?format=geojson",
+                }
+            ],
+            "numberReturned": 2,
+            "timeStamp": response_timestamp,  # response timestamp is dynamic, we just check its presence
         }
 
         self.assertDictEqual(data, expected)

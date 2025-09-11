@@ -63,7 +63,7 @@ class EndpointTest(APITestCase):
         # Assert there is a next link
         links_rels = [link["rel"] for link in data["links"]]
         self.assertIn("next", links_rels)
-        self.assertNotIn("previous", links_rels)
+        self.assertNotIn("prev", links_rels)
 
         for link in data["links"]:
             if link["rel"] == "next":
@@ -113,7 +113,7 @@ class EndpointTest(APITestCase):
         # Assert there is a next link
         links_rels = [link["rel"] for link in data["links"]]
         self.assertIn("next", links_rels)
-        self.assertIn("previous", links_rels)
+        self.assertIn("prev", links_rels)
 
         for link in data["links"]:
             if link["rel"] == "next":
