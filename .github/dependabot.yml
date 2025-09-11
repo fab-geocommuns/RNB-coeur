@@ -18,6 +18,8 @@ updates:
     directory: "/app"
     schedule: { interval: "monthly" }
     target-branch: "main"
+    ignore:
+      - dependency-name: "notebook"
     groups:
       production:
         dependency-type: 'production'
