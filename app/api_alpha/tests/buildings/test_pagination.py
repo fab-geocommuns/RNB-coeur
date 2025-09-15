@@ -74,7 +74,7 @@ class EndpointTest(APITestCase):
 
         self.assertEqual(len(data["features"]), 20)
 
-        # Since the data as no expliciti ORDER BY we want to check the results have a consistent order
+        # Since the data as no explicit ORDER BY we want to check the results have a consistent order
         self.assertEqual(data["features"][0]["properties"]["rnb_id"], "000000000000")
         self.assertEqual(data["features"][5]["properties"]["rnb_id"], "000000000005")
         self.assertEqual(data["features"][16]["properties"]["rnb_id"], "000000000016")
