@@ -161,6 +161,10 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         # get the "format" query parameter
         format_param = request.query_params.get("format", "json").lower()
 
+        # Mypy annotations
+        paginator: OGCApiPagination | BuildingCursorPagination
+        serializer: BuildingGeoJSONSerializer | BuildingSerializer
+
         if format_param == "geojson":
             paginator = OGCApiPagination()
             paginated_buildings = paginator.paginate_queryset(buildings, request)
