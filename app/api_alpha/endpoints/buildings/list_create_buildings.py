@@ -95,7 +95,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                             "OBSOLÈTE - préférez le paramètre `bbox` "
                             "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box "
                             "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
-                            "Le format est <code>nw_lat,nw_lng,se_lat,se_lng"
+                            "Le format est nw_lat,nw_lng,se_lat,se_lng"
                         ),
                         "required": False,
                         "schema": {"type": "string"},
