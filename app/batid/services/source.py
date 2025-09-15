@@ -3,16 +3,23 @@ import gzip
 import os
 import shutil
 import tarfile
-import tempfile
 import zipfile
 
 import nanoid
 import py7zr
 import requests
+from app.settings import WRITABLE_DATA_DIR
+
+
+def source_data_directory() -> str:
+    directory_name = "source_data"
+    directory_path = os.path.join(WRITABLE_DATA_DIR, directory_name)
+    os.makedirs(directory_path, exist_ok=True)
+    return directory_path
 
 
 class Source:
-    _dl_dir = tempfile.TemporaryDirectory(prefix="source_data_").name
+    _dl_dir = source_data_directory()
 
     # Must be prefixed with a dot
 

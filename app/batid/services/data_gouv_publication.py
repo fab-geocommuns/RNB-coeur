@@ -46,7 +46,7 @@ def create_directory(area):
         f'datagouvfr_publication_{area}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
     )
     directory_path = os.path.join(WRITABLE_DATA_DIR, directory_name)
-    os.mkdir(directory_path)
+    os.makedirs(directory_path, exist_ok=True)
     return directory_path
 
 

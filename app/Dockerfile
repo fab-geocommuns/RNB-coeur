@@ -45,7 +45,6 @@ RUN chown 999:999 /app/data
 USER app
 
 FROM base as app_web
-COPY entrypoint.sh ./
 ENTRYPOINT ["./entrypoint.sh"]
 
 FROM base as app_worker
