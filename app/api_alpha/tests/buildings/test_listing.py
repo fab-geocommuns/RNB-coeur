@@ -413,7 +413,7 @@ class BuildingsEndpointsTest(APITestCase):
             "links": [
                 {
                     "rel": "self",
-                    "title": "This page",
+                    "title": "Current page of results",
                     "href": "http://testserver/api/alpha/buildings/?format=geojson",
                 }
             ],

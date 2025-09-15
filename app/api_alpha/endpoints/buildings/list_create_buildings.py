@@ -75,17 +75,22 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "description": "Inclure les parcelles intersectant les bâtiments de la réponse. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment.",
                         "required": False,
                         "schema": {
-                            "type": "boolean",
-                            "default": False,
+                            "type": "integer",
+                            "default": 0,
+                            "enum": [0, 1],
                         },
-                        "example": "1",
+                        "example": 1,
                     },
                     {
                         "name": "format",
                         "in": "query",
                         "description": "Format de la réponse. Valeurs possibles : `json` (par défaut) ou `geojson`. En format `geojson`, l'attribut `results` de la réponse est un objet de type FeatureCollection tel que défini dans le standard GeoJSON.",
                         "required": False,
-                        "schema": {"type": "string"},
+                        "schema": {
+                            "type": "string",
+                            "default": "json",
+                            "enum": ["json", "geojson"],
+                        },
                         "example": "geojson",
                     },
                     {
@@ -93,7 +98,12 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": "Nombre maximum de bâtiments à retourner dans la page de résultats. Valeur par défaut : 20. Valeur maximale : 100.",
                         "required": False,
-                        "schema": {"type": "integer"},
+                        "schema": {
+                            "type": "integer",
+                            "default": 20,
+                            "maximum": 100,
+                            "minimum": 1,
+                        },
                         "example": 50,
                     },
                     {

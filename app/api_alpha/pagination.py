@@ -138,7 +138,7 @@ class OGCApiPagination(BuildingCursorPagination):
         links.append(
             {
                 "rel": "self",
-                "title": "This page",
+                "title": "Current page of results",
                 "href": self.base_url,
             }
         )
