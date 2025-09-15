@@ -89,6 +89,25 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "example": "geojson",
                     },
                     {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Nombre maximum de bâtiments à retourner dans la page de résultats. Valeur par défaut : 20. Valeur maximale : 100.",
+                        "required": False,
+                        "schema": {"type": "integer"},
+                        "example": 50,
+                    },
+                    {
+                        "name": "bbox",
+                        "in": "query",
+                        "description": (
+                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box."
+                            "Le format est min_lon,min_lat,max_lon,max_lat"
+                        ),
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "48.845782,2.424525,48.839201,2.434158",
+                    },
+                    {
                         "name": "bb",
                         "in": "query",
                         "description": (
