@@ -1,4 +1,5 @@
 from base64 import b64encode
+from datetime import datetime
 
 from rest_framework.pagination import BasePagination
 from rest_framework.response import Response
@@ -6,7 +7,6 @@ from rest_framework.utils.urls import replace_query_param
 
 
 class BuildingCursorPagination(BasePagination):
-    page_size = 20
 
     cursor_query_param = "cursor"
 
@@ -18,6 +18,8 @@ class BuildingCursorPagination(BasePagination):
         self.has_previous = False
 
         self.page = None
+
+        self.page_size = 20
 
     def get_paginated_response_schema(self, schema):
         return {
@@ -73,6 +75,23 @@ class BuildingCursorPagination(BasePagination):
 
     def paginate_queryset(self, queryset, request, view=None):
 
+        # Add a limit query param
+        limit_param = request.query_params.get("limit", None)
+        if limit_param:
+            try:
+                # This str to int conversion can raise ValueError
+                limit = int(limit_param)
+
+                if limit < 1 or limit > 100:
+                    raise ValueError()
+
+                self.page_size = limit
+
+            except ValueError:
+                raise ValueError(
+                    "The limit parameter must be an integer between 1 and 100"
+                )
+
         # Get the current URL with all parameters
         self.base_url = request.build_absolute_uri()
 
@@ -109,6 +128,48 @@ class BuildingCursorPagination(BasePagination):
     def encode_cursor(self, cursor):
 
         return b64encode(cursor.encode("ascii")).decode("ascii")
+
+
+class OGCApiPagination(BuildingCursorPagination):
+    def get_paginated_response(self, data):
+        links = []
+
+        # self link
+        links.append(
+            {
+                "rel": "self",
+                "title": "Current page of results",
+                "href": self.base_url,
+            }
+        )
+
+        # next link
+        next_link = self.get_next_link()
+        if next_link:
+            links.append(
+                {
+                    "rel": "next",
+                    "title": "Next page of results",
+                    "href": next_link,
+                }
+            )
+
+        # previous link
+        prev_link = self.get_previous_link()
+        if prev_link:
+            links.append(
+                {
+                    "rel": "prev",
+                    "title": "Previous page of results",
+                    "href": prev_link,
+                }
+            )
+
+        data["links"] = links
+        data["numberReturned"] = len(data["features"])
+        data["timeStamp"] = datetime.now().isoformat()
+
+        return Response(data)
 
 
 class BuildingAddressCursorPagination(BuildingCursorPagination):
