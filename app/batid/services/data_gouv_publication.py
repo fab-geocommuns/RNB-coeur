@@ -13,6 +13,7 @@ from django.conf import settings
 from django.db import connection
 from django.db import transaction
 
+from app.settings import WRITABLE_DATA_DIR
 from batid.services.administrative_areas import dpts_list
 
 
@@ -44,8 +45,9 @@ def create_directory(area):
     directory_name = (
         f'datagouvfr_publication_{area}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
     )
-    os.mkdir(directory_name)
-    return directory_name
+    directory_path = os.path.join(WRITABLE_DATA_DIR, directory_name)
+    os.makedirs(directory_path, exist_ok=True)
+    return directory_path
 
 
 # Return the global path of a file WITHOUT the extension
