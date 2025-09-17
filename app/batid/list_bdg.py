@@ -50,17 +50,39 @@ def list_bdgs(params, only_active=True) -> QuerySet:
     qs = qs.filter(status__in=status)
 
     # #######################
+    # DEPRECATED
     # Bounding box filter
+    # NB: this is the legacy bounding parameter. The format nw_lat, nw_lng, se_lat, se_lng does not respect the OGC API standard/
+    # We keep it for backward compatibility.
+    # This parameter is marked as obsolete in the API documentation.
 
-    bbox_str = params.get("bb", None)
-    if bbox_str:
-        nw_lat, nw_lng, se_lat, se_lng = [float(coord) for coord in bbox_str.split(",")]
+    bb_str = params.get("bb", None)
+    if bb_str:
+        nw_lat, nw_lng, se_lat, se_lng = [float(coord) for coord in bb_str.split(",")]
         poly_coords = (
             (nw_lng, nw_lat),
             (nw_lng, se_lat),
             (se_lng, se_lat),
             (se_lng, nw_lat),
             (nw_lng, nw_lat),
+        )
+        poly = Polygon(poly_coords, srid=4326)
+
+        qs = qs.filter(shape__intersects=poly)
+        # We have to order by created_at to avoid pagination issues on geographic queries
+        qs = qs.order_by("created_at")
+
+    # #######################
+    # Bounding box filter (OGC API standard)
+    bbox_str = params.get("bbox", None)
+    if bbox_str:
+        min_x, min_y, max_x, maxy = [float(coord) for coord in bbox_str.split(",")]
+        poly_coords = (
+            (min_x, min_y),
+            (min_x, maxy),
+            (max_x, maxy),
+            (max_x, min_y),
+            (min_x, min_y),
         )
         poly = Polygon(poly_coords, srid=4326)
 
