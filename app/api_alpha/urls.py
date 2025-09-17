@@ -10,6 +10,14 @@ from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsShapeVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsVectorTileView
 from api_alpha.endpoints.tiles.plots_vector_tile import PlotsVectorTileView
+from api_alpha.endpoints.ogc.views import (
+    OGCIndexView,
+    OGCConformanceView,
+    OGCCollectionsView,
+    OGCBuildingsCollectionView,
+    OGCBuildingItemsView,
+    OGCSingleBuildingItemView,
+)
 from api_alpha.views import ActivateUser
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSViewSet
@@ -46,6 +54,16 @@ router.register(r"ads", ADSViewSet)
 urlpatterns = [
     path("schema/", get_schema, name="schema"),
     path("stats", get_stats),
+    # OGC API Features minimal endpoints
+    path("ogc", OGCIndexView.as_view()),
+    path("ogc/conformance", OGCConformanceView.as_view()),
+    path("ogc/collections", OGCCollectionsView.as_view()),
+    path("ogc/collections/buildings", OGCBuildingsCollectionView.as_view()),
+    path("ogc/collections/buildings/items", OGCBuildingItemsView.as_view()),
+    path(
+        "ogc/collections/buildings/items/<str:rnb_id>",
+        OGCSingleBuildingItemView.as_view(),
+    ),
     # For site
     path("diffusion_databases", DiffusionDatabaseView.as_view()),
     path("organization_names", OrganizationView.as_view()),
