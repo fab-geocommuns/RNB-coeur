@@ -404,6 +404,59 @@ class OGCEndpointsTest(APITestCase):
         self.assertEqual(len(data["features"]), 1)
         self.assertDictEqual(data, expected)
 
+    def test_ogc_buildings_items_in_city(self):
+        r = self.client.get(
+            "/api/alpha/ogc/collections/buildings/items?insee_code=38185"
+        )
+        self.assertEqual(r.status_code, 200)
+
+        data = r.json()
+        response_timestamp = data["timeStamp"]
+
+        expected = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [5.721187072129851, 45.18439363812283],
+                                    [5.721094925229238, 45.184330511384644],
+                                    [5.721122483180295, 45.184274061453465],
+                                    [5.721241326846666, 45.18428316628476],
+                                    [5.721244771590875, 45.184325048490564],
+                                    [5.721269745984984, 45.18433718825423],
+                                    [5.721187072129851, 45.18439363812283],
+                                ]
+                            ]
+                        ],
+                    },
+                    "properties": {
+                        "rnb_id": "INGRENOBLEGO",
+                        "status": "constructed",
+                        "ext_ids": None,
+                        "addresses": [],
+                        "is_active": True,
+                    },
+                },
+            ],
+            "links": [
+                {
+                    "rel": "self",
+                    "title": "Current page of results",
+                    "href": "http://testserver/api/alpha/ogc/collections/buildings/items?insee_code=38185",
+                }
+            ],
+            "numberReturned": 1,
+            "timeStamp": response_timestamp,  # response timestamp is dynamic, we just check its presence
+        }
+
+        self.assertEqual(len(data["features"]), 1)
+        self.assertDictEqual(data, expected)
+
     # def test_ogc_single_building_item(self):
     #     r = self.client.get("/api/alpha/ogc/collections/buildings/items/abcd-1234-ef56")
     #     self.assertEqual(r.status_code, 200)
