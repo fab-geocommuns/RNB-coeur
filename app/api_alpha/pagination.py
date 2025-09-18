@@ -1,12 +1,8 @@
-from base64 import b64encode
 from datetime import datetime
-
-from rest_framework.pagination import BasePagination
-from rest_framework.response import Response
-from rest_framework.utils.urls import replace_query_param
 
 from django.db.models.expressions import RawSQL
 from rest_framework.pagination import CursorPagination
+from rest_framework.response import Response
 
 
 class BuildingCursorPagination(CursorPagination):

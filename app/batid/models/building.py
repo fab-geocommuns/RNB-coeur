@@ -9,13 +9,13 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.indexes import GistIndex
 from django.db import transaction
 from django.db.models import CheckConstraint
 from django.db.models import Q
 from django.db.models import UniqueConstraint
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
-from django.contrib.postgres.indexes import GistIndex
 
 from .others import Address
 from .others import Contribution
