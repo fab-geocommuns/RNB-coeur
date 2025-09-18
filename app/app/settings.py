@@ -9,11 +9,16 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
 from celery.schedules import crontab
 from sentry_sdk.integrations.django import DjangoIntegration
+
+from pygeoapi.config import get_config as pygeoapi_get_config
+from pygeoapi.openapi import load_openapi_document
+from pygeoapi.util import get_api_rules
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -224,6 +229,7 @@ RNB_SEND_ADDRESS = os.environ.get("RNB_SEND_ADDRESS")
 RNB_SEND_NAME = "Référentiel National des Bâtiments"
 RNB_REPLY_TO_ADDRESS = os.environ.get("RNB_REPLY_TO_ADDRESS")
 
+
 # Biggest building in RNB is GB97B3AYBKRN and is roughly 487,000m²
 MAX_BUILDING_AREA = 500000
 
@@ -357,3 +363,9 @@ LOGGING = {
         },
     },
 }
+
+
+# OGC API via pygeoapi
+PYGEOAPI_CONFIG = pygeoapi_get_config()
+OPENAPI_DOCUMENT = load_openapi_document()
+API_RULES = get_api_rules(PYGEOAPI_CONFIG)

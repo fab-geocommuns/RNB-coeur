@@ -36,6 +36,7 @@ geopandas = "^1.1.1"
 openapi-spec-validator = "^0.7.2"
 orjson = "^3.11.2"
 django-jsoneditor = "^0.2.4"
+pygeoapi = "^0.21.0"
 
 [tool.poetry.group.dev.dependencies]
 moto = "^5.1.11"

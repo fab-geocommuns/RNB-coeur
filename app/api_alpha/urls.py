@@ -34,6 +34,8 @@ from api_alpha.views import RequestPasswordReset
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SplitBuildings
 
+from pygeoapi.django_.urls import urlpatterns as ogc_urlpatterns
+
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
@@ -44,6 +46,7 @@ router.register(r"ads", ADSViewSet)
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
+    path("ogc/", include(ogc_urlpatterns)),
     path("schema/", get_schema, name="schema"),
     path("stats", get_stats),
     # For site
@@ -102,6 +105,7 @@ urlpatterns.append(
     path("permis/tiles/<int:x>/<int:y>/<int:z>.pbf", ADSVectorTileView.as_view())
 )
 router.register(r"permis", ADSViewSet, basename="permis")
+
 
 # Add the router URLs to the urlpatterns
 urlpatterns.append(path("", include(router.urls)))
