@@ -80,11 +80,16 @@ class EndpointTest(APITestCase):
         self.assertEqual(data["features"][16]["properties"]["rnb_id"], "000000000016")
         self.assertEqual(data["features"][19]["properties"]["rnb_id"], "000000000019")
 
-    def test_nth_page(self):
+    def test_next_page(self):
 
-        r = self.client.get("/api/alpha/buildings/?cursor=5")
+        r = self.client.get("/api/alpha/buildings/")
         self.assertEqual(r.status_code, 200)
 
+        data = r.json()
+        next_url = data["next"]
+
+        r = self.client.get(next_url)
+        self.assertEqual(r.status_code, 200)
         data = r.json()
 
         self.assertEqual(
@@ -103,11 +108,16 @@ class EndpointTest(APITestCase):
         self.assertEqual(data["results"][19]["rnb_id"], "000000000099")
         self.assertEqual(r.status_code, 200)
 
-    def test_nth_page_geojson(self):
+    def test_next_page_geojson(self):
 
-        r = self.client.get("/api/alpha/buildings/?cursor=5&format=geojson")
+        r = self.client.get("/api/alpha/buildings/?format=geojson")
         self.assertEqual(r.status_code, 200)
 
+        data = r.json()
+        next_url = data["next"]
+
+        r = self.client.get(next_url)
+        self.assertEqual(r.status_code, 200)
         data = r.json()
 
         # Assert there is a next link
@@ -137,17 +147,12 @@ class EndpointTest(APITestCase):
 
     def test_params_conservation(self):
 
-        r = self.client.get("/api/alpha/buildings/?insee_code=38185&cursor=3")
+        r = self.client.get("/api/alpha/buildings/?insee_code=38185")
         self.assertEqual(r.status_code, 200)
 
         data = r.json()
 
-        self.assertEqual(
+        self.assertIn(
+            "insee_code=38185",
             data["next"],
-            "http://testserver/api/alpha/buildings/?cursor=4&insee_code=38185",
-        )
-
-        self.assertEqual(
-            data["previous"],
-            "http://testserver/api/alpha/buildings/?cursor=2&insee_code=38185",
         )
