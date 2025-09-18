@@ -17,6 +17,7 @@ from api_alpha.endpoints.ogc.views import (
     OGCBuildingsCollectionView,
     OGCBuildingItemsView,
     OGCSingleBuildingItemView,
+    OGCOpenAPIDefinitionView,
 )
 from api_alpha.views import ActivateUser
 from api_alpha.views import AdsTokenView
@@ -55,13 +56,14 @@ urlpatterns = [
     path("schema/", get_schema, name="schema"),
     path("stats", get_stats),
     # OGC API Features minimal endpoints
-    path("ogc", OGCIndexView.as_view()),
-    path("ogc/conformance", OGCConformanceView.as_view()),
-    path("ogc/collections", OGCCollectionsView.as_view()),
-    path("ogc/collections/buildings", OGCBuildingsCollectionView.as_view()),
-    path("ogc/collections/buildings/items", OGCBuildingItemsView.as_view()),
+    path("ogc/", OGCIndexView.as_view()),
+    path("ogc/openapi/", OGCOpenAPIDefinitionView.as_view()),
+    path("ogc/conformance/", OGCConformanceView.as_view()),
+    path("ogc/collections/", OGCCollectionsView.as_view()),
+    path("ogc/collections/buildings/", OGCBuildingsCollectionView.as_view()),
+    path("ogc/collections/buildings/items/", OGCBuildingItemsView.as_view()),
     path(
-        "ogc/collections/buildings/items/<str:rnb_id>",
+        "ogc/collections/buildings/items/<str:rnb_id>/",
         OGCSingleBuildingItemView.as_view(),
     ),
     # For site
