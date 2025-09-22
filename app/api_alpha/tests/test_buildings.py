@@ -291,7 +291,7 @@ class BuildingClosestViewTest(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
 
-    def test_closes_no_n_plus_1(self):
+    def test_closest_no_n_plus_1(self):
         user = User.objects.create_user(username="user")
 
         Building.create_new(
@@ -350,6 +350,19 @@ class BuildingClosestViewTest(APITestCase):
 
         # would be 5 if N+1 was there
         self.assertNumQueries(4, closest)
+
+    def test_closest_0_lat_lng(self):
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=0.0,1.0654705955877262&radius=10"
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
+
+        r = self.client.get("/api/alpha/buildings/closest/?point=1.0,0.0&radius=10")
+
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
 
 
 class BuildingAddressViewTest(APITestCase):
