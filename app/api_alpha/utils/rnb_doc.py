@@ -2,6 +2,7 @@ import inspect
 
 from django.conf import settings
 from django.urls import get_resolver
+from django.urls import reverse
 from rest_framework.schemas.generators import BaseSchemaGenerator
 from rest_framework.schemas.generators import EndpointEnumerator
 from rest_framework.views import APIView
@@ -17,7 +18,7 @@ COMMON_RESPONSES = {
 }
 
 
-def rnb_doc(path_desc):
+def rnb_doc(path_desc, schemes=[]):
     for _, desc in path_desc.items():
         method_responses = desc.get("responses", {})
         for code, response in COMMON_RESPONSES.items():
@@ -28,12 +29,16 @@ def rnb_doc(path_desc):
     def decorator(fn):
         fn._in_rnb_doc = True
         fn._path_desc = path_desc
+
+        schemes.append("all")
+        fn._schemes = schemes
+
         return fn
 
     return decorator
 
 
-def build_schema_dict():
+def build_schema_all_endpoints() -> dict:
     # goes through all methods and checks if they have add_to_doc attribute
     # if they do, it adds them to the schema
 
@@ -50,7 +55,43 @@ def build_schema_dict():
                 "description": "API du Référentiel National des Bâtiments",
             }
         ],
-        "paths": _get_paths(),
+        "paths": _get_paths("all"),
+        "components": _get_components(),
+    }
+
+    return schema
+
+
+def build_schema_ogc_endpoints(request) -> dict:
+
+    # OGC standard seems to require that the server url is the path to the API root
+    # and all paths are relative to that root
+    # In order to do so, we have to make a bit of a hack here
+
+    ogc_root = reverse("ogc_root")
+
+    # For each path, we remove the ogc_root prefix
+    paths = _get_paths("ogc")
+    ogc_rooted_paths = {}
+    for path, path_desc in paths.items():
+
+        new_key = path.replace(ogc_root, "/")
+        ogc_rooted_paths[new_key] = path_desc
+
+    schema = {
+        # Specs of the 3.1.0 version of the OpenAPI: https://spec.openapis.org/oas/latest.html
+        "openapi": "3.1.0",
+        "info": {
+            "title": "RNB OGC API",
+            "version": "ogc",
+            "description": "API Référentiel National des Bâtiments au standard OGC",
+        },
+        "servers": [
+            {
+                "url": request.build_absolute_uri(ogc_root).rstrip("/"),
+            }
+        ],
+        "paths": ogc_rooted_paths,
         "components": _get_components(),
     }
 
@@ -294,19 +335,21 @@ def _get_endpoints() -> list:
     return inspector.get_api_endpoints(all_patterns)
 
 
-def _add_fn_doc(path, fn, schema_paths) -> dict:
+def _add_fn_doc(schema_to_build, path, fn, schema_paths) -> dict:
 
     if hasattr(fn, "_in_rnb_doc"):
 
-        if path not in schema_paths:
-            schema_paths[path] = {}
+        if schema_to_build in fn._schemes:
 
-        schema_paths[path].update(fn._path_desc)
+            if path not in schema_paths:
+                schema_paths[path] = {}
+
+            schema_paths[path].update(fn._path_desc)
 
     return schema_paths
 
 
-def _get_paths() -> dict:
+def _get_paths(schema_to_build: str) -> dict:
 
     schema_paths = {}  # type: ignore[var-annotated]
 
@@ -327,9 +370,9 @@ def _get_paths() -> dict:
         # We attach the function/method rnb_doc if it has any
         if inspect.ismethod(action):
             fn = action.__func__
-            schema_paths = _add_fn_doc(path, fn, schema_paths)
+            schema_paths = _add_fn_doc(schema_to_build, path, fn, schema_paths)
 
         if inspect.isfunction(action):
-            schema_paths = _add_fn_doc(path, action, schema_paths)
+            schema_paths = _add_fn_doc(schema_to_build, path, action, schema_paths)
 
     return schema_paths

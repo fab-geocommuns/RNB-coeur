@@ -3,7 +3,7 @@ from openapi_spec_validator import validate
 from openapi_spec_validator.validation.exceptions import OpenAPIValidationError
 from rest_framework.test import APITestCase
 
-from api_alpha.utils.rnb_doc import build_schema_dict
+from api_alpha.utils.rnb_doc import build_schema_all_endpoints
 
 
 class OpenAPISchemaEndpoint(APITestCase):
@@ -20,7 +20,7 @@ class OpenAPISchemaEndpoint(APITestCase):
 class OpenAPISchema(TestCase):
     def test_schema(self):
 
-        schema = build_schema_dict()
+        schema = build_schema_all_endpoints()
 
         # assert it does not raise an exception
         try:
