@@ -74,10 +74,13 @@ class OGCEndpointsTest(APITestCase):
         )
 
     def test_ogc_index(self):
-        r = self.client.get("/api/alpha/ogc")
+        r = self.client.get("/api/alpha/ogc/")
 
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r["Content-Type"].split(";")[0], "application/json")
+
+        self.maxDiff = None  # To see full diff on assertEqual failure
+
         self.assertEqual(
             r.json(),
             {
@@ -85,7 +88,7 @@ class OGCEndpointsTest(APITestCase):
                 "description": "Cette API fournit les bâtiments du RNB au format OGC API Features. ",
                 "links": [
                     {
-                        "href": "http://testserver/api/alpha/ogc",
+                        "href": "http://testserver/api/alpha/ogc/",
                         "rel": "root",
                         "type": "application/json",
                         "title": "Racine de l'API du RNB",
@@ -101,6 +104,12 @@ class OGCEndpointsTest(APITestCase):
                         "rel": "data",
                         "type": "application/json",
                         "title": "Liste des types de données disponibles dans cette API",
+                    },
+                    {
+                        "href": "http://testserver/api/alpha/ogc/openapi",
+                        "rel": "service-desc",
+                        "type": "application/vnd.oai.openapi+json;version=3.0",
+                        "title": "Définition OpenAPI de l'API OGC du RNB",
                     },
                 ],
             },
@@ -142,7 +151,7 @@ class OGCEndpointsTest(APITestCase):
                         "title": "Les spécifications respectées par cette API",
                     },
                     {
-                        "href": "http://testserver/api/alpha/ogc",
+                        "href": "http://testserver/api/alpha/ogc/",
                         "rel": "root",
                         "type": "application/json",
                         "title": "Racine de l'API du RNB",
@@ -229,6 +238,7 @@ class OGCEndpointsTest(APITestCase):
             "features": [
                 {
                     "type": "Feature",
+                    "id": "BDGSRNBBIDID",
                     "geometry": {
                         "type": "MultiPolygon",
                         "coordinates": [
@@ -244,7 +254,6 @@ class OGCEndpointsTest(APITestCase):
                         ],
                     },
                     "properties": {
-                        "rnb_id": "BDGSRNBBIDID",
                         "status": "constructed",
                         "ext_ids": None,
                         "addresses": [],
@@ -253,6 +262,7 @@ class OGCEndpointsTest(APITestCase):
                 },
                 {
                     "type": "Feature",
+                    "id": "INGRENOBLEGO",
                     "geometry": {
                         "type": "MultiPolygon",
                         "coordinates": [
@@ -270,7 +280,6 @@ class OGCEndpointsTest(APITestCase):
                         ],
                     },
                     "properties": {
-                        "rnb_id": "INGRENOBLEGO",
                         "status": "constructed",
                         "ext_ids": None,
                         "addresses": [],
@@ -283,6 +292,7 @@ class OGCEndpointsTest(APITestCase):
                     "rel": "self",
                     "title": "Current page of results",
                     "href": "http://testserver/api/alpha/ogc/collections/buildings/items",
+                    "type": "application/geo+json",
                 }
             ],
             "numberReturned": 2,
@@ -306,6 +316,7 @@ class OGCEndpointsTest(APITestCase):
             "features": [
                 {
                     "type": "Feature",
+                    "id": "BDGSRNBBIDID",
                     "geometry": {
                         "type": "MultiPolygon",
                         "coordinates": [
@@ -321,7 +332,6 @@ class OGCEndpointsTest(APITestCase):
                         ],
                     },
                     "properties": {
-                        "rnb_id": "BDGSRNBBIDID",
                         "status": "constructed",
                         "ext_ids": None,
                         "addresses": [],
@@ -334,11 +344,13 @@ class OGCEndpointsTest(APITestCase):
                     "rel": "self",
                     "title": "Current page of results",
                     "href": "http://testserver/api/alpha/ogc/collections/buildings/items?limit=1",
+                    "type": "application/geo+json",
                 },
                 {
                     "rel": "next",
                     "title": "Next page of results",
                     "href": "http://testserver/api/alpha/ogc/collections/buildings/items?cursor=2&limit=1",
+                    "type": "application/geo+json",
                 },
             ],
             "numberReturned": 1,
@@ -355,6 +367,8 @@ class OGCEndpointsTest(APITestCase):
         )
         self.assertEqual(r.status_code, 200)
 
+        self.maxDiff = None  # To see full diff on assertEqual failure
+
         data = r.json()
         response_timestamp = data["timeStamp"]
 
@@ -363,6 +377,7 @@ class OGCEndpointsTest(APITestCase):
             "features": [
                 {
                     "type": "Feature",
+                    "id": "INGRENOBLEGO",
                     "geometry": {
                         "type": "MultiPolygon",
                         "coordinates": [
@@ -380,7 +395,6 @@ class OGCEndpointsTest(APITestCase):
                         ],
                     },
                     "properties": {
-                        "rnb_id": "INGRENOBLEGO",
                         "status": "constructed",
                         "ext_ids": None,
                         "addresses": [],
@@ -393,6 +407,7 @@ class OGCEndpointsTest(APITestCase):
                     "rel": "self",
                     "title": "Current page of results",
                     "href": "http://testserver/api/alpha/ogc/collections/buildings/items?bbox=5.7211808330356,45.18355043319679,5.722614035153486,45.18468473541278",
+                    "type": "application/geo+json",
                 }
             ],
             "numberReturned": 1,
@@ -418,6 +433,7 @@ class OGCEndpointsTest(APITestCase):
             "features": [
                 {
                     "type": "Feature",
+                    "id": "INGRENOBLEGO",
                     "geometry": {
                         "type": "MultiPolygon",
                         "coordinates": [
@@ -435,7 +451,6 @@ class OGCEndpointsTest(APITestCase):
                         ],
                     },
                     "properties": {
-                        "rnb_id": "INGRENOBLEGO",
                         "status": "constructed",
                         "ext_ids": None,
                         "addresses": [],
@@ -448,6 +463,7 @@ class OGCEndpointsTest(APITestCase):
                     "rel": "self",
                     "title": "Current page of results",
                     "href": "http://testserver/api/alpha/ogc/collections/buildings/items?insee_code=38185",
+                    "type": "application/geo+json",
                 }
             ],
             "numberReturned": 1,
@@ -460,10 +476,12 @@ class OGCEndpointsTest(APITestCase):
     def test_ogc_single_building_item(self):
         r = self.client.get("/api/alpha/ogc/collections/buildings/items/INGRENOBLEGO")
         self.assertEqual(r.status_code, 200)
+
         self.assertEqual(
             r.json(),
             {
                 "type": "Feature",
+                "id": "INGRENOBLEGO",
                 "geometry": {
                     "type": "MultiPolygon",
                     "coordinates": [
@@ -481,7 +499,6 @@ class OGCEndpointsTest(APITestCase):
                     ],
                 },
                 "properties": {
-                    "rnb_id": "INGRENOBLEGO",
                     "status": "constructed",
                     "ext_ids": None,
                     "addresses": [],
