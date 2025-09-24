@@ -356,7 +356,7 @@ class OGCSingleBuildingItemView(OGCAPIBaseView):
     @rnb_doc(
         {
             "get": {
-                "summary": "Récupérer un bâtiment par son ID",
+                "summary": "Récupérer un bâtiment par son ID-RNB",
                 "description": "Récupère un seul bâtiment en tant que Feature GeoJSON.",
                 "tags": ["Data"],
                 "parameters": [
@@ -370,9 +370,13 @@ class OGCSingleBuildingItemView(OGCAPIBaseView):
                 ],
                 "responses": {
                     "200": {
-                        "description": "Une Feature GeoJSON du bâtiment.",
+                        "description": "Le bâtiment RNB au format GeoJSON.",
                         "content": {
-                            "application/geo+json": {"schema": {"type": "object"}}
+                            "application/geo+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BuildingGeoJSON"
+                                }
+                            }
                         },
                     },
                     "404": {"description": "Bâtiment non trouvé."},

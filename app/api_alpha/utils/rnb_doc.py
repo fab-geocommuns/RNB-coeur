@@ -62,7 +62,7 @@ def build_schema_all_endpoints() -> dict:
     return schema
 
 
-def build_schema_ogc_endpoints(request) -> dict:
+def build_schema_ogc_endpoints(request=None) -> dict:
 
     # OGC standard seems to require that the server url is the path to the API root
     # and all paths are relative to that root
@@ -78,6 +78,14 @@ def build_schema_ogc_endpoints(request) -> dict:
         new_key = path.replace(ogc_root, "/")
         ogc_rooted_paths[new_key] = path_desc
 
+    # We need to build the right server url. There are two cases:
+    # - if we have a request, we use it to build the absolute uri
+    # - if we don't have a request (e.g. in tests), we use the settings.URL
+    if request is None:
+        server_url = settings.URL.rstrip("/") + ogc_root
+    else:
+        server_url = request.build_absolute_uri(ogc_root)
+
     schema = {
         # Specs of the 3.1.0 version of the OpenAPI: https://spec.openapis.org/oas/latest.html
         "openapi": "3.1.0",
@@ -88,7 +96,9 @@ def build_schema_ogc_endpoints(request) -> dict:
         },
         "servers": [
             {
-                "url": request.build_absolute_uri(ogc_root).rstrip("/"),
+                "url": server_url.rstrip(
+                    "/"
+                ),  # We HAVE TO provide a server url WITHOUT a trailing slash
             }
         ],
         "paths": ogc_rooted_paths,
