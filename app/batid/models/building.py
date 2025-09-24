@@ -95,6 +95,7 @@ class Building(BuildingAbstract):
         related_name="buildings_read_only",
         through="BuildingAddressesReadOnly",
     )
+    random_id = models.BigIntegerField(null=True, unique=True, db_index=True)
 
     def contains_ext_id(
         self, source: str, source_version: Optional[str], id: str
