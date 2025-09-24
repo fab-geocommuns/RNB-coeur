@@ -34,7 +34,7 @@ def fill_building_random_id():
                     SELECT ctid
                     FROM batid_building
                     WHERE random_id IS NULL
-                    LIMIT 5
+                    LIMIT 5000
                     );
                 """
                 cursor.execute(fill_random_id_sql)
