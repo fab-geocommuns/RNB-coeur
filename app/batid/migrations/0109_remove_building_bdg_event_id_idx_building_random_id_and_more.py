@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0108_building_add_random_id"),
+        ("batid", "0108_building_unique_rnb_id_event_type_building"),
     ]
 
     operations = [
@@ -14,5 +14,9 @@ class Migration(migrations.Migration):
             model_name="building",
             name="random_id",
             field=models.BigIntegerField(db_index=True, null=True, unique=True),
-        )
+        ),
+        migrations.RunSQL(
+            "CREATE EXTENSION IF NOT EXISTS pgcrypto;",
+            reverse_sql="DROP EXTENSION IF EXISTS pgcrypto;",
+        ),
     ]

@@ -356,7 +356,7 @@ def create_sandbox_user(user_data: dict) -> None:
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def fill_empty_event_id(batch_size) -> int:
+def fill_empty_event_id(batch_size) -> str:
     from batid.services.data_fix.fill_empty_event_id import fill_empty_event_id
 
     total = 0
@@ -378,7 +378,7 @@ def fill_empty_event_id(batch_size) -> int:
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def fill_empty_event_type(batch_size: int) -> int:
+def fill_empty_event_type(batch_size: int) -> str:
     from batid.services.data_fix.fill_empty_event_type import fill_empty_event_type
 
     total = 0
@@ -397,3 +397,10 @@ def fill_empty_event_type(batch_size: int) -> int:
             break
 
     return f"Total updated rows: {total}"  # type: ignore[return-value]
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def fill_building_random_id() -> str:
+    from batid.services.data_fix.fill_building_random_id import fill_building_random_id
+
+    return fill_building_random_id()
