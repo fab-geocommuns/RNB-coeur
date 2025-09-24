@@ -1,10 +1,11 @@
 from base64 import b64encode
-from datetime import datetime, timezone
+from datetime import datetime
+from datetime import timezone
 
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import BasePagination
 from rest_framework.response import Response
 from rest_framework.utils.urls import replace_query_param
-from rest_framework.exceptions import ValidationError
 
 
 class BuildingCursorPagination(BasePagination):

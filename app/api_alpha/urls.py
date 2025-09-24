@@ -6,19 +6,17 @@ from rest_framework import routers
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.single_building import SingleBuilding
 from api_alpha.endpoints.buildings.single_building import SingleBuildingHistory
+from api_alpha.endpoints.ogc.views import OGCBuildingItemsView
+from api_alpha.endpoints.ogc.views import OGCBuildingsCollectionView
+from api_alpha.endpoints.ogc.views import OGCCollectionsView
+from api_alpha.endpoints.ogc.views import OGCConformanceView
+from api_alpha.endpoints.ogc.views import OGCIndexView
+from api_alpha.endpoints.ogc.views import OGCOpenAPIDefinitionView
+from api_alpha.endpoints.ogc.views import OGCSingleBuildingItemView
 from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsShapeVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsVectorTileView
 from api_alpha.endpoints.tiles.plots_vector_tile import PlotsVectorTileView
-from api_alpha.endpoints.ogc.views import (
-    OGCIndexView,
-    OGCConformanceView,
-    OGCCollectionsView,
-    OGCBuildingsCollectionView,
-    OGCBuildingItemsView,
-    OGCSingleBuildingItemView,
-    OGCOpenAPIDefinitionView,
-)
 from api_alpha.views import ActivateUser
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSViewSet
