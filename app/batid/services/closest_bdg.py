@@ -42,11 +42,7 @@ def get_closest_from_point(lat, lng, radius) -> Optional[QuerySet]:
 
 
 def __get_qs(lat, lng, radius):
-    qs = (
-        Building.objects.all()
-        .filter(is_active=True)
-        .filter(status__in=BuildingStatus.REAL_BUILDINGS_STATUS)
-    )
+    qs = __get_real_bdg_qs()
 
     point_geom = Point(lng, lat, srid=4326)
 
@@ -65,8 +61,11 @@ def __get_qs(lat, lng, radius):
 
 
 def __get_real_bdg_qs():
-    # todo : on devrait filtrer pour n'avoir que les bâtiments qui ont un statut de bâtiment réel
-    return Building.objects.all()
+    return (
+        Building.objects.all()
+        .filter(is_active=True)
+        .filter(status__in=BuildingStatus.REAL_BUILDINGS_STATUS)
+    )
 
 
 def __validate_poly(poly):
