@@ -115,6 +115,139 @@ def get_status_list():
 def _get_components() -> dict:
     return {
         "schemas": {
+            "RNBID": {
+                "type": "string",
+                "description": "Identifiant unique du bâtiment dans le RNB",
+                "example": "PG46YY6YWCX8",
+            },
+            "BuildingIsActive": {
+                "type": "boolean",
+                "description": "Indique si l'identifiant RNB est actif (True) ou inactif (False). Un identifiant inactif désigne un objet ne correspondant pas à la définition d'un bâtiment.",
+                "example": True,
+            },
+            "BuildingStatus": {
+                "type": "string",
+                "description": "Statut du bâtiment",
+                "enum": BuildingStatus.ALL_TYPES_KEYS,
+                "example": BuildingStatus.DEFAULT_STATUS,
+            },
+            "BuildingPlots": {
+                "type": "array",
+                "description": "Liste des parcelles cadastrales intersectant le bâtiment. Disponible si le paramètre <pre>withPlots=1</pre> est intégré à l'URL de requête. NB: il s'agit d'un croisement géométrique et non d'une donnée fiscale. Il arrive parfois qu'un bâtiment intersecte une mauvaise parcelle du fait d'un décalage géographique entre les bâtiments du cadastre et ceux du RNB. Nous fournissons avec chaque parcelle cadastrale le taux d'intersection du bâtiment avec celle-ci. Les parcelles intersectant largement un bâtiment sont plus susceptibles d'être réellement associées à ce bâtiment d'un point de vue fiscal.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                            "description": "Identifiant de la parcelle.",
+                            "example": "01402000AB0051",
+                        },
+                        "bdg_cover_ratio": {
+                            "type": "number",
+                            "description": "Taux d'intersection du bâtiment par la parcelle. Ce taux est compris entre 0 et 1. Un taux de 1 signifie que la parcelle couvre entièrement le bâtiment.",
+                            "example": 0.403,
+                        },
+                    },
+                },
+            },
+            "BuildingShape": {
+                "type": "object",
+                "description": "Géométrie représentative du bâtiment. Elle peut être un multipolygone, un polygone ou un point et correspond notre meilleure connaissance de la réalité:",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["Point", "Polygon", "MultiPolygon"],
+                        "example": "Point",
+                    },
+                    "coordinates": {
+                        "type": "array",
+                        "items": {
+                            "oneOf": [
+                                {
+                                    "type": "array",
+                                    "description": "Coordonnées pour un Point",
+                                    "items": {"type": "number"},
+                                    "example": [
+                                        -0.570505392116188,
+                                        44.841034137099996,
+                                    ],
+                                },
+                                {
+                                    "type": "array",
+                                    "description": "Coordonnées pour un Polygon",
+                                    "items": {
+                                        "type": "array",
+                                        "items": {"type": "number"},
+                                    },
+                                    "example": [
+                                        [
+                                            [
+                                                -0.570505392116188,
+                                                44.841034137099996,
+                                            ],
+                                            [
+                                                -0.570505392116188,
+                                                44.841034137099996,
+                                            ],
+                                        ]
+                                    ],
+                                },
+                                {
+                                    "type": "array",
+                                    "description": "Coordonnées pour un MultiPolygon",
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "array",
+                                            "items": {"type": "number"},
+                                        },
+                                    },
+                                    "example": [
+                                        [
+                                            [
+                                                [
+                                                    -0.570505392116188,
+                                                    44.841034137099996,
+                                                ],
+                                                [
+                                                    -0.570505392116188,
+                                                    44.841034137099996,
+                                                ],
+                                            ]
+                                        ]
+                                    ],
+                                },
+                            ]
+                        },
+                    },
+                },
+            },
+            "ExtId": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Identifiant de ce bâtiment au sein de la BD Topo ou de la BDNB",
+                        "example": "bdnb-bc-3B85-TYM9-FDSX",
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "Base de donnée contenant de l'identifiant",
+                        "example": "bdnb",
+                    },
+                    "source_version": {
+                        "type": "string",
+                        "description": "Version de la base de donnée contenant l'identifiant",
+                        "example": "2023_01",
+                        "nullable": True,
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "description": "Date de création du lien entre l'identifiant RNB et l'identfiant externe",
+                        "example": "2023-12-07T13:20:58.310444+00:00",
+                    },
+                },
+            },
             "BuildingAddress": {
                 "type": "object",
                 "properties": {
@@ -165,42 +298,13 @@ def _get_components() -> dict:
             },
             "BuildingWPlots": {
                 "type": "object",
-                "properties": {
-                    "plots": {
-                        "type": "array",
-                        "description": "Liste des parcelles cadastrales intersectant le bâtiment. Disponible si le paramètre <pre>withPlots=1</pre> est intégré à l'URL de requête. NB: il s'agit d'un croisement géométrique et non d'une donnée fiscale. Il arrive parfois qu'un bâtiment intersecte une mauvaise parcelle du fait d'un décalage géographique entre les bâtiments du cadastre et ceux du RNB. Nous fournissons avec chaque parcelle cadastrale le taux d'intersection du bâtiment avec celle-ci. Les parcelles intersectant largement un bâtiment sont plus susceptibles d'être réellement associées à ce bâtiment d'un point de vue fiscal.",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "description": "Identifiant de la parcelle.",
-                                    "example": "01402000AB0051",
-                                },
-                                "bdg_cover_ratio": {
-                                    "type": "number",
-                                    "description": "Taux d'intersection du bâtiment par la parcelle. Ce taux est compris entre 0 et 1. Un taux de 1 signifie que la parcelle couvre entièrement le bâtiment.",
-                                    "example": 0.403,
-                                },
-                            },
-                        },
-                    }
-                },
+                "properties": {"plots": {"$ref": "#/components/schemas/BuildingPlots"}},
             },
             "Building": {
                 "type": "object",
                 "properties": {
-                    "rnb_id": {
-                        "type": "string",
-                        "description": "Identifiant unique du bâtiment dans le RNB",
-                        "example": "PG46YY6YWCX8",
-                    },
-                    "status": {
-                        "type": "string",
-                        "description": "Statut du bâtiment",
-                        "enum": BuildingStatus.ALL_TYPES_KEYS,
-                        "example": BuildingStatus.DEFAULT_STATUS,
-                    },
+                    "rnb_id": {"$ref": "#/components/schemas/RNBID"},
+                    "status": {"$ref": "#/components/schemas/BuildingStatus"},
                     "point": {
                         "type": "object",
                         "description": "Coordonnées géographiques du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84.",
@@ -213,78 +317,7 @@ def _get_components() -> dict:
                             },
                         },
                     },
-                    "shape": {
-                        "type": "object",
-                        "description": "Géométrie du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84. Elle peut être un multipolygone, un polygone ou un point et correspond notre meilleure connaissance de la réalité:",
-                        "properties": {
-                            "type": {
-                                "type": "string",
-                                "enum": ["Point", "Polygon", "MultiPolygon"],
-                                "example": "Point",
-                            },
-                            "coordinates": {
-                                "type": "array",
-                                "items": {
-                                    "oneOf": [
-                                        {
-                                            "type": "array",
-                                            "description": "Coordonnées pour un Point",
-                                            "items": {"type": "number"},
-                                            "example": [
-                                                -0.570505392116188,
-                                                44.841034137099996,
-                                            ],
-                                        },
-                                        {
-                                            "type": "array",
-                                            "description": "Coordonnées pour un Polygon",
-                                            "items": {
-                                                "type": "array",
-                                                "items": {"type": "number"},
-                                            },
-                                            "example": [
-                                                [
-                                                    [
-                                                        -0.570505392116188,
-                                                        44.841034137099996,
-                                                    ],
-                                                    [
-                                                        -0.570505392116188,
-                                                        44.841034137099996,
-                                                    ],
-                                                ]
-                                            ],
-                                        },
-                                        {
-                                            "type": "array",
-                                            "description": "Coordonnées pour un MultiPolygon",
-                                            "items": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "array",
-                                                    "items": {"type": "number"},
-                                                },
-                                            },
-                                            "example": [
-                                                [
-                                                    [
-                                                        [
-                                                            -0.570505392116188,
-                                                            44.841034137099996,
-                                                        ],
-                                                        [
-                                                            -0.570505392116188,
-                                                            44.841034137099996,
-                                                        ],
-                                                    ]
-                                                ]
-                                            ],
-                                        },
-                                    ]
-                                },
-                            },
-                        },
-                    },
+                    "shape": {"$ref": "#/components/schemas/BuildingShape"},
                     "addresses": {
                         "type": "array",
                         "description": "Liste des adresses du bâtiment",
@@ -293,36 +326,41 @@ def _get_components() -> dict:
                     "ext_ids": {
                         "type": "array",
                         "description": "Le ou les identifiants de ce bâtiments au sein de la BD Topo et de la BDNB",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "description": "Identifiant de ce bâtiment au sein de la BD Topo ou de la BDNB",
-                                    "example": "bdnb-bc-3B85-TYM9-FDSX",
-                                },
-                                "source": {
-                                    "type": "string",
-                                    "description": "Base de donnée contenant de l'identifiant",
-                                    "example": "bdnb",
-                                },
-                                "source_version": {
-                                    "type": "string",
-                                    "description": "Version de la base de donnée contenant l'identifiant",
-                                    "example": "2023_01",
-                                    "nullable": True,
-                                },
-                                "created_at": {
-                                    "type": "string",
-                                    "description": "Date de création du lien entre l'identifiant RNB et l'identfiant externe",
-                                    "example": "2023-12-07T13:20:58.310444+00:00",
+                        "items": {"$ref": "#/components/schemas/ExtId"},
+                    },
+                    "is_active": {"$ref": "#/components/schemas/BuildingIsActive"},
+                },
+            },
+            "BuildingGeoJSON": {
+                "type": "object",
+                "description": "Représentation GeoJSON du bâtiment",
+                "properties": {
+                    "type": {"type": "string", "example": "Feature"},
+                    "geometry": {"$ref": "#/components/schemas/BuildingShape"},
+                    "id": {"$ref": "#/components/schemas/RNBID"},
+                    "properties": {
+                        "type": "object",
+                        "properties": {
+                            "status": {"$ref": "#/components/schemas/BuildingStatus"},
+                            "addresses": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/BuildingAddress"
                                 },
                             },
+                            "ext_ids": {
+                                "type": "array",
+                                "items": {"$ref": "#/components/schemas/ExtId"},
+                            },
+                            "is_active": {
+                                "$ref": "#/components/schemas/BuildingIsActive"
+                            },
+                            "plots": {"$href": "#/components/schemas/BuildingPlots"},
                         },
                     },
                 },
             },
-        },
+        }
     }
 
 

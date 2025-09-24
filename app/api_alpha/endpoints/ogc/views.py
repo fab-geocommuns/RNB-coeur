@@ -21,7 +21,7 @@ class GeoJSONRenderer(JSONRenderer):
     media_type = "application/geo+json"
 
 
-class OGCAPIBaseView(APIView, RNBLoggingMixin):
+class OGCAPIBaseView(RNBLoggingMixin, APIView):
 
     def _get_conformance_link(self, request: Request, is_currrent_page=False):
 
@@ -112,12 +112,12 @@ class OGCIndexView(OGCAPIBaseView):
     @rnb_doc(
         {
             "get": {
-                "summary": "Landing page de l'API OGC",
-                "description": "Point d'entrée principal de l'API OGC, fournissant des liens vers les autres ressources.",
+                "summary": "Racine de l'API du RNB au standard OGC",
+                "description": "Ce endpoint est le point d'entrée pour exploiter les données RNB au standard OGC.",
                 "tags": ["Capabilities"],
                 "responses": {
                     "200": {
-                        "description": "Landing page",
+                        "description": "Principaux liens disponibles dans l'API",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -155,7 +155,7 @@ class OGCConformanceView(OGCAPIBaseView):
     @rnb_doc(
         {
             "get": {
-                "summary": "Déclaration de conformité de l'API",
+                "summary": "Déclaration de conformité de l'API du RNB au standard OGC",
                 "description": "Liste les classes de conformité OGC auxquelles cette API adhère.",
                 "tags": ["Capabilities"],
                 "responses": {
@@ -195,7 +195,7 @@ class OGCCollectionsView(OGCAPIBaseView):
         {
             "get": {
                 "summary": "Liste des collections de données",
-                "description": "Fournit une liste des collections de données disponibles via cette API.",
+                "description": "Ce endpoint liste les collections de données disponibles au standard OGC. Pour le moment, seuls les bâtiments sont disponibles.",
                 "tags": ["Capabilities"],
                 "responses": {
                     "200": {
@@ -207,7 +207,7 @@ class OGCCollectionsView(OGCAPIBaseView):
         schemes=["ogc"],
     )
     def get(self, request: Request, *args, **kwargs):
-        # MODIFIED: Pass request to all link helpers
+
         data = {
             "links": [
                 self._get_collections_link(request, is_currrent_page=True),
@@ -252,17 +252,10 @@ class OGCBuildingItemsView(OGCAPIBaseView):
     @rnb_doc(
         {
             "get": {
-                "summary": "Liste des bâtiments (items)",
+                "summary": "Liste des bâtiments",
                 "description": "Récupère une liste de bâtiments sous forme de FeatureCollection GeoJSON.",
                 "tags": ["Data"],
                 "parameters": [
-                    {
-                        "name": "limit",
-                        "in": "query",
-                        "description": "Nombre maximum d'items à retourner.",
-                        "schema": {"type": "integer", "default": 10},
-                        "style": "form",
-                    },
                     {
                         "name": "bbox",
                         "in": "query",
@@ -270,12 +263,66 @@ class OGCBuildingItemsView(OGCAPIBaseView):
                         "schema": {"type": "array"},
                         "style": "form",
                     },
+                    {
+                        "name": "insee_code",
+                        "in": "query",
+                        "description": "Filtre les bâtiments dont l'emprise au sol est située dans les limites géographiques de la commune ayant ce code INSEE.",
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "75101",
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Nombre maximum de bâtiments à retourner dans la page de résultats. Valeur par défaut : 20. Valeur maximale : 100.",
+                        "required": False,
+                        "style": "form",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20,
+                            "maximum": 100,
+                            "minimum": 1,
+                        },
+                        "example": 50,
+                    },
                 ],
                 "responses": {
                     "200": {
-                        "description": "Une FeatureCollection GeoJSON de bâtiments.",
+                        "description": "Une FeatureCollection (GeoJSON) de bâtiments. Les résultats sont paginés.",
                         "content": {
-                            "application/geo+json": {"schema": {"type": "object"}}
+                            "application/geo+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string",
+                                            "example": "FeatureCollection",
+                                        },
+                                        "features": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/BuildingGeoJSON"
+                                            },
+                                        },
+                                        "numberReturned": {
+                                            "type": "integer",
+                                            "description": "Nombre de bâtiments retournés dans cette page de résultats.",
+                                            "example": 20,
+                                        },
+                                        "timeStamp": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "Horodatage de la génération de la réponse.",
+                                            "example": "2025-12-25T13:37:00Z",
+                                        },
+                                        "links": {
+                                            "type": "array",
+                                            "description": "Liens de pagination et autres liens associés.",
+                                            "items": {"type": "object"},
+                                        },
+                                    },
+                                }
+                            }
                         },
                     }
                 },
