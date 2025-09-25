@@ -1,16 +1,17 @@
-from rest_framework.response import Response
-from rest_framework.request import Request
-from rest_framework.views import APIView
-from rest_framework.renderers import JSONRenderer
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
+from rest_framework.renderers import JSONRenderer
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from api_alpha.pagination import OGCApiPagination
 from api_alpha.serializers.serializers import BuildingGeoJSONSerializer
+from api_alpha.utils.logging_mixin import RNBLoggingMixin
+from api_alpha.utils.rnb_doc import build_schema_ogc_endpoints
+from api_alpha.utils.rnb_doc import rnb_doc
 from batid.list_bdg import list_bdgs
 from batid.services.rnb_id import clean_rnb_id
-from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.rnb_doc import rnb_doc
-from api_alpha.utils.rnb_doc import build_schema_ogc_endpoints
 
 
 class OpenAPIRenderer(JSONRenderer):
@@ -22,7 +23,6 @@ class GeoJSONRenderer(JSONRenderer):
 
 
 class OGCAPIBaseView(RNBLoggingMixin, APIView):
-
     def _get_conformance_link(self, request: Request, is_currrent_page=False):
 
         url = request.build_absolute_uri(reverse("ogc_conformance"))

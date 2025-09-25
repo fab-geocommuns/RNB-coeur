@@ -2,6 +2,7 @@ import os
 import shutil
 
 import geopandas as gpd
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TransactionTestCase
 
@@ -10,6 +11,7 @@ from batid.models import DataFix
 from batid.services.data_fix.remove_light_buildings import buildings_to_remove
 from batid.services.data_fix.remove_light_buildings import remove_light_buildings
 from batid.services.data_fix.remove_light_buildings import save_results_as_file
+
 
 # we use TransactionTestCase beacause of the ThreadPoolExecutor use
 class TestRemoveLightBuildings(TransactionTestCase):
@@ -43,7 +45,9 @@ class TestRemoveLightBuildings(TransactionTestCase):
         self.assertEqual(len(buildings), 3)
 
         # create a folder to save the results
-        folder_name = "test_remove_light_buildings"
+        folder_name = os.path.join(
+            settings.WRITABLE_DATA_DIR, "test_remove_light_buildings"
+        )
 
         if os.path.exists(folder_name):
             shutil.rmtree(folder_name)

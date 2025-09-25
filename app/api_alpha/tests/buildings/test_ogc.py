@@ -1,16 +1,14 @@
-from rest_framework.test import APITestCase
-from django.contrib.gis.geos import GEOSGeometry
 import json
 
+from django.contrib.gis.geos import GEOSGeometry
+from rest_framework.test import APITestCase
 
 from batid.models import Building
-
 from batid.tests.helpers import create_bdg
 from batid.tests.helpers import create_grenoble
 
 
 class OGCEndpointsTest(APITestCase):
-
     def setUp(self) -> None:
         coords = {
             "coordinates": [

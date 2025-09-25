@@ -1,12 +1,13 @@
 import json
+
+from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
-from django.contrib.gis.geos import GEOSGeometry
+
 from batid.models import Building
 
 
 class LogEndpointsTest(APITestCase):
-
     def setUp(self):
 
         coords = {
