@@ -21,8 +21,8 @@ def fill_building_random_id():
             empty_lines_count = fetchone[0]
         logger.info(f"Number of empty random_id: {empty_lines_count}")
 
-    while keep_going:
-        with connection.cursor() as cursor:
+    with connection.cursor() as cursor:
+        while keep_going:
             with transaction.atomic():
                 disable_trigger_sql = "ALTER TABLE public.batid_building DISABLE TRIGGER building_versioning_trigger;"
                 cursor.execute(disable_trigger_sql)
@@ -34,7 +34,7 @@ def fill_building_random_id():
                     SELECT ctid
                     FROM batid_building
                     WHERE random_id IS NULL
-                    LIMIT 5000
+                    LIMIT 1000
                     );
                 """
                 cursor.execute(fill_random_id_sql)
