@@ -351,6 +351,8 @@ class BuildingsEndpointsTest(APITestCase):
         r = self.client.get("/api/alpha/buildings/?format=geojson")
         self.assertEqual(r.status_code, 200)
 
+        self.maxDiff = None
+
         data = r.json()
         self.assertEqual(data["type"], "FeatureCollection")
 
@@ -361,6 +363,7 @@ class BuildingsEndpointsTest(APITestCase):
             "features": [
                 {
                     "type": "Feature",
+                    "id": "BDGSRNBBIDID",
                     "geometry": {
                         "type": "MultiPolygon",
                         "coordinates": [
@@ -376,7 +379,6 @@ class BuildingsEndpointsTest(APITestCase):
                         ],
                     },
                     "properties": {
-                        "rnb_id": "BDGSRNBBIDID",
                         "status": "constructed",
                         "ext_ids": None,
                         "addresses": [],
@@ -385,6 +387,7 @@ class BuildingsEndpointsTest(APITestCase):
                 },
                 {
                     "type": "Feature",
+                    "id": "INGRENOBLEGO",
                     "geometry": {
                         "type": "MultiPolygon",
                         "coordinates": [
@@ -402,7 +405,6 @@ class BuildingsEndpointsTest(APITestCase):
                         ],
                     },
                     "properties": {
-                        "rnb_id": "INGRENOBLEGO",
                         "status": "constructed",
                         "ext_ids": None,
                         "addresses": [],
@@ -415,6 +417,7 @@ class BuildingsEndpointsTest(APITestCase):
                     "rel": "self",
                     "title": "Current page of results",
                     "href": "http://testserver/api/alpha/buildings/?format=geojson",
+                    "type": "application/geo+json",
                 }
             ],
             "numberReturned": 2,

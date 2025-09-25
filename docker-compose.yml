@@ -109,6 +109,11 @@ services:
     env_file:
       - ./.env.metabase.dev
 
+  ogc_validator:
+    image: ogccite/ets-ogcapi-features10
+    ports:
+      - "8081:8080"
+
 volumes:
   postgres_data:
   rabbitmq_data:

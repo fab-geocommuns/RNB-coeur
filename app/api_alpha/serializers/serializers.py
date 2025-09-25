@@ -124,6 +124,7 @@ class BuildingGeoJSONSerializer(BuildingSerializer, GeoFeatureModelSerializer):
         model = Building
         fields = ("rnb_id", "status", "ext_ids", "addresses", "is_active", "plots")
         geo_field = "shape"
+        id_field = "rnb_id"
 
 
 class GuessBuildingSerializer(serializers.ModelSerializer):

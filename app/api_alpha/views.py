@@ -72,7 +72,7 @@ from api_alpha.serializers.serializers import OrganizationSerializer
 from api_alpha.serializers.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.rnb_doc import build_schema_dict
+from api_alpha.utils.rnb_doc import build_schema_all_endpoints
 from api_alpha.utils.rnb_doc import get_status_list
 from api_alpha.utils.rnb_doc import rnb_doc
 from api_alpha.utils.sandbox_client import SandboxClient
@@ -1717,8 +1717,8 @@ class OrganizationView(APIView):
         return Response(names)
 
 
-def get_schema(request):
-    schema_dict = build_schema_dict()
+def get_all_endpoints_schema(request):
+    schema_dict = build_schema_all_endpoints()
     schema_yml = yaml.dump(
         schema_dict, default_flow_style=False, allow_unicode=True, sort_keys=False
     )
