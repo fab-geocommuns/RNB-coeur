@@ -107,7 +107,7 @@ services:
     env_file:
       - ./.env.metabase.dev
 
-  ets-ogcapi-features10:
+  ogc_validator:
     image: ogccite/ets-ogcapi-features10
     ports:
       - "8081:8080"
