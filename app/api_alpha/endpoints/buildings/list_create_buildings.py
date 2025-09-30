@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 
 from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
-from api_alpha.pagination import BuildingCursorPagination
+from api_alpha.pagination import BuildingListingCursorPagination
 from api_alpha.pagination import OGCApiPagination
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
@@ -191,7 +191,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         format_param = request.query_params.get("format", "json").lower()
 
         # Mypy annotations
-        paginator: OGCApiPagination | BuildingCursorPagination
+        paginator: OGCApiPagination | BuildingListingCursorPagination
         serializer: BuildingGeoJSONSerializer | BuildingSerializer
 
         if format_param == "geojson":
@@ -201,7 +201,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 paginated_buildings, with_plots=with_plots, many=True
             )
         else:
-            paginator = BuildingCursorPagination()
+            paginator = BuildingListingCursorPagination()
             paginated_buildings = paginator.paginate_queryset(buildings, request)
             serializer = BuildingSerializer(
                 paginated_buildings, with_plots=with_plots, many=True
