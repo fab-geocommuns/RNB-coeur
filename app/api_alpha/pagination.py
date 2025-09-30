@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from django.db.models import BooleanField
 from django.db.models.expressions import RawSQL
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
@@ -44,7 +45,7 @@ class BuildingCursorPagination(CursorPagination):
         current_id = int(current_position) if current_position else 0
 
         queryset = queryset.order_by(
-            RawSQL('"batid_building"."id" <-> %s', [current_id])
+            RawSQL('point("batid_building"."id", 0.) <-> point(%s, 0.)', [current_id])
         )
 
         # If we have a cursor with a fixed position then filter by that.
@@ -53,13 +54,37 @@ class BuildingCursorPagination(CursorPagination):
             is_reversed = order.startswith("-")
             order_attr = order.lstrip("-")
 
-            # Test for: (cursor reversed) XOR (queryset reversed)
-            if self.cursor.reverse != is_reversed:
-                kwargs = {order_attr + "__lt": current_position}
+            if order_attr == "id":
+                # for id ordering, we we create a query that will leverage the strange gist index on (point, poin(id, 0))
+                # for better performance
+                if self.cursor.reverse != is_reversed:
+                    queryset = queryset.filter(
+                        RawSQL(
+                            "point(id, 0) >> point(%s, 0.)",
+                            (current_position,),
+                            output_field=BooleanField(),
+                        )
+                    )
+                else:
+                    queryset = queryset.filter(
+                        RawSQL(
+                            "point(id, 0) << point(%s, 0.)",
+                            (current_position,),
+                            output_field=BooleanField(),
+                        )
+                    )
             else:
-                kwargs = {order_attr + "__gt": current_position}
+                # Test for: (cursor reversed) XOR (queryset reversed)
+                if self.cursor.reverse != is_reversed:
+                    kwargs = {order_attr + "__lt": current_position}
+                else:
+                    kwargs = {order_attr + "__gt": current_position}
 
-            queryset = queryset.filter(**kwargs)
+                queryset = queryset.filter(**kwargs)
+
+        if current_position is not None:
+            order = self.ordering[0]
+            is_reversed = order.startswith("-")
 
         # If we have an offset cursor then offset the entire page by that amount.
         # We also always fetch an extra item in order to determine if there is a
