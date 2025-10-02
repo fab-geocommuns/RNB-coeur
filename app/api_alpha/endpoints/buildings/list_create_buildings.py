@@ -12,13 +12,14 @@ from rest_framework.views import APIView
 
 from api_alpha.exceptions import BadRequest
 from api_alpha.exceptions import ServiceUnavailable
-from api_alpha.pagination import BuildingCursorPagination
+from api_alpha.pagination import BuildingListingCursorPagination
 from api_alpha.pagination import OGCApiPagination
 from api_alpha.permissions import ReadOnly
 from api_alpha.permissions import RNBContributorPermission
 from api_alpha.serializers.serializers import BuildingCreateSerializer
 from api_alpha.serializers.serializers import BuildingGeoJSONSerializer
 from api_alpha.serializers.serializers import BuildingSerializer
+from api_alpha.serializers.serializers import ListBuildingQuerySerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import get_status_html_list
 from api_alpha.utils.rnb_doc import get_status_list
@@ -112,6 +113,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "description": (
                             "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box."
                             "Le format est min_lon,min_lat,max_lon,max_lat"
+                            "La taille de la bbox est limitée par la contrainte (max_lon - min_lon) * (max_lat - min_lat) < 4."
                         ),
                         "required": False,
                         "schema": {"type": "string"},
@@ -125,6 +127,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                             "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box "
                             "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
                             "Le format est nw_lat,nw_lng,se_lat,se_lng"
+                            "La taille de la bbox est limitée par la contrainte (se_lng - nw_lng) * (nw_lat - se_lat) < 4."
                         ),
                         "required": False,
                         "schema": {"type": "string"},
@@ -174,40 +177,45 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         },
     )
     def get(self, request: Request) -> Response:
-        query_params = request.query_params.dict()
+        query_serializer = ListBuildingQuerySerializer(data=request.query_params)
+        if query_serializer.is_valid():
+            query_params = request.query_params.dict()
 
-        # check if we need to include plots
-        with_plots_param = request.query_params.get("withPlots", None)
-        with_plots = True if with_plots_param == "1" else False
-        query_params["with_plots"] = with_plots
+            # check if we need to include plots
+            with_plots_param = request.query_params.get("withPlots", None)
+            with_plots = True if with_plots_param == "1" else False
+            query_params["with_plots"] = with_plots
 
-        # add user to query params
-        query_params["user"] = request.user
-        buildings = list_bdgs(query_params)
+            # add user to query params
+            query_params["user"] = request.user
+            buildings = list_bdgs(query_params)
 
-        # paginate
+            # paginate
 
-        # get the "format" query parameter
-        format_param = request.query_params.get("format", "json").lower()
+            # get the "format" query parameter
+            format_param = request.query_params.get("format", "json").lower()
 
-        # Mypy annotations
-        paginator: OGCApiPagination | BuildingCursorPagination
-        serializer: BuildingGeoJSONSerializer | BuildingSerializer
+            # Mypy annotations
+            paginator: OGCApiPagination | BuildingListingCursorPagination
+            serializer: BuildingGeoJSONSerializer | BuildingSerializer
 
-        if format_param == "geojson":
-            paginator = OGCApiPagination()
-            paginated_buildings = paginator.paginate_queryset(buildings, request)
-            serializer = BuildingGeoJSONSerializer(
-                paginated_buildings, with_plots=with_plots, many=True
-            )
+            if format_param == "geojson":
+                paginator = OGCApiPagination()
+                paginated_buildings = paginator.paginate_queryset(buildings, request)
+                serializer = BuildingGeoJSONSerializer(
+                    paginated_buildings, with_plots=with_plots, many=True
+                )
+            else:
+                paginator = BuildingListingCursorPagination()
+                paginated_buildings = paginator.paginate_queryset(buildings, request)
+                serializer = BuildingSerializer(
+                    paginated_buildings, with_plots=with_plots, many=True
+                )
+
+            return paginator.get_paginated_response(serializer.data)
         else:
-            paginator = BuildingCursorPagination()
-            paginated_buildings = paginator.paginate_queryset(buildings, request)
-            serializer = BuildingSerializer(
-                paginated_buildings, with_plots=with_plots, many=True
-            )
-
-        return paginator.get_paginated_response(serializer.data)
+            # Invalid data, return validation errors
+            return Response(query_serializer.errors, status=400)
 
     @rnb_doc(
         {
