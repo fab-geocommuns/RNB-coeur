@@ -183,6 +183,7 @@ class BuildingListingCursorPagination(CursorPagination):
             if order_attr == "id":
                 # for id ordering, we we create a query that will leverage the strange gist index on (point, poin(id, 0))
                 # for better performance
+                # >> means right of, so "point(id, 0) >> point(XXX, 0.) means id > XXX
                 if self.cursor.reverse != is_reversed:
                     queryset = queryset.filter(
                         RawSQL(
