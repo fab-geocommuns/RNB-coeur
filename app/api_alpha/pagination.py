@@ -186,7 +186,7 @@ class BuildingListingCursorPagination(CursorPagination):
                 if self.cursor.reverse != is_reversed:
                     queryset = queryset.filter(
                         RawSQL(
-                            "point(id, 0) >> point(%s, 0.)",
+                            "point(id, 0) << point(%s, 0.)",
                             (current_position,),
                             output_field=BooleanField(),
                         )
@@ -194,7 +194,7 @@ class BuildingListingCursorPagination(CursorPagination):
                 else:
                     queryset = queryset.filter(
                         RawSQL(
-                            "point(id, 0) << point(%s, 0.)",
+                            "point(id, 0) >> point(%s, 0.)",
                             (current_position,),
                             output_field=BooleanField(),
                         )
