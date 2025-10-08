@@ -3,11 +3,14 @@ from unittest import mock
 
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from api_alpha.permissions import RNBContributorPermission
+from api_alpha.tests.utils import coordinates_almost_equal
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
@@ -290,7 +293,20 @@ class BuildingClosestViewTest(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
 
-    def test_closes_no_n_plus_1(self):
+    def test_closest_0_lat_lng(self):
+        r = self.client.get(
+            "/api/alpha/buildings/closest/?point=0.0,1.0654705955877262&radius=10"
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
+
+        r = self.client.get("/api/alpha/buildings/closest/?point=1.0,0.0&radius=10")
+
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
+
+    def test_closest_no_n_plus_1(self):
         user = User.objects.create_user(username="user")
 
         Building.create_new(
@@ -347,8 +363,12 @@ class BuildingClosestViewTest(APITestCase):
                 "/api/alpha/buildings/closest/?point=44.83045932150495,-0.5675637291200246&radius=1000"
             )
 
-        # would be 5 if N+1 was there
-        self.assertNumQueries(4, closest)
+        with CaptureQueriesContext(connection) as queries:
+            closest()
+            # ignore spatial_ref_sys query because it can be cached and make the number of queries vary
+            actual = [q for q in queries if "spatial_ref_sys" not in q["sql"]]
+            # would be 4 if N+1 was there
+            self.assertEqual(len(actual), 3)
 
 
 class BuildingAddressViewTest(APITestCase):
@@ -725,23 +745,21 @@ class BuildingMergeTest(APITestCase):
         self.assertTrue(res["rnb_id"])
         self.assertEqual(res["status"], "constructed")
         self.assertEqual(res["point"], {"type": "Point", "coordinates": [1.0, 0.5]})
-        self.assertEqual(
-            res["shape"],
-            {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [0.0, 1.0],
-                        [1.0, 1.0],
-                        [2.0, 1.0],
-                        [2.0, 0.0],
-                        [1.0, 0.0],
-                        [0.0, 0.0],
-                        [0.0, 1.0],
-                    ]
-                ],
-            },
+        expectedCoordinates = [
+            [
+                [0.0, 1.0],
+                [2.0, 1.0],
+                [2.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 1.0],
+            ]
+        ]
+        self.assertTrue(
+            coordinates_almost_equal.check(
+                expectedCoordinates, res["shape"]["coordinates"]
+            )
         )
+        self.assertEqual(res["shape"]["type"], "Polygon")
         addresses = res["addresses"]
         addresses_ids = [address["id"] for address in addresses]
         addresses_ids.sort()

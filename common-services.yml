@@ -13,8 +13,11 @@ services:
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
+    environment:
+      - TRUST_DOWNSTREAM_PROXY=false
 
   nginx-letsencrypt:
+    cap_drop: ["ALL"]
     image: nginxproxy/acme-companion:2.5.0
     restart: unless-stopped
     volumes:
@@ -27,6 +30,7 @@ services:
       - nginx-proxy
 
   web:
+    cap_drop: ["ALL"]
     build:
       context: ./app
       dockerfile: ./Dockerfile
@@ -34,8 +38,6 @@ services:
     ports:
       - '127.0.0.1:8000:8000'
     command: python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - ./app:/app
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -57,14 +59,12 @@ services:
       retries: 5
 
   worker:
+    cap_drop: ["ALL"]
     build:
       context: ./app
       dockerfile: ./Dockerfile
       target: app_worker
-    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=WARNING --concurrency=6 --uid 1000
-    volumes:
-      - ./app:/app
-      - ./source_data:/data/downloads
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker --loglevel=WARNING --concurrency=6
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -74,13 +74,12 @@ services:
     container_name: worker
 
   celery_beat:
+    cap_drop: ["ALL"]
     build:
       context: ./app
       dockerfile: ./Dockerfile
       target: app_worker
     command: celery -A app beat --loglevel=WARNING
-    volumes:
-      - ./app:/app
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -109,6 +108,7 @@ services:
       retries: 5
 
   flower:
+    cap_drop: ["ALL"]
     image: mher/flower
     container_name: flower
     command: celery flower --url_prefix=flower

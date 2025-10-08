@@ -17,6 +17,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WRITABLE_DATA_DIR = os.path.join(BASE_DIR, "data")
 
 
 # Quick-start development settings - unsuitable for production
@@ -33,10 +34,10 @@ HAS_SANDBOX = str(os.environ.get("HAS_SANDBOX", default="false")) == "true"
 SANDBOX_URL = os.environ.get("SANDBOX_URL", default=None)
 SANDBOX_SECRET_TOKEN = os.environ.get("SANDBOX_SECRET_TOKEN", default=None)
 
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOST").split(" ")
-CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS").split(" ")
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOST").split(" ")  # type: ignore[union-attr]
+CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS").split(" ")  # type: ignore[union-attr]
 
-CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(" ")
+CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(" ")  # type: ignore[union-attr]
 CORS_ALLOW_ALL_ORIGINS = True
 
 LOGIN_URL = "/admin/login/"
@@ -132,7 +133,7 @@ SERIALIZATION_MODULES = {
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
-DATABASES = {
+DATABASES = {  # type: ignore[var-annotated]
     "default": {
         "ENGINE": os.environ.get("DJANGO_SQL_ENGINE"),
         "NAME": os.environ.get("POSTGRES_NAME"),
@@ -148,8 +149,11 @@ POSTGRES_STATEMENT_TIMEOUT = os.environ.get("POSTGRES_STATEMENT_TIMEOUT")
 DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT = os.environ.get(
     "DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT", "0"
 )
+DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT = os.environ.get(
+    "DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT", "259200000"  # Default to 72h
+)
 if POSTGRES_STATEMENT_TIMEOUT:
-    DATABASES["default"]["OPTIONS"][
+    DATABASES["default"]["OPTIONS"][  # type: ignore[index]
         "options"
     ] = f"-c statement_timeout={POSTGRES_STATEMENT_TIMEOUT}"
 
@@ -193,6 +197,7 @@ REST_FRAMEWORK = {
         "change_password": "10/day",
         "create_user": "10/day",
     },
+    "URL_FORMAT_OVERRIDE": None,
 }
 
 
@@ -294,7 +299,7 @@ BLOCKED_IPS = os.environ.get("BLOCKED_IPS", "").split(",")
 URL = os.environ.get("URL")
 
 # Bat ID custom settings
-MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))
+MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))  # type: ignore[arg-type]
 
 # Mattermost
 MATTERMOST_NOTIFICATIONS = (

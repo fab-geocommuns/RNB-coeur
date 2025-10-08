@@ -1,5 +1,6 @@
 import datetime
 import json
+import uuid
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.db.utils import IntegrityError
@@ -342,6 +343,32 @@ class TestSplitBuilding(TestCase):
             )
 
 
+class TestUniqueRNBIDEventID(TestCase):
+    def test_unique_rnb_id_event_id(self):
+
+        event_id = uuid.uuid4()
+
+        # Create a building with a specific rnb_id and event_id
+        building = Building.objects.create(
+            rnb_id="UNIQUE123",
+            status="constructed",
+            event_type="creation",
+            event_id=event_id,
+            shape="POINT(0 0)",
+        )
+
+        # Modify once to create the first history entry
+        building.event_type = "update"
+        building.status = "demolished"
+        building.save()
+
+        # Attempt to update the building and let the event_id unchanged
+        with self.assertRaises(IntegrityError):
+            building.event_type = "update"
+            building.status = "constructed"
+            building.save()
+
+
 class TestUpdateBuilding(TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -405,6 +432,31 @@ class TestUpdateBuilding(TestCase):
 
         print(f"New updated_at: {b.updated_at}")
         self.assertNotEqual(b.updated_at, old_updated_at)
+
+    def test_update_building_without_changing_something_does_nothing(self):
+        b = Building.objects.get(rnb_id=self.rnb_id)
+        status = b.status
+        shape = b.shape
+        ext_ids = b.ext_ids
+        addresses_id = b.addresses_id
+        # order shouldn't matter
+        addresses_id.reverse()
+
+        sys_period = b.sys_period
+
+        b.update(
+            self.user, event_origin={"source": "xxx"}, status=status, addresses_id=None
+        )
+        b.update(
+            self.user,
+            event_origin={"source": "xxx"},
+            status=status,
+            addresses_id=addresses_id,
+            shape=shape,
+            ext_ids=ext_ids,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.sys_period, sys_period)
 
 
 class TestExtIdsComparison(TestCase):

@@ -14,8 +14,6 @@ from batid.tests.helpers import create_grenoble
 
 
 class BuildingsEndpointsTest(APITestCase):
-    maxDiff = None
-
     def setUp(self) -> None:
         coords = {
             "coordinates": [
@@ -79,6 +77,55 @@ class BuildingsEndpointsTest(APITestCase):
         )
 
     def test_bdg_in_bbox(self):
+
+        r = self.client.get(
+            "/api/alpha/buildings/?bbox=5.7211808330356,45.18355043319679,5.722614035153486,45.18468473541278"
+        )
+        self.assertEqual(r.status_code, 200)
+
+        expected = {
+            "previous": None,
+            "next": None,
+            "results": [
+                {
+                    "addresses": [],
+                    "ext_ids": None,
+                    "status": "constructed",
+                    "point": {
+                        "coordinates": [5.721181338205954, 45.18433384981944],
+                        "type": "Point",
+                    },
+                    "shape": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [5.721187072129851, 45.18439363812283],
+                                    [5.721094925229238, 45.184330511384644],
+                                    [5.721122483180295, 45.184274061453465],
+                                    [5.721241326846666, 45.18428316628476],
+                                    [5.721244771590875, 45.184325048490564],
+                                    [5.721269745984984, 45.18433718825423],
+                                    [5.721187072129851, 45.18439363812283],
+                                ]
+                            ]
+                        ],
+                    },
+                    "rnb_id": "INGRENOBLEGO",
+                    "is_active": True,
+                }
+            ],
+        }
+
+        data = r.json()
+
+        self.assertEqual(len(data["results"]), 1)
+        self.assertDictEqual(data, expected)
+
+    def test_bdg_in_bbox_obsolote(self):
+
+        # This test uses the legacy "bb" parameter which is now marked as obsolete in the API documentation
+
         r = self.client.get(
             "/api/alpha/buildings/?bb=45.18468473541278,5.7211808330356,45.18355043319679,5.722614035153486"
         )
@@ -298,6 +345,83 @@ class BuildingsEndpointsTest(APITestCase):
         }
 
         self.assertDictEqual(r.json(), expected)
+
+    def test_buildings_root_geojson(self):
+
+        r = self.client.get("/api/alpha/buildings/?format=geojson")
+        self.assertEqual(r.status_code, 200)
+
+        data = r.json()
+        self.assertEqual(data["type"], "FeatureCollection")
+
+        response_timestamp = data["timeStamp"]
+
+        expected = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [1.065470595587726, 46.63423852982024],
+                                    [1.065454930919401, 46.634105152847496],
+                                    [1.065664837466102, 46.63409009413692],
+                                    [1.065677369200159, 46.63422131990677],
+                                    [1.065470595587726, 46.63423852982024],
+                                ]
+                            ]
+                        ],
+                    },
+                    "properties": {
+                        "rnb_id": "BDGSRNBBIDID",
+                        "status": "constructed",
+                        "ext_ids": None,
+                        "addresses": [],
+                        "is_active": True,
+                    },
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [5.721187072129851, 45.18439363812283],
+                                    [5.721094925229238, 45.184330511384644],
+                                    [5.721122483180295, 45.184274061453465],
+                                    [5.721241326846666, 45.18428316628476],
+                                    [5.721244771590875, 45.184325048490564],
+                                    [5.721269745984984, 45.18433718825423],
+                                    [5.721187072129851, 45.18439363812283],
+                                ]
+                            ]
+                        ],
+                    },
+                    "properties": {
+                        "rnb_id": "INGRENOBLEGO",
+                        "status": "constructed",
+                        "ext_ids": None,
+                        "addresses": [],
+                        "is_active": True,
+                    },
+                },
+            ],
+            "links": [
+                {
+                    "rel": "self",
+                    "title": "Current page of results",
+                    "href": "http://testserver/api/alpha/buildings/?format=geojson",
+                }
+            ],
+            "numberReturned": 2,
+            "timeStamp": response_timestamp,  # response timestamp is dynamic, we just check its presence
+        }
+
+        self.assertDictEqual(data, expected)
 
     def test_one_bdg_with_dash(self):
         r = self.client.get("/api/alpha/buildings/BDGS-RNBB-IDID/")

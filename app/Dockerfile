@@ -13,7 +13,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     POETRY_VIRTUALENVS_PATH="/python_venv" \
     PATH="/root/.local/bin:${PATH}"
 
-RUN pipx install poetry==${POETRY_VERSION}
+RUN pipx install --python=python3 poetry==${POETRY_VERSION}
 
 COPY pyproject.toml poetry.lock ./
 RUN poetry env use $(which python3)
@@ -27,10 +27,24 @@ RUN ln -s $(poetry env info --path) /venv
 ENV VIRTUAL_ENV=/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN useradd --no-create-home --system --uid 1000 --user-group worker
+# From Redis Dockerfile: https://github.com/redis/docker-library-redis/blob/master/Dockerfile.template#L12
+# -r creates a system user and group. 999 as uid/gid seems to be the default for system users.
+# From man:
+#   System users will be created with no aging information in /etc/shadow, and their numeric identifiers are choosen
+#   in the SYS_UID_MIN-SYS_UID_MAX range, defined in /etc/login.defs, instead of UID_MIN-UID_MAX (and their GID counterparts
+#   for the creation of groups).
+#   Note that useradd will not create a home directory for such an user, regardless of the default setting in /etc/login.defs
+#   (CREATE_HOME). You have to specify the -m options if you want a home directory for a system account to be created.
+RUN groupadd -r -g 999 app && \
+    useradd -r -g app -u 999 app
+
+COPY --chown=999:999 . /app
+RUN mkdir /app/data
+RUN chown 999:999 /app/data
+
+USER app
 
 FROM base as app_web
-COPY entrypoint.sh ./
 ENTRYPOINT ["./entrypoint.sh"]
 
 FROM base as app_worker

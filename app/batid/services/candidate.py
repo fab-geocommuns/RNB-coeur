@@ -359,8 +359,8 @@ def create_building_from_candidate(c: Candidate) -> Building:
 
 def create_inspection_tasks() -> list:
 
-    tasks = []
-    for _ in range(os.cpu_count()):
+    tasks = []  # type: ignore[var-annotated]
+    for _ in range(os.cpu_count()):  # type: ignore[arg-type]
         tasks.append(Signature("batid.tasks.inspect_candidates", immutable=True))
 
     return tasks
@@ -502,6 +502,6 @@ def _report_list_fake_updates(since: datetime) -> list:
 
             checked_count += 1
 
-        params["offset"] += batch_size
+        params["offset"] += batch_size  # type: ignore[operator]
 
     return problems

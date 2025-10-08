@@ -3,7 +3,10 @@ from typing import Optional
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
+from django.db.models import BooleanField
+from django.db.models import ExpressionWrapper
 from django.db.models import QuerySet
+from django.db.models.expressions import RawSQL
 
 from batid.models import Building
 from batid.services.bdg_status import BuildingStatus
@@ -16,7 +19,15 @@ def get_closest_from_poly(poly: Polygon, radius) -> Optional[QuerySet]:
     qs = __get_real_bdg_qs()
 
     qs = (
-        qs.filter(shape__dwithin=(poly, radius))
+        qs.filter(
+            ExpressionWrapper(
+                RawSQL(
+                    "ST_DWithin(shape::geography, ST_GeomFromWKB(%s, 4326), %s)",
+                    (poly.wkb, radius),
+                ),
+                output_field=BooleanField(),
+            )
+        )
         .annotate(distance=Distance("shape", poly))
         .order_by("distance")
     )
@@ -31,11 +42,7 @@ def get_closest_from_point(lat, lng, radius) -> Optional[QuerySet]:
 
 
 def __get_qs(lat, lng, radius):
-    qs = (
-        Building.objects.all()
-        .filter(is_active=True)
-        .filter(status__in=BuildingStatus.REAL_BUILDINGS_STATUS)
-    )
+    qs = __get_real_bdg_qs()
 
     point_geom = Point(lng, lat, srid=4326)
 
@@ -54,8 +61,11 @@ def __get_qs(lat, lng, radius):
 
 
 def __get_real_bdg_qs():
-    # todo : on devrait filtrer pour n'avoir que les bâtiments qui ont un statut de bâtiment réel
-    return Building.objects.all()
+    return (
+        Building.objects.all()
+        .filter(is_active=True)
+        .filter(status__in=BuildingStatus.REAL_BUILDINGS_STATUS)
+    )
 
 
 def __validate_poly(poly):
@@ -79,9 +89,9 @@ def __validate_radius(radius):
 def __validate_point(lat, lng):
     # todo : les validation de latitude et de longitude sont des besoins récurrents, il faudrait les factoriser dans un module dédié
 
-    if not lat:
+    if lat is None:
         raise ValueError("lat is required")
-    if not lng:
+    if lng is None:
         raise ValueError("lng is required")
 
     if not isinstance(lat, float):
