@@ -221,12 +221,14 @@ class OGCEndpointsTest(APITestCase):
             },
         )
 
-    # @freeze_time("2024-12-25 00:00:01", tz_offset=0)
+    @freeze_time("2024-12-25 00:00:01", tz_offset=0)
     def test_ogc_buildings_items(self):
         r = self.client.get("/api/alpha/ogc/collections/buildings/items")
         self.assertEqual(r.status_code, 200)
 
         data = r.json()
+
+        print(data)
 
         expected = {
             "type": "FeatureCollection",
@@ -291,12 +293,13 @@ class OGCEndpointsTest(APITestCase):
                 }
             ],
             "numberReturned": 2,
-            "timeStamp": "2024-12-25T00:00:01Z",
+            "timeStamp": "2024-12-25T00:00:01.000Z",
         }
 
         self.assertEqual(len(data["features"]), 2)
         self.assertDictEqual(data, expected)
 
+    @freeze_time("2024-12-25 00:00:01", tz_offset=0)
     def test_ogc_buildings_items_with_limit(self):
         r = self.client.get("/api/alpha/ogc/collections/buildings/items?limit=1")
         self.assertEqual(r.status_code, 200)
@@ -304,7 +307,6 @@ class OGCEndpointsTest(APITestCase):
         self.maxDiff = None  # To see full diff on assertEqual failure
 
         data = r.json()
-        response_timestamp = data["timeStamp"]
 
         expected = {
             "type": "FeatureCollection",
@@ -349,12 +351,13 @@ class OGCEndpointsTest(APITestCase):
                 },
             ],
             "numberReturned": 1,
-            "timeStamp": response_timestamp,  # response timestamp is dynamic, we just check its presence
+            "timeStamp": "2024-12-25T00:00:01.000Z",
         }
 
         self.assertEqual(len(data["features"]), 1)
         self.assertDictEqual(data, expected)
 
+    @freeze_time("2024-12-25 00:00:01", tz_offset=0)
     def test_ogc_buildings_items_in_bbox(self):
 
         r = self.client.get(
@@ -362,10 +365,7 @@ class OGCEndpointsTest(APITestCase):
         )
         self.assertEqual(r.status_code, 200)
 
-        self.maxDiff = None  # To see full diff on assertEqual failure
-
         data = r.json()
-        response_timestamp = data["timeStamp"]
 
         expected = {
             "type": "FeatureCollection",
@@ -406,7 +406,7 @@ class OGCEndpointsTest(APITestCase):
                 }
             ],
             "numberReturned": 1,
-            "timeStamp": response_timestamp,  # response timestamp is dynamic, we just check its presence
+            "timeStamp": "2024-12-25T00:00:01.000Z",
         }
 
         data = r.json()
@@ -414,6 +414,7 @@ class OGCEndpointsTest(APITestCase):
         self.assertEqual(len(data["features"]), 1)
         self.assertDictEqual(data, expected)
 
+    @freeze_time("2024-12-25 00:00:01", tz_offset=0)
     def test_ogc_buildings_items_in_city(self):
         r = self.client.get(
             "/api/alpha/ogc/collections/buildings/items?insee_code=38185"
@@ -421,7 +422,6 @@ class OGCEndpointsTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         data = r.json()
-        response_timestamp = data["timeStamp"]
 
         expected = {
             "type": "FeatureCollection",
@@ -462,7 +462,7 @@ class OGCEndpointsTest(APITestCase):
                 }
             ],
             "numberReturned": 1,
-            "timeStamp": response_timestamp,  # response timestamp is dynamic, we just check its presence
+            "timeStamp": "2024-12-25T00:00:01.000Z",
         }
 
         self.assertEqual(len(data["features"]), 1)
