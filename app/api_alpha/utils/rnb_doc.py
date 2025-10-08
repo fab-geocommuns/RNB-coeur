@@ -2,6 +2,7 @@ import inspect
 
 from django.conf import settings
 from django.urls import get_resolver
+from django.urls import reverse
 from rest_framework.schemas.generators import BaseSchemaGenerator
 from rest_framework.schemas.generators import EndpointEnumerator
 from rest_framework.views import APIView
@@ -17,7 +18,7 @@ COMMON_RESPONSES = {
 }
 
 
-def rnb_doc(path_desc):
+def rnb_doc(path_desc, schemes=[]):
     for _, desc in path_desc.items():
         method_responses = desc.get("responses", {})
         for code, response in COMMON_RESPONSES.items():
@@ -28,12 +29,16 @@ def rnb_doc(path_desc):
     def decorator(fn):
         fn._in_rnb_doc = True
         fn._path_desc = path_desc
+
+        schemes.append("all")
+        fn._schemes = schemes
+
         return fn
 
     return decorator
 
 
-def build_schema_dict():
+def build_schema_all_endpoints() -> dict:
     # goes through all methods and checks if they have add_to_doc attribute
     # if they do, it adds them to the schema
 
@@ -50,7 +55,53 @@ def build_schema_dict():
                 "description": "API du Référentiel National des Bâtiments",
             }
         ],
-        "paths": _get_paths(),
+        "paths": _get_paths("all"),
+        "components": _get_components(),
+    }
+
+    return schema
+
+
+def build_schema_ogc_endpoints(request=None) -> dict:
+
+    # OGC standard seems to require that the server url is the path to the API root
+    # and all paths are relative to that root
+    # In order to do so, we have to make a bit of a hack here
+
+    ogc_root = reverse("ogc_root")
+
+    # For each path, we remove the ogc_root prefix
+    paths = _get_paths("ogc")
+    ogc_rooted_paths = {}
+    for path, path_desc in paths.items():
+
+        new_key = path.replace(ogc_root, "/")
+        ogc_rooted_paths[new_key] = path_desc
+
+    # We need to build the right server url. There are two cases:
+    # - if we have a request, we use it to build the absolute uri
+    # - if we don't have a request (e.g. in tests), we use the settings.URL
+    if request is None:
+        server_url = settings.URL.rstrip("/") + ogc_root
+    else:
+        server_url = request.build_absolute_uri(ogc_root)
+
+    schema = {
+        # Specs of the 3.1.0 version of the OpenAPI: https://spec.openapis.org/oas/latest.html
+        "openapi": "3.1.0",
+        "info": {
+            "title": "RNB OGC API",
+            "version": "ogc",
+            "description": "API Référentiel National des Bâtiments au standard OGC",
+        },
+        "servers": [
+            {
+                "url": server_url.rstrip(
+                    "/"
+                ),  # We HAVE TO provide a server url WITHOUT a trailing slash
+            }
+        ],
+        "paths": ogc_rooted_paths,
         "components": _get_components(),
     }
 
@@ -74,6 +125,139 @@ def get_status_list():
 def _get_components() -> dict:
     return {
         "schemas": {
+            "RNBID": {
+                "type": "string",
+                "description": "Identifiant unique du bâtiment dans le RNB",
+                "example": "PG46YY6YWCX8",
+            },
+            "BuildingIsActive": {
+                "type": "boolean",
+                "description": "Indique si l'identifiant RNB est actif (True) ou inactif (False). Un identifiant inactif désigne un objet ne correspondant pas à la définition d'un bâtiment.",
+                "example": True,
+            },
+            "BuildingStatus": {
+                "type": "string",
+                "description": "Statut du bâtiment",
+                "enum": BuildingStatus.ALL_TYPES_KEYS,
+                "example": BuildingStatus.DEFAULT_STATUS,
+            },
+            "BuildingPlots": {
+                "type": "array",
+                "description": "Liste des parcelles cadastrales intersectant le bâtiment. Disponible si le paramètre <pre>withPlots=1</pre> est intégré à l'URL de requête. NB: il s'agit d'un croisement géométrique et non d'une donnée fiscale. Il arrive parfois qu'un bâtiment intersecte une mauvaise parcelle du fait d'un décalage géographique entre les bâtiments du cadastre et ceux du RNB. Nous fournissons avec chaque parcelle cadastrale le taux d'intersection du bâtiment avec celle-ci. Les parcelles intersectant largement un bâtiment sont plus susceptibles d'être réellement associées à ce bâtiment d'un point de vue fiscal.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                            "description": "Identifiant de la parcelle.",
+                            "example": "01402000AB0051",
+                        },
+                        "bdg_cover_ratio": {
+                            "type": "number",
+                            "description": "Taux d'intersection du bâtiment par la parcelle. Ce taux est compris entre 0 et 1. Un taux de 1 signifie que la parcelle couvre entièrement le bâtiment.",
+                            "example": 0.403,
+                        },
+                    },
+                },
+            },
+            "BuildingShape": {
+                "type": "object",
+                "description": "Géométrie représentative du bâtiment. Elle peut être un multipolygone, un polygone ou un point et correspond notre meilleure connaissance de la réalité:",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["Point", "Polygon", "MultiPolygon"],
+                        "example": "Point",
+                    },
+                    "coordinates": {
+                        "type": "array",
+                        "items": {
+                            "oneOf": [
+                                {
+                                    "type": "array",
+                                    "description": "Coordonnées pour un Point",
+                                    "items": {"type": "number"},
+                                    "example": [
+                                        -0.570505392116188,
+                                        44.841034137099996,
+                                    ],
+                                },
+                                {
+                                    "type": "array",
+                                    "description": "Coordonnées pour un Polygon",
+                                    "items": {
+                                        "type": "array",
+                                        "items": {"type": "number"},
+                                    },
+                                    "example": [
+                                        [
+                                            [
+                                                -0.570505392116188,
+                                                44.841034137099996,
+                                            ],
+                                            [
+                                                -0.570505392116188,
+                                                44.841034137099996,
+                                            ],
+                                        ]
+                                    ],
+                                },
+                                {
+                                    "type": "array",
+                                    "description": "Coordonnées pour un MultiPolygon",
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "array",
+                                            "items": {"type": "number"},
+                                        },
+                                    },
+                                    "example": [
+                                        [
+                                            [
+                                                [
+                                                    -0.570505392116188,
+                                                    44.841034137099996,
+                                                ],
+                                                [
+                                                    -0.570505392116188,
+                                                    44.841034137099996,
+                                                ],
+                                            ]
+                                        ]
+                                    ],
+                                },
+                            ]
+                        },
+                    },
+                },
+            },
+            "ExtId": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Identifiant de ce bâtiment au sein de la BD Topo ou de la BDNB",
+                        "example": "bdnb-bc-3B85-TYM9-FDSX",
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "Base de donnée contenant de l'identifiant",
+                        "example": "bdnb",
+                    },
+                    "source_version": {
+                        "type": "string",
+                        "description": "Version de la base de donnée contenant l'identifiant",
+                        "example": "2023_01",
+                        "nullable": True,
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "description": "Date de création du lien entre l'identifiant RNB et l'identfiant externe",
+                        "example": "2023-12-07T13:20:58.310444+00:00",
+                    },
+                },
+            },
             "BuildingAddress": {
                 "type": "object",
                 "properties": {
@@ -124,42 +308,13 @@ def _get_components() -> dict:
             },
             "BuildingWPlots": {
                 "type": "object",
-                "properties": {
-                    "plots": {
-                        "type": "array",
-                        "description": "Liste des parcelles cadastrales intersectant le bâtiment. Disponible si le paramètre <pre>withPlots=1</pre> est intégré à l'URL de requête. NB: il s'agit d'un croisement géométrique et non d'une donnée fiscale. Il arrive parfois qu'un bâtiment intersecte une mauvaise parcelle du fait d'un décalage géographique entre les bâtiments du cadastre et ceux du RNB. Nous fournissons avec chaque parcelle cadastrale le taux d'intersection du bâtiment avec celle-ci. Les parcelles intersectant largement un bâtiment sont plus susceptibles d'être réellement associées à ce bâtiment d'un point de vue fiscal.",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "description": "Identifiant de la parcelle.",
-                                    "example": "01402000AB0051",
-                                },
-                                "bdg_cover_ratio": {
-                                    "type": "number",
-                                    "description": "Taux d'intersection du bâtiment par la parcelle. Ce taux est compris entre 0 et 1. Un taux de 1 signifie que la parcelle couvre entièrement le bâtiment.",
-                                    "example": 0.403,
-                                },
-                            },
-                        },
-                    }
-                },
+                "properties": {"plots": {"$ref": "#/components/schemas/BuildingPlots"}},
             },
             "Building": {
                 "type": "object",
                 "properties": {
-                    "rnb_id": {
-                        "type": "string",
-                        "description": "Identifiant unique du bâtiment dans le RNB",
-                        "example": "PG46YY6YWCX8",
-                    },
-                    "status": {
-                        "type": "string",
-                        "description": "Statut du bâtiment",
-                        "enum": BuildingStatus.ALL_TYPES_KEYS,
-                        "example": BuildingStatus.DEFAULT_STATUS,
-                    },
+                    "rnb_id": {"$ref": "#/components/schemas/RNBID"},
+                    "status": {"$ref": "#/components/schemas/BuildingStatus"},
                     "point": {
                         "type": "object",
                         "description": "Coordonnées géographiques du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84.",
@@ -172,78 +327,7 @@ def _get_components() -> dict:
                             },
                         },
                     },
-                    "shape": {
-                        "type": "object",
-                        "description": "Géométrie du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84. Elle peut être un multipolygone, un polygone ou un point et correspond notre meilleure connaissance de la réalité:",
-                        "properties": {
-                            "type": {
-                                "type": "string",
-                                "enum": ["Point", "Polygon", "MultiPolygon"],
-                                "example": "Point",
-                            },
-                            "coordinates": {
-                                "type": "array",
-                                "items": {
-                                    "oneOf": [
-                                        {
-                                            "type": "array",
-                                            "description": "Coordonnées pour un Point",
-                                            "items": {"type": "number"},
-                                            "example": [
-                                                -0.570505392116188,
-                                                44.841034137099996,
-                                            ],
-                                        },
-                                        {
-                                            "type": "array",
-                                            "description": "Coordonnées pour un Polygon",
-                                            "items": {
-                                                "type": "array",
-                                                "items": {"type": "number"},
-                                            },
-                                            "example": [
-                                                [
-                                                    [
-                                                        -0.570505392116188,
-                                                        44.841034137099996,
-                                                    ],
-                                                    [
-                                                        -0.570505392116188,
-                                                        44.841034137099996,
-                                                    ],
-                                                ]
-                                            ],
-                                        },
-                                        {
-                                            "type": "array",
-                                            "description": "Coordonnées pour un MultiPolygon",
-                                            "items": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "array",
-                                                    "items": {"type": "number"},
-                                                },
-                                            },
-                                            "example": [
-                                                [
-                                                    [
-                                                        [
-                                                            -0.570505392116188,
-                                                            44.841034137099996,
-                                                        ],
-                                                        [
-                                                            -0.570505392116188,
-                                                            44.841034137099996,
-                                                        ],
-                                                    ]
-                                                ]
-                                            ],
-                                        },
-                                    ]
-                                },
-                            },
-                        },
-                    },
+                    "shape": {"$ref": "#/components/schemas/BuildingShape"},
                     "addresses": {
                         "type": "array",
                         "description": "Liste des adresses du bâtiment",
@@ -252,36 +336,41 @@ def _get_components() -> dict:
                     "ext_ids": {
                         "type": "array",
                         "description": "Le ou les identifiants de ce bâtiments au sein de la BD Topo et de la BDNB",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "description": "Identifiant de ce bâtiment au sein de la BD Topo ou de la BDNB",
-                                    "example": "bdnb-bc-3B85-TYM9-FDSX",
-                                },
-                                "source": {
-                                    "type": "string",
-                                    "description": "Base de donnée contenant de l'identifiant",
-                                    "example": "bdnb",
-                                },
-                                "source_version": {
-                                    "type": "string",
-                                    "description": "Version de la base de donnée contenant l'identifiant",
-                                    "example": "2023_01",
-                                    "nullable": True,
-                                },
-                                "created_at": {
-                                    "type": "string",
-                                    "description": "Date de création du lien entre l'identifiant RNB et l'identfiant externe",
-                                    "example": "2023-12-07T13:20:58.310444+00:00",
+                        "items": {"$ref": "#/components/schemas/ExtId"},
+                    },
+                    "is_active": {"$ref": "#/components/schemas/BuildingIsActive"},
+                },
+            },
+            "BuildingGeoJSON": {
+                "type": "object",
+                "description": "Représentation GeoJSON du bâtiment",
+                "properties": {
+                    "type": {"type": "string", "example": "Feature"},
+                    "geometry": {"$ref": "#/components/schemas/BuildingShape"},
+                    "id": {"$ref": "#/components/schemas/RNBID"},
+                    "properties": {
+                        "type": "object",
+                        "properties": {
+                            "status": {"$ref": "#/components/schemas/BuildingStatus"},
+                            "addresses": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/BuildingAddress"
                                 },
                             },
+                            "ext_ids": {
+                                "type": "array",
+                                "items": {"$ref": "#/components/schemas/ExtId"},
+                            },
+                            "is_active": {
+                                "$ref": "#/components/schemas/BuildingIsActive"
+                            },
+                            "plots": {"$href": "#/components/schemas/BuildingPlots"},
                         },
                     },
                 },
             },
-        },
+        }
     }
 
 
@@ -294,19 +383,21 @@ def _get_endpoints() -> list:
     return inspector.get_api_endpoints(all_patterns)
 
 
-def _add_fn_doc(path, fn, schema_paths) -> dict:
+def _add_fn_doc(schema_to_build, path, fn, schema_paths) -> dict:
 
     if hasattr(fn, "_in_rnb_doc"):
 
-        if path not in schema_paths:
-            schema_paths[path] = {}
+        if schema_to_build in fn._schemes:
 
-        schema_paths[path].update(fn._path_desc)
+            if path not in schema_paths:
+                schema_paths[path] = {}
+
+            schema_paths[path].update(fn._path_desc)
 
     return schema_paths
 
 
-def _get_paths() -> dict:
+def _get_paths(schema_to_build: str) -> dict:
 
     schema_paths = {}  # type: ignore[var-annotated]
 
@@ -327,9 +418,9 @@ def _get_paths() -> dict:
         # We attach the function/method rnb_doc if it has any
         if inspect.ismethod(action):
             fn = action.__func__
-            schema_paths = _add_fn_doc(path, fn, schema_paths)
+            schema_paths = _add_fn_doc(schema_to_build, path, fn, schema_paths)
 
         if inspect.isfunction(action):
-            schema_paths = _add_fn_doc(path, action, schema_paths)
+            schema_paths = _add_fn_doc(schema_to_build, path, action, schema_paths)
 
     return schema_paths
