@@ -130,8 +130,6 @@ class OGCEndpointsTest(APITestCase):
         r = self.client.get("/api/alpha/ogc/collections")
         self.assertEqual(r.status_code, 200)
 
-        self.maxDiff = None  # To see full diff on assertEqual failure
-
         self.assertEqual(
             r.json(),
             {
