@@ -224,8 +224,6 @@ class OGCEndpointsTest(APITestCase):
         r = self.client.get("/api/alpha/ogc/collections/buildings/items")
         self.assertEqual(r.status_code, 200)
 
-        self.maxDiff = None  # To see full diff on assertEqual failure
-
         data = r.json()
         response_timestamp = data["timeStamp"]
 
