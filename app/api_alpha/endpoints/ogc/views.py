@@ -114,7 +114,6 @@ class OGCIndexView(OGCAPIBaseView):
             "get": {
                 "summary": "Racine de l'API du RNB au standard OGC",
                 "description": "Ce endpoint est le point d'entrée pour exploiter les données RNB au standard OGC.",
-                "tags": ["Capabilities"],
                 "responses": {
                     "200": {
                         "description": "Principaux liens disponibles dans l'API",
@@ -157,7 +156,6 @@ class OGCConformanceView(OGCAPIBaseView):
             "get": {
                 "summary": "Déclaration de conformité de l'API du RNB au standard OGC",
                 "description": "Liste les classes de conformité OGC auxquelles cette API adhère.",
-                "tags": ["Capabilities"],
                 "responses": {
                     "200": {
                         "description": "Classes de conformité",
@@ -196,7 +194,6 @@ class OGCCollectionsView(OGCAPIBaseView):
             "get": {
                 "summary": "Liste des collections de données",
                 "description": "Ce endpoint liste les collections de données disponibles au standard OGC. Pour le moment, seuls les bâtiments sont disponibles.",
-                "tags": ["Capabilities"],
                 "responses": {
                     "200": {
                         "description": "Liste des collections",
@@ -229,7 +226,7 @@ class OGCBuildingsCollectionView(OGCAPIBaseView):
             "get": {
                 "summary": "Métadonnées de la collection de bâtiments",
                 "description": "Fournit des informations détaillées sur la collection de bâtiments.",
-                "tags": ["Data"],
+                
                 "responses": {
                     "200": {
                         "description": "Métadonnées de la collection",
@@ -254,7 +251,7 @@ class OGCBuildingItemsView(OGCAPIBaseView):
             "get": {
                 "summary": "Liste des bâtiments",
                 "description": "Récupère une liste de bâtiments sous forme de FeatureCollection GeoJSON.",
-                "tags": ["Data"],
+                
                 "parameters": [
                     {
                         "name": "bbox",
@@ -358,7 +355,7 @@ class OGCSingleBuildingItemView(OGCAPIBaseView):
             "get": {
                 "summary": "Récupérer un bâtiment par son ID-RNB",
                 "description": "Récupère un seul bâtiment en tant que Feature GeoJSON.",
-                "tags": ["Data"],
+                
                 "parameters": [
                     {
                         "name": "featureId",
@@ -367,7 +364,7 @@ class OGCSingleBuildingItemView(OGCAPIBaseView):
                         "description": "ID du bâtiment (rnb_id).",
                         "schema": {"type": "string"},
                     }
-                ],
+                        "description": "ID-RNB du bâtiment (rnb_id).",
                 "responses": {
                     "200": {
                         "description": "Le bâtiment RNB au format GeoJSON.",
