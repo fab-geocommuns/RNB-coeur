@@ -226,7 +226,7 @@ class OGCBuildingsCollectionView(OGCAPIBaseView):
             "get": {
                 "summary": "Métadonnées de la collection de bâtiments",
                 "description": "Fournit des informations détaillées sur la collection de bâtiments.",
-                
+
                 "responses": {
                     "200": {
                         "description": "Métadonnées de la collection",
@@ -251,7 +251,7 @@ class OGCBuildingItemsView(OGCAPIBaseView):
             "get": {
                 "summary": "Liste des bâtiments",
                 "description": "Récupère une liste de bâtiments sous forme de FeatureCollection GeoJSON.",
-                
+
                 "parameters": [
                     {
                         "name": "bbox",
@@ -263,7 +263,7 @@ class OGCBuildingItemsView(OGCAPIBaseView):
                     {
                         "name": "insee_code",
                         "in": "query",
-                        "description": "Filtre les bâtiments dont l'emprise au sol est située dans les limites géographiques de la commune ayant ce code INSEE.",
+                        "description": "Filtre les bâtiments dont la géométrie est située dans les limites géographiques de la commune ayant ce code INSEE.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "75101",
@@ -271,7 +271,7 @@ class OGCBuildingItemsView(OGCAPIBaseView):
                     {
                         "name": "limit",
                         "in": "query",
-                        "description": "Nombre maximum de bâtiments à retourner dans la page de résultats. Valeur par défaut : 20. Valeur maximale : 100.",
+                        "description": "Nombre maximum de bâtiments à retourner dans la page de résultats.",
                         "required": False,
                         "style": "form",
                         "schema": {
@@ -355,13 +355,13 @@ class OGCSingleBuildingItemView(OGCAPIBaseView):
             "get": {
                 "summary": "Récupérer un bâtiment par son ID-RNB",
                 "description": "Récupère un seul bâtiment en tant que Feature GeoJSON.",
-                
+
                 "parameters": [
                     {
                         "name": "featureId",
                         "in": "path",
                         "required": True,
-                        "description": "ID du bâtiment (rnb_id).",
+                        "description": "ID-RNB du bâtiment (rnb_id).",
                         "schema": {"type": "string"},
                     }
                         "description": "ID-RNB du bâtiment (rnb_id).",
