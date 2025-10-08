@@ -2,6 +2,7 @@ import json
 
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.test import APITestCase
+from freezegun import freeze_time
 
 from batid.models import Building
 from batid.tests.helpers import create_bdg
@@ -220,12 +221,12 @@ class OGCEndpointsTest(APITestCase):
             },
         )
 
+    # @freeze_time("2024-12-25 00:00:01", tz_offset=0)
     def test_ogc_buildings_items(self):
         r = self.client.get("/api/alpha/ogc/collections/buildings/items")
         self.assertEqual(r.status_code, 200)
 
         data = r.json()
-        response_timestamp = data["timeStamp"]
 
         expected = {
             "type": "FeatureCollection",
@@ -290,7 +291,7 @@ class OGCEndpointsTest(APITestCase):
                 }
             ],
             "numberReturned": 2,
-            "timeStamp": response_timestamp,  # response timestamp is dynamic, we just check its presence
+            "timeStamp": "2024-12-25T00:00:01Z",
         }
 
         self.assertEqual(len(data["features"]), 2)
