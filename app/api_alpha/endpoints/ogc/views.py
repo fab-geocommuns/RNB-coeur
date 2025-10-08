@@ -226,7 +226,7 @@ class OGCBuildingsCollectionView(OGCAPIBaseView):
             "get": {
                 "summary": "Métadonnées de la collection de bâtiments",
                 "description": "Fournit des informations détaillées sur la collection de bâtiments.",
-                
+
                 "responses": {
                     "200": {
                         "description": "Métadonnées de la collection",
@@ -251,7 +251,7 @@ class OGCBuildingItemsView(OGCAPIBaseView):
             "get": {
                 "summary": "Liste des bâtiments",
                 "description": "Récupère une liste de bâtiments sous forme de FeatureCollection GeoJSON.",
-                
+
                 "parameters": [
                     {
                         "name": "bbox",
@@ -355,7 +355,7 @@ class OGCSingleBuildingItemView(OGCAPIBaseView):
             "get": {
                 "summary": "Récupérer un bâtiment par son ID-RNB",
                 "description": "Récupère un seul bâtiment en tant que Feature GeoJSON.",
-                
+
                 "parameters": [
                     {
                         "name": "featureId",
