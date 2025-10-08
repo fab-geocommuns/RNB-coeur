@@ -361,7 +361,7 @@ class OGCSingleBuildingItemView(OGCAPIBaseView):
                         "name": "featureId",
                         "in": "path",
                         "required": True,
-                        "description": "ID du bâtiment (rnb_id).",
+                        "description": "ID-RNB du bâtiment (rnb_id).",
                         "schema": {"type": "string"},
                     }
                         "description": "ID-RNB du bâtiment (rnb_id).",
