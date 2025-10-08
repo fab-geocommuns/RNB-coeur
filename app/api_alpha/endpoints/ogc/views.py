@@ -263,7 +263,7 @@ class OGCBuildingItemsView(OGCAPIBaseView):
                     {
                         "name": "insee_code",
                         "in": "query",
-                        "description": "Filtre les bâtiments dont l'emprise au sol est située dans les limites géographiques de la commune ayant ce code INSEE.",
+                        "description": "Filtre les bâtiments dont la géométrie est située dans les limites géographiques de la commune ayant ce code INSEE.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "75101",
