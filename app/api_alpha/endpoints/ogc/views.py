@@ -271,7 +271,7 @@ class OGCBuildingItemsView(OGCAPIBaseView):
                     {
                         "name": "limit",
                         "in": "query",
-                        "description": "Nombre maximum de bâtiments à retourner dans la page de résultats. Valeur par défaut : 20. Valeur maximale : 100.",
+                        "description": "Nombre maximum de bâtiments à retourner dans la page de résultats.",
                         "required": False,
                         "style": "form",
                         "schema": {
