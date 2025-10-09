@@ -89,9 +89,9 @@ def __validate_radius(radius):
 def __validate_point(lat, lng):
     # todo : les validation de latitude et de longitude sont des besoins récurrents, il faudrait les factoriser dans un module dédié
 
-    if not lat:
+    if lat is None:
         raise ValueError("lat is required")
-    if not lng:
+    if lng is None:
         raise ValueError("lng is required")
 
     if not isinstance(lat, float):

@@ -1,6 +1,8 @@
 from base64 import b64encode
 from datetime import datetime
+from datetime import timezone
 
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import BasePagination
 from rest_framework.response import Response
 from rest_framework.utils.urls import replace_query_param
@@ -88,7 +90,7 @@ class BuildingCursorPagination(BasePagination):
                 self.page_size = limit
 
             except ValueError:
-                raise ValueError(
+                raise ValidationError(
                     "The limit parameter must be an integer between 1 and 100"
                 )
 
@@ -139,6 +141,7 @@ class OGCApiPagination(BuildingCursorPagination):
             {
                 "rel": "self",
                 "title": "Current page of results",
+                "type": "application/geo+json",
                 "href": self.base_url,
             }
         )
@@ -150,6 +153,7 @@ class OGCApiPagination(BuildingCursorPagination):
                 {
                     "rel": "next",
                     "title": "Next page of results",
+                    "type": "application/geo+json",
                     "href": next_link,
                 }
             )
@@ -161,13 +165,18 @@ class OGCApiPagination(BuildingCursorPagination):
                 {
                     "rel": "prev",
                     "title": "Previous page of results",
+                    "type": "application/geo+json",
                     "href": prev_link,
                 }
             )
 
         data["links"] = links
         data["numberReturned"] = len(data["features"])
-        data["timeStamp"] = datetime.now().isoformat()
+        data["timeStamp"] = (
+            datetime.now(timezone.utc)
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z")
+        )
 
         return Response(data)
 
