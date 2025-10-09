@@ -134,12 +134,16 @@ class Command(SuperCommand):
                         "matches_len": len(res),
                         "area": feature["properties"]["area"],
                         "valid": feature["properties"]["BATIM_VALID"],
-                        "created_at": feature["properties"]["BATIM_DATECRE"]
-                        if feature["properties"]["BATIM_DATECRE"]
-                        else "VIDE",
-                        "removed_at": feature["properties"]["BATIM_DATESUPP"]
-                        if feature["properties"]["BATIM_DATESUPP"]
-                        else "VIDE",
+                        "created_at": (
+                            feature["properties"]["BATIM_DATECRE"]
+                            if feature["properties"]["BATIM_DATECRE"]
+                            else "VIDE"
+                        ),
+                        "removed_at": (
+                            feature["properties"]["BATIM_DATESUPP"]
+                            if feature["properties"]["BATIM_DATESUPP"]
+                            else "VIDE"
+                        ),
                     }
                 )
 
