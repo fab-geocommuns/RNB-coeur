@@ -68,8 +68,8 @@ class SingleBuildingTest(APITestCase):
 
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["type"], "Feature")
+        self.assertEqual(r.data["id"], "1234ABCD5678")
         self.assertEqual(r.data["geometry"]["type"], "MultiPolygon")
-        self.assertEqual(r.data["properties"]["rnb_id"], "1234ABCD5678")
         self.assertEqual(r.data["properties"]["status"], "constructed")
         self.assertEqual(r.data["properties"]["is_active"], True)
         self.assertListEqual(
