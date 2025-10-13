@@ -6,6 +6,13 @@ from rest_framework import routers
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.single_building import SingleBuilding
 from api_alpha.endpoints.buildings.single_building import SingleBuildingHistory
+from api_alpha.endpoints.ogc.views import OGCBuildingItemsView
+from api_alpha.endpoints.ogc.views import OGCBuildingsCollectionView
+from api_alpha.endpoints.ogc.views import OGCCollectionsView
+from api_alpha.endpoints.ogc.views import OGCConformanceView
+from api_alpha.endpoints.ogc.views import OGCIndexView
+from api_alpha.endpoints.ogc.views import OGCOpenAPIDefinitionView
+from api_alpha.endpoints.ogc.views import OGCSingleBuildingItemView
 from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsShapeVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsVectorTileView
@@ -22,7 +29,7 @@ from api_alpha.views import ContributionsViewSet
 from api_alpha.views import CreateUserView
 from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import DiffView
-from api_alpha.views import get_schema
+from api_alpha.views import get_all_endpoints_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_summer_challenge_leaderboard
 from api_alpha.views import get_summer_challenge_user_score
@@ -44,8 +51,28 @@ router.register(r"ads", ADSViewSet)
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
-    path("schema/", get_schema, name="schema"),
+    path("schema/", get_all_endpoints_schema, name="schema"),
     path("stats", get_stats),
+    # OGC API Features minimal endpoints
+    path("ogc/", OGCIndexView.as_view(), name="ogc_root"),
+    path("ogc/openapi", OGCOpenAPIDefinitionView.as_view(), name="ogc_openapi"),
+    path("ogc/conformance", OGCConformanceView.as_view(), name="ogc_conformance"),
+    path("ogc/collections", OGCCollectionsView.as_view(), name="ogc_collections"),
+    path(
+        "ogc/collections/buildings",
+        OGCBuildingsCollectionView.as_view(),
+        name="ogc_buildings_collection",
+    ),
+    path(
+        "ogc/collections/buildings/items",
+        OGCBuildingItemsView.as_view(),
+        name="ogc_buildings_items",
+    ),
+    path(
+        "ogc/collections/buildings/items/<str:featureId>",
+        OGCSingleBuildingItemView.as_view(),
+        name="ogc_single_building_item",
+    ),
     # For site
     path("diffusion_databases", DiffusionDatabaseView.as_view()),
     path("organization_names", OrganizationView.as_view()),

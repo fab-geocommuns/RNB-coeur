@@ -1,7 +1,9 @@
 from datetime import datetime
+from datetime import timezone
 
 from django.db.models import BooleanField
 from django.db.models.expressions import RawSQL
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import BasePagination
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
@@ -90,7 +92,7 @@ class BuildingCursorPagination(BasePagination):
                 self.page_size = limit
 
             except ValueError:
-                raise ValueError(
+                raise ValidationError(
                     "The limit parameter must be an integer between 1 and 100"
                 )
 
@@ -267,6 +269,7 @@ class OGCApiPagination(BuildingListingCursorPagination):
             {
                 "rel": "self",
                 "title": "Current page of results",
+                "type": "application/geo+json",
                 "href": self.base_url,
             }
         )
@@ -278,6 +281,7 @@ class OGCApiPagination(BuildingListingCursorPagination):
                 {
                     "rel": "next",
                     "title": "Next page of results",
+                    "type": "application/geo+json",
                     "href": next_link,
                 }
             )
@@ -289,13 +293,18 @@ class OGCApiPagination(BuildingListingCursorPagination):
                 {
                     "rel": "prev",
                     "title": "Previous page of results",
+                    "type": "application/geo+json",
                     "href": prev_link,
                 }
             )
 
         data["links"] = links
         data["numberReturned"] = len(data["features"])
-        data["timeStamp"] = datetime.now().isoformat()
+        data["timeStamp"] = (
+            datetime.now(timezone.utc)
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z")
+        )
 
         return Response(data)
 
