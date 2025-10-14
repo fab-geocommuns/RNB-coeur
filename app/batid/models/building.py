@@ -514,7 +514,7 @@ class Building(BuildingAbstract):
             # queries look like point && bbox and id > XXX
             # treating the id as a geographical point (point(id, 0)) allows us to create a gist index
             # on both point and id columns.
-            # queries can be written like point && bbox && point(id,0 >> point(XXX, 0) order by point(id, 0) <-> point(XXX, 0)
+            # queries can be written like point && bbox AND point(id,0) >> point(XXX, 0) order by point(id, 0) <-> point(XXX, 0)
             # tests with the btree_gist extension have been disapointing, so we ended up using this solution.
             GistIndex(
                 F("point"),

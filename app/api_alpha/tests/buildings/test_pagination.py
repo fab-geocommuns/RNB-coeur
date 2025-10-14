@@ -16,7 +16,7 @@ class EndpointTest(APITestCase):
             create_default_bdg(rnb_id)
 
     def test_first_page(self):
-        r = self.client.get("/api/alpha/buildings/?limit=5")
+        r = self.client.get("/api/alpha/buildings/")
         self.assertEqual(r.status_code, 200)
 
         data = r.json()
@@ -24,7 +24,7 @@ class EndpointTest(APITestCase):
 
         self.assertIsNone(data["previous"])
 
-        self.assertEqual(len(data["results"]), 5)
+        self.assertEqual(len(data["results"]), 20)
 
         # Since the data as no expliciti ORDER BY we want to check the results have a consistent order
         self.assertEqual(data["results"][0]["rnb_id"], "000000000000")
@@ -32,17 +32,24 @@ class EndpointTest(APITestCase):
 
         r = self.client.get(next_page)
         data = r.json()
-        self.assertEqual(len(data["results"]), 5)
-        self.assertEqual(data["results"][0]["rnb_id"], "000000000005")
-        self.assertEqual(data["results"][4]["rnb_id"], "000000000009")
+        self.assertEqual(len(data["results"]), 20)
+        self.assertEqual(data["results"][0]["rnb_id"], "000000000020")
+        self.assertEqual(data["results"][19]["rnb_id"], "000000000039")
 
         next_page = data["next"]
 
         r = self.client.get(next_page)
         data = r.json()
-        self.assertEqual(len(data["results"]), 5)
-        self.assertEqual(data["results"][0]["rnb_id"], "000000000010")
-        self.assertEqual(data["results"][4]["rnb_id"], "000000000014")
+        self.assertEqual(len(data["results"]), 20)
+        self.assertEqual(data["results"][0]["rnb_id"], "000000000040")
+
+        # test the previous page link send you properly back in the results
+        previous_page = data["previous"]
+        r = self.client.get(previous_page)
+        data = r.json()
+        self.assertEqual(len(data["results"]), 20)
+        self.assertEqual(data["results"][0]["rnb_id"], "000000000020")
+        self.assertEqual(data["results"][19]["rnb_id"], "000000000039")
 
     def test_limit_param(self):
         r = self.client.get("/api/alpha/buildings/?limit=10")

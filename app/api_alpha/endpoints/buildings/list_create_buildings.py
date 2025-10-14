@@ -113,7 +113,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "description": (
                             "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box."
                             "Le format est min_lon,min_lat,max_lon,max_lat"
-                            "La taille de la bbox est limitée par la contrainte (max_lon - min_lon) * (max_lat - min_lat) < 4."
+                            "La taille de la bbox est limitée par la contrainte (max_lon - min_lon) * (max_lat - min_lat) < 4. Cela correspond à la surface d'environ deux départements français."
                         ),
                         "required": False,
                         "schema": {"type": "string"},
@@ -127,7 +127,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                             "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box "
                             "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
                             "Le format est nw_lat,nw_lng,se_lat,se_lng"
-                            "La taille de la bbox est limitée par la contrainte (se_lng - nw_lng) * (nw_lat - se_lat) < 4."
+                            "La taille de la bbox est limitée par la contrainte (se_lng - nw_lng) * (nw_lat - se_lat) < 4. Cela correspond à la surface d'environ deux départements français."
                         ),
                         "required": False,
                         "schema": {"type": "string"},
