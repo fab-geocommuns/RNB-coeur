@@ -346,7 +346,7 @@ class OGCEndpointsTest(APITestCase):
                 {
                     "rel": "next",
                     "title": "Next page of results",
-                    "href": "http://testserver/api/alpha/ogc/collections/buildings/items?cursor=2&limit=1",
+                    "href": "http://testserver/api/alpha/ogc/collections/buildings/items?cursor=cD0x&limit=1",
                     "type": "application/geo+json",
                 },
             ],

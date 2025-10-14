@@ -142,10 +142,10 @@ class EndpointTest(APITestCase):
                 self.assertIsNotNone(link["href"])
 
         # Since the data as no explicit ORDER BY we want to check the results have a consistent order
-        self.assertEqual(data["features"][0]["properties"]["rnb_id"], "000000000020")
-        self.assertEqual(data["features"][5]["properties"]["rnb_id"], "000000000025")
-        self.assertEqual(data["features"][16]["properties"]["rnb_id"], "000000000036")
-        self.assertEqual(data["features"][19]["properties"]["rnb_id"], "000000000039")
+        self.assertEqual(data["features"][0]["id"], "000000000020")
+        self.assertEqual(data["features"][5]["id"], "000000000025")
+        self.assertEqual(data["features"][16]["id"], "000000000036")
+        self.assertEqual(data["features"][19]["id"], "000000000039")
 
     def test_params_conservation(self):
 
