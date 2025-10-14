@@ -5,7 +5,7 @@ from django.db import migrations
 
 forward_sql = """
 ALTER TABLE batid_building
-SET (autovacuum_analyze_scale_factor = 0, autovacuum_analyze_threshold = 1000);
+SET (autovacuum_analyze_scale_factor = 0, autovacuum_analyze_threshold = 10000);
 """
 
 
