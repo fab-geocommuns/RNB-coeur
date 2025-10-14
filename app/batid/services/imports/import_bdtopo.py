@@ -109,6 +109,10 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
                 print("-- transfer buffer to db --")
                 try:
                     with connection.cursor() as cursor:
+
+                        # Allow for a long COPY operation
+                        cursor.execute("SET statement_timeout = 0;")
+
                         cursor.copy_from(
                             f, Candidate._meta.db_table, sep=";", columns=cols
                         )
