@@ -8,8 +8,8 @@ from batid.exceptions import BANAPIDown
 
 
 class BanGeocoder:
-    GEOCODE_URL = "https://api-adresse.data.gouv.fr/search/"
-    REVERSE_URL = "https://api-adresse.data.gouv.fr/reverse/?lon={lng}&lat={lat}"
+    GEOCODE_URL = "https://data.geopf.fr/geocodage/search/"
+    REVERSE_URL = "https://data.geopf.fr/geocodage/reverse/?lon={lng}&lat={lat}"
 
     def geocode(self, params: dict) -> requests.Response:
         # available params are documented here : https://adresse.data.gouv.fr/api-doc/adresse
@@ -45,7 +45,7 @@ class BanGeocoder:
 
 class BanBatchGeocoder:
 
-    GEOCODE_URL = "https://api-adresse.data.gouv.fr/search/csv/"
+    GEOCODE_URL = "https://data.geopf.fr/geocodage/search/csv/"
 
     def geocode_file(
         self,
