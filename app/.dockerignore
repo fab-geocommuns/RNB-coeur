@@ -1,0 +1,40 @@
+/notebooks/rapprochements/**/*.csv
+/notebooks/rapprochements/**/*.json
+/notebooks/rapprochements/**/*.cpg
+/notebooks/rapprochements/**/*.dbf
+/notebooks/rapprochements/**/*.prj
+/notebooks/rapprochements/**/*.shp
+/notebooks/rapprochements/**/*.shx
+/notebooks/rapprochements/**/*.xlsx
+
+/notebooks/croisements/**/*.csv
+/notebooks/croisements/**/*.json
+/notebooks/croisements/**/*.cpg
+/notebooks/croisements/**/*.dbf
+/notebooks/croisements/**/*.prj
+/notebooks/croisements/**/*.shp
+/notebooks/croisements/**/*.shx
+/notebooks/croisements/**/*.xlsx
+
+/notebooks/evaluation_bal/**/*.csv
+
+/data/
+
+# Virtual environment
+venv/
+.env
+
+# IDE settings
+.idea/
+.vscode/
+.VSCodeCounter/
+
+# mac os file
+*.DS_Store
+
+# Jupyter Notebook temporary files
+*-checkpoint.ipynb
+
+.devcontainer/
+
+/.Trash-*

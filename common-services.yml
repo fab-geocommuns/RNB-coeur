@@ -79,7 +79,7 @@ services:
       context: ./app
       dockerfile: ./Dockerfile
       target: app_worker
-    command: celery -A app beat --loglevel=WARNING
+    command: celery -A app beat --loglevel=WARNING -s ./data/celerybeat-schedule
     depends_on:
       rabbitmq:
         condition: service_healthy

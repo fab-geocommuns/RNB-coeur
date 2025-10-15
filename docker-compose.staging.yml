@@ -42,6 +42,17 @@ services:
       - ./.env.worker.staging
       - ./.env.rnb.staging
       - ./.env.sentry.staging
+
+  celery_beat:
+    extends:
+      file: common-services.yml
+      service: celery_beat
+    env_file:
+      - ./.env.db_auth.staging
+      - ./.env.app.staging
+      - ./.env.worker.staging
+      - ./.env.rnb.staging
+
   rabbitmq:
     extends:
       file: common-services.yml

@@ -53,9 +53,8 @@ from batid.utils.auth import make_random_password
 
 
 @shared_task
-def test_all() -> str:
-    print("test_all")
-    return "done"
+def heartbeat() -> None:
+    print("Test celery_beat heartbeat")
 
 
 @shared_task(
