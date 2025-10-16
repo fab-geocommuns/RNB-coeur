@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 import random
-from celery import chain
+from celery import chain, group
 from celery import shared_task
 from celery import Signature
 from api_alpha.utils.sandbox_client import SandboxClient
@@ -448,7 +448,14 @@ def test_fake_convert() -> str:
 @shared_task()
 def sandbox() -> str:
 
+    tasks = []
+
     for i in range(10):
-        (
-            test_fake_dl.s(i).set(priority=1) | test_fake_convert.si().set(priority=5)
-        ).apply_async()
+        c = chain(
+            test_fake_dl.s(i).set(priority=1),
+            test_fake_convert.si().set(priority=5),
+        )
+        tasks.append(c)
+
+    tasks_group = group(tasks)
+    tasks_group.apply_async()
