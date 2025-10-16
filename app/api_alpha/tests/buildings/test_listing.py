@@ -185,7 +185,7 @@ class BuildingsEndpointsTest(APITestCase):
         self.assertEqual(len(data["results"]), 1)
         self.assertDictEqual(data, expected)
 
-    def test_bdg_in_bbox_obsolote_too_big(self):
+    def test_bdg_in_obsolete_bbox_too_big(self):
         r = self.client.get(
             "/api/alpha/buildings/?bb=48.18468473541278,5.7211808330356,45.18355043319679,7.722614035153486"
         )
