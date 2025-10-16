@@ -82,6 +82,17 @@ services:
       db:
         condition: service_healthy
 
+
+  celery_beat:
+    extends:
+      file: common-services.yml
+      service: celery_beat
+    env_file:
+      - ./.env.db_auth.dev
+      - ./.env.app.dev
+      - ./.env.worker.dev
+      - ./.env.rnb.dev
+
   rabbitmq:
     extends:
       file: common-services.yml
@@ -109,10 +120,11 @@ services:
     env_file:
       - ./.env.metabase.dev
 
-  ogc_validator:
-    image: ogccite/ets-ogcapi-features10
-    ports:
-      - "8081:8080"
+  # Uncomment this to use OGC validator locally
+  # ogc_validator:
+  #   image: ogccite/ets-ogcapi-features10
+  #   ports:
+  #     - "8081:8080"
 
 volumes:
   postgres_data:

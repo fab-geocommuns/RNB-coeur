@@ -42,6 +42,17 @@ services:
       - ./.env.worker.sandbox
       - ./.env.rnb.sandbox
       - ./.env.sentry.sandbox
+
+  celery_beat:
+    extends:
+      file: common-services.yml
+      service: celery_beat
+    env_file:
+      - ./.env.db_auth.sandbox
+      - ./.env.app.sandbox
+      - ./.env.worker.sandbox
+      - ./.env.rnb.sandbox
+
   rabbitmq:
     extends:
       file: common-services.yml
