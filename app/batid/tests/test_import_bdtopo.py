@@ -3,12 +3,15 @@ from unittest.mock import patch
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Polygon
+from django.test import TestCase
 from django.test import TransactionTestCase
 
 from batid.models import Building
 from batid.models import Candidate
 from batid.services.candidate import Inspector
+from batid.services.imports.import_bdtopo import bdtopo_dpts_list
 from batid.services.imports.import_bdtopo import bdtopo_src_params
+from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
 from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
 from batid.tests import helpers
 from batid.tests.helpers import create_default_bdg
@@ -76,3 +79,16 @@ class ImportBDTopo(TransactionTestCase):
         i.inspect()
 
         self.assertEqual(Building.objects.count(), 6)
+
+
+class TestImportTasks(TestCase):
+    def test_tasks_count(self):
+
+        dpts = bdtopo_dpts_list()
+
+        all_tasks = create_bdtopo_full_import_tasks(dpts, "2023-09-15")
+
+        self.assertEqual(len(all_tasks), len(dpts))
+
+        for dpt_tasks in all_tasks:
+            self.assertEqual(len(dpt_tasks), 2)

@@ -53,9 +53,8 @@ from batid.utils.auth import make_random_password
 
 
 @shared_task
-def test_all() -> str:
-    print("test_all")
-    return "done"
+def heartbeat() -> None:
+    print("Test celery_beat heartbeat")
 
 
 @shared_task(
@@ -118,10 +117,12 @@ def queue_full_bdtopo_import(
     else:
         release_date = bdtopo_recente_release_date()
 
-    tasks = create_bdtopo_full_import_tasks(dpts, release_date)
+    all_tasks = create_bdtopo_full_import_tasks(dpts, release_date)
 
-    chain(*tasks)()
-    return f"Queued {len(tasks)} tasks"
+    for dpt_tasks in all_tasks:
+        chain(*dpt_tasks)()
+
+    return f"Queued {len(all_tasks)} departments import"
 
 
 @notify_if_error
