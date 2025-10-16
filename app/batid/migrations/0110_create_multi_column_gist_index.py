@@ -10,7 +10,7 @@ import batid.models.building
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0108_building_unique_rnb_id_event_type_building"),
+        ("batid", "0109_auto_analyze_buildings"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
