@@ -412,8 +412,8 @@ def test_fake_dl(delay) -> str:
 
 
 @shared_task()
-def test_fake_convert() -> str:
-    return "quick convert"
+def test_fake_convert(id) -> str:
+    return f"quick convert {id} done"
 
 
 # # reproduced problem
@@ -453,7 +453,7 @@ def sandbox() -> str:
     for i in range(10):
         c = chain(
             test_fake_dl.s(i).set(priority=1),
-            test_fake_convert.si().set(priority=5),
+            test_fake_convert.si(i).set(priority=5),
         )
         tasks.append(c)
 

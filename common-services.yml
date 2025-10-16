@@ -63,7 +63,7 @@ services:
       context: ./app
       dockerfile: ./Dockerfile
       target: app_worker
-    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker -Q default --loglevel=INFO --concurrency=1 -O fair
+    command: watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A app worker -Q default --loglevel=WARNING --concurrency=3 -O fair
     depends_on:
       rabbitmq:
         condition: service_healthy
