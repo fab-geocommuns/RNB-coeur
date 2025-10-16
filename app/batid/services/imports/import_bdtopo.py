@@ -34,12 +34,7 @@ def create_bdtopo_full_import_tasks(dpt_list: list, release_date: str) -> list:
     for dpt in dpt_list:
 
         dpt_tasks = create_bdtopo_dpt_import_tasks(dpt, release_date, bulk_launch_uuid)
-        tasks.extend(dpt_tasks)
-
-    # Those inspections are commented out for now since we want to verify the created candidates first
-    # inspect_tasks = create_inspection_tasks()
-    # inspect_group = group(*inspect_tasks)
-    # tasks.append(inspect_group)
+        tasks.append(dpt_tasks)
 
     return tasks
 
@@ -109,6 +104,11 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
                 print("-- transfer buffer to db --")
                 try:
                     with connection.cursor() as cursor:
+
+                        # Allow for a long COPY operation
+                        # 10 minutes = 600000 ms
+                        cursor.execute("SET statement_timeout = 600000;")
+
                         cursor.copy_from(
                             f, Candidate._meta.db_table, sep=";", columns=cols
                         )
