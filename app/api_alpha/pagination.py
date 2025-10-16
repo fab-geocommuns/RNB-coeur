@@ -130,7 +130,6 @@ class BuildingCursorPagination(BasePagination):
         return None
 
     def encode_cursor(self, cursor):
-
         return b64encode(cursor.encode("ascii")).decode("ascii")
 
 
@@ -176,44 +175,29 @@ class BuildingListingCursorPagination(CursorPagination):
             RawSQL('point("batid_building"."id", 0.) <-> point(%s, 0.)', [current_id])
         )
 
-        # If we have a cursor with a fixed position then filter by that.
         if current_position is not None:
-            order = self.ordering[0]
+            order = "id"
             is_reversed = order.startswith("-")
-            order_attr = order.lstrip("-")
 
-            if order_attr == "id":
-                # for id ordering, we we create a query that will leverage the strange gist index on (point, poin(id, 0))
-                # for better performance
-                # >> means right of, so "point(id, 0) >> point(XXX, 0.) means id > XXX
-                if self.cursor.reverse != is_reversed:
-                    queryset = queryset.filter(
-                        RawSQL(
-                            "point(id, 0) << point(%s, 0.)",
-                            (current_position,),
-                            output_field=BooleanField(),
-                        )
+            # we create a query that leverages the strange gist index on (point, poin(id, 0))
+            # for better performance
+            # >> means right of, so "point(id, 0) >> point(XXX, 0.) means id > XXX
+            if self.cursor.reverse != is_reversed:
+                queryset = queryset.filter(
+                    RawSQL(
+                        "point(id, 0) << point(%s, 0.)",
+                        (current_position,),
+                        output_field=BooleanField(),
                     )
-                else:
-                    queryset = queryset.filter(
-                        RawSQL(
-                            "point(id, 0) >> point(%s, 0.)",
-                            (current_position,),
-                            output_field=BooleanField(),
-                        )
-                    )
+                )
             else:
-                # Test for: (cursor reversed) XOR (queryset reversed)
-                if self.cursor.reverse != is_reversed:
-                    kwargs = {order_attr + "__lt": current_position}
-                else:
-                    kwargs = {order_attr + "__gt": current_position}
-
-                queryset = queryset.filter(**kwargs)
-
-        if current_position is not None:
-            order = self.ordering[0]
-            is_reversed = order.startswith("-")
+                queryset = queryset.filter(
+                    RawSQL(
+                        "point(id, 0) >> point(%s, 0.)",
+                        (current_position,),
+                        output_field=BooleanField(),
+                    )
+                )
 
         # If we have an offset cursor then offset the entire page by that amount.
         # We also always fetch an extra item in order to determine if there is a
