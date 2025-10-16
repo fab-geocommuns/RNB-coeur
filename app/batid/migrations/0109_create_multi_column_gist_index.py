@@ -16,15 +16,21 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunSQL(
-            "SET statement_timeout = '3600000';",  # 60 min
-            reverse_sql=migrations.RunSQL.noop,
-        ),
-        migrations.AddIndex(
-            model_name="building",
-            index=django.contrib.postgres.indexes.GistIndex(
-                models.F("point"),
-                batid.models.building.PGPoint(models.F("id"), 0),
-                name="bdg_point_id_gist_idx",
-            ),
+            """
+            CREATE INDEX IF NOT EXISTS "bdg_point_id_gist_idx" ON "batid_building" USING gist ("point", (point("id", 0)));
+            """,
+            reverse_sql="DROP INDEX bdg_point_id_gist_idx;",
+            # writing the sql by hand allows us to add "if not exists"
+            # this statement will be executed manually on the DB to avoid downtime
+            state_operations=[
+                migrations.AddIndex(
+                    model_name="building",
+                    index=django.contrib.postgres.indexes.GistIndex(
+                        models.F("point"),
+                        batid.models.building.PGPoint(models.F("id"), 0),
+                        name="bdg_point_id_gist_idx",
+                    ),
+                )
+            ],
         ),
     ]
