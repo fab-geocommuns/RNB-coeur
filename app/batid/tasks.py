@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-
+import random
 from celery import chain
 from celery import shared_task
 from celery import Signature
@@ -401,11 +401,14 @@ def fill_empty_event_type(batch_size: int) -> int:
 
 
 @shared_task()
-def test_fake_dl() -> str:
+def test_fake_dl(delay) -> str:
+
+    # get random int between 4 and 10
+
     import time
 
-    time.sleep(5)
-    return "finished"
+    time.sleep(delay * 2)
+    return f"finished in {delay * 2} seconds"
 
 
 @shared_task()
@@ -413,28 +416,39 @@ def test_fake_convert() -> str:
     return "quick convert"
 
 
+# # reproduced problem
+# @shared_task()
+# def all_test_delay_tasks() -> str:
+
+#     tasks = []
+
+#     for _ in range(10):
+
+#         dpt_tasks = []
+
+#         dl_task = Signature(
+#             "batid.tasks.test_fake_dl",
+#             immutable=True,
+#         )
+
+#         dpt_tasks.append(dl_task)
+
+#         convert_task = Signature(
+#             "batid.tasks.test_fake_convert",
+#             immutable=True,
+#         )
+#         dpt_tasks.append(convert_task)
+
+#         tasks.append(dpt_tasks)
+
+#     for t in tasks:
+#         chain(*t)()
+
+
 @shared_task()
-def all_test_delay_tasks() -> str:
+def sandbox() -> str:
 
-    tasks = []
-
-    for _ in range(10):
-
-        dpt_tasks = []
-
-        dl_task = Signature(
-            "batid.tasks.test_fake_dl",
-            immutable=True,
-        )
-        dpt_tasks.append(dl_task)
-
-        convert_task = Signature(
-            "batid.tasks.test_fake_convert",
-            immutable=True,
-        )
-        dpt_tasks.append(convert_task)
-
-        tasks.append(dpt_tasks)
-
-    for t in tasks:
-        chain(*t)()
+    for i in range(10):
+        (
+            test_fake_dl.s(i).set(priority=1) | test_fake_convert.si().set(priority=5)
+        ).apply_async()

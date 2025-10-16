@@ -9,12 +9,15 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
 from app.schedule import get_celery_beat_schedule
+from kombu import Exchange
+from kombu import Queue
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -252,6 +255,7 @@ STATIC_URL = "/static/"
 
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
 CELERY_BACKEND_URL = os.environ.get("CELERY_RESULT_BACKEND")
+
 
 CELERY_BEAT_SCHEDULE = get_celery_beat_schedule(ENVIRONMENT)
 

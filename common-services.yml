@@ -1,5 +1,4 @@
 services:
-
   nginx-proxy:
     container_name: nginx-proxy
     build: ./nginx
@@ -36,7 +35,7 @@ services:
       dockerfile: ./Dockerfile
       target: app_web
     ports:
-      - '127.0.0.1:8000:8000'
+      - "127.0.0.1:8000:8000"
     command: python manage.py runserver 0.0.0.0:8000
     depends_on:
       rabbitmq:
