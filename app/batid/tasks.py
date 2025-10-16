@@ -3,7 +3,7 @@ from typing import Optional
 
 from celery import chain
 from celery import shared_task
-
+from celery import Signature
 from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list
 from batid.services.administrative_areas import slice_dpts
@@ -398,3 +398,43 @@ def fill_empty_event_type(batch_size: int) -> int:
             break
 
     return f"Total updated rows: {total}"  # type: ignore[return-value]
+
+
+@shared_task()
+def test_fake_dl() -> str:
+    import time
+
+    time.sleep(5)
+    return "finished"
+
+
+@shared_task()
+def test_fake_convert() -> str:
+    return "quick convert"
+
+
+@shared_task()
+def all_test_delay_tasks() -> str:
+
+    tasks = []
+
+    for _ in range(10):
+
+        dpt_tasks = []
+
+        dl_task = Signature(
+            "batid.tasks.test_fake_dl",
+            immutable=True,
+        )
+        dpt_tasks.append(dl_task)
+
+        convert_task = Signature(
+            "batid.tasks.test_fake_convert",
+            immutable=True,
+        )
+        dpt_tasks.append(convert_task)
+
+        tasks.append(dpt_tasks)
+
+    for t in tasks:
+        chain(*t)()
