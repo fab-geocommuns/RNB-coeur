@@ -112,7 +112,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": (
                             "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box."
-                            "Le format est min_lon,min_lat,max_lon,max_lat"
+                            "Le format est `min_lon,min_lat,max_lon,max_lat`"
                             "La taille de la bbox est limitée par la contrainte (max_lon - min_lon) * (max_lat - min_lat) < 4. Cela correspond à la surface d'environ deux départements français."
                         ),
                         "required": False,
@@ -126,8 +126,8 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                             "OBSOLÈTE - préférez le paramètre `bbox` "
                             "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box "
                             "définie par les coordonnées Nord-Ouest et Sud-Est. Les coordonnées sont séparées par des virgules. "
-                            "Le format est nw_lat,nw_lng,se_lat,se_lng"
-                            "La taille de la bbox est limitée par la contrainte (se_lng - nw_lng) * (nw_lat - se_lat) < 4. Cela correspond à la surface d'environ deux départements français."
+                            "Le format est `nw_lat,nw_lon,se_lat,se_lon`"
+                            "La taille de la bbox est limitée par la contrainte (se_lon - nw_lon) * (nw_lat - se_lat) < 4. Cela correspond à la surface d'environ deux départements français."
                         ),
                         "required": False,
                         "schema": {"type": "string"},
@@ -178,44 +178,45 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
     )
     def get(self, request: Request) -> Response:
         query_serializer = ListBuildingQuerySerializer(data=request.query_params)
-        if query_serializer.is_valid():
-            query_params = request.query_params.dict()
 
-            # check if we need to include plots
-            with_plots_param = request.query_params.get("withPlots", None)
-            with_plots = True if with_plots_param == "1" else False
-            query_params["with_plots"] = with_plots
-
-            # add user to query params
-            query_params["user"] = request.user
-            buildings = list_bdgs(query_params)
-
-            # paginate
-
-            # get the "format" query parameter
-            format_param = request.query_params.get("format", "json").lower()
-
-            # Mypy annotations
-            paginator: OGCApiPagination | BuildingListingCursorPagination
-            serializer: BuildingGeoJSONSerializer | BuildingSerializer
-
-            if format_param == "geojson":
-                paginator = OGCApiPagination()
-                paginated_buildings = paginator.paginate_queryset(buildings, request)
-                serializer = BuildingGeoJSONSerializer(
-                    paginated_buildings, with_plots=with_plots, many=True
-                )
-            else:
-                paginator = BuildingListingCursorPagination()
-                paginated_buildings = paginator.paginate_queryset(buildings, request)
-                serializer = BuildingSerializer(
-                    paginated_buildings, with_plots=with_plots, many=True
-                )
-
-            return paginator.get_paginated_response(serializer.data)
-        else:
+        if not query_serializer.is_valid():
             # Invalid data, return validation errors
             return Response(query_serializer.errors, status=400)
+
+        query_params = request.query_params.dict()
+
+        # check if we need to include plots
+        with_plots_param = request.query_params.get("withPlots", None)
+        with_plots = True if with_plots_param == "1" else False
+        query_params["with_plots"] = with_plots
+
+        # add user to query params
+        query_params["user"] = request.user
+        buildings = list_bdgs(query_params)
+
+        # paginate
+
+        # get the "format" query parameter
+        format_param = request.query_params.get("format", "json").lower()
+
+        # Mypy annotations
+        paginator: OGCApiPagination | BuildingListingCursorPagination
+        serializer: BuildingGeoJSONSerializer | BuildingSerializer
+
+        if format_param == "geojson":
+            paginator = OGCApiPagination()
+            paginated_buildings = paginator.paginate_queryset(buildings, request)
+            serializer = BuildingGeoJSONSerializer(
+                paginated_buildings, with_plots=with_plots, many=True
+            )
+        else:
+            paginator = BuildingListingCursorPagination()
+            paginated_buildings = paginator.paginate_queryset(buildings, request)
+            serializer = BuildingSerializer(
+                paginated_buildings, with_plots=with_plots, many=True
+            )
+
+        return paginator.get_paginated_response(serializer.data)
 
     @rnb_doc(
         {

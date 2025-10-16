@@ -137,34 +137,34 @@ class ListBuildingQuerySerializer(serializers.Serializer):
         [min_lon, min_lat, max_lon, max_lat] = values
 
         if min_lon > max_lon:
-            raise serializers.ValidationError("min_lon must be lower than max_lon")
+            raise serializers.ValidationError("min_lon doit être inféfieure à max_lon")
         if min_lat > max_lat:
-            raise serializers.ValidationError("min_lat must be lower than max_lat")
+            raise serializers.ValidationError("min_lat doit être inférieure à max_lat")
 
         validate_point(f"{min_lat},{min_lon}")
         validate_point(f"{max_lat},{max_lon}")
 
         if (float(max_lon) - float(min_lon)) * (float(max_lat) - float(min_lat)) > 4:
             raise serializers.ValidationError(
-                "bbox is too large, (max_lon - min_lon) * (max_lat - min_lat) must be less than 4. If you need larger bbox, please contact us."
+                "La bbox est trop grande, (max_lon - min_lon) * (max_lat - min_lat) doit être inférieur à 4. Si vous avez besoin de bbox plus grandes, merci de nous contacter."
             )
         return value
 
     def validate_bb(self, value):
         values = value.split(",")
-        [nw_lat, nw_lng, se_lat, se_lng] = values
+        [nw_lat, nw_lon, se_lat, se_lon] = values
 
         if nw_lat < se_lat:
-            raise serializers.ValidationError("nw_lat must be greater than se_lat")
-        if nw_lng > se_lng:
-            raise serializers.ValidationError("nw_lng must be lower than se_lng")
+            raise serializers.ValidationError("nw_lat doit être inférieure à se_lat")
+        if nw_lon > se_lon:
+            raise serializers.ValidationError("nw_lon doit être inférieure à se_lon")
 
-        validate_point(f"{nw_lat},{nw_lng}")
-        validate_point(f"{se_lat},{se_lng}")
+        validate_point(f"{nw_lat},{nw_lon}")
+        validate_point(f"{se_lat},{se_lon}")
 
-        if (float(se_lng) - float(nw_lng)) * (float(nw_lat) - float(se_lat)) > 4:
+        if (float(se_lon) - float(nw_lon)) * (float(nw_lat) - float(se_lat)) > 4:
             raise serializers.ValidationError(
-                "bb is too large, (se_lng - nw_lng) * (nw_lat - se_lat) must be less than 4"
+                "La bounding box est trop grande, (se_lon - nw_lon) * (nw_lat - se_lat) doit être inférieur à 4."
             )
         return value
 
