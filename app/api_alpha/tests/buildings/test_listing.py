@@ -122,6 +122,21 @@ class BuildingsEndpointsTest(APITestCase):
         self.assertEqual(len(data["results"]), 1)
         self.assertDictEqual(data, expected)
 
+    def test_bdg_in_bbox_too_big(self):
+        r = self.client.get(
+            "/api/alpha/buildings/?bbox=5.7211808330356,45.18355043319679,8.722614035153486,47.18468473541278"
+        )
+        self.assertEqual(r.status_code, 400)
+        data = r.json()
+        self.assertDictEqual(
+            data,
+            {
+                "bbox": [
+                    "La bbox est trop grande, (max_lon - min_lon) * (max_lat - min_lat) doit être inférieur à 4. Si vous avez besoin de bbox plus grandes, merci de nous contacter."
+                ]
+            },
+        )
+
     def test_bdg_in_bbox_obsolote(self):
 
         # This test uses the legacy "bb" parameter which is now marked as obsolete in the API documentation
@@ -169,6 +184,21 @@ class BuildingsEndpointsTest(APITestCase):
 
         self.assertEqual(len(data["results"]), 1)
         self.assertDictEqual(data, expected)
+
+    def test_bdg_in_obsolete_bbox_too_big(self):
+        r = self.client.get(
+            "/api/alpha/buildings/?bb=48.18468473541278,5.7211808330356,45.18355043319679,7.722614035153486"
+        )
+        self.assertEqual(r.status_code, 400)
+        data = r.json()
+        self.assertDictEqual(
+            data,
+            {
+                "bb": [
+                    "La bounding box est trop grande, (se_lon - nw_lon) * (nw_lat - se_lat) doit être inférieur à 4."
+                ]
+            },
+        )
 
     def test_bdg_in_city(self):
         r = self.client.get("/api/alpha/buildings/?insee_code=38185")
