@@ -6,9 +6,10 @@ from datetime import date
 from datetime import datetime
 from datetime import timezone
 from typing import Optional
-from celery import chain
+
 import fiona  # type: ignore[import-untyped]
 import psycopg2
+from celery import chain
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import WKTWriter
