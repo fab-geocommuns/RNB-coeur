@@ -397,35 +397,3 @@ def fill_empty_event_type(batch_size: int) -> int:
             break
 
     return f"Total updated rows: {total}"  # type: ignore[return-value]
-
-
-@shared_task()
-def test_fake_dl(delay) -> str:
-
-    # get random int between 4 and 10
-
-    import time
-
-    time.sleep(delay * 2)
-    return f"finished in {delay * 2} seconds"
-
-
-@shared_task()
-def test_fake_convert(id) -> str:
-    return f"quick convert {id} done"
-
-
-@shared_task()
-def sandbox() -> str:
-
-    tasks = []
-
-    for i in range(10):
-        c = chain(
-            test_fake_dl.s(i).set(priority=1),
-            test_fake_convert.si(i).set(priority=5),
-        )
-        tasks.append(c)
-
-    tasks_group = group(tasks)
-    tasks_group.apply_async()
