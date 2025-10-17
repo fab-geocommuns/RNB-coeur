@@ -132,7 +132,7 @@ class BuildingsEndpointsTest(APITestCase):
             data,
             {
                 "bbox": [
-                    "bbox is too large, (max_lon - min_lon) * (max_lat - min_lat) must be less than 4. If you need larger bbox, please contact us."
+                    "La bbox est trop grande, (max_lon - min_lon) * (max_lat - min_lat) doit être inférieur à 4. Si vous avez besoin de bbox plus grandes, merci de nous contacter."
                 ]
             },
         )
@@ -195,7 +195,7 @@ class BuildingsEndpointsTest(APITestCase):
             data,
             {
                 "bb": [
-                    "bb is too large, (se_lng - nw_lng) * (nw_lat - se_lat) must be less than 4"
+                    "La bounding box est trop grande, (se_lon - nw_lon) * (nw_lat - se_lat) doit être inférieur à 4."
                 ]
             },
         )
