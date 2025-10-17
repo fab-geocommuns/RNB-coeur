@@ -36,7 +36,7 @@ services:
     extends:
       file: common-services.yml
       service: worker
-    command: celery -A app worker --concurrency=3 --loglevel=INFO
+    command: celery -A app worker --concurrency=3 --loglevel=INFO -Q default -O fair
     env_file:
       - ./.env.db_auth.prod
       - ./.env.app.prod
