@@ -20,19 +20,36 @@ class EndpointTest(APITestCase):
         self.assertEqual(r.status_code, 200)
 
         data = r.json()
+        next_page = data["next"]
 
-        self.assertEqual(
-            data["next"], "http://testserver/api/alpha/buildings/?cursor=2"
-        )
         self.assertIsNone(data["previous"])
 
         self.assertEqual(len(data["results"]), 20)
 
         # Since the data as no expliciti ORDER BY we want to check the results have a consistent order
         self.assertEqual(data["results"][0]["rnb_id"], "000000000000")
-        self.assertEqual(data["results"][5]["rnb_id"], "000000000005")
-        self.assertEqual(data["results"][16]["rnb_id"], "000000000016")
-        self.assertEqual(data["results"][19]["rnb_id"], "000000000019")
+        self.assertEqual(data["results"][4]["rnb_id"], "000000000004")
+
+        r = self.client.get(next_page)
+        data = r.json()
+        self.assertEqual(len(data["results"]), 20)
+        self.assertEqual(data["results"][0]["rnb_id"], "000000000020")
+        self.assertEqual(data["results"][19]["rnb_id"], "000000000039")
+
+        next_page = data["next"]
+
+        r = self.client.get(next_page)
+        data = r.json()
+        self.assertEqual(len(data["results"]), 20)
+        self.assertEqual(data["results"][0]["rnb_id"], "000000000040")
+
+        # test the previous page link send you properly back in the results
+        previous_page = data["previous"]
+        r = self.client.get(previous_page)
+        data = r.json()
+        self.assertEqual(len(data["results"]), 20)
+        self.assertEqual(data["results"][0]["rnb_id"], "000000000020")
+        self.assertEqual(data["results"][19]["rnb_id"], "000000000039")
 
     def test_limit_param(self):
         r = self.client.get("/api/alpha/buildings/?limit=10")
@@ -40,9 +57,6 @@ class EndpointTest(APITestCase):
 
         data = r.json()
 
-        self.assertEqual(
-            data["next"], "http://testserver/api/alpha/buildings/?cursor=2&limit=10"
-        )
         self.assertIsNone(data["previous"])
 
         self.assertEqual(len(data["results"]), 10)
@@ -67,10 +81,7 @@ class EndpointTest(APITestCase):
 
         for link in data["links"]:
             if link["rel"] == "next":
-                self.assertEqual(
-                    link["href"],
-                    "http://testserver/api/alpha/buildings/?cursor=2&format=geojson",
-                )
+                self.assertIsNotNone(link["href"])
 
         self.assertEqual(len(data["features"]), 20)
 
@@ -80,32 +91,29 @@ class EndpointTest(APITestCase):
         self.assertEqual(data["features"][16]["id"], "000000000016")
         self.assertEqual(data["features"][19]["id"], "000000000019")
 
-    def test_nth_page(self):
+    def test_next_page(self):
 
-        r = self.client.get("/api/alpha/buildings/?cursor=5")
+        r = self.client.get("/api/alpha/buildings/")
         self.assertEqual(r.status_code, 200)
 
         data = r.json()
+        next_url = data["next"]
 
-        self.assertEqual(
-            data["next"], "http://testserver/api/alpha/buildings/?cursor=6"
-        )
-        self.assertEqual(
-            data["previous"], "http://testserver/api/alpha/buildings/?cursor=4"
-        )
+        r = self.client.get(next_url)
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
 
         self.assertEqual(len(data["results"]), 20)
 
         # Since the data as no expliciti ORDER BY we want to check the results have a consistent order
-        self.assertEqual(data["results"][0]["rnb_id"], "000000000080")
-        self.assertEqual(data["results"][5]["rnb_id"], "000000000085")
-        self.assertEqual(data["results"][16]["rnb_id"], "000000000096")
-        self.assertEqual(data["results"][19]["rnb_id"], "000000000099")
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(data["results"][0]["rnb_id"], "000000000020")
+        self.assertEqual(data["results"][5]["rnb_id"], "000000000025")
+        self.assertEqual(data["results"][16]["rnb_id"], "000000000036")
+        self.assertEqual(data["results"][19]["rnb_id"], "000000000039")
 
-    def test_nth_page_geojson(self):
+    def test_next_page_geojson(self):
 
-        r = self.client.get("/api/alpha/buildings/?cursor=5&format=geojson")
+        r = self.client.get("/api/alpha/buildings/?format=geojson")
         self.assertEqual(r.status_code, 200)
 
         data = r.json()
@@ -113,41 +121,40 @@ class EndpointTest(APITestCase):
         # Assert there is a next link
         links_rels = [link["rel"] for link in data["links"]]
         self.assertIn("next", links_rels)
+
+        for link in data["links"]:
+            if link["rel"] == "next":
+                next_link = link["href"]
+
+        self.assertEqual(len(data["features"]), 20)
+
+        # follow the next link
+        r = self.client.get(next_link)
+        data = r.json()
+        links_rels = [link["rel"] for link in data["links"]]
+        self.assertIn("next", links_rels)
         self.assertIn("prev", links_rels)
 
         for link in data["links"]:
             if link["rel"] == "next":
-                self.assertEqual(
-                    link["href"],
-                    "http://testserver/api/alpha/buildings/?cursor=6&format=geojson",
-                )
+                self.assertIsNotNone(link["href"])
             if link["rel"] == "prev":
-                self.assertEqual(
-                    link["href"],
-                    "http://testserver/api/alpha/buildings/?cursor=4&format=geojson",
-                )
-
-        self.assertEqual(len(data["features"]), 20)
+                self.assertIsNotNone(link["href"])
 
         # Since the data as no explicit ORDER BY we want to check the results have a consistent order
-        self.assertEqual(data["features"][0]["id"], "000000000080")
-        self.assertEqual(data["features"][5]["id"], "000000000085")
-        self.assertEqual(data["features"][16]["id"], "000000000096")
-        self.assertEqual(data["features"][19]["id"], "000000000099")
+        self.assertEqual(data["features"][0]["id"], "000000000020")
+        self.assertEqual(data["features"][5]["id"], "000000000025")
+        self.assertEqual(data["features"][16]["id"], "000000000036")
+        self.assertEqual(data["features"][19]["id"], "000000000039")
 
     def test_params_conservation(self):
 
-        r = self.client.get("/api/alpha/buildings/?insee_code=38185&cursor=3")
+        r = self.client.get("/api/alpha/buildings/?insee_code=38185")
         self.assertEqual(r.status_code, 200)
 
         data = r.json()
 
-        self.assertEqual(
+        self.assertIn(
+            "insee_code=38185",
             data["next"],
-            "http://testserver/api/alpha/buildings/?cursor=4&insee_code=38185",
-        )
-
-        self.assertEqual(
-            data["previous"],
-            "http://testserver/api/alpha/buildings/?cursor=2&insee_code=38185",
         )

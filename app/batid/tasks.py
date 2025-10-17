@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-import random
+
 from celery import chain
 from celery import shared_task
 
