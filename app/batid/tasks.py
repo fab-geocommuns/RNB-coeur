@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional
 import random
-from celery import chain, group
+from celery import chain
 from celery import shared_task
-from celery import Signature
+
 from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list
 from batid.services.administrative_areas import slice_dpts
@@ -119,7 +119,8 @@ def queue_full_bdtopo_import(
 
     all_chains = create_bdtopo_full_import_tasks(dpts, release_date)
 
-    group(all_chains).apply_async()
+    for one_dpt_chain in all_chains:
+        one_dpt_chain.apply_async()
 
     return f"Queued {len(all_chains)} departments import"
 
