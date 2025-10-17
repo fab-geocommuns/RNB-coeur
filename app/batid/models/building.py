@@ -9,8 +9,11 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.indexes import GistIndex
 from django.db import transaction
 from django.db.models import CheckConstraint
+from django.db.models import F
+from django.db.models import Func
 from django.db.models import Q
 from django.db.models import UniqueConstraint
 from django.db.models.functions import Lower
@@ -83,6 +86,12 @@ class BuildingAbstract(models.Model):
 
     class Meta:
         abstract = True
+
+
+class PGPoint(Func):
+    function = "point"
+    template = "%(function)s(%(expressions)s)"
+    output_field = models.Field()
 
 
 class Building(BuildingAbstract):
@@ -499,6 +508,18 @@ class Building(BuildingAbstract):
                     "status",
                 ),
                 name="batid_building_active_status",
+            ),
+            # this index is a bit strange for performance reasons
+            # we need to write queries that filter both on point (geometry) and on the building id
+            # queries look like point && bbox and id > XXX
+            # treating the id as a geographical point (point(id, 0)) allows us to create a gist index
+            # on both point and id columns.
+            # queries can be written like point && bbox AND point(id,0) >> point(XXX, 0) order by point(id, 0) <-> point(XXX, 0)
+            # tests with the btree_gist extension have been disapointing, so we ended up using this solution.
+            GistIndex(
+                F("point"),
+                PGPoint(F("id"), 0),
+                name="bdg_point_id_gist_idx",
             ),
         ]
         constraints = [
