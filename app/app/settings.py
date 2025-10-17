@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 import os
 
 import sentry_sdk
+from kombu import Exchange
+from kombu import Queue
 from sentry_sdk.integrations.django import DjangoIntegration
 
 from app.schedule import get_celery_beat_schedule
@@ -252,6 +254,20 @@ STATIC_URL = "/static/"
 
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
 CELERY_BACKEND_URL = os.environ.get("CELERY_RESULT_BACKEND")
+CELERY_TASK_QUEUES = (
+    Queue(
+        "default",
+        Exchange("default"),
+        routing_key="default",
+        queue_arguments={"x-max-priority": 10},
+    ),
+)
+CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_DEFAULT_EXCHANGE = "default"
+CELERY_TASK_DEFAULT_ROUTING_KEY = "default"
+CELERY_TASK_DEFAULT_PRIORITY = 5
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
 
 CELERY_BEAT_SCHEDULE = get_celery_beat_schedule(ENVIRONMENT)
 
