@@ -102,8 +102,8 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
                     with connection.cursor() as cursor:
 
                         # Allow for a long COPY operation
-                        # 10 minutes = 600000 ms
-                        cursor.execute("SET statement_timeout = 600000;")
+                        timeout = 5 * 3600 * 1000  # 5 hours in milliseconds
+                        cursor.execute(f"SET statement_timeout = {timeout};")
 
                         cursor.copy_from(
                             f, Candidate._meta.db_table, sep=";", columns=cols
