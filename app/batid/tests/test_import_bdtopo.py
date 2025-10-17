@@ -90,5 +90,6 @@ class TestImportTasks(TestCase):
 
         self.assertEqual(len(all_tasks), len(dpts))
 
-        for dpt_tasks in all_tasks:
-            self.assertEqual(len(dpt_tasks), 2)
+        for dpt_chain in all_tasks:
+
+            self.assertEqual(len(dpt_chain.tasks), 2)

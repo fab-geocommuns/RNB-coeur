@@ -6,7 +6,7 @@ from datetime import date
 from datetime import datetime
 from datetime import timezone
 from typing import Optional
-
+from celery import chain
 import fiona  # type: ignore[import-untyped]
 import psycopg2
 from celery import Signature
@@ -27,23 +27,19 @@ from batid.utils.geo import fix_nested_shells
 
 def create_bdtopo_full_import_tasks(dpt_list: list, release_date: str) -> list:
 
-    tasks = []
+    chains = []
 
     bulk_launch_uuid = uuid.uuid4()
 
     for dpt in dpt_list:
 
-        dpt_tasks = create_bdtopo_dpt_import_tasks(dpt, release_date, bulk_launch_uuid)
-        tasks.append(dpt_tasks)
+        dpt_chain = create_bdtopo_dpt_import_tasks(dpt, release_date, bulk_launch_uuid)
+        chains.append(dpt_chain)
 
-    return tasks
+    return chains
 
 
-def create_bdtopo_dpt_import_tasks(
-    dpt: str, release_date: str, bulk_launch_id=None
-) -> list:
-
-    tasks = []
+def create_bdtopo_dpt_import_tasks(dpt: str, release_date: str, bulk_launch_id=None):
 
     src_params = bdtopo_src_params(dpt, release_date)
 
@@ -52,16 +48,16 @@ def create_bdtopo_dpt_import_tasks(
         args=["bdtopo", src_params],  # type: ignore[arg-type]
         immutable=True,
     )
-    tasks.append(dl_task)
+    dl_task.set(priority=1)
 
     convert_task = Signature(  # type: ignore[var-annotated]
         "batid.tasks.convert_bdtopo",
         args=[src_params, bulk_launch_id],  # type: ignore[arg-type]
         immutable=True,
     )
-    tasks.append(convert_task)
+    convert_task.set(priority=5)
 
-    return tasks
+    return chain(dl_task, convert_task)
 
 
 def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
