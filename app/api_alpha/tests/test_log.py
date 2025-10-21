@@ -35,7 +35,7 @@ class LogEndpointsTest(APITestCase):
             status="constructed",
         )
 
-    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
+    @mock.patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_list_log(self):
         r = self.client.get("/api/alpha/buildings/")
 
@@ -45,6 +45,7 @@ class LogEndpointsTest(APITestCase):
 
         self.assertEqual(count, 1)
 
+    @mock.patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_list_no_log(self):
         r = self.client.get("/api/alpha/buildings/?from=monitoring")
 
