@@ -95,6 +95,9 @@ Le projet utilise [pre-commit](https://pre-commit.com/) pour garantir le bon for
 
 Il est possible d'[installer](https://pre-commit.com/#install) pre-commit en local sur sa machine pour que les corrections soient faites avant même de créer la PR, lors de chaque commit fait en local.
 
+## Effectuer des rapprochements
+
+Retrouvez les étapes pour effectuer des rapprochements à partir d'un accès à une base du RNB dans la section [`Rapprochements`](app/notebooks/rapprochements/README.md)
 
 ## A propos du RNB
 
