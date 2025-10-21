@@ -25,7 +25,7 @@ from .others import SummerChallenge
 from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import NotEnoughBuildings
 from batid.exceptions import OperationOnInactiveBuilding
-from batid.exceptions import ReactivationNotAllowed
+from batid.exceptions import RevertNotAllowed
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.utils.db import from_now_to_infinity
@@ -55,7 +55,7 @@ class BuildingAbstract(models.Model):
     )
     # an event can modify several buildings at once
     # all the buildings modified by the same event will have the same event_id
-    event_id = models.UUIDField(null=True)  # type: ignore[var-annotated]
+    event_id = models.UUIDField(null=True, db_index=True)  # type: ignore[var-annotated]
     # the possible event types
     # creation: the building is created for the first time
     # update: some fields of an existing building are modified
@@ -200,7 +200,7 @@ class Building(BuildingAbstract):
 
             self._reset_linked_contributions(user, previous_event_id)
         else:
-            raise ReactivationNotAllowed()
+            raise RevertNotAllowed()
 
     @transaction.atomic
     def update(
@@ -427,6 +427,63 @@ class Building(BuildingAbstract):
         SummerChallenge.score_merge(user, building.point, building.rnb_id, event_id)
 
         return building
+
+    @transaction.atomic
+    def revert_merge(
+        self,
+        user: User,
+        event_origin: dict,
+        event_id_to_revert: uuid.UUID,
+    ) -> uuid.UUID:
+        buildings_to_revert = (
+            Building.objects.all()
+            .filter(event_id=event_id_to_revert)
+            .order_by("rnb_id")
+        )
+        buildings_checking = (
+            BuildingWithHistory.objects.all()
+            .filter(event_id=event_id_to_revert)
+            .order_by("rnb_id")
+        )
+
+        # Only the last version of a Building is in the Building table.
+        # As soon as it is modified, that version is transfered in the History table.
+        # After a merge, all the buildings linked to the merge live in the Building table.
+        # Comparing Building and BuildingWithHistory is a simple way to check no building has been touched since the merge.
+        if buildings_to_revert != buildings_checking:
+            raise RevertNotAllowed()
+
+        # should not happen
+        if len(buildings_to_revert) < 3:
+            raise NotEnoughBuildings()
+
+        deactivated_buildings = [b for b in buildings_to_revert if not b.is_active]
+        created_buildings = [b for b in buildings_to_revert if b.is_active]
+
+        if len(created_buildings) != 1:
+            raise RevertNotAllowed()
+        created_building = created_buildings[0]
+
+        new_event_id = uuid.uuid4()
+
+        for building in deactivated_buildings:
+            building.is_active = True
+            building.event_type = "revert_merge"
+            building.event_id = new_event_id
+            building.event_user = user
+            building.event_origin = event_origin
+            building.revert_event_id = event_id_to_revert
+            building.save()
+
+        created_building.is_active = False
+        created_building.event_type = "revert_merge"
+        created_building.event_id = new_event_id
+        created_building.event_user = user
+        created_building.event_origin = event_origin
+        created_building.revert_event_id = event_id_to_revert
+        created_building.save()
+
+        return new_event_id
 
     @transaction.atomic
     def split(
