@@ -66,18 +66,23 @@ class BuildingAbstract(models.Model):
     EVENT_TYPES = [
         "creation",
         "update",
+        "revert_update",
         "deactivation",
         "reactivation",
         "merge",
+        "revert_merge",
         "split",
+        "revert_split",
     ]
     event_type = models.CharField(  # type: ignore[var-annotated]
         choices=[(e, e) for e in EVENT_TYPES],
-        max_length=12,
+        max_length=13,
         null=True,
     )
     # the user at the origin of the event
     event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)  # type: ignore[var-annotated]
+    # in case of a revert operation, the event_id of the reverted event
+    revert_event_id = models.UUIDField(null=True)
     # only currently active buildings are considered part of the RNB
     is_active = models.BooleanField(db_index=True, default=True)  # type: ignore[var-annotated]
     # this field is the source of truth for the building <> address link
