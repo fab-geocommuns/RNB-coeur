@@ -5,6 +5,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
+from api_alpha.serializers.serializers import ListBuildingQuerySerializer
 from batid.models import Building
 
 
@@ -34,6 +35,7 @@ class LogEndpointsTest(APITestCase):
             status="constructed",
         )
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_list_log(self):
         r = self.client.get("/api/alpha/buildings/")
 
