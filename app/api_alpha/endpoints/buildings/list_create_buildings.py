@@ -35,6 +35,7 @@ from batid.models import Contribution
 
 class ListCreateBuildings(RNBLoggingMixin, APIView):
     permission_classes = [ReadOnly | RNBContributorPermission]
+    throttle_scope = "slow_api_route"
 
     @rnb_doc(
         {
