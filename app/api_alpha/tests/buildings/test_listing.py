@@ -200,6 +200,19 @@ class BuildingsEndpointsTest(APITestCase):
             },
         )
 
+    def test_bgs_listing_needs_filtering(self):
+        r = self.client.get("/api/alpha/buildings/")
+        self.assertEqual(r.status_code, 400)
+        data = r.json()
+        self.assertDictEqual(
+            data,
+            {
+                "non_field_errors": [
+                    "Choisissez au moins un paramêtre de filtrage parmi 'bbox', 'insee_code' ou 'cle_interop_ban'."
+                ]
+            },
+        )
+
     def test_bdg_in_city(self):
         r = self.client.get("/api/alpha/buildings/?insee_code=38185")
         self.assertEqual(r.status_code, 200)
