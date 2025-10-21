@@ -28,19 +28,14 @@ Pour contribuer à ce repo, il faut commencer par le faire tourner en local sur 
 
 ### 3. Renseigner les fichiers de configuration
 
-Copiez, renommez et remplissez les fichiers de configurations ci-dessous.
-
+Créez les fichiers de configuration des variables d’environnement locales (.env.*.dev) à partir des fichiers d’exemple (.env.*.example).
+Ces fichiers contiennent les paramètres nécessaires au fonctionnement de l’application en local.
 Le détail des paramètres à modifier est disponible dans chacun des fichiers d'exemple.
 
-NB : l'extension .example devient .dev
-
-* .env.app.example -> .env.app.dev
-* .env.db_auth.example -> .env.db_auth.dev
-* .env.nginx-encrypt.example -> .env.nginx-encrypt.dev
-* .env.rnb.example -> .env.rnb.dev
-* .env.s3_backup.example -> .env.s3_backup.dev
-* .env.sentry.example -> .env.sentry.dev
-* .env.worker.example -> .env.worker.dev
+Pour les générer automatiquement :
+```
+make env-local
+```
 
 ### 4. Construire et démarrer les conteneurs docker
 
