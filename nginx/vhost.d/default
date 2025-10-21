@@ -1,8 +1,8 @@
 location /api {
     proxy_pass http://web:8000/api;
 
-    limit_req zone=api_rate_limit burst=50;
-    add_header RateLimit-Limit 20;
-    add_header RateLimit-Policy "q=20;w=1";
+    limit_req zone=low_api_rate_limit burst=5 nodelay;
+    add_header RateLimit-Limit 5;
+    add_header RateLimit-Policy "q=5;w=1";
     limit_req_status 429;
 }
