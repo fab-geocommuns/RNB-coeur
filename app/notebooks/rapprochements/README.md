@@ -12,30 +12,32 @@ Si vous souhaitez effectuer le rapprochement partir d'une copie de la base du RN
 Attention, la base est volumnineuse, assurez vous d'avoir l'espace disque nécéssaire.
 
 Dans tous les cas, mettez à jour le fichier [`.env.db_auth.dev`](.env.db_auth.dev) avec les accès à la base de donnée concernée.
-Attention, vos requêtes peuvent faire monter en charge la base de donnée. Aussi, il peut être utile d'utiliser un profil d'accès en lecture seule.
 
-### 2. Construire et démarrer les conteneurs docker
+Attention, vos requêtes peuvent faire monter en charge la base de donnée.
+Aussi, il peut être utile d'utiliser un profil d'accès en lecture seule.
+
+## 2. Construire et démarrer les conteneurs docker
 
 ```
 docker compose build
 docker compose up -d
 ```
 
-### 3. Lancer un Jupyter Notebook
-De nombreux rapprochement ont été effectué en utilisant des notebook jupyter.
+## 3. Lancer un Jupyter Notebook
+De nombreux rapprochements ont été effectués en utilisant des notebook jupyter.
 
-A cette fin, exectutez la commande suivante pour lancer jupyter sur le service web (qui a de nombreuses dépendances installées pour le projet, ce qui vous facilitera la vie lors de vos rapprochements)
+A cette fin, executez la commande suivante pour lancer jupyter sur le service docker `web` (qui a de nombreuses dépendances installées pour le projet, ce qui vous facilitera la vie lors de vos rapprochements)
 
 ```
 docker compose exec --user root web python manage.py shell_plus --notebook
 ```
 
-Puis ouvrir dans votre navigateur web (ou votre éditeur de code) l'url qui s'affiche dans votre console, il devrait ressembler à :
+Puis ouvrez dans votre navigateur web (ou votre éditeur de code) l'url qui s'affiche dans votre console, il devrait ressembler à :
 `http://127.0.0.1:8888/?token=f9234053e22e29ac2b2d91864892c7972f6d13554aad99fb`
 
 Ensuite, il ne vous reste qu'a vous inspirer [des notebook existants](app/notebooks/rapprochements) pour effectuer votre rapprochement !
 
-### 4. vous pouvez également utiliser l'api en local
+## 4. vous pouvez également utiliser l'api en local
 
 Par exemple
 ```
