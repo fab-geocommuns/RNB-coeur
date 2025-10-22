@@ -36,15 +36,5 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql=forward_sql,
             reverse_sql=reverse_sql,
-            state_operations=[
-                migrations.AlterModelTable(
-                    name="Building",
-                    table="batid_building",
-                ),
-                migrations.AlterModelTable(
-                    name="Candidate",
-                    table="batid_candidate",
-                ),
-            ],
         ),
     ]
