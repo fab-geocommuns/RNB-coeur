@@ -122,6 +122,14 @@ class BuildingsEndpointsTest(APITestCase):
         self.assertEqual(len(data["results"]), 1)
         self.assertDictEqual(data, expected)
 
+    def test_bdg_in_bbox_with_negative_lon(self):
+        r = self.client.get("/api/alpha/buildings/?bbox=-1.0,45.845782,-0.5,46.0")
+        self.assertEqual(r.status_code, 200)
+
+    def test_bdg_in_bbox_invalid_lat(self):
+        r = self.client.get("/api/alpha/buildings/?bbox=-1.0,45.845782,-0.5,coucou")
+        self.assertEqual(r.status_code, 400)
+
     def test_bdg_in_bbox_too_big(self):
         r = self.client.get(
             "/api/alpha/buildings/?bbox=5.7211808330356,45.18355043319679,8.722614035153486,47.18468473541278"
