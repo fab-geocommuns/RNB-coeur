@@ -429,18 +429,19 @@ class Building(BuildingAbstract):
         return building
 
     @transaction.atomic
+    @staticmethod
     def revert_merge(
-        self,
         user: User,
         event_origin: dict,
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
-        buildings_to_revert = (
+        # get id of all buildings to revert
+        buildings_to_revert = list(
             Building.objects.all()
             .filter(event_id=event_id_to_revert)
             .order_by("rnb_id")
         )
-        buildings_checking = (
+        buildings_checking = list(
             BuildingWithHistory.objects.all()
             .filter(event_id=event_id_to_revert)
             .order_by("rnb_id")
@@ -450,7 +451,7 @@ class Building(BuildingAbstract):
         # As soon as it is modified, that version is transfered in the History table.
         # After a merge, all the buildings linked to the merge live in the Building table.
         # Comparing Building and BuildingWithHistory is a simple way to check no building has been touched since the merge.
-        if buildings_to_revert != buildings_checking:
+        if [b.id for b in buildings_to_revert] != [b.id for b in buildings_checking]:
             raise RevertNotAllowed()
 
         # should not happen
