@@ -346,7 +346,7 @@ class OGCEndpointsTest(APITestCase):
                 {
                     "rel": "next",
                     "title": "Next page of results",
-                    "href": "http://testserver/api/alpha/ogc/collections/buildings/items?cursor=2&limit=1",
+                    "href": "http://testserver/api/alpha/ogc/collections/buildings/items?cursor=cD0x&limit=1",
                     "type": "application/geo+json",
                 },
             ],
@@ -355,6 +355,10 @@ class OGCEndpointsTest(APITestCase):
         }
 
         self.assertEqual(len(data["features"]), 1)
+
+        # remove query params from links as the cursor can vary depending on the tests execution order
+        data["links"][1]["href"] = data["links"][1]["href"].split("?")[0]
+        expected["links"][1]["href"] = expected["links"][1]["href"].split("?")[0]
         self.assertDictEqual(data, expected)
 
     @freeze_time("2024-12-25 00:00:01", tz_offset=0)

@@ -117,12 +117,12 @@ def queue_full_bdtopo_import(
     else:
         release_date = bdtopo_recente_release_date()
 
-    all_tasks = create_bdtopo_full_import_tasks(dpts, release_date)
+    all_chains = create_bdtopo_full_import_tasks(dpts, release_date)
 
-    for dpt_tasks in all_tasks:
-        chain(*dpt_tasks)()
+    for one_dpt_chain in all_chains:
+        one_dpt_chain.apply_async()
 
-    return f"Queued {len(all_tasks)} departments import"
+    return f"Queued {len(all_chains)} departments import"
 
 
 @notify_if_error
