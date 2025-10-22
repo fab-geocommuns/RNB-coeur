@@ -398,3 +398,15 @@ def fill_empty_event_type(batch_size: int) -> int:
             break
 
     return f"Total updated rows: {total}"  # type: ignore[return-value]
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def fix_initial_addresses_attribution(start_id: int, stop_id: int):
+    batch_size = 10000
+    from batid.services.data_fix.fix_initial_addresses_attribution import (
+        InitialAddressesAttributionDataFix,
+    )
+
+    fixer = InitialAddressesAttributionDataFix(batch_size, start_id, stop_id)
+    fixer.fix_all()
+    return "done"
