@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from django.test import TestCase
+from datetime import timedelta
 from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingImport
@@ -29,60 +30,125 @@ class TestFixInitialAddressesAttribution(TestCase):
         )
 
     def setUp(self):
-        address1 = Address.objects.create(id="cle_interop_1")
-        address2 = Address.objects.create(id="cle_interop_2")
-        bdnb_import = BuildingImport.objects.create(
+        three_days_ago = now() - timedelta(days=3)
+        two_days_ago = now() - timedelta(days=2)
+        correct_addresses_historisation_date = two_days_ago
+
+        self.address1 = Address.objects.create(id="cle_interop_1")
+        self.address2 = Address.objects.create(id="cle_interop_2")
+
+        impacted_bdnb_import = BuildingImport.objects.create(
             import_source="bdnb_test",
-            created_at=now(),
+            created_at=three_days_ago,
         )
-        bdtopo_import = BuildingImport.objects.create(
+        impacted_bdtopo_import = BuildingImport.objects.create(
             import_source="bdtopo_test",
-            created_at=now(),
+            created_at=three_days_ago,
         )
+        unimpacted_bdnb_import = BuildingImport.objects.create(
+            import_source="bdnb_test",
+            created_at=now(),  # after the correct addresses historisation date
+        )
+        unimpacted_bdtopo_import = BuildingImport.objects.create(
+            import_source="bdtopo_test",
+            created_at=now(),  # after the correct addresses historisation date
+        )
+
+        # Problematic case
         self._create_building(
-            "need_fix", event_origin={"source": "import", "id": bdnb_import.id}
+            "need_fix", event_origin={"source": "import", "id": impacted_bdnb_import.id}
         )
         self._update_building(
             "need_fix",
             event_origin={
                 "source": "import",
-                "id": bdtopo_import.id,
+                "id": impacted_bdtopo_import.id,
             },
-            addresses_id=[address1.id, address2.id],
+            addresses_id=[self.address1.id, self.address2.id],
         )
+        self._update_building(
+            "need_fix",
+            event_origin={"source": "contribution", "id": 1},
+            addresses_id=[self.address1.id],
+        )
+        self._update_building(
+            "need_fix",
+            event_origin={"source": "contribution", "id": 2},
+            addresses_id=[self.address2.id],
+        )
+        # Not problematic case: building without addresses
         self._create_building(
-            "ok_noaddress", event_origin={"source": "import", "id": bdnb_import.id}
+            "ok_noaddress",
+            event_origin={"source": "import", "id": impacted_bdnb_import.id},
         )
         self._update_building(
             "ok_noaddress",
-            event_origin={"source": "import", "id": bdtopo_import.id},
-            addresses_id=[],
+            event_origin={"source": "import", "id": impacted_bdtopo_import.id},
+            addresses_id=None,
         )
+        # Not problematic case: building created manually
         self._create_building(
             "ok_manual", event_origin={"source": "contribution", "id": 1}
         )
         self._update_building(
             "ok_manual",
-            event_origin={"source": "import", "id": bdtopo_import.id},
-            addresses_id=[address1.id],
+            event_origin={"source": "import", "id": impacted_bdtopo_import.id},
+            addresses_id=[self.address1.id],
         )
+        # Not problematic case: building created by non-impacted imports
+        self._create_building(
+            "ok_noimpact",
+            event_origin={"source": "import", "id": unimpacted_bdnb_import.id},
+        )
+        self._update_building(
+            "ok_noimpact",
+            event_origin={"source": "import", "id": unimpacted_bdtopo_import.id},
+            addresses_id=[self.address1.id],
+        )
+
+    def test_crashes_on_building_with_other_history_items_between_bdnb_and_bdtopo(self):
+        raise NotImplementedError("Not implemented yet")
 
     def test_fixes_single_initial_addresses_attribution(self):
         fixer = InitialAddressesAttributionDataFix()
         fixer.fix_all()
         self.assertEqual(
-            BuildingHistoryOnly.objects.get(rnb_id="needsfix").addresses_id,
-            [address1.id, address2.id],
+            BuildingHistoryOnly.objects.get(rnb_id="need_fix").addresses_id,
+            [self.address1.id, self.address2.id],
         )
 
     def test_does_not_change_building_history_without_addresses(self):
         fixer = InitialAddressesAttributionDataFix()
         fixer.fix_all()
         self.assertEqual(
-            BuildingHistoryOnly.objects.get(rnb_id="oknoaddress1").addresses_id,
-            [],
+            BuildingHistoryOnly.objects.get(rnb_id="ok_noaddress").addresses_id,
+            None,
         )
         self.assertEqual(
-            Building.objects.get(rnb_id="oknoaddress1").addresses_id,
-            [],
+            Building.objects.get(rnb_id="ok_noaddress").addresses_id,
+            None,
+        )
+
+    def test_does_not_change_building_created_manually(self):
+        fixer = InitialAddressesAttributionDataFix()
+        fixer.fix_all()
+        self.assertEqual(
+            BuildingHistoryOnly.objects.get(rnb_id="ok_manual").addresses_id,
+            None,
+        )
+        self.assertEqual(
+            Building.objects.get(rnb_id="ok_manual").addresses_id,
+            [self.address1.id],
+        )
+
+    def test_does_not_change_building_created_by_non_impacted_imports(self):
+        fixer = InitialAddressesAttributionDataFix()
+        fixer.fix_all()
+        self.assertEqual(
+            BuildingHistoryOnly.objects.get(rnb_id="ok_noimpact").addresses_id,
+            None,
+        )
+        self.assertEqual(
+            Building.objects.get(rnb_id="ok_noimpact").addresses_id,
+            [self.address1.id],
         )

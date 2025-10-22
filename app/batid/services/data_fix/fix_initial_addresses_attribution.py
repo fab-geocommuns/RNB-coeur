@@ -12,15 +12,22 @@ class BuildingHistoryItemPair(TypedDict):
 
 
 class InitialAddressesAttributionDataFix:
-    def __init__(self, batch_size: int = 10000, start_id: int = 0) -> None:
+    def __init__(
+        self,
+        batch_size: int = 10000,
+        start_id: int = 0,
+        correct_addresses_historisation_date: datetime = datetime(2024, 5, 1),
+    ) -> None:
         self.batch_size = batch_size
         self.start_id = start_id
-        self.correct_addresses_historisation_date = datetime(2024, 5, 1)
+        self.correct_addresses_historisation_date = correct_addresses_historisation_date
 
     def fix_all(self) -> None:
         current_id = self.start_id
         affected_bdnb_import_ids = self._get_affected_bdnb_import_ids()
         affected_bdtopo_import_ids = self._get_affected_bdtopo_import_ids()
+        return
+
         while True:
             updated_row_count = self.fix_batch_initial_addresses_attribution(
                 current_id, affected_bdnb_import_ids, affected_bdtopo_import_ids
@@ -53,16 +60,24 @@ class InitialAddressesAttributionDataFix:
         return updated_row_count
 
     def _get_affected_bdnb_import_ids(self) -> list[int]:
-        return BuildingImport.objects.filter(
-            import_source__startswith="bdnb_",
-            created_at__lt=self.correct_addresses_historisation_date,
-        ).values_list("id", flat=True)
+        return list(
+            BuildingImport.objects.filter(
+                import_source__startswith="bdnb_",
+                created_at__lt=self.correct_addresses_historisation_date,
+            )
+            .values_list("id", flat=True)
+            .all()
+        )
 
     def _get_affected_bdtopo_import_ids(self) -> list[int]:
-        return BuildingImport.objects.filter(
-            import_source__startswith="bdtopo_",
-            created_at__lt=self.correct_addresses_historisation_date,
-        ).values_list("id", flat=True)
+        return list(
+            BuildingImport.objects.filter(
+                import_source__startswith="bdtopo_",
+                created_at__lt=self.correct_addresses_historisation_date,
+            )
+            .values_list("id", flat=True)
+            .all()
+        )
 
     def _should_fix_single_initial_addresses_attribution(
         self,
@@ -105,6 +120,8 @@ class InitialAddressesAttributionDataFix:
         affected_bdtopo_import_ids: list[int],
     ) -> list[BuildingHistoryItemPair]:
         result: list[BuildingHistoryItemPair] = []
+
+        print(affected_bdnb_import_ids)
 
         candidate_bdnb_history_items = BuildingHistoryOnly.objects.filter(
             event_origin__source="import",
