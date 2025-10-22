@@ -29,7 +29,7 @@ RESET (
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0109_auto_analyze_buildings"),
+        ("batid", "0110_create_multi_column_gist_index"),
     ]
 
     operations = [
