@@ -106,18 +106,16 @@ class InitialAddressesAttributionDataFix:
     ) -> list[BuildingHistoryItemPair]:
         result: list[BuildingHistoryItemPair] = []
 
-        candidate_bdnb_history_items = BuildingHistoryOnly.objects.select_for_update(
-            skip_locked=True
-        ).filter(
-            event_origin=bdnb_event_origin,
-            bh_id__gt=start_id,
+        candidate_bdnb_history_items = BuildingHistoryOnly.objects.filter(
+            event_origin__source="import",
+            event_origin__id__in=affected_bdnb_import_ids,
+            bh_id__gt=current_id,
             addresses_id__isnull=True,
-        )[
-            :batch_size
-        ]
+        )
 
         bdtopo_history_or_building_items = BuildingWithHistory.objects.filter(
-            event_origin=bdtopo_event_origin,
+            event_origin__source="import",
+            event_origin__id__in=affected_bdtopo_import_ids,
             rnb_id__in=candidate_bdnb_history_items.values_list("rnb_id", flat=True),
             addresses_id__isnull=False,
         )
