@@ -3,6 +3,7 @@ from django.test import TestCase
 from batid.models import Building
 from batid.models import BuildingHistoryOnly
 from batid.models import BuildingWithHistory
+from app.dbrouters import DBRouter
 
 
 class TemporalTableCase(TestCase):
@@ -53,3 +54,18 @@ class TemporalTableCase(TestCase):
         # this table is not supposed to be written only with triggers
         self.assertRaises(Exception, BuildingWithHistory.objects.create, rnb_id="XYZ")
         self.assertRaises(Exception, BuildingHistoryOnly.objects.create, rnb_id="XYZ")
+
+    def test_history_read_only_can_be_bypassed_explicitely(self):
+        self.assertRaises(
+            Exception, BuildingHistoryOnly.objects.create, id=1, rnb_id="XYZ"
+        )
+        with DBRouter.dangerously_allow_write_to_building_history():
+            self.assertRaises(
+                Exception, BuildingWithHistory.objects.create, rnb_id="XYZ"
+            )
+            # Only BuildingHistoryOnly should be writable
+            BuildingHistoryOnly.objects.create(id=1, rnb_id="XYZ")
+        self.assertEqual(BuildingHistoryOnly.objects.first().rnb_id, "XYZ")
+        self.assertRaises(
+            Exception, BuildingHistoryOnly.objects.create, id=2, rnb_id="ABC"
+        )
