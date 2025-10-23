@@ -2,12 +2,13 @@ from django.db import transaction, connection
 from batid.models import BuildingHistoryOnly, BuildingWithHistory, BuildingImport
 from typing import TypedDict
 from datetime import datetime
-from typing import Iterable
+from typing import Collection
 
 
 class BuildingHistoryItemPair(TypedDict):
     rnb_id: str
     bdtopo_history_or_building_item: BuildingWithHistory
+    other_history_items_in_between: Collection[BuildingHistoryOnly]
     bdnb_history_item: BuildingHistoryOnly
 
 
@@ -24,13 +25,12 @@ class InitialAddressesAttributionDataFix:
 
     def fix_all(self) -> None:
         current_id = self.start_id
-        affected_bdnb_import_ids = self._get_affected_bdnb_import_ids()
-        affected_bdtopo_import_ids = self._get_affected_bdtopo_import_ids()
-        return
+        impacted_bdnb_import_ids = self._get_impacted_bdnb_import_ids()
+        impacted_bdtopo_import_ids = self._get_impacted_bdtopo_import_ids()
 
         while True:
             updated_row_count = self.fix_batch_initial_addresses_attribution(
-                current_id, affected_bdnb_import_ids, affected_bdtopo_import_ids
+                current_id, impacted_bdnb_import_ids, impacted_bdtopo_import_ids
             )
             if updated_row_count == 0:
                 break
@@ -40,14 +40,14 @@ class InitialAddressesAttributionDataFix:
     def fix_batch_initial_addresses_attribution(
         self,
         current_id: int,
-        affected_bdnb_import_ids: list[int],
-        affected_bdtopo_import_ids: list[int],
+        impacted_bdnb_import_ids: list[int],
+        impacted_bdtopo_import_ids: list[int],
     ) -> int:
         updated_row_count = 0
 
         with transaction.atomic():
             building_history_item_pairs = self._get_building_history_item_pairs_with_missing_initial_address_attribution(
-                current_id, affected_bdnb_import_ids, affected_bdtopo_import_ids
+                current_id, impacted_bdnb_import_ids, impacted_bdtopo_import_ids
             )
             for building_history_item_pair in building_history_item_pairs:
                 if self._should_fix_single_initial_addresses_attribution(
@@ -59,7 +59,7 @@ class InitialAddressesAttributionDataFix:
                     updated_row_count += 1
         return updated_row_count
 
-    def _get_affected_bdnb_import_ids(self) -> list[int]:
+    def _get_impacted_bdnb_import_ids(self) -> list[int]:
         return list(
             BuildingImport.objects.filter(
                 import_source__startswith="bdnb_",
@@ -69,7 +69,7 @@ class InitialAddressesAttributionDataFix:
             .all()
         )
 
-    def _get_affected_bdtopo_import_ids(self) -> list[int]:
+    def _get_impacted_bdtopo_import_ids(self) -> list[int]:
         return list(
             BuildingImport.objects.filter(
                 import_source__startswith="bdtopo_",
@@ -87,6 +87,13 @@ class InitialAddressesAttributionDataFix:
             "bdtopo_history_or_building_item"
         ]
         bdnb_history_item = building_history_item_pair["bdnb_history_item"]
+        other_history_items_in_between = building_history_item_pair[
+            "other_history_items_in_between"
+        ]
+        if len(other_history_items_in_between) > 0:
+            raise Exception(
+                f"Other history items in between found for rnb_id: {bdnb_history_item.rnb_id}"
+            )
         return (
             bdnb_history_item.addresses_id is None
             and bdtopo_history_or_building_item.addresses_id is not None
@@ -102,7 +109,7 @@ class InitialAddressesAttributionDataFix:
         ]
         bdnb_history_item = building_history_item_pair["bdnb_history_item"]
         with connection.cursor() as cursor:
-            sql = "UPDATE batid_buildinghistoryonly SET addresses_id = %s WHERE bh_id = %s"
+            sql = "UPDATE batid_building_history SET addresses_id = %s WHERE bh_id = %s"
             args = (
                 bdtopo_history_or_building_item.addresses_id,
                 bdnb_history_item.bh_id,
@@ -116,25 +123,27 @@ class InitialAddressesAttributionDataFix:
     def _get_building_history_item_pairs_with_missing_initial_address_attribution(
         self,
         current_id: int,
-        affected_bdnb_import_ids: list[int],
-        affected_bdtopo_import_ids: list[int],
+        impacted_bdnb_import_ids: list[int],
+        impacted_bdtopo_import_ids: list[int],
     ) -> list[BuildingHistoryItemPair]:
         result: list[BuildingHistoryItemPair] = []
 
-        print(affected_bdnb_import_ids)
-
         candidate_bdnb_history_items = BuildingHistoryOnly.objects.filter(
             event_origin__source="import",
-            event_origin__id__in=affected_bdnb_import_ids,
+            event_origin__id__in=impacted_bdnb_import_ids,
             bh_id__gt=current_id,
             addresses_id__isnull=True,
         )
 
         bdtopo_history_or_building_items = BuildingWithHistory.objects.filter(
-            event_origin__source="import",
-            event_origin__id__in=affected_bdtopo_import_ids,
             rnb_id__in=candidate_bdnb_history_items.values_list("rnb_id", flat=True),
+            event_origin__source="import",
+            event_origin__id__in=impacted_bdtopo_import_ids,
             addresses_id__isnull=False,
+        )
+
+        other_history_items = BuildingHistoryOnly.objects.filter(
+            rnb_id__in=candidate_bdnb_history_items.values_list("rnb_id", flat=True),
         )
 
         for candidate_bdnb_history_item in candidate_bdnb_history_items:
@@ -146,13 +155,28 @@ class InitialAddressesAttributionDataFix:
                 ),
                 None,
             )
-            if bdtopo_history_or_building_item:
-                result.append(
-                    BuildingHistoryItemPair(
-                        rnb_id=candidate_bdnb_history_item.rnb_id,
-                        bdtopo_history_or_building_item=bdtopo_history_or_building_item,
-                        bdnb_history_item=candidate_bdnb_history_item,
-                    )
+            if not bdtopo_history_or_building_item:
+                self.debug(
+                    f"No bdtopo history or building item found for rnb_id: {candidate_bdnb_history_item.rnb_id}"
                 )
+                continue
+
+            other_history_items_in_between = other_history_items.filter(
+                rnb_id=candidate_bdnb_history_item.rnb_id,
+                sys_period__startswith__gte=candidate_bdnb_history_item.sys_period.upper,
+                sys_period__endswith__lte=bdtopo_history_or_building_item.sys_period.lower,
+            )
+
+            result.append(
+                BuildingHistoryItemPair(
+                    rnb_id=candidate_bdnb_history_item.rnb_id,
+                    bdtopo_history_or_building_item=bdtopo_history_or_building_item,
+                    bdnb_history_item=candidate_bdnb_history_item,
+                    other_history_items_in_between=list(other_history_items_in_between),
+                )
+            )
 
         return result
+
+    def debug(self, message: str) -> None:
+        print(message)

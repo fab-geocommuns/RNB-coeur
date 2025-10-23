@@ -5,6 +5,7 @@ from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import BuildingHistoryOnly
+from batid.models import BuildingWithHistory
 from batid.services.data_fix.fix_initial_addresses_attribution import (
     InitialAddressesAttributionDataFix,
 )
@@ -15,6 +16,16 @@ def now():
 
 
 class TestFixInitialAddressesAttribution(TestCase):
+    def _create_import(
+        self, import_source: str, created_at: datetime
+    ) -> BuildingImport:
+        new_import = BuildingImport.objects.create(
+            import_source=import_source,
+        )
+        new_import.created_at = created_at
+        BuildingImport.objects.bulk_update([new_import], ["created_at"])
+        return new_import
+
     def _create_building(self, rnb_id: str, event_origin: dict) -> None:
         Building.objects.create(
             rnb_id=rnb_id,
@@ -37,53 +48,57 @@ class TestFixInitialAddressesAttribution(TestCase):
         self.address1 = Address.objects.create(id="cle_interop_1")
         self.address2 = Address.objects.create(id="cle_interop_2")
 
-        impacted_bdnb_import = BuildingImport.objects.create(
-            import_source="bdnb_test",
-            created_at=three_days_ago,
-        )
-        impacted_bdtopo_import = BuildingImport.objects.create(
-            import_source="bdtopo_test",
-            created_at=three_days_ago,
-        )
-        unimpacted_bdnb_import = BuildingImport.objects.create(
-            import_source="bdnb_test",
-            created_at=now(),  # after the correct addresses historisation date
-        )
-        unimpacted_bdtopo_import = BuildingImport.objects.create(
-            import_source="bdtopo_test",
-            created_at=now(),  # after the correct addresses historisation date
-        )
+        self.impacted_bdnb_import = self._create_import("bdnb_test", three_days_ago)
+        self.impacted_bdtopo_import = self._create_import("bdtopo_test", three_days_ago)
+        unimpacted_bdnb_import = self._create_import(
+            "bdnb_test", now()
+        )  # after the correct addresses historisation date
+        unimpacted_bdtopo_import = self._create_import(
+            "bdtopo_test", now()
+        )  # after the correct addresses historisation date
 
-        # Problematic case
+        # Problematic case with no subsequent update
         self._create_building(
-            "need_fix", event_origin={"source": "import", "id": impacted_bdnb_import.id}
+            "need_fix1",
+            event_origin={"source": "import", "id": self.impacted_bdnb_import.id},
         )
         self._update_building(
-            "need_fix",
+            "need_fix1",
             event_origin={
                 "source": "import",
-                "id": impacted_bdtopo_import.id,
+                "id": self.impacted_bdtopo_import.id,
+            },
+            addresses_id=[self.address1.id, self.address2.id],
+        )
+        # Problematic case with subsequent updates
+        self._create_building(
+            "need_fix2",
+            event_origin={"source": "import", "id": self.impacted_bdnb_import.id},
+        )
+        self._update_building(
+            "need_fix2",
+            event_origin={
+                "source": "import",
+                "id": self.impacted_bdtopo_import.id,
             },
             addresses_id=[self.address1.id, self.address2.id],
         )
         self._update_building(
-            "need_fix",
-            event_origin={"source": "contribution", "id": 1},
-            addresses_id=[self.address1.id],
-        )
-        self._update_building(
-            "need_fix",
-            event_origin={"source": "contribution", "id": 2},
+            "need_fix2",
+            event_origin={
+                "source": "contribution",
+                "id": 1,
+            },
             addresses_id=[self.address2.id],
         )
         # Not problematic case: building without addresses
         self._create_building(
             "ok_noaddress",
-            event_origin={"source": "import", "id": impacted_bdnb_import.id},
+            event_origin={"source": "import", "id": self.impacted_bdnb_import.id},
         )
         self._update_building(
             "ok_noaddress",
-            event_origin={"source": "import", "id": impacted_bdtopo_import.id},
+            event_origin={"source": "import", "id": self.impacted_bdtopo_import.id},
             addresses_id=None,
         )
         # Not problematic case: building created manually
@@ -92,7 +107,7 @@ class TestFixInitialAddressesAttribution(TestCase):
         )
         self._update_building(
             "ok_manual",
-            event_origin={"source": "import", "id": impacted_bdtopo_import.id},
+            event_origin={"source": "import", "id": self.impacted_bdtopo_import.id},
             addresses_id=[self.address1.id],
         )
         # Not problematic case: building created by non-impacted imports
@@ -106,20 +121,65 @@ class TestFixInitialAddressesAttribution(TestCase):
             addresses_id=[self.address1.id],
         )
 
+        self.fixer = InitialAddressesAttributionDataFix(
+            correct_addresses_historisation_date=correct_addresses_historisation_date,
+        )
+
     def test_crashes_on_building_with_other_history_items_between_bdnb_and_bdtopo(self):
-        raise NotImplementedError("Not implemented yet")
+        self._create_building(
+            "problematic",
+            event_origin={"source": "import", "id": self.impacted_bdnb_import.id},
+        )
+        self._update_building(
+            "problematic",
+            event_origin={"source": "contribution", "id": 1},
+            addresses_id=[self.address1.id],
+        )
+        self._update_building(
+            "problematic",
+            event_origin={"source": "import", "id": self.impacted_bdtopo_import.id},
+            addresses_id=[self.address2.id],
+        )
+        with self.assertRaises(Exception):
+            self.fixer.fix_all()
 
     def test_fixes_single_initial_addresses_attribution(self):
-        fixer = InitialAddressesAttributionDataFix()
-        fixer.fix_all()
+        self.fixer.fix_all()
         self.assertEqual(
-            BuildingHistoryOnly.objects.get(rnb_id="need_fix").addresses_id,
+            BuildingHistoryOnly.objects.get(rnb_id="need_fix1").addresses_id,
             [self.address1.id, self.address2.id],
+        )
+        self.assertEqual(
+            BuildingWithHistory.objects.get(
+                rnb_id="need_fix1",
+                event_origin={"source": "import", "id": self.impacted_bdtopo_import.id},
+            ).addresses_id,
+            [self.address1.id, self.address2.id],
+        )
+        self.assertEqual(
+            BuildingHistoryOnly.objects.get(
+                rnb_id="need_fix2",
+                event_origin={"source": "import", "id": self.impacted_bdnb_import.id},
+            ).addresses_id,
+            [self.address1.id, self.address2.id],
+        )
+        self.assertEqual(
+            BuildingHistoryOnly.objects.get(
+                rnb_id="need_fix2",
+                event_origin={"source": "import", "id": self.impacted_bdtopo_import.id},
+            ).addresses_id,
+            [self.address1.id, self.address2.id],
+        )
+        self.assertEqual(
+            BuildingWithHistory.objects.get(
+                rnb_id="need_fix2",
+                event_origin={"source": "contribution", "id": 1},
+            ).addresses_id,
+            [self.address2.id],
         )
 
     def test_does_not_change_building_history_without_addresses(self):
-        fixer = InitialAddressesAttributionDataFix()
-        fixer.fix_all()
+        self.fixer.fix_all()
         self.assertEqual(
             BuildingHistoryOnly.objects.get(rnb_id="ok_noaddress").addresses_id,
             None,
@@ -130,8 +190,7 @@ class TestFixInitialAddressesAttribution(TestCase):
         )
 
     def test_does_not_change_building_created_manually(self):
-        fixer = InitialAddressesAttributionDataFix()
-        fixer.fix_all()
+        self.fixer.fix_all()
         self.assertEqual(
             BuildingHistoryOnly.objects.get(rnb_id="ok_manual").addresses_id,
             None,
@@ -142,8 +201,7 @@ class TestFixInitialAddressesAttribution(TestCase):
         )
 
     def test_does_not_change_building_created_by_non_impacted_imports(self):
-        fixer = InitialAddressesAttributionDataFix()
-        fixer.fix_all()
+        self.fixer.fix_all()
         self.assertEqual(
             BuildingHistoryOnly.objects.get(rnb_id="ok_noimpact").addresses_id,
             None,
