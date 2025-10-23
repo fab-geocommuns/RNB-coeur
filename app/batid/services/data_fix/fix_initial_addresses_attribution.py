@@ -3,6 +3,8 @@ from batid.models import BuildingHistoryOnly, BuildingWithHistory, BuildingImpor
 from typing import TypedDict
 from datetime import datetime
 from typing import Collection
+from typing import Number
+import math
 
 
 class BuildingHistoryItemPair(TypedDict):
@@ -17,10 +19,12 @@ class InitialAddressesAttributionDataFix:
         self,
         batch_size: int = 10000,
         start_id: int = 0,
+        stop_id: Number = math.inf,
         correct_addresses_historisation_date: datetime = datetime(2024, 5, 1),
     ) -> None:
         self.batch_size = batch_size
         self.start_id = start_id
+        self.stop_id = stop_id
         self.correct_addresses_historisation_date = correct_addresses_historisation_date
 
     def fix_all(self) -> None:
@@ -28,7 +32,7 @@ class InitialAddressesAttributionDataFix:
         impacted_bdnb_import_ids = self._get_impacted_bdnb_import_ids()
         impacted_bdtopo_import_ids = self._get_impacted_bdtopo_import_ids()
 
-        while True:
+        while current_id < self.stop_id:
             updated_row_count = self.fix_batch_initial_addresses_attribution(
                 current_id, impacted_bdnb_import_ids, impacted_bdtopo_import_ids
             )
