@@ -136,6 +136,16 @@ class ListBuildingQuerySerializer(serializers.Serializer):
         values = value.split(",")
         [min_lon, min_lat, max_lon, max_lat] = values
 
+        try:
+            min_lon = float(min_lon)
+            min_lat = float(min_lat)
+            max_lon = float(max_lon)
+            max_lat = float(max_lat)
+        except ValueError:
+            raise serializers.ValidationError(
+                "min_lon, min_lat, max_lon et max_lat doivent avoir une valeur numérique"
+            )
+
         if min_lon > max_lon:
             raise serializers.ValidationError("min_lon doit être inféfieure à max_lon")
         if min_lat > max_lat:
