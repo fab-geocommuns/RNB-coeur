@@ -1,9 +1,11 @@
 import json
+from unittest.mock import patch
 
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
+from api_alpha.serializers.serializers import ListBuildingQuerySerializer
 from batid.models import Address
 from batid.models import Building
 from batid.models import Organization
@@ -208,6 +210,19 @@ class BuildingsEndpointsTest(APITestCase):
             },
         )
 
+    def test_bgs_listing_needs_filtering(self):
+        r = self.client.get("/api/alpha/buildings/")
+        self.assertEqual(r.status_code, 400)
+        data = r.json()
+        self.assertDictEqual(
+            data,
+            {
+                "non_field_errors": [
+                    "Choisissez au moins un paramêtre de filtrage parmi 'bbox', 'insee_code' ou 'cle_interop_ban'."
+                ]
+            },
+        )
+
     def test_bdg_in_city(self):
         r = self.client.get("/api/alpha/buildings/?insee_code=38185")
         self.assertEqual(r.status_code, 200)
@@ -319,6 +334,7 @@ class BuildingsEndpointsTest(APITestCase):
         # No building should be returned
         self.assertEqual(len(r.json()["results"]), 0)
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_buildings_root(self):
         r = self.client.get("/api/alpha/buildings/")
         self.assertEqual(r.status_code, 200)
@@ -384,6 +400,7 @@ class BuildingsEndpointsTest(APITestCase):
 
         self.assertDictEqual(r.json(), expected)
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_buildings_root_geojson(self):
 
         r = self.client.get("/api/alpha/buildings/?format=geojson")
@@ -497,6 +514,7 @@ class BuildingsEndpointsTest(APITestCase):
 
         self.assertEqual(r.json(), expected)
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_non_active_buildings_are_excluded_from_list(self):
         building = Building.objects.get(rnb_id="BDGSRNBBIDID")
 
@@ -534,9 +552,11 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
         token = Token.objects.create(user=u)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_buildings_root(self):
         super().test_buildings_root()
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_bdg_all_signal(self):
         r = self.client.get("/api/alpha/buildings/?status=all")
         data = r.json()
@@ -740,6 +760,7 @@ class BuildingsWithPlots(APITestCase):
             ),
         )
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_with_plots(self):
 
         expected_w_plots = {
@@ -826,6 +847,7 @@ class BuildingsWithPlots(APITestCase):
         data = r.json()
         self.assertDictEqual(data, expected_wo_plots)
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_no_n_plus_1_query(self):
         Address.objects.create(id="add_1")
         Building.objects.create(rnb_id="A", addresses_id=["add_1"], point="POINT(0 0)")

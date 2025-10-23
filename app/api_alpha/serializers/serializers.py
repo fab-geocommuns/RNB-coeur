@@ -178,6 +178,24 @@ class ListBuildingQuerySerializer(serializers.Serializer):
             )
         return value
 
+    def validate(self, data):
+        if data.get("bbox") and data.get("bb"):
+            raise serializers.ValidationError(
+                "Vous devez choisir soit 'bbox' soit 'bb'. Choisissez plutot 'bbox'."
+            )
+
+        if (
+            not data.get("bbox")
+            and not data.get("bb")
+            and not data.get("insee_code")
+            and not data.get("cle_interop_ban")
+        ):
+            raise serializers.ValidationError(
+                "Choisissez au moins un paramêtre de filtrage parmi 'bbox', 'insee_code' ou 'cle_interop_ban'."
+            )
+
+        return data
+
 
 class BuildingGeoJSONSerializer(BuildingSerializer, GeoFeatureModelSerializer):
     class Meta:
