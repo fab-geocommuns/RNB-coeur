@@ -262,6 +262,59 @@ class Building(BuildingAbstract):
 
         self.save()
 
+    @staticmethod
+    def revert_update(
+        user: User, event_origin: dict, event_id_to_revert: uuid.UUID
+    ) -> uuid.UUID:
+        # get id of all buildings to revert
+        buildings_to_revert = Building.get_by_event_id(event_id_to_revert, Building)
+
+        if any([b.sys_period.upper != None for b in buildings_to_revert]):
+            raise RevertNotAllowed()
+
+        # should not happen, an update concerns 1 building
+        if len(buildings_to_revert) != 1:
+            raise RevertNotAllowed(
+                "an update operation is expected to concern exactly one building"
+            )
+
+        building_to_revert = buildings_to_revert[0]
+
+        if building_to_revert.event_type != "update":
+            raise RevertNotAllowed(
+                "Something wrong is going on there, all this event is expected to be 'update'."
+            )
+
+        # get prior version of the building
+        update_timestamp = building_to_revert.sys_period.lower
+        building_prior_versions = (
+            BuildingWithHistory.objects.order_by("-sys_period")
+            .filter(rnb_id=building_to_revert.rnb_id)
+            .filter(sys_period__lt=building_to_revert.sys_period)
+        )
+        building_prior_version = building_prior_versions[0]
+
+        new_event_id = uuid.uuid4()
+
+        building_to_revert.is_active = True
+        building_to_revert.event_type = "revert_update"
+        building_to_revert.event_id = new_event_id
+        building_to_revert.event_user = user
+        building_to_revert.event_origin = event_origin
+        building_to_revert.revert_event_id = event_id_to_revert
+        building_to_revert.point = building_prior_version.point
+        building_to_revert.shape = building_prior_version.shape
+        building_to_revert.ext_ids = building_prior_version.ext_ids
+        building_to_revert.parent_buildings = building_prior_version.parent_buildings
+        building_to_revert.status = building_prior_version.status
+        building_to_revert.is_active = (
+            building_prior_version.is_active
+        )  # expected to be True anyway
+        building_to_revert.addresses_id = building_prior_version.addresses_id
+        building_to_revert.save()
+
+        return new_event_id
+
     def _refuse_pending_contributions(
         self, user: User, event_id, except_for_this_contribution_id=None
     ):
@@ -435,35 +488,21 @@ class Building(BuildingAbstract):
         event_origin: dict,
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
-        # get id of all buildings to revert
-        buildings_to_revert = list(
-            Building.objects.all()
-            .filter(event_id=event_id_to_revert)
-            .order_by("rnb_id")
-        )
-        buildings_checking = list(
-            BuildingWithHistory.objects.all()
-            .filter(event_id=event_id_to_revert)
-            .order_by("rnb_id")
-        )
-
-        # Only the last version of a Building is in the Building table.
-        # As soon as it is modified, that version is transfered in the History table.
-        # After a merge, all the buildings linked to the merge live in the Building table.
-        # Comparing Building and BuildingWithHistory is a simple way to check no building has been touched since the merge.
-        if [b.id for b in buildings_to_revert] != [b.id for b in buildings_checking]:
+        buildings_to_revert = Building.get_by_event_id(event_id_to_revert, Building)
+        if any([b.sys_period.upper != None for b in buildings_to_revert]):
             raise RevertNotAllowed()
 
-        # should not happen
+        # should not happen, a merge involves at least 3 buildings
         if len(buildings_to_revert) < 3:
             raise NotEnoughBuildings()
 
-        deactivated_buildings = [b for b in buildings_to_revert if not b.is_active]
-        created_buildings = [b for b in buildings_to_revert if b.is_active]
+        if any([b.event_type != "merge" for b in buildings_to_revert]):
+            raise RevertNotAllowed(
+                "Something wrong is going on there, all rows of this event are expected to be 'merge'."
+            )
 
-        if len(created_buildings) != 1:
-            raise RevertNotAllowed()
-        created_building = created_buildings[0]
+        deactivated_buildings = [b for b in buildings_to_revert if not b.is_active]
+        [created_building] = [b for b in buildings_to_revert if b.is_active]
 
         new_event_id = uuid.uuid4()
 
@@ -553,6 +592,58 @@ class Building(BuildingAbstract):
         SummerChallenge.score_split(user, self.point, self.rnb_id, event_id)
 
         return child_buildings
+
+    @staticmethod
+    def get_by_event_id(event_id: uuid.UUID, model: type) -> list:
+        if model is not Building and model is not BuildingWithHistory:
+            raise Exception("unsupported model")
+
+        return list(model.objects.all().filter(event_id=event_id).order_by("rnb_id"))
+
+    @transaction.atomic
+    @staticmethod
+    def revert_split(
+        user: User,
+        event_origin: dict,
+        event_id_to_revert: uuid.UUID,
+    ) -> uuid.UUID:
+        buildings_to_revert = Building.get_by_event_id(event_id_to_revert, Building)
+
+        if any([b.sys_period.upper != None for b in buildings_to_revert]):
+            raise RevertNotAllowed()
+
+        # should not happen, split involves at least 3 buildings
+        if len(buildings_to_revert) < 3:
+            raise NotEnoughBuildings()
+
+        if any([b.event_type != "split" for b in buildings_to_revert]):
+            raise RevertNotAllowed(
+                "Something wrong is going on there, all rows of this event are expected to be 'split'."
+            )
+
+        [split_parent] = [b for b in buildings_to_revert if not b.is_active]
+        split_childs = [b for b in buildings_to_revert if b.is_active]
+
+        new_event_id = uuid.uuid4()
+
+        for building in split_childs:
+            building.is_active = False
+            building.event_type = "revert_split"
+            building.event_id = new_event_id
+            building.event_user = user
+            building.event_origin = event_origin
+            building.revert_event_id = event_id_to_revert
+            building.save()
+
+        split_parent.is_active = True
+        split_parent.event_type = "revert_split"
+        split_parent.event_id = new_event_id
+        split_parent.event_user = user
+        split_parent.event_origin = event_origin
+        split_parent.revert_event_id = event_id_to_revert
+        split_parent.save()
+
+        return new_event_id
 
     class Meta:
         # ordering = ["rnb_id"]
