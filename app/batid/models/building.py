@@ -645,6 +645,24 @@ class Building(BuildingAbstract):
 
         return new_event_id
 
+    @staticmethod
+    def revert_event(user: User, event_origin: dict, event_id: uuid.UUID) -> uuid.UUID:
+        event_type = Building.get_by_event_id(event_id, BuildingWithHistory)[
+            0
+        ].event_type
+
+        match event_type:
+            # case "creation":
+            #     return Building.revert_creation(user, event_origin, event_id)
+            case "update":
+                return Building.revert_update(user, event_origin, event_id)
+            case "merge":
+                return Building.revert_merge(user, event_origin, event_id)
+            case "split":
+                return Building.revert_split(user, event_origin, event_id)
+            case _:
+                raise RevertNotAllowed()
+
     class Meta:
         # ordering = ["rnb_id"]
         indexes = [
