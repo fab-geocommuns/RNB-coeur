@@ -20,7 +20,7 @@ Aussi, il peut être utile d'utiliser un profil d'accès en lecture seule.
 
 ```
 docker compose build
-docker compose up -d
+docker compose up -d web
 ```
 
 ## 3. Lancer un Jupyter Notebook
@@ -33,7 +33,7 @@ docker compose exec --user root web python manage.py shell_plus --notebook
 ```
 
 Puis ouvrez dans votre navigateur web (ou votre éditeur de code) l'url qui s'affiche dans votre console, il devrait ressembler à :
-`http://127.0.0.1:8888/?token=f9234053e22e29ac2b2d91864892c7972f6d13554aad99fb`
+`http://127.0.0.1:8888/?token=XXXX`
 
 Ensuite, il ne vous reste qu'a vous inspirer [des notebook existants](app/notebooks/rapprochements) pour effectuer votre rapprochement !
 
