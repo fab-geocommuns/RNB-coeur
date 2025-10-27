@@ -37,7 +37,7 @@ Puis ouvrez dans votre navigateur web (ou votre éditeur de code) l'url qui s'af
 
 Ensuite, il ne vous reste qu'a vous inspirer [des notebook existants](app/notebooks/rapprochements) pour effectuer votre rapprochement !
 
-## 4. vous pouvez également utiliser l'api en local
+## 4. Vous pouvez également utiliser l'api en local
 
 Par exemple
 ```
