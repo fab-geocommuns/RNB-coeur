@@ -42,7 +42,9 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 "summary": "Liste des batiments",
                 "description": (
                     "Cet endpoint permet de récupérer une liste paginée de bâtiments. "
-                    "Des filtres, notamment par code INSEE de la commune, sont disponibles. NB : l'URL se termine nécessairement par un slash (/)."
+                    "Des filtres, notamment par code INSEE de la commune, sont disponibles."
+                    "Au moins un filtre est requis."
+                    "NB : l'URL se termine nécessairement par un slash (/)."
                 ),
                 "operationId": "listBuildings",
                 "parameters": [

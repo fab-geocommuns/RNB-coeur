@@ -1,5 +1,8 @@
+from unittest.mock import patch
+
 from rest_framework.test import APITestCase
 
+from api_alpha.serializers.serializers import ListBuildingQuerySerializer
 from batid.tests.helpers import create_default_bdg
 from batid.tests.helpers import create_grenoble
 
@@ -15,6 +18,7 @@ class EndpointTest(APITestCase):
             rnb_id = str(i).zfill(12)
             create_default_bdg(rnb_id)
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_first_page(self):
         r = self.client.get("/api/alpha/buildings/")
         self.assertEqual(r.status_code, 200)
@@ -51,6 +55,7 @@ class EndpointTest(APITestCase):
         self.assertEqual(data["results"][0]["rnb_id"], "000000000020")
         self.assertEqual(data["results"][19]["rnb_id"], "000000000039")
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_limit_param(self):
         r = self.client.get("/api/alpha/buildings/?limit=10")
         self.assertEqual(r.status_code, 200)
@@ -67,6 +72,7 @@ class EndpointTest(APITestCase):
         self.assertEqual(data["results"][8]["rnb_id"], "000000000008")
         self.assertEqual(data["results"][9]["rnb_id"], "000000000009")
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_first_page_geojson(self):
 
         r = self.client.get("/api/alpha/buildings/?format=geojson")
@@ -91,6 +97,7 @@ class EndpointTest(APITestCase):
         self.assertEqual(data["features"][16]["id"], "000000000016")
         self.assertEqual(data["features"][19]["id"], "000000000019")
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_next_page(self):
 
         r = self.client.get("/api/alpha/buildings/")
@@ -111,6 +118,7 @@ class EndpointTest(APITestCase):
         self.assertEqual(data["results"][16]["rnb_id"], "000000000036")
         self.assertEqual(data["results"][19]["rnb_id"], "000000000039")
 
+    @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_next_page_geojson(self):
 
         r = self.client.get("/api/alpha/buildings/?format=geojson")
