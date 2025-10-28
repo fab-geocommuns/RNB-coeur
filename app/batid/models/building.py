@@ -3,6 +3,7 @@ import uuid
 from copy import deepcopy
 from enum import Enum
 from typing import Optional
+from typing import Type
 
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
@@ -91,7 +92,7 @@ class BuildingAbstract(models.Model):
     # the user at the origin of the event
     event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)  # type: ignore[var-annotated]
     # in case of a revert operation, the event_id of the reverted event
-    revert_event_id = models.UUIDField(null=True)
+    revert_event_id = models.UUIDField(null=True)  # type: ignore[var-annotated]
     # only currently active buildings are considered part of the RNB
     is_active = models.BooleanField(db_index=True, default=True)  # type: ignore[var-annotated]
     # this field is the source of truth for the building <> address link
@@ -643,7 +644,7 @@ class Building(BuildingAbstract):
         return child_buildings
 
     @staticmethod
-    def get_by_event_id(event_id: uuid.UUID, model: type) -> list:
+    def get_by_event_id(event_id: uuid.UUID, model: Type[models.Model]) -> list:
         if model is not Building and model is not BuildingWithHistory:
             raise Exception("unsupported model")
 
