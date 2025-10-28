@@ -29,6 +29,7 @@ from batid.exceptions import OperationOnInactiveBuilding
 from batid.exceptions import RevertNotAllowed
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
+from batid.services.RNB_team_user import get_RNB_team_user
 from batid.utils.db import from_now_to_infinity
 from batid.utils.geo import assert_shape_is_valid
 from batid.validators import validate_one_ext_id
@@ -198,17 +199,21 @@ class Building(BuildingAbstract):
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
         """a wrapper around the existing deactivate method, to deactivate a building based on an event_id"""
-        [buildings_to_revert] = Building.get_by_event_id(event_id_to_revert, Building)
+        buildings_to_revert = Building.get_by_event_id(event_id_to_revert, Building)
 
-        if (
-            buildings_to_revert.sys_period.upper != None
-            or buildings_to_revert.event_type != EventType.CREATION.value
-        ):
-            raise RevertNotAllowed()
+        if len(buildings_to_revert) != 1:
+            raise RevertNotAllowed(
+                "Impossible d'annuler la création du building, car il a été modifié entre temps."
+            )
 
-        buildings_to_revert.deactivate(user, event_origin)
+        building_to_revert = buildings_to_revert[0]
 
-        return buildings_to_revert.event_id
+        if building_to_revert.event_type != EventType.CREATION.value:
+            raise RevertNotAllowed("L'event_id n'est pas celui d'une création.")
+
+        building_to_revert.deactivate(user, event_origin)
+
+        return building_to_revert.event_id
 
     @transaction.atomic
     def reactivate(self, user: User, event_origin):
@@ -239,17 +244,20 @@ class Building(BuildingAbstract):
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
         """a wrapper around the existing reactivate method, to reactivate a building based on an event_id"""
-        [buildings_to_revert] = Building.get_by_event_id(event_id_to_revert, Building)
+        buildings_to_revert = Building.get_by_event_id(event_id_to_revert, Building)
 
-        if (
-            buildings_to_revert.sys_period.upper != None
-            or buildings_to_revert.event_type != EventType.DEACTIVATION.value
-        ):
-            raise RevertNotAllowed()
+        if len(buildings_to_revert) != 1:
+            raise RevertNotAllowed(
+                "Impossible d'annuler la désactivation du building, car il a été modifié entre temps."
+            )
+        building_to_revert = buildings_to_revert[0]
 
-        buildings_to_revert.reactivate(user, event_origin)
+        if building_to_revert.event_type != EventType.DEACTIVATION.value:
+            raise RevertNotAllowed("L'event_id n'est pas celui d'une désactivation.")
 
-        return buildings_to_revert.event_id
+        building_to_revert.reactivate(user, event_origin)
+
+        return building_to_revert.event_id
 
     @transaction.atomic
     def update(
@@ -315,32 +323,19 @@ class Building(BuildingAbstract):
     def revert_update(
         user: User, event_origin: dict, event_id_to_revert: uuid.UUID
     ) -> uuid.UUID:
-        # get id of all buildings to revert
         buildings_to_revert = Building.get_by_event_id(event_id_to_revert, Building)
 
-        if any(
-            [
-                b.sys_period.upper != None or b.event_type != EventType.UPDATE.value
-                for b in buildings_to_revert
-            ]
-        ):
-            raise RevertNotAllowed()
-
-        # should not happen, an update concerns 1 building
         if len(buildings_to_revert) != 1:
             raise RevertNotAllowed(
-                "an update operation is expected to concern exactly one building"
+                "Impossible de modifier un building, car il a été modifié entre temps."
             )
 
         building_to_revert = buildings_to_revert[0]
 
-        if building_to_revert.event_type != "update":
-            raise RevertNotAllowed(
-                "Something wrong is going on there, all this event is expected to be 'update'."
-            )
+        if building_to_revert.event_type != EventType.UPDATE.value:
+            raise RevertNotAllowed("L'event_id n'est pas celui d'une mise à jour.")
 
         # get prior version of the building
-        update_timestamp = building_to_revert.sys_period.lower
         building_prior_versions = (
             BuildingWithHistory.objects.order_by("-sys_period")
             .filter(rnb_id=building_to_revert.rnb_id)
@@ -700,22 +695,23 @@ class Building(BuildingAbstract):
         return new_event_id
 
     @staticmethod
-    def revert_event(user: User, event_origin: dict, event_id: uuid.UUID) -> uuid.UUID:
+    def revert_event(event_origin: dict, event_id: uuid.UUID) -> uuid.UUID:
         event_type = Building.get_by_event_id(event_id, BuildingWithHistory)[
             0
         ].event_type
+        team_rnb = get_RNB_team_user()
 
         match event_type:
             case EventType.CREATION.value:
-                return Building.revert_creation(user, event_origin, event_id)
+                return Building.revert_creation(team_rnb, event_origin, event_id)
             case EventType.DEACTIVATION.value:
-                return Building.revert_deactivation(user, event_origin, event_id)
+                return Building.revert_deactivation(team_rnb, event_origin, event_id)
             case EventType.UPDATE.value:
-                return Building.revert_update(user, event_origin, event_id)
+                return Building.revert_update(team_rnb, event_origin, event_id)
             case EventType.MERGE.value:
-                return Building.revert_merge(user, event_origin, event_id)
+                return Building.revert_merge(team_rnb, event_origin, event_id)
             case EventType.SPLIT.value:
-                return Building.revert_split(user, event_origin, event_id)
+                return Building.revert_split(team_rnb, event_origin, event_id)
             case _:
                 raise RevertNotAllowed()
 
