@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.db.models import Func
 
 from batid.models import Building
+from batid.services.RNB_team_user import get_RNB_team_user
 
 
 class Lower(Func):
@@ -14,10 +15,9 @@ class Lower(Func):
 
 def rollback(user: User, start_time: datetime, end_time: datetime):
     event_ids = get_user_events(user, start_time, end_time)
+    user = get_RNB_team_user()
     for event_id in event_ids:
-        Building.revert_event(
-            None, {"source": "rollback"}, event_id
-        )  # user will be Equipe RNB.
+        Building.revert_event(user, {"source": "rollback"}, event_id)
 
 
 def get_user_events(
