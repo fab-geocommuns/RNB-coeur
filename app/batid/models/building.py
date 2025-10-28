@@ -1,6 +1,7 @@
 import json
 import uuid
 from copy import deepcopy
+from enum import Enum
 from typing import Optional
 
 from django.contrib.auth.models import User
@@ -33,6 +34,31 @@ from batid.utils.geo import assert_shape_is_valid
 from batid.validators import validate_one_ext_id
 
 
+class EventType(str, Enum):
+    """
+    the possible event types
+    creation: the building is created for the first time
+    update: some fields of an existing building are modified
+    deactivation: the rnb id is deactivated, because the corresponding building had no reason to be in the RNB in the first place
+    WARNING : a deactivation is different from a real building demolition, which would be a change of the status (a thus an event_type: update).
+    merge: two or more buildings are merged into one
+    split: one building is split into two or more"""
+
+    CREATION = "creation"
+    DEACTIVATION = "deactivation"
+    REACTIVATION = "reactivation"
+    UPDATE = "update"
+    REVERT_UPDATE = "revert_update"
+    MERGE = "merge"
+    REVERT_MERGE = "revert_merge"
+    SPLIT = "split"
+    REVERT_SPLIT = "revert_split"
+
+    @classmethod
+    def values(cls):
+        return [e.value for e in cls]
+
+
 class BuildingAbstract(models.Model):
     rnb_id = models.CharField(max_length=12, null=False, unique=True, db_index=True)  # type: ignore[var-annotated]
     point = models.PointField(null=True, spatial_index=True, srid=4326)  # type: ignore[var-annotated]
@@ -56,26 +82,8 @@ class BuildingAbstract(models.Model):
     # an event can modify several buildings at once
     # all the buildings modified by the same event will have the same event_id
     event_id = models.UUIDField(null=True, db_index=True)  # type: ignore[var-annotated]
-    # the possible event types
-    # creation: the building is created for the first time
-    # update: some fields of an existing building are modified
-    # deactivation: the rnb id is deactivated, because the corresponding building had no reason to be in the RNB in the first place
-    # WARNING : a deactivation is different from a real building demolition, which would be a change of the status (a thus an event_type: update).
-    # merge: two or more buildings are merged into one
-    # split: one building is split into two or more
-    EVENT_TYPES = [
-        "creation",
-        "update",
-        "revert_update",
-        "deactivation",
-        "reactivation",
-        "merge",
-        "revert_merge",
-        "split",
-        "revert_split",
-    ]
     event_type = models.CharField(  # type: ignore[var-annotated]
-        choices=[(e, e) for e in EVENT_TYPES],
+        choices=[(e.value, e.value) for e in EventType],
         max_length=13,
         null=True,
     )
@@ -652,8 +660,8 @@ class Building(BuildingAbstract):
         ].event_type
 
         match event_type:
-            # case "creation":
-            #     return Building.revert_creation(user, event_origin, event_id)
+            case "creation":
+                return Building.revert_creation(user, event_origin, event_id)
             case "update":
                 return Building.revert_update(user, event_origin, event_id)
             case "merge":
@@ -697,7 +705,7 @@ class Building(BuildingAbstract):
         constraints = [
             # a DB level constraint on the authorized values for the event_type columns
             CheckConstraint(
-                check=Q(event_type__in=BuildingAbstract.EVENT_TYPES),
+                check=Q(event_type__in=EventType.values()),
                 name="valid_event_type_check",
             ),
         ]
