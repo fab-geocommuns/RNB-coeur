@@ -1,16 +1,12 @@
-from django.db import transaction, connection
-from batid.models import (
-    BuildingHistoryOnly,
-    BuildingWithHistory,
-    BuildingImport,
-    Building,
-)
-from typing import TypedDict
-from datetime import datetime
-from typing import Collection
-from typing import Union
-import math
 import time
+from datetime import datetime
+from typing import Union
+
+from django.db import connection
+
+from batid.models import Building
+from batid.models import BuildingHistoryOnly
+from batid.models import BuildingImport
 
 Numeric = Union[int, float]
 

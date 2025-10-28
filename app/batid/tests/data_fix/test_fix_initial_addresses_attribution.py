@@ -1,10 +1,13 @@
-from datetime import datetime, timezone
-from django.test import TestCase
+from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
+
+from django.test import TestCase
+
 from batid.models import Address
 from batid.models import Building
-from batid.models import BuildingImport
 from batid.models import BuildingHistoryOnly
+from batid.models import BuildingImport
 from batid.models import BuildingWithHistory
 from batid.services.data_fix.fix_initial_addresses_attribution import (
     InitialAddressesAttributionDataFix,

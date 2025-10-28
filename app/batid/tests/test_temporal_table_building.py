@@ -1,9 +1,9 @@
 from django.test import TestCase
 
+from app.dbrouters import DBRouter
 from batid.models import Building
 from batid.models import BuildingHistoryOnly
 from batid.models import BuildingWithHistory
-from app.dbrouters import DBRouter
 
 
 class TemporalTableCase(TestCase):
