@@ -93,12 +93,6 @@ from batid.services.user import get_user_id_b64
 from batid.services.user import get_user_id_from_b64
 from batid.tasks import create_sandbox_user
 from batid.utils.auth import make_random_password
-from batid.utils.constants import ADS_GROUP_NAME
-
-
-class IsSuperUser(BasePermission):
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_superuser)
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
@@ -1264,57 +1258,6 @@ def get_summer_challenge_user_score(request, username):
         "user_rank": user_rank,
     }
     return JsonResponse(data)
-
-
-@extend_schema(exclude=True)
-class AdsTokenView(APIView):
-    permission_classes = [IsSuperUser]
-
-    def post(self, request, *args, **kwargs):
-        try:
-            with transaction.atomic():
-                json_users = json.loads(request.body)
-                users = []
-
-                for json_user in json_users:
-                    password = make_random_password(length=15)
-                    user, created = User.objects.get_or_create(
-                        username=json_user["username"],
-                        defaults={
-                            "email": json_user.get("email", None),
-                            "password": password,
-                        },
-                    )
-
-                    group, created = Group.objects.get_or_create(name=ADS_GROUP_NAME)
-                    user.groups.add(group)
-                    user.save()
-
-                    organization, created = Organization.objects.get_or_create(
-                        name=json_user["organization_name"],
-                        defaults={
-                            "managed_cities": json_user["organization_managed_cities"]
-                        },
-                    )
-
-                    organization.users.add(user)
-                    organization.save()
-
-                    token, created = Token.objects.get_or_create(user=user)
-
-                    users.append(
-                        {
-                            "username": user.username,
-                            "organization_name": json_user["organization_name"],
-                            "email": user.email,
-                            "password": password,
-                            "token": token.key,
-                        }
-                    )
-
-                return JsonResponse({"created_users": users})
-        except json.JSONDecodeError:
-            return HttpResponse("Invalid JSON", status=400)
 
 
 class RNBAuthToken(ObtainAuthToken):
