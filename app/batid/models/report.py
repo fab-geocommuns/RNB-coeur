@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.db.models import CheckConstraint, Q
+from taggit.managers import TaggableManager
 
 from .building import Building
 
@@ -57,6 +58,8 @@ class Report(models.Model):
 
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
+
+    tags: TaggableManager = TaggableManager()
 
     class Meta:
         ordering = ["-created_at"]

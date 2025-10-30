@@ -99,3 +99,17 @@ class TestReport(TestCase):
         )
 
         self.assertEqual(report.closed_by_user, closer_user)
+
+    def test_report_creation_with_tags_succeeds(self):
+        report = Report.objects.create(
+            point=self.point,
+            building=self.building,
+            created_by_user=self.user,
+            status="pending",
+        )
+
+        report.tags.add("tag1", "tag2")
+
+        self.assertEqual(report.tags.count(), 2)
+        self.assertIn("tag1", report.tags.names())
+        self.assertIn("tag2", report.tags.names())

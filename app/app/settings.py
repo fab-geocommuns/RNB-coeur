@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
@@ -80,6 +81,7 @@ INSTALLED_APPS = [
     "django.contrib.postgres",
     "corsheaders",
     "rest_framework_tracking",
+    "taggit",
     "batid",
     "website",
     "api_alpha",
