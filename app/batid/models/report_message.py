@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.db.models import CheckConstraint, Q
@@ -10,28 +12,25 @@ class ReportMessage(models.Model):
     Model for messages/comments on reports
     """
 
-    report = models.ForeignKey(
+    report: models.ForeignKey[Report, Report] = models.ForeignKey(
         Report,
         on_delete=models.CASCADE,
         related_name="messages",
-    )  # type: ignore[var-annotated]
+    )
 
-    created_by_user = models.ForeignKey(
+    created_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="created_report_messages",
-    )  # type: ignore[var-annotated]
+    )
 
-    # Email of the user who created the message (nullable)
-    created_by_email = models.EmailField(null=True, blank=True)  # type: ignore[var-annotated]
+    created_by_email: models.EmailField = models.EmailField(null=True, blank=True)
 
-    # Message text content
-    text = models.TextField(null=False, blank=False, default=None)  # type: ignore[var-annotated]
+    text: models.TextField = models.TextField(default=None, null=False, blank=False)
 
-    # Timestamp for the message
-    timestamp = models.DateTimeField(auto_now_add=True)  # type: ignore[var-annotated]
+    timestamp: models.DateTimeField = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["timestamp"]  # Order messages chronologically

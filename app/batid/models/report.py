@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.db.models import CheckConstraint, Q
@@ -10,49 +12,51 @@ class Report(models.Model):
     Model for user reports about buildings
     """
 
-    point = models.PointField(null=False, spatial_index=True, srid=4326)  # type: ignore[var-annotated]
+    point: models.PointField = models.PointField(
+        null=False, spatial_index=True, srid=4326
+    )
 
-    building = models.ForeignKey(
+    building: models.ForeignKey[Building | None, Building] = models.ForeignKey(
         Building,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="reports",
-    )  # type: ignore[var-annotated]
+    )
 
     STATUS_CHOICES = [
         ("pending", "En attente"),
         ("fixed", "Corrigé"),
         ("rejected", "Refusé"),
     ]
-    status = models.CharField(
+    status: models.CharField = models.CharField(
         choices=STATUS_CHOICES,
         max_length=10,
         null=False,
         default="pending",
         db_index=True,
-    )  # type: ignore[var-annotated]
+    )
 
-    created_by_user = models.ForeignKey(
+    created_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="created_reports",
-    )  # type: ignore[var-annotated]
+    )
 
-    created_by_email = models.EmailField(null=True, blank=True)  # type: ignore[var-annotated]
+    created_by_email: models.EmailField = models.EmailField(null=True, blank=True)
 
-    closed_by_user = models.ForeignKey(
+    closed_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="closed_reports",
-    )  # type: ignore[var-annotated]
+    )
 
-    created_at = models.DateTimeField(auto_now_add=True)  # type: ignore[var-annotated]
-    updated_at = models.DateTimeField(auto_now=True)  # type: ignore[var-annotated]
+    created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
+    updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
