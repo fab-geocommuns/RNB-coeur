@@ -28,19 +28,14 @@ Pour contribuer à ce repo, il faut commencer par le faire tourner en local sur 
 
 ### 3. Renseigner les fichiers de configuration
 
-Copiez, renommez et remplissez les fichiers de configurations ci-dessous.
-
+Créez les fichiers de configuration des variables d’environnement locales (.env.*.dev) à partir des fichiers d’exemple (.env.*.example).
+Ces fichiers contiennent les paramètres nécessaires au fonctionnement de l’application en local.
 Le détail des paramètres à modifier est disponible dans chacun des fichiers d'exemple.
 
-NB : l'extension .example devient .dev
-
-* .env.app.example -> .env.app.dev
-* .env.db_auth.example -> .env.db_auth.dev
-* .env.nginx-encrypt.example -> .env.nginx-encrypt.dev
-* .env.rnb.example -> .env.rnb.dev
-* .env.s3_backup.example -> .env.s3_backup.dev
-* .env.sentry.example -> .env.sentry.dev
-* .env.worker.example -> .env.worker.dev
+Pour les générer automatiquement :
+```
+make env-local
+```
 
 ### 4. Construire et démarrer les conteneurs docker
 
@@ -100,6 +95,9 @@ Le projet utilise [pre-commit](https://pre-commit.com/) pour garantir le bon for
 
 Il est possible d'[installer](https://pre-commit.com/#install) pre-commit en local sur sa machine pour que les corrections soient faites avant même de créer la PR, lors de chaque commit fait en local.
 
+## Effectuer des rapprochements
+
+Retrouvez les étapes pour effectuer des rapprochements à partir d'un accès à une base du RNB dans la section [`Rapprochements`](app/notebooks/rapprochements/README.md)
 
 ## A propos du RNB
 
