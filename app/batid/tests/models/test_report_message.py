@@ -3,7 +3,9 @@ from django.contrib.gis.geos import Point
 from django.db.utils import IntegrityError
 from django.test import TestCase
 
-from batid.models import Building, Report, ReportMessage
+from batid.models import Building
+from batid.models import Report
+from batid.models import ReportMessage
 
 
 class TestReportMessage(TestCase):
