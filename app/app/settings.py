@@ -80,6 +80,7 @@ INSTALLED_APPS = [
     "django.contrib.postgres",
     "corsheaders",
     "rest_framework_tracking",
+    "taggit",
     "batid",
     "website",
     "api_alpha",
