@@ -1,7 +1,9 @@
 import json
 import uuid
 from copy import deepcopy
+from enum import Enum
 from typing import Optional
+from typing import Type
 
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
@@ -25,12 +27,38 @@ from .others import SummerChallenge
 from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import NotEnoughBuildings
 from batid.exceptions import OperationOnInactiveBuilding
-from batid.exceptions import ReactivationNotAllowed
+from batid.exceptions import RevertNotAllowed
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
+from batid.services.RNB_team_user import get_RNB_team_user
 from batid.utils.db import from_now_to_infinity
 from batid.utils.geo import assert_shape_is_valid
 from batid.validators import validate_one_ext_id
+
+
+class EventType(str, Enum):
+    """
+    the possible event types
+    creation: the building is created for the first time
+    update: some fields of an existing building are modified
+    deactivation: the rnb id is deactivated, because the corresponding building had no reason to be in the RNB in the first place
+    WARNING : a deactivation is different from a real building demolition, which would be a change of the status (a thus an event_type: update).
+    merge: two or more buildings are merged into one
+    split: one building is split into two or more"""
+
+    CREATION = "creation"
+    DEACTIVATION = "deactivation"
+    REACTIVATION = "reactivation"
+    UPDATE = "update"
+    REVERT_UPDATE = "revert_update"
+    MERGE = "merge"
+    REVERT_MERGE = "revert_merge"
+    SPLIT = "split"
+    REVERT_SPLIT = "revert_split"
+
+    @classmethod
+    def values(cls):
+        return [e.value for e in cls]
 
 
 class BuildingAbstract(models.Model):
@@ -55,29 +83,16 @@ class BuildingAbstract(models.Model):
     )
     # an event can modify several buildings at once
     # all the buildings modified by the same event will have the same event_id
-    event_id = models.UUIDField(null=True)  # type: ignore[var-annotated]
-    # the possible event types
-    # creation: the building is created for the first time
-    # update: some fields of an existing building are modified
-    # deactivation: the rnb id is deactivated, because the corresponding building had no reason to be in the RNB in the first place
-    # WARNING : a deactivation is different from a real building demolition, which would be a change of the status (a thus an event_type: update).
-    # merge: two or more buildings are merged into one
-    # split: one building is split into two or more
-    EVENT_TYPES = [
-        "creation",
-        "update",
-        "deactivation",
-        "reactivation",
-        "merge",
-        "split",
-    ]
+    event_id = models.UUIDField(null=True, db_index=True)  # type: ignore[var-annotated]
     event_type = models.CharField(  # type: ignore[var-annotated]
-        choices=[(e, e) for e in EVENT_TYPES],
-        max_length=12,
+        choices=[(e.value, e.value) for e in EventType],
+        max_length=13,
         null=True,
     )
     # the user at the origin of the event
     event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)  # type: ignore[var-annotated]
+    # in case of a revert operation, the event_id of the reverted event
+    revert_event_id = models.UUIDField(null=True)  # type: ignore[var-annotated]
     # only currently active buildings are considered part of the RNB
     is_active = models.BooleanField(db_index=True, default=True)  # type: ignore[var-annotated]
     # this field is the source of truth for the building <> address link
@@ -153,10 +168,11 @@ class Building(BuildingAbstract):
         This deactivate method is used to mark a RNB_ID as inactive, with an associated event_type "deactivation"
         """
         if self.is_active:
-            event_id = uuid.uuid4()
-            self.event_type = "deactivation"
+            new_event_id = uuid.uuid4()
+            self.event_type = EventType.DEACTIVATION.value
+            self.revert_event_id = self.event_id
             self.is_active = False
-            self.event_id = event_id
+            self.event_id = new_event_id
             self.event_user = user
             self.event_origin = event_origin
             self.save()
@@ -170,12 +186,35 @@ class Building(BuildingAbstract):
             )
 
             self._refuse_pending_contributions(
-                user, event_id, except_for_this_contribution
+                user, new_event_id, except_for_this_contribution
             )
         else:
             raise OperationOnInactiveBuilding(
                 f"Impossible de désactiver un identifiant déjà inactif : {self.rnb_id}"
             )
+
+    @staticmethod
+    def revert_creation(
+        user: User,
+        event_origin: dict,
+        event_id_to_revert: uuid.UUID,
+    ) -> uuid.UUID:
+        """a wrapper around the existing deactivate method, to deactivate a building based on an event_id"""
+        buildings_to_revert = Building.get_by_event_id(event_id_to_revert, Building)
+
+        if len(buildings_to_revert) != 1:
+            raise RevertNotAllowed(
+                "Impossible d'annuler la création du building, car il a été modifié entre temps."
+            )
+
+        building_to_revert = buildings_to_revert[0]
+
+        if building_to_revert.event_type != EventType.CREATION.value:
+            raise RevertNotAllowed("L'event_id n'est pas celui d'une création.")
+
+        building_to_revert.deactivate(user, event_origin)
+
+        return building_to_revert.event_id
 
     @transaction.atomic
     def reactivate(self, user: User, event_origin):
@@ -183,11 +222,12 @@ class Building(BuildingAbstract):
         This method allows a user to undo a RNB ID deactivation made by mistake.
         We may add some checks in the future, like only allowing to reactivate a recently deactivated ID.
         """
-        if self.is_active == False and self.event_type == "deactivation":
+        if self.is_active == False and self.event_type == EventType.DEACTIVATION.value:
             previous_event_id = self.event_id
 
-            self.event_type = "reactivation"
+            self.event_type = EventType.REACTIVATION.value
             self.is_active = True
+            self.revert_event_id = self.event_id
             self.event_id = uuid.uuid4()
             self.event_user = user
             self.event_origin = event_origin
@@ -195,7 +235,30 @@ class Building(BuildingAbstract):
 
             self._reset_linked_contributions(user, previous_event_id)
         else:
-            raise ReactivationNotAllowed()
+            raise RevertNotAllowed()
+
+    @transaction.atomic
+    @staticmethod
+    def revert_deactivation(
+        user: User,
+        event_origin: dict,
+        event_id_to_revert: uuid.UUID,
+    ) -> uuid.UUID:
+        """a wrapper around the existing reactivate method, to reactivate a building based on an event_id"""
+        buildings_to_revert = Building.get_by_event_id(event_id_to_revert, Building)
+
+        if len(buildings_to_revert) != 1:
+            raise RevertNotAllowed(
+                "Impossible d'annuler la désactivation du building, car il a été modifié entre temps."
+            )
+        building_to_revert = buildings_to_revert[0]
+
+        if building_to_revert.event_type != EventType.DEACTIVATION.value:
+            raise RevertNotAllowed("L'event_id n'est pas celui d'une désactivation.")
+
+        building_to_revert.reactivate(user, event_origin)
+
+        return building_to_revert.event_id
 
     @transaction.atomic
     def update(
@@ -256,6 +319,51 @@ class Building(BuildingAbstract):
             self.addresses_id = addresses_id
 
         self.save()
+
+    @staticmethod
+    def revert_update(
+        user: User, event_origin: dict, event_id_to_revert: uuid.UUID
+    ) -> uuid.UUID:
+        buildings_to_revert = Building.get_by_event_id(event_id_to_revert, Building)
+
+        if len(buildings_to_revert) != 1:
+            raise RevertNotAllowed(
+                "Impossible de modifier un building, car il a été modifié entre temps."
+            )
+
+        building_to_revert = buildings_to_revert[0]
+
+        if building_to_revert.event_type != EventType.UPDATE.value:
+            raise RevertNotAllowed("L'event_id n'est pas celui d'une mise à jour.")
+
+        # get prior version of the building
+        building_prior_versions = (
+            BuildingWithHistory.objects.order_by("-sys_period")
+            .filter(rnb_id=building_to_revert.rnb_id)
+            .filter(sys_period__lt=building_to_revert.sys_period)
+        )
+        building_prior_version = building_prior_versions[0]
+
+        new_event_id = uuid.uuid4()
+
+        building_to_revert.is_active = True
+        building_to_revert.event_type = EventType.REVERT_UPDATE.value
+        building_to_revert.event_id = new_event_id
+        building_to_revert.event_user = user
+        building_to_revert.event_origin = event_origin
+        building_to_revert.revert_event_id = event_id_to_revert
+        building_to_revert.point = building_prior_version.point
+        building_to_revert.shape = building_prior_version.shape
+        building_to_revert.ext_ids = building_prior_version.ext_ids
+        building_to_revert.parent_buildings = building_prior_version.parent_buildings
+        building_to_revert.status = building_prior_version.status
+        building_to_revert.is_active = (
+            building_prior_version.is_active
+        )  # expected to be True anyway
+        building_to_revert.addresses_id = building_prior_version.addresses_id
+        building_to_revert.save()
+
+        return new_event_id
 
     def _refuse_pending_contributions(
         self, user: User, event_id, except_for_this_contribution_id=None
@@ -348,7 +456,7 @@ class Building(BuildingAbstract):
             event_origin=event_origin,
             status=status,
             event_id=event_id,
-            event_type="creation",
+            event_type=EventType.CREATION.value,
             event_user=user,
             is_active=True,
             addresses_id=addresses_id,
@@ -391,7 +499,7 @@ class Building(BuildingAbstract):
 
         def remove_existing_builing(building):
             building.is_active = False
-            building.event_type = "merge"
+            building.event_type = EventType.MERGE.value
             building.event_id = event_id
             building.event_user = user
             building.event_origin = event_origin
@@ -408,7 +516,7 @@ class Building(BuildingAbstract):
         building.rnb_id = generate_rnb_id()
         building.status = status
         building.is_active = True
-        building.event_type = "merge"
+        building.event_type = EventType.MERGE.value
         building.event_id = event_id
         building.event_user = user
         building.event_origin = event_origin
@@ -422,6 +530,50 @@ class Building(BuildingAbstract):
         SummerChallenge.score_merge(user, building.point, building.rnb_id, event_id)
 
         return building
+
+    @transaction.atomic
+    @staticmethod
+    def revert_merge(
+        user: User,
+        event_origin: dict,
+        event_id_to_revert: uuid.UUID,
+    ) -> uuid.UUID:
+        buildings_to_revert = Building.get_by_event_id(event_id_to_revert, Building)
+        if any([b.sys_period.upper != None for b in buildings_to_revert]):
+            raise RevertNotAllowed()
+
+        # should not happen, a merge involves at least 3 buildings
+        if len(buildings_to_revert) < 3:
+            raise NotEnoughBuildings()
+
+        if any([b.event_type != EventType.MERGE.value for b in buildings_to_revert]):
+            raise RevertNotAllowed(
+                "Something wrong is going on there, all rows of this event are expected to be 'merge'."
+            )
+
+        deactivated_buildings = [b for b in buildings_to_revert if not b.is_active]
+        [created_building] = [b for b in buildings_to_revert if b.is_active]
+
+        new_event_id = uuid.uuid4()
+
+        for building in deactivated_buildings:
+            building.is_active = True
+            building.event_type = EventType.REVERT_MERGE.value
+            building.event_id = new_event_id
+            building.event_user = user
+            building.event_origin = event_origin
+            building.revert_event_id = event_id_to_revert
+            building.save()
+
+        created_building.is_active = False
+        created_building.event_type = EventType.REVERT_MERGE.value
+        created_building.event_id = new_event_id
+        created_building.event_user = user
+        created_building.event_origin = event_origin
+        created_building.revert_event_id = event_id_to_revert
+        created_building.save()
+
+        return new_event_id
 
     @transaction.atomic
     def split(
@@ -445,7 +597,7 @@ class Building(BuildingAbstract):
 
         # deactivate the parent building
         self.is_active = False
-        self.event_type = "split"
+        self.event_type = EventType.SPLIT.value
         self.event_id = event_id
         self.event_user = user
         self.event_origin = event_origin
@@ -464,7 +616,7 @@ class Building(BuildingAbstract):
             child_building.rnb_id = generate_rnb_id()
             child_building.status = status
             child_building.is_active = True
-            child_building.event_type = "split"
+            child_building.event_type = EventType.SPLIT.value
             child_building.event_id = event_id
             child_building.event_user = user
             child_building.event_origin = event_origin
@@ -490,6 +642,79 @@ class Building(BuildingAbstract):
         SummerChallenge.score_split(user, self.point, self.rnb_id, event_id)
 
         return child_buildings
+
+    @staticmethod
+    def get_by_event_id(event_id: uuid.UUID, model: Type[models.Model]) -> list:
+        if model is not Building and model is not BuildingWithHistory:
+            raise Exception("unsupported model")
+
+        return list(model.objects.all().filter(event_id=event_id).order_by("rnb_id"))
+
+    @transaction.atomic
+    @staticmethod
+    def revert_split(
+        user: User,
+        event_origin: dict,
+        event_id_to_revert: uuid.UUID,
+    ) -> uuid.UUID:
+        buildings_to_revert = Building.get_by_event_id(event_id_to_revert, Building)
+
+        if any([b.sys_period.upper != None for b in buildings_to_revert]):
+            raise RevertNotAllowed()
+
+        # should not happen, split involves at least 3 buildings
+        if len(buildings_to_revert) < 3:
+            raise NotEnoughBuildings()
+
+        if any([b.event_type != EventType.SPLIT.value for b in buildings_to_revert]):
+            raise RevertNotAllowed(
+                "Something wrong is going on there, all rows of this event are expected to be 'split'."
+            )
+
+        [split_parent] = [b for b in buildings_to_revert if not b.is_active]
+        split_childs = [b for b in buildings_to_revert if b.is_active]
+
+        new_event_id = uuid.uuid4()
+
+        for building in split_childs:
+            building.is_active = False
+            building.event_type = EventType.REVERT_SPLIT.value
+            building.event_id = new_event_id
+            building.event_user = user
+            building.event_origin = event_origin
+            building.revert_event_id = event_id_to_revert
+            building.save()
+
+        split_parent.is_active = True
+        split_parent.event_type = EventType.REVERT_SPLIT.value
+        split_parent.event_id = new_event_id
+        split_parent.event_user = user
+        split_parent.event_origin = event_origin
+        split_parent.revert_event_id = event_id_to_revert
+        split_parent.save()
+
+        return new_event_id
+
+    @staticmethod
+    def revert_event(event_origin: dict, event_id: uuid.UUID) -> uuid.UUID:
+        event_type = Building.get_by_event_id(event_id, BuildingWithHistory)[
+            0
+        ].event_type
+        team_rnb = get_RNB_team_user()
+
+        match event_type:
+            case EventType.CREATION.value:
+                return Building.revert_creation(team_rnb, event_origin, event_id)
+            case EventType.DEACTIVATION.value:
+                return Building.revert_deactivation(team_rnb, event_origin, event_id)
+            case EventType.UPDATE.value:
+                return Building.revert_update(team_rnb, event_origin, event_id)
+            case EventType.MERGE.value:
+                return Building.revert_merge(team_rnb, event_origin, event_id)
+            case EventType.SPLIT.value:
+                return Building.revert_split(team_rnb, event_origin, event_id)
+            case _:
+                raise RevertNotAllowed()
 
     class Meta:
         # ordering = ["rnb_id"]
@@ -525,7 +750,7 @@ class Building(BuildingAbstract):
         constraints = [
             # a DB level constraint on the authorized values for the event_type columns
             CheckConstraint(
-                check=Q(event_type__in=BuildingAbstract.EVENT_TYPES),
+                check=Q(event_type__in=EventType.values()),
                 name="valid_event_type_check",
             ),
         ]
