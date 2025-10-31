@@ -4,12 +4,12 @@ services:
   # Uncomment this to use Nginx locally
   # nginx-proxy:
   #   extends:
-  #     file: common-services.yml
+  #     file: docker-compose.common.yml
   #     service: nginx-proxy
 
   web: &web_base
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: web
     ports:
       - '8888:8888' # Jupyter notebook
@@ -56,7 +56,7 @@ services:
 
   db:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: db
     env_file:
       - ./.env.db_auth.dev
@@ -65,7 +65,7 @@ services:
 
   worker:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: worker
     volumes:
       - ./app:/app
@@ -85,7 +85,7 @@ services:
 
   celery_beat:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: celery_beat
     env_file:
       - ./.env.db_auth.dev
@@ -95,7 +95,7 @@ services:
 
   rabbitmq:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: rabbitmq
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
@@ -103,19 +103,19 @@ services:
 
   redis:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: redis
 
   flower:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: flower
     env_file:
       - ./.env.worker.dev
 
   metabase:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: metabase
     env_file:
       - ./.env.metabase.dev

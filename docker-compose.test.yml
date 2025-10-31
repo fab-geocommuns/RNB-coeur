@@ -3,7 +3,7 @@ name: rnb-coeur
 services:
   web:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: web
     environment:
       - DEBUG=1
@@ -44,7 +44,7 @@ services:
 
   db:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: db
     environment:
       - POSTGRES_HOST=db
@@ -56,14 +56,14 @@ services:
 
   rabbitmq:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: rabbitmq
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
   redis:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: redis
 
 volumes:
