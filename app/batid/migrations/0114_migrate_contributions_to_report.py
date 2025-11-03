@@ -72,11 +72,11 @@ def migrate_single_contribution(contribution: Contribution) -> None:
 
     report = Report(
         point=new_report_point,
-        building_id=building.id,
+        building_id=building.pk,
         status=new_report_status,
         created_by_email=new_report_email,
         closed_by_user_id=(
-            new_report_closed_by_user.id if new_report_closed_by_user else None
+            new_report_closed_by_user.pk if new_report_closed_by_user else None
         ),
         created_at=new_report_created_at,
         updated_at=new_report_updated_at,
@@ -99,7 +99,7 @@ def migrate_single_contribution(contribution: Contribution) -> None:
             ReportMessage(
                 report=report,
                 created_by_user_id=(
-                    new_report_closed_by_user.id if new_report_closed_by_user else None
+                    new_report_closed_by_user.pk if new_report_closed_by_user else None
                 ),
                 text=contribution.review_comment,
                 created_at=contribution.status_changed_at,
@@ -130,9 +130,6 @@ def enable_created_at_auto_now_add(apps, schema_editor):
 def migrate_contributions_to_report(apps, schema_editor):
     disable_created_at_auto_now_add(apps, schema_editor)
     Contribution = apps.get_model("batid", "Contribution")
-    Building = apps.get_model("batid", "Building")
-    Report = apps.get_model("batid", "Report")
-    ReportMessage = apps.get_model("batid", "ReportMessage")
 
     # Get all contributions that are reports
     contributions_to_migrate = Contribution.objects.filter(report=True)
