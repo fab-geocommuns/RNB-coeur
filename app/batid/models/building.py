@@ -20,8 +20,8 @@ from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
 from .others import Address
-from .others import Contribution
 from .others import SummerChallenge
+from .contribution import Contribution
 from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import NotEnoughBuildings
 from batid.exceptions import OperationOnInactiveBuilding
