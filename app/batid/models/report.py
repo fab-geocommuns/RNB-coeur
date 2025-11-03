@@ -70,10 +70,9 @@ class Report(models.Model):
         ]
         constraints = [
             CheckConstraint(
-                check=(
-                    Q(created_by_user__isnull=False) & Q(created_by_email__isnull=True)
-                )
-                | (Q(created_by_user__isnull=True) & Q(created_by_email__isnull=False)),
-                name="report_creator_exclusive",
+                check=~(
+                    Q(created_by_user__isnull=False) & Q(created_by_email__isnull=False)
+                ),
+                name="report_creator_not_both",
             ),
         ]

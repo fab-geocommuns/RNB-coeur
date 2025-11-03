@@ -61,16 +61,18 @@ class TestReportMessage(TestCase):
             )
 
         # Check that the error is related to our constraint
-        self.assertIn("report_message_creator_exclusive", str(context.exception))
+        self.assertIn("report_message_creator_not_both", str(context.exception))
 
-    def test_report_message_creation_without_creator_fails(self):
-        with self.assertRaises(IntegrityError) as context:
-            self.report.messages.create(
-                text="This should fail - no creator",
-            )
+    def test_report_message_creation_without_creator_succeeds(self):
+        message = self.report.messages.create(
+            text="This message has no creator",
+        )
 
-        # Check that the error is related to our constraint
-        self.assertIn("report_message_creator_exclusive", str(context.exception))
+        self.assertEqual(message.report, self.report)
+        self.assertIsNone(message.created_by_user)
+        self.assertIsNone(message.created_by_email)
+        self.assertEqual(message.text, "This message has no creator")
+        self.assertIsNotNone(message.timestamp)
 
     def test_report_message_requires_text(self):
         # Text field is required, so this should fail

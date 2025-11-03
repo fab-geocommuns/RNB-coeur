@@ -54,17 +54,18 @@ class TestReport(TestCase):
                 status="pending",
             )
 
-        self.assertIn("report_creator_exclusive", str(context.exception))
+        self.assertIn("report_creator_not_both", str(context.exception))
 
-    def test_report_creation_without_creator_fails(self):
-        with self.assertRaises(IntegrityError) as context:
-            Report.objects.create(
-                point=self.point,
-                building=self.building,
-                status="pending",
-            )
+    def test_report_creation_without_creator_succeeds(self):
+        report = Report.objects.create(
+            point=self.point,
+            building=self.building,
+            status="pending",
+        )
 
-        self.assertIn("report_creator_exclusive", str(context.exception))
+        self.assertIsNone(report.created_by_user)
+        self.assertIsNone(report.created_by_email)
+        self.assertEqual(report.status, "pending")
 
     def test_report_creation_with_null_building_succeeds(self):
         report = Report.objects.create(

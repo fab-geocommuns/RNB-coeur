@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
                     "created_by_email",
                     models.EmailField(blank=True, max_length=254, null=True),
                 ),
-                ("text", models.TextField(default=None)),
+                ("text", models.TextField()),
                 ("timestamp", models.DateTimeField(auto_now_add=True)),
             ],
             options={
@@ -65,18 +65,11 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="reportmessage",
             constraint=models.CheckConstraint(
-                condition=models.Q(
-                    models.Q(
-                        ("created_by_user__isnull", False),
-                        ("created_by_email__isnull", True),
-                    ),
-                    models.Q(
-                        ("created_by_user__isnull", True),
-                        ("created_by_email__isnull", False),
-                    ),
-                    _connector="OR",
+                condition=~models.Q(
+                    ("created_by_user__isnull", False),
+                    ("created_by_email__isnull", False),
                 ),
-                name="report_message_creator_exclusive",
+                name="report_message_creator_not_both",
             ),
         ),
     ]
