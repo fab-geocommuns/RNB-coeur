@@ -95,11 +95,8 @@ class Inspector:
         try:
             assert_shape_is_valid(self.candidate.shape)
         except BuildingTooSmall:
-            # We want to refuse small buildings only if they are polygons
-            # If they are points, we let them pass
-            if shape_family(self.candidate.shape) == "poly":
-                self.decide_refusal_area_too_small()
-                return
+            self.decide_refusal_area_too_small()
+            return
         except BuildingTooLarge:
             self.decide_refusal_area_too_large()
             return
