@@ -38,7 +38,7 @@ class TestReportMessage(TestCase):
         self.assertEqual(message.created_by_user, self.user)
         self.assertIsNone(message.created_by_email)
         self.assertEqual(message.text, "This is a test message from a user")
-        self.assertIsNotNone(message.timestamp)
+        self.assertIsNotNone(message.created_at)
 
     def test_report_message_creation_with_email_succeeds(self):
         message = self.report.messages.create(
@@ -50,7 +50,7 @@ class TestReportMessage(TestCase):
         self.assertIsNone(message.created_by_user)
         self.assertEqual(message.created_by_email, "commenter@example.com")
         self.assertEqual(message.text, "This is a test message from an email user")
-        self.assertIsNotNone(message.timestamp)
+        self.assertIsNotNone(message.created_at)
 
     def test_report_message_creation_with_both_user_and_email_fails(self):
         with self.assertRaises(IntegrityError) as context:
@@ -72,7 +72,7 @@ class TestReportMessage(TestCase):
         self.assertIsNone(message.created_by_user)
         self.assertIsNone(message.created_by_email)
         self.assertEqual(message.text, "This message has no creator")
-        self.assertIsNotNone(message.timestamp)
+        self.assertIsNotNone(message.created_at)
 
     def test_report_message_requires_text(self):
         # Text field is required, so this should fail

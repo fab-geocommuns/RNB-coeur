@@ -30,10 +30,10 @@ class Migration(migrations.Migration):
                     models.EmailField(blank=True, max_length=254, null=True),
                 ),
                 ("text", models.TextField()),
-                ("timestamp", models.DateTimeField(auto_now_add=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                "ordering": ["timestamp"],
+                "ordering": ["created_at"],
             },
         ),
         migrations.AddField(
@@ -59,7 +59,7 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="reportmessage",
             index=models.Index(
-                fields=["report", "timestamp"], name="report_message_report_ts_idx"
+                fields=["report", "created_at"], name="report_message_report_ts_idx"
             ),
         ),
         migrations.AddConstraint(

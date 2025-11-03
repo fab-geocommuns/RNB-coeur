@@ -31,13 +31,13 @@ class ReportMessage(models.Model):
 
     text: models.TextField = models.TextField(default=None, null=False, blank=False)
 
-    timestamp: models.DateTimeField = models.DateTimeField(auto_now_add=True)
+    created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["timestamp"]  # Order messages chronologically
+        ordering = ["created_at"]  # Order messages chronologically
         indexes = [
             models.Index(
-                fields=("report", "timestamp"),
+                fields=("report", "created_at"),
                 name="report_message_report_ts_idx",
             )
         ]
