@@ -81,6 +81,8 @@ def migrate_single_contribution(contribution: Contribution) -> None:
         created_at=new_report_created_at,
         updated_at=new_report_updated_at,
     )
+    report.save()
+    report.tags.set(["Jeu de l'été 2024"])
     messages = []
 
     messages.append(
@@ -104,7 +106,6 @@ def migrate_single_contribution(contribution: Contribution) -> None:
             )
         )
 
-    Report.objects.bulk_create([report])
     ReportMessage.objects.bulk_create(messages)
 
 
