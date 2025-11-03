@@ -92,7 +92,7 @@ class Inspector:
         # Check the shape is big enough
         if shape_family(self.candidate.shape) == "poly":
             shape_area = compute_shape_area(self.candidate.shape)
-            if shape_area < settings.MIN_BDG_AREA:
+            if shape_area < settings.MIN_BUILDING_AREA:
                 self.decide_refusal_area_too_small(shape_area)
                 return
 

@@ -21,7 +21,6 @@ services:
       - POSTGRES_PASSWORD=postgres
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - MIN_BDG_AREA=5
       - WAIT_HOSTS=db:5432 rabbitmq:5672 redis:6379
       - WAIT_BEFORE=8
       - MATTERMOST_NOTIFICATIONS=0

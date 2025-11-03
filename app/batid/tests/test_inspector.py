@@ -125,6 +125,34 @@ class TestInspectorBdgCreate(TestCase):
         self.assertDictEqual(decision_counts, {})
 
 
+class TestInvalidGeom(TestCase):
+
+    def setUp(self):
+
+        # One very big building (should be refused)
+        too_big_coords = [
+            [2.517814533112869, 50.494009514528585],
+            [2.517814533112869, 50.467950398015915],
+            [2.574133107473557, 50.467950398015915],
+            [2.574133107473557, 50.494009514528585],
+            [2.517814533112869, 50.494009514528585],
+        ]
+        Candidate.objects.create(
+            shape=coords_to_mp_geom(too_big_coords),
+            source="dummy",
+            source_version="1.0.1",
+            source_id="too_big",
+            address_keys=[],
+            is_light=False,
+            created_by={"id": 46, "source": "import"},
+        )
+
+    def test(self):
+
+        i = Inspector()
+        i.inspect()
+
+
 class TestInspectorBdgUpdate(TestCase):
     def setUp(self):
         # Create the city
