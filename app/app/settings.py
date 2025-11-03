@@ -230,6 +230,7 @@ RNB_REPLY_TO_ADDRESS = os.environ.get("RNB_REPLY_TO_ADDRESS")
 
 # Biggest building in RNB is GB97B3AYBKRN and is roughly 487,000m²
 MAX_BUILDING_AREA = 500000
+MIN_BUILDING_AREA = 5
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
@@ -276,8 +277,6 @@ BLOCKED_IPS = os.environ.get("BLOCKED_IPS", "").split(",")
 # URL of the project
 URL = os.environ.get("URL")
 
-# Bat ID custom settings
-MIN_BDG_AREA = float(os.environ.get("MIN_BDG_AREA"))  # type: ignore[arg-type]
 
 # Mattermost
 MATTERMOST_NOTIFICATIONS = (
