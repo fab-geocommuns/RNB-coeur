@@ -9,7 +9,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0110_create_multi_column_gist_index"),
+        ("batid", "0111_candidate_autovacuum"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
