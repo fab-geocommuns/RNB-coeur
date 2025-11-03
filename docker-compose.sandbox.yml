@@ -35,13 +35,24 @@ services:
     extends:
       file: common-services.yml
       service: worker
-    command: celery -A app worker --concurrency=6 --loglevel=INFO
+    command: celery -A app worker --concurrency=3 --loglevel=INFO -Q default -O fair
     env_file:
       - ./.env.db_auth.sandbox
       - ./.env.app.sandbox
       - ./.env.worker.sandbox
       - ./.env.rnb.sandbox
       - ./.env.sentry.sandbox
+
+  celery_beat:
+    extends:
+      file: common-services.yml
+      service: celery_beat
+    env_file:
+      - ./.env.db_auth.sandbox
+      - ./.env.app.sandbox
+      - ./.env.worker.sandbox
+      - ./.env.rnb.sandbox
+
   rabbitmq:
     extends:
       file: common-services.yml

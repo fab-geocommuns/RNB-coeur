@@ -74,6 +74,13 @@ class BuildingTooLarge(InvalidOperation):
         return f"La surface du bâtiment est trop grande, le maximum autorisé est de {settings.MAX_BUILDING_AREA}m²"
 
 
+class BuildingTooSmall(InvalidOperation):
+    """The geometry is too small for a building"""
+
+    def api_message(self):
+        return f"La surface du bâtiment est trop petite, le minimum autorisé est de {settings.MIN_BUILDING_AREA}m²"
+
+
 class ImpossibleShapeMerge(InvalidOperation):
     """The given shapes could not be merged"""
 
