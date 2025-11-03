@@ -25,7 +25,7 @@ class PlotUnknown(Exception):
     """The given plot id is not in the RNB database"""
 
 
-class classInvalidOperation(Exception):
+class InvalidOperation(Exception):
     """The operation is not valid"""
 
     def api_message_with_details(self):
@@ -67,18 +67,18 @@ class InvalidWGS84Geometry(InvalidOperation):
         return "La géométrie n'est pas valide"
 
 
-class BuildingTooSmall(InvalidOperation):
-    """The geometry is too small for a building"""
-
-    def api_message(self):
-        return f"La surface du bâtiment est trop petite, le minimum autorisé est de {settings.MIN_BUILDING_AREA}m²"
-
-
 class BuildingTooLarge(InvalidOperation):
     """The geometry is too large for a building"""
 
     def api_message(self):
         return f"La surface du bâtiment est trop grande, le maximum autorisé est de {settings.MAX_BUILDING_AREA}m²"
+
+
+class BuildingTooSmall(InvalidOperation):
+    """The geometry is too small for a building"""
+
+    def api_message(self):
+        return f"La surface du bâtiment est trop petite, le minimum autorisé est de {settings.MIN_BUILDING_AREA}m²"
 
 
 class ImpossibleShapeMerge(InvalidOperation):
