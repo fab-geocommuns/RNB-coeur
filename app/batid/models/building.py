@@ -19,9 +19,9 @@ from django.db.models import UniqueConstraint
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
+from .contribution import Contribution
 from .others import Address
 from .others import SummerChallenge
-from .contribution import Contribution
 from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import NotEnoughBuildings
 from batid.exceptions import OperationOnInactiveBuilding
