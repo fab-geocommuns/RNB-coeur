@@ -44,7 +44,7 @@ class Report(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name="created_reports",
+        related_name="opened_reports",
     )
 
     created_by_email: models.EmailField = models.EmailField(null=True, blank=True)

@@ -20,6 +20,14 @@ class TestReport(TestCase):
             status="constructed",
         )
 
+    def test_report_creation_without_point_fails(self):
+        with self.assertRaises(IntegrityError) as context:
+            Report.objects.create(
+                building=self.building,
+                created_by_user=self.user,
+                status="pending",
+            )
+
     def test_report_creation_with_user_succeeds(self):
         report = Report.objects.create(
             point=self.point,

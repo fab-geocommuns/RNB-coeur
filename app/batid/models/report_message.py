@@ -24,7 +24,7 @@ class ReportMessage(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name="created_report_messages",
+        related_name="report_messages",
     )
 
     created_by_email: models.EmailField = models.EmailField(null=True, blank=True)
