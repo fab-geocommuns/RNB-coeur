@@ -5,7 +5,8 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
 
-from batid.exceptions import BuildingTooLarge, BuildingTooSmall
+from batid.exceptions import BuildingTooLarge
+from batid.exceptions import BuildingTooSmall
 from batid.exceptions import ImpossibleShapeMerge
 from batid.exceptions import InvalidWGS84Geometry
 

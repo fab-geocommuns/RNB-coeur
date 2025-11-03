@@ -126,7 +126,6 @@ class TestInspectorBdgCreate(TestCase):
 
 
 class TestInvalidGeom(TestCase):
-
     def setUp(self):
 
         # One very big building (should be refused)
