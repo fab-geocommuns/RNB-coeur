@@ -164,6 +164,17 @@ class TestInvalidGeom(TestCase):
             created_by={"id": 46, "source": "import"},
         )
 
+        too_small_real_case_coords = "POLYGON ((7.677333085258134 48.54452683482581, 7.677351468439592 48.54453512234111, 7.677367445522537 48.544516470391386, 7.677349142548201 48.54450908086052, 7.677333085258134 48.54452683482581))"
+        Candidate.objects.create(
+            shape=GEOSGeometry(too_small_real_case_coords),
+            source="dummy",
+            source_version="1.0.1",
+            source_id="too_small_real_case",
+            address_keys=[],
+            is_light=False,
+            created_by={"id": 46, "source": "import"},
+        )
+
         # Invalid point
         invalid_geom = "POINT(200 200)"
         Candidate.objects.create(
@@ -189,9 +200,16 @@ class TestInvalidGeom(TestCase):
         self.assertEqual(c.inspection_details["decision"], "refusal")
         self.assertEqual(c.inspection_details["reason"], "area_too_small")
 
+        c = Candidate.objects.get(source_id="too_small_real_case")
+        self.assertEqual(c.inspection_details["decision"], "refusal")
+        self.assertEqual(c.inspection_details["reason"], "area_too_small")
+
         c = Candidate.objects.get(source_id="invalid_coords")
         self.assertEqual(c.inspection_details["decision"], "refusal")
         self.assertEqual(c.inspection_details["reason"], "invalid_geometry")
+
+        inspected_count = Candidate.objects.filter(inspected_at__isnull=False).count()
+        self.assertEqual(inspected_count, 4)
 
         bdg_count = Building.objects.all().count()
         self.assertEqual(bdg_count, 0)
