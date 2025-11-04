@@ -1,6 +1,7 @@
 from typing import List
 
 from django.conf import settings
+from django.db import connection
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
@@ -120,12 +121,8 @@ def assert_shape_is_valid(geom: GEOSGeometry):
             return  # no area to check
 
         g.srid = 4326
-        # web mercator reprojection
-        # fine for a rough estimation of a building area (few % in France)
-        # error is higher close to the poles
-        geom_projected = g.transform(3857, clone=True)
-        surface = geom_projected.area
-        surface = round(surface)
+        surface = compute_shape_area(g)
+
         if surface > settings.MAX_BUILDING_AREA:
             raise BuildingTooLarge(
                 f"La surface du bâtiment ({surface}m²) est trop grande"
@@ -139,3 +136,11 @@ def assert_shape_is_valid(geom: GEOSGeometry):
     check_coords(geom)
     check_area(geom)
     return True
+
+
+def compute_shape_area(shape):
+    with connection.cursor() as cursor:
+        cursor.execute("select ST_AREA(%s, true)", [shape.wkt])
+        row = cursor.fetchone()
+
+    return row[0]
