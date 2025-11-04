@@ -19,6 +19,7 @@ from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsShapeVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsVectorTileView
 from api_alpha.endpoints.tiles.plots_vector_tile import PlotsVectorTileView
+from api_alpha.endpoints.tiles.report_vector_tile import ReportVectorTileView
 from api_alpha.views import ActivateUser
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSViewSet
@@ -105,14 +106,13 @@ urlpatterns = [
     ),  # For backward compatibility of frontend
     # Vector tiles
     path("ads/tiles/<int:x>/<int:y>/<int:z>.pbf", ADSVectorTileView.as_view()),
-    # Buildings vector tiles
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", BuildingsVectorTileView.as_view()),
     path(
         "tiles/shapes/<int:x>/<int:y>/<int:z>.pbf",
         BuildingsShapeVectorTileView.as_view(),
     ),
-    # Plots vector tiles
     path("plots/tiles/<int:x>/<int:y>/<int:z>.pbf", PlotsVectorTileView.as_view()),
+    path("reports/tiles/<int:x>/<int:y>/<int:z>.pbf", ReportVectorTileView.as_view()),
     # Authentification
     path("login/", RNBAuthToken.as_view()),
     path("auth/users/", CreateUserView.as_view()),
