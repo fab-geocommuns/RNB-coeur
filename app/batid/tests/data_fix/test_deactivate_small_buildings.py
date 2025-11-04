@@ -2,7 +2,8 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from batid.models.building import Building
-from batid.models.others import DataFix, SummerChallenge
+from batid.models.others import DataFix
+from batid.models.others import SummerChallenge
 from batid.services.data_fix.deactivate_small_buildings import (
     deactivate_small_buildings,
 )
