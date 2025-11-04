@@ -1,8 +1,9 @@
 from django.conf import settings
-from django.db import connection
 from django.contrib.auth.models import User
-from batid.models.others import DataFix
+from django.db import connection
+
 from batid.models.building import Building
+from batid.models.others import DataFix
 
 
 def deactivate_small_buildings(fix_id: int, batch_size: int = 1000) -> int:
