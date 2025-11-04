@@ -40,6 +40,7 @@ from api_alpha.views import OrganizationView
 from api_alpha.views import RequestPasswordReset
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SplitBuildings
+from api_alpha.endpoints.reports.get_report import GetReport
 
 
 # Routers provide an easy way of automatically determining the URL conf.
@@ -119,6 +120,8 @@ urlpatterns = [
     ),
     path("editions/ranking/", get_summer_challenge_leaderboard),
     path("editions/ranking/<str:username>/", get_summer_challenge_user_score),
+    # Reports
+    path("reports/<int:report_id>/", GetReport.as_view()),
 ]
 
 
