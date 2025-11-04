@@ -125,6 +125,75 @@ class TestInspectorBdgCreate(TestCase):
         self.assertDictEqual(decision_counts, {})
 
 
+class TestInvalidGeom(TestCase):
+    def setUp(self):
+
+        # One very big building (should be refused)
+        too_big_coords = [
+            [2.517814533112869, 50.494009514528585],
+            [2.517814533112869, 50.467950398015915],
+            [2.574133107473557, 50.467950398015915],
+            [2.574133107473557, 50.494009514528585],
+            [2.517814533112869, 50.494009514528585],
+        ]
+        Candidate.objects.create(
+            shape=coords_to_mp_geom(too_big_coords),
+            source="dummy",
+            source_version="1.0.1",
+            source_id="too_big",
+            address_keys=[],
+            is_light=False,
+            created_by={"id": 46, "source": "import"},
+        )
+
+        # Too small
+        too_small_coords = [
+            [1.3700879356348707, 46.13019858165205],
+            [1.3700879356348707, 46.1301961444135],
+            [1.3700925345636392, 46.1301961444135],
+            [1.3700925345636392, 46.13019858165205],
+            [1.3700879356348707, 46.13019858165205],
+        ]
+        Candidate.objects.create(
+            shape=coords_to_mp_geom(too_small_coords),
+            source="dummy",
+            source_version="1.0.1",
+            source_id="too_small",
+            address_keys=[],
+            is_light=False,
+            created_by={"id": 46, "source": "import"},
+        )
+
+        # Invalid point
+        invalid_geom = "POINT(200 200)"
+        Candidate.objects.create(
+            shape=GEOSGeometry(invalid_geom),
+            source="dummy",
+            source_version="1.0.1",
+            source_id="invalid_coords",
+            address_keys=[],
+            is_light=False,
+            created_by={"id": 46, "source": "import"},
+        )
+
+    def test(self):
+
+        i = Inspector()
+        i.inspect()
+
+        c = Candidate.objects.get(source_id="too_big")
+        self.assertEqual(c.inspection_details["decision"], "refusal")
+        self.assertEqual(c.inspection_details["reason"], "area_too_large")
+
+        c = Candidate.objects.get(source_id="too_small")
+        self.assertEqual(c.inspection_details["decision"], "refusal")
+        self.assertEqual(c.inspection_details["reason"], "area_too_small")
+
+        c = Candidate.objects.get(source_id="invalid_coords")
+        self.assertEqual(c.inspection_details["decision"], "refusal")
+        self.assertEqual(c.inspection_details["reason"], "invalid_geometry")
+
+
 class TestInspectorBdgUpdate(TestCase):
     def setUp(self):
         # Create the city

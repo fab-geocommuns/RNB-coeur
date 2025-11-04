@@ -4,19 +4,19 @@ services:
 
   nginx-proxy:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: nginx-proxy
 
   nginx-letsencrypt:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: nginx-letsencrypt
     env_file:
       - ./.env.nginx-encrypt.sandbox
 
   web:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: web
     restart: unless-stopped
     env_file:
@@ -33,7 +33,7 @@ services:
 
   worker:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: worker
     command: celery -A app worker --concurrency=3 --loglevel=INFO -Q default -O fair
     env_file:
@@ -45,7 +45,7 @@ services:
 
   celery_beat:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: celery_beat
     env_file:
       - ./.env.db_auth.sandbox
@@ -55,7 +55,7 @@ services:
 
   rabbitmq:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: rabbitmq
     env_file:
       - ./.env.rabbitmq.sandbox
@@ -64,13 +64,13 @@ services:
 
   redis:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: redis
     command: redis-server --appendonly yes --replica-read-only no
 
   flower:
     extends:
-      file: common-services.yml
+      file: docker-compose.common.yml
       service: flower
     env_file:
       - ./.env.worker.sandbox

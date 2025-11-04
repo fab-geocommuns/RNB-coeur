@@ -4,17 +4,20 @@ from datetime import timezone
 from typing import Literal
 
 from celery import Signature
-from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.db import transaction
 from psycopg2 import sql
 
+from batid.exceptions import BuildingTooLarge
+from batid.exceptions import BuildingTooSmall
+from batid.exceptions import InvalidWGS84Geometry
 from batid.models import Building
 from batid.models import BuildingWithHistory
 from batid.models import Candidate
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.services.data_fix.fill_empty_event_origin import building_identicals
+from batid.utils.geo import assert_shape_is_valid
 
 
 class Inspector:
@@ -89,12 +92,18 @@ class Inspector:
             self.decide_refusal_is_light()
             return
 
-        # Check the shape is big enough
-        if shape_family(self.candidate.shape) == "poly":
-            shape_area = compute_shape_area(self.candidate.shape)
-            if shape_area < settings.MIN_BDG_AREA:
-                self.decide_refusal_area_too_small(shape_area)
-                return
+        # Validate the geometry
+        try:
+            assert_shape_is_valid(self.candidate.shape)
+        except BuildingTooSmall:
+            self.decide_refusal_area_too_small()
+            return
+        except BuildingTooLarge:
+            self.decide_refusal_area_too_large()
+            return
+        except InvalidWGS84Geometry:
+            self.decide_refusal_invalid_geometry()
+            return
 
         self.compare_matching_bdgs()
 
@@ -140,11 +149,24 @@ class Inspector:
         }
         self.candidate.save()
 
-    def decide_refusal_area_too_small(self, area: float):
+    def decide_refusal_invalid_geometry(self):
+        self.candidate.inspection_details = {
+            "decision": "refusal",
+            "reason": "invalid_geometry",
+        }
+        self.candidate.save()
+
+    def decide_refusal_area_too_large(self):
+        self.candidate.inspection_details = {
+            "decision": "refusal",
+            "reason": "area_too_large",
+        }
+        self.candidate.save()
+
+    def decide_refusal_area_too_small(self):
         self.candidate.inspection_details = {
             "decision": "refusal",
             "reason": "area_too_small",
-            "area": area,
         }
         self.candidate.save()
 
