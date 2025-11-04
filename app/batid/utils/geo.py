@@ -4,16 +4,13 @@ from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
-from django.db import connection
+from pyproj import Geod
+from shapely import wkt
 
 from batid.exceptions import BuildingTooLarge
 from batid.exceptions import BuildingTooSmall
 from batid.exceptions import ImpossibleShapeMerge
 from batid.exceptions import InvalidWGS84Geometry
-
-from shapely.geometry import shape
-from shapely import wkt
-from pyproj import Geod
 
 
 def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:
