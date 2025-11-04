@@ -5,7 +5,7 @@ from batid.models.others import DataFix
 from batid.models.building import Building
 
 
-def deactivate_small_buildings(fix_id: int, limit: int = 1000) -> int:
+def deactivate_small_buildings(fix_id: int, batch_size: int = 1000) -> int:
 
     deactivated_count = 0
 
@@ -28,7 +28,7 @@ def deactivate_small_buildings(fix_id: int, limit: int = 1000) -> int:
         while True:
 
             # Get the building ids to deactivate
-            params = {"min_area": settings.MIN_BUILDING_AREA, "limit": limit}
+            params = {"min_area": settings.MIN_BUILDING_AREA, "limit": batch_size}
             cursor.execute(q, params)
             rows = cursor.fetchall()
 
@@ -39,7 +39,7 @@ def deactivate_small_buildings(fix_id: int, limit: int = 1000) -> int:
 
             for id in ids:
                 building = Building.objects.get(id=id)
-                building.deactivate()
+                building.deactivate(data_fix.user, {"source": "data_fix", "id": fix_id})
                 deactivated_count += 1
 
     return deactivated_count
