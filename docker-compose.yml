@@ -4,7 +4,7 @@ services:
   # Uncomment this to use Nginx locally
   #   nginx-proxy:
   #     extends:
-  #       file: common-services.yml
+  #       file: docker-compose.common.yml
   #       service: nginx-proxy
   #     volumes:
   #       - "./nginx/vhost.d/web_location_additions:/etc/nginx/vhost.d/rnb-api.dev_location:ro"
