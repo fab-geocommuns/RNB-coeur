@@ -193,6 +193,9 @@ class TestInvalidGeom(TestCase):
         self.assertEqual(c.inspection_details["decision"], "refusal")
         self.assertEqual(c.inspection_details["reason"], "invalid_geometry")
 
+        bdg_count = Building.objects.all().count()
+        self.assertEqual(bdg_count, 0)
+
 
 class TestInspectorBdgUpdate(TestCase):
     def setUp(self):
