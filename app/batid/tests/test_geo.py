@@ -6,12 +6,12 @@ from django.test import TestCase
 
 from api_alpha.tests.utils import coordinates_almost_equal
 from batid.exceptions import BuildingTooLarge
-from batid.exceptions import InvalidWGS84Geometry
 from batid.exceptions import BuildingTooSmall
+from batid.exceptions import InvalidWGS84Geometry
 from batid.utils.geo import assert_shape_is_valid
+from batid.utils.geo import compute_shape_area
 from batid.utils.geo import fix_nested_shells
 from batid.utils.geo import merge_contiguous_shapes
-from batid.utils.geo import compute_shape_area
 
 
 class TestGeo(TestCase):

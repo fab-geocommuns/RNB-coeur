@@ -1,10 +1,10 @@
 from typing import List
 
 from django.conf import settings
-from django.db import connection
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
+from django.db import connection
 
 from batid.exceptions import BuildingTooLarge
 from batid.exceptions import BuildingTooSmall
