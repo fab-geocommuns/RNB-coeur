@@ -11,6 +11,10 @@ from batid.exceptions import BuildingTooSmall
 from batid.exceptions import ImpossibleShapeMerge
 from batid.exceptions import InvalidWGS84Geometry
 
+from shapely.geometry import shape
+from shapely import wkt
+from pyproj import Geod
+
 
 def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:
     if not isinstance(geom, MultiPolygon):
@@ -138,9 +142,12 @@ def assert_shape_is_valid(geom: GEOSGeometry):
     return True
 
 
-def compute_shape_area(shape):
-    with connection.cursor() as cursor:
-        cursor.execute("select ST_AREA(%s, true)", [shape.wkt])
-        row = cursor.fetchone()
+def compute_shape_area(shape: GEOSGeometry) -> float:
 
-    return row[0]
+    # source : https://chatgpt.com/share/6909dcdc-9878-8011-a7da-6dede9d747b7
+
+    geod = Geod(ellps="WGS84")
+    geom = wkt.loads(shape.wkt)
+    area, _ = geod.geometry_area_perimeter(geom)
+
+    return abs(area)
