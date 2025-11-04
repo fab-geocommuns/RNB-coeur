@@ -6,6 +6,8 @@ services:
     extends:
       file: docker-compose.common.yml
       service: nginx-proxy
+    volumes:
+      - "./nginx/vhost.d/web_location_additions:/etc/nginx/vhost.d/staging.rnb-api.beta.gouv.fr_location:ro"
 
   nginx-letsencrypt:
     extends:

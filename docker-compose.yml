@@ -2,10 +2,12 @@ name: rnb-coeur
 
 services:
   # Uncomment this to use Nginx locally
-  # nginx-proxy:
-  #   extends:
-  #     file: docker-compose.common.yml
-  #     service: nginx-proxy
+  #   nginx-proxy:
+  #     extends:
+  #       file: common-services.yml
+  #       service: nginx-proxy
+  #     volumes:
+  #       - "./nginx/vhost.d/web_location_additions:/etc/nginx/vhost.d/rnb-api.dev_location:ro"
 
   web: &web_base
     extends:
@@ -35,10 +37,10 @@ services:
       # your /etc/hosts file:
       #   127.0.0.1 rnb-api.dev
       # And uncomment the following lines
-      # - VIRTUAL_HOST=rnb-api.dev
-      # - DJANGO_ALLOWED_HOST=rnb-api.dev
-      # - VIRTUAL_PORT=8000
-      # - VIRTUAL_PROTO=http
+      #    - VIRTUAL_HOST=rnb-api.dev
+      #    - DJANGO_ALLOWED_HOST=rnb-api.dev
+      #    - VIRTUAL_PORT=8000
+      #    - VIRTUAL_PROTO=http
 
   # Uncomment this to fake a local sandbox
   # dev_sandbox:

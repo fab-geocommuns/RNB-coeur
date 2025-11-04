@@ -25,7 +25,7 @@ main() {
     # Use curl to test the Nginx configuration
     # Limit is supposed to be 50 concurrent requests per ip
 
-    echo "--> Testing 50 concurrent requests to / (expected all to pass)"
+    echo "--> Testing 50 concurrent requests to / (expected ~20 to pass)"
     stress GET $base_origin 50
 
     prompt_continue
@@ -45,8 +45,13 @@ main() {
 
     prompt_continue
 
-    echo "--> Testing 20 concurrent POST requests to /admin/login (expected ~1 to pass)"
+    echo "--> Testing 20 concurrent POST requests to /admin/login (expected ~1 to pass with 403)"
     stress POST $base_origin/admin/login/ 20
+
+    prompt_continue
+
+    echo "--> Testing 50 concurrent GET requests to /.env (expected ~20 to pass with 404)"
+    stress GET $base_origin/.env 50
 }
 
 main $@
