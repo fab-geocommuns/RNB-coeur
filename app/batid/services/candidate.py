@@ -350,14 +350,6 @@ def shape_family(shape: GEOSGeometry):
     raise Exception(f"We do not know the family this shape type: {shape.geom_type}")
 
 
-def compute_shape_area(shape):
-    with connection.cursor() as cursor:
-        cursor.execute("select ST_AREA(%s, true)", [shape.wkt])
-        row = cursor.fetchone()
-
-    return row[0]
-
-
 def create_building_from_candidate(c: Candidate) -> Building:
     b = Building.create_new(
         # should we add a user here?

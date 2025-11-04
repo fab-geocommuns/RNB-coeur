@@ -4,6 +4,8 @@ from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
+from pyproj import Geod
+from shapely import wkt
 
 from batid.exceptions import BuildingTooLarge
 from batid.exceptions import BuildingTooSmall
@@ -120,12 +122,8 @@ def assert_shape_is_valid(geom: GEOSGeometry):
             return  # no area to check
 
         g.srid = 4326
-        # web mercator reprojection
-        # fine for a rough estimation of a building area (few % in France)
-        # error is higher close to the poles
-        geom_projected = g.transform(3857, clone=True)
-        surface = geom_projected.area
-        surface = round(surface)
+        surface = compute_shape_area(g)
+
         if surface > settings.MAX_BUILDING_AREA:
             raise BuildingTooLarge(
                 f"La surface du bâtiment ({surface}m²) est trop grande"
@@ -139,3 +137,14 @@ def assert_shape_is_valid(geom: GEOSGeometry):
     check_coords(geom)
     check_area(geom)
     return True
+
+
+def compute_shape_area(shape: GEOSGeometry) -> float:
+
+    # source : https://chatgpt.com/share/6909dcdc-9878-8011-a7da-6dede9d747b7
+
+    geod = Geod(ellps="WGS84")
+    geom = wkt.loads(shape.wkt)
+    area, _ = geod.geometry_area_perimeter(geom)
+
+    return abs(area)
