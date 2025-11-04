@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
-from batid.models.others import DataFix
+from batid.models.others import DataFix, SummerChallenge
 from batid.models.building import Building
 from batid.tests.helpers import coords_to_mp_geom, coords_to_point_geom
 from batid.services.data_fix.deactivate_small_buildings import (
@@ -128,3 +128,6 @@ class TestDeactivateSmallBuildings(TestCase):
             self.assertEqual(
                 b.is_active, False, f"Building {rnb_id} should be inactive"
             )
+
+        scores_count = SummerChallenge.objects.all().count()
+        self.assertEqual(scores_count, 0)
