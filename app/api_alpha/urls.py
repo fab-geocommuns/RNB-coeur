@@ -3,10 +3,10 @@ from django.urls import path
 from django.urls import re_path
 from rest_framework import routers
 
+from api_alpha.endpoints.buildings.get_diff import DiffView
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.single_building import SingleBuilding
 from api_alpha.endpoints.buildings.single_building import SingleBuildingHistory
-from api_alpha.endpoints.buildings.get_diff import DiffView
 from api_alpha.endpoints.ogc.views import OGCBuildingItemsView
 from api_alpha.endpoints.ogc.views import OGCBuildingsCollectionView
 from api_alpha.endpoints.ogc.views import OGCCollectionsView
