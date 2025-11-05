@@ -152,7 +152,9 @@ class DiffView(APIView):
                                 WHEN event_type = 'split' and is_active THEN 'create'
                                 WHEN event_type = 'merge' and not is_active THEN 'deactivate'
                                 WHEN event_type = 'merge' and is_active THEN 'create'
-                                ELSE 'create'
+                                WHEN event_type = 'reactivation' THEN 'reactivate'
+                                WHEN event_type = 'creation' THEN 'create'
+                                ELSE CONCAT('unhandled_event_type_', event_type)
                             END as action,
                             rnb_id,
                             status,
