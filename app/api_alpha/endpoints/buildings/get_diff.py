@@ -15,8 +15,8 @@ from rest_framework.views import APIView
 from api_alpha.utils.rnb_doc import rnb_doc
 
 
-def get_datetime_april_2024() -> datetime:
-    return datetime(2024, 4, 1, 0, 0, 0, tzinfo=timezone.utc)
+def get_datetime_months_ago(months: int) -> datetime:
+    return datetime.now(timezone.utc) - relativedelta(days=months * 30)
 
 
 class DiffView(APIView):
@@ -72,13 +72,18 @@ class DiffView(APIView):
         since_input = request.GET.get("since", "")
         # parse since to a timestamp
         since = parse_datetime(since_input)
-        last_available_modification = get_datetime_april_2024()
+        last_available_modification = get_datetime_months_ago(6)
+
         if since is None:
             return HttpResponse(
                 "The 'since' parameter is missing or incorrect", status=400
             )
+
+        if since.tzinfo is None:
+            since = since.astimezone(timezone.utc)
+
         # nobody should download the whole database
-        elif since < last_available_modification:
+        if since < last_available_modification:
             return HttpResponse(
                 "The 'since' parameter must be after 2024-04-01T00:00:00Z",
                 status=400,
@@ -170,9 +175,11 @@ class DiffView(APIView):
                         raw_sql = raw_sql + " HEADER"
                         first_query = False
 
+                    start_literal = start_ts.isoformat()
+                    end_literal = end_ts.isoformat()
                     sql_query = sql.SQL(raw_sql).format(
-                        start=sql.Literal(start_ts.isoformat()),
-                        end=sql.Literal(end_ts.isoformat()),
+                        start=sql.Literal(start_literal),
+                        end=sql.Literal(end_literal),
                     )
                     # the data coming from the query is streamed to the file descriptor w
                     # and will be received by the parent process as a stream

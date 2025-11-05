@@ -365,11 +365,49 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(r.status_code, 400)
 
     def test_since_is_too_old(self):
-        url = f"/api/alpha/buildings/diff/?since=2021-01-01T00:00:00Z"
+        since = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            days=210  # 7 months
+        )
+        params = urlencode({"since": since.isoformat()})
+        url = f"/api/alpha/buildings/diff/?{params}"
 
         r = self.client.get(url)
 
         self.assertEqual(r.status_code, 400)
+
+    def test_since_without_timezone(self):
+        b = Building.objects.create(rnb_id="t")
+        threshold = Building.objects.get(rnb_id="t").sys_period.lower
+
+        user = User.objects.get(username="marcella")
+        b.update(
+            status="constructed",
+            user=user,
+            event_origin={"source": "test"},
+            addresses_id=[],
+        )
+
+        params = urlencode({"since": threshold.isoformat()[:-6]})
+        url = f"/api/alpha/buildings/diff/?{params}"
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
+
+    def test_since_only_date(self):
+        b = Building.objects.create(rnb_id="t")
+        threshold = Building.objects.get(rnb_id="t").sys_period.lower
+
+        user = User.objects.get(username="marcella")
+        b.update(
+            status="constructed",
+            user=user,
+            event_origin={"source": "test"},
+            addresses_id=[],
+        )
+
+        params = urlencode({"since": threshold.date().isoformat()})
+        url = f"/api/alpha/buildings/diff/?{params}"
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
 
     def test_since_is_invalid(self):
         url = f"/api/alpha/buildings/diff/?since=invalid"
