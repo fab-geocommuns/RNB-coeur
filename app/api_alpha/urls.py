@@ -6,6 +6,7 @@ from rest_framework import routers
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.single_building import SingleBuilding
 from api_alpha.endpoints.buildings.single_building import SingleBuildingHistory
+from api_alpha.endpoints.buildings.get_diff import DiffView
 from api_alpha.endpoints.ogc.views import OGCBuildingItemsView
 from api_alpha.endpoints.ogc.views import OGCBuildingsCollectionView
 from api_alpha.endpoints.ogc.views import OGCCollectionsView
@@ -32,7 +33,6 @@ from api_alpha.views import BuildingPlotView
 from api_alpha.views import ChangePassword
 from api_alpha.views import CreateUserView
 from api_alpha.views import DiffusionDatabaseView
-from api_alpha.views import DiffView
 from api_alpha.views import get_all_endpoints_schema
 from api_alpha.views import get_stats
 from api_alpha.views import get_summer_challenge_leaderboard
