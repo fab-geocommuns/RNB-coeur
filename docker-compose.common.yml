@@ -1,3 +1,9 @@
+x-logging: &managed-logging
+  driver: fluentd
+  options:
+    fluentd-address: 127.0.0.1:24224
+    tag: "{{.Name}}"
+
 services:
   nginx-proxy:
     container_name: nginx-proxy
@@ -7,13 +13,17 @@ services:
       - 443:443
       - 80:80
     depends_on:
-      - web
+      web:
+        condition: service_started
+      fluentd:
+        condition: service_healthy
     volumes:
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
     environment:
       - TRUST_DOWNSTREAM_PROXY=false
+    logging: *managed-logging
 
   nginx-letsencrypt:
     cap_drop: ["ALL"]
@@ -42,7 +52,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      fluentd:
+        condition: service_healthy
     container_name: web
+    logging: *managed-logging
 
   db:
     image: postgis/postgis:16-3.5
@@ -69,8 +82,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      fluentd:
+        condition: service_healthy
     restart: unless-stopped
     container_name: worker
+    logging: *managed-logging
 
   celery_beat:
     cap_drop: ["ALL"]
@@ -84,8 +100,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      fluentd:
+        condition: service_healthy
     container_name: celery_beat
     restart: unless-stopped
+    logging: *managed-logging
 
   rabbitmq:
     restart: unless-stopped
@@ -120,6 +139,20 @@ services:
   metabase:
     image: metabase/metabase:v0.56.11.3
     container_name: metabase
+
+  fluentd:
+    image: grafana/fluent-plugin-loki:3.5
+    platform: linux/x86_64
+    container_name: fluentd
+    healthcheck:
+      test: ["CMD-SHELL", "ruby -e \"require 'socket'; begin; TCPSocket.new('127.0.0.1', 24224).close; exit 0; rescue => _; exit 1; end\""]
+      interval: 5s
+      retries: 5
+      start_period: 5s
+      timeout: 2s
+    ports:
+      - "127.0.0.1:24224:24224"
+    restart: unless-stopped
 
 volumes:
   postgres_data:

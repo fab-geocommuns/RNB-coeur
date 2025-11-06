@@ -27,6 +27,8 @@ services:
       args:
         - WITH_DEV_DEPENDENCIES=true
     depends_on:
+      fluentd:
+        condition: service_healthy
       db:
         condition: service_healthy
     environment:
@@ -83,6 +85,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      fluentd:
+        condition: service_healthy
 
 
   celery_beat:
@@ -94,6 +98,9 @@ services:
       - ./.env.app.dev
       - ./.env.worker.dev
       - ./.env.rnb.dev
+    depends_on:
+      fluentd:
+        condition: service_healthy
 
   rabbitmq:
     extends:
@@ -122,6 +129,16 @@ services:
     env_file:
       - ./.env.metabase.dev
 
+  fluentd:
+    extends:
+      file: docker-compose.common.yml
+      service: fluentd
+    volumes:
+      - ./fluentd.conf:/fluentd/etc/fluent.conf:ro
+      - fluentd_buffer:/fluentd/buffer
+    env_file:
+      - ./.env.fluentd.dev
+
   # Uncomment this to use OGC validator locally
   # ogc_validator:
   #   image: ogccite/ets-ogcapi-features10
@@ -129,6 +146,7 @@ services:
   #     - "8081:8080"
 
 volumes:
+  fluentd_buffer:
   postgres_data:
   rabbitmq_data:
   certs:

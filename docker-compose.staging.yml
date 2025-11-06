@@ -84,6 +84,13 @@ services:
     env_file:
       - ./.env.metabase.staging
 
+  fluent-bit:
+    extends:
+      file: common-services.yml
+      service: fluent-bit
+    env_file:
+      - ./.env.fluent-bit.staging
+
 volumes:
   certs:
   vhost:

@@ -5,6 +5,8 @@ services:
     extends:
       file: docker-compose.common.yml
       service: web
+    logging:
+      driver: local
     environment:
       - DEBUG=1
       - DJANGO_ENV=test
