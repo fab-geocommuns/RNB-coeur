@@ -35,6 +35,8 @@ class CreateReportSerializer(serializers.Serializer):
 
 
 class CreateReportView(RNBLoggingMixin, APIView):
+    throttle_scope = "create_report"
+
     def post(self, request: Request) -> Response:
         serializer = CreateReportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
