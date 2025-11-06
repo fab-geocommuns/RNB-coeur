@@ -129,5 +129,14 @@ class TestDeactivateSmallBuildings(TestCase):
                 b.is_active, False, f"Building {rnb_id} should be inactive"
             )
 
+            if b.rnb_id in ["TOO_SMALL", "TOO_SMALL_2"]:
+                expected_origin = {"source": "data_fix", "id": datafix.id}
+
+                self.assertDictEqual(
+                    b.event_origin,
+                    expected_origin,
+                    f"Building {rnb_id} deactivation origin mismatch",
+                )
+
         scores_count = SummerChallenge.objects.all().count()
         self.assertEqual(scores_count, 0)
