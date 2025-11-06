@@ -8,6 +8,9 @@ from taggit.managers import TaggableManager
 
 from .building import Building
 
+from django.db import transaction
+from django.contrib.gis.geos import Point
+
 
 class Report(models.Model):
     """
@@ -65,6 +68,27 @@ class Report(models.Model):
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
     tags: TaggableManager = TaggableManager()
+
+    @staticmethod
+    @transaction.atomic
+    def create(
+        point: Point,
+        building: Building,
+        text: str,
+        email: str | None,
+        user: User | None,
+        tags: list[str],
+    ) -> Report:
+        report = Report.objects.create(
+            point=point,
+            building=building,
+            created_by_user=user,
+            created_by_email=email,
+        )
+        report.messages.create(text=text, created_by_user=user, created_by_email=email)
+        report.save()
+        report.tags.set(tags)
+        return report
 
     class Meta:
         ordering = ["-created_at"]
