@@ -259,6 +259,15 @@ def remove_light_buildings(folder_name, username, fix_id):
     return "done"
 
 
+@shared_task(retry_kwargs={"max_retries": 0})
+def deactivate_small_buildings(fix_id: int, batch_size: int = 1000) -> int:
+    from batid.services.data_fix.deactivate_small_buildings import (
+        deactivate_small_buildings as deactivate_small_buildings_func,
+    )
+
+    return deactivate_small_buildings_func(fix_id, batch_size)
+
+
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def renew_stats():
     """

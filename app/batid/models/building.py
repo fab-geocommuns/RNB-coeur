@@ -161,9 +161,12 @@ class Building(BuildingAbstract):
             self.event_origin = event_origin
             self.save()
 
-            SummerChallenge.score_deactivation(
-                user, self.point, self.rnb_id, self.event_id
-            )
+            if isinstance(event_origin, dict):
+                source = event_origin.get("source")
+                if source == "contribution":
+                    SummerChallenge.score_deactivation(
+                        user, self.point, self.rnb_id, self.event_id
+                    )
 
             except_for_this_contribution = get_contribution_id_from_event_origin(
                 event_origin

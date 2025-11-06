@@ -265,7 +265,7 @@ class TestSummerChallenge(TestCase):
             ext_ids=[],
         )
 
-        building.deactivate(self.user, event_origin=None)
+        building.deactivate(self.user, event_origin={"source": "contribution"})
         building.refresh_from_db()
 
         scores = (
