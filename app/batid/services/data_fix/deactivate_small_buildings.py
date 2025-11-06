@@ -28,7 +28,7 @@ def deactivate_small_buildings(fix_id: int, batch_size: int = 1000) -> int:
     with connection.cursor() as cursor:
         while True:
 
-            cursor.execute("SET statement_timeout = 600;")
+            cursor.execute("SET statement_timeout = 600s;")
 
             # Get the building ids to deactivate
             params = {"min_area": settings.MIN_BUILDING_AREA, "limit": batch_size}
