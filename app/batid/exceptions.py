@@ -46,6 +46,13 @@ class OperationOnInactiveBuilding(InvalidOperation):
         return "Cette opération est impossible sur un ID-RNB inactif"
 
 
+class DatabaseInconsistency(Exception):
+    """The database consistency is broken."""
+
+    def api_message(self):
+        return "La base est dans un état incohérent."
+
+
 class RevertNotAllowed(InvalidOperation):
     """The revert operation is not allowed"""
 

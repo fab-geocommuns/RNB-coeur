@@ -65,18 +65,20 @@ class TestRollback(TestCase):
 
         with self.assertRaises(RevertNotAllowed) as e:
             Building.revert_event({"source": "rollback"}, creation_event_id)
-            self.assertEqual(
-                str(e.exception),
-                "Impossible d'annuler la création du building, car il a été modifié entre temps.",
-            )
+
+        self.assertEqual(
+            str(e.exception),
+            "Impossible to revert the building creation, because it has been modified.",
+        )
 
         with self.assertRaises(RevertNotAllowed) as e:
             Building.revert_creation(
                 self.team_rnb, {"source": "rollback"}, self.building_1.event_id
             )
-            self.assertEqual(
-                str(e.exception), "L'event_id n'est pas celui d'une création."
-            )
+
+        self.assertEqual(
+            str(e.exception), "The event_id does not correspond to a creation."
+        )
 
     def test_revert_deactivation(self):
         creation_event_id = self.building_1.event_id
@@ -118,18 +120,18 @@ class TestRollback(TestCase):
 
         with self.assertRaises(RevertNotAllowed) as e:
             Building.revert_event({"source": "rollback"}, deactivation_event_id)
-            self.assertEqual(
-                str(e.exception),
-                "Impossible d'annuler la désactivation du building, car il a été modifié entre temps.",
-            )
+        self.assertEqual(
+            str(e.exception),
+            "Impossible to revert the building deactivation, because it has been modified.",
+        )
 
         with self.assertRaises(RevertNotAllowed) as e:
-            Building.revert_creation(
+            Building.revert_deactivation(
                 self.team_rnb, {"source": "rollback"}, self.building_1.event_id
             )
-            self.assertEqual(
-                str(e.exception), "L'event_id n'est pas celui d'une désactivation."
-            )
+        self.assertEqual(
+            str(e.exception), "The event_id does not correspond to a deactivation."
+        )
 
     def test_revert_update(self):
         self.building_1.update(
@@ -174,7 +176,99 @@ class TestRollback(TestCase):
         )
         update_event_id = self.building_1.event_id
 
-        self.building_1.update(
+        self.building_1.deactivate(self.user, {"source": "contribution"})
+        self.building_1.refresh_from_db()
+        deactivation_event_id = self.building_1.event_id
+
+        with self.assertRaises(RevertNotAllowed) as e:
+            Building.revert_event({"source": "rollback"}, update_event_id)
+        self.assertEqual(
+            str(e.exception),
+            "Impossible to revert the building update, because it has been modified.",
+        )
+
+        with self.assertRaises(RevertNotAllowed) as e:
+            Building.revert_update(
+                self.team_rnb, {"source": "rollback"}, deactivation_event_id
+            )
+        self.assertEqual(
+            str(e.exception), "The event_id does not correspond to an update."
+        )
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_revert_split(self):
+        created_buildings = self.building_1.split(
+            [
+                {
+                    "status": "constructed",
+                    "addresses_cle_interop": [],
+                    "shape": "POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))",
+                },
+                {
+                    "status": "constructionProject",
+                    "addresses_cle_interop": [self.address_1.id],
+                    "shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
+                },
+            ],
+            self.user,
+            {"source": "contribution"},
+        )
+
+        self.building_1.refresh_from_db()
+        split_event_id = self.building_1.event_id
+
+        Building.revert_event({"source": "rollback"}, split_event_id)
+        self.building_1.refresh_from_db()
+        new_event_id = self.building_1.event_id
+
+        self.assertEqual(self.building_1.event_type, EventType.REVERT_SPLIT.value)
+        self.assertEqual(self.building_1.revert_event_id, split_event_id)
+        self.assertNotEqual(new_event_id, split_event_id)
+        self.assertEqual(self.building_1.event_origin, {"source": "rollback"})
+        self.assertEqual(self.building_1.status, "constructed")
+        self.assertEqual(self.building_1.addresses_id, [])
+        self.assertEqual(
+            self.building_1.shape.wkt,
+            GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))").wkt,
+        )
+
+        child_1 = created_buildings[0]
+        child_1.refresh_from_db()
+
+        self.assertFalse(child_1.is_active)
+        self.assertEqual(self.building_1.event_type, EventType.REVERT_SPLIT.value)
+        self.assertEqual(child_1.event_id, new_event_id)
+
+        child_2 = created_buildings[0]
+        child_2.refresh_from_db()
+
+        self.assertFalse(child_2.is_active)
+        self.assertEqual(self.building_1.event_type, EventType.REVERT_SPLIT.value)
+        self.assertEqual(child_2.event_id, new_event_id)
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_revert_split_impossible(self):
+        created_buildings = self.building_1.split(
+            [
+                {
+                    "status": "constructed",
+                    "addresses_cle_interop": [],
+                    "shape": "POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))",
+                },
+                {
+                    "status": "constructionProject",
+                    "addresses_cle_interop": [self.address_1.id],
+                    "shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
+                },
+            ],
+            self.user,
+            {"source": "contribution"},
+        )
+        child_1 = created_buildings[0]
+        split_event_id = child_1.event_id
+
+        # a child is updated, reverting the split won't be possible
+        child_1.update(
             self.user,
             {"source": "contribution"},
             status="notUsable",
@@ -182,19 +276,74 @@ class TestRollback(TestCase):
             ext_ids=None,
             shape=None,
         )
-        self.building_1.refresh_from_db()
 
         with self.assertRaises(RevertNotAllowed) as e:
-            Building.revert_event({"source": "rollback"}, update_event_id)
-            self.assertEqual(
-                str(e.exception),
-                "Impossible d'annuler la mise à jour du building, car il a été modifié entre temps.",
-            )
+            Building.revert_event({"source": "rollback"}, split_event_id)
+
+        self.assertEqual(
+            str(e.exception),
+            "Impossible to revert the building split, because it has been modified.",
+        )
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_revert_merge(self):
+        building = Building.merge(
+            [self.building_1, self.building_2],
+            self.user,
+            {"source": "contribution"},
+            status="constructed",
+            addresses_id=[self.address_1.id],
+        )
+        merge_event_id = building.event_id
+
+        Building.revert_event({"source": "rollback"}, merge_event_id)
+        building.refresh_from_db()
+        new_event_id = building.event_id
+
+        self.assertEqual(building.event_type, EventType.REVERT_MERGE.value)
+        self.assertEqual(building.revert_event_id, merge_event_id)
+        self.assertNotEqual(new_event_id, merge_event_id)
+        self.assertEqual(building.event_origin, {"source": "rollback"})
+        self.assertEqual(building.status, "constructed")
+        self.assertEqual(building.addresses_id, [self.address_1.id])
+        self.assertAlmostEqual(building.shape.area, 2, delta=0.01)
+
+        parent_1 = self.building_1
+        parent_1.refresh_from_db()
+
+        self.assertTrue(parent_1.is_active)
+        self.assertEqual(self.building_1.event_type, EventType.REVERT_MERGE.value)
+        self.assertEqual(parent_1.event_id, new_event_id)
+
+        parent_2 = self.building_2
+        parent_2.refresh_from_db()
+
+        self.assertTrue(parent_2.is_active)
+        self.assertEqual(self.building_1.event_type, EventType.REVERT_MERGE.value)
+        self.assertEqual(parent_2.event_id, new_event_id)
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_revert_merge_impossible(self):
+        building = Building.merge(
+            [self.building_1, self.building_2],
+            self.user,
+            {"source": "contribution"},
+            status="constructed",
+            addresses_id=[self.address_1.id],
+        )
+        merge_event_id = building.event_id
+        building.update(
+            self.user,
+            event_origin={"source": "contribution"},
+            status="demolished",
+            addresses_id=None,
+        )
+        building.refresh_from_db()
 
         with self.assertRaises(RevertNotAllowed) as e:
-            Building.revert_creation(
-                self.team_rnb, {"source": "rollback"}, self.building_1.event_id
-            )
-            self.assertEqual(
-                str(e.exception), "L'event_id n'est pas celui d'une mise à jour."
-            )
+            Building.revert_event({"source": "rollback"}, merge_event_id)
+
+        self.assertEqual(
+            str(e.exception),
+            "Impossible to revert the building merge, because it has been modified.",
+        )
