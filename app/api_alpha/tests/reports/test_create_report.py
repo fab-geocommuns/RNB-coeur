@@ -1,5 +1,4 @@
 import json
-from unittest import mock
 
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point

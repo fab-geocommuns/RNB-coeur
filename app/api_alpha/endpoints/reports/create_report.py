@@ -1,18 +1,15 @@
-from django.contrib.gis.geos import Point
-from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api_alpha.permissions import ReadOnly
 from api_alpha.serializers.report import ReportSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
+from api_alpha.validators import bdg_is_active
 from batid.models import Building
 from batid.models import Report
 from batid.services.rnb_id import clean_rnb_id
-from api_alpha.validators import bdg_is_active
 
 
 class CreateReportSerializer(serializers.Serializer):

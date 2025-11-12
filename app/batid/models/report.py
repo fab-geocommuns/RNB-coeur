@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
+from django.contrib.gis.geos import Point
+from django.db import transaction
 from django.db.models import CheckConstraint
 from django.db.models import Q
 from taggit.managers import TaggableManager
 
 from .building import Building
-
-from django.db import transaction
-from django.contrib.gis.geos import Point
 
 
 class Report(models.Model):

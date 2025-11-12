@@ -13,8 +13,8 @@ from api_alpha.endpoints.ogc.views import OGCConformanceView
 from api_alpha.endpoints.ogc.views import OGCIndexView
 from api_alpha.endpoints.ogc.views import OGCOpenAPIDefinitionView
 from api_alpha.endpoints.ogc.views import OGCSingleBuildingItemView
-from api_alpha.endpoints.reports.get_report import GetReport
 from api_alpha.endpoints.reports.create_report import CreateReportView
+from api_alpha.endpoints.reports.get_report import GetReport
 from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsShapeVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsVectorTileView
@@ -41,7 +41,6 @@ from api_alpha.views import OrganizationView
 from api_alpha.views import RequestPasswordReset
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SplitBuildings
-from api_alpha.endpoints.reports.get_report import GetReport
 
 
 # Routers provide an easy way of automatically determining the URL conf.

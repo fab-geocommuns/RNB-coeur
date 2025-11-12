@@ -1,10 +1,9 @@
 from rest_framework import serializers
-
-from batid.models import Report
-from batid.models import ReportMessage
 from taggit.serializers import TagListSerializerField
 
 from api_alpha.serializers.public_user import PublicUserSerializer
+from batid.models import Report
+from batid.models import ReportMessage
 
 
 class DisplayedAuthorSerializer(serializers.Serializer):
