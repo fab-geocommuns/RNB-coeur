@@ -116,7 +116,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="report",
             name="tags",
-            field=taggit.managers.TaggableManager(
+            field=taggit.managers.TaggableManager(  # type: ignore[arg-type]
                 help_text="A comma-separated list of tags.",
                 through="taggit.TaggedItem",
                 to="taggit.Tag",
