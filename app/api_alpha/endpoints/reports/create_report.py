@@ -12,6 +12,7 @@ from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from batid.models import Building
 from batid.models import Report
 from batid.services.rnb_id import clean_rnb_id
+from api_alpha.validators import bdg_is_active
 
 
 class CreateReportSerializer(serializers.Serializer):
@@ -19,34 +20,31 @@ class CreateReportSerializer(serializers.Serializer):
     text = serializers.CharField(required=True)
     email = serializers.EmailField(required=False, allow_blank=True)
 
-    def validate_rnb_id(self, value):
+    def validate_rnb_id(self, value: str) -> str:
         """
         Validate that the rnb_id exists and corresponds to an active building.
         Note: later on we will allow for reports not linked to a building.
         """
         cleaned_rnb_id = clean_rnb_id(value)
-        try:
-            building = Building.objects.get(rnb_id=cleaned_rnb_id, is_active=True)
-            return cleaned_rnb_id
-        except Building.DoesNotExist:
-            raise serializers.ValidationError(
-                f"Building with rnb_id '{value}' not found or inactive."
-            )
+        bdg_is_active(cleaned_rnb_id)
+        return cleaned_rnb_id
 
 
 class CreateReportView(RNBLoggingMixin, APIView):
     throttle_scope = "create_report"
 
     def post(self, request: Request) -> Response:
-        serializer = CreateReportSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        input_serializer = CreateReportSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
 
-        data = serializer.validated_data
+        data = input_serializer.validated_data
         rnb_id = data["rnb_id"]
         text = data["text"]
-        email = data.get("email", None)
+        email = data.get("email")
 
         building = Building.objects.filter(rnb_id=rnb_id).first()
+
+        assert building is not None
 
         authenticated_user = request.user if request.user.is_authenticated else None
 

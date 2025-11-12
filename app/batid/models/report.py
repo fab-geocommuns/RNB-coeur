@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.db.models import CheckConstraint
@@ -85,7 +86,7 @@ class Report(models.Model):
             created_by_user=user,
             created_by_email=email,
         )
-        report.messages.create(text=text, created_by_user=user, created_by_email=email)
+        report.messages.create(text=text, created_by_user=user, created_by_email=email)  # type: ignore[attr-defined]
         report.save()
         report.tags.set(tags)
         return report

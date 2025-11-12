@@ -1,25 +1,23 @@
 from django.contrib.auth.models import User
+from rest_framework import serializers
 
 
-class PublicUserSerializer:
-    def __init__(self, user: User | None):
-        self.user = user
-
-    def to_representation(self) -> dict:
+class PublicUserSerializer(serializers.Serializer):
+    def to_representation(self, instance: User | None) -> dict:
         return {
-            "display_name": self.display_name(),
-            "id": self.user.pk if self.user is not None else None,
-            "username": self.user.username if self.user is not None else None,
+            "display_name": self._get_display_name(instance),
+            "id": instance.pk if instance is not None else None,
+            "username": instance.username if instance is not None else None,
         }
 
-    def display_name(self) -> str:
-        if self.user is None:
+    def _get_display_name(self, instance: User | None) -> str:
+        if instance is None:
             return "Anonyme"
 
-        if not self.user.first_name and not self.user.last_name:
-            return self.user.username
+        if not instance.first_name and not instance.last_name:
+            return instance.username
 
-        if self.user.last_name is None or len(self.user.last_name) == 0:
-            return self.user.first_name
+        if instance.last_name is None or len(instance.last_name) == 0:
+            return instance.first_name
 
-        return f"{self.user.first_name} {self.user.last_name[0]}."
+        return f"{instance.first_name} {instance.last_name[0]}."
