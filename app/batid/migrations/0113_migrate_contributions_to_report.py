@@ -81,6 +81,7 @@ def migrate_single_contribution(contribution: Contribution) -> None:
         ),
         created_at=new_report_created_at,
         updated_at=new_report_updated_at,
+        closed_by_event_id=contribution.status_updated_by_event_id,
     )
     report.save()
     report.tags.set(["Jeu de l'été 2024"])
@@ -160,7 +161,7 @@ def reverse_migrate_contributions_to_report(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0113_add_reportmessage"),
+        ("batid", "0112_create_report_reportmessage"),
     ]
 
     operations = [
