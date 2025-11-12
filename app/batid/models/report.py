@@ -57,17 +57,17 @@ class Report(models.Model):
         related_name="closed_reports",
     )
 
-    created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
+    closed_by_event_id: models.UUIDField = models.UUIDField(null=True, blank=True)
+
+    created_at: models.DateTimeField = models.DateTimeField(
+        auto_now_add=True, db_index=True
+    )
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
     tags: TaggableManager = TaggableManager()
 
     class Meta:
         ordering = ["-created_at"]
-        indexes = [
-            models.Index(fields=("status",), name="report_status_idx"),
-            models.Index(fields=("created_at",), name="report_created_at_idx"),
-        ]
         constraints = [
             CheckConstraint(
                 check=~(
