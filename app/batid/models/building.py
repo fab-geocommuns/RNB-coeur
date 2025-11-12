@@ -28,6 +28,7 @@ from batid.exceptions import OperationOnInactiveBuilding
 from batid.exceptions import ReactivationNotAllowed
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
+from batid.services.user import check_and_increment_contribution_count
 from batid.utils.db import from_now_to_infinity
 from batid.utils.geo import assert_shape_is_valid
 from batid.validators import validate_one_ext_id
@@ -152,6 +153,8 @@ class Building(BuildingAbstract):
         It is not expected to delete anything in the RNB, as it would break our capacity to audit its history.
         This deactivate method is used to mark a RNB_ID as inactive, with an associated event_type "deactivation"
         """
+        check_and_increment_contribution_count(user)
+
         if self.is_active:
             event_id = uuid.uuid4()
             self.event_type = "deactivation"
@@ -186,6 +189,8 @@ class Building(BuildingAbstract):
         This method allows a user to undo a RNB ID deactivation made by mistake.
         We may add some checks in the future, like only allowing to reactivate a recently deactivated ID.
         """
+        check_and_increment_contribution_count(user)
+
         if self.is_active == False and self.event_type == "deactivation":
             previous_event_id = self.event_id
 
@@ -210,6 +215,8 @@ class Building(BuildingAbstract):
         ext_ids: list | None = None,
         shape: GEOSGeometry | None = None,
     ):
+        check_and_increment_contribution_count(user)
+
         if (
             (status is None or status == self.status)
             and (
@@ -319,6 +326,8 @@ class Building(BuildingAbstract):
         shape: GEOSGeometry,
         ext_ids: list,
     ):
+        check_and_increment_contribution_count(user)
+
         if (
             not event_origin
             or not status
@@ -360,6 +369,8 @@ class Building(BuildingAbstract):
     @staticmethod
     @transaction.atomic
     def merge(buildings: list, user, event_origin, status, addresses_id):
+        check_and_increment_contribution_count(user)
+
         from batid.utils.geo import merge_contiguous_shapes
 
         if not isinstance(buildings, list) or len(buildings) < 2:
@@ -433,6 +444,8 @@ class Building(BuildingAbstract):
         user: User,
         event_origin: dict,
     ):
+        check_and_increment_contribution_count(user)
+
         if not event_origin or not user:
             raise Exception("Missing information to split the building")
 
