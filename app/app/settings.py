@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
@@ -22,6 +23,7 @@ from app.schedule import get_celery_beat_schedule
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WRITABLE_DATA_DIR = os.path.join(BASE_DIR, "data")
 
+PRIVATE_CAPTCHA_API_KEY = os.environ.get("PRIVATE_CAPTCHA_API_KEY")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/

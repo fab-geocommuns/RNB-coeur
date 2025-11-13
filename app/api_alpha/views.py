@@ -1587,6 +1587,16 @@ class CreateUserView(APIView):
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
+        from private_captcha import Client
+
+        client = Client(api_key=settings.PRIVATE_CAPTCHA_API_KEY)
+
+        result = client.verify(solution=request.data.get("captcha_solution"))
+        if not result.success:
+            return Response(
+                {"error": "Captcha verification failed"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         request_data = request.data
         if isinstance(request_data, QueryDict):
             request_data = request_data.dict()
