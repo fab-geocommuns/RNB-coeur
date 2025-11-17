@@ -11,7 +11,7 @@ Si ce n'est pas votre cas, vous pouvez vous référez à [la documentation pour 
 Si vous souhaitez effectuer le rapprochement partir d'une copie de la base du RNB en local, dans ce cas, à partir d'un fichier de backup (via pg_dump), vous pouvez le restorer localement via pg_restore ou la commande psql adaptée.
 Attention, la base est volumnineuse, assurez vous d'avoir l'espace disque nécéssaire.
 
-Si vous souhaitez vous connecter à une base distante, munissez-vous de votre utilisateur de base-de-donnée (read-only) et votre utilisateur d'administration SSH. Mettez à jour les informations dans `scripts/development/ssh_tunnel/.env` et lancez `scripts/development/ssh_tunnel/start.sh` pour lancer un tunnel pour vous connecter à la base distante.
+Si vous souhaitez vous connecter à une base distante, munissez-vous de votre utilisateur de base-de-donnée (read-only) et votre utilisateur d'administration SSH. Mettez à jour les informations dans `script/development/ssh_tunnel/.env` et lancez `script/development/ssh_tunnel/start.sh` pour lancer un tunnel pour vous connecter à la base distante.
 
 Dans tous les cas, mettez à jour le fichier [`.env.db_auth.dev`](.env.db_auth.dev) avec les accès à la base de donnée concernée.
 
