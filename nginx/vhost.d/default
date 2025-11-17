@@ -6,3 +6,5 @@ location /admin/login {
     add_header RateLimit-Policy "q=1;w=1";
     limit_req_status 429;
 }
+
+merge_slashes on;
