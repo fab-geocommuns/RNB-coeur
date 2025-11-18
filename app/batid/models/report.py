@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
+from django.contrib.gis.geos import Point
+from django.db import transaction
 from django.db.models import CheckConstraint
 from django.db.models import Q
 from taggit.managers import TaggableManager
@@ -65,6 +67,27 @@ class Report(models.Model):
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
     tags: TaggableManager = TaggableManager()
+
+    @staticmethod
+    @transaction.atomic
+    def create(
+        point: Point,
+        building: Building,
+        text: str,
+        email: str | None,
+        user: User | None,
+        tags: list[str],
+    ) -> Report:
+        report = Report.objects.create(
+            point=point,
+            building=building,
+            created_by_user=user,
+            created_by_email=email,
+        )
+        report.messages.create(text=text, created_by_user=user, created_by_email=email)  # type: ignore[attr-defined]
+        report.save()
+        report.tags.set(tags)
+        return report
 
     class Meta:
         ordering = ["-created_at"]

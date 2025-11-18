@@ -201,6 +201,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "change_password": "10/day",
         "create_user": "10/day",
+        "create_report": "20/min",
     },
     "URL_FORMAT_OVERRIDE": None,
 }
