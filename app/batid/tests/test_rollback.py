@@ -7,7 +7,9 @@ from django.test import TransactionTestCase
 from batid.exceptions import RevertNotAllowed
 from batid.models.building import Address
 from batid.models.building import Building
+from batid.models.building import BuildingWithHistory
 from batid.models.building import EventType
+from batid.services.rollback import rollback
 from batid.services.rollback import rollback_dry_run
 
 
@@ -407,7 +409,7 @@ class TestGlobalRollback(TransactionTestCase):
         )
         self.address_1 = Address.objects.create(id="1")
 
-    def test_dry_rollback(self):
+    def test_global_rollback(self):
         self.building_1.refresh_from_db()
         start_time = self.building_1.sys_period.lower
         end_time = None
@@ -415,7 +417,7 @@ class TestGlobalRollback(TransactionTestCase):
         results = rollback_dry_run(self.user, start_time, end_time)
 
         self.assertEqual(results["user"], self.user.username)
-        self.assertEqual(results["events_found"], 2)
+        self.assertEqual(results["events_found_n"], 2)
         self.assertEqual(results["start_time"], start_time)
         self.assertEqual(results["end_time"], end_time)
         self.assertEqual(results["events_revertable_n"], 2)
@@ -425,7 +427,34 @@ class TestGlobalRollback(TransactionTestCase):
             set({self.building_1.event_id, self.building_2.event_id}),
         )
 
-    def test_dry_rollback_2(self):
+        # Rollback for real
+        results = rollback(self.user, start_time, end_time)
+
+        self.assertEqual(results["user"], self.user.username)
+        self.assertEqual(results["events_found_n"], 2)
+        self.assertEqual(results["start_time"], start_time)
+        self.assertEqual(results["end_time"], end_time)
+        self.assertEqual(results["events_reverted_n"], 2)
+        self.assertEqual(results["events_not_revertable_n"], 0)
+        self.assertEqual(
+            set(results["events_reverted"]),
+            set({self.building_1.event_id, self.building_2.event_id}),
+        )
+        building_1_creation_event_id = self.building_1.event_id
+        building_2_creation_event_id = self.building_2.event_id
+
+        # check the buildings creation have been rolled back
+        self.building_1.refresh_from_db()
+        self.assertFalse(self.building_1.is_active)
+        self.assertEqual(self.building_1.event_type, EventType.REVERT_CREATION.value)
+        self.assertEqual(self.building_1.revert_event_id, building_1_creation_event_id)
+
+        self.building_2.refresh_from_db()
+        self.assertFalse(self.building_2.is_active)
+        self.assertEqual(self.building_2.event_type, EventType.REVERT_CREATION.value)
+        self.assertEqual(self.building_2.revert_event_id, building_2_creation_event_id)
+
+    def test_global_rollback_2(self):
         """Here a user creates 2 buildings and then update one of the created building. An other user updates the other building.
         only the first building creation + update is revertable.
         The second building creation is locked by the update made by other_user
@@ -457,7 +486,7 @@ class TestGlobalRollback(TransactionTestCase):
 
         self.assertEqual(results["user"], self.user.username)
         # 2 creations, 1 update
-        self.assertEqual(results["events_found"], 3)
+        self.assertEqual(results["events_found_n"], 3)
         self.assertEqual(results["start_time"], start_time)
         self.assertEqual(results["end_time"], end_time)
         self.assertEqual(results["events_revertable_n"], 2)
@@ -473,6 +502,43 @@ class TestGlobalRollback(TransactionTestCase):
             results["events_not_revertable"],
             [building_2_creation_event_id],
         )
+
+        results = rollback(self.user, start_time, end_time)
+
+        self.assertEqual(results["user"], self.user.username)
+        # 2 creations, 1 update
+        self.assertEqual(results["events_found_n"], 3)
+        self.assertEqual(results["start_time"], start_time)
+        self.assertEqual(results["end_time"], end_time)
+        self.assertEqual(results["events_reverted_n"], 2)
+        self.assertEqual(results["events_not_revertable_n"], 1)
+        # those events are revertable because they have been made by the same user
+        # and are both in the rollback time range.
+        self.assertEqual(
+            set(results["events_reverted"]),
+            set({building_1_creation_event_id, building_1_update_event_id}),
+        )
+        # not revertable because other_user has updated the building since.
+        self.assertEqual(
+            results["events_not_revertable"],
+            [building_2_creation_event_id],
+        )
+
+        # check the final state
+        self.building_1.refresh_from_db()
+        self.assertFalse(self.building_1.is_active)
+        self.assertEqual(self.building_1.event_type, EventType.REVERT_CREATION.value)
+        self.assertEqual(self.building_1.revert_event_id, building_1_creation_event_id)
+
+        [update_revert] = BuildingWithHistory.objects.filter(
+            revert_event_id=building_1_update_event_id
+        )
+        self.assertEqual(update_revert.event_type, EventType.REVERT_UPDATE.value)
+
+        self.building_2.refresh_from_db()
+        self.assertTrue(self.building_2.is_active)
+        self.assertEqual(self.building_2.event_type, EventType.UPDATE.value)
+        self.assertEqual(self.building_2.revert_event_id, None)
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_dry_rollback_3(self):
@@ -528,7 +594,7 @@ class TestGlobalRollback(TransactionTestCase):
 
         self.assertEqual(results["user"], self.user.username)
         # 1 creation, 5 editions (update, update, deactivation, reactivation, split)
-        self.assertEqual(results["events_found"], 6)
+        self.assertEqual(results["events_found_n"], 6)
         self.assertEqual(results["start_time"], start_time)
         self.assertEqual(results["end_time"], end_time)
         self.assertEqual(results["events_revertable_n"], 6)
@@ -567,3 +633,99 @@ class TestGlobalRollback(TransactionTestCase):
         results = rollback_dry_run(self.user, start_time, end_time)
         self.assertEqual(results["events_revertable_n"], 0)
         self.assertEqual(results["events_not_revertable_n"], 6)
+
+        results = rollback(self.user, start_time, end_time)
+        self.assertEqual(results["events_reverted_n"], 0)
+        self.assertEqual(results["events_not_revertable_n"], 6)
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_global_rollback_3(self):
+        """The same user does multiple editions on the same building. All those updates should be revertable."""
+        self.building_2.refresh_from_db()
+        start_time = self.building_2.sys_period.lower
+        end_time = None
+        building_2_creation_event_id = self.building_2.event_id
+
+        # edition 1
+        self.building_2.update(
+            self.user,
+            {"source": "contribution"},
+            status="demolished",
+            addresses_id=None,
+        )
+        self.building_2.refresh_from_db()
+        building_2_edition_1_event_id = self.building_2.event_id
+
+        # edition 2
+        self.building_2.update(
+            self.user,
+            {"source": "contribution"},
+            status="notUsable",
+            addresses_id=None,
+        )
+        self.building_2.refresh_from_db()
+        building_2_edition_2_event_id = self.building_2.event_id
+
+        # edition 3
+        self.building_2.deactivate(self.user, {"source": "contribution"})
+        self.building_2.refresh_from_db()
+        building_2_edition_3_event_id = self.building_2.event_id
+
+        # edition 4
+        self.building_2.reactivate(self.user, {"source": "contribution"})
+        self.building_2.refresh_from_db()
+        building_2_edition_4_event_id = self.building_2.event_id
+
+        # edition 5
+        child = {
+            "status": "constructed",
+            "shape": self.shape_1,
+            "addresses_cle_interop": [],
+        }
+        split_childs = self.building_2.split(
+            [child, child], self.user, {"source": "contribution"}
+        )
+        self.building_2.refresh_from_db()
+        building_2_edition_5_event_id = self.building_2.event_id
+
+        results = rollback(self.user, start_time, end_time)
+
+        self.assertEqual(results["user"], self.user.username)
+        # 1 creation, 5 editions (update, update, deactivation, reactivation, split)
+        self.assertEqual(results["events_found_n"], 6)
+        self.assertEqual(results["start_time"], start_time)
+        self.assertEqual(results["end_time"], end_time)
+        self.assertEqual(results["events_reverted_n"], 6)
+        self.assertEqual(results["events_not_revertable_n"], 0)
+        # those events are revertable because they have been made by the same user
+        # and are both in the rollback time range.
+        self.assertEqual(
+            set(results["events_reverted"]),
+            set(
+                {
+                    building_2_creation_event_id,
+                    building_2_edition_1_event_id,
+                    building_2_edition_2_event_id,
+                    building_2_edition_3_event_id,
+                    building_2_edition_4_event_id,
+                    building_2_edition_5_event_id,
+                }
+            ),
+        )
+        # not revertable because other_user has updated the building since.
+        self.assertEqual(
+            results["events_not_revertable"],
+            [],
+        )
+
+        child_events = Building.child_events_from_event_id(
+            building_2_edition_5_event_id
+        )
+        # 6 events to revert, 6 new events expected
+        self.assertEqual(len(child_events), 6)
+
+        self.building_2.refresh_from_db()
+        # final state expected
+        self.assertEqual(self.building_2.event_type, EventType.REVERT_CREATION.value)
+        self.assertEqual(self.building_2.status, "constructed")
+        self.assertFalse(self.building_2.is_active)

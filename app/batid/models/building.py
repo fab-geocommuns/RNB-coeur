@@ -163,18 +163,20 @@ class Building(BuildingAbstract):
         return self.point_geojson()["coordinates"][0]
 
     @transaction.atomic
-    def deactivate(self, user: User, event_origin):
+    def deactivate(self, user: User, event_origin, revert_event_id=None):
         """
         IMPORTANT NOTICE: this method must only be used in the case the building was never meant to be in the RNB.
         eg: some trees were visually considered as a building and added to the RNB.
         ----
         It is not expected to delete anything in the RNB, as it would break our capacity to audit its history.
         This deactivate method is used to mark a RNB_ID as inactive, with an associated event_type "deactivation"
+
+        revert_event_id is expected when reverting a reactivation.
         """
         if self.is_active:
             new_event_id = uuid.uuid4()
             self.event_type = EventType.DEACTIVATION.value
-            self.revert_event_id = None
+            self.revert_event_id = revert_event_id
             self.is_active = False
             self.event_id = new_event_id
             self.event_user = user
@@ -228,7 +230,7 @@ class Building(BuildingAbstract):
         # and update it
         new_event_id = uuid.uuid4()
         building.event_type = EventType.REVERT_CREATION.value
-        building.revert_event_id = building.event_id
+        building.revert_event_id = event_id_to_revert
         building.event_id = new_event_id
         building.is_active = False
         building.event_user = user
@@ -238,7 +240,7 @@ class Building(BuildingAbstract):
         return new_event_id
 
     @transaction.atomic
-    def reactivate(self, user: User, event_origin):
+    def reactivate(self, user: User, event_origin, revert_event_id=None):
         """
         This method allows a user to undo a RNB ID deactivation made by mistake.
         We may add some checks in the future, like only allowing to reactivate a recently deactivated ID.
@@ -248,7 +250,7 @@ class Building(BuildingAbstract):
 
             self.event_type = EventType.REACTIVATION.value
             self.is_active = True
-            self.revert_event_id = self.event_id
+            self.revert_event_id = revert_event_id if revert_event_id else self.event_id
             self.event_id = uuid.uuid4()
             self.event_user = user
             self.event_origin = event_origin
@@ -287,6 +289,40 @@ class Building(BuildingAbstract):
 
         current_building = Building.objects.get(rnb_id=building_to_revert.rnb_id)
         current_building.reactivate(user, event_origin)
+
+        return current_building.event_id
+
+    @transaction.atomic
+    @staticmethod
+    def revert_reactivation(
+        user: User,
+        event_origin: dict,
+        event_id_to_revert: uuid.UUID,
+    ) -> uuid.UUID:
+        if not Building.event_can_be_reverted_immediately(event_id_to_revert):
+            raise RevertNotAllowed(
+                "Impossible to revert the building reactivation, because it has been modified."
+            )
+
+        buildings_to_revert = Building.get_by_event_id(event_id_to_revert)
+
+        if len(buildings_to_revert) != 1:
+            raise DatabaseInconsistency(
+                "A building reactivation involvles exactly one building."
+            )
+
+        building_to_revert = buildings_to_revert[0]
+
+        if building_to_revert.event_type != EventType.REACTIVATION.value:
+            raise RevertNotAllowed(
+                "The event_id does not correspond to a reactivation."
+            )
+
+        current_building = Building.objects.get(rnb_id=building_to_revert.rnb_id)
+        current_building.deactivate(
+            user, event_origin, revert_event_id=event_id_to_revert
+        )
+        current_building.refresh_from_db()
 
         return current_building.event_id
 
@@ -755,18 +791,13 @@ class Building(BuildingAbstract):
             )
 
     @staticmethod
-    def get_event_id_child_buildings(event_id: uuid.UUID) -> list:
+    def get_event_id_buildings(event_id: uuid.UUID) -> list:
         buildings = BuildingWithHistory.objects.filter(event_id=event_id)
 
         if len(buildings) == 0:
             return []
 
-        childs = [
-            b
-            for b in buildings
-            if b.is_active or b.event_type == EventType.DEACTIVATION.value
-        ]
-        return childs
+        return [b for b in buildings]
 
     @staticmethod
     def childs_events_from_rnb_ids(rnb_ids: list, after_this_time: datetime) -> list:
@@ -793,7 +824,7 @@ class Building(BuildingAbstract):
 
     @staticmethod
     def child_events_from_event_id(event_id: uuid.UUID) -> list[uuid.UUID]:
-        buildings = Building.get_event_id_child_buildings(event_id)
+        buildings = Building.get_event_id_buildings(event_id)
 
         if len(buildings) == 0:
             return []
@@ -804,7 +835,7 @@ class Building(BuildingAbstract):
         child_events = Building.childs_events_from_rnb_ids(
             child_rnb_ids, after_this_time
         )
-        return child_events
+        return list(set(child_events))
 
     @staticmethod
     def event_has_been_reverted(event_id: uuid.UUID) -> bool:
@@ -883,6 +914,8 @@ class Building(BuildingAbstract):
                 return Building.revert_creation(team_rnb, event_origin, event_id)
             case EventType.DEACTIVATION.value:
                 return Building.revert_deactivation(team_rnb, event_origin, event_id)
+            case EventType.REACTIVATION.value:
+                return Building.revert_reactivation(team_rnb, event_origin, event_id)
             case EventType.UPDATE.value:
                 return Building.revert_update(team_rnb, event_origin, event_id)
             case EventType.MERGE.value:

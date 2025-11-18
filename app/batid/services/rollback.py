@@ -14,14 +14,27 @@ class RangeLower(Func):
     arity = 1
 
 
-def rollback(user: User, start_time: datetime, end_time: datetime):
+def rollback(user: User, start_time: datetime | None, end_time: datetime | None):
     event_ids = get_user_events(user, start_time, end_time)
+    events_reverted = []
+    events_not_revertable = []
     for event_id in event_ids:
         try:
             Building.revert_event({"source": "rollback"}, event_id)
-            print("Reverted", event_id)
+            events_reverted.append(event_id)
         except RevertNotAllowed:
-            pass
+            events_not_revertable.append(event_id)
+
+    return {
+        "user": user.username,
+        "events_found_n": len(event_ids),
+        "start_time": start_time,
+        "end_time": end_time,
+        "events_reverted": events_reverted,
+        "events_reverted_n": len(events_reverted),
+        "events_not_revertable": events_not_revertable,
+        "events_not_revertable_n": len(events_not_revertable),
+    }
 
 
 def rollback_dry_run(
@@ -37,7 +50,7 @@ def rollback_dry_run(
 
     return {
         "user": user.username,
-        "events_found": events_n,
+        "events_found_n": events_n,
         "start_time": start_time,
         "end_time": end_time,
         "events_revertable": events_revertable,
