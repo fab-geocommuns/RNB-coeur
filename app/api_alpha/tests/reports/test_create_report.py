@@ -95,3 +95,24 @@ class CreateReportTest(APITestCase):
         self.assertEqual(response.status_code, 400)
         response_data = response.json()
         self.assertIn("rnb_id", response_data)
+
+    def test_create_report_deactivated_building(self):
+        self.building.is_active = False
+        self.building.save()
+
+        data = {
+            "rnb_id": "TEST00000001",
+            "text": "This building has an issue",
+            "email": "test@example.com",
+        }
+
+        response = self.client.post(
+            "/api/alpha/reports/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(), {"rnb_id": ["L'ID-RNB \"TEST00000001\" n'est pas actif."]}
+        )
