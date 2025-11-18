@@ -12,6 +12,7 @@ from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import User
+from batid.models import UserProfile
 
 
 class BuildingPatchTest(APITestCase):
@@ -19,7 +20,7 @@ class BuildingPatchTest(APITestCase):
         self.user = User.objects.create_user(
             first_name="Robert", last_name="Dylan", username="bob"
         )
-
+        UserProfile.objects.create(user=self.user)
         token = Token.objects.create(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
@@ -650,3 +651,64 @@ class BuildingPatchTest(APITestCase):
         get_mock.assert_called_with(
             f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
         )
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_update_building_contribution_limit_exceeded(self):
+        self.user.groups.add(self.group)
+
+        # Set user to have reached their contribution limit
+        self.user.profile.total_contributions = 500
+        self.user.profile.max_allowed_contributions = 500
+        self.user.profile.save()
+
+        data = {
+            "status": "notUsable",
+            "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+            "comment": "maj du batiment",
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 429)
+
+        # Verify the building was not updated
+        self.building.refresh_from_db()
+        self.assertNotEqual(self.building.event_type, "update")
+        self.assertNotEqual(self.building.status, "notUsable")
+
+        # Verify user contribution count did not increase
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.total_contributions, 500)
+
+    def test_deactivate_building_contribution_limit_exceeded(self):
+        self.user.groups.add(self.group)
+
+        # Set user to have reached their contribution limit
+        self.user.profile.total_contributions = 500
+        self.user.profile.max_allowed_contributions = 500
+        self.user.profile.save()
+
+        comment = "not a building"
+        data = {"is_active": False, "comment": comment}
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 429)
+
+        # Verify the building was not deactivated
+        self.building.refresh_from_db()
+        self.assertTrue(self.building.is_active)
+        self.assertNotEqual(self.building.event_type, "deactivation")
+
+        # Verify user contribution count did not increase
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.total_contributions, 500)
