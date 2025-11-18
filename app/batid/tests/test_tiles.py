@@ -39,3 +39,11 @@ class TestVectorTiles(TestCase):
     def test_plot_endpoint_zoomout(self):
         response = self.client.get("/api/alpha/plots/tiles/8166/5902/12.pbf")
         self.assertEqual(response.status_code, 204)
+
+    def test_report_endpoint(self):
+        zoomed_out_response = self.client.get("/api/alpha/reports/tiles/7/5/4.pbf")
+        self.assertEqual(zoomed_out_response.status_code, 200)
+        zoomed_in_response = self.client.get(
+            "/api/alpha/reports/tiles/8166/5902/15.pbf"
+        )
+        self.assertEqual(zoomed_in_response.status_code, 200)
