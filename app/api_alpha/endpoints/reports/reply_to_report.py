@@ -2,6 +2,7 @@ from typing import Any
 
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
+from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -68,7 +69,7 @@ class ReplyToReportView(RNBLoggingMixin, APIView):
 
         data = input_serializer.validated_data
         text = data["text"]
-        status = data["status"]
+        new_status = data["status"]
         email = data.get("email")
         authenticated_user = request.user if request.user.is_authenticated else None
 
@@ -76,7 +77,7 @@ class ReplyToReportView(RNBLoggingMixin, APIView):
             text=text,
             created_by_user=authenticated_user,
             created_by_email=email,
-            status=status,
+            status=new_status,
         )
 
         serializer = ReportSerializer(report)
