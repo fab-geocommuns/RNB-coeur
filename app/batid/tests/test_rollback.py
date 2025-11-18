@@ -1,7 +1,6 @@
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
-from django.test import TestCase
 from django.test import TransactionTestCase
 
 from batid.exceptions import RevertNotAllowed
@@ -13,7 +12,7 @@ from batid.services.rollback import rollback
 from batid.services.rollback import rollback_dry_run
 
 
-class TestUnitaryRollback(TestCase):
+class TestUnitaryRollback(TransactionTestCase):
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def setUp(self) -> None:
         self.user = User.objects.create_user(
