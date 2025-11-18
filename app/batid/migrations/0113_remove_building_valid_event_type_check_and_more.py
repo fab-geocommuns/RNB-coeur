@@ -14,7 +14,7 @@ from batid.migrations.utils.create_view import (
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0110_create_multi_column_gist_index"),
+        ("batid", "0112_create_report_reportmessage"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
