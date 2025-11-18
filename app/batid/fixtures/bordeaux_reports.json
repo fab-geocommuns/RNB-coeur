@@ -1,0 +1,334 @@
+[
+  {
+    "model": "auth.user",
+    "pk": 7001,
+    "fields": {
+      "password": "pbkdf2_sha256$600000$fixtureSaltA$JAwiqvmbX3X9XifALQXhYVOwYAd7dnzdqlqXzcfo1Ck=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "inspector_a",
+      "first_name": "Emma",
+      "last_name": "Durand",
+      "email": "inspector_a@example.com",
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2024-01-02T10:00:00Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 7002,
+    "fields": {
+      "password": "pbkdf2_sha256$600000$fixtureSaltB$om+mqsJSk6RTqPKT++mUT3a4iGQhDnojiJ5ZHJAluJ4=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "inspector_b",
+      "first_name": "Lucas",
+      "last_name": "Moreau",
+      "email": "inspector_b@example.com",
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2024-01-05T11:30:00Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "batid.report",
+    "pk": 8001,
+    "fields": {
+      "point": "SRID=4326;POINT (-0.570272690832653 44.801975212436460)",
+      "building": 100001,
+      "status": "pending",
+      "created_by_user": 7001,
+      "created_by_email": null,
+      "closed_by_user": null,
+      "closed_by_event_id": null,
+      "created_at": "2024-02-01T09:00:00Z",
+      "updated_at": "2024-02-01T09:05:00Z"
+    }
+  },
+  {
+    "model": "batid.report",
+    "pk": 8002,
+    "fields": {
+      "point": "SRID=4326;POINT (-0.570150000000000 44.802250000000000)",
+      "building": 100001,
+      "status": "fixed",
+      "created_by_user": null,
+      "created_by_email": "neighbor.one@example.com",
+      "closed_by_user": 7002,
+      "closed_by_event_id": "c0bde462-5f3e-4f08-9fb6-f1e4cdfc6a12",
+      "created_at": "2024-02-02T08:30:00Z",
+      "updated_at": "2024-02-03T10:00:00Z"
+    }
+  },
+  {
+    "model": "batid.report",
+    "pk": 8003,
+    "fields": {
+      "point": "SRID=4326;POINT (-0.569850000000000 44.801120000000000)",
+      "building": 100002,
+      "status": "pending",
+      "created_by_user": 7002,
+      "created_by_email": null,
+      "closed_by_user": null,
+      "closed_by_event_id": null,
+      "created_at": "2024-02-04T07:45:00Z",
+      "updated_at": "2024-02-04T08:00:00Z"
+    }
+  },
+  {
+    "model": "batid.report",
+    "pk": 8004,
+    "fields": {
+      "point": "SRID=4326;POINT (-0.571950000000000 44.801420000000000)",
+      "building": 100003,
+      "status": "rejected",
+      "created_by_user": null,
+      "created_by_email": "guardian@example.com",
+      "closed_by_user": 7001,
+      "closed_by_event_id": "9fb2bc4d-9252-4892-a808-8c7d7c5da124",
+      "created_at": "2024-02-05T12:10:00Z",
+      "updated_at": "2024-02-06T09:15:00Z"
+    }
+  },
+  {
+    "model": "batid.report",
+    "pk": 8005,
+    "fields": {
+      "point": "SRID=4326;POINT (-0.570600000000000 44.802400000000000)",
+      "building": null,
+      "status": "pending",
+      "created_by_user": null,
+      "created_by_email": "bystander@example.com",
+      "closed_by_user": null,
+      "closed_by_event_id": null,
+      "created_at": "2024-02-06T06:40:00Z",
+      "updated_at": "2024-02-06T06:50:00Z"
+    }
+  },
+  {
+    "model": "batid.report",
+    "pk": 8006,
+    "fields": {
+      "point": "SRID=4326;POINT (-0.569500000000000 44.801300000000000)",
+      "building": null,
+      "status": "pending",
+      "created_by_user": null,
+      "created_by_email": null,
+      "closed_by_user": null,
+      "closed_by_event_id": null,
+      "created_at": "2024-02-06T07:05:00Z",
+      "updated_at": "2024-02-06T07:05:00Z"
+    }
+  },
+  {
+    "model": "batid.report",
+    "pk": 8007,
+    "fields": {
+      "point": "SRID=4326;POINT (-0.572300000000000 44.801800000000000)",
+      "building": null,
+      "status": "pending",
+      "created_by_user": 7001,
+      "created_by_email": null,
+      "closed_by_user": null,
+      "closed_by_event_id": null,
+      "created_at": "2024-02-07T08:20:00Z",
+      "updated_at": "2024-02-07T08:25:00Z"
+    }
+  },
+  {
+    "model": "batid.report",
+    "pk": 8008,
+    "fields": {
+      "point": "SRID=4326;POINT (-0.571000000000000 44.801000000000000)",
+      "building": null,
+      "status": "pending",
+      "created_by_user": null,
+      "created_by_email": "walkby@example.com",
+      "closed_by_user": null,
+      "closed_by_event_id": null,
+      "created_at": "2024-02-07T09:10:00Z",
+      "updated_at": "2024-02-07T09:12:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9001,
+    "fields": {
+      "report": 8001,
+      "created_by_user": 7001,
+      "created_by_email": null,
+      "text": "Initial observation: elevator access door is blocked by debris.",
+      "created_at": "2024-02-01T09:01:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9002,
+    "fields": {
+      "report": 8001,
+      "created_by_user": null,
+      "created_by_email": null,
+      "text": "Adding a quick note from site: obstruction still there this morning.",
+      "created_at": "2024-02-01T11:15:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9003,
+    "fields": {
+      "report": 8002,
+      "created_by_user": null,
+      "created_by_email": "neighbor.one@example.com",
+      "text": "Noise from late-night work stopped after I reached out.",
+      "created_at": "2024-02-02T08:35:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9004,
+    "fields": {
+      "report": 8002,
+      "created_by_user": 7002,
+      "created_by_email": null,
+      "text": "Verified on site and confirmed the contractor cleaned up.",
+      "created_at": "2024-02-03T10:05:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9005,
+    "fields": {
+      "report": 8003,
+      "created_by_user": 7002,
+      "created_by_email": null,
+      "text": "Glass panels are still missing on the south façade.",
+      "created_at": "2024-02-04T07:50:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9006,
+    "fields": {
+      "report": 8003,
+      "created_by_user": null,
+      "created_by_email": null,
+      "text": "Saw the same gap during evening walk.",
+      "created_at": "2024-02-04T19:20:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9007,
+    "fields": {
+      "report": 8004,
+      "created_by_user": null,
+      "created_by_email": "guardian@example.com",
+      "text": "Thought the fence was open but it is actually part of public path.",
+      "created_at": "2024-02-05T12:15:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9008,
+    "fields": {
+      "report": 8004,
+      "created_by_user": 7001,
+      "created_by_email": null,
+      "text": "Closing this report after confirming there is no breach.",
+      "created_at": "2024-02-06T09:20:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9009,
+    "fields": {
+      "report": 8005,
+      "created_by_user": null,
+      "created_by_email": "bystander@example.com",
+      "text": "Temporary scaffolding sits across the sidewalk.",
+      "created_at": "2024-02-06T06:42:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9010,
+    "fields": {
+      "report": 8005,
+      "created_by_user": null,
+      "created_by_email": null,
+      "text": "Walked by at 10am and passage was still blocked.",
+      "created_at": "2024-02-06T10:00:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9011,
+    "fields": {
+      "report": 8006,
+      "created_by_user": null,
+      "created_by_email": null,
+      "text": "Unregistered delivery truck keeps idling here.",
+      "created_at": "2024-02-06T07:06:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9012,
+    "fields": {
+      "report": 8006,
+      "created_by_user": 7002,
+      "created_by_email": null,
+      "text": "I'll follow up with parking control today.",
+      "created_at": "2024-02-06T09:30:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9013,
+    "fields": {
+      "report": 8007,
+      "created_by_user": 7001,
+      "created_by_email": null,
+      "text": "Investigating reports of loose netting near the crane.",
+      "created_at": "2024-02-07T08:22:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9014,
+    "fields": {
+      "report": 8007,
+      "created_by_user": null,
+      "created_by_email": "neighbor.two@example.com",
+      "text": "Wind picked up the tarp overnight but it is secure now.",
+      "created_at": "2024-02-07T12:20:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9015,
+    "fields": {
+      "report": 8008,
+      "created_by_user": null,
+      "created_by_email": "walkby@example.com",
+      "text": "Entrance ramp is muddy and slippery.",
+      "created_at": "2024-02-07T09:11:00Z"
+    }
+  },
+  {
+    "model": "batid.reportmessage",
+    "pk": 9016,
+    "fields": {
+      "report": 8008,
+      "created_by_user": null,
+      "created_by_email": null,
+      "text": "Still muddy later in the afternoon after rainfall.",
+      "created_at": "2024-02-07T15:45:00Z"
+    }
+  }
+]
