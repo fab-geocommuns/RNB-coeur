@@ -2,14 +2,16 @@ from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
 from django.test import TestCase
+from django.test import TransactionTestCase
 
 from batid.exceptions import RevertNotAllowed
 from batid.models.building import Address
 from batid.models.building import Building
 from batid.models.building import EventType
+from batid.services.rollback import rollback_dry_run
 
 
-class TestRollback(TestCase):
+class TestUnitaryRollback(TestCase):
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def setUp(self) -> None:
         self.user = User.objects.create_user(
@@ -17,7 +19,7 @@ class TestRollback(TestCase):
             password="testpassword",
             email="contributor@example.test",
         )
-        self.team_rnb = User.objects.create_user(username="Équipe RNB")
+        self.team_rnb = User.objects.create_user(username="RNB")
         self.shape_1 = GEOSGeometry("POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))")
         self.building_1 = Building.create_new(
             user=self.user,
@@ -346,4 +348,92 @@ class TestRollback(TestCase):
         self.assertEqual(
             str(e.exception),
             "Impossible to revert the building merge, because it has been modified.",
+        )
+
+
+class TestGlobalRollback(TransactionTestCase):
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="contributor",
+            password="testpassword",
+            email="contributor@example.test",
+        )
+        self.other_user = User.objects.create_user(
+            username="contributor_2",
+            password="testpassword",
+            email="contributor_2@example.test",
+        )
+        self.team_rnb = User.objects.create_user(username="RNB")
+
+        self.shape_1 = GEOSGeometry("POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))")
+
+        self.building_old = Building.create_new(
+            user=self.user,
+            event_origin={"source": "contribution", "contribution_id": 1},
+            status="constructed",
+            addresses_id=[],
+            shape=self.shape_1,
+            ext_ids=[],
+        )
+        self.building_1 = Building.create_new(
+            user=self.user,
+            event_origin={"source": "contribution", "contribution_id": 2},
+            status="constructed",
+            addresses_id=[],
+            shape=self.shape_1,
+            ext_ids=[],
+        )
+        self.building_2 = Building.create_new(
+            user=self.user,
+            event_origin={"source": "contribution", "contribution_id": 3},
+            status="constructed",
+            addresses_id=[],
+            shape=GEOSGeometry("POLYGON((1 0, 1 1, 2 1, 2 0, 1 0))"),
+            ext_ids=[],
+        )
+        self.building_other_user = Building.create_new(
+            user=self.other_user,
+            event_origin={"source": "contribution", "contribution_id": 4},
+            status="constructed",
+            addresses_id=[],
+            shape=self.shape_1,
+            ext_ids=[],
+        )
+        self.address_1 = Address.objects.create(id="1")
+
+    def test_dry_rollback(self):
+        self.building_1.refresh_from_db()
+        start_time = self.building_1.sys_period.lower
+        end_time = None
+
+        results = rollback_dry_run(self.user, start_time, end_time)
+
+        self.assertEqual(results["user"], self.user.username)
+        self.assertEqual(results["events_found"], 2)
+        self.assertEqual(results["start_time"], start_time)
+        self.assertEqual(results["end_time"], end_time)
+        self.assertEqual(results["events_revertable_n"], 2)
+        self.assertEqual(results["events_not_revertable_n"], 0)
+        self.assertEqual(
+            set(results["events_revertable"]),
+            set({self.building_1.event_id, self.building_2.event_id}),
+        )
+
+    def test_dry_rollback(self):
+        self.building_1.refresh_from_db()
+        start_time = self.building_1.sys_period.lower
+        end_time = None
+
+        results = rollback_dry_run(self.user, start_time, end_time)
+
+        self.assertEqual(results["user"], self.user.username)
+        self.assertEqual(results["events_found"], 2)
+        self.assertEqual(results["start_time"], start_time)
+        self.assertEqual(results["end_time"], end_time)
+        self.assertEqual(results["events_revertable_n"], 2)
+        self.assertEqual(results["events_not_revertable_n"], 0)
+        self.assertEqual(
+            set(results["events_revertable"]),
+            set({self.building_1.event_id, self.building_2.event_id}),
         )

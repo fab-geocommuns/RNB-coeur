@@ -1,6 +1,7 @@
 import json
 import uuid
 from copy import deepcopy
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 
@@ -11,6 +12,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.indexes import GistIndex
+from django.db import connection
 from django.db import transaction
 from django.db.models import CheckConstraint
 from django.db.models import F
@@ -217,7 +219,12 @@ class Building(BuildingAbstract):
         if building_to_revert.event_type != EventType.CREATION.value:
             raise RevertNotAllowed("The event_id does not correspond to a creation.")
 
-        building_to_revert.deactivate(user, event_origin)
+        rnb_id = building_to_revert.rnb_id
+
+        # get the current version
+        building = Building.objects.get(rnb_id=rnb_id)
+        # and deactivate it
+        building.deactivate(user, event_origin)
         return building_to_revert.event_id
 
     @transaction.atomic
@@ -360,6 +367,9 @@ class Building(BuildingAbstract):
             .filter(sys_period__lt=building_to_revert.sys_period)
         )
         building_prior_version = building_prior_versions[0]
+
+        # get current version to proceed with update
+        building_to_revert = Building.objects.get(rnb_id=building_prior_version.rnb_id)
 
         new_event_id = uuid.uuid4()
 
@@ -667,7 +677,11 @@ class Building(BuildingAbstract):
 
     @staticmethod
     def get_by_event_id(event_id: uuid.UUID) -> list:
-        return list(Building.objects.all().filter(event_id=event_id).order_by("rnb_id"))
+        return list(
+            BuildingWithHistory.objects.all()
+            .filter(event_id=event_id)
+            .order_by("rnb_id")
+        )
 
     @staticmethod
     def get_event_type(event_id: uuid.UUID) -> str:
@@ -685,11 +699,77 @@ class Building(BuildingAbstract):
 
     @staticmethod
     def event_can_be_reverted(event_id) -> bool:
-        modified_buildings_n = (
-            BuildingHistoryOnly.objects.all().filter(event_id=event_id).count()
+        if not BuildingHistoryOnly.objects.all().filter(event_id=event_id).exists():
+            # event can be reverted if the event_id is not is the history table => it means nothing happend after
+            return True
+        else:
+            # if all the child events have been reverted, we can revert this one
+            child_events = Building.child_events_from_event_id(event_id)
+            print(child_events)
+            return all(
+                [
+                    Building.event_has_been_reverted(e) or Building.event_is_a_revert(e)
+                    for e in child_events
+                ]
+            )
+
+    @staticmethod
+    def get_event_id_child_buildings(event_id: uuid.UUID) -> list:
+        buildings = BuildingWithHistory.objects.filter(event_id=event_id)
+
+        if len(buildings) == 0:
+            return []
+
+        childs = [b for b in buildings if b.is_active]
+        return childs
+
+    @staticmethod
+    def childs_events_from_rnb_ids(rnb_ids: list, after_this_time: datetime) -> list:
+        raw_sql = """
+            WITH RECURSIVE childs AS (
+            SELECT *
+            FROM
+                batid_building_with_history
+            WHERE
+                rnb_id = ANY(%s)
+            UNION
+            SELECT bb.*
+            FROM
+                batid_building_with_history bb
+            INNER JOIN childs c ON bb.parent_buildings @> jsonb_build_array(c.rnb_id)
+            )
+            select c.event_id from childs c where lower(c.sys_period) > %s order by lower(sys_period) asc;
+            """
+
+        with connection.cursor() as cursor:
+            cursor.execute(raw_sql, [rnb_ids, after_this_time])
+            results = cursor.fetchall()
+            return [str(row[0]) for row in results]
+
+    @staticmethod
+    def child_events_from_event_id(event_id: uuid.UUID) -> list[uuid.UUID]:
+        buildings = Building.get_event_id_child_buildings(event_id)
+
+        if len(buildings) == 0:
+            return []
+
+        child_rnb_ids = [b.rnb_id for b in buildings]
+        after_this_time = buildings[0].sys_period.lower
+
+        child_events = Building.childs_events_from_rnb_ids(
+            child_rnb_ids, after_this_time
         )
-        # event can be reverted if the event_id is not is the history table
-        return modified_buildings_n == 0
+        return child_events
+
+    @staticmethod
+    def event_has_been_reverted(event_id: uuid.UUID) -> bool:
+        return BuildingWithHistory.objects.filter(revert_event_id=event_id).exists()
+
+    @staticmethod
+    def event_is_a_revert(event_id: uuid.UUID) -> bool:
+        buildings = BuildingWithHistory.objects.filter(event_id=event_id)
+        revert_event_id = {b.revert_event_id for b in buildings}
+        return revert_event_id != {None}
 
     @transaction.atomic
     @staticmethod
@@ -722,21 +802,23 @@ class Building(BuildingAbstract):
         new_event_id = uuid.uuid4()
 
         for building in split_childs:
-            building.is_active = False
-            building.event_type = EventType.REVERT_SPLIT.value
-            building.event_id = new_event_id
-            building.event_user = user
-            building.event_origin = event_origin
-            building.revert_event_id = event_id_to_revert
-            building.save()
+            current_building = Building.objects.get(rnb_id=building.rnb_id)
+            current_building.is_active = False
+            current_building.event_type = EventType.REVERT_SPLIT.value
+            current_building.event_id = new_event_id
+            current_building.event_user = user
+            current_building.event_origin = event_origin
+            current_building.revert_event_id = event_id_to_revert
+            current_building.save()
 
-        split_parent.is_active = True
-        split_parent.event_type = EventType.REVERT_SPLIT.value
-        split_parent.event_id = new_event_id
-        split_parent.event_user = user
-        split_parent.event_origin = event_origin
-        split_parent.revert_event_id = event_id_to_revert
-        split_parent.save()
+        current_split_parent = Building.objects.get(rnb_id=split_parent.rnb_id)
+        current_split_parent.is_active = True
+        current_split_parent.event_type = EventType.REVERT_SPLIT.value
+        current_split_parent.event_id = new_event_id
+        current_split_parent.event_user = user
+        current_split_parent.event_origin = event_origin
+        current_split_parent.revert_event_id = event_id_to_revert
+        current_split_parent.save()
 
         return new_event_id
 

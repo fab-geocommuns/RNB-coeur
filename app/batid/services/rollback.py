@@ -4,26 +4,64 @@ from datetime import datetime
 from django.contrib.auth.models import User
 from django.db.models import Func
 
+from batid.exceptions import RevertNotAllowed
 from batid.models import Building
+from batid.models.building import BuildingWithHistory
 
 
-class Lower(Func):
-    function = "LOWER"
+class RangeLower(Func):
+    function = "lower"
     arity = 1
 
 
 def rollback(user: User, start_time: datetime, end_time: datetime):
     event_ids = get_user_events(user, start_time, end_time)
     for event_id in event_ids:
-        Building.revert_event({"source": "rollback"}, event_id)
+        try:
+            Building.revert_event({"source": "rollback"}, event_id)
+            print("Reverted", event_id)
+        except RevertNotAllowed:
+            pass
+
+
+def rollback_dry_run(
+    user: User, start_time: datetime | None, end_time: datetime | None
+):
+    event_ids = get_user_events(user, start_time, end_time)
+
+    events_n = len(event_ids)
+    events_revertable = [
+        event_id for event_id in event_ids if Building.event_can_be_reverted(event_id)
+    ]
+    events_not_revertable = list(set(event_ids) - set(events_revertable))
+
+    return {
+        "user": user.username,
+        "events_found": events_n,
+        "start_time": start_time,
+        "end_time": end_time,
+        "events_revertable": events_revertable,
+        "events_revertable_n": len(events_revertable),
+        "events_not_revertable": events_not_revertable,
+        "events_not_revertable_n": len(events_not_revertable),
+    }
 
 
 def get_user_events(
-    user: User, start_time: datetime, end_time: datetime
+    user: User, start_time: datetime | None, end_time: datetime | None
 ) -> list[uuid.UUID]:
-    buildings = Building.objects.annotate(sys_period_lower=Lower("sys_period")).filter(
-        sys_period_lower__gt=start_time,
-        sys_period_lower__lt=end_time,
-        user=user,
+    buildings = (
+        BuildingWithHistory.objects.annotate(sys_period_lower=RangeLower("sys_period"))
+        .filter(event_user=user)
+        .order_by("-sys_period")
     )
-    return list(set([b.event_id for b in buildings]))
+    if start_time:
+        buildings = buildings.filter(sys_period_lower__gte=start_time)
+
+    if end_time:
+        buildings = buildings.filter(sys_period_lower__lte=end_time)
+
+    print([(b.event_id, b.sys_period) for b in buildings])
+
+    # remove duplicates while preserving order
+    return list(dict.fromkeys([b.event_id for b in buildings]))
