@@ -1,7 +1,7 @@
+from typing import Any
+
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -9,7 +9,6 @@ from rest_framework.views import APIView
 from api_alpha.serializers.report import ReportSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from batid.models import Report
-from typing import Any
 
 
 class ReplyToReportSerializer(serializers.Serializer):
