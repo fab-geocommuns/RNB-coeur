@@ -45,11 +45,14 @@ class CreateReportTest(APITestCase):
         self.assertEqual(response_data["rnb_id"], "TEST00000001")
         self.assertEqual(response_data["status"], "pending")
         self.assertEqual(response_data["author"]["display_name"], "Anonyme")
+        self.assertEqual(response_data["tags"], ["Signalement utilisateur"])
 
         report = Report.objects.get(id=response_data["id"])
         self.assertEqual(report.building, self.building)
         self.assertEqual(report.created_by_email, "test@example.com")
         self.assertIsNone(report.created_by_user)
+        self.assertEqual(report.tags.count(), 1)
+        self.assertEqual(report.tags.first().name, "Signalement utilisateur")
 
     def test_create_report_authenticated_user(self):
         token = Token.objects.create(user=self.user)

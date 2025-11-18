@@ -51,7 +51,7 @@ class CreateReportView(RNBLoggingMixin, APIView):
             text=text,
             email=email,
             user=authenticated_user,
-            tags=[],
+            tags=["Signalement utilisateur"],
         )
 
         serializer = ReportSerializer(report)
