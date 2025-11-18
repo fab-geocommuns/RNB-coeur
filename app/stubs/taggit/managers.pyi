@@ -1,0 +1,6 @@
+from typing import Any
+from django.db import models
+
+class TaggableManager(models.Manager[Any]):
+    def __init__(self, *args: Any, **kwargs: Any) -> None: ...
+    def __get__(self, instance: Any, owner: Any) -> Any: ...
