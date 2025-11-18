@@ -89,6 +89,29 @@ class Report(models.Model):
         report.tags.set(tags)
         return report
 
+    @transaction.atomic
+    def add_message_and_update_status(
+        self,
+        text: str,
+        created_by_user: User | None,
+        created_by_email: str | None,
+        status: str | None,
+    ) -> None:
+        if self.is_closed():
+            raise ValueError(f"{self} is closed")
+        self.messages.create(  # type: ignore[attr-defined]
+            text=text,
+            created_by_user=created_by_user,
+            created_by_email=created_by_email,
+        )
+        if status is not None and status != self.status:
+            self.status = status
+            self.closed_by_user = created_by_user
+            self.save()
+
+    def is_closed(self) -> bool:
+        return self.status in ["fixed", "rejected"]
+
     class Meta:
         ordering = ["-created_at"]
         constraints = [
