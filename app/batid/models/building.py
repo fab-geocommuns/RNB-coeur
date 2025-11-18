@@ -202,7 +202,7 @@ class Building(BuildingAbstract):
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
         """a wrapper around the existing deactivate method, to deactivate a building based on an event_id"""
-        if not Building.event_can_be_reverted(event_id_to_revert):
+        if not Building.event_can_be_reverted_immediately(event_id_to_revert):
             raise RevertNotAllowed(
                 "Impossible to revert the building creation, because it has been modified."
             )
@@ -256,7 +256,7 @@ class Building(BuildingAbstract):
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
         """a wrapper around the existing reactivate method, to reactivate a building based on an event_id"""
-        if not Building.event_can_be_reverted(event_id_to_revert):
+        if not Building.event_can_be_reverted_immediately(event_id_to_revert):
             raise RevertNotAllowed(
                 "Impossible to revert the building deactivation, because it has been modified."
             )
@@ -343,7 +343,7 @@ class Building(BuildingAbstract):
     def revert_update(
         user: User, event_origin: dict, event_id_to_revert: uuid.UUID
     ) -> uuid.UUID:
-        if not Building.event_can_be_reverted(event_id_to_revert):
+        if not Building.event_can_be_reverted_immediately(event_id_to_revert):
             raise RevertNotAllowed(
                 "Impossible to revert the building update, because it has been modified."
             )
@@ -565,7 +565,7 @@ class Building(BuildingAbstract):
         event_origin: dict,
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
-        if not Building.event_can_be_reverted(event_id_to_revert):
+        if not Building.event_can_be_reverted_immediately(event_id_to_revert):
             raise RevertNotAllowed(
                 "Impossible to revert the building merge, because it has been modified."
             )
@@ -698,17 +698,38 @@ class Building(BuildingAbstract):
         return event_types.pop()
 
     @staticmethod
-    def event_can_be_reverted(event_id) -> bool:
+    def event_can_be_reverted_immediately(event_id) -> bool:
+        """the event can be immediately reverted"""
         if not BuildingHistoryOnly.objects.all().filter(event_id=event_id).exists():
             # event can be reverted if the event_id is not is the history table => it means nothing happend after
             return True
         else:
             # if all the child events have been reverted, we can revert this one
             child_events = Building.child_events_from_event_id(event_id)
-            print(child_events)
             return all(
                 [
                     Building.event_has_been_reverted(e) or Building.event_is_a_revert(e)
+                    for e in child_events
+                ]
+            )
+
+    @staticmethod
+    def event_could_be_reverted(event_id) -> bool:
+        """the event could be reverted, after all child events are reverted. Useful to predict the outcome of a rollback."""
+        if not BuildingHistoryOnly.objects.all().filter(event_id=event_id).exists():
+            # event can be reverted if the event_id is not is the history table => it means nothing happend after
+            return True
+        else:
+            # if all the child events have been reverted, we can revert this one
+            child_events = Building.child_events_from_event_id(event_id)
+            user = Building.get_event_user(event_id)
+            return all(
+                [
+                    (
+                        Building.event_could_be_reverted(e)
+                        and Building.get_event_user(e) == user
+                    )
+                    or Building.event_is_a_revert(e)
                     for e in child_events
                 ]
             )
@@ -720,7 +741,11 @@ class Building(BuildingAbstract):
         if len(buildings) == 0:
             return []
 
-        childs = [b for b in buildings if b.is_active]
+        childs = [
+            b
+            for b in buildings
+            if b.is_active or b.event_type == EventType.DEACTIVATION.value
+        ]
         return childs
 
     @staticmethod
@@ -771,6 +796,12 @@ class Building(BuildingAbstract):
         revert_event_id = {b.revert_event_id for b in buildings}
         return revert_event_id != {None}
 
+    @staticmethod
+    def get_event_user(event_id: uuid.UUID) -> User:
+        buildings = BuildingWithHistory.objects.filter(event_id=event_id)
+        user = {b.event_user for b in buildings}
+        return user.pop()
+
     @transaction.atomic
     @staticmethod
     def revert_split(
@@ -778,7 +809,7 @@ class Building(BuildingAbstract):
         event_origin: dict,
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
-        if not Building.event_can_be_reverted(event_id_to_revert):
+        if not Building.event_can_be_reverted_immediately(event_id_to_revert):
             raise RevertNotAllowed(
                 "Impossible to revert the building split, because it has been modified."
             )
