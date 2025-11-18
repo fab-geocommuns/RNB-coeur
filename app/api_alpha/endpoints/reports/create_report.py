@@ -41,7 +41,9 @@ class CreateReportView(RNBLoggingMixin, APIView):
 
         building = Building.objects.filter(rnb_id=rnb_id).first()
 
-        assert building is not None
+        assert (
+            building is not None
+        )  # nosec B101: This is for typing as it's already checked by the serializer
 
         authenticated_user = request.user if request.user.is_authenticated else None
 
