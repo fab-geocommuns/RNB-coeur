@@ -6,8 +6,10 @@ from django.test import TestCase
 
 from api_alpha.tests.utils import coordinates_almost_equal
 from batid.exceptions import BuildingTooLarge
+from batid.exceptions import BuildingTooSmall
 from batid.exceptions import InvalidWGS84Geometry
 from batid.utils.geo import assert_shape_is_valid
+from batid.utils.geo import compute_shape_area
 from batid.utils.geo import fix_nested_shells
 from batid.utils.geo import merge_contiguous_shapes
 
@@ -151,3 +153,22 @@ class TestShapeVerification(TestCase):
         )
         with self.assertRaises(BuildingTooLarge):
             assert_shape_is_valid(shape)
+
+    def test_minimum_building_area(self):
+        # This is a real 3,7m2 building shape
+        shape = GEOSGeometry(
+            "POLYGON ((7.677333085258134 48.54452683482581, 7.677351468439592 48.54453512234111, 7.677367445522537 48.544516470391386, 7.677349142548201 48.54450908086052, 7.677333085258134 48.54452683482581))"
+        )
+        with self.assertRaises(BuildingTooSmall):
+            assert_shape_is_valid(shape)
+
+    def test_shape_area_compute(self):
+
+        shape = GEOSGeometry(
+            "POLYGON ((7.677333085258134 48.54452683482581, 7.677351468439592 48.54453512234111, 7.677367445522537 48.544516470391386, 7.677349142548201 48.54450908086052, 7.677333085258134 48.54452683482581))"
+        )
+        area = compute_shape_area(shape)
+
+        rounded_area = round(area, 4)
+
+        self.assertEqual(rounded_area, 3.7724)

@@ -136,6 +136,16 @@ class ListBuildingQuerySerializer(serializers.Serializer):
         values = value.split(",")
         [min_lon, min_lat, max_lon, max_lat] = values
 
+        try:
+            min_lon = float(min_lon)
+            min_lat = float(min_lat)
+            max_lon = float(max_lon)
+            max_lat = float(max_lat)
+        except ValueError:
+            raise serializers.ValidationError(
+                "min_lon, min_lat, max_lon et max_lat doivent avoir une valeur numérique"
+            )
+
         if min_lon > max_lon:
             raise serializers.ValidationError("min_lon doit être inféfieure à max_lon")
         if min_lat > max_lat:
@@ -167,6 +177,24 @@ class ListBuildingQuerySerializer(serializers.Serializer):
                 "La bounding box est trop grande, (se_lon - nw_lon) * (nw_lat - se_lat) doit être inférieur à 4."
             )
         return value
+
+    def validate(self, data):
+        if data.get("bbox") and data.get("bb"):
+            raise serializers.ValidationError(
+                "Vous devez choisir soit 'bbox' soit 'bb'. Choisissez plutot 'bbox'."
+            )
+
+        if (
+            not data.get("bbox")
+            and not data.get("bb")
+            and not data.get("insee_code")
+            and not data.get("cle_interop_ban")
+        ):
+            raise serializers.ValidationError(
+                "Choisissez au moins un paramêtre de filtrage parmi 'bbox', 'insee_code' ou 'cle_interop_ban'."
+            )
+
+        return data
 
 
 class BuildingGeoJSONSerializer(BuildingSerializer, GeoFeatureModelSerializer):
