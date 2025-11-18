@@ -11,6 +11,10 @@ def get_user_id_from_b64(user_id_b64: str) -> int:
     return _b64_to_int(user_id_b64)
 
 
+def check_and_increment_contribution_count(user: User) -> None:
+    user.profile.check_and_increment_contribution_count()
+
+
 def _int_to_b64(i: int) -> str:
 
     # Convert integer to string
