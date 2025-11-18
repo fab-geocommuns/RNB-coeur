@@ -19,6 +19,11 @@ class TestUnitaryRollback(TestCase):
             password="testpassword",
             email="contributor@example.test",
         )
+        self.other_user = User.objects.create_user(
+            username="contributor_2",
+            password="testpassword",
+            email="contributor_2@example.test",
+        )
         self.team_rnb = User.objects.create_user(username="RNB")
         self.shape_1 = GEOSGeometry("POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))")
         self.building_1 = Building.create_new(
@@ -45,7 +50,7 @@ class TestUnitaryRollback(TestCase):
         self.building_1.refresh_from_db()
 
         self.assertFalse(self.building_1.is_active)
-        self.assertEqual(self.building_1.event_type, EventType.DEACTIVATION.value)
+        self.assertEqual(self.building_1.event_type, EventType.REVERT_CREATION.value)
         self.assertEqual(self.building_1.revert_event_id, creation_event_id)
         self.assertNotEqual(self.building_1.event_id, creation_event_id)
         self.assertEqual(self.building_1.event_origin, {"source": "rollback"})
@@ -111,7 +116,7 @@ class TestUnitaryRollback(TestCase):
         deactivation_event_id = self.building_1.event_id
         self.building_1.reactivate(self.user, {"source": "contribution"})
         self.building_1.update(
-            self.user,
+            self.other_user,
             {"source": "contribution"},
             status="demolished",
             addresses_id=None,

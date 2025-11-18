@@ -49,7 +49,9 @@ class EventType(str, Enum):
     split: one building is split into two or more"""
 
     CREATION = "creation"
+    REVERT_CREATION = "revert_creation"
     DEACTIVATION = "deactivation"
+    # should have been REVERT_DEACTIVATION
     REACTIVATION = "reactivation"
     UPDATE = "update"
     REVERT_UPDATE = "revert_update"
@@ -88,7 +90,7 @@ class BuildingAbstract(models.Model):
     event_id = models.UUIDField(null=True, db_index=True)  # type: ignore[var-annotated]
     event_type = models.CharField(  # type: ignore[var-annotated]
         choices=[(e.value, e.value) for e in EventType],
-        max_length=13,
+        max_length=15,
         null=True,
     )
     # the user at the origin of the event
@@ -172,7 +174,7 @@ class Building(BuildingAbstract):
         if self.is_active:
             new_event_id = uuid.uuid4()
             self.event_type = EventType.DEACTIVATION.value
-            self.revert_event_id = self.event_id
+            self.revert_event_id = None
             self.is_active = False
             self.event_id = new_event_id
             self.event_user = user
@@ -223,9 +225,17 @@ class Building(BuildingAbstract):
 
         # get the current version
         building = Building.objects.get(rnb_id=rnb_id)
-        # and deactivate it
-        building.deactivate(user, event_origin)
-        return building_to_revert.event_id
+        # and update it
+        new_event_id = uuid.uuid4()
+        building.event_type = EventType.REVERT_CREATION.value
+        building.revert_event_id = building.event_id
+        building.event_id = new_event_id
+        building.is_active = False
+        building.event_user = user
+        building.event_origin = event_origin
+        building.save()
+
+        return new_event_id
 
     @transaction.atomic
     def reactivate(self, user: User, event_origin):
@@ -275,9 +285,10 @@ class Building(BuildingAbstract):
                 "The event_id does not correspond to a deactivation."
             )
 
-        building_to_revert.reactivate(user, event_origin)
+        current_building = Building.objects.get(rnb_id=building_to_revert.rnb_id)
+        current_building.reactivate(user, event_origin)
 
-        return building_to_revert.event_id
+        return current_building.event_id
 
     @transaction.atomic
     def update(
@@ -312,6 +323,7 @@ class Building(BuildingAbstract):
         self.event_id = uuid.uuid4()
         self.event_user = user
         self.event_origin = event_origin
+        self.revert_event_id = None
 
         if status is not None and self.status != status:
             self.status = status
@@ -528,6 +540,7 @@ class Building(BuildingAbstract):
             building.is_active = False
             building.event_type = EventType.MERGE.value
             building.event_id = event_id
+            building.revert_event_id = None
             building.event_user = user
             building.event_origin = event_origin
             building.save()
@@ -583,12 +596,17 @@ class Building(BuildingAbstract):
                 "Something wrong is going on there, all rows of this event are expected to be 'merge'."
             )
 
-        deactivated_buildings = [b for b in buildings_to_revert if not b.is_active]
-        [created_building] = [b for b in buildings_to_revert if b.is_active]
+        deactivated_buildings_rnb_id = [
+            b.rnb_id for b in buildings_to_revert if not b.is_active
+        ]
+        [created_building_rnb_id] = [
+            b.rnb_id for b in buildings_to_revert if b.is_active
+        ]
 
         new_event_id = uuid.uuid4()
 
-        for building in deactivated_buildings:
+        for rnb_id in deactivated_buildings_rnb_id:
+            building = Building.objects.get(rnb_id=rnb_id)
             building.is_active = True
             building.event_type = EventType.REVERT_MERGE.value
             building.event_id = new_event_id
@@ -597,6 +615,7 @@ class Building(BuildingAbstract):
             building.revert_event_id = event_id_to_revert
             building.save()
 
+        created_building = Building.objects.get(rnb_id=created_building_rnb_id)
         created_building.is_active = False
         created_building.event_type = EventType.REVERT_MERGE.value
         created_building.event_id = new_event_id
@@ -631,6 +650,7 @@ class Building(BuildingAbstract):
         self.is_active = False
         self.event_type = EventType.SPLIT.value
         self.event_id = event_id
+        self.revert_event_id = None
         self.event_user = user
         self.event_origin = event_origin
         self.save()
