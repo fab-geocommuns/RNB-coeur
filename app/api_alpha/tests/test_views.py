@@ -4,7 +4,6 @@ import io
 import json
 from unittest import mock
 
-from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.core import signing
 from django.test import override_settings
@@ -18,8 +17,9 @@ from batid.models import Building
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
-from batid.models import UserProfile
+from batid.models import User
 from batid.services.kpi import compute_today_kpis
+from batid.tests.factories.users import ContributorUserFactory
 
 
 class StatsTest(APITestCase):
@@ -68,10 +68,9 @@ class DiffTest(TransactionTestCase):
     def setUp(self):
         # We need a user for all building operations
         # We also need an organization for transparency
-        user = User.objects.create_user(
+        user = ContributorUserFactory(
             first_name="Marcella", last_name="Paviollon", username="marcella"
         )
-        UserProfile.objects.create(user=user)
         org = Organization.objects.create(name="Mairie Marseille")
         org.users.add(user)
 
@@ -331,9 +330,8 @@ class DiffTest(TransactionTestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_diff_split(self):
-        user = User(email="test@exemple.fr")
-        user.save()
-        UserProfile.objects.create(user=user)
+        user = ContributorUserFactory(email="test@exemple.fr")
+
         b1 = Building.objects.create(rnb_id="1", status="constructed")
         Building.objects.create(rnb_id="t")
         # reload the buildings to get the sys_period
