@@ -1,6 +1,6 @@
 from batid.models import Plot
-from batid.services.vector_tiles.common import tile_to_envelope
 from batid.services.vector_tiles.common import envelope_to_bounds_sql
+from batid.services.vector_tiles.common import tile_to_envelope
 
 
 def envelope_to_plots_sql(env):
