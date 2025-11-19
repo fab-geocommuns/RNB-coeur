@@ -14,6 +14,7 @@ from batid.models import BuildingImport
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
+from batid.models import UserProfile
 from batid.views import export_ads
 from batid.views import export_contributions
 from batid.views import worker
@@ -116,6 +117,43 @@ class DiffusionDatabaseAdmin(admin.ModelAdmin):
 
 
 admin.site.register(DiffusionDatabase, DiffusionDatabaseAdmin)
+
+
+class UserProfileInline(admin.StackedInline):
+    model = UserProfile
+    can_delete = False
+    verbose_name_plural = "Profile"
+    fields = ("job_title", "max_allowed_contributions", "total_contributions")
+    readonly_fields = ("total_contributions",)
+
+
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "job_title",
+        "max_allowed_contributions",
+        "total_contributions",
+    )
+    list_filter = ("job_title",)
+    search_fields = (
+        "user__username",
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+    )
+    readonly_fields = ("total_contributions",)
+
+
+admin.site.register(UserProfile, UserProfileAdmin)
+
+
+class CustomUserAdmin(BaseUserAdmin):
+    inlines = (UserProfileInline,)
+
+
+# Unregister the default User admin and register the custom one
+admin.site.unregister(User)
+admin.site.register(User, CustomUserAdmin)
 
 
 def get_admin_urls(urls):
