@@ -1,6 +1,7 @@
 import json
 
 from django.utils.timezone import now
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from batid.models import Address
@@ -9,7 +10,6 @@ from batid.models import BuildingImport
 from batid.models import DataFix
 from batid.models import Organization
 from batid.tests.factories.users import ContributorUserFactory
-from rest_framework.authtoken.models import Token
 
 
 class SingleBuildingHistoryTest(APITestCase):
