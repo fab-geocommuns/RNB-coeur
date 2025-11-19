@@ -44,7 +44,9 @@ def rollback_dry_run(
 
     events_n = len(event_ids)
     events_revertable = [
-        event_id for event_id in event_ids if Building.event_could_be_reverted(event_id)
+        event_id
+        for event_id in event_ids
+        if Building.event_could_be_reverted(event_id, end_time=end_time)
     ]
     events_not_revertable = list(set(event_ids) - set(events_revertable))
 

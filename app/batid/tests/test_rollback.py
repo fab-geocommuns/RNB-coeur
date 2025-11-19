@@ -728,3 +728,70 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(self.building_2.event_type, EventType.REVERT_CREATION.value)
         self.assertEqual(self.building_2.status, "constructed")
         self.assertFalse(self.building_2.is_active)
+
+    def test_global_rollback_4(self):
+        """Here a user creates 2 buildings and then update one of the created building.
+        We ask for a rollback that excludes the update (via the end_time).
+        Expected : only one creation can be rolled back.
+        """
+        self.building_1.refresh_from_db()
+        self.building_2.refresh_from_db()
+        start_time = self.building_1.sys_period.lower
+        end_time = self.building_2.sys_period.lower
+
+        building_1_creation_event_id = self.building_1.event_id
+        building_2_creation_event_id = self.building_2.event_id
+
+        # the building is updated by the same user
+        self.building_1.update(
+            self.user,
+            {"source": "contribution"},
+            status="demolished",
+            addresses_id=None,
+        )
+        self.building_1.refresh_from_db()
+
+        results = rollback_dry_run(self.user, start_time, end_time)
+
+        self.assertEqual(results["user"], self.user.username)
+        # 2 creations (the update is outside the range)
+        self.assertEqual(results["events_found_n"], 2)
+        self.assertEqual(results["start_time"], start_time)
+        self.assertEqual(results["end_time"], end_time)
+        # building_2 creation
+        self.assertEqual(results["events_revertable_n"], 1)
+        # building_1 creation and update because the update is outside the time range
+        self.assertEqual(results["events_not_revertable_n"], 1)
+        self.assertEqual(
+            set(results["events_revertable"]),
+            set({building_2_creation_event_id}),
+        )
+        # not revertable because the building has been updated after the rollback range.
+        self.assertEqual(
+            results["events_not_revertable"],
+            [building_1_creation_event_id],
+        )
+
+        results = rollback(self.user, start_time, end_time)
+
+        self.assertEqual(results["user"], self.user.username)
+        self.assertEqual(results["events_found_n"], 2)
+        self.assertEqual(results["start_time"], start_time)
+        self.assertEqual(results["end_time"], end_time)
+        self.assertEqual(results["events_reverted_n"], 1)
+        self.assertEqual(results["events_not_revertable_n"], 1)
+        self.assertEqual(results["events_reverted"], [building_2_creation_event_id])
+        self.assertEqual(
+            results["events_not_revertable"],
+            [building_1_creation_event_id],
+        )
+
+        # check the final state
+        self.building_1.refresh_from_db()
+        self.assertTrue(self.building_1.is_active)
+        self.assertEqual(self.building_1.event_type, EventType.UPDATE.value)
+
+        self.building_2.refresh_from_db()
+        self.assertFalse(self.building_2.is_active)
+        self.assertEqual(self.building_2.event_type, EventType.REVERT_CREATION.value)
+        self.assertEqual(self.building_2.revert_event_id, building_2_creation_event_id)
