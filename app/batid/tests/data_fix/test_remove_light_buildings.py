@@ -11,6 +11,7 @@ from batid.models import DataFix
 from batid.services.data_fix.remove_light_buildings import buildings_to_remove
 from batid.services.data_fix.remove_light_buildings import remove_light_buildings
 from batid.services.data_fix.remove_light_buildings import save_results_as_file
+from batid.models import UserProfile
 
 
 # we use TransactionTestCase beacause of the ThreadPoolExecutor use
@@ -35,6 +36,7 @@ class TestRemoveLightBuildings(TransactionTestCase):
         bd_topo_path = "batid/fixtures/remove_light_buildings/sample_bdtopo.shp"
 
         user = User.objects.create_user(username="jean")
+        UserProfile.objects.create(user=user)
         datafix = DataFix.objects.create(
             user=user,
             text="Oh oh, nous avons importé des bâtiments légers alors que nous n'aurions pas dû",

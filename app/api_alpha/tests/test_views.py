@@ -19,6 +19,7 @@ from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.services.kpi import compute_today_kpis
+from batid.models import UserProfile
 
 
 class StatsTest(APITestCase):
@@ -70,6 +71,7 @@ class DiffTest(TransactionTestCase):
         user = User.objects.create_user(
             first_name="Marcella", last_name="Paviollon", username="marcella"
         )
+        UserProfile.objects.create(user=user)
         org = Organization.objects.create(name="Mairie Marseille")
         org.users.add(user)
 
@@ -331,7 +333,7 @@ class DiffTest(TransactionTestCase):
     def test_diff_split(self):
         user = User(email="test@exemple.fr")
         user.save()
-
+        UserProfile.objects.create(user=user)
         b1 = Building.objects.create(rnb_id="1", status="constructed")
         Building.objects.create(rnb_id="t")
         # reload the buildings to get the sys_period

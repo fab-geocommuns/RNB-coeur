@@ -10,11 +10,13 @@ from batid.services.contribution_fix.fix_methods import fix_contributions_demoli
 from batid.services.contribution_fix.fix_methods import (
     fix_contributions_merge_if_obvious,
 )
+from batid.models import UserProfile
 
 
 class FixMethodTest(TransactionTestCase):
     def setUp(self):
         self.user = User.objects.create()
+        UserProfile.objects.create(user=self.user)
         self.building_1 = Building.objects.create(
             rnb_id="building_1", status="constructed", is_active=True
         )
@@ -147,6 +149,7 @@ class FixMethodTest(TransactionTestCase):
 class FixMergeTest(TransactionTestCase):
     def setUp(self):
         self.user = User.objects.create()
+        UserProfile.objects.create(user=self.user)
         self.adr1 = Address.objects.create(id="cle_interop_1")
         self.adr2 = Address.objects.create(id="cle_interop_2")
 

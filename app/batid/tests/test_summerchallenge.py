@@ -11,6 +11,7 @@ from batid.models import City
 from batid.models import Department
 from batid.models import Department_subdivided
 from batid.models import SummerChallenge
+from batid.models import UserProfile
 
 
 def create_city_dpt(self):
@@ -49,7 +50,7 @@ class TestSummerChallenge(TestCase):
         create_city_dpt(self)
 
         self.user = User.objects.create_user(username="user")
-
+        UserProfile.objects.create(user=self.user)
         self.building_1 = Building.create_new(
             user=self.user,
             event_origin={"source": "xxx"},

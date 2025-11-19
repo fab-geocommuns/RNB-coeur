@@ -14,12 +14,13 @@ from batid.models import Building
 from batid.models import Contribution
 from batid.models import User
 from batid.utils.misc import ext_ids_equal
+from batid.models import UserProfile
 
 
 class TestBuilding(TestCase):
     def test_merge_buildings(self):
         user = User.objects.create_user(username="Léon Marchand")
-
+        UserProfile.objects.create(user=user)
         # create two contiguous buildings
         building_1 = Building.objects.create(
             rnb_id="AAA",
@@ -123,7 +124,7 @@ class TestBuilding(TestCase):
         bdg = Building.objects.create(rnb_id="AAA", shape="POINT(0 0)")
 
         user = User.objects.create_user(username="dummy")
-
+        UserProfile.objects.create(user=user)
         bdg.deactivate(user, {"k": "v"})
         bdg.refresh_from_db()
 
@@ -139,6 +140,7 @@ class TestBuilding(TestCase):
         """
         bdg = Building.objects.create(rnb_id="AAA", shape="POINT(0 0)", is_active=False)
         user = User.objects.create_user(username="dummy")
+        UserProfile.objects.create(user=user)
         with self.assertRaises(OperationOnInactiveBuilding):
             bdg.deactivate(user, {"k": "v"})
         bdg.refresh_from_db()
@@ -157,7 +159,7 @@ class TestBuilding(TestCase):
         bdg = Building.objects.create(rnb_id="AAA", shape="POINT(0 0)")
 
         user = User.objects.create_user(username="dummy")
-
+        UserProfile.objects.create(user=user)
         # This is pending, it must be refused after deactivation
         contrib_pending = Contribution.objects.create(
             rnb_id="AAA", status="pending", text="dummy"
@@ -211,6 +213,7 @@ class TestSplitBuilding(TestCase):
     def setUp(self):
         self.user = User()
         self.user.save()
+        UserProfile.objects.create(user=self.user)
         self.adr1 = Address.objects.create(id="cle_interop_1")
         self.adr2 = Address.objects.create(id="cle_interop_2")
 
@@ -383,7 +386,7 @@ class TestUpdateBuilding(TestCase):
         Address.objects.create(id="addr3")
 
         self.user = User.objects.create_user(username="solo_user")
-
+        UserProfile.objects.create(user=self.user)
         b = Building.create_new(
             user=self.user,
             event_origin={"source": "dummy_creation"},
