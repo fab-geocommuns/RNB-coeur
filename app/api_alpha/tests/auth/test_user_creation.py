@@ -44,7 +44,7 @@ class UserCreation(APITestCase):
     def tearDown(self):
         self.override.disable()
 
-    @mock.patch("api_alpha.views.validate_captcha")
+    @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
     def test_create_user(self, mock_validate_captcha):
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post("/api/alpha/auth/users/", self.julie_data)
@@ -111,14 +111,14 @@ class UserCreation(APITestCase):
             },
         )
 
-    @mock.patch("api_alpha.views.validate_captcha")
+    @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
     def test_create_user_no_orga(self, mock_validate_captcha):
         # come as you are: someone can create an account without having a job or an organization
         self.julie_data.pop("organization_name")
         response = self.client.post("/api/alpha/auth/users/", self.julie_data)
         self.assertEqual(response.status_code, 201)
 
-    @mock.patch("api_alpha.views.validate_captcha")
+    @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
     def test_mandatory_info(self, mock_validate_captcha):
         data = {}
         response = self.client.post("/api/alpha/auth/users/", data)
@@ -135,7 +135,7 @@ class UserCreation(APITestCase):
             },
         )
 
-    @mock.patch("api_alpha.views.validate_captcha")
+    @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
     def test_full_account_activation_scenario(self, mock_validate_captcha):
         # julie creates her account
         with self.captureOnCommitCallbacks(execute=True):
@@ -178,7 +178,7 @@ class UserCreation(APITestCase):
         julie.refresh_from_db()
         self.assertTrue(julie.is_active)
 
-    @mock.patch("api_alpha.views.validate_captcha")
+    @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
     def test_dont_mess_with_activation_to(self, mock_validate_captcha):
         # julie creates her account
         with self.captureOnCommitCallbacks(execute=True):
@@ -224,7 +224,27 @@ class UserCreation(APITestCase):
         julie.refresh_from_db()
         self.assertFalse(julie.is_active)
 
-    @mock.patch("api_alpha.views.validate_captcha")
+    @mock.patch("batid.tasks.create_sandbox_user.delay")
+    @mock.patch("api_alpha.endpoints.auth.create_user.is_captcha_valid")
+    def test_when_captcha_is_invalid(self, mock_is_captcha_valid, _):
+        mock_is_captcha_valid.return_value = False
+        response = self.client.post("/api/alpha/auth/users/", self.julie_data)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {"detail": "Captcha verification failed"},
+        )
+        self.assertFalse(User.objects.filter(first_name="Julie").exists())
+
+    @mock.patch("batid.tasks.create_sandbox_user.delay")
+    @mock.patch("api_alpha.endpoints.auth.create_user.is_captcha_valid")
+    def test_skips_captcha_in_sandbox(self, mock_is_captcha_valid, _):
+        with self.settings(ENVIRONMENT="sandbox"):
+            mock_is_captcha_valid.return_value = False
+            response = self.client.post("/api/alpha/auth/users/", self.julie_data)
+            self.assertEqual(response.status_code, 201)
+
+    @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
     def test_is_active_by_default_in_sandbox(self, mock_validate_captcha):
         with self.settings(ENVIRONMENT="sandbox"):
             data = self.julie_data.copy()
@@ -234,7 +254,7 @@ class UserCreation(APITestCase):
             self.assertTrue(user.is_active)
 
     @mock.patch("batid.tasks.create_sandbox_user.delay")
-    @mock.patch("api_alpha.views.validate_captcha")
+    @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
     def test_account_creation_forwarded_to_sandbox(
         self, mock_validate_captcha, mock_create_sandbox_user
     ):
@@ -254,7 +274,7 @@ class UserCreation(APITestCase):
                 self.assertTrue(User.objects.filter(first_name="Julie").exists())
 
     @mock.patch("batid.tasks.create_sandbox_user.delay")
-    @mock.patch("api_alpha.views.validate_captcha")
+    @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
     def test_no_additional_params_are_sent_to_sandbox(
         self, mock_validate_captcha, mock_create_sandbox_user
     ):
