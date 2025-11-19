@@ -1,7 +1,6 @@
 import json
 from unittest import mock
 
-from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.test import override_settings
@@ -9,28 +8,21 @@ from django.test.utils import CaptureQueriesContext
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from api_alpha.permissions import RNBContributorPermission
 from api_alpha.tests.utils import coordinates_almost_equal
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import Plot
-from batid.models import User
-from batid.models import UserProfile
+from batid.tests.factories.users import ContributorUserFactory
 
 
 class BuildingSplitTest(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = ContributorUserFactory(
             first_name="Robert", last_name="Dylan", username="bob"
         )
-        UserProfile.objects.create(user=self.user)
-        token = Token.objects.create(user=self.user)
+        token = Token.objects.get(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
-
-        self.group, created = Group.objects.get_or_create(
-            name=RNBContributorPermission.group_name
-        )
 
         self.adr1 = Address.objects.create(id="cle_interop_1")
         self.adr2 = Address.objects.create(id="cle_interop_2")
@@ -51,7 +43,9 @@ class BuildingSplitTest(APITestCase):
         )
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
-    def test_split_buildings(self):
+    def test_split_buildings_permission(self):
+        self.user.groups.clear()
+
         data = {
             "comment": "Ces deux bâtiments ne font qu'un !",
             "created_buildings": [
@@ -75,7 +69,24 @@ class BuildingSplitTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 403)
-        self.user.groups.add(self.group)
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_split_buildings(self):
+        data = {
+            "comment": "Ces deux bâtiments ne font qu'un !",
+            "created_buildings": [
+                {
+                    "status": "constructed",
+                    "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                    "addresses_cle_interop": [self.adr1.id],
+                },
+                {
+                    "status": "notUsable",
+                    "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                    "addresses_cle_interop": [self.adr2.id],
+                },
+            ],
+        }
 
         r = self.client.post(
             f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
@@ -163,7 +174,6 @@ class BuildingSplitTest(APITestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_split_buildings_missing_info(self):
-        self.user.groups.add(self.group)
 
         # base case: correct
         data = {
@@ -372,8 +382,6 @@ class BuildingSplitTest(APITestCase):
             ],
         }
 
-        self.user.groups.add(self.group)
-
         r = self.client.post(
             f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
             data=json.dumps(data),
@@ -408,8 +416,6 @@ class BuildingSplitTest(APITestCase):
             ],
         }
 
-        self.user.groups.add(self.group)
-
         r = self.client.post(
             f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
             data=json.dumps(data),
@@ -422,7 +428,6 @@ class BuildingSplitTest(APITestCase):
         )
 
     def test_split_buildings_contribution_limit_exceeded(self):
-        self.user.groups.add(self.group)
 
         # Set user to have reached their contribution limit
         self.user.profile.total_contributions = 500

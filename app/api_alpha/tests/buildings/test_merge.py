@@ -1,7 +1,6 @@
 import json
 from unittest import mock
 
-from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.test import override_settings
@@ -9,28 +8,21 @@ from django.test.utils import CaptureQueriesContext
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from api_alpha.permissions import RNBContributorPermission
 from api_alpha.tests.utils import coordinates_almost_equal
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import Plot
-from batid.models import User
-from batid.models import UserProfile
+from batid.tests.factories.users import ContributorUserFactory
 
 
 class BuildingMergeTest(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = ContributorUserFactory(
             first_name="Robert", last_name="Dylan", username="bob"
         )
-        UserProfile.objects.create(user=self.user)
-        token = Token.objects.create(user=self.user)
+        token = Token.objects.get(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
-
-        self.group, created = Group.objects.get_or_create(
-            name=RNBContributorPermission.group_name
-        )
 
         self.adr1 = Address.objects.create(id="cle_interop_1")
         self.adr2 = Address.objects.create(id="cle_interop_2")
@@ -78,7 +70,9 @@ class BuildingMergeTest(APITestCase):
             addresses_id=[],
         )
 
-    def test_merge_buildings(self):
+    def test_merge_buildings_permission(self):
+        self.user.groups.clear()
+
         data = {
             "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
             "status": "constructed",
@@ -93,7 +87,14 @@ class BuildingMergeTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 403)
-        self.user.groups.add(self.group)
+
+    def test_merge_buildings(self):
+        data = {
+            "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
+            "status": "constructed",
+            "merge_existing_addresses": True,
+            "comment": "Ces deux bâtiments ne font qu'un !",
+        }
 
         r = self.client.post(
             f"/api/alpha/buildings/merge/",
@@ -172,7 +173,6 @@ class BuildingMergeTest(APITestCase):
             "comment": "Ces deux bâtiments ne font qu'un, mais une seule adresse est la bonne",
         }
 
-        self.user.groups.add(self.group)
         r = self.client.post(
             f"/api/alpha/buildings/merge/",
             data=json.dumps(data),
@@ -221,7 +221,6 @@ class BuildingMergeTest(APITestCase):
         self.assertEqual(contribution.text, data["comment"])
 
     def test_merge_buildings_bad_requests(self):
-        self.user.groups.add(self.group)
 
         # not enough rnb_ids to merge
         data = {
@@ -370,7 +369,6 @@ class BuildingMergeTest(APITestCase):
             "addresses_cle_interop": ["33063_9115_00012_bis"],
         }
 
-        self.user.groups.add(self.group)
         r = self.client.post(
             f"/api/alpha/buildings/merge/",
             data=json.dumps(data),
@@ -383,7 +381,6 @@ class BuildingMergeTest(APITestCase):
         )
 
     def test_merge_buildings_contribution_limit_exceeded(self):
-        self.user.groups.add(self.group)
 
         # Set user to have reached their contribution limit
         self.user.profile.total_contributions = 500

@@ -9,19 +9,16 @@ from django.test.utils import CaptureQueriesContext
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from api_alpha.permissions import RNBContributorPermission
 from api_alpha.tests.utils import coordinates_almost_equal
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
-from batid.models import User
-from batid.models import UserProfile
+from batid.tests.factories.users import ContributorUserFactory
 
 
 class BuildingClosestViewTest(APITestCase):
     def test_closest(self):
-        user = User.objects.create_user(username="user")
-        UserProfile.objects.create(user=user)
+        user = ContributorUserFactory(username="user")
         # It should be first in the results
         closest_bdg = Building.create_new(
             user=user,
@@ -308,8 +305,7 @@ class BuildingClosestViewTest(APITestCase):
         self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
 
     def test_closest_no_n_plus_1(self):
-        user = User.objects.create_user(username="user")
-        UserProfile.objects.create(user=user)
+        user = ContributorUserFactory(username="user")
 
         Building.create_new(
             user=user,
@@ -382,8 +378,8 @@ class BuildingAddressViewTest(APITestCase):
         self.cle_interop_ban_3 = "33522_2620_00023"
         self.address_3 = Address.objects.create(id=self.cle_interop_ban_3)
 
-        user = User.objects.create_user(username="user")
-        UserProfile.objects.create(user=user)
+        user = ContributorUserFactory(username="user")
+
         self.building_1 = Building.create_new(
             user=user,
             event_origin={"source": "test"},
