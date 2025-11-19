@@ -1,18 +1,15 @@
 import json
 
-from django.contrib.auth.models import Group
-from django.contrib.auth.models import User
 from django.utils.timezone import now
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from api_alpha.permissions import RNBContributorPermission
 from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import DataFix
 from batid.models import Organization
-from batid.models import UserProfile
+from batid.tests.factories.users import ContributorUserFactory
 
 
 class SingleBuildingHistoryTest(APITestCase):
@@ -25,22 +22,16 @@ class SingleBuildingHistoryTest(APITestCase):
     def setUp(self):
 
         # Julie gonna edit the RNB
-        user = User.objects.create_user(
+        user = ContributorUserFactory(
             first_name="Julie", last_name="Sigiste", username="ju_sig"
         )
-        UserProfile.objects.create(user=user)
         self.user_id = user.id
 
         # She is working in this org
         org = Organization.objects.create(name="Mairie de Dreux")
         org.users.set([user])
 
-        # She has the right to edit the RNB
-        group = Group.objects.create(name=RNBContributorPermission.group_name)
-        user.groups.add(group)
-
-        # She has a token to get authenticated
-        token = Token.objects.create(user=user)
+        token = Token.objects.get(user=user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
         # We need some addresses

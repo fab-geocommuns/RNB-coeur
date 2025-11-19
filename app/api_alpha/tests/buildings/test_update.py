@@ -1,38 +1,33 @@
 import json
 from unittest import mock
 
-from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from api_alpha.permissions import RNBContributorPermission
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
-from batid.models import User
-from batid.models import UserProfile
+from batid.tests.factories.users import ContributorUserFactory
 
 
 class BuildingPatchTest(APITestCase):
     def setUp(self) -> None:
-        self.user = User.objects.create_user(
+        self.user = ContributorUserFactory(
             first_name="Robert", last_name="Dylan", username="bob"
         )
-        UserProfile.objects.create(user=self.user)
-        token = Token.objects.create(user=self.user)
+        token = Token.objects.get(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
         self.rnb_id = "XXXXYYYYZZZZ"
         self.building = Building.objects.create(rnb_id=self.rnb_id)
-        self.group, created = Group.objects.get_or_create(
-            name=RNBContributorPermission.group_name
-        )
         self.adr1 = Address.objects.create(id="cle_interop_1")
         self.adr2 = Address.objects.create(id="cle_interop_2")
 
     def test_update_a_building_permission(self):
+        self.user.groups.clear()
+
         data = {
             "is_active": False,
             "comment": "ce n'est pas un batiment, mais un bosquet",
@@ -46,7 +41,12 @@ class BuildingPatchTest(APITestCase):
 
         self.assertEqual(r.status_code, 403)
 
-        self.user.groups.add(self.group)
+    def test_update_a_building(self):
+
+        data = {
+            "is_active": False,
+            "comment": "ce n'est pas un batiment, mais un bosquet",
+        }
 
         # deactivate the user
         self.user.is_active = False
@@ -74,8 +74,6 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(r.status_code, 204)
 
     def test_update_empty_shape(self):
-        self.user.groups.add(self.group)
-
         data = {
             "shape": "POlYGON EMPTY",
         }
@@ -93,8 +91,6 @@ class BuildingPatchTest(APITestCase):
         )
 
     def test_update_a_building_invalid_shape(self):
-        self.user.groups.add(self.group)
-
         data = {
             "shape": "POLYGON ((1000 0, 1000 1, 1001 1, 1001 0, 1000 0))",
         }
@@ -112,8 +108,6 @@ class BuildingPatchTest(APITestCase):
         )
 
     def test_update_a_building_parameters(self):
-        self.user.groups.add(self.group)
-
         # empty data
         data = {}
         r = self.client.patch(
@@ -145,8 +139,6 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(r.status_code, 204)
 
     def test_update_a_building_parameters_2(self):
-        self.user.groups.add(self.group)
-
         # update status : unauthorized status
         data = {"status": "painted_black", "comment": "peint en noir"}
         r = self.client.patch(
@@ -209,7 +201,6 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(r.status_code, 400)
 
     def test_deactivate(self):
-        self.user.groups.add(self.group)
         comment = "not a building"
         data = {"is_active": False, "comment": comment}
         r = self.client.patch(
@@ -351,7 +342,6 @@ class BuildingPatchTest(APITestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_update_building(self):
-        self.user.groups.add(self.group)
         comment = "maj du batiment"
         data = {
             "status": "notUsable",
@@ -387,7 +377,6 @@ class BuildingPatchTest(APITestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_update_building_duplicate_address(self):
-        self.user.groups.add(self.group)
         comment = "maj du batiment"
         data = {
             "status": "notUsable",
@@ -423,7 +412,6 @@ class BuildingPatchTest(APITestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_update_with_empty_addresses(self):
-        self.user.groups.add(self.group)
 
         # First, we have to add some addresses to the building
         data = {
@@ -467,7 +455,6 @@ class BuildingPatchTest(APITestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_update_building_shape_hex(self):
-        self.user.groups.add(self.group)
         comment = "maj du batiment"
         wkt = "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))"
         g = GEOSGeometry(wkt)
@@ -489,7 +476,6 @@ class BuildingPatchTest(APITestCase):
         self.assertTrue(g.contains(self.building.point))
 
     def test_update_building_shape_point(self):
-        self.user.groups.add(self.group)
         comment = "maj du batiment"
         wkt = "POINT (1 1)"
         g = GEOSGeometry(wkt)
@@ -531,7 +517,6 @@ class BuildingPatchTest(APITestCase):
             },
         }
 
-        self.user.groups.add(self.group)
         comment = "maj du batiment avec une adresse BAN toute fraiche"
         data = {
             "addresses_cle_interop": [cle_interop],
@@ -569,7 +554,6 @@ class BuildingPatchTest(APITestCase):
             "details": "Oooops",
         }
 
-        self.user.groups.add(self.group)
         comment = "maj du batiment avec une adresse BAN toute fraiche"
         data = {
             "addresses_cle_interop": [cle_interop],
@@ -595,7 +579,6 @@ class BuildingPatchTest(APITestCase):
             "details": "what is this id?",
         }
 
-        self.user.groups.add(self.group)
         comment = "maj du batiment avec une adresse BAN toute fraiche"
         data = {
             "addresses_cle_interop": [cle_interop],
@@ -634,7 +617,6 @@ class BuildingPatchTest(APITestCase):
             },
         }
 
-        self.user.groups.add(self.group)
         comment = "maj du batiment avec une adresse de type voie"
         data = {
             "addresses_cle_interop": [cle_interop],
@@ -654,8 +636,6 @@ class BuildingPatchTest(APITestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_update_building_contribution_limit_exceeded(self):
-        self.user.groups.add(self.group)
-
         # Set user to have reached their contribution limit
         self.user.profile.total_contributions = 500
         self.user.profile.max_allowed_contributions = 500
@@ -686,7 +666,6 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(self.user.profile.total_contributions, 500)
 
     def test_deactivate_building_contribution_limit_exceeded(self):
-        self.user.groups.add(self.group)
 
         # Set user to have reached their contribution limit
         self.user.profile.total_contributions = 500

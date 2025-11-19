@@ -1,13 +1,12 @@
-from django.contrib.auth.models import User
 from django.test import TestCase
 
-from batid.models import UserProfile
 from batid.models.building import Building
 from batid.models.others import DataFix
 from batid.models.others import SummerChallenge
 from batid.services.data_fix.deactivate_small_buildings import (
     deactivate_small_buildings,
 )
+from batid.tests.factories.users import ContributorUserFactory
 from batid.tests.helpers import coords_to_mp_geom
 from batid.tests.helpers import coords_to_point_geom
 
@@ -91,8 +90,7 @@ class TestDeactivateSmallBuildings(TestCase):
 
     def test(self):
 
-        user = User.objects.create_user(username="tester")
-        UserProfile.objects.create(user=user)
+        user = ContributorUserFactory(username="tester")
         datafix = DataFix.objects.create(
             user=user, text="Désactiver les petits bâtiments importés par erreur"
         )
