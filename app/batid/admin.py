@@ -135,7 +135,12 @@ class UserProfileAdmin(admin.ModelAdmin):
         "total_contributions",
     )
     list_filter = ("job_title",)
-    search_fields = ("user__username", "user__email", "user__first_name", "user__last_name")
+    search_fields = (
+        "user__username",
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+    )
     readonly_fields = ("total_contributions",)
 
 
