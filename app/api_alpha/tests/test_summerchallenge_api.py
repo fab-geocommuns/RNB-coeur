@@ -1,7 +1,6 @@
 import json
 from urllib.parse import quote
 
-from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
 from rest_framework.test import APITestCase
@@ -9,8 +8,8 @@ from rest_framework.test import APITestCase
 from api_alpha.views import summer_challenge_targeted_score
 from batid.models import Address
 from batid.models import Building
-from batid.tests.test_summerchallenge import create_city_dpt
 from batid.tests.factories.users import ContributorUserFactory
+from batid.tests.test_summerchallenge import create_city_dpt
 
 
 @override_settings(MAX_BUILDING_AREA=float("inf"))

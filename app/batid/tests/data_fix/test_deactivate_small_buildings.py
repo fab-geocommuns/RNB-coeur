@@ -6,9 +6,9 @@ from batid.models.others import SummerChallenge
 from batid.services.data_fix.deactivate_small_buildings import (
     deactivate_small_buildings,
 )
+from batid.tests.factories.users import ContributorUserFactory
 from batid.tests.helpers import coords_to_mp_geom
 from batid.tests.helpers import coords_to_point_geom
-from batid.tests.factories.users import ContributorUserFactory
 
 
 class TestDeactivateSmallBuildings(TestCase):
