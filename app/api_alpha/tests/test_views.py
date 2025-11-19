@@ -9,6 +9,7 @@ from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.services.kpi import compute_today_kpis
+from batid.models import UserProfile
 
 
 class StatsTest(APITestCase):

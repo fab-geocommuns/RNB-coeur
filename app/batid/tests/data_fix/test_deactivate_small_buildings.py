@@ -9,6 +9,7 @@ from batid.services.data_fix.deactivate_small_buildings import (
 )
 from batid.tests.helpers import coords_to_mp_geom
 from batid.tests.helpers import coords_to_point_geom
+from batid.models import UserProfile
 
 
 class TestDeactivateSmallBuildings(TestCase):
@@ -91,6 +92,7 @@ class TestDeactivateSmallBuildings(TestCase):
     def test(self):
 
         user = User.objects.create_user(username="tester")
+        UserProfile.objects.create(user=user)
         datafix = DataFix.objects.create(
             user=user, text="Désactiver les petits bâtiments importés par erreur"
         )
