@@ -13,8 +13,8 @@ from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import User
-from batid.utils.misc import ext_ids_equal
 from batid.models import UserProfile
+from batid.utils.misc import ext_ids_equal
 
 
 class TestBuilding(TestCase):
