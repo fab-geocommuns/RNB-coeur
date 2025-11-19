@@ -1287,9 +1287,27 @@ class RNBAuthToken(ObtainAuthToken):
 
 
 def create_user_in_sandbox(user_data: dict) -> None:
-    user_data_without_password = {**user_data}
-    user_data_without_password.pop("password")
+    user_data_without_password = {
+        "first_name": user_data["first_name"],
+        "last_name": user_data["last_name"],
+        "email": user_data["email"],
+        "username": user_data["username"],
+        "organization_name": user_data["organization_name"],
+        "job_title": user_data["job_title"],
+    }
     create_sandbox_user.delay(user_data_without_password)
+
+
+def validate_captcha(captcha_solution: str) -> None:
+    from private_captcha import Client
+
+    if settings.ENVIRONMENT == "sandbox":
+        return
+
+    client = Client(api_key=settings.PRIVATE_CAPTCHA_API_KEY)
+    result = client.verify(solution=captcha_solution)
+    if not result.success:
+        raise HttpBadRequest("Captcha verification failed")
 
 
 class CreateUserView(APIView):
@@ -1300,6 +1318,7 @@ class CreateUserView(APIView):
         request_data = request.data
         if isinstance(request_data, QueryDict):
             request_data = request_data.dict()
+        validate_captcha(request_data.get("captcha_solution"))
         user_serializer = UserSerializer(data=request_data)
         user_serializer.is_valid(raise_exception=True)
         user = user_serializer.save()
