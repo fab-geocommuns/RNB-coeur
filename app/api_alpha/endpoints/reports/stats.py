@@ -1,12 +1,13 @@
 from typing import TypedDict
+
 from django.db import connection
 from rest_framework import serializers
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from batid.models import Report
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
+from batid.models import Report
 
 
 class TagStatsSerializer(serializers.Serializer):
