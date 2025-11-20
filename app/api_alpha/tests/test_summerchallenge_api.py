@@ -5,7 +5,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
 from rest_framework.test import APITestCase
 
-from api_alpha.views import summer_challenge_targeted_score
+from api_alpha.endpoints.summer_challenge.common import summer_challenge_targeted_score
 from batid.models import Address
 from batid.models import Building
 from batid.tests.factories.users import ContributorUserFactory
@@ -101,15 +101,15 @@ class TestSummerChallengeRanking(APITestCase):
             leaderboard,
             {
                 "goal": summer_challenge_targeted_score(),
-                "global": 8,  # 2 creations, 1 address update, 1 status update
+                "global": 4,  # 2 creations, 1 address update, 1 status update
                 "individual": [
-                    ["user_1", 4],
-                    ["user_2@email.com", 3],
+                    ["user_1", 2],
+                    ["user_2@email.com", 1],
                     ["user_3", 1],
                 ],  # user_1 : 2 creations, user_2 : address update, user_3 : status update
-                "city": [["101", "city_1", 5]],  # creation + address update in city
+                "city": [["101", "city_1", 2]],  # creation + address update in city
                 "departement": [
-                    ["01", "Ain", 5]
+                    ["01", "Ain", 2]
                 ],  # creation + address update in department
             },
         )
@@ -120,10 +120,10 @@ class TestSummerChallengeRanking(APITestCase):
             leaderboard,
             {
                 "goal": summer_challenge_targeted_score(),
-                "global": 8,
-                "individual": [["user_1", 4]],
-                "city": [["101", "city_1", 5]],
-                "departement": [["01", "Ain", 5]],
+                "global": 4,
+                "individual": [["user_1", 2]],
+                "city": [["101", "city_1", 2]],
+                "departement": [["01", "Ain", 2]],
             },
         )
 
@@ -134,8 +134,8 @@ class TestSummerChallengeRanking(APITestCase):
             score,
             {
                 "goal": summer_challenge_targeted_score(),
-                "global": 8,
-                "user_score": 3,
+                "global": 4,
+                "user_score": 1,
                 "user_rank": 2,
             },
         )
@@ -157,7 +157,7 @@ class TestSummerChallengeRanking(APITestCase):
             score,
             {
                 "goal": summer_challenge_targeted_score(),
-                "global": 8,
+                "global": 4,
                 "user_score": 0,
                 "user_rank": None,
             },
