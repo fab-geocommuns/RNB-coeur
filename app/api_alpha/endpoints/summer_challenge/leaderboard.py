@@ -6,7 +6,7 @@ from django.http import JsonResponse
 
 
 class LeaderboardView(APIView):
-    def get(self, request: Request) -> Response:
+    def get(self, request: Request) -> JsonResponse:
         max_rank = int(request.GET.get("max_rank", 5))
         leaderboard = summer_challenge_leaderboard(max_rank)
         return JsonResponse(leaderboard)
