@@ -1,4 +1,3 @@
-from batid.models import Report
 from batid.services.vector_tiles.common import Envelope
 from batid.services.vector_tiles.common import envelope_to_bounds_sql
 from batid.services.vector_tiles.common import tile_to_envelope
@@ -20,7 +19,7 @@ def envelope_to_report_sql(env: Envelope) -> str:
             mvtgeom AS (
                 SELECT ST_AsMVTGeom(ST_Transform(report.point, 3857), bounds.b2d) AS geom,
                        report.id, report.status, ARRAY_AGG(tag.id) AS tag_ids
-                FROM bounds, batid_report AS report 
+                FROM bounds, batid_report AS report
                 LEFT JOIN taggit_taggeditem AS tagged_item
                     ON tagged_item.object_id = report.id
                 LEFT JOIN django_content_type
