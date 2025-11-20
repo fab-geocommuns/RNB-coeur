@@ -24,6 +24,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WRITABLE_DATA_DIR = os.path.join(BASE_DIR, "data")
 
 PRIVATE_CAPTCHA_API_KEY = os.environ.get("PRIVATE_CAPTCHA_API_KEY")
+DISABLE_CAPTCHA = os.environ.get("DISABLE_CAPTCHA", default="false").lower() == "true"
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
@@ -210,10 +211,7 @@ REST_FRAMEWORK = {
 }
 
 if ENVIRONMENT == "test":
-    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
-        "change_password": "1000/day",
-        "create_user": "1000/day",
-    }
+    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["create_user"] = "1000/day"  # type: ignore[index]
 
 
 SPECTACULAR_SETTINGS = {
