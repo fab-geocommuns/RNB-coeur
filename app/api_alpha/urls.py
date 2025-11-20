@@ -16,6 +16,7 @@ from api_alpha.endpoints.ogc.views import OGCSingleBuildingItemView
 from api_alpha.endpoints.reports.create_report import CreateReportView
 from api_alpha.endpoints.reports.get_report import GetReport
 from api_alpha.endpoints.reports.reply_to_report import ReplyToReportView
+from api_alpha.endpoints.reports.stats import ReportStatsView
 from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsShapeVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsVectorTileView
@@ -100,11 +101,6 @@ urlpatterns = [
     ),
     # ADS
     path("ads/token/", AdsTokenView.as_view()),
-    # Reports
-    path("reports/", CreateReportView.as_view()),
-    path(
-        "contributions/", CreateReportView.as_view()
-    ),  # For backward compatibility of frontend
     # Vector tiles
     path("ads/tiles/<int:x>/<int:y>/<int:z>.pbf", ADSVectorTileView.as_view()),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", BuildingsVectorTileView.as_view()),
@@ -127,6 +123,11 @@ urlpatterns = [
     path("editions/ranking/", get_summer_challenge_leaderboard),
     path("editions/ranking/<str:username>/", get_summer_challenge_user_score),
     # Reports
+    path("reports/", CreateReportView.as_view()),
+    path(
+        "contributions/", CreateReportView.as_view()
+    ),  # For backward compatibility of frontend
+    path("reports/stats/", ReportStatsView.as_view()),
     path("reports/<int:report_id>/", GetReport.as_view()),
     path("reports/<int:report_id>/reply/", ReplyToReportView.as_view()),
 ]
