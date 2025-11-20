@@ -19,6 +19,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(
+            "SET statement_timeout = '0';",
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         sql_migration_building_with_history_drop_view(),
         migrations.RemoveConstraint(
             model_name="building",
