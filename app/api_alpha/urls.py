@@ -3,6 +3,7 @@ from django.urls import path
 from django.urls import re_path
 from rest_framework import routers
 
+from api_alpha.endpoints.auth.create_user import CreateUserView
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.single_building import SingleBuilding
 from api_alpha.endpoints.buildings.single_building import SingleBuildingHistory
@@ -22,7 +23,6 @@ from api_alpha.endpoints.tiles.building_vector_tile import BuildingsShapeVectorT
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsVectorTileView
 from api_alpha.endpoints.tiles.plots_vector_tile import PlotsVectorTileView
 from api_alpha.endpoints.tiles.report_vector_tile import ReportVectorTileView
-from api_alpha.endpoints.auth.create_user import CreateUserView
 from api_alpha.views import ActivateUser
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSViewSet
