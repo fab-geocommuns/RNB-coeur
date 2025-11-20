@@ -238,11 +238,12 @@ class UserCreation(APITestCase):
 
     @mock.patch("batid.tasks.create_sandbox_user.delay")
     @mock.patch("api_alpha.endpoints.auth.create_user.is_captcha_valid")
-    def test_skips_captcha_in_sandbox(self, mock_is_captcha_valid, _):
-        with self.settings(ENVIRONMENT="sandbox"):
+    def test_skips_captcha_if_disabled(self, mock_is_captcha_valid, _):
+        with self.settings(DISABLE_CAPTCHA=True):
             mock_is_captcha_valid.return_value = False
             response = self.client.post("/api/alpha/auth/users/", self.julie_data)
             self.assertEqual(response.status_code, 201)
+            self.assertTrue(User.objects.filter(first_name="Julie").exists())
 
     @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
     def test_is_active_by_default_in_sandbox(self, mock_validate_captcha):

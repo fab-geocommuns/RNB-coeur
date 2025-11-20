@@ -124,7 +124,7 @@ def is_captcha_valid(captcha_solution: str) -> bool:
 
 
 def validate_captcha(captcha_solution: str) -> None:
-    if settings.ENVIRONMENT == "sandbox":
+    if settings.DISABLE_CAPTCHA:
         return
 
     if not is_captcha_valid(captcha_solution):
