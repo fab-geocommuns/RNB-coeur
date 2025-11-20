@@ -24,19 +24,15 @@ class Migration(migrations.Migration):
             model_name="building",
             name="valid_event_type_check",
         ),
-        migrations.RemoveIndex(
-            model_name="building",
-            name="bdg_event_id_idx",
-        ),
         migrations.AddField(
             model_name="building",
             name="revert_event_id",
-            field=models.UUIDField(null=True),
+            field=models.UUIDField(null=True, db_index=True),
         ),
         migrations.AddField(
             model_name="buildinghistoryonly",
             name="revert_event_id",
-            field=models.UUIDField(null=True),
+            field=models.UUIDField(null=True, db_index=True),
         ),
         migrations.AlterField(
             model_name="building",

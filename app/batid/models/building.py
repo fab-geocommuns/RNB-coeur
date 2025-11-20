@@ -96,7 +96,7 @@ class BuildingAbstract(models.Model):
     # the user at the origin of the event
     event_user = models.ForeignKey(User, on_delete=models.PROTECT, null=True)  # type: ignore[var-annotated]
     # in case of a revert operation, the event_id of the reverted event
-    revert_event_id = models.UUIDField(null=True)  # type: ignore[var-annotated]
+    revert_event_id = models.UUIDField(null=True, db_index=True)  # type: ignore[var-annotated]
     # only currently active buildings are considered part of the RNB
     is_active = models.BooleanField(db_index=True, default=True)  # type: ignore[var-annotated]
     # this field is the source of truth for the building <> address link
@@ -954,6 +954,7 @@ class Building(BuildingAbstract):
             Index(Lower("sys_period"), name="bdg_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_event_type_idx"),
             GinIndex(fields=["parent_buildings"], name="bdg_parent_buildings_idx"),
+            models.Index(fields=["event_id"], name="bdg_event_id_idx"),
             models.Index(
                 fields=(
                     "is_active",
