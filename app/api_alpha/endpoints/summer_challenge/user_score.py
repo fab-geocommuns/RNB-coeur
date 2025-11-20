@@ -8,13 +8,12 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from rest_framework.exceptions import NotFound
 from batid.models import SummerChallenge
-from django.db.models import Sum
+from django.db.models import Count
 
 
 class UserScoreView(APIView):
-    def get(self, request: Request) -> Response:
+    def get(self, request: Request, username: str) -> JsonResponse:
         # Check the user exists, we look by username or email
-        username = request.GET.get("username")
         try:
             User.objects.get(
                 Q(username=username) | Q(email=username)
@@ -25,7 +24,7 @@ class UserScoreView(APIView):
         global_score = summer_challenge_global_score()
         individual_ranking = (
             SummerChallenge.objects.values("user__username", "user__email")
-            .annotate(score=Sum("score"))
+            .annotate(score=Count("event_id", distinct=True))
             .order_by("-score")
         )
 
