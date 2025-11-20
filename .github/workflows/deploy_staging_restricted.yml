@@ -1,0 +1,21 @@
+name: Deploy application on staging server with restricted SSH access
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+    deployment:
+        name: Deployment on staging server with restricted access
+        runs-on: ubuntu-latest
+        environment: staging
+        steps:
+            - name: SSH to server and trigger deploy for specified refname
+              uses: appleboy/ssh-action@v1.0.0
+              with:
+                  host: ${{ secrets.SSH_HOST }}
+                  username: ${{ secrets.SSH_USERNAME }}
+                  key: ${{ secrets.SSH_PRIVATE_KEY_RESTRICTED }}
+                  port: ${{ secrets.SSH_PORT }}
+                  script: ${{ github.ref_name }}
