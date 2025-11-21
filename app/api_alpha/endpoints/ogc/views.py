@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from api_alpha.pagination import OGCApiPagination
 from api_alpha.serializers.serializers import BuildingGeoJSONSerializer
+from api_alpha.serializers.serializers import OgcBuildingQuerySerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import build_schema_ogc_endpoints
 from api_alpha.utils.rnb_doc import rnb_doc
@@ -326,6 +327,12 @@ class OGCBuildingItemsView(OGCAPIBaseView):
         schemes=["ogc"],
     )
     def get(self, request: Request) -> Response:
+        query_serializer = OgcBuildingQuerySerializer(data=request.query_params)
+
+        if not query_serializer.is_valid():
+            # Invalid data, return validation errors
+            return Response(query_serializer.errors, status=400)
+
         query_params = request.query_params.dict()
 
         with_plots_param = request.query_params.get("withPlots", None)

@@ -301,6 +301,15 @@ class OGCEndpointsTest(APITestCase):
 
     @freeze_time("2024-12-25 00:00:01", tz_offset=0)
     def test_ogc_buildings_items_with_limit(self):
+        r = self.client.get("/api/alpha/ogc/collections/buildings/items?limit=-1")
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get("/api/alpha/ogc/collections/buildings/items?limit=200")
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get("/api/alpha/ogc/collections/buildings/items?limit=coucou")
+        self.assertEqual(r.status_code, 400)
+
         r = self.client.get("/api/alpha/ogc/collections/buildings/items?limit=1")
         self.assertEqual(r.status_code, 200)
 
