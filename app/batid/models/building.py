@@ -773,9 +773,11 @@ class Building(BuildingAbstract):
 
     @staticmethod
     def event_could_be_reverted(
-        event_id: uuid.UUID, end_time: datetime | None = None
+        event_id: uuid.UUID | None, end_time: datetime | None = None
     ) -> bool:
         """the event could be reverted, after all child events are reverted. Useful to predict the outcome of a rollback."""
+        if event_id is None:
+            return True
         if not BuildingHistoryOnly.objects.all().filter(event_id=event_id).exists():
             # event can be reverted if the event_id is not is the history table => it means nothing happend after
             return True
@@ -806,6 +808,7 @@ class Building(BuildingAbstract):
         building = BuildingWithHistory.objects.filter(event_id=event_id).first()
         if building:
             return building.sys_period.lower
+        return None
 
     @staticmethod
     def get_event_id_buildings(event_id: uuid.UUID) -> list:
@@ -923,8 +926,11 @@ class Building(BuildingAbstract):
 
     @staticmethod
     def revert_event(
-        event_origin: dict, event_id: uuid.UUID, user_making_revert: User
-    ) -> uuid.UUID:
+        event_origin: dict, event_id: uuid.UUID | None, user_making_revert: User
+    ) -> uuid.UUID | None:
+        if event_id is None:
+            return None
+
         event_type = Building.get_event_type(event_id)
 
         match event_type:
