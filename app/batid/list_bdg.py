@@ -12,6 +12,7 @@ from django.db.models import Value
 from django.db.models import When
 from django.db.models.lookups import Exact
 from django.db.models.lookups import In
+from django.shortcuts import get_object_or_404
 
 from batid.models import Building
 from batid.models import City
@@ -95,7 +96,8 @@ def list_bdgs(params, only_active=True) -> QuerySet:
 
     insee_code = params.get("insee_code", None)
     if insee_code:
-        city = City.objects.get(code_insee=insee_code)
+        city = get_object_or_404(City, code_insee=insee_code)
+
         qs = qs.filter(point__intersects=city.shape)
         # We have to order by created_at to avoid pagination issues on geographic queries
         qs = qs.order_by("created_at")
