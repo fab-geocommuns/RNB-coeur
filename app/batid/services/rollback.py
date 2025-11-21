@@ -20,7 +20,7 @@ def rollback(user: User, start_time: datetime | None, end_time: datetime | None)
     team_rnb = get_RNB_team_user()
 
     data_fix = DataFix.objects.create(
-        text=f"Rollback des éditions faites par {user.username} (email : {user.email}, id : {user.id}) entre les dates {start_time} et {end_time}",
+        text=f"Rollback des éditions faites par {user.username} (email : {user.email}, id : {user.id}) entre les dates {start_time} et {end_time}",  # type: ignore[attr-defined]
         user=team_rnb,
     )
     event_ids = get_user_events(user, start_time, end_time)
@@ -29,7 +29,7 @@ def rollback(user: User, start_time: datetime | None, end_time: datetime | None)
     for event_id in event_ids:
         try:
             Building.revert_event(
-                {"source": "data_fix", "id": data_fix.id},
+                {"source": "data_fix", "id": data_fix.id},  # type: ignore[attr-defined]
                 event_id,
                 user_making_revert=team_rnb,
             )
@@ -39,7 +39,7 @@ def rollback(user: User, start_time: datetime | None, end_time: datetime | None)
 
     return {
         "user": user.username,
-        "data_fix_id": data_fix.id,
+        "data_fix_id": data_fix.id,  # type: ignore[attr-defined]
         "events_found_n": len(event_ids),
         "start_time": start_time,
         "end_time": end_time,
@@ -77,7 +77,7 @@ def rollback_dry_run(
 
 def get_user_events(
     user: User, start_time: datetime | None, end_time: datetime | None
-) -> list[uuid.UUID]:
+) -> list[uuid.UUID | None]:
     buildings = (
         BuildingWithHistory.objects.annotate(sys_period_lower=RangeLower("sys_period"))
         .filter(event_user=user)

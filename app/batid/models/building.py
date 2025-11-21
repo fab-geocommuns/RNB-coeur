@@ -802,10 +802,10 @@ class Building(BuildingAbstract):
             )
 
     @staticmethod
-    def event_datetime(event_id: uuid.UUID) -> datetime:
-        buildings = BuildingWithHistory.objects.filter(event_id=event_id)
-        datetime_set = {b.sys_period.lower for b in buildings}
-        return datetime_set.pop()
+    def event_datetime(event_id: uuid.UUID) -> datetime | None:
+        building = BuildingWithHistory.objects.filter(event_id=event_id).first()
+        if building:
+            return building.sys_period.lower
 
     @staticmethod
     def get_event_id_buildings(event_id: uuid.UUID) -> list:
