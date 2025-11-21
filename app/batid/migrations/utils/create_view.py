@@ -27,3 +27,10 @@ def sql_migration_building_with_history_drop_view():
 def sql_migration_building_with_history():
     sql = building_with_history_drop_view() + building_with_history_create_view()
     return migrations.RunSQL(sql, reverse_sql=sql)
+
+
+def sql_migration_building_with_history_create_view():
+    sql = building_with_history_create_view()
+    reverse_sql = building_with_history_drop_view()
+
+    return migrations.RunSQL(sql, reverse_sql=reverse_sql)

@@ -231,7 +231,6 @@ Si ce paramêtre est :
 
         data = serializer.data
         user = request.user
-        building = get_object_or_404(Building, rnb_id=rnb_id)
 
         with transaction.atomic():
             contribution = Contribution(
@@ -248,6 +247,8 @@ Si ce paramêtre est :
                 "source": "contribution",
                 "contribution_id": contribution.id,
             }
+
+            building = get_object_or_404(Building, rnb_id=rnb_id)
 
             try:
                 if data.get("is_active") == False:
