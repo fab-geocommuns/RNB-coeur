@@ -32,7 +32,6 @@ from batid.exceptions import OperationOnInactiveBuilding
 from batid.exceptions import RevertNotAllowed
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
-from batid.services.RNB_team_user import get_RNB_team_user
 from batid.utils.db import from_now_to_infinity
 from batid.utils.geo import assert_shape_is_valid
 from batid.validators import validate_one_ext_id
@@ -923,23 +922,32 @@ class Building(BuildingAbstract):
         return new_event_id
 
     @staticmethod
-    def revert_event(event_origin: dict, event_id: uuid.UUID) -> uuid.UUID:
+    def revert_event(
+        event_origin: dict, event_id: uuid.UUID, user_making_revert: User
+    ) -> uuid.UUID:
         event_type = Building.get_event_type(event_id)
-        team_rnb = get_RNB_team_user()
 
         match event_type:
             case EventType.CREATION.value:
-                return Building.revert_creation(team_rnb, event_origin, event_id)
+                return Building.revert_creation(
+                    user_making_revert, event_origin, event_id
+                )
             case EventType.DEACTIVATION.value:
-                return Building.revert_deactivation(team_rnb, event_origin, event_id)
+                return Building.revert_deactivation(
+                    user_making_revert, event_origin, event_id
+                )
             case EventType.REACTIVATION.value:
-                return Building.revert_reactivation(team_rnb, event_origin, event_id)
+                return Building.revert_reactivation(
+                    user_making_revert, event_origin, event_id
+                )
             case EventType.UPDATE.value:
-                return Building.revert_update(team_rnb, event_origin, event_id)
+                return Building.revert_update(
+                    user_making_revert, event_origin, event_id
+                )
             case EventType.MERGE.value:
-                return Building.revert_merge(team_rnb, event_origin, event_id)
+                return Building.revert_merge(user_making_revert, event_origin, event_id)
             case EventType.SPLIT.value:
-                return Building.revert_split(team_rnb, event_origin, event_id)
+                return Building.revert_split(user_making_revert, event_origin, event_id)
             case _:
                 raise RevertNotAllowed()
 

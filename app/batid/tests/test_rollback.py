@@ -8,6 +8,7 @@ from batid.models.building import Address
 from batid.models.building import Building
 from batid.models.building import BuildingWithHistory
 from batid.models.building import EventType
+from batid.models.others import DataFix
 from batid.services.rollback import rollback
 from batid.services.rollback import rollback_dry_run
 
@@ -47,7 +48,9 @@ class TestUnitaryRollback(TransactionTestCase):
 
     def test_revert_creation(self):
         creation_event_id = self.building_1.event_id
-        Building.revert_event({"source": "rollback"}, creation_event_id)
+        Building.revert_event(
+            {"source": "rollback"}, creation_event_id, user_making_revert=self.team_rnb
+        )
         self.building_1.refresh_from_db()
 
         self.assertFalse(self.building_1.is_active)
@@ -72,7 +75,11 @@ class TestUnitaryRollback(TransactionTestCase):
         self.building_1.refresh_from_db()
 
         with self.assertRaises(RevertNotAllowed) as e:
-            Building.revert_event({"source": "rollback"}, creation_event_id)
+            Building.revert_event(
+                {"source": "rollback"},
+                creation_event_id,
+                user_making_revert=self.team_rnb,
+            )
 
         self.assertEqual(
             str(e.exception),
@@ -100,7 +107,11 @@ class TestUnitaryRollback(TransactionTestCase):
         self.building_1.refresh_from_db()
         deactivation_event_id = self.building_1.event_id
 
-        Building.revert_event({"source": "rollback"}, deactivation_event_id)
+        Building.revert_event(
+            {"source": "rollback"},
+            deactivation_event_id,
+            user_making_revert=self.team_rnb,
+        )
         self.building_1.refresh_from_db()
 
         self.assertTrue(self.building_1.is_active)
@@ -127,7 +138,11 @@ class TestUnitaryRollback(TransactionTestCase):
         self.building_1.refresh_from_db()
 
         with self.assertRaises(RevertNotAllowed) as e:
-            Building.revert_event({"source": "rollback"}, deactivation_event_id)
+            Building.revert_event(
+                {"source": "rollback"},
+                deactivation_event_id,
+                user_making_revert=self.team_rnb,
+            )
         self.assertEqual(
             str(e.exception),
             "Impossible to revert the building deactivation, because it has been modified.",
@@ -162,7 +177,9 @@ class TestUnitaryRollback(TransactionTestCase):
         self.building_1.refresh_from_db()
         update_event_id = self.building_1.event_id
 
-        Building.revert_event({"source": "rollback"}, update_event_id)
+        Building.revert_event(
+            {"source": "rollback"}, update_event_id, user_making_revert=self.team_rnb
+        )
         self.building_1.refresh_from_db()
 
         self.assertEqual(self.building_1.event_type, EventType.REVERT_UPDATE.value)
@@ -189,7 +206,11 @@ class TestUnitaryRollback(TransactionTestCase):
         deactivation_event_id = self.building_1.event_id
 
         with self.assertRaises(RevertNotAllowed) as e:
-            Building.revert_event({"source": "rollback"}, update_event_id)
+            Building.revert_event(
+                {"source": "rollback"},
+                update_event_id,
+                user_making_revert=self.team_rnb,
+            )
         self.assertEqual(
             str(e.exception),
             "Impossible to revert the building update, because it has been modified.",
@@ -225,7 +246,9 @@ class TestUnitaryRollback(TransactionTestCase):
         self.building_1.refresh_from_db()
         split_event_id = self.building_1.event_id
 
-        Building.revert_event({"source": "rollback"}, split_event_id)
+        Building.revert_event(
+            {"source": "rollback"}, split_event_id, user_making_revert=self.team_rnb
+        )
         self.building_1.refresh_from_db()
         new_event_id = self.building_1.event_id
 
@@ -286,7 +309,9 @@ class TestUnitaryRollback(TransactionTestCase):
         )
 
         with self.assertRaises(RevertNotAllowed) as e:
-            Building.revert_event({"source": "rollback"}, split_event_id)
+            Building.revert_event(
+                {"source": "rollback"}, split_event_id, user_making_revert=self.team_rnb
+            )
 
         self.assertEqual(
             str(e.exception),
@@ -304,7 +329,9 @@ class TestUnitaryRollback(TransactionTestCase):
         )
         merge_event_id = building.event_id
 
-        Building.revert_event({"source": "rollback"}, merge_event_id)
+        Building.revert_event(
+            {"source": "rollback"}, merge_event_id, user_making_revert=self.team_rnb
+        )
         building.refresh_from_db()
         new_event_id = building.event_id
 
@@ -349,7 +376,9 @@ class TestUnitaryRollback(TransactionTestCase):
         building.refresh_from_db()
 
         with self.assertRaises(RevertNotAllowed) as e:
-            Building.revert_event({"source": "rollback"}, merge_event_id)
+            Building.revert_event(
+                {"source": "rollback"}, merge_event_id, user_making_revert=self.team_rnb
+            )
 
         self.assertEqual(
             str(e.exception),
@@ -784,6 +813,13 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(
             results["events_not_revertable"],
             [building_1_creation_event_id],
+        )
+
+        data_fix_id = results["data_fix_id"]
+        data_fix = DataFix.objects.get(id=data_fix_id)
+        self.assertEqual(
+            data_fix.text,
+            f"Rollback des éditions faites par {self.user.username} (email : {self.user.email}, id : {self.user.id}) entre les dates {start_time} et {end_time}",
         )
 
         # check the final state
