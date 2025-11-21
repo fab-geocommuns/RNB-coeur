@@ -171,7 +171,7 @@ class ListBuildingQuerySerializer(serializers.Serializer):
     bb = serializers.CharField(required=False)
 
     def validate_bbox(self, value):
-        bbox_validator(value)
+        return bbox_validator(value)
 
     def validate_bb(self, value):
         values = value.split(",")
