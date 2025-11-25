@@ -799,6 +799,7 @@ class Building(BuildingAbstract):
                         and event_in_range(e, end_time)
                     )
                     or Building.event_is_a_revert(e)
+                    or Building.event_has_been_reverted(e)
                     for e in child_events
                 ]
             )
@@ -928,7 +929,7 @@ class Building(BuildingAbstract):
     def revert_event(
         event_origin: dict, event_id: uuid.UUID | None, user_making_revert: User
     ) -> uuid.UUID | None:
-        if event_id is None:
+        if event_id is None or Building.event_has_been_reverted(event_id):
             return None
 
         event_type = Building.get_event_type(event_id)

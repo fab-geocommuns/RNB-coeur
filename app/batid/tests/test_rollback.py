@@ -831,3 +831,126 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertFalse(self.building_2.is_active)
         self.assertEqual(self.building_2.event_type, EventType.REVERT_CREATION.value)
         self.assertEqual(self.building_2.revert_event_id, building_2_creation_event_id)
+
+    def test_rollback_ignores_reverted_events(self):
+        # we revert an event with a rollback, and then ask for a second rollback on the same period
+        # the already reverted event should not be impacted.
+        self.building_2.refresh_from_db()
+        start_time = self.building_2.sys_period.lower
+        end_time = None
+
+        building_2_creation_event_id = self.building_2.event_id
+
+        self.building_2.update(
+            self.user,
+            {"source": "contribution"},
+            status="demolished",
+            addresses_id=None,
+        )
+        self.building_2.refresh_from_db()
+        next_start_time = self.building_2.sys_period.lower
+
+        building_2_update_event_id = self.building_2.event_id
+
+        dry_results = rollback_dry_run(self.user, start_time, end_time)
+        self.assertEqual(dry_results["user"], self.user.username)
+        self.assertEqual(dry_results["events_found_n"], 2)
+        self.assertEqual(dry_results["start_time"], start_time)
+        self.assertEqual(dry_results["end_time"], end_time)
+        self.assertEqual(dry_results["events_revertable_n"], 2)
+        self.assertEqual(dry_results["events_not_revertable_n"], 0)
+        self.assertEqual(
+            set(dry_results["events_revertable"]),
+            set([building_2_creation_event_id, building_2_update_event_id]),
+        )
+
+        results = rollback(self.user, start_time, end_time)
+        self.assertEqual(results["user"], self.user.username)
+        self.assertEqual(results["events_found_n"], 2)
+        self.assertEqual(results["start_time"], start_time)
+        self.assertEqual(results["end_time"], end_time)
+        self.assertEqual(results["events_reverted_n"], 2)
+        self.assertEqual(results["events_not_revertable_n"], 0)
+        self.assertEqual(
+            set(results["events_reverted"]),
+            set([building_2_creation_event_id, building_2_update_event_id]),
+        )
+
+        dry_results = rollback_dry_run(self.user, next_start_time, end_time)
+        self.assertEqual(dry_results["user"], self.user.username)
+        self.assertEqual(dry_results["events_found_n"], 1)
+        self.assertEqual(dry_results["start_time"], next_start_time)
+        self.assertEqual(dry_results["end_time"], end_time)
+        self.assertEqual(dry_results["events_revertable_n"], 0)
+        self.assertEqual(dry_results["events_not_revertable_n"], 0)
+        self.assertEqual(dry_results["events_already_reverted_n"], 1)
+        self.assertEqual(
+            dry_results["events_already_reverted"], [building_2_update_event_id]
+        )
+
+        results = rollback(self.user, next_start_time, end_time)
+        self.assertEqual(results["user"], self.user.username)
+        self.assertEqual(results["events_found_n"], 1)
+        self.assertEqual(results["start_time"], next_start_time)
+        self.assertEqual(results["end_time"], end_time)
+        self.assertEqual(results["events_reverted_n"], 0)
+        self.assertEqual(results["events_not_revertable_n"], 0)
+        self.assertEqual(results["events_already_reverted_n"], 1)
+        self.assertEqual(
+            results["events_already_reverted"], [building_2_update_event_id]
+        )
+
+    def test_dry_and_real_rollback_match(self):
+        # we test a case where user 1 updates a building
+        # user 2 updates the same building and its edition is reverted
+        # user 1 edition is expected to be rollbackable, because user 2 edition has been reverted
+        self.building_2.refresh_from_db()
+
+        self.building_2.update(
+            self.user,
+            {"source": "contribution"},
+            status="demolished",
+            addresses_id=None,
+        )
+        self.building_2.refresh_from_db()
+        start_time = self.building_2.sys_period.lower
+        end_time = None
+        building_2_update_event_id = self.building_2.event_id
+
+        # building 2 update is rollbackable
+        results_dry = rollback_dry_run(self.user, start_time, end_time)
+        self.assertEqual(results_dry["events_revertable"], [building_2_update_event_id])
+
+        # results = rollback(self.user, start_time, end_time)
+        # self.assertEqual(results["events_reverted"], [building_2_update_event_id])
+
+        # other_user updates the building
+        self.building_2.update(
+            self.other_user,
+            {"source": "contribution"},
+            status="notUsable",
+            addresses_id=None,
+        )
+
+        # building 2 update by user is not rollbackable anymore
+        results_dry = rollback_dry_run(self.user, start_time, end_time)
+        self.assertEqual(
+            results_dry["events_not_revertable"], [building_2_update_event_id]
+        )
+
+        results = rollback(self.user, start_time, end_time)
+        self.assertEqual(results["events_not_revertable"], [building_2_update_event_id])
+
+        # other_user contributions are rollbacked
+        rollback(self.other_user, start_time, end_time)
+
+        # building 2 update by user are now rollbackable!
+        results_dry = rollback_dry_run(self.user, start_time, end_time)
+        self.assertEqual(results_dry["events_revertable"], [building_2_update_event_id])
+
+        results = rollback(self.user, start_time, end_time)
+        self.assertEqual(results["events_reverted"], [building_2_update_event_id])
+
+        # if you rollback again, nothing is impacted
+        results = rollback(self.user, start_time, end_time)
+        self.assertEqual(results["events_reverted"], [])
