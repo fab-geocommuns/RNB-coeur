@@ -41,9 +41,12 @@ class LogEndpointsTest(APITestCase):
 
         self.assertEqual(r.status_code, 200)
 
-        count = APIRequestLog.objects.all().count()
+        logs = APIRequestLog.objects.all()
+        self.assertEqual(len(logs), 1)
 
-        self.assertEqual(count, 1)
+        log = logs[0]
+        # assert the response is not logged
+        self.assertEqual(log.response, None)
 
     @mock.patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_list_no_log(self):
