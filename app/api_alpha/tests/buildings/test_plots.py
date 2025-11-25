@@ -67,18 +67,22 @@ class BuildingPlotViewTest(APITestCase):
         self.assertEqual(r1["rnb_id"], building_1.rnb_id)
         # building_1 is 100% included in the plot
         self.assertEqual(r1["bdg_cover_ratio"], 1.0)
+        self.assertEqual(r1["shape"]["type"], "Polygon")
 
         self.assertEqual(r2["rnb_id"], building_6.rnb_id)
         # building_6 is 100% included in the plot, it's a point!
-        self.assertEqual(r1["bdg_cover_ratio"], 1.0)
+        self.assertEqual(r2["bdg_cover_ratio"], 1.0)
+        self.assertEqual(r2["shape"]["type"], "Point")
 
         self.assertEqual(r3["rnb_id"], building_3.rnb_id)
         # building_3 is 25% included in the plot
         self.assertEqual(r3["bdg_cover_ratio"], 0.25)
+        self.assertEqual(r3["shape"]["type"], "Polygon")
 
         self.assertEqual(r4["rnb_id"], building_4.rnb_id)
         # building_4 is 25% included in the plot
         self.assertEqual(r4["bdg_cover_ratio"], 0.25)
+        self.assertEqual(r4["shape"]["type"], "Polygon")
 
         r = self.client.get("/api/alpha/buildings/plot/plot_2/")
         self.assertEqual(r.status_code, 200)
@@ -92,6 +96,7 @@ class BuildingPlotViewTest(APITestCase):
         self.assertEqual(r2["rnb_id"], building_4.rnb_id)
         # building_3 is 25% included in the plot
         self.assertEqual(r2["bdg_cover_ratio"], 0.25)
+        self.assertEqual(r2["shape"]["type"], "Polygon")
 
     def test_buildings_on_unknown_plot(self):
         r = self.client.get("/api/alpha/buildings/plot/coucou/")
