@@ -1,21 +1,7 @@
-import json
-from unittest import mock
-
-from django.contrib.auth.models import Group
-from django.contrib.gis.geos import GEOSGeometry
-from django.db import connection
-from django.test import override_settings
-from django.test.utils import CaptureQueriesContext
-from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from api_alpha.permissions import RNBContributorPermission
-from api_alpha.tests.utils import coordinates_almost_equal
-from batid.models import Address
 from batid.models import Building
-from batid.models import Contribution
 from batid.models import Plot
-from batid.models import User
 
 
 class BuildingPlotViewTest(APITestCase):

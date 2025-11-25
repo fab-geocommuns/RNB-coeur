@@ -14,7 +14,6 @@ from api_alpha.tests.utils import coordinates_almost_equal
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
-from batid.models import Plot
 from batid.models import User
 
 

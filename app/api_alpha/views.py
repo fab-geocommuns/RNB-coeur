@@ -62,7 +62,6 @@ from api_alpha.serializers.serializers import BuildingAddressQuerySerializer
 from api_alpha.serializers.serializers import BuildingClosestQuerySerializer
 from api_alpha.serializers.serializers import BuildingClosestSerializer
 from api_alpha.serializers.serializers import BuildingMergeSerializer
-from api_alpha.serializers.serializers import BuildingPlotSerializer
 from api_alpha.serializers.serializers import BuildingSerializer
 from api_alpha.serializers.serializers import BuildingSplitSerializer
 from api_alpha.serializers.serializers import ContributionSerializer
@@ -81,14 +80,12 @@ from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadResultType
 from batid.exceptions import BANUnknownCleInterop
 from batid.exceptions import InvalidOperation
-from batid.exceptions import PlotUnknown
 from batid.models import ADS
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.models import SummerChallenge
-from batid.services.bdg_on_plot import get_buildings_on_plot
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
