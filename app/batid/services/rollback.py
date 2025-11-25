@@ -27,19 +27,23 @@ def rollback(user: User, start_time: datetime | None, end_time: datetime | None)
     events_reverted = []
     events_not_revertable = []
     events_already_reverted = []
+    events_are_revert = []
 
     for event_id in event_ids:
         try:
-            if event_id and Building.event_has_been_reverted(event_id):
-                events_already_reverted.append(event_id)
-            else:
-                revert_uuid = Building.revert_event(
-                    {"source": "data_fix", "id": data_fix.id},  # type: ignore[attr-defined]
-                    event_id,
-                    user_making_revert=team_rnb,
-                )
-                if revert_uuid:
-                    events_reverted.append(event_id)
+            if event_id:
+                if Building.event_has_been_reverted(event_id):
+                    events_already_reverted.append(event_id)
+                elif Building.event_is_a_revert(event_id):
+                    events_are_revert.append(event_id)
+                else:
+                    revert_uuid = Building.revert_event(
+                        {"source": "data_fix", "id": data_fix.id},  # type: ignore[attr-defined]
+                        event_id,
+                        user_making_revert=team_rnb,
+                    )
+                    if revert_uuid:
+                        events_reverted.append(event_id)
         except RevertNotAllowed:
             events_not_revertable.append(event_id)
 
@@ -55,6 +59,8 @@ def rollback(user: User, start_time: datetime | None, end_time: datetime | None)
         "events_not_revertable_n": len(events_not_revertable),
         "events_already_reverted": events_already_reverted,
         "events_already_reverted_n": len(events_already_reverted),
+        "events_are_revert": events_are_revert,
+        "events_are_revert_n": len(events_are_revert),
     }
 
 
@@ -67,11 +73,14 @@ def rollback_dry_run(
     events_not_revertable = []
     events_revertable = []
     events_already_reverted = []
+    events_are_revert = []
 
     for event_id in event_ids:
         if event_id:
             if Building.event_has_been_reverted(event_id):
                 events_already_reverted.append(event_id)
+            elif Building.event_is_a_revert(event_id):
+                events_are_revert.append(event_id)
             elif Building.event_could_be_reverted(event_id, end_time=end_time):
                 events_revertable.append(event_id)
             else:
@@ -88,6 +97,8 @@ def rollback_dry_run(
         "events_not_revertable_n": len(events_not_revertable),
         "events_already_reverted": events_already_reverted,
         "events_already_reverted_n": len(events_already_reverted),
+        "events_are_revert": events_are_revert,
+        "events_are_revert_n": len(events_are_revert),
     }
 
 

@@ -123,7 +123,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertEqual(self.building_1.addresses_id, [])
         self.assertEqual(self.building_1.shape, self.shape_1)
 
-    def test_revert_deactivation_impossible(self):
+    def test_revert_deactivation_already_done(self):
         self.building_1.deactivate(self.user, {"source": "contribution"})
         deactivation_event_id = self.building_1.event_id
         self.building_1.reactivate(self.user, {"source": "contribution"})
@@ -137,15 +137,12 @@ class TestUnitaryRollback(TransactionTestCase):
         )
         self.building_1.refresh_from_db()
 
-        with self.assertRaises(RevertNotAllowed) as e:
+        self.assertIsNone(
             Building.revert_event(
                 {"source": "rollback"},
                 deactivation_event_id,
                 user_making_revert=self.team_rnb,
             )
-        self.assertEqual(
-            str(e.exception),
-            "Impossible to revert the building deactivation, because it has been modified.",
         )
 
         with self.assertRaises(RevertNotAllowed) as e:
@@ -625,8 +622,10 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(results["events_found_n"], 6)
         self.assertEqual(results["start_time"], start_time)
         self.assertEqual(results["end_time"], end_time)
-        self.assertEqual(results["events_revertable_n"], 6)
+        self.assertEqual(results["events_revertable_n"], 4)
         self.assertEqual(results["events_not_revertable_n"], 0)
+        self.assertEqual(results["events_are_revert_n"], 1)
+        self.assertEqual(results["events_already_reverted_n"], 1)
         # those events are revertable because they have been made by the same user
         # and are both in the rollback time range.
         self.assertEqual(
@@ -636,8 +635,6 @@ class TestGlobalRollback(TransactionTestCase):
                     building_2_creation_event_id,
                     building_2_edition_1_event_id,
                     building_2_edition_2_event_id,
-                    building_2_edition_3_event_id,
-                    building_2_edition_4_event_id,
                     building_2_edition_5_event_id,
                 }
             ),
@@ -646,6 +643,14 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(
             results["events_not_revertable"],
             [],
+        )
+        self.assertEqual(
+            results["events_are_revert"],
+            [building_2_edition_4_event_id],
+        )
+        self.assertEqual(
+            results["events_already_reverted"],
+            [building_2_edition_3_event_id],
         )
 
         # And then other_user updates one child of the final split
@@ -660,11 +665,15 @@ class TestGlobalRollback(TransactionTestCase):
 
         results = rollback_dry_run(self.user, start_time, end_time)
         self.assertEqual(results["events_revertable_n"], 0)
-        self.assertEqual(results["events_not_revertable_n"], 6)
+        self.assertEqual(results["events_not_revertable_n"], 4)
+        self.assertEqual(results["events_are_revert_n"], 1)
+        self.assertEqual(results["events_already_reverted_n"], 1)
 
         results = rollback(self.user, start_time, end_time)
         self.assertEqual(results["events_reverted_n"], 0)
-        self.assertEqual(results["events_not_revertable_n"], 6)
+        self.assertEqual(results["events_not_revertable_n"], 4)
+        self.assertEqual(results["events_are_revert_n"], 1)
+        self.assertEqual(results["events_already_reverted_n"], 1)
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_global_rollback_3(self):
@@ -723,8 +732,10 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(results["events_found_n"], 6)
         self.assertEqual(results["start_time"], start_time)
         self.assertEqual(results["end_time"], end_time)
-        self.assertEqual(results["events_reverted_n"], 6)
+        self.assertEqual(results["events_reverted_n"], 4)
         self.assertEqual(results["events_not_revertable_n"], 0)
+        self.assertEqual(results["events_are_revert_n"], 1)
+        self.assertEqual(results["events_already_reverted_n"], 1)
         # those events are revertable because they have been made by the same user
         # and are both in the rollback time range.
         self.assertEqual(
@@ -734,23 +745,28 @@ class TestGlobalRollback(TransactionTestCase):
                     building_2_creation_event_id,
                     building_2_edition_1_event_id,
                     building_2_edition_2_event_id,
-                    building_2_edition_3_event_id,
-                    building_2_edition_4_event_id,
                     building_2_edition_5_event_id,
                 }
             ),
         )
-        # not revertable because other_user has updated the building since.
         self.assertEqual(
             results["events_not_revertable"],
             [],
+        )
+        self.assertEqual(
+            results["events_are_revert"],
+            [building_2_edition_4_event_id],
+        )
+        self.assertEqual(
+            results["events_already_reverted"],
+            [building_2_edition_3_event_id],
         )
 
         child_events = Building.child_events_from_event_id(
             building_2_edition_5_event_id
         )
-        # 6 events to revert, 6 new events expected
-        self.assertEqual(len(child_events), 6)
+        # 4 events to revert, 4 new events expected
+        self.assertEqual(len(child_events), 4)
 
         self.building_2.refresh_from_db()
         # final state expected
