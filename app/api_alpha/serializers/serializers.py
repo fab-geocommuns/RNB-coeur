@@ -120,10 +120,8 @@ class BuildingSerializer(serializers.ModelSerializer):
 
 
 def bbox_validator(value):
-    values = value.split(",")
-    [min_lon, min_lat, max_lon, max_lat] = values
-
     try:
+        [min_lon, min_lat, max_lon, max_lat] = value.split(",")
         min_lon = float(min_lon)
         min_lat = float(min_lat)
         max_lon = float(max_lon)
