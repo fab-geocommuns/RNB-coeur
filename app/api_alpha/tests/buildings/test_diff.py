@@ -70,6 +70,7 @@ class DiffTest(TransactionTestCase):
                 }
             ],
             addresses_id=["ADDRESS_ID_1"],
+            event_type="creation",
         )
         # reload the buildings to get the sys_period
         treshold = Building.objects.get(rnb_id="1").sys_period.lower
@@ -96,7 +97,11 @@ class DiffTest(TransactionTestCase):
         # #############
         # Third building
         b3 = Building.objects.create(
-            rnb_id="3", shape=geom, point=geom.point_on_surface, status="constructed"
+            rnb_id="3",
+            shape=geom,
+            point=geom.point_on_surface,
+            status="constructed",
+            event_type="creation",
         )
         b3.deactivate(user=user, event_origin={"source": "test"})
 
@@ -217,7 +222,7 @@ class DiffTest(TransactionTestCase):
             shape=geom,
             point=geom.point_on_surface,
         )
-        Building.objects.create(rnb_id="t")
+        Building.objects.create(rnb_id="t", event_type="creation")
         # reload the buildings to get the sys_period
         treshold = Building.objects.get(rnb_id="t").sys_period.lower
 
@@ -290,8 +295,10 @@ class DiffTest(TransactionTestCase):
         user = User(email="test@exemple.fr")
         user.save()
 
-        b1 = Building.objects.create(rnb_id="1", status="constructed")
-        Building.objects.create(rnb_id="t")
+        b1 = Building.objects.create(
+            rnb_id="1", status="constructed", event_type="creation"
+        )
+        Building.objects.create(rnb_id="t", event_type="creation")
         # reload the buildings to get the sys_period
         treshold = Building.objects.get(rnb_id="t").sys_period.lower
 
@@ -365,11 +372,49 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(r.status_code, 400)
 
     def test_since_is_too_old(self):
-        url = f"/api/alpha/buildings/diff/?since=2021-01-01T00:00:00Z"
+        since = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            days=210  # 7 months
+        )
+        params = urlencode({"since": since.isoformat()})
+        url = f"/api/alpha/buildings/diff/?{params}"
 
         r = self.client.get(url)
 
         self.assertEqual(r.status_code, 400)
+
+    def test_since_without_timezone(self):
+        b = Building.objects.create(rnb_id="t", event_type="creation")
+        threshold = Building.objects.get(rnb_id="t").sys_period.lower
+
+        user = User.objects.get(username="marcella")
+        b.update(
+            status="constructed",
+            user=user,
+            event_origin={"source": "test"},
+            addresses_id=[],
+        )
+
+        params = urlencode({"since": threshold.strftime("%Y-%m-%dT%H:%M:%S")})
+        url = f"/api/alpha/buildings/diff/?{params}"
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
+
+    def test_since_only_date(self):
+        b = Building.objects.create(rnb_id="t", event_type="creation")
+        threshold = Building.objects.get(rnb_id="t").sys_period.lower
+
+        user = User.objects.get(username="marcella")
+        b.update(
+            status="constructed",
+            user=user,
+            event_origin={"source": "test"},
+            addresses_id=[],
+        )
+
+        params = urlencode({"since": threshold.strftime("%Y-%m-%d")})
+        url = f"/api/alpha/buildings/diff/?{params}"
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
 
     def test_since_is_invalid(self):
         url = f"/api/alpha/buildings/diff/?since=invalid"
@@ -377,3 +422,53 @@ class DiffTest(TransactionTestCase):
         r = self.client.get(url)
 
         self.assertEqual(r.status_code, 400)
+
+    def test_diff_reactivation(self):
+        user = User.objects.get(username="marcella")
+
+        b1 = Building.objects.create(
+            rnb_id="1",
+            ext_ids=[
+                {
+                    "source": "test",
+                    "source_version": "11_2024",
+                    "id": "1",
+                    "created_at": "2024-08-05T00:00:00Z",
+                }
+            ],
+            addresses_id=["ADDRESS_ID_1"],
+            status="constructed",
+            event_type="creation",
+        )
+
+        threshold = Building.objects.get(rnb_id="1").sys_period.lower
+
+        b1.deactivate(user=user, event_origin={"source": "contribution"})
+        b1.reactivate(user=user, event_origin={"source": "contribution"})
+
+        params = urlencode({"since": threshold.isoformat()})
+        url = f"/api/alpha/buildings/diff/?{params}"
+
+        r = self.client.get(url)
+
+        self.assertEqual(r.status_code, 200)
+
+        diff_text = get_content_from_streaming_response(r)
+        reader = csv.DictReader(io.StringIO(diff_text))
+        rows = list(reader)
+
+        self.assertEqual(len(rows), 2)
+
+        self.assertEqual(rows[0]["action"], "deactivate")
+        self.assertEqual(rows[0]["rnb_id"], b1.rnb_id)
+        self.assertEqual(rows[0]["status"], "constructed")
+        self.assertEqual(rows[0]["is_active"], "0")
+        self.assertEqual(rows[0]["event_type"], "deactivation")
+        self.assertListEqual(json.loads(rows[0]["addresses_id"]), ["ADDRESS_ID_1"])
+
+        self.assertEqual(rows[1]["action"], "reactivate")
+        self.assertEqual(rows[1]["rnb_id"], b1.rnb_id)
+        self.assertEqual(rows[1]["status"], "constructed")
+        self.assertEqual(rows[1]["is_active"], "1")
+        self.assertEqual(rows[1]["event_type"], "reactivation")
+        self.assertListEqual(json.loads(rows[1]["addresses_id"]), ["ADDRESS_ID_1"])
