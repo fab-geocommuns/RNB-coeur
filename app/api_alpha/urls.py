@@ -22,13 +22,13 @@ from api_alpha.endpoints.tiles.building_vector_tile import BuildingsShapeVectorT
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsVectorTileView
 from api_alpha.endpoints.tiles.plots_vector_tile import PlotsVectorTileView
 from api_alpha.endpoints.tiles.report_vector_tile import ReportVectorTileView
+from api_alpha.endpoints.buildings.plot import BuildingPlotView
 from api_alpha.views import ActivateUser
 from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingAddressView
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
-from api_alpha.views import BuildingPlotView
 from api_alpha.views import ChangePassword
 from api_alpha.views import CreateUserView
 from api_alpha.views import DiffusionDatabaseView
