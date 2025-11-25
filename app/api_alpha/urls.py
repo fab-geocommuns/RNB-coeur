@@ -5,6 +5,7 @@ from rest_framework import routers
 
 from api_alpha.endpoints.buildings.get_diff import DiffView
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
+from api_alpha.endpoints.buildings.plot import BuildingPlotView
 from api_alpha.endpoints.buildings.single_building import SingleBuilding
 from api_alpha.endpoints.buildings.single_building import SingleBuildingHistory
 from api_alpha.endpoints.ogc.views import OGCBuildingItemsView
@@ -29,7 +30,6 @@ from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingAddressView
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
-from api_alpha.views import BuildingPlotView
 from api_alpha.views import ChangePassword
 from api_alpha.views import CreateUserView
 from api_alpha.views import DiffusionDatabaseView
