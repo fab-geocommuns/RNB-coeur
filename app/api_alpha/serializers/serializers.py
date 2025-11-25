@@ -119,6 +119,42 @@ class BuildingSerializer(serializers.ModelSerializer):
         ]
 
 
+def bbox_validator(value):
+    try:
+        [min_lon, min_lat, max_lon, max_lat] = value.split(",")
+        min_lon = float(min_lon)
+        min_lat = float(min_lat)
+        max_lon = float(max_lon)
+        max_lat = float(max_lat)
+    except ValueError:
+        raise serializers.ValidationError(
+            "min_lon, min_lat, max_lon et max_lat doivent avoir une valeur numérique"
+        )
+
+    if min_lon > max_lon:
+        raise serializers.ValidationError("min_lon doit être inféfieure à max_lon")
+    if min_lat > max_lat:
+        raise serializers.ValidationError("min_lat doit être inférieure à max_lat")
+
+    validate_point(f"{min_lat},{min_lon}")
+    validate_point(f"{max_lat},{max_lon}")
+
+    if (float(max_lon) - float(min_lon)) * (float(max_lat) - float(min_lat)) > 4:
+        raise serializers.ValidationError(
+            "La bbox est trop grande, (max_lon - min_lon) * (max_lat - min_lat) doit être inférieur à 4. Si vous avez besoin de bbox plus grandes, merci de nous contacter."
+        )
+    return value
+
+
+class OgcBuildingQuerySerializer(serializers.Serializer):
+    bbox = serializers.CharField(required=False)
+    insee_code = serializers.CharField(required=False, min_length=5, max_length=5)
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=100)
+
+    def validate_bbox(self, value):
+        bbox_validator(value)
+
+
 class ListBuildingQuerySerializer(serializers.Serializer):
     insee_code = serializers.CharField(required=False, min_length=5, max_length=5)
     status = serializers.ChoiceField(
@@ -133,32 +169,7 @@ class ListBuildingQuerySerializer(serializers.Serializer):
     bb = serializers.CharField(required=False)
 
     def validate_bbox(self, value):
-        values = value.split(",")
-        [min_lon, min_lat, max_lon, max_lat] = values
-
-        try:
-            min_lon = float(min_lon)
-            min_lat = float(min_lat)
-            max_lon = float(max_lon)
-            max_lat = float(max_lat)
-        except ValueError:
-            raise serializers.ValidationError(
-                "min_lon, min_lat, max_lon et max_lat doivent avoir une valeur numérique"
-            )
-
-        if min_lon > max_lon:
-            raise serializers.ValidationError("min_lon doit être inféfieure à max_lon")
-        if min_lat > max_lat:
-            raise serializers.ValidationError("min_lat doit être inférieure à max_lat")
-
-        validate_point(f"{min_lat},{min_lon}")
-        validate_point(f"{max_lat},{max_lon}")
-
-        if (float(max_lon) - float(min_lon)) * (float(max_lat) - float(min_lat)) > 4:
-            raise serializers.ValidationError(
-                "La bbox est trop grande, (max_lon - min_lon) * (max_lat - min_lat) doit être inférieur à 4. Si vous avez besoin de bbox plus grandes, merci de nous contacter."
-            )
-        return value
+        return bbox_validator(value)
 
     def validate_bb(self, value):
         values = value.split(",")

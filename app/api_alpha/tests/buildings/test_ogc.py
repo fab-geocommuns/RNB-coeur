@@ -301,6 +301,15 @@ class OGCEndpointsTest(APITestCase):
 
     @freeze_time("2024-12-25 00:00:01", tz_offset=0)
     def test_ogc_buildings_items_with_limit(self):
+        r = self.client.get("/api/alpha/ogc/collections/buildings/items?limit=-1")
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get("/api/alpha/ogc/collections/buildings/items?limit=200")
+        self.assertEqual(r.status_code, 400)
+
+        r = self.client.get("/api/alpha/ogc/collections/buildings/items?limit=coucou")
+        self.assertEqual(r.status_code, 400)
+
         r = self.client.get("/api/alpha/ogc/collections/buildings/items?limit=1")
         self.assertEqual(r.status_code, 200)
 
@@ -363,6 +372,9 @@ class OGCEndpointsTest(APITestCase):
 
     @freeze_time("2024-12-25 00:00:01", tz_offset=0)
     def test_ogc_buildings_items_in_bbox(self):
+
+        r = self.client.get("/api/alpha/ogc/collections/buildings/items?bbox=cou,cou")
+        self.assertEqual(r.status_code, 400)
 
         r = self.client.get(
             "/api/alpha/ogc/collections/buildings/items?bbox=5.7211808330356,45.18355043319679,5.722614035153486,45.18468473541278"
