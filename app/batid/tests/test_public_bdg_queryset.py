@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.gis.geos import GEOSGeometry
+from django.http import Http404
 from django.test import TestCase
 
 from batid.list_bdg import list_bdgs
@@ -229,6 +230,10 @@ class SearchCityTestCase(TestCase):
         qs = list_bdgs({"insee_code": "38185"})
 
         self.assertEqual(len(list(qs)), 2)
+
+    def test_unknown_city(self):
+        with self.assertRaises(Http404):
+            list_bdgs({"insee_code": "XXXXX"})
 
 
 class SearchWithPlots(TestCase):
