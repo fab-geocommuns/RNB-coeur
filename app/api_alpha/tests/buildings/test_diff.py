@@ -12,6 +12,7 @@ from django.utils.http import urlencode
 from batid.models import Address
 from batid.models import Building
 from batid.models import Organization
+from batid.models import UserProfile
 
 
 def get_content_from_streaming_response(response):
@@ -28,6 +29,7 @@ class DiffTest(TransactionTestCase):
         user = User.objects.create_user(
             first_name="Marcella", last_name="Paviollon", username="marcella"
         )
+        UserProfile.objects.create(user=user)
         org = Organization.objects.create(name="Mairie Marseille")
         org.users.add(user)
 
@@ -187,7 +189,6 @@ class DiffTest(TransactionTestCase):
 
         # Get the user
         user = User.objects.get(username="marcella")
-
         # Shape for buildings
         coords = {
             "coordinates": [
@@ -294,7 +295,7 @@ class DiffTest(TransactionTestCase):
     def test_diff_split(self):
         user = User(email="test@exemple.fr")
         user.save()
-
+        UserProfile.objects.create(user=user)
         b1 = Building.objects.create(
             rnb_id="1", status="constructed", event_type="creation"
         )
