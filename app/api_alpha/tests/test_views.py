@@ -8,7 +8,6 @@ from batid.models import Building
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
-from batid.models import UserProfile
 from batid.services.kpi import compute_today_kpis
 
 
