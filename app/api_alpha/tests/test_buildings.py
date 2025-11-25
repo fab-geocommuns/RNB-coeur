@@ -948,7 +948,7 @@ class BuildingMergeTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 429)
+        self.assertEqual(r.status_code, 403)
 
         # Verify the buildings were not merged
         self.building_1.refresh_from_db()
@@ -1396,7 +1396,7 @@ class BuildingSplitTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 429)
+        self.assertEqual(r.status_code, 403)
 
         # Verify the building was not split
         self.building_1.refresh_from_db()

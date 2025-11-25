@@ -674,7 +674,7 @@ class BuildingPatchTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 429)
+        self.assertEqual(r.status_code, 403)
 
         # Verify the building was not updated
         self.building.refresh_from_db()
@@ -702,7 +702,7 @@ class BuildingPatchTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 429)
+        self.assertEqual(r.status_code, 403)
 
         # Verify the building was not deactivated
         self.building.refresh_from_db()

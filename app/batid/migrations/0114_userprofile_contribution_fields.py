@@ -7,7 +7,7 @@ forward_backfill_contribution_counts_sql = """
     WITH contributions_per_user AS (
         SELECT review_user_id, COUNT(*) AS total_contributions
         FROM batid_contribution
-        WHERE review_user_id IS NOT NULL AND status = 'fixed'
+        WHERE review_user_id IS NOT NULL AND report = false
         GROUP BY review_user_id
     )
     UPDATE batid_userprofile

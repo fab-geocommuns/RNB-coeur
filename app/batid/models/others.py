@@ -200,9 +200,12 @@ class UserProfile(models.Model):
     def check_and_increment_contribution_count(self) -> None:
         from api_alpha.exceptions import TooManyContributions
 
-        if self.total_contributions >= self.max_allowed_contributions:
+        if (
+            not self.user.is_staff
+            and self.total_contributions >= self.max_allowed_contributions
+        ):
             raise TooManyContributions(
-                detail=f"{self.user.username} a atteint ou dépassé le nombre maximum de contributions autorisées ({self.max_allowed_contributions}). Veuillez nous contacter pour plus d'informations."
+                detail=f"{self.user.username} a atteint ou dépassé le nombre maximum de contributions autorisées ({self.max_allowed_contributions}). Veuillez nous contacter à rnb@beta.gouv.fr pour plus d'informations."
             )
 
         self.total_contributions += 1

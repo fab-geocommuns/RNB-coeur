@@ -14,6 +14,6 @@ class BadRequest(APIException):
 
 
 class TooManyContributions(APIException):
-    status_code = 429
+    status_code = 403
     default_detail = "Maximum number of contributions reached."  # type: ignore[assignment]
     default_code = "too_many_contributions"
