@@ -12,6 +12,7 @@ from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import DataFix
 from batid.models import Organization
+from batid.models import UserProfile
 
 
 class SingleBuildingHistoryTest(APITestCase):
@@ -27,6 +28,7 @@ class SingleBuildingHistoryTest(APITestCase):
         user = User.objects.create_user(
             first_name="Julie", last_name="Sigiste", username="ju_sig"
         )
+        UserProfile.objects.create(user=user)
         self.user_id = user.id
 
         # She is working in this org

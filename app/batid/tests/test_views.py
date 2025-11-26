@@ -5,12 +5,14 @@ from django.urls import reverse
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
+from batid.models import UserProfile
 
 
 def create_superuser_and_login(self):
     self.superuser = User.objects.create_superuser(
         username="superuser", email="superuser@test.com", password="password"
     )
+    UserProfile.objects.create(user=self.superuser)
     self.client.login(username="superuser", password="password")
 
 

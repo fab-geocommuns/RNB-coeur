@@ -15,11 +15,13 @@ from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import User
+from batid.models import UserProfile
 
 
 class BuildingClosestViewTest(APITestCase):
     def test_closest(self):
         user = User.objects.create_user(username="user")
+        UserProfile.objects.create(user=user)
         # It should be first in the results
         closest_bdg = Building.create_new(
             user=user,
@@ -307,6 +309,7 @@ class BuildingClosestViewTest(APITestCase):
 
     def test_closest_no_n_plus_1(self):
         user = User.objects.create_user(username="user")
+        UserProfile.objects.create(user=user)
 
         Building.create_new(
             user=user,
@@ -380,7 +383,7 @@ class BuildingAddressViewTest(APITestCase):
         self.address_3 = Address.objects.create(id=self.cle_interop_ban_3)
 
         user = User.objects.create_user(username="user")
-
+        UserProfile.objects.create(user=user)
         self.building_1 = Building.create_new(
             user=user,
             event_origin={"source": "test"},
@@ -566,6 +569,7 @@ class BuildingMergeTest(APITestCase):
         self.user = User.objects.create_user(
             first_name="Robert", last_name="Dylan", username="bob"
         )
+        UserProfile.objects.create(user=self.user)
         token = Token.objects.create(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
@@ -923,12 +927,48 @@ class BuildingMergeTest(APITestCase):
             f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
         )
 
+    def test_merge_buildings_contribution_limit_exceeded(self):
+        self.user.groups.add(self.group)
+
+        # Set user to have reached their contribution limit
+        self.user.profile.total_contributions = 500
+        self.user.profile.max_allowed_contributions = 500
+        self.user.profile.save()
+
+        data = {
+            "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
+            "status": "constructed",
+            "merge_existing_addresses": True,
+            "comment": "Fusion de bâtiments",
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/merge/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 403)
+
+        # Verify the buildings were not merged
+        self.building_1.refresh_from_db()
+        self.building_2.refresh_from_db()
+        self.assertTrue(self.building_1.is_active)
+        self.assertTrue(self.building_2.is_active)
+        self.assertNotEqual(self.building_1.event_type, "merge")
+        self.assertNotEqual(self.building_2.event_type, "merge")
+
+        # Verify user contribution count did not increase
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.total_contributions, 500)
+
 
 class BuildingSplitTest(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
             first_name="Robert", last_name="Dylan", username="bob"
         )
+        UserProfile.objects.create(user=self.user)
         token = Token.objects.create(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
@@ -1324,3 +1364,45 @@ class BuildingSplitTest(APITestCase):
         get_mock.assert_called_with(
             f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
         )
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_split_buildings_contribution_limit_exceeded(self):
+        self.user.groups.add(self.group)
+
+        # Set user to have reached their contribution limit
+        self.user.profile.total_contributions = 500
+        self.user.profile.max_allowed_contributions = 500
+        self.user.profile.save()
+
+        data = {
+            "comment": "Division du bâtiment",
+            "created_buildings": [
+                {
+                    "status": "constructed",
+                    "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                    "addresses_cle_interop": [self.adr1.id],
+                },
+                {
+                    "status": "constructed",
+                    "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                    "addresses_cle_interop": [self.adr2.id],
+                },
+            ],
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 403)
+
+        # Verify the building was not split
+        self.building_1.refresh_from_db()
+        self.assertTrue(self.building_1.is_active)
+        self.assertNotEqual(self.building_1.event_type, "split")
+
+        # Verify user contribution count did not increase
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.total_contributions, 500)

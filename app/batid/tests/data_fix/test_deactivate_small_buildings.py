@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 
+from batid.models import UserProfile
 from batid.models.building import Building
 from batid.models.others import DataFix
 from batid.models.others import SummerChallenge
@@ -91,6 +92,7 @@ class TestDeactivateSmallBuildings(TestCase):
     def test(self):
 
         user = User.objects.create_user(username="tester")
+        UserProfile.objects.create(user=user)
         datafix = DataFix.objects.create(
             user=user, text="Désactiver les petits bâtiments importés par erreur"
         )
