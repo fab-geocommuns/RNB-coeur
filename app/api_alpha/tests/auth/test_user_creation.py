@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from django.core import mail
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
+from private_captcha.models import VerifyOutput
 
 
 class UserCreation(APITestCase):
@@ -213,16 +214,16 @@ class UserCreation(APITestCase):
         self.assertFalse(julie.is_active)
 
     @mock.patch("batid.tasks.create_sandbox_user.delay")
-    @mock.patch("api_alpha.endpoints.auth.create_user.is_captcha_valid")
-    def test_when_captcha_is_invalid(self, mock_is_captcha_valid, _):
-        mock_is_captcha_valid.return_value = False
-        response = self.client.post("/api/alpha/auth/users/", self.julie_data)
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(
-            response.json(),
-            {"detail": "Captcha verification failed"},
-        )
-        self.assertFalse(User.objects.filter(first_name="Julie").exists())
+    @mock.patch(
+        "private_captcha.Client.verify",
+        return_value=VerifyOutput.from_dict({"success": False}),
+    )
+    def test_when_captcha_is_invalid(self, mock_verify, _):
+        with self.settings(ENABLE_CAPTCHA=True, PRIVATE_CAPTCHA_API_KEY="test"):
+            response = self.client.post("/api/alpha/auth/users/", self.julie_data)
+            self.assertEqual(response.status_code, 400)
+            self.assertIn("Captcha verification failed", response.json()["detail"])
+            self.assertFalse(User.objects.filter(first_name="Julie").exists())
 
     @mock.patch("batid.tasks.create_sandbox_user.delay")
     @mock.patch("api_alpha.endpoints.auth.create_user.is_captcha_valid")
