@@ -24,7 +24,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WRITABLE_DATA_DIR = os.path.join(BASE_DIR, "data")
 
 PRIVATE_CAPTCHA_API_KEY = os.environ.get("PRIVATE_CAPTCHA_API_KEY")
-DISABLE_CAPTCHA = os.environ.get("DISABLE_CAPTCHA", default="false").lower() == "true"
+ENABLE_CAPTCHA = os.environ.get("ENABLE_CAPTCHA", default="true").lower() == "true"
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/

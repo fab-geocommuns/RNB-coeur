@@ -239,7 +239,7 @@ class UserCreation(APITestCase):
     @mock.patch("batid.tasks.create_sandbox_user.delay")
     @mock.patch("api_alpha.endpoints.auth.create_user.is_captcha_valid")
     def test_skips_captcha_if_disabled(self, mock_is_captcha_valid, _):
-        with self.settings(DISABLE_CAPTCHA=True):
+        with self.settings(ENABLE_CAPTCHA=False):
             mock_is_captcha_valid.return_value = False
             response = self.client.post("/api/alpha/auth/users/", self.julie_data)
             self.assertEqual(response.status_code, 201)
