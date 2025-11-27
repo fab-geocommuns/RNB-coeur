@@ -14,7 +14,7 @@ from batid.migrations.utils.create_view import (
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0113_migrate_contributions_to_report"),
+        ("batid", "0114_userprofile_contribution_fields"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
