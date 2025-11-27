@@ -194,6 +194,22 @@ class Organization(models.Model):
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")  # type: ignore[var-annotated]
     job_title = models.CharField(max_length=255, blank=True, null=True)  # type: ignore[var-annotated]
+    max_allowed_contributions = models.IntegerField(null=False, default=500)  # type: ignore[var-annotated]
+    total_contributions = models.IntegerField(null=False, default=0)  # type: ignore[var-annotated]
+
+    def check_and_increment_contribution_count(self) -> None:
+        from api_alpha.exceptions import TooManyContributions
+
+        if (
+            not self.user.is_staff
+            and self.total_contributions >= self.max_allowed_contributions
+        ):
+            raise TooManyContributions(
+                detail=f"{self.user.username} a atteint ou dépassé le nombre maximum de contributions autorisées ({self.max_allowed_contributions}). Veuillez nous contacter à rnb@beta.gouv.fr pour plus d'informations."
+            )
+
+        self.total_contributions += 1
+        self.save(update_fields=["total_contributions"])
 
 
 class BuildingImport(models.Model):

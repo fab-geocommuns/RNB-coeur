@@ -11,6 +11,7 @@ from batid.models import Building
 from batid.models import Organization
 from batid.models import Plot
 from batid.models import User
+from batid.models import UserProfile
 from batid.tests.helpers import create_bdg
 from batid.tests.helpers import create_grenoble
 
@@ -661,6 +662,7 @@ class BuildingsWithPlots(APITestCase):
         # The two plots are side by side
 
         user = User.objects.create_user(username="user")
+        UserProfile.objects.create(user=user)
 
         Plot.objects.create(
             id="one",

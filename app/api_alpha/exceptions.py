@@ -11,3 +11,9 @@ class BadRequest(APIException):
     status_code = 400
     default_detail = "Bad request."  # type: ignore[assignment]
     default_code = "bad_request"
+
+
+class TooManyContributions(APIException):
+    status_code = 403
+    default_detail = "Maximum number of contributions reached."  # type: ignore[assignment]
+    default_code = "too_many_contributions"

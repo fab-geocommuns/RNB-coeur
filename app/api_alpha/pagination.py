@@ -143,7 +143,9 @@ class BuildingListingCursorPagination(CursorPagination):
             limit = int(limit_param)
 
             if limit < 1 or limit > 100:
-                raise ValueError()
+                raise ValueError(
+                    "The limit parameter must be an integer between 1 and 100"
+                )
 
             return limit
 

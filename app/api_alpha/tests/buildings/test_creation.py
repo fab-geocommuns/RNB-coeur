@@ -11,6 +11,7 @@ from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import User
+from batid.models import UserProfile
 
 
 class BuildingPostTest(APITestCase):
@@ -18,6 +19,7 @@ class BuildingPostTest(APITestCase):
         self.user = User.objects.create_user(
             first_name="Robert", last_name="Dylan", username="bob"
         )
+        UserProfile.objects.create(user=self.user)
         token = Token.objects.create(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
@@ -175,3 +177,69 @@ class BuildingPostTest(APITestCase):
         get_mock.assert_called_with(
             f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
         )
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_create_building_contribution_limit_exceeded(self):
+        self.user.groups.add(self.group)
+
+        # Set user to have reached their contribution limit
+        self.user.profile.total_contributions = 500
+        self.user.profile.max_allowed_contributions = 500
+        self.user.profile.save()
+
+        data = {
+            "status": "constructed",
+            "addresses_cle_interop": ["cle_interop_1", "cle_interop_2"],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+            "comment": "nouveau bâtiment",
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 403)
+
+        # Verify no building was created
+        buildings_count = Building.objects.count()
+        self.assertEqual(buildings_count, 0)
+
+        # Verify user contribution count did not increase
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.total_contributions, 500)
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_create_building_contribution_limit_exceeded_but_staff(self):
+        self.user.groups.add(self.group)
+        self.user.is_staff = True
+        self.user.save()
+
+        # Set user to have reached their contribution limit
+        self.user.profile.total_contributions = 500
+        self.user.profile.max_allowed_contributions = 500
+        self.user.profile.save()
+
+        data = {
+            "status": "constructed",
+            "addresses_cle_interop": ["cle_interop_1", "cle_interop_2"],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+            "comment": "nouveau bâtiment",
+        }
+
+        r = self.client.post(
+            f"/api/alpha/buildings/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 201)
+
+        # Verify building was created
+        buildings_count = Building.objects.count()
+        self.assertEqual(buildings_count, 1)
+
+        # Verify user contribution count did increase
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.total_contributions, 501)
