@@ -999,3 +999,67 @@ class TestGlobalRollback(TransactionTestCase):
 
         with self.assertRaises(DatabaseInconsistency):
             rollback(self.user, None, None)
+
+    def test_successive_rollbacks(self):
+
+        dry_results = rollback_dry_run(self.user, None, None)
+
+        self.assertEqual(dry_results["user"], self.user.username)
+        self.assertEqual(dry_results["events_found_n"], 3)
+        self.assertEqual(dry_results["start_time"], None)
+        self.assertEqual(dry_results["end_time"], None)
+        self.assertEqual(dry_results["events_revertable_n"], 3)
+        self.assertEqual(dry_results["events_not_revertable_n"], 0)
+        self.assertEqual(dry_results["events_already_reverted_n"], 0)
+        self.assertEqual(dry_results["events_are_revert_n"], 0)
+
+        # Rollback
+        results = rollback(self.user, None, None)
+
+        self.assertEqual(results["user"], self.user.username)
+        self.assertEqual(results["events_found_n"], 3)
+        self.assertEqual(results["start_time"], None)
+        self.assertEqual(results["end_time"], None)
+        self.assertEqual(results["events_reverted_n"], 3)
+        self.assertEqual(results["events_not_revertable_n"], 0)
+        self.assertEqual(results["events_already_reverted_n"], 0)
+        self.assertEqual(results["events_are_revert_n"], 0)
+
+        self.assertEqual(
+            3,
+            Building.objects.filter(
+                event_origin={"source": "data_fix", "id": results["data_fix_id"]}
+            ).count(),
+        )
+
+        # Dry Run for second run
+        dry_results = rollback_dry_run(self.user, None, None)
+
+        self.assertEqual(dry_results["user"], self.user.username)
+        self.assertEqual(dry_results["events_found_n"], 3)
+        self.assertEqual(dry_results["start_time"], None)
+        self.assertEqual(dry_results["end_time"], None)
+        self.assertEqual(dry_results["events_revertable_n"], 0)
+        self.assertEqual(dry_results["events_not_revertable_n"], 0)
+        self.assertEqual(dry_results["events_already_reverted_n"], 3)
+        self.assertEqual(dry_results["events_are_revert_n"], 0)
+
+        # Rollback
+        results = rollback(self.user, None, None)
+
+        self.assertEqual(results["user"], self.user.username)
+        self.assertEqual(results["events_found_n"], 3)
+        self.assertEqual(results["start_time"], None)
+        self.assertEqual(results["end_time"], None)
+        self.assertEqual(results["events_reverted_n"], 0)
+        self.assertEqual(results["events_not_revertable_n"], 0)
+        self.assertEqual(results["events_already_reverted_n"], 3)
+        self.assertEqual(results["events_are_revert_n"], 0)
+
+        # check the second rollback is a no-op
+        self.assertEqual(
+            0,
+            Building.objects.filter(
+                event_origin={"source": "data_fix", "id": results["data_fix_id"]}
+            ).count(),
+        )
