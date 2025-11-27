@@ -32,6 +32,7 @@ def rollback(user: User, start_time: datetime | None, end_time: datetime | None)
     for event_id in event_ids:
         try:
             if event_id:
+                Building.raise_if_incoherent_event(event_id)
                 if Building.event_has_been_reverted(event_id):
                     events_already_reverted.append(event_id)
                 elif Building.event_is_a_revert(event_id):
@@ -77,6 +78,8 @@ def rollback_dry_run(
 
     for event_id in event_ids:
         if event_id:
+            Building.raise_if_incoherent_event(event_id)
+
             if Building.event_has_been_reverted(event_id):
                 events_already_reverted.append(event_id)
             elif Building.event_is_a_revert(event_id):

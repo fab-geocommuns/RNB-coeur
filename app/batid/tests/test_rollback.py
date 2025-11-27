@@ -1,14 +1,18 @@
+import uuid
+
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
 from django.test import TransactionTestCase
 
+from batid.exceptions import DatabaseInconsistency
 from batid.exceptions import RevertNotAllowed
 from batid.models.building import Address
 from batid.models.building import Building
 from batid.models.building import BuildingWithHistory
 from batid.models.building import EventType
 from batid.models.others import DataFix
+from batid.models.others import UserProfile
 from batid.services.rollback import rollback
 from batid.services.rollback import rollback_dry_run
 
@@ -21,12 +25,17 @@ class TestUnitaryRollback(TransactionTestCase):
             password="testpassword",
             email="contributor@example.test",
         )
+        UserProfile.objects.create(user=self.user)
         self.other_user = User.objects.create_user(
             username="contributor_2",
             password="testpassword",
             email="contributor_2@example.test",
         )
+        UserProfile.objects.create(user=self.other_user)
+
         self.team_rnb = User.objects.create_user(username="RNB")
+        UserProfile.objects.create(user=self.team_rnb)
+
         self.shape_1 = GEOSGeometry("POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))")
         self.building_1 = Building.create_new(
             user=self.user,
@@ -391,11 +400,15 @@ class TestGlobalRollback(TransactionTestCase):
             password="testpassword",
             email="contributor@example.test",
         )
+        UserProfile.objects.create(user=self.user)
+
         self.other_user = User.objects.create_user(
             username="contributor_2",
             password="testpassword",
             email="contributor_2@example.test",
         )
+        UserProfile.objects.create(user=self.other_user)
+
         self.team_rnb = User.objects.create_user(username="RNB")
 
         self.shape_1 = GEOSGeometry("POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))")
@@ -970,3 +983,19 @@ class TestGlobalRollback(TransactionTestCase):
         # if you rollback again, nothing is impacted
         results = rollback(self.user, start_time, end_time)
         self.assertEqual(results["events_reverted"], [])
+
+    def test_rollback_raises_for_old_reactivations(self):
+        self.building_1.deactivate(self.user, {})
+        self.building_1.refresh_from_db()
+
+        # I simulate an old style reactivation, where revert_event_id is not populated
+        self.building_1.event_type = EventType.REACTIVATION.value
+        self.building_1.is_active = True
+        self.building_1.event_id = uuid.uuid4()
+        self.building_1.save()
+
+        with self.assertRaises(DatabaseInconsistency):
+            rollback_dry_run(self.user, None, None)
+
+        with self.assertRaises(DatabaseInconsistency):
+            rollback(self.user, None, None)

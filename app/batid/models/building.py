@@ -755,18 +755,13 @@ class Building(BuildingAbstract):
         )
 
     @staticmethod
-    def get_event_type(event_id: uuid.UUID) -> str:
-        event_types = set(
-            b.event_type
-            for b in BuildingWithHistory.objects.all().filter(event_id=event_id)
-        )
+    def get_event_type(event_id: uuid.UUID) -> str | None:
+        building = BuildingWithHistory.objects.all().filter(event_id=event_id).first()
 
-        if len(event_types) != 1:
-            raise DatabaseInconsistency(
-                "An event_id must correspond to exactly one event_type."
-            )
+        if building is None:
+            return None
 
-        return event_types.pop()
+        return building.event_type
 
     @staticmethod
     def event_can_be_reverted_immediately(event_id) -> bool:
@@ -876,16 +871,41 @@ class Building(BuildingAbstract):
         return BuildingWithHistory.objects.filter(revert_event_id=event_id).exists()
 
     @staticmethod
-    def event_is_a_revert(event_id: uuid.UUID) -> bool:
-        buildings = BuildingWithHistory.objects.filter(event_id=event_id)
-        revert_event_id = {b.revert_event_id for b in buildings}
-        return revert_event_id != {None}
+    def event_is_a_revert(event_id: uuid.UUID) -> bool | None:
+        building = BuildingWithHistory.objects.filter(event_id=event_id).first()
+        if building is None:
+            return None
+        return building.revert_event_id is not None
 
     @staticmethod
-    def get_event_user(event_id: uuid.UUID) -> User:
-        buildings = BuildingWithHistory.objects.filter(event_id=event_id)
-        user = {b.event_user for b in buildings}
-        return user.pop()
+    def raise_if_incoherent_event(event_id: uuid.UUID):
+        """
+        Some context: building deactivation/reactivation have been implemented long before all the other revert_* events were created.
+        (This is why reactivation is not called revert_deactivation.)
+        The revert_event_id column did not exist initially and deactivation/reactivations have been made with this information lacking.
+        The probability to revert some "old-style" reactivation seems small. And correcting the DB (disable the trigger, run a script)
+        is always a tricky/risky operation. So we just keep an eye on this, and raise an Exception if the situation arises.
+        """
+        building = BuildingWithHistory.objects.filter(event_id=event_id).first()
+        if (
+            building
+            and building.event_type == EventType.REACTIVATION.value
+            and not building.revert_event_id
+        ):
+            raise DatabaseInconsistency(
+                """This is unlucky: you are trying to rollback a deactivation/reactivation
+                made before the revert_event_id field existed and this could damage the database.
+                The solution is to disable the DB trigger and manually populate the revert_event_id field
+                of the reactivation (with the event_id of the corresponding deactivation), and then try again.
+                """
+            )
+
+    @staticmethod
+    def get_event_user(event_id: uuid.UUID) -> User | None:
+        building = BuildingWithHistory.objects.filter(event_id=event_id).first()
+        if building is None:
+            return None
+        return building.event_user
 
     @transaction.atomic
     @staticmethod
