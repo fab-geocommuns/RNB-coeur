@@ -64,7 +64,17 @@ def upload_to_s3(backup_name, download_url):
         ),
     )
 
-    s3.upload_fileobj(r.raw, S3_BACKUP_BUCKET_NAME, backup_name)
+    # OVH S3's maximum number of parts for multipart upload is 10000
+    # Chunk size by default is 8Mo
+    chunk_size = 64 * 1024 * 1024  # 64Mo
+    transfer_config = boto3.s3.transfer.TransferConfig(
+        multipart_threshold=chunk_size,
+        multipart_chunksize=chunk_size,
+        max_concurrency=4,
+        use_threads=True,
+    )
+
+    s3.upload_fileobj(r.raw, S3_BACKUP_BUCKET_NAME, backup_name, Config=transfer_config)
 
     object_exists = s3.get_waiter("object_exists")
     object_exists.wait(Bucket=S3_BACKUP_BUCKET_NAME, Key=backup_name)
