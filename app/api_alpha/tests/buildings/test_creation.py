@@ -205,7 +205,6 @@ class BuildingPostTest(APITestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_create_building_contribution_limit_exceeded_but_staff(self):
-        self.user.groups.add(self.group)
         self.user.is_staff = True
         self.user.save()
 
