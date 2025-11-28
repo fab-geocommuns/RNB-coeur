@@ -553,5 +553,3 @@ class BuildingAddressViewTest(APITestCase):
 
         r = self.client.get(f"/api/alpha/buildings/address/?q={q}")
         self.assertEqual(r.status_code, 503)
-
-

@@ -1,6 +1,5 @@
 from unittest import mock
 
-from django.contrib.gis.geos import GEOSGeometry
 from django.core import signing
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
@@ -10,7 +9,6 @@ from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
 from batid.services.kpi import compute_today_kpis
-from batid.tests.factories.users import ContributorUserFactory
 
 
 class StatsTest(APITestCase):
