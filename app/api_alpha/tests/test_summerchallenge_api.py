@@ -1,7 +1,6 @@
 import json
 from urllib.parse import quote
 
-from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
 from rest_framework.test import APITestCase
@@ -9,23 +8,19 @@ from rest_framework.test import APITestCase
 from api_alpha.views import summer_challenge_targeted_score
 from batid.models import Address
 from batid.models import Building
-from batid.models import UserProfile
+from batid.tests.factories.users import ContributorUserFactory
 from batid.tests.test_summerchallenge import create_city_dpt
 
 
 @override_settings(MAX_BUILDING_AREA=float("inf"))
 class TestSummerChallengeRanking(APITestCase):
     def test_leaderboard(self):
-        user_1 = User.objects.create_user(username="user_1", email="email_1")
-        UserProfile.objects.create(user=user_1)
-        user_2 = User.objects.create_user(
+        user_1 = ContributorUserFactory(username="user_1", email="email_1")
+        user_2 = ContributorUserFactory(
             username="user_2@email.com", email="email_2@rnb.fr"
         )
-        UserProfile.objects.create(user=user_2)
-        user_3 = User.objects.create_user(username="user_3", email="email_3")
-        UserProfile.objects.create(user=user_3)
-        user_4 = User.objects.create_user(username="user_4", email="email_4")
-        UserProfile.objects.create(user=user_4)
+        user_3 = ContributorUserFactory(username="user_3", email="email_3")
+        user_4 = ContributorUserFactory(username="user_4", email="email_4")
 
         Address.objects.create(id="addr1")
         Address.objects.create(id="addr2")

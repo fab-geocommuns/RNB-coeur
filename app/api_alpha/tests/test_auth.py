@@ -15,11 +15,11 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
-from api_alpha.permissions import RNBContributorPermission
 from api_alpha.utils.sandbox_client import SandboxClientError
 from batid.services.user import _b64_to_int
 from batid.services.user import _int_to_b64
 from batid.services.user import get_user_id_b64
+from batid.tests.factories.users import ContributorUserFactory
 
 
 class ADSEnpointsNoAuthTest(APITestCase):
@@ -519,16 +519,12 @@ class UserCreation(APITestCase):
 
 class GetCurrentUserTokensTest(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = ContributorUserFactory(
             username="testuserwithtoken",
             password="testpassword",
             email="testuserwithtoken@example.test",
         )
-        self.token = Token.objects.create(user=self.user)
-        self.group, created = Group.objects.get_or_create(
-            name=RNBContributorPermission.group_name
-        )
-        self.user.groups.add(self.group)
+        self.token = Token.objects.get(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
 
     @override_settings(HAS_SANDBOX="true")
@@ -559,12 +555,12 @@ class GetCurrentUserTokensTest(APITestCase):
 
 class GetUserTokenTest(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = ContributorUserFactory(
             username="testuserwithtoken",
             password="testpassword",
             email="testuserwithtoken@example.test",
         )
-        self.token = Token.objects.create(user=self.user)
+        self.token = Token.objects.get(user=self.user)
         self.user_without_token = User.objects.create_user(
             username="testuserwithouttoken",
             password="testpassword",
