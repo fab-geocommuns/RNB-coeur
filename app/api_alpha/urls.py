@@ -3,8 +3,8 @@ from django.urls import path
 from django.urls import re_path
 from rest_framework import routers
 
-from api_alpha.endpoints.buildings.get_diff import DiffView
 from api_alpha.endpoints.auth.create_user import CreateUserView
+from api_alpha.endpoints.buildings.get_diff import DiffView
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.plot import BuildingPlotView
 from api_alpha.endpoints.buildings.single_building import SingleBuilding
