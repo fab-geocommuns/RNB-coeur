@@ -184,7 +184,7 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         if datetime.now() >= sunset_date:
             return Response(
                 {
-                    "errors": "Ce endpoint n'est plus disponible. Veuillez utiliser nos autre endpoints pour identifier des bâtiments grâce à un point ou une adresse."
+                    "errors": "Cet endpoint n'est plus disponible. Veuillez utiliser nos autres endpoints pour identifier des bâtiments grâce à un point ou une adresse."
                 },
                 status=status.HTTP_410_GONE,
             )
