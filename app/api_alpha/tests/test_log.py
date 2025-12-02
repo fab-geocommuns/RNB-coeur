@@ -1,6 +1,6 @@
 import json
 from unittest import mock
-
+from freezegun import freeze_time
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
@@ -72,6 +72,7 @@ class LogEndpointsTest(APITestCase):
 
         self.assertEqual(count, 0)
 
+    @freeze_time("2025-01-01")
     @mock.patch("batid.services.geocoders.requests.get")
     def test_guess_log(self, requests_mock):
         requests_mock.return_value.status_code = 200
@@ -87,6 +88,7 @@ class LogEndpointsTest(APITestCase):
         # BAN API and OSM API
         self.assertEqual(requests_mock.call_count, 2)
 
+    @freeze_time("2025-01-01")
     @mock.patch("batid.services.geocoders.requests.get")
     def test_guess_no_log(self, requests_mock):
         requests_mock.return_value.status_code = 200

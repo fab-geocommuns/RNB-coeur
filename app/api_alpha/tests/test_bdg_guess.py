@@ -48,6 +48,7 @@ class BdgGuessEndpointTest(APITestCase):
             ],
         )
 
+    @freeze_time("2025-01-01")
     def test_point_param(self):
         r = self.client.get(
             "/api/alpha/buildings/guess/?point=45.184327114924656,5.721176133001023"
