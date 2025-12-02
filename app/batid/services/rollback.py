@@ -5,8 +5,8 @@ from django.contrib.auth.models import User
 from django.db.models import Func
 
 from batid.exceptions import RevertNotAllowed
-from batid.models import Building
 from batid.models.building import BuildingWithHistory
+from batid.models.building import Event
 from batid.models.others import DataFix
 from batid.services.RNB_team_user import get_RNB_team_user
 
@@ -32,13 +32,13 @@ def rollback(user: User, start_time: datetime | None, end_time: datetime | None)
     for event_id in event_ids:
         try:
             if event_id:
-                Building.raise_if_incoherent_event(event_id)
-                if Building.event_has_been_reverted(event_id):
+                Event.raise_if_incoherent_event(event_id)
+                if Event.event_has_been_reverted(event_id):
                     events_already_reverted.append(event_id)
-                elif Building.event_is_a_revert(event_id):
+                elif Event.event_is_a_revert(event_id):
                     events_are_revert.append(event_id)
                 else:
-                    revert_uuid = Building.revert_event(
+                    revert_uuid = Event.revert_event(
                         {"source": "data_fix", "id": data_fix.id},  # type: ignore[attr-defined]
                         event_id,
                         user_making_revert=team_rnb,
@@ -78,13 +78,13 @@ def rollback_dry_run(
 
     for event_id in event_ids:
         if event_id:
-            Building.raise_if_incoherent_event(event_id)
+            Event.raise_if_incoherent_event(event_id)
 
-            if Building.event_has_been_reverted(event_id):
+            if Event.event_has_been_reverted(event_id):
                 events_already_reverted.append(event_id)
-            elif Building.event_is_a_revert(event_id):
+            elif Event.event_is_a_revert(event_id):
                 events_are_revert.append(event_id)
-            elif Building.event_could_be_reverted(event_id, end_time=end_time):
+            elif Event.event_could_be_reverted(event_id, end_time=end_time):
                 events_revertable.append(event_id)
             else:
                 events_not_revertable.append(event_id)
@@ -118,8 +118,6 @@ def get_user_events(
 
     if end_time:
         buildings = buildings.filter(sys_period_lower__lte=end_time)
-
-    # print([(b.event_id, b.sys_period) for b in buildings])
 
     # remove duplicates while preserving order
     return list(dict.fromkeys([b.event_id for b in buildings]))
