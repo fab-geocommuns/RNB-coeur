@@ -164,12 +164,13 @@ class TestUnitaryRollback(TransactionTestCase):
         )
 
     def test_revert_update(self):
+        ext_ids = [{"source": "bdtopo", "id": "XXX"}]
         self.building_1.update(
             self.user,
             {"source": "contribution"},
             status="demolished",
             addresses_id=[self.address_1.id],
-            ext_ids=[{"source": "bdtopo", "id": "XXX"}],
+            ext_ids=ext_ids,
             shape=GEOSGeometry("POINT(0 0)"),
         )
         self.building_1.refresh_from_db()
@@ -195,6 +196,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertEqual(self.building_1.event_origin, {"source": "rollback"})
         self.assertEqual(self.building_1.status, "demolished")
         self.assertEqual(self.building_1.addresses_id, [self.address_1.id])
+        self.assertEqual(self.building_1.ext_ids, ext_ids)
         self.assertEqual(self.building_1.shape.wkt, GEOSGeometry("POINT(0 0)").wkt)
 
     def test_revert_update_impossible(self):
@@ -259,6 +261,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.building_1.refresh_from_db()
         new_event_id = self.building_1.event_id
 
+        self.assertTrue(self.building_1.is_active)
         self.assertEqual(self.building_1.event_type, EventType.REVERT_SPLIT.value)
         self.assertEqual(self.building_1.revert_event_id, split_event_id)
         self.assertNotEqual(new_event_id, split_event_id)
@@ -342,6 +345,7 @@ class TestUnitaryRollback(TransactionTestCase):
         building.refresh_from_db()
         new_event_id = building.event_id
 
+        self.assertFalse(building.is_active)
         self.assertEqual(building.event_type, EventType.REVERT_MERGE.value)
         self.assertEqual(building.revert_event_id, merge_event_id)
         self.assertNotEqual(new_event_id, merge_event_id)
@@ -857,6 +861,69 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertFalse(self.building_2.is_active)
         self.assertEqual(self.building_2.event_type, EventType.REVERT_CREATION.value)
         self.assertEqual(self.building_2.revert_event_id, building_2_creation_event_id)
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_global_rollback_5(self):
+        """Building 1 and 2 are merged. Then the resulting building is split.
+        Then everything is rolled back.
+        Expected : Building 1 and 2 are back.
+        merge => split => revert_split => revert_merge
+        """
+        start_time = self.building_other_user.sys_period.lower
+
+        # merge
+        building = Building.merge(
+            [self.building_1, self.building_2],
+            self.user,
+            {"source": "contribution"},
+            status="constructed",
+            addresses_id=[self.address_1.id],
+        )
+        merge_event_id = building.event_id
+
+        # split
+        [child_1, _child_2] = building.split(
+            [
+                {
+                    "status": "constructed",
+                    "addresses_cle_interop": [],
+                    "shape": "POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))",
+                },
+                {
+                    "status": "constructionProject",
+                    "addresses_cle_interop": [self.address_1.id],
+                    "shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
+                },
+            ],
+            self.user,
+            {"source": "contribution"},
+        )
+        split_event_id = child_1.event_id
+
+        results = rollback_dry_run(self.user, start_time, None)
+
+        self.assertEqual(results["user"], self.user.username)
+        # 2 events : a split and a merge
+        self.assertEqual(results["events_found_n"], 2)
+        self.assertEqual(results["events_revertable_n"], 2)
+        self.assertEqual(results["events_not_revertable_n"], 0)
+
+        results = rollback(self.user, start_time, None)
+
+        self.assertEqual(results["user"], self.user.username)
+        self.assertEqual(results["events_found_n"], 2)
+        self.assertEqual(results["events_reverted_n"], 2)
+        self.assertEqual(results["events_not_revertable_n"], 0)
+        self.assertEqual(results["events_reverted"], [split_event_id, merge_event_id])
+
+        # check the final state
+        self.building_1.refresh_from_db()
+        self.assertTrue(self.building_1.is_active)
+        self.assertEqual(self.building_1.event_type, EventType.REVERT_MERGE.value)
+
+        self.building_2.refresh_from_db()
+        self.assertTrue(self.building_2.is_active)
+        self.assertEqual(self.building_2.event_type, EventType.REVERT_MERGE.value)
 
     def test_rollback_ignores_reverted_events(self):
         # we revert an event with a rollback, and then ask for a second rollback on the same period
