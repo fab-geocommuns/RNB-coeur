@@ -97,7 +97,7 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             "get": {
                 "summary": "Identification de bâtiment",
                 "description": (
-                    "Cet endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
+                    "OBSOLÈTE : Cet endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
                 ),
                 "operationId": "guessBuilding",
                 "parameters": [
@@ -169,6 +169,16 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         }
     )
     def get(self, request, *args, **kwargs):
+
+        sunset_date = datetime(2026, 1, 5)
+        if datetime.now() >= sunset_date:
+            return Response(
+                {
+                    "errors": "Cet endpoint n'est plus disponible. Veuillez utiliser nos autres endpoints pour identifier des bâtiments grâce à un point ou une adresse."
+                },
+                status=status.HTTP_410_GONE,
+            )
+
         search = BuildingGuess()
         search.set_params_from_url(**request.query_params.dict())
 
@@ -180,7 +190,12 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             qs = search.get_queryset()
             serializer = GuessBuildingSerializer(qs, many=True)
 
-            return Response(serializer.data)
+            # add a deprecation and sunset headers
+            response = Response(serializer.data)
+            response["Deprecation"] = "true"
+            response["Sunset"] = sunset_date.strftime("%a, %d %b %Y %H:%M:%S GMT")
+
+            return response
         except BANAPIDown:
             raise ServiceUnavailable(detail="BAN API is currently down")
 
