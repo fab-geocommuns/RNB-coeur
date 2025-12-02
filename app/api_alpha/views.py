@@ -107,7 +107,7 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             "get": {
                 "summary": "Identification de bâtiment",
                 "description": (
-                    "Cet endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
+                    "OBSOLÈTE : Cet endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
                 ),
                 "operationId": "guessBuilding",
                 "parameters": [
@@ -179,6 +179,15 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         }
     )
     def get(self, request, *args, **kwargs):
+
+
+        sunset_date = datetime.datetime(2026, 1, 1)
+        if datetime.datetime.now() > sunset_date:
+            return Response(
+                {"errors": "Ce endpoint n'est plus disponible. Veuillez utiliser nos autre endpoints pour identifier des bâtiments grâce à un point ou une adresse."}, status=status.HTTP_410_GONE
+            )
+
+
         search = BuildingGuess()
         search.set_params_from_url(**request.query_params.dict())
 
