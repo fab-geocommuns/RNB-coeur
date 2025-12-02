@@ -25,7 +25,7 @@ class TestSunset(APITestCase):
         )
 
         self.assertEqual(r.status_code, 410)
-        self.assertEqual(r.json(), {"errors": "Ce endpoint n'est plus disponible. Veuillez utiliser nos autre endpoints pour identifier des bâtiments grâce à un point ou une adresse."})
+        self.assertEqual(r.json(), {"errors": "Cet endpoint n'est plus disponible. Veuillez utiliser nos autre endpoints pour identifier des bâtiments grâce à un point ou une adresse."})
         
     
 
