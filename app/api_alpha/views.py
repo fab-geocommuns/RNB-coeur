@@ -181,8 +181,8 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
     def get(self, request, *args, **kwargs):
 
 
-        sunset_date = datetime.datetime(2026, 1, 1)
-        if datetime.datetime.now() > sunset_date:
+        sunset_date = datetime(2026, 1, 5)
+        if datetime.now() >= sunset_date:
             return Response(
                 {"errors": "Ce endpoint n'est plus disponible. Veuillez utiliser nos autre endpoints pour identifier des bâtiments grâce à un point ou une adresse."}, status=status.HTTP_410_GONE
             )
@@ -199,7 +199,13 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             qs = search.get_queryset()
             serializer = GuessBuildingSerializer(qs, many=True)
 
-            return Response(serializer.data)
+
+            # add a deprecation and sunset headers
+            response = Response(serializer.data)
+            response["Deprecation"] = "true"
+            response["Sunset"] = sunset_date.strftime("%a, %d %b %Y %H:%M:%S GMT")
+
+            return response
         except BANAPIDown:
             raise ServiceUnavailable(detail="BAN API is currently down")
 

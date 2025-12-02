@@ -2,7 +2,32 @@ from django.contrib.gis.geos import Point
 from rest_framework.test import APITestCase
 
 from batid.tests.helpers import create_bdg
+from freezegun import freeze_time
 
+class TestSunset(APITestCase):
+
+    @freeze_time("2026-01-04")
+    def test_deprecation_header(self):
+
+        r = self.client.get(
+            "/api/alpha/buildings/guess/?point=45.184327114924656,5.721176133001023"
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.headers["Deprecation"], "true")
+        self.assertEqual(r.headers["Sunset"], "Mon, 05 Jan 2026 00:00:00 GMT")
+
+    @freeze_time("2026-01-05")
+    def test_sunset(self):
+
+        r = self.client.get(
+            "/api/alpha/buildings/guess/?point=45.184327114924656,5.721176133001023"
+        )
+
+        self.assertEqual(r.status_code, 410)
+        self.assertEqual(r.json(), {"errors": "Ce endpoint n'est plus disponible. Veuillez utiliser nos autre endpoints pour identifier des bâtiments grâce à un point ou une adresse."})
+        
+    
 
 class BdgGuessEndpointTest(APITestCase):
     def setUp(self):
