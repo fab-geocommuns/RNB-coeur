@@ -3,6 +3,7 @@ from django.urls import path
 from django.urls import re_path
 from rest_framework import routers
 
+from api_alpha.endpoints.ads.create_token import CreateAdsTokenView
 from api_alpha.endpoints.buildings.get_diff import DiffView
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.plot import BuildingPlotView
@@ -25,7 +26,6 @@ from api_alpha.endpoints.tiles.building_vector_tile import BuildingsVectorTileVi
 from api_alpha.endpoints.tiles.plots_vector_tile import PlotsVectorTileView
 from api_alpha.endpoints.tiles.report_vector_tile import ReportVectorTileView
 from api_alpha.views import ActivateUser
-from api_alpha.views import AdsTokenView
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingAddressView
 from api_alpha.views import BuildingClosestView
@@ -100,7 +100,7 @@ urlpatterns = [
         SingleBuilding.as_view(),
     ),
     # ADS
-    path("ads/token/", AdsTokenView.as_view()),
+    path("ads/token/", CreateAdsTokenView.as_view()),
     # Vector tiles
     path("ads/tiles/<int:x>/<int:y>/<int:z>.pbf", ADSVectorTileView.as_view()),
     path("tiles/<int:x>/<int:y>/<int:z>.pbf", BuildingsVectorTileView.as_view()),
