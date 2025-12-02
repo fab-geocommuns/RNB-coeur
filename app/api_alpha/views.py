@@ -180,13 +180,14 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
     )
     def get(self, request, *args, **kwargs):
 
-
         sunset_date = datetime(2026, 1, 5)
         if datetime.now() >= sunset_date:
             return Response(
-                {"errors": "Ce endpoint n'est plus disponible. Veuillez utiliser nos autre endpoints pour identifier des bâtiments grâce à un point ou une adresse."}, status=status.HTTP_410_GONE
+                {
+                    "errors": "Ce endpoint n'est plus disponible. Veuillez utiliser nos autre endpoints pour identifier des bâtiments grâce à un point ou une adresse."
+                },
+                status=status.HTTP_410_GONE,
             )
-
 
         search = BuildingGuess()
         search.set_params_from_url(**request.query_params.dict())
@@ -198,7 +199,6 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         try:
             qs = search.get_queryset()
             serializer = GuessBuildingSerializer(qs, many=True)
-
 
             # add a deprecation and sunset headers
             response = Response(serializer.data)
