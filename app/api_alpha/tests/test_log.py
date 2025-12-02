@@ -2,6 +2,7 @@ import json
 from unittest import mock
 
 from django.contrib.gis.geos import GEOSGeometry
+from freezegun import freeze_time
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
@@ -49,6 +50,20 @@ class LogEndpointsTest(APITestCase):
         self.assertEqual(log.response, None)
 
     @mock.patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
+    def test_log_big_user_agent(self):
+        user_agent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/22G100 [FBAN/FBIOS;FBAV/540.0.0.44.68;FBBV/828638047;FBDV/iPhone12,3;FBMD/iPhone;FBSN/iOS;FBSV/18.6.2;FBSS/3;FBID/phone;FBLC/fr_FR;FBOP/5;FBRV/834137514;IABMV/1]"
+        r = self.client.get("/api/alpha/buildings/", HTTP_USER_AGENT=user_agent)
+
+        self.assertEqual(r.status_code, 200)
+
+        logs = APIRequestLog.objects.all()
+        self.assertEqual(len(logs), 1)
+        log = logs[0]
+
+        # assert the user agent is truncated
+        self.assertEqual(log.user_agent, user_agent[:255])
+
+    @mock.patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_list_no_log(self):
         r = self.client.get("/api/alpha/buildings/?from=monitoring")
 
@@ -58,6 +73,7 @@ class LogEndpointsTest(APITestCase):
 
         self.assertEqual(count, 0)
 
+    @freeze_time("2025-01-01")
     @mock.patch("batid.services.geocoders.requests.get")
     def test_guess_log(self, requests_mock):
         requests_mock.return_value.status_code = 200
@@ -73,6 +89,7 @@ class LogEndpointsTest(APITestCase):
         # BAN API and OSM API
         self.assertEqual(requests_mock.call_count, 2)
 
+    @freeze_time("2025-01-01")
     @mock.patch("batid.services.geocoders.requests.get")
     def test_guess_no_log(self, requests_mock):
         requests_mock.return_value.status_code = 200

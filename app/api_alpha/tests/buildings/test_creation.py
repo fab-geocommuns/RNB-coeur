@@ -1,37 +1,28 @@
 import json
 from unittest import mock
 
-from django.contrib.auth.models import Group
 from django.test import override_settings
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from api_alpha.permissions import RNBContributorPermission
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
-from batid.models import User
-from batid.models import UserProfile
+from batid.tests.factories.users import ContributorUserFactory
 
 
 class BuildingPostTest(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = ContributorUserFactory(
             first_name="Robert", last_name="Dylan", username="bob"
         )
-        UserProfile.objects.create(user=self.user)
-        token = Token.objects.create(user=self.user)
+        token = Token.objects.get(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
-
-        self.group, created = Group.objects.get_or_create(
-            name=RNBContributorPermission.group_name
-        )
 
         self.adr1 = Address.objects.create(id="cle_interop_1")
         self.adr2 = Address.objects.create(id="cle_interop_2")
 
     def test_empty_shape(self):
-        self.user.groups.add(self.group)
         data = {
             "status": "constructed",
             "addresses_cle_interop": ["cle_interop_1", "cle_interop_2"],
@@ -52,7 +43,9 @@ class BuildingPostTest(APITestCase):
         )
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
-    def test_create_building(self):
+    def test_create_building_permission(self):
+        self.user.groups.clear()
+
         data = {
             "status": "constructed",
             "addresses_cle_interop": ["cle_interop_1", "cle_interop_2"],
@@ -68,7 +61,14 @@ class BuildingPostTest(APITestCase):
 
         self.assertEqual(r.status_code, 403)
 
-        self.user.groups.add(self.group)
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_create_building(self):
+        data = {
+            "status": "constructed",
+            "addresses_cle_interop": ["cle_interop_1", "cle_interop_2"],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+            "comment": "nouveau bâtiment",
+        }
 
         r = self.client.post(
             f"/api/alpha/buildings/",
@@ -117,8 +117,6 @@ class BuildingPostTest(APITestCase):
             "comment": "nouveau bâtiment",
         }
 
-        self.user.groups.add(self.group)
-
         r = self.client.post(
             f"/api/alpha/buildings/",
             data=json.dumps(data),
@@ -135,8 +133,6 @@ class BuildingPostTest(APITestCase):
             "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
             "comment": "nouveau bâtiment",
         }
-
-        self.user.groups.add(self.group)
 
         r = self.client.post(
             f"/api/alpha/buildings/",
@@ -159,7 +155,6 @@ class BuildingPostTest(APITestCase):
             "details": "Oooops",
         }
 
-        self.user.groups.add(self.group)
         data = {
             "status": "constructed",
             "addresses_cle_interop": ["33063_9115_00012_bis"],
@@ -180,8 +175,6 @@ class BuildingPostTest(APITestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_create_building_contribution_limit_exceeded(self):
-        self.user.groups.add(self.group)
-
         # Set user to have reached their contribution limit
         self.user.profile.total_contributions = 500
         self.user.profile.max_allowed_contributions = 500
@@ -212,7 +205,6 @@ class BuildingPostTest(APITestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_create_building_contribution_limit_exceeded_but_staff(self):
-        self.user.groups.add(self.group)
         self.user.is_staff = True
         self.user.save()
 
