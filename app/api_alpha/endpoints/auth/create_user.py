@@ -120,7 +120,7 @@ def create_user_in_sandbox(user_data: dict) -> None:
 def is_captcha_valid(captcha_solution: str) -> bool:
     client = private_captcha.Client(api_key=settings.PRIVATE_CAPTCHA_API_KEY)
     result = client.verify(solution=captcha_solution)
-    return result.success
+    return result.success and result.code == 0
 
 
 def validate_captcha(captcha_solution: str) -> None:

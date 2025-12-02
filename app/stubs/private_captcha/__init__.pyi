@@ -6,6 +6,7 @@ class VerificationResult:
     """Result of a captcha verification."""
 
     success: bool
+    code: int
 
 class Client:
     """Private captcha client."""
