@@ -1,11 +1,11 @@
 from django.contrib.gis.geos import Point
+from freezegun import freeze_time
 from rest_framework.test import APITestCase
 
 from batid.tests.helpers import create_bdg
-from freezegun import freeze_time
+
 
 class TestSunset(APITestCase):
-
     @freeze_time("2026-01-04")
     def test_deprecation_header(self):
 
