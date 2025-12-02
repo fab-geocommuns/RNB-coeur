@@ -1,5 +1,4 @@
 import binascii
-import json
 import urllib.parse
 from datetime import datetime
 from datetime import timezone
@@ -8,7 +7,6 @@ from typing import Any
 import requests
 import yaml
 from django.conf import settings
-from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
@@ -39,7 +37,6 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import BasePermission
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -92,7 +89,6 @@ from batid.services.search_ads import ADSSearch
 from batid.services.user import get_user_id_b64
 from batid.services.user import get_user_id_from_b64
 from batid.tasks import create_sandbox_user
-from batid.utils.auth import make_random_password
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
