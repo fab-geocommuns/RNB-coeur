@@ -1037,14 +1037,13 @@ class ADSEndpointsWithAuthTest(APITestCase):
             [clean_users_in_response(item) for item in r_data], expected
         )
         self.assertIsNotNone(r_data[0]["token"])
-        self.assertIsNotNone(r_data[0]["password"])
         self.assertIsNotNone(r_data[1]["token"])
-        self.assertIsNotNone(r_data[1]["password"])
 
         # Check User in DB
         john = User.objects.get(username=username)
         self.assertEqual(email, john.email)
         self.assertTrue(john.groups.filter(name="ADS").exists())
+        self.assertFalse(john.has_usable_password())
 
         # Check Organization in DB
         temp_org = Organization.objects.get(name=organization_name)
