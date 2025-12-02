@@ -1,7 +1,8 @@
 import json
 from unittest import mock
-from freezegun import freeze_time
+
 from django.contrib.gis.geos import GEOSGeometry
+from freezegun import freeze_time
 from rest_framework.test import APITestCase
 from rest_framework_tracking.models import APIRequestLog
 
