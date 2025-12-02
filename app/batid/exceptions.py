@@ -93,3 +93,7 @@ class ImpossibleShapeMerge(InvalidOperation):
 
     def api_message(self):
         return "Pour fusionner des bâtiments, leurs géométries doivent être des polygones contigus. Veuillez d'abord mettre à jour les géométries des bâtiments"
+
+
+class EventUnknown(Exception):
+    """The given event_id is not in the RNB database"""

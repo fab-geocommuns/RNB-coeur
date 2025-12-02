@@ -27,6 +27,7 @@ from .others import Address
 from .others import SummerChallenge
 from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import DatabaseInconsistency
+from batid.exceptions import EventUnknown
 from batid.exceptions import NotEnoughBuildings
 from batid.exceptions import OperationOnInactiveBuilding
 from batid.exceptions import RevertNotAllowed
@@ -867,7 +868,7 @@ class Event:
         building = BuildingWithHistory.objects.all().filter(event_id=event_id).first()
 
         if building is None:
-            return None
+            raise EventUnknown(f'The event_id "{event_id}" is not in the RNB database')
 
         return building.event_type
 
@@ -890,9 +891,11 @@ class Event:
     @staticmethod
     def event_datetime(event_id: uuid.UUID) -> datetime | None:
         building = BuildingWithHistory.objects.filter(event_id=event_id).first()
-        if building:
-            return building.sys_period.lower
-        return None
+
+        if not building:
+            raise EventUnknown(f'The event_id "{event_id}" is not in the RNB database')
+
+        return building.sys_period.lower
 
     @staticmethod
     def event_could_be_reverted(
@@ -971,10 +974,10 @@ class Event:
         return BuildingWithHistory.objects.filter(revert_event_id=event_id).exists()
 
     @staticmethod
-    def event_is_a_revert(event_id: uuid.UUID) -> bool | None:
+    def event_is_a_revert(event_id: uuid.UUID) -> bool:
         building = BuildingWithHistory.objects.filter(event_id=event_id).first()
         if building is None:
-            return None
+            raise EventUnknown(f'The event_id "{event_id}" is not in the RNB database')
         return building.revert_event_id is not None
 
     @staticmethod
@@ -1004,17 +1007,25 @@ class Event:
     def get_event_user(event_id: uuid.UUID) -> User | None:
         building = BuildingWithHistory.objects.filter(event_id=event_id).first()
         if building is None:
-            return None
+            raise EventUnknown(f'The event_id "{event_id}" is not in the RNB database')
+
         return building.event_user
 
     @staticmethod
     def revert_event(
         event_origin: dict, event_id: uuid.UUID | None, user_making_revert: User
     ) -> uuid.UUID | None:
+        """
+        Returns the event_id of the revert event if it was successful.
+        Returns None in case of a no-op.
+        """
         if event_id is None or Event.event_has_been_reverted(event_id):
             return None
 
-        event_type = Event.get_event_type(event_id)
+        try:
+            event_type = Event.get_event_type(event_id)
+        except EventUnknown:
+            return None
 
         match event_type:
             case EventType.CREATION.value:
