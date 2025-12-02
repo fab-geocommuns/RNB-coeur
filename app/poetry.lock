@@ -3199,6 +3199,21 @@ test = ["appdirs (==1.4.4)", "covdefaults (>=2.3)", "pytest (>=8.3.4)", "pytest-
 type = ["mypy (>=1.14.1)"]
 
 [[package]]
+name = "private-captcha"
+version = "0.0.4"
+description = "Python client library for Private Captcha API"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "private_captcha-0.0.4-py3-none-any.whl", hash = "sha256:472fec19717944d77ee627905ac5fd64e2c58acbfc73a55a47f0cd0eab5bf1b7"},
+    {file = "private_captcha-0.0.4.tar.gz", hash = "sha256:a4433dfe2084702a808c7206729698dc83df5387189989b5e157520d84ab593a"},
+]
+
+[package.extras]
+dev = ["black", "coverage", "pylint"]
+
+[[package]]
 name = "prometheus-client"
 version = "0.22.0"
 description = "Python client for the Prometheus monitoring system."
@@ -4937,4 +4952,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "3.13.4"
-content-hash = "5f8378d5ed9fba85fd6dba1798316df01c9c670163b5bd7cb454a48fe706a558"
+content-hash = "98c50e9271f13a3a3a70502f430b99a00a58c0b8d81d2ff7dba8e0b01e0ac60c"
