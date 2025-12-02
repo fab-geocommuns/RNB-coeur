@@ -152,7 +152,6 @@ def etalab_recent_release_date(before: Optional[date] = None) -> str:  # type: i
 def _etalab_releases_dates() -> list:
 
     # It seems Etalab has change its release dates since september 2025
-    
 
     return [
         #
