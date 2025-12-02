@@ -14,7 +14,7 @@ This migration sets the unusable passwords explicitly.
 
 
 def set_unusable_passwords(apps, schema_editor):
-    expected_impacted_user_count = 117
+    expected_impacted_user_count = 116
     if settings.ENVIRONMENT not in ["production", "staging", "sandbox"]:
         expected_impacted_user_count = 0
 
@@ -30,7 +30,7 @@ def set_unusable_passwords(apps, schema_editor):
         )
     for user_id in impacted_user_ids:
         user = User.objects.get(id=user_id)
-        print(f"Setting unusable password for user {user.id}")
+        print(f"Setting unusable password for user {user.id} {user.email}")
         user.set_unusable_password()
         user.save()
 
@@ -38,7 +38,7 @@ def set_unusable_passwords(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0110_create_multi_column_gist_index"),
+        ("batid", "0114_userprofile_contribution_fields"),
     ]
 
     operations = [
