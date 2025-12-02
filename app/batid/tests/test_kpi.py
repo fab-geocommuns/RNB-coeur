@@ -2,8 +2,8 @@ from datetime import date
 from datetime import timedelta
 
 from django.contrib.auth.models import User
-from django.test import TestCase
 from django.contrib.gis.geos import Point
+from django.test import TestCase
 
 from batid.models import Address
 from batid.models import Building
@@ -105,7 +105,6 @@ class CountContributions(TestCase):
         Contribution.objects.create(report=False, status="fixed", review_user=self.u1)
         Contribution.objects.create(report=False, status="fixed", review_user=self.u1)
         Contribution.objects.create(report=False, status="fixed", review_user=self.u2)
-
 
     def test_count(self):
         # Test reports
