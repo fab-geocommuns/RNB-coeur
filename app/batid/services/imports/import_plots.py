@@ -151,14 +151,16 @@ def etalab_recent_release_date(before: Optional[date] = None) -> str:  # type: i
 
 def _etalab_releases_dates() -> list:
 
+    # It seems Etalab has change its release dates since september 2025
+    
+
     return [
         #
         "2024-10-01",
-        #
+        # In 2025, there were no release in July and October. Instead, there was a release in September.
         "2025-01-01",
         "2025-04-01",
-        "2025-07-01",
-        "2025-10-01",
+        "2025-09-01",
         #
         "2026-01-01",
         "2026-04-01",
