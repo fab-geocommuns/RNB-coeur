@@ -1022,10 +1022,7 @@ class Event:
         if event_id is None or Event.event_has_been_reverted(event_id):
             return None
 
-        try:
-            event_type = Event.get_event_type(event_id)
-        except EventUnknown:
-            return None
+        event_type = Event.get_event_type(event_id)
 
         match event_type:
             case EventType.CREATION.value:
