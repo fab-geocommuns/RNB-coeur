@@ -13,13 +13,13 @@ class ReportMessage(models.Model):
     Model for messages/comments on reports
     """
 
-    report: models.ForeignKey[Report, Report] = models.ForeignKey(
+    report: models.ForeignKey[Report, Report] = models.ForeignKey(  # type: ignore
         Report,
         on_delete=models.CASCADE,
         related_name="messages",
     )
 
-    created_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(
+    created_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(  # type: ignore
         User,
         on_delete=models.PROTECT,
         null=True,

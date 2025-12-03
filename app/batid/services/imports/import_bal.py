@@ -174,6 +174,6 @@ def process_batch(batch: list, bdg_import: BuildingImport):
                 refused_count += 1
                 continue
 
-        bdg_import.building_refused_count += refused_count
-        bdg_import.building_updated_count += updated_count
+        bdg_import.building_refused_count += refused_count  # type: ignore
+        bdg_import.building_updated_count += updated_count  # type: ignore
         bdg_import.save()

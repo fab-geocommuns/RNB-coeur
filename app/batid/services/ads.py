@@ -10,9 +10,9 @@ from batid.utils.db import dictfetchall
 
 
 def get_managed_insee_codes(user: User) -> list:
-    codes = []
+    codes = []  # type: ignore
     for org in user.organizations.all():  # type: ignore[attr-defined]
-        codes += org.managed_cities
+        codes += org.managed_cities  # type: ignore
 
     return list(set(codes))
 

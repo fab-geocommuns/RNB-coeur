@@ -21,6 +21,6 @@ def import_etalab_cities(dpt: str):
         except City.DoesNotExist:
             city = City(code_insee=c["properties"]["code"])
 
-        city.shape = geom
+        city.shape = geom  # type: ignore
         city.name = c["properties"]["nom"]
         city.save()

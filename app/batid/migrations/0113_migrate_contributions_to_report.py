@@ -61,13 +61,13 @@ def migrate_single_contribution(contribution: Contribution) -> None:
 
     new_report_status: str = status_mapping[contribution.status]
     new_report_email: str | None = contribution.email
-    new_report_created_at: datetime = contribution.created_at
+    new_report_created_at: datetime = contribution.created_at  # type: ignore
     new_report_updated_at: datetime = (
         contribution.status_changed_at
         if contribution.status_changed_at
         else contribution.updated_at
     )
-    new_report_point: Point = building.point
+    new_report_point: Point = building.point  # type: ignore
 
     new_report_closed_by_user: User | None = (
         contribution.review_user

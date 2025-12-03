@@ -297,7 +297,7 @@ class Building(BuildingAbstract):
         current_building = Building.objects.get(rnb_id=building_to_revert.rnb_id)
         current_building.reactivate(user, event_origin)
 
-        return current_building.event_id
+        return current_building.event_id  # type: ignore
 
     @transaction.atomic
     @staticmethod
@@ -331,7 +331,7 @@ class Building(BuildingAbstract):
         )
         current_building.refresh_from_db()
 
-        return current_building.event_id
+        return current_building.event_id  # type: ignore
 
     @transaction.atomic
     def update(
@@ -536,7 +536,7 @@ class Building(BuildingAbstract):
 
         return Building.objects.create(
             rnb_id=rnb_id,
-            point=point,
+            point=point,  # type: ignore
             shape=shape,
             ext_ids=ext_ids,
             event_origin=event_origin,

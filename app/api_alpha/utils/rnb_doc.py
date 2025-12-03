@@ -82,7 +82,7 @@ def build_schema_ogc_endpoints(request=None) -> dict:
     # - if we have a request, we use it to build the absolute uri
     # - if we don't have a request (e.g. in tests), we use the settings.URL
     if request is None:
-        server_url = settings.URL.rstrip("/") + ogc_root
+        server_url = settings.URL.rstrip("/") + ogc_root  # type: ignore
     else:
         server_url = request.build_absolute_uri(ogc_root)
 
