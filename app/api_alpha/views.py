@@ -1,5 +1,4 @@
 import binascii
-import json
 import urllib.parse
 from datetime import datetime
 from datetime import timezone
@@ -8,7 +7,6 @@ from typing import Any
 import requests
 import yaml
 from django.conf import settings
-from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
@@ -39,7 +37,6 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import BasePermission
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -92,13 +89,6 @@ from batid.services.search_ads import ADSSearch
 from batid.services.user import get_user_id_b64
 from batid.services.user import get_user_id_from_b64
 from batid.tasks import create_sandbox_user
-from batid.utils.auth import make_random_password
-from batid.utils.constants import ADS_GROUP_NAME
-
-
-class IsSuperUser(BasePermission):
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_superuser)
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
@@ -107,7 +97,7 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             "get": {
                 "summary": "Identification de bâtiment",
                 "description": (
-                    "Cet endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
+                    "OBSOLÈTE : Cet endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
                 ),
                 "operationId": "guessBuilding",
                 "parameters": [
@@ -179,6 +169,16 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
         }
     )
     def get(self, request, *args, **kwargs):
+
+        sunset_date = datetime(2026, 1, 5)
+        if datetime.now() >= sunset_date:
+            return Response(
+                {
+                    "errors": "Cet endpoint n'est plus disponible. Veuillez utiliser nos autres endpoints pour identifier des bâtiments grâce à un point ou une adresse."
+                },
+                status=status.HTTP_410_GONE,
+            )
+
         search = BuildingGuess()
         search.set_params_from_url(**request.query_params.dict())
 
@@ -190,7 +190,12 @@ class BuildingGuessView(RNBLoggingMixin, APIView):
             qs = search.get_queryset()
             serializer = GuessBuildingSerializer(qs, many=True)
 
-            return Response(serializer.data)
+            # add a deprecation and sunset headers
+            response = Response(serializer.data)
+            response["Deprecation"] = "true"
+            response["Sunset"] = sunset_date.strftime("%a, %d %b %Y %H:%M:%S GMT")
+
+            return response
         except BANAPIDown:
             raise ServiceUnavailable(detail="BAN API is currently down")
 
@@ -1264,57 +1269,6 @@ def get_summer_challenge_user_score(request, username):
         "user_rank": user_rank,
     }
     return JsonResponse(data)
-
-
-@extend_schema(exclude=True)
-class AdsTokenView(APIView):
-    permission_classes = [IsSuperUser]
-
-    def post(self, request, *args, **kwargs):
-        try:
-            with transaction.atomic():
-                json_users = json.loads(request.body)
-                users = []
-
-                for json_user in json_users:
-                    password = make_random_password(length=15)
-                    user, created = User.objects.get_or_create(
-                        username=json_user["username"],
-                        defaults={
-                            "email": json_user.get("email", None),
-                            "password": password,
-                        },
-                    )
-
-                    group, created = Group.objects.get_or_create(name=ADS_GROUP_NAME)
-                    user.groups.add(group)
-                    user.save()
-
-                    organization, created = Organization.objects.get_or_create(
-                        name=json_user["organization_name"],
-                        defaults={
-                            "managed_cities": json_user["organization_managed_cities"]
-                        },
-                    )
-
-                    organization.users.add(user)
-                    organization.save()
-
-                    token, created = Token.objects.get_or_create(user=user)
-
-                    users.append(
-                        {
-                            "username": user.username,
-                            "organization_name": json_user["organization_name"],
-                            "email": user.email,
-                            "password": password,
-                            "token": token.key,
-                        }
-                    )
-
-                return JsonResponse({"created_users": users})
-        except json.JSONDecodeError:
-            return HttpResponse("Invalid JSON", status=400)
 
 
 class RNBAuthToken(ObtainAuthToken):
