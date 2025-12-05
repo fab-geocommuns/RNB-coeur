@@ -39,22 +39,22 @@ django-jsoneditor = "^0.2.4"
 django-taggit = "^6.1.0"
 
 [tool.poetry.group.dev.dependencies]
-moto = "^5.1.11"
+moto = "^5.1.18"
 freezegun = "^1.5.5"
 notebook = "==6.5.7"
 jupyter = "^1.0.0"
 openpyxl = "^3.1.5"
 tqdm = "^4.67.1"
-mypy = "^1.16.1"
+mypy = "^1.19.0"
 django-stubs = {extras = ["compatible-mypy"], version = "^5.2.1"}
-types-psycopg2 = "^2.9.21.20250516"
+types-psycopg2 = "^2.9.21.20251012"
 types-nanoid = "^2.0.0.20240601"
 celery-types = "^0.23.0"
-pandas-stubs = "^2.3.2.250827"
-types-requests = "^2.32.4.20250611"
+pandas-stubs = "^2.3.3.251201"
+types-requests = "^2.32.4.20250913"
 pyproj = "^3.7.2"
-types-shapely = "^2.1.0.20250822"
-factory_boy = "^2.9.0"
+types-shapely = "^2.1.0.20250917"
+factory_boy = "^3.3.3"
 
 
 [build-system]
