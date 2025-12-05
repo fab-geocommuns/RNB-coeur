@@ -100,7 +100,7 @@ class DiffusionDatabaseAdmin(admin.ModelAdmin):
         "publisher",
         "licence",
         "tags",
-        #"description",
+        # "description",
         "image_url",
         "is_featured",
         "featured_summary",
