@@ -95,11 +95,12 @@ admin.site.register(ADS, ADSAdmin)
 class DiffusionDatabaseAdmin(admin.ModelAdmin):
     list_display = (
         "name",
+        "display_order",
         "documentation_url",
         "publisher",
         "licence",
         "tags",
-        "description",
+        #"description",
         "image_url",
         "is_featured",
         "featured_summary",
