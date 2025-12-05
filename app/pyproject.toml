@@ -8,7 +8,7 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "3.13.4"
 boto3 = "~1.40.64"
-Django = "~5.2.8"
+Django = "~5.2.9"
 drf-spectacular = "~0.28.0"
 drf-api-tracking = "~1.8.4"
 flower = "~2.0.1"
