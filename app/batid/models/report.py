@@ -20,7 +20,7 @@ class Report(models.Model):
         null=False, spatial_index=True, srid=4326
     )
 
-    building: models.ForeignKey[Building | None, Building] = models.ForeignKey(
+    building: models.ForeignKey[Building | None, Building] = models.ForeignKey(  # type: ignore
         Building,
         on_delete=models.PROTECT,
         null=True,
@@ -41,7 +41,7 @@ class Report(models.Model):
         db_index=True,
     )
 
-    created_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(
+    created_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(  # type: ignore
         User,
         on_delete=models.PROTECT,
         null=True,
@@ -51,7 +51,7 @@ class Report(models.Model):
 
     created_by_email: models.EmailField = models.EmailField(null=True, blank=True)
 
-    closed_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(
+    closed_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(  # type: ignore
         User,
         on_delete=models.PROTECT,
         null=True,
