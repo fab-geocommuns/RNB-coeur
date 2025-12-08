@@ -228,8 +228,6 @@ class OGCEndpointsTest(APITestCase):
 
         data = r.json()
 
-        print(data)
-
         expected = {
             "type": "FeatureCollection",
             "features": [
