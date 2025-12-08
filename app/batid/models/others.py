@@ -2,7 +2,7 @@ import requests
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
-
+from django.conf import settings
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadRequest
 from batid.exceptions import BANBadResultType
@@ -199,7 +199,8 @@ class UserProfile(models.Model):
         from api_alpha.exceptions import TooManyContributions
 
         if (
-            not self.user.is_staff
+            settings.ENVIRONMENT != "sandbox"
+            and not self.user.is_staff
             and self.total_contributions >= self.max_allowed_contributions
         ):
             raise TooManyContributions(
