@@ -238,7 +238,7 @@ class BuildingPostTest(APITestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_create_building_contribution_limit_exceeded_but_sandbox(self):
-        
+
         with self.settings(ENVIRONMENT="sandbox"):
             # Set user to have reached their contribution limit
             self.user.profile.total_contributions = 500

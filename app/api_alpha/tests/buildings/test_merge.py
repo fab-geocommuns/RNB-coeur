@@ -406,7 +406,7 @@ class BuildingMergeTest(APITestCase):
         self.assertNotEqual(self.building_2.event_type, "merge")
 
     def test_merge_buildings_contribution_limit_exceeded_but_sandbox(self):
-        
+
         with self.settings(ENVIRONMENT="sandbox"):
 
             # Set user to have reached their contribution limit

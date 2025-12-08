@@ -1,8 +1,9 @@
 import requests
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
-from django.conf import settings
+
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANBadRequest
 from batid.exceptions import BANBadResultType
