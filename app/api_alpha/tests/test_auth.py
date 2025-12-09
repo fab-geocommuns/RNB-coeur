@@ -1,13 +1,8 @@
 import base64
-import re
 from unittest import mock
-from urllib.parse import urlparse
 
-from django.conf import settings
-from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
-from django.core import mail
 from django.core.cache import cache
 from django.test import override_settings
 from nanoid import generate

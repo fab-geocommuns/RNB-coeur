@@ -1,4 +1,3 @@
-import base64
 import re
 from unittest import mock
 from urllib.parse import urlparse
@@ -6,21 +5,10 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
-from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
-from django.core.cache import cache
-from django.test import override_settings
-from nanoid import generate
+from private_captcha.models import VerifyOutput
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
-from rest_framework_tracking.models import APIRequestLog
-
-from api_alpha.permissions import RNBContributorPermission
-from api_alpha.utils.sandbox_client import SandboxClientError
-from batid.services.user import _b64_to_int
-from batid.services.user import _int_to_b64
-from batid.services.user import get_user_id_b64
-from private_captcha.models import VerifyOutput
 
 
 class UserCreation(APITestCase):
