@@ -1,4 +1,5 @@
 import requests
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
@@ -199,7 +200,8 @@ class UserProfile(models.Model):
         from api_alpha.exceptions import TooManyContributions
 
         if (
-            not self.user.is_staff
+            settings.ENVIRONMENT != "sandbox"
+            and not self.user.is_staff
             and self.total_contributions >= self.max_allowed_contributions
         ):
             raise TooManyContributions(
@@ -284,6 +286,9 @@ class DiffusionDatabase(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["display_order"]
 
 
 class KPI(models.Model):
