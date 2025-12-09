@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
@@ -67,6 +69,7 @@ class Report(models.Model):
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
     tags: TaggableManager = TaggableManager()
+    creation_batch_uuid: models.UUIDField = models.UUIDField(null=True, blank=True)
 
     @staticmethod
     @transaction.atomic
@@ -77,12 +80,14 @@ class Report(models.Model):
         email: str | None,
         user: User | None,
         tags: list[str],
+        creation_batch_uuid: uuid.UUID | None,
     ) -> Report:
         report = Report.objects.create(
             point=point,
             building=building,
             created_by_user=user,
             created_by_email=email,
+            creation_batch_uuid=creation_batch_uuid,
         )
         report.messages.create(text=text, created_by_user=user, created_by_email=email)  # type: ignore[attr-defined]
         report.save()
