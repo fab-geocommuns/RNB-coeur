@@ -118,6 +118,13 @@ def create_user_in_sandbox(user_data: dict) -> None:
 
 
 def is_captcha_valid(captcha_solution: str) -> bool:
+    if (
+        settings.PRIVATE_CAPTCHA_API_KEY is None
+        or settings.PRIVATE_CAPTCHA_SITEKEY is None
+    ):
+        raise AssertionError(
+            "PRIVATE_CAPTCHA_API_KEY or PRIVATE_CAPTCHA_SITEKEY is not set but ENABLE_CAPTCHA is True. Please check your settings."
+        )
     client = private_captcha.Client(api_key=settings.PRIVATE_CAPTCHA_API_KEY)
     result = client.verify(
         solution=captcha_solution, sitekey=settings.PRIVATE_CAPTCHA_SITEKEY

@@ -231,11 +231,24 @@ class UserCreation(APITestCase):
         return_value=VerifyOutput.from_dict({"success": False}),
     )
     def test_when_captcha_is_invalid(self, mock_verify, _):
-        with self.settings(ENABLE_CAPTCHA=True, PRIVATE_CAPTCHA_API_KEY="test"):
+        with self.settings(
+            ENABLE_CAPTCHA=True,
+            PRIVATE_CAPTCHA_API_KEY="test",
+            PRIVATE_CAPTCHA_SITEKEY="test",
+        ):
             response = self.client.post("/api/alpha/auth/users/", self.julie_data)
             self.assertEqual(response.status_code, 400)
             self.assertIn("Captcha verification failed", response.json()["detail"])
             self.assertFalse(User.objects.filter(first_name="Julie").exists())
+
+    def test_when_captcha_configuration_is_erroneous_raises_assertion_error(self):
+        with self.settings(
+            ENABLE_CAPTCHA=True,
+            PRIVATE_CAPTCHA_API_KEY=None,
+            PRIVATE_CAPTCHA_SITEKEY=None,
+        ):
+            with self.assertRaises(AssertionError):
+                self.client.post("/api/alpha/auth/users/", self.julie_data)
 
     @mock.patch("batid.tasks.create_sandbox_user.delay")
     @mock.patch("api_alpha.endpoints.auth.create_user.is_captcha_valid")
