@@ -80,7 +80,7 @@ class Report(models.Model):
         email: str | None,
         user: User | None,
         tags: list[str],
-        creation_batch_uuid: uuid.UUID | None,
+        creation_batch_uuid: uuid.UUID | None = None,
     ) -> Report:
         report = Report.objects.create(
             point=point,
