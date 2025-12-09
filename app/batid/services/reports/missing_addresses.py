@@ -6,6 +6,7 @@ from django.db import transaction
 
 from batid.models.building import Building
 from batid.models.report import Report
+from batid.services.bdg_status import BuildingStatus
 from batid.services.RNB_team_user import get_RNB_team_user
 
 
@@ -25,11 +26,15 @@ where
 	st_area(bb.shape::geography) > 100
 	and bb.addresses_id = '{}'
 	and br.building_id is null
+    and bb.is_active
+    and (bb.status = ANY(%s))
 limit %s;
     """
 
     with connection.cursor() as cursor:
-        cursor.execute(raw_sql, [insee_code, reports_number])
+        cursor.execute(
+            raw_sql, [insee_code, BuildingStatus.REAL_BUILDINGS_STATUS, reports_number]
+        )
         rnb_ids = cursor.fetchall()
 
         with transaction.atomic():
