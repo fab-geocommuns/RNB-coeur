@@ -298,3 +298,48 @@ class UserCreation(APITestCase):
                 mock_create_sandbox_user.assert_called_once_with(expected_user_data)
 
                 self.assertTrue(User.objects.filter(first_name="Julie").exists())
+
+    @mock.patch("batid.tasks.create_sandbox_user.delay")
+    @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
+    def test_works_with_empty_organization_name_and_job_title(
+        self, mock_validate_captcha, mock_create_sandbox_user
+    ):
+        self.julie_data = {
+            "last_name": "B",
+            "first_name": "Julie",
+            "email": "julie.b+test@exemple.com",
+            "username": "juju",
+            "password": "tajine",
+            "organization_name": None,
+            "job_title": None,
+        }
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                "/api/alpha/auth/users/",
+                self.julie_data,
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 201)
+        julie = User.objects.prefetch_related("organizations", "profile").get(
+            first_name="Julie"
+        )
+        self.assertEqual(julie.last_name, "B")
+        self.assertEqual(julie.email, "julie.b+test@exemple.com")
+        # we check the password is properly hashed
+        self.assertNotEqual(julie.password, "tajine")
+        self.assertIsNotNone(julie.password)
+        self.assertEqual(julie.username, "juju")
+        self.assertEqual(len(julie.organizations.all()), 0)
+        self.assertEqual(julie.profile.job_title, None)
+        # Julie is a contributor and has a token
+        self.assertTrue(
+            julie.groups.filter(name=settings.CONTRIBUTORS_GROUP_NAME).exists()
+        )
+        self.assertTrue(Token.objects.filter(user=julie).exists)
+
+        # the user is not active yet
+        self.assertFalse(julie.is_active)
+        # activation email has been sent
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, [julie.email])
