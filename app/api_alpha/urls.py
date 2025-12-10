@@ -4,7 +4,6 @@ from django.urls import re_path
 from rest_framework import routers
 
 from api_alpha.endpoints.ads.create_token import CreateAdsTokenView
-from api_alpha.endpoints.auth.create_user import CreateUserView
 from api_alpha.endpoints.buildings.get_diff import DiffView
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.plot import BuildingPlotView
@@ -32,6 +31,7 @@ from api_alpha.views import BuildingAddressView
 from api_alpha.views import BuildingClosestView
 from api_alpha.views import BuildingGuessView
 from api_alpha.views import ChangePassword
+from api_alpha.views import CreateUserView
 from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import get_all_endpoints_schema
 from api_alpha.views import get_stats
