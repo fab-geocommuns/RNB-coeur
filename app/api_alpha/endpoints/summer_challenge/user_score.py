@@ -2,7 +2,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.request import Request
 from api_alpha.endpoints.summer_challenge.common import summer_challenge_global_score
-from api_alpha.endpoints.summer_challenge.common import summer_challenge_targeted_score
 from django.http import JsonResponse
 from django.contrib.auth.models import User
 from django.db.models import Q
@@ -38,7 +37,6 @@ class UserScoreView(APIView):
                 break
 
         data = {
-            "goal": summer_challenge_targeted_score(),
             "global": global_score,
             "user_score": user_score,
             "user_rank": user_rank,

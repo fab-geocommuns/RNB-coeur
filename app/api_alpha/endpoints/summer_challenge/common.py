@@ -3,10 +3,6 @@ from batid.models import SummerChallenge
 from django.db.models import Count
 
 
-def summer_challenge_targeted_score():
-    return 100_000
-
-
 def summer_challenge_global_score():
     global_score = SummerChallenge.objects.aggregate(
         score=Count("event_id", distinct=True)
@@ -41,7 +37,6 @@ def summer_challenge_leaderboard(max_rank):
     departement_ranking = [list(row) for row in departement]
 
     return {
-        "goal": summer_challenge_targeted_score(),
         "global": global_score,
         "individual": individual_ranking,
         "city": city_ranking,

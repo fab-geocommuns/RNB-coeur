@@ -5,7 +5,6 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
 from rest_framework.test import APITestCase
 
-from api_alpha.endpoints.summer_challenge.common import summer_challenge_targeted_score
 from batid.models import Address
 from batid.models import Building
 from batid.tests.factories.users import ContributorUserFactory
@@ -100,7 +99,6 @@ class TestSummerChallengeRanking(APITestCase):
         self.assertDictEqual(
             leaderboard,
             {
-                "goal": summer_challenge_targeted_score(),
                 "global": 4,  # 2 creations, 1 address update, 1 status update
                 "individual": [
                     ["user_1", 2],
@@ -119,7 +117,6 @@ class TestSummerChallengeRanking(APITestCase):
         self.assertDictEqual(
             leaderboard,
             {
-                "goal": summer_challenge_targeted_score(),
                 "global": 4,
                 "individual": [["user_1", 2]],
                 "city": [["101", "city_1", 2]],
@@ -133,7 +130,6 @@ class TestSummerChallengeRanking(APITestCase):
         self.assertDictEqual(
             score,
             {
-                "goal": summer_challenge_targeted_score(),
                 "global": 4,
                 "user_score": 1,
                 "user_rank": 2,
@@ -156,7 +152,6 @@ class TestSummerChallengeRanking(APITestCase):
         self.assertDictEqual(
             score,
             {
-                "goal": summer_challenge_targeted_score(),
                 "global": 4,
                 "user_score": 0,
                 "user_rank": None,
