@@ -665,6 +665,40 @@ class BuildingPatchTest(APITestCase):
         self.user.profile.refresh_from_db()
         self.assertEqual(self.user.profile.total_contributions, 500)
 
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_update_building_contribution_limit_exceeded_but_sandbox(self):
+
+        with self.settings(ENVIRONMENT="sandbox"):
+
+            # Set user to have reached their contribution limit
+            self.user.profile.total_contributions = 500
+            self.user.profile.max_allowed_contributions = 500
+            self.user.profile.save()
+
+            data = {
+                "status": "notUsable",
+                "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+                "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                "comment": "maj du batiment",
+            }
+
+            r = self.client.patch(
+                f"/api/alpha/buildings/{self.rnb_id}/",
+                data=json.dumps(data),
+                content_type="application/json",
+            )
+
+            self.assertEqual(r.status_code, 204)
+
+            # Verify the building was updated
+            self.building.refresh_from_db()
+            self.assertEqual(self.building.event_type, "update")
+            self.assertEqual(self.building.status, "notUsable")
+
+            # Verify user contribution count did increase
+            self.user.profile.refresh_from_db()
+            self.assertEqual(self.user.profile.total_contributions, 501)
+
     def test_deactivate_building_contribution_limit_exceeded(self):
 
         # Set user to have reached their contribution limit
@@ -691,3 +725,32 @@ class BuildingPatchTest(APITestCase):
         # Verify user contribution count did not increase
         self.user.profile.refresh_from_db()
         self.assertEqual(self.user.profile.total_contributions, 500)
+
+    def test_deactivate_building_contribution_limit_exceeded_but_sandbox(self):
+
+        with self.settings(ENVIRONMENT="sandbox"):
+
+            # Set user to have reached their contribution limit
+            self.user.profile.total_contributions = 500
+            self.user.profile.max_allowed_contributions = 500
+            self.user.profile.save()
+
+            comment = "not a building"
+            data = {"is_active": False, "comment": comment}
+
+            r = self.client.patch(
+                f"/api/alpha/buildings/{self.rnb_id}/",
+                data=json.dumps(data),
+                content_type="application/json",
+            )
+
+            self.assertEqual(r.status_code, 204)
+
+            # Verify the building was deactivated
+            self.building.refresh_from_db()
+            self.assertFalse(self.building.is_active)
+            self.assertEqual(self.building.event_type, "deactivation")
+
+            # Verify user contribution count did increase
+            self.user.profile.refresh_from_db()
+            self.assertEqual(self.user.profile.total_contributions, 501)

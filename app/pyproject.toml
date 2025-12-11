@@ -8,7 +8,7 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "3.13.4"
 boto3 = "~1.40.64"
-Django = "~5.2.8"
+Django = "~5.2.9"
 drf-spectacular = "~0.28.0"
 drf-api-tracking = "~1.8.4"
 flower = "~2.0.1"
@@ -83,7 +83,11 @@ exclude = [
   "manage.py",
 ]
 disallow_untyped_defs = false
+plugins = ["mypy_django_plugin.main"]
 
 [[tool.mypy.overrides]]
-module = ["boto3.*", "rest_framework", "rest_framework.*", "rest_framework_tracking.*", "rest_framework_gis.*", "geopandas"]
+module = ["boto3.*", "rest_framework", "rest_framework.*", "rest_framework_tracking.*", "rest_framework_gis.*", "geopandas", "taggit.*"]
 follow_untyped_imports = true
+
+[tool.django-stubs]
+django_settings_module = "app.settings"

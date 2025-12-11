@@ -21,7 +21,7 @@ def build_reset_password_email(
         subject="Réinitialisation de votre mot de passe RNB",
         body="Veuillez consulter la version HTML de cet email.",
         from_email=get_rnb_email_sender(),
-        headers={"Reply-To": settings.RNB_REPLY_TO_ADDRESS},
+        headers={"Reply-To": settings.RNB_REPLY_TO_ADDRESS},  # type: ignore
         to=[email],
     )
 
@@ -53,7 +53,7 @@ def build_activate_account_email(
         subject="Activez votre compte RNB",
         body="Veuillez consulter la version HTML de cet email.",
         from_email=get_rnb_email_sender(),
-        headers={"Reply-To": settings.RNB_REPLY_TO_ADDRESS},
+        headers={"Reply-To": settings.RNB_REPLY_TO_ADDRESS},  # type: ignore
         to=[email],
     )
     msg.attach_alternative(html_content, "text/html")

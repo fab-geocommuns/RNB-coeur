@@ -46,11 +46,18 @@ class OperationOnInactiveBuilding(InvalidOperation):
         return "Cette opération est impossible sur un ID-RNB inactif"
 
 
-class ReactivationNotAllowed(InvalidOperation):
-    """The reactivation is not allowed"""
+class DatabaseInconsistency(Exception):
+    """The database consistency is broken."""
 
     def api_message(self):
-        return "Cet identifiant n'est pas la version la plus récente du bâtiment et ne peut pas être réactivé"
+        return "La base est dans un état incohérent."
+
+
+class RevertNotAllowed(InvalidOperation):
+    """The revert operation is not allowed"""
+
+    def api_message(self):
+        return "Le retour en arrière de l'opération n'est pas possible, car les bâtiments concernés ont été modifiés depuis."
 
 
 class NotEnoughBuildings(InvalidOperation):
@@ -86,3 +93,7 @@ class ImpossibleShapeMerge(InvalidOperation):
 
     def api_message(self):
         return "Pour fusionner des bâtiments, leurs géométries doivent être des polygones contigus. Veuillez d'abord mettre à jour les géométries des bâtiments"
+
+
+class EventUnknown(Exception):
+    """The given event_id is not in the RNB database"""

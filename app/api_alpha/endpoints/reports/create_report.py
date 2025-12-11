@@ -48,7 +48,7 @@ class CreateReportView(RNBLoggingMixin, APIView):
         authenticated_user = request.user if request.user.is_authenticated else None
 
         report = Report.create(
-            point=building.point,
+            point=building.point,  # type: ignore
             building=building,
             text=text,
             email=email,

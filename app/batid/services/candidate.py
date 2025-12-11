@@ -250,7 +250,7 @@ class Inspector:
         # Prop : shape
         if (
             shape_family(self.candidate.shape) == "poly"
-            and shape_family(bdg.shape) == "point"
+            and shape_family(bdg.shape) == "point"  # type: ignore
         ):
             changes["shape"] = self.candidate.shape.clone()
 
@@ -262,7 +262,7 @@ class Inspector:
 
         if candidate_addresses - bdg_addresses:
             # update the addresses with the new ones
-            changes["addresses_id"] = list(bdg_addresses | candidate_addresses)
+            changes["addresses_id"] = list(bdg_addresses | candidate_addresses)  # type: ignore
 
         if changes:
             changes["event_origin"] = self.candidate.created_by
@@ -357,7 +357,7 @@ def create_building_from_candidate(c: Candidate) -> Building:
         event_origin=c.created_by,
         status="constructed",
         addresses_id=c.address_keys or [],
-        shape=c.shape,
+        shape=c.shape,  # type: ignore
         ext_ids=[
             {
                 "source": c.source,
