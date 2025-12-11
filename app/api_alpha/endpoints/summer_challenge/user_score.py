@@ -8,17 +8,13 @@ from django.db.models import Q
 from rest_framework.exceptions import NotFound
 from batid.models import SummerChallenge
 from django.db.models import Count
+from django.shortcuts import get_object_or_404
 
 
 class UserScoreView(APIView):
     def get(self, request: Request, username: str) -> JsonResponse:
         # Check the user exists, we look by username or email
-        try:
-            User.objects.get(
-                Q(username=username) | Q(email=username)
-            )  # This will raise an exception if the user does not exist
-        except User.DoesNotExist:
-            raise NotFound()
+        get_object_or_404(User, Q(username=username) | Q(email=username))
 
         global_score = summer_challenge_global_score()
         individual_ranking = (
