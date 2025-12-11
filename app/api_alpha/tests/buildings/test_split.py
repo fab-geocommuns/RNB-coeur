@@ -461,3 +461,46 @@ class BuildingSplitTest(APITestCase):
         # Verify user contribution count did not increase
         self.user.profile.refresh_from_db()
         self.assertEqual(self.user.profile.total_contributions, 500)
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_split_buildings_contribution_limit_exceeded_but_sandbox(self):
+
+        with self.settings(ENVIRONMENT="sandbox"):
+
+            # Set user to have reached their contribution limit
+            self.user.profile.total_contributions = 500
+            self.user.profile.max_allowed_contributions = 500
+            self.user.profile.save()
+
+            data = {
+                "comment": "Division du bâtiment",
+                "created_buildings": [
+                    {
+                        "status": "constructed",
+                        "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                        "addresses_cle_interop": [self.adr1.id],
+                    },
+                    {
+                        "status": "constructed",
+                        "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+                        "addresses_cle_interop": [self.adr2.id],
+                    },
+                ],
+            }
+
+            r = self.client.post(
+                f"/api/alpha/buildings/{self.building_1.rnb_id}/split/",
+                data=json.dumps(data),
+                content_type="application/json",
+            )
+
+            self.assertEqual(r.status_code, 201)
+
+            # Verify the building was split
+            self.building_1.refresh_from_db()
+            self.assertFalse(self.building_1.is_active)
+            self.assertEqual(self.building_1.event_type, "split")
+
+            # Verify user contribution count did increase
+            self.user.profile.refresh_from_db()
+            self.assertEqual(self.user.profile.total_contributions, 501)

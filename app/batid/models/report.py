@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
@@ -20,7 +22,7 @@ class Report(models.Model):
         null=False, spatial_index=True, srid=4326
     )
 
-    building: models.ForeignKey[Building | None, Building] = models.ForeignKey(
+    building: models.ForeignKey[Building | None, Building] = models.ForeignKey(  # type: ignore
         Building,
         on_delete=models.PROTECT,
         null=True,
@@ -41,7 +43,7 @@ class Report(models.Model):
         db_index=True,
     )
 
-    created_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(
+    created_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(  # type: ignore
         User,
         on_delete=models.PROTECT,
         null=True,
@@ -51,7 +53,7 @@ class Report(models.Model):
 
     created_by_email: models.EmailField = models.EmailField(null=True, blank=True)
 
-    closed_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(
+    closed_by_user: models.ForeignKey[User | None, User] = models.ForeignKey(  # type: ignore
         User,
         on_delete=models.PROTECT,
         null=True,
@@ -67,6 +69,7 @@ class Report(models.Model):
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
     tags: TaggableManager = TaggableManager()
+    creation_batch_uuid: models.UUIDField = models.UUIDField(null=True, blank=True)
 
     @staticmethod
     @transaction.atomic
@@ -77,12 +80,14 @@ class Report(models.Model):
         email: str | None,
         user: User | None,
         tags: list[str],
+        creation_batch_uuid: uuid.UUID | None = None,
     ) -> Report:
         report = Report.objects.create(
             point=point,
             building=building,
             created_by_user=user,
             created_by_email=email,
+            creation_batch_uuid=creation_batch_uuid,
         )
         report.messages.create(text=text, created_by_user=user, created_by_email=email)  # type: ignore[attr-defined]
         report.save()

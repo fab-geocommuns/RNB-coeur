@@ -404,3 +404,38 @@ class BuildingMergeTest(APITestCase):
         self.assertTrue(self.building_2.is_active)
         self.assertNotEqual(self.building_1.event_type, "merge")
         self.assertNotEqual(self.building_2.event_type, "merge")
+
+    def test_merge_buildings_contribution_limit_exceeded_but_sandbox(self):
+
+        with self.settings(ENVIRONMENT="sandbox"):
+
+            # Set user to have reached their contribution limit
+            self.user.profile.total_contributions = 500
+            self.user.profile.max_allowed_contributions = 500
+            self.user.profile.save()
+
+            data = {
+                "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
+                "status": "constructed",
+                "merge_existing_addresses": True,
+                "comment": "Fusion de bâtiments",
+            }
+
+            r = self.client.post(
+                f"/api/alpha/buildings/merge/",
+                data=json.dumps(data),
+                content_type="application/json",
+            )
+
+            self.assertEqual(r.status_code, 201)
+
+            # Verify the buildings were not merged
+            self.building_1.refresh_from_db()
+            self.building_2.refresh_from_db()
+            self.assertFalse(self.building_1.is_active)
+            self.assertFalse(self.building_2.is_active)
+            self.assertEqual(self.building_1.event_type, "merge")
+            self.assertEqual(self.building_2.event_type, "merge")
+
+            self.user.profile.refresh_from_db()
+            self.assertEqual(self.user.profile.total_contributions, 501)
