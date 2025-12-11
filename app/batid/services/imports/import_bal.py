@@ -121,8 +121,8 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
 
     # We do NOT want to create the bdg <> address link if the same link exists or has existed in the past
     if (
-        cle_interop in bdgs[0].current_addresses
-        or cle_interop in bdgs[0].past_addresses
+        cle_interop in bdgs[0].current_addresses  # type: ignore[attr-defined]
+        or cle_interop in bdgs[0].past_addresses  # type: ignore[attr-defined]
     ):
         return None
 

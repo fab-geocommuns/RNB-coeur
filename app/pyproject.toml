@@ -45,7 +45,7 @@ notebook = "==6.5.7"
 jupyter = "^1.0.0"
 openpyxl = "^3.1.5"
 tqdm = "^4.67.1"
-mypy = "^1.16.1"
+mypy = "==1.19.0"
 django-stubs = {extras = ["compatible-mypy"], version = "^5.2.1"}
 types-psycopg2 = "^2.9.21.20250516"
 types-nanoid = "^2.0.0.20240601"
