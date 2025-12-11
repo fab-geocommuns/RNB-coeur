@@ -2,12 +2,14 @@ from datetime import date
 from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import Point
 from django.test import TestCase
 
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import KPI
+from batid.models.report import Report
 from batid.services.kpi import compute_today_kpis
 from batid.services.kpi import count_active_buildings
 from batid.services.kpi import count_editors
@@ -88,22 +90,23 @@ class CountContributions(TestCase):
 
     def setUp(self):
 
-        self.u1 = User.objects.create(username="u1")
-        self.u2 = User.objects.create(username="u2")
-        self.u3 = User.objects.create(username="u3")
+        self.u1 = User.objects.create(username="u1", email="u1@u1")
+        self.u2 = User.objects.create(username="u2", email="u2@u2")
+        self.u3 = User.objects.create(username="u3", email="u3@u3")
 
         # Reports
-        Contribution.objects.create(report=True, status="pending")
-        Contribution.objects.create(report=True, status="fixed", review_user=self.u1)
-        Contribution.objects.create(report=True, status="refused", review_user=self.u1)
-        Contribution.objects.create(report=True, status="refused", review_user=self.u2)
-        Contribution.objects.create(report=True, status="refused", review_user=self.u3)
+        Report.objects.create(status="pending", point=Point(0, 0))
+        Report.objects.create(status="fixed", point=Point(0, 0))
+        Report.objects.create(status="rejected", point=Point(0, 0))
+        Report.objects.create(status="rejected", point=Point(0, 0))
+        Report.objects.create(status="rejected", point=Point(0, 0))
 
         # Edits
         Contribution.objects.create(report=False, status="fixed", review_user=self.u1)
         Contribution.objects.create(report=False, status="fixed", review_user=self.u1)
         Contribution.objects.create(report=False, status="fixed", review_user=self.u2)
 
+    def test_count(self):
         # Test reports
         self.assertEqual(count_reports(), 5)
         self.assertEqual(count_pending_reports(), 1)
