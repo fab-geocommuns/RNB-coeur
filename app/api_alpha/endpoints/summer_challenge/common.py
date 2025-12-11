@@ -1,6 +1,6 @@
-from django.db import connection
-from batid.models import SummerChallenge
 from django.db.models import Count
+
+from batid.models import SummerChallenge
 
 
 def summer_challenge_global_score():

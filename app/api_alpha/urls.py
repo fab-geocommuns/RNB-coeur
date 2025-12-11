@@ -20,13 +20,13 @@ from api_alpha.endpoints.reports.create_report import CreateReportView
 from api_alpha.endpoints.reports.get_report import GetReport
 from api_alpha.endpoints.reports.reply_to_report import ReplyToReportView
 from api_alpha.endpoints.reports.stats import ReportStatsView
+from api_alpha.endpoints.summer_challenge.leaderboard import LeaderboardView
+from api_alpha.endpoints.summer_challenge.user_score import UserScoreView
 from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsShapeVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsVectorTileView
 from api_alpha.endpoints.tiles.plots_vector_tile import PlotsVectorTileView
 from api_alpha.endpoints.tiles.report_vector_tile import ReportVectorTileView
-from api_alpha.endpoints.summer_challenge.leaderboard import LeaderboardView
-from api_alpha.endpoints.summer_challenge.user_score import UserScoreView
 from api_alpha.views import ActivateUser
 from api_alpha.views import ADSViewSet
 from api_alpha.views import BuildingAddressView

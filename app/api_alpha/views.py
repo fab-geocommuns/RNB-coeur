@@ -11,10 +11,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
-from django.db import connection
 from django.db import transaction
-from django.db.models import Q
-from django.db.models import Sum
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.http import QueryDict
@@ -32,7 +29,6 @@ from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.decorators import api_view
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
@@ -77,7 +73,6 @@ from batid.models import Building
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
-from batid.models import SummerChallenge
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder

@@ -1,14 +1,13 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.request import Request
-from api_alpha.endpoints.summer_challenge.common import summer_challenge_global_score
-from django.http import JsonResponse
 from django.contrib.auth.models import User
-from django.db.models import Q
-from rest_framework.exceptions import NotFound
-from batid.models import SummerChallenge
 from django.db.models import Count
+from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from rest_framework.request import Request
+from rest_framework.views import APIView
+
+from api_alpha.endpoints.summer_challenge.common import summer_challenge_global_score
+from batid.models import SummerChallenge
 
 
 class UserScoreView(APIView):
