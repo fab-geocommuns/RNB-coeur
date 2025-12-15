@@ -13,5 +13,3 @@ class EventDetail(models.Model):
         Department, on_delete=models.PROTECT, null=False, db_index=True
     )
     user = models.ForeignKey(User, on_delete=models.PROTECT, null=True, db_index=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)

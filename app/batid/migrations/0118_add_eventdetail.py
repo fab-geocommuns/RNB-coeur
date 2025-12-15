@@ -24,8 +24,6 @@ class Migration(migrations.Migration):
                 ("event_id", models.UUIDField(db_index=True)),
                 ("event_type", models.CharField(max_length=255)),
                 ("event_origin", models.JSONField()),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-                ("updated_at", models.DateTimeField(auto_now=True)),
                 (
                     "city",
                     models.ForeignKey(
