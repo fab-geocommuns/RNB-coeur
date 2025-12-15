@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
@@ -24,7 +25,7 @@ WRITABLE_DATA_DIR = os.path.join(BASE_DIR, "data")
 
 PRIVATE_CAPTCHA_API_KEY = os.environ.get("PRIVATE_CAPTCHA_API_KEY")
 PRIVATE_CAPTCHA_SITEKEY = os.environ.get("PRIVATE_CAPTCHA_SITEKEY")
-ENABLE_CAPTCHA = os.environ.get("ENABLE_CAPTCHA", default="true").lower() == "true"
+ENABLE_CAPTCHA = os.environ.get("ENABLE_CAPTCHA", default="false").lower() == "true"
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
