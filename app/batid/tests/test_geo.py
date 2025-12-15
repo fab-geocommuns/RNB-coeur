@@ -121,9 +121,9 @@ class TestGeo(TestCase):
     def test_merge_shapes_almost_contiguous(self):
         # if the shapes are almost contiguous, we would like to add a little flexibility
         # and allow to merge them
-        # this test case comes from a real world interesting scenario:
-        # a building split in 4, the geometry are almost contiguous but do not touch eache other
-        # the resulting merge is not valid and needs to be fixed afterwards by the make_valid() function
+        # this test case comes from a real-world interesting scenario:
+        # a building is split in 4, the 4 geometry are almost contiguous but do not touch each other
+        # Additionally, the resulting merge is not valid and needs to be fixed afterwards using the make_valid() function
 
         shape_1 = GEOSGeometry(
             "MULTIPOLYGON (((3.399813196293031 47.84852361732513, 3.399785416914514 47.848563312224655, 3.399821611014261 47.848575788937545, 3.399835014986967 47.84858024327614, 3.399911395806362 47.84846932449911, 3.399878399999999 47.84844729999998, 3.399791017237281 47.848388369107376, 3.399813196293031 47.84852361732513)))"
