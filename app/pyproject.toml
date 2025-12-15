@@ -37,6 +37,7 @@ openapi-spec-validator = "^0.7.2"
 orjson = "^3.11.4"
 django-jsoneditor = "^0.2.4"
 django-taggit = "^6.1.0"
+private-captcha = "^0.0.5"
 
 [tool.poetry.group.dev.dependencies]
 moto = "^5.1.18"
@@ -84,6 +85,7 @@ exclude = [
 ]
 disallow_untyped_defs = false
 plugins = ["mypy_django_plugin.main"]
+mypy_path = "stubs"
 
 [[tool.mypy.overrides]]
 module = ["boto3.*", "rest_framework", "rest_framework.*", "rest_framework_tracking.*", "rest_framework_gis.*", "geopandas", "taggit.*"]
