@@ -56,7 +56,7 @@ def merge_contiguous_shapes(shapes: List[GEOSGeometry]) -> GEOSGeometry:
     # https://wiki.openstreetmap.org/wiki/Precision_of_coordinates
     buffer_size = 0.0000005
     if len(shapes) == 0:
-        return None
+        raise ImpossibleShapeMerge("Au moins une géométrie doit être fournie")
     elif len(shapes) == 1:
         return shapes[0]
     else:
