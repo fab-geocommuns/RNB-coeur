@@ -91,6 +91,15 @@ def merge_contiguous_shapes(shapes: List[GEOSGeometry]):
         merged_shape = merged_shape.buffer_with_style(
             -buffer_size, quadsegs=1, join_style=2
         )
+
+        if not merged_shape.valid:
+            merged_shape = merged_shape.make_valid()
+
+        if not merged_shape.valid:
+            raise ImpossibleShapeMerge(
+                "La géometrie fusionnée serait invalide, la fusion est annulée."
+            )
+
         return merged_shape
 
 
