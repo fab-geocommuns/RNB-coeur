@@ -52,39 +52,45 @@ def merge_contiguous_shapes(shapes: List[GEOSGeometry]):
     Supported GEOSGeometry types are Polygon and MultiPolygon.
     Function will raise if shapes given are not contiguous
     """
+    # 7th decimal corresponds to approx 1cm
+    # https://wiki.openstreetmap.org/wiki/Precision_of_coordinates
+    buffer_size = 0.0000005
     if len(shapes) == 0:
         return None
     elif len(shapes) == 1:
         return shapes[0]
     else:
+        buffered_shapes = [
+            shape.buffer_with_style(buffer_size, quadsegs=1, join_style=2)
+            for shape in shapes
+        ]
+
         if any(shape.geom_type not in ["Polygon", "MultiPolygon"] for shape in shapes):
             # one day we will also need to merge points with polygons, that will require additionnal work
             raise ImpossibleShapeMerge(
                 "Seules les formes Polygon et MultiPolygon peuvent être fusionnées"
             )
-        merged_shape = shapes[0]
-        shapes = shapes[1:]
+        merged_shape = buffered_shapes[0]
+        buffered_shapes = buffered_shapes[1:]
 
-        while len(shapes) > 0:
-            for i, shape in enumerate(shapes):
-                if shape.intersects(merged_shape):
-                    shape = shapes.pop(i)
-                    merged_shape = merged_shape.union(shape)
+        while len(buffered_shapes) > 0:
+            for i, buffered_shape in enumerate(buffered_shapes):
+                if buffered_shape.intersects(merged_shape):
+                    buffered_shape = buffered_shapes.pop(i)
+                    merged_shape = merged_shape.union(buffered_shape)
                     break
             else:  # no break
                 raise ImpossibleShapeMerge(
                     "Fusionner des bâtiments non contigus n'est pas possible"
                 )
-        # 7th decimal corresponds to approx 1cm
-        # https://wiki.openstreetmap.org/wiki/Precision_of_coordinates
 
         # quadsegs is the number of points used to approximate a quarter of circle
         # we don't want the buffer to round corners, so we set quadsegs to 1 and join_style to 2
         # which means square join style.
         # that way a buffer around a rectangle is sill a rectangle.
         merged_shape = merged_shape.buffer_with_style(
-            0.0000001, quadsegs=1, join_style=2
-        ).buffer_with_style(-0.0000001, quadsegs=1, join_style=2)
+            -buffer_size, quadsegs=1, join_style=2
+        )
         return merged_shape
 
 
