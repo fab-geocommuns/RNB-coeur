@@ -46,7 +46,7 @@ def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:
     return geom
 
 
-def merge_contiguous_shapes(shapes: List[GEOSGeometry]):
+def merge_contiguous_shapes(shapes: List[GEOSGeometry]) -> GEOSGeometry:
     """
     Merge a list of contiguous GEOSGeometry shapes into a single shape.
     Supported GEOSGeometry types are Polygon and MultiPolygon.
@@ -93,7 +93,7 @@ def merge_contiguous_shapes(shapes: List[GEOSGeometry]):
         )
 
         if not merged_shape.valid:
-            merged_shape = merged_shape.make_valid()
+            merged_shape = merged_shape.make_valid()  # type: ignore[attr-defined]
 
         if not merged_shape.valid:
             raise ImpossibleShapeMerge(
