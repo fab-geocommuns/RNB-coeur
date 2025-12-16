@@ -21,6 +21,8 @@ from api_alpha.endpoints.reports.create_report import CreateReportView
 from api_alpha.endpoints.reports.get_report import GetReport
 from api_alpha.endpoints.reports.reply_to_report import ReplyToReportView
 from api_alpha.endpoints.reports.stats import ReportStatsView
+from api_alpha.endpoints.summer_challenge.leaderboard import LeaderboardView
+from api_alpha.endpoints.summer_challenge.user_score import UserScoreView
 from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsShapeVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import BuildingsVectorTileView
@@ -35,8 +37,6 @@ from api_alpha.views import ChangePassword
 from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import get_all_endpoints_schema
 from api_alpha.views import get_stats
-from api_alpha.views import get_summer_challenge_leaderboard
-from api_alpha.views import get_summer_challenge_user_score
 from api_alpha.views import GetCurrentUserTokens
 from api_alpha.views import GetUserToken
 from api_alpha.views import MergeBuildings
@@ -120,8 +120,8 @@ urlpatterns = [
     path(
         "auth/change_password/<str:user_id_b64>/<str:token>", ChangePassword.as_view()
     ),
-    path("editions/ranking/", get_summer_challenge_leaderboard),
-    path("editions/ranking/<str:username>/", get_summer_challenge_user_score),
+    path("editions/ranking/", LeaderboardView.as_view()),
+    path("editions/ranking/<str:username>/", UserScoreView.as_view()),
     # Reports
     path("reports/", CreateReportView.as_view()),
     path(
