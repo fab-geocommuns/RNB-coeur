@@ -65,7 +65,11 @@ class TestGeo(TestCase):
         merged_shapes = merge_contiguous_shapes(shapes)
         res_coordinates = json.loads(merged_shapes.json)["coordinates"]
         expected_coordinates = [
-            [[3.0, 1.0], [3.0, 0.0], [0.0, 0.0], [0.0, 1.0], [3.0, 1.0]]
+            [0.0, 1.0],
+            [3.0, 1.0],
+            [3.0, 0.0],
+            [0.0, 0.0],
+            [0.0, 1.0],
         ]
 
         self.assertTrue(
