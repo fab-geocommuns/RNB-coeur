@@ -17,7 +17,6 @@ from django.db.models import Q
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.http import JsonResponse
-from django.http import QueryDict
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.utils.http import urlsafe_base64_decode
@@ -59,8 +58,6 @@ from api_alpha.serializers.serializers import BuildingSplitSerializer
 from api_alpha.serializers.serializers import ContributionSerializer
 from api_alpha.serializers.serializers import DiffusionDatabaseSerializer
 from api_alpha.serializers.serializers import GuessBuildingSerializer
-from api_alpha.serializers.serializers import OrganizationSerializer
-from api_alpha.serializers.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import build_schema_all_endpoints
@@ -88,7 +85,6 @@ from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.user import get_user_id_b64
 from batid.services.user import get_user_id_from_b64
-from batid.tasks import create_sandbox_user
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
@@ -1283,51 +1279,6 @@ class RNBAuthToken(ObtainAuthToken):
                 "username": user.username,
                 "groups": [group.name for group in user.groups.all()],
             }
-        )
-
-
-def create_user_in_sandbox(user_data: dict) -> None:
-    user_data_without_password = {**user_data}
-    user_data_without_password.pop("password")
-    create_sandbox_user.delay(user_data_without_password)
-
-
-class CreateUserView(APIView):
-    throttle_scope = "create_user"
-
-    @transaction.atomic
-    def post(self, request, *args, **kwargs):
-        request_data = request.data
-        if isinstance(request_data, QueryDict):
-            request_data = request_data.dict()
-        user_serializer = UserSerializer(data=request_data)
-        user_serializer.is_valid(raise_exception=True)
-        user = user_serializer.save()
-
-        organization_serializer = None
-        organization_name = request_data.get("organization_name")
-        if organization_name:
-            organization_serializer = OrganizationSerializer(
-                data={"name": organization_name}
-            )
-            organization_serializer.is_valid(raise_exception=True)
-            organization, created = Organization.objects.get_or_create(
-                name=organization_name
-            )
-            organization.users.add(user)
-            organization.save()
-
-        if settings.HAS_SANDBOX:
-            create_user_in_sandbox(request_data)
-
-        return Response(
-            {
-                "user": user_serializer.data,
-                "organization": (
-                    organization_serializer.data if organization_serializer else None
-                ),
-            },
-            status=status.HTTP_201_CREATED,
         )
 
 
