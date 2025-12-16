@@ -13,13 +13,102 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql="""
             
-            -- Placeholder function to compute the diff between a building and its previous version
+            -- Function to compute the diff between a building and its previous version
             CREATE OR REPLACE FUNCTION public.compute_building_diff_from_last_version(
                 building batid_building
             )
             RETURNS JSONB AS $$
+            DECLARE
+                prev_version RECORD;
+                result JSONB := '{}'::jsonb;
+                expected_columns TEXT[] := ARRAY[
+                    'id', 'rnb_id', 'point', 'created_at', 'updated_at', 'shape',
+                    'ext_ids', 'event_origin', 'sys_period', 'parent_buildings',
+                    'status', 'event_id', 'event_type', 'event_user_id', 'is_active',
+                    'addresses_id', 'revert_event_id'
+                ];
+                actual_columns TEXT[];
             BEGIN
-                RETURN '{}'::jsonb;
+                -- Assert that batid_building has exactly the expected columns
+                -- This ensures we don't forget to update this function when new columns are added
+                SELECT array_agg(key ORDER BY key)
+                INTO actual_columns
+                FROM jsonb_object_keys(to_jsonb(building)) AS key;
+
+                IF actual_columns IS DISTINCT FROM (SELECT array_agg(c ORDER BY c) FROM unnest(expected_columns) AS c) THEN
+                    RAISE EXCEPTION 'batid_building columns have changed. Expected: %, Got: %. Update compute_building_diff_from_last_version function to handle the new columns if necessary.',
+                        (SELECT array_agg(c ORDER BY c) FROM unnest(expected_columns) AS c),
+                        actual_columns;
+                END IF;
+
+                -- Fetch the most recent previous version from history
+                SELECT * INTO prev_version
+                FROM batid_building_history
+                WHERE rnb_id = building.rnb_id
+                ORDER BY upper(sys_period) DESC
+                LIMIT 1;
+
+                -- Compare point (prev_version.point is NULL if no previous version)
+                IF prev_version.point IS DISTINCT FROM building.point THEN
+                    result := result || jsonb_build_object(
+                        'point',
+                        jsonb_build_array(
+                            CASE WHEN prev_version.point IS NULL THEN NULL ELSE ST_AsEWKT(prev_version.point) END,
+                            CASE WHEN building.point IS NULL THEN NULL ELSE ST_AsEWKT(building.point) END
+                        )
+                    );
+                END IF;
+
+                -- Compare shape
+                IF prev_version.shape IS DISTINCT FROM building.shape THEN
+                    result := result || jsonb_build_object(
+                        'shape',
+                        jsonb_build_array(
+                            CASE WHEN prev_version.shape IS NULL THEN NULL ELSE ST_AsEWKT(prev_version.shape) END,
+                            CASE WHEN building.shape IS NULL THEN NULL ELSE ST_AsEWKT(building.shape) END
+                        )
+                    );
+                END IF;
+
+                -- Compare ext_ids
+                IF prev_version.ext_ids IS DISTINCT FROM building.ext_ids THEN
+                    result := result || jsonb_build_object(
+                        'ext_ids',
+                        jsonb_build_array(
+                            prev_version.ext_ids,
+                            building.ext_ids
+                        )
+                    );
+                END IF;
+
+                -- Compare is_active
+                IF prev_version.is_active IS DISTINCT FROM building.is_active THEN
+                    result := result || jsonb_build_object(
+                        'is_active',
+                        jsonb_build_array(prev_version.is_active, building.is_active)
+                    );
+                END IF;
+
+                -- Compare addresses_id
+                IF prev_version.addresses_id IS DISTINCT FROM building.addresses_id THEN
+                    result := result || jsonb_build_object(
+                        'addresses_id',
+                        jsonb_build_array(
+                            to_jsonb(prev_version.addresses_id),
+                            to_jsonb(building.addresses_id)
+                        )
+                    );
+                END IF;
+
+                -- Compare status
+                IF prev_version.status IS DISTINCT FROM building.status THEN
+                    result := result || jsonb_build_object(
+                        'status',
+                        jsonb_build_array(prev_version.status, building.status)
+                    );
+                END IF;
+
+                RETURN result;
             END;
             $$ LANGUAGE plpgsql;
 
