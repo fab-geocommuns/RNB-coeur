@@ -90,15 +90,8 @@ def merge_contiguous_shapes(shapes: List[GEOSGeometry]) -> GEOSGeometry:
     if not merged.valid:
         merged = merged.make_valid()  # type: ignore[attr-defined]
 
-    # make_valid() can output a GeometryCollection
-    # we want to keep only Polygons/MultiPolygons
     if merged.geom_type == "GeometryCollection":
-        polygons = [g for g in merged if g.geom_type == "Polygon" and not g.empty]  # type: ignore
-
-        if not polygons:
-            raise ImpossibleShapeMerge("La géométrie fusionnée est invalide")
-
-        merged = polygons[0] if len(polygons) == 1 else MultiPolygon(polygons)
+        merged = convert_geometry_collection(merged)
 
     if merged.geom_type not in ("Polygon", "MultiPolygon"):
         raise ImpossibleShapeMerge(
@@ -109,6 +102,16 @@ def merge_contiguous_shapes(shapes: List[GEOSGeometry]) -> GEOSGeometry:
         raise ImpossibleShapeMerge("La géométrie fusionnée est invalide")
 
     return merged
+
+
+def convert_geometry_collection(geom: GEOSGeometry) -> GEOSGeometry:  # type: ignore
+    if geom.geom_type == "GeometryCollection":
+        polygons = [g for g in geom if g.geom_type in ("Polygon", "MultiPolygon") and not g.empty]  # type: ignore
+
+        if len(polygons) == 1:
+            return polygons[0]
+
+        raise ImpossibleShapeMerge("La géométrie fusionnée est invalide")
 
 
 def assert_shape_is_valid(geom: GEOSGeometry):
