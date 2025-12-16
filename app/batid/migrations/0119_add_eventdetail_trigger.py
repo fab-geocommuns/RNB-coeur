@@ -12,6 +12,17 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunSQL(
             sql="""
+            
+            -- Placeholder function to compute the diff between a building and its previous version
+            CREATE OR REPLACE FUNCTION public.compute_building_diff_from_last_version(
+                building batid_building
+            )
+            RETURNS JSONB AS $$
+            BEGIN
+                RETURN '{}'::jsonb;
+            END;
+            $$ LANGUAGE plpgsql;
+
             -- Create a function instead of just a trigger to be able to call it from outside (for instance for backfilling)
             CREATE OR REPLACE FUNCTION public.insert_or_update_event_detail(
                 building batid_building
@@ -64,6 +75,17 @@ class Migration(migrations.Migration):
                     city_id = EXCLUDED.city_id,
                     department_id = EXCLUDED.department_id,
                     user_id = EXCLUDED.user_id;
+
+                INSERT INTO batid_buildingeventdetail (
+                    event_id,
+                    rnb_id,
+                    changes
+                )
+                VALUES (
+                    building.event_id,
+                    building.rnb_id,
+                    compute_building_diff_from_last_version(building)
+                );
             END;
             $$ LANGUAGE plpgsql;
 
@@ -80,16 +102,18 @@ class Migration(migrations.Migration):
             CREATE UNIQUE INDEX IF NOT EXISTS batid_eventdetail_event_id_unique
             ON batid_eventdetail (event_id);
 
-            -- Create trigger for INSERT and UPDATE
-            CREATE TRIGGER building_eventdetail_trigger
+            -- Create trigger for INSERT and UPDATE on batid_building
+            -- Name it like this to make sure it executes after the versioning trigger
+            CREATE TRIGGER building_versioning_trigger_1_insert_or_update_event_detail_trigger
             AFTER INSERT OR UPDATE ON batid_building
             FOR EACH ROW EXECUTE FUNCTION upsert_event_detail_trigger();
             """,
             reverse_sql="""
-            DROP TRIGGER IF EXISTS building_eventdetail_trigger ON batid_building;
+            DROP TRIGGER IF EXISTS building_versioning_trigger_1_insert_or_update_event_detail_trigger ON batid_building;
             DROP INDEX IF EXISTS batid_eventdetail_event_id_unique;
             DROP FUNCTION IF EXISTS public.upsert_event_detail_trigger();
             DROP FUNCTION IF EXISTS public.insert_or_update_event_detail(batid_building);
+            DROP FUNCTION IF EXISTS public.compute_building_diff_from_last_version(batid_building);
             """,
         ),
     ]
