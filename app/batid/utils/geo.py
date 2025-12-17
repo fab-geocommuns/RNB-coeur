@@ -7,6 +7,7 @@ from django.contrib.gis.geos import Polygon
 from pyproj import Geod
 from shapely import wkt
 
+from batid.exceptions import BuildingCannotMove
 from batid.exceptions import BuildingTooLarge
 from batid.exceptions import BuildingTooSmall
 from batid.exceptions import ImpossibleShapeMerge
@@ -152,6 +153,35 @@ def assert_shape_is_valid(geom: GEOSGeometry):
     check_coords(geom)
     check_area(geom)
     return True
+
+
+def assert_new_shape_is_close_enough(
+    old_shape: GEOSGeometry, new_shape: GEOSGeometry, max_dist: int = 40
+) -> bool:
+    # in case of intersection, we are fine
+    if old_shape.intersects(new_shape):
+        return True
+
+    # otherwise, we check if the distance is less than 40m
+    # using a simplified criteria
+    old_pos = old_shape.centroid
+    new_pos = new_shape.centroid
+
+    geod = Geod(ellps="WGS84")
+
+    _, _, dist_m = geod.inv(
+        old_pos.x,
+        old_pos.y,
+        new_pos.x,
+        new_pos.y,
+    )
+
+    if dist_m < max_dist:
+        return True
+
+    raise BuildingCannotMove(
+        f"La géometrie d'un bâtiment ne peut pas être déplacée sur une trop grande distance."
+    )
 
 
 def compute_shape_area(shape: GEOSGeometry) -> float:

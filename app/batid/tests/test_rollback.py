@@ -180,7 +180,7 @@ class TestUnitaryRollback(TransactionTestCase):
             status="notUsable",
             addresses_id=[],
             ext_ids=[{"source": "bdtopo", "id": "YYY"}],
-            shape=GEOSGeometry("POINT(1 1)"),
+            shape=GEOSGeometry("POINT(0.000000001 0)"),
         )
         self.building_1.refresh_from_db()
         update_event_id = self.building_1.event_id
