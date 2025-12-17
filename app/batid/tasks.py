@@ -407,3 +407,27 @@ def fill_empty_event_type(batch_size: int) -> int:
             break
 
     return f"Total updated rows: {total}"  # type: ignore[return-value]
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def backfill_event_details(batch_size: int = 1000) -> int:
+    from batid.services.data_fix.backfill_event_details import (
+        backfill_event_details as backfill_func,
+    )
+
+    total = 0
+
+    while True:
+        # Process buildings in batches
+        # If no rows are processed, we can stop
+        processed_rows = backfill_func(batch_size=batch_size)
+        total += processed_rows
+
+        print("-------------")
+        print(f"Processed {processed_rows} buildings")
+        print("Total so far: ", total)
+
+        if processed_rows == 0:
+            break
+
+    return f"Total processed buildings: {total}"  # type: ignore[return-value]
