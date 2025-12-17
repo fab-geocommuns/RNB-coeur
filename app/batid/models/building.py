@@ -35,6 +35,7 @@ from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.rnb_id import generate_rnb_id
 from batid.services.user import check_and_increment_contribution_count
 from batid.utils.db import from_now_to_infinity
+from batid.utils.geo import assert_new_shape_is_close_enough
 from batid.utils.geo import assert_shape_is_valid
 from batid.validators import validate_one_ext_id
 
@@ -363,6 +364,7 @@ class Building(BuildingAbstract):
             )
         if shape:
             assert_shape_is_valid(shape)
+            assert_new_shape_is_close_enough(self.shape, shape)
 
         self.event_type = "update"
         self.event_id = uuid.uuid4()
@@ -714,6 +716,7 @@ class Building(BuildingAbstract):
                 Address.add_addresses_to_db_if_needed(addresses_cle_interop)
             geos_shape = GEOSGeometry(shape)
             assert_shape_is_valid(geos_shape)
+            assert_new_shape_is_close_enough(self.shape, geos_shape, max_dist=100)
 
             child_building = Building()
             child_building.rnb_id = generate_rnb_id()
