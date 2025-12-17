@@ -88,6 +88,13 @@ class BuildingTooSmall(InvalidOperation):
         return f"La surface du bâtiment est trop petite, le minimum autorisé est de {settings.MIN_BUILDING_AREA}m²"
 
 
+class BuildingCannotMove(InvalidOperation):
+    """A building is not expected to move"""
+
+    def api_message(self):
+        return "La géometrie d'un bâtiment ne peut pas être déplacée sur une trop grande distance."
+
+
 class ImpossibleShapeMerge(InvalidOperation):
     """The given shapes could not be merged"""
 
