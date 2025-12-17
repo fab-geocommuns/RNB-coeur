@@ -92,7 +92,7 @@ class BuildingCannotMove(InvalidOperation):
     """A building is not expected to move"""
 
     def api_message(self):
-        return "La géometrie d'un bâtiment ne peut pas être déplacé sur une trop grande distance."
+        return "La géometrie d'un bâtiment ne peut pas être déplacée sur une trop grande distance."
 
 
 class ImpossibleShapeMerge(InvalidOperation):

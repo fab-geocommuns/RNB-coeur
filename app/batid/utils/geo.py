@@ -180,7 +180,7 @@ def assert_new_shape_is_close_enough(
         return True
 
     raise BuildingCannotMove(
-        f"La géometrie d'un bâtiment ne peut pas être déplacé sur une trop grande distance."
+        f"La géometrie d'un bâtiment ne peut pas être déplacée sur une trop grande distance."
     )
 
 
