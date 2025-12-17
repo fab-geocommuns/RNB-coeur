@@ -364,7 +364,8 @@ class Building(BuildingAbstract):
             )
         if shape:
             assert_shape_is_valid(shape)
-            assert_new_shape_is_close_enough(self.shape, shape)
+            if self.shape:
+                assert_new_shape_is_close_enough(self.shape, shape)
 
         self.event_type = "update"
         self.event_id = uuid.uuid4()
@@ -716,7 +717,8 @@ class Building(BuildingAbstract):
                 Address.add_addresses_to_db_if_needed(addresses_cle_interop)
             geos_shape = GEOSGeometry(shape)
             assert_shape_is_valid(geos_shape)
-            assert_new_shape_is_close_enough(self.shape, geos_shape, max_dist=100)
+            if self.shape:
+                assert_new_shape_is_close_enough(self.shape, geos_shape, max_dist=100)
 
             child_building = Building()
             child_building.rnb_id = generate_rnb_id()
