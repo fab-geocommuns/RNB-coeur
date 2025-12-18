@@ -105,14 +105,18 @@ def merge_contiguous_shapes(shapes: List[GEOSGeometry]) -> GEOSGeometry:
     return merged
 
 
-def convert_geometry_collection(geom: GEOSGeometry) -> GEOSGeometry:  # type: ignore
+def convert_geometry_collection(geom: GEOSGeometry) -> GEOSGeometry:
     if geom.geom_type == "GeometryCollection":
-        polygons = [g for g in geom if g.geom_type in ("Polygon", "MultiPolygon") and not g.empty]  # type: ignore
+        polygons = [
+            g
+            for g in geom  # type: ignore
+            if g.geom_type in ("Polygon", "MultiPolygon") and not g.empty
+        ]
 
         if len(polygons) == 1:
             return polygons[0]
 
-        raise ImpossibleShapeMerge("La géométrie fusionnée est invalide")
+    raise ImpossibleShapeMerge("La géométrie fusionnée est invalide")
 
 
 def assert_shape_is_valid(geom: GEOSGeometry):
