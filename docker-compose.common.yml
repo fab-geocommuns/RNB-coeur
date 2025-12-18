@@ -79,7 +79,7 @@ services:
       context: ./app
       dockerfile: ./Dockerfile
       target: app_worker
-    command: celery -A app beat --loglevel=WARNING -s ./data/celerybeat-schedule
+    command: celery -A app beat --loglevel=DEBUG -s ./data/celerybeat-schedule
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -113,7 +113,7 @@ services:
     restart: unless-stopped
     image: mher/flower:2.0.1
     container_name: flower
-    command: celery flower --url_prefix=flower
+    command: celery flower --url_prefix=flower --basic-auth=user:password
     depends_on:
       rabbitmq:
         condition: service_healthy

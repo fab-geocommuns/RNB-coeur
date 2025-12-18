@@ -410,24 +410,78 @@ def fill_empty_event_type(batch_size: int) -> int:
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def backfill_event_details(batch_size: int = 1000) -> int:
+def test_logging():
+    print("This is a test logging message")
+    return "done"
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def backfill_event_details_history(batch_size: int = 1000) -> int:
+    """
+    Backfills EventDetail and BuildingEventDetail for historical building records.
+
+    This task processes historical building records in batches and calls the SQL function
+    insert_or_update_event_detail for each record that has the required fields.
+
+    Args:
+        batch_size: Number of historical records to process per batch
+
+    Returns:
+        Total number of historical records processed
+    """
     from batid.services.data_fix.backfill_event_details import (
-        backfill_event_details as backfill_func,
+        backfill_event_details_history as backfill_func,
     )
 
     total = 0
 
     while True:
-        # Process buildings in batches
+        # Process historical records in batches
         # If no rows are processed, we can stop
         processed_rows = backfill_func(batch_size=batch_size)
         total += processed_rows
 
         print("-------------")
-        print(f"Processed {processed_rows} buildings")
+        print(f"Processed {processed_rows} historical records")
+        print("Total so far: ", total, flush=True)
+
+        if processed_rows == 0:
+            break
+
+    return f"Total processed historical records: {total}"  # type: ignore[return-value]
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def backfill_event_details_current(batch_size: int = 1000) -> int:
+    """
+    Backfills EventDetail and BuildingEventDetail for current building records.
+
+    This task processes current building records in batches and calls the SQL function
+    insert_or_update_event_detail for each record that has the required fields.
+
+    Args:
+        batch_size: Number of current records to process per batch
+
+    Returns:
+        Total number of current records processed
+    """
+    from batid.services.data_fix.backfill_event_details import (
+        backfill_event_details_current as backfill_func,
+    )
+
+    total = 0
+
+    while True:
+        # Process current records in batches
+        # If no rows are processed, we can stop
+        processed_rows = backfill_func(batch_size=batch_size)
+        total += processed_rows
+
+        print("-------------")
+        print(f"Processed {processed_rows} current records")
         print("Total so far: ", total)
 
         if processed_rows == 0:
             break
 
-    return f"Total processed buildings: {total}"  # type: ignore[return-value]
+    return f"Total processed current records: {total}"  # type: ignore[return-value]
