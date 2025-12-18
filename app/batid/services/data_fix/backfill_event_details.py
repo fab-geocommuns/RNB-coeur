@@ -159,23 +159,9 @@ def backfill_event_details_history(batch_size: int = 1000) -> int:
                 print(f"Processing history building {idx}/{len(queue_items)}: {rnb_id} (event: {event_id})")
 
                 process_sql = """
-                    WITH building_data AS (
-                        SELECT
-                            b.id, b.rnb_id, b.point, b.created_at, b.updated_at, b.shape,
-                            b.ext_ids, b.event_origin, b.sys_period, b.parent_buildings,
-                            b.status, b.event_id, b.event_type, b.event_user_id, b.is_active,
-                            b.addresses_id, b.revert_event_id
-                        FROM batid_building_history b
-                        WHERE b.event_id = %s AND b.rnb_id = %s
-                    )
-                    SELECT
-                        insert_or_update_event_detail(ROW(
-                            b.id, b.rnb_id, b.point, b.created_at, b.updated_at, b.shape,
-                            b.ext_ids, b.event_origin, b.sys_period, b.parent_buildings,
-                            b.status, b.event_id, b.event_type, b.event_user_id, b.is_active,
-                            b.addresses_id, b.revert_event_id
-                        )::batid_building)
-                    FROM building_data b;
+                    SELECT insert_or_update_event_detail_from_history_row(b.*)
+                    FROM batid_building_history b
+                    WHERE b.event_id = %s AND b.rnb_id = %s;
                 """
 
                 cursor.execute(process_sql, [event_id, rnb_id])

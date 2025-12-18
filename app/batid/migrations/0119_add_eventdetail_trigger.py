@@ -178,6 +178,37 @@ class Migration(migrations.Migration):
             END;
             $$ LANGUAGE plpgsql;
 
+            -- Helper function to convert batid_building_history row to batid_building and call insert_or_update_event_detail
+            -- This is useful for backfilling from history table
+            CREATE OR REPLACE FUNCTION public.insert_or_update_event_detail_from_history_row(
+                history_row batid_building_history
+            )
+            RETURNS VOID AS $$
+            BEGIN
+                PERFORM insert_or_update_event_detail(
+                    ROW(
+                        history_row.id,
+                        history_row.rnb_id,
+                        history_row.point,
+                        history_row.created_at,
+                        history_row.updated_at,
+                        history_row.shape,
+                        history_row.ext_ids,
+                        history_row.event_origin,
+                        history_row.sys_period,
+                        history_row.parent_buildings,
+                        history_row.status,
+                        history_row.event_id,
+                        history_row.event_type,
+                        history_row.event_user_id,
+                        history_row.is_active,
+                        history_row.addresses_id,
+                        history_row.revert_event_id
+                    )::batid_building
+                );
+            END;
+            $$ LANGUAGE plpgsql;
+
             -- Trigger that calls the function
             CREATE OR REPLACE FUNCTION public.upsert_event_detail_trigger()
             RETURNS TRIGGER AS $$
@@ -201,6 +232,7 @@ class Migration(migrations.Migration):
             DROP TRIGGER IF EXISTS building_versioning_trigger_1_insert_or_update_event_detail_trigger ON batid_building;
             DROP INDEX IF EXISTS batid_eventdetail_event_id_unique;
             DROP FUNCTION IF EXISTS public.upsert_event_detail_trigger();
+            DROP FUNCTION IF EXISTS public.insert_or_update_event_detail_from_history_row(batid_building_history);
             DROP FUNCTION IF EXISTS public.insert_or_update_event_detail(batid_building);
             DROP FUNCTION IF EXISTS public.compute_building_diff_from_last_version(batid_building);
             """,
