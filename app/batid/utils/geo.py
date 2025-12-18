@@ -190,9 +190,7 @@ def assert_new_shape_is_close_enough(
     if dist_m < max_dist:
         return True
 
-    raise BuildingCannotMove(
-        f"La géometrie d'un bâtiment ne peut pas être déplacée sur une trop grande distance."
-    )
+    raise BuildingCannotMove()
 
 
 def compute_shape_area(shape: GEOSGeometry) -> float:

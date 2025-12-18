@@ -50,14 +50,14 @@ class DatabaseInconsistency(Exception):
     """The database consistency is broken."""
 
     def api_message(self):
-        return "La base est dans un état incohérent."
+        return "La base est dans un état incohérent"
 
 
 class RevertNotAllowed(InvalidOperation):
     """The revert operation is not allowed"""
 
     def api_message(self):
-        return "Le retour en arrière de l'opération n'est pas possible, car les bâtiments concernés ont été modifiés depuis."
+        return "Le retour en arrière de l'opération n'est pas possible, car les bâtiments concernés ont été modifiés depuis"
 
 
 class NotEnoughBuildings(InvalidOperation):
@@ -92,7 +92,7 @@ class BuildingCannotMove(InvalidOperation):
     """A building is not expected to move"""
 
     def api_message(self):
-        return "La géometrie d'un bâtiment ne peut pas être déplacée sur une trop grande distance."
+        return "La géometrie d'un bâtiment ne peut pas être déplacée sur une trop grande distance"
 
 
 class ImpossibleShapeMerge(InvalidOperation):

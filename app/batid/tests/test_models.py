@@ -463,7 +463,7 @@ class TestUpdateBuilding(TestCase):
         self.assertEqual(b.sys_period, sys_period)
 
     def test_moving_a_building_raises(self):
-        with self.assertRaises(BuildingCannotMove):
+        with self.assertRaises(BuildingCannotMove) as e:
             self.b.update(
                 self.user,
                 event_origin={"source": "xxx"},
@@ -473,6 +473,11 @@ class TestUpdateBuilding(TestCase):
                     "POLYGON((0 0, 0 0.00001, 0.0001 0.0001, 0.0001 0, 0 0))"
                 ),
             )
+
+        self.assertEqual(
+            str(e.exception.api_message_with_details()),
+            "La géometrie d'un bâtiment ne peut pas être déplacée sur une trop grande distance",
+        )
 
 
 class TestExtIdsComparison(TestCase):
