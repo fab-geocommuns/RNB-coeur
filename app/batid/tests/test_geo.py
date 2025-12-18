@@ -1,5 +1,6 @@
 import json
 
+from django.contrib.gis.geos import GeometryCollection
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
 from django.test import TestCase
@@ -11,6 +12,7 @@ from batid.exceptions import ImpossibleShapeMerge
 from batid.exceptions import InvalidWGS84Geometry
 from batid.utils.geo import assert_shape_is_valid
 from batid.utils.geo import compute_shape_area
+from batid.utils.geo import convert_geometry_collection
 from batid.utils.geo import fix_nested_shells
 from batid.utils.geo import merge_contiguous_shapes
 
@@ -65,7 +67,13 @@ class TestGeo(TestCase):
         merged_shapes = merge_contiguous_shapes(shapes)
         res_coordinates = json.loads(merged_shapes.json)["coordinates"]
         expected_coordinates = [
-            [[3.0, 1.0], [3.0, 0.0], [0.0, 0.0], [0.0, 1.0], [3.0, 1.0]]
+            [
+                [0.0, 1.0],
+                [3.0, 1.0],
+                [3.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 1.0],
+            ]
         ]
 
         self.assertTrue(
@@ -145,6 +153,56 @@ class TestGeo(TestCase):
         # also check the result is valid, because for this specific test case, the resulting merged shape is naturally invalid
         # and is fixed by the make_valid() function
         self.assertTrue(merged_shape.valid)
+
+
+class TestConvertGeometryCollection(TestCase):
+    def test_convert_polygon_and_line_string(self):
+        polygon_wkt = "POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))"
+        geometries = [GEOSGeometry(polygon_wkt), GEOSGeometry("LINESTRING (1 0, 1 1)")]
+        geom = GeometryCollection(geometries)
+        geom = convert_geometry_collection(geom)
+
+        self.assertEqual(geom.geom_type, "Polygon")
+        self.assertEqual(geom.wkt, polygon_wkt)
+
+    def test_convert_multi_polygon_and_line_string(self):
+        multi_polygon_wkt = "MULTIPOLYGON (((1 0, 1 1, 2 1, 2 0, 1 0)))"
+        geometries = [
+            GEOSGeometry(multi_polygon_wkt),
+            GEOSGeometry("LINESTRING (1 0, 1 1)"),
+            GEOSGeometry("LINESTRING (2 0, 1 1)"),
+        ]
+        geom = GeometryCollection(geometries)
+        geom = convert_geometry_collection(geom)
+
+        self.assertEqual(geom.geom_type, "MultiPolygon")
+        self.assertEqual(geom.wkt, multi_polygon_wkt)
+
+    def test_convert_diverse_geometry(self):
+        multi_polygon_wkt = "MULTIPOLYGON (((1 0, 1 1, 2 1, 2 0, 1 0)))"
+        multi_polygon_wkt_2 = "MULTIPOLYGON (((0 0, 1 0, 1 1, 0 1, 0 0)))"
+
+        geometries = [
+            GEOSGeometry(multi_polygon_wkt_2),
+            GEOSGeometry(multi_polygon_wkt),
+            GEOSGeometry("LINESTRING (1 0, 1 1)"),
+        ]
+        geom = GeometryCollection(geometries)
+        with self.assertRaises(Exception):
+            convert_geometry_collection(geom)
+
+    def test_convert_diverse_geometry_2(self):
+        multi_polygon_wkt = "MULTIPOLYGON (((1 0, 1 1, 2 1, 2 0, 1 0)))"
+        polygon_wkt = "POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))"
+
+        geometries = [
+            GEOSGeometry(polygon_wkt),
+            GEOSGeometry(multi_polygon_wkt),
+            GEOSGeometry("LINESTRING (1 0, 1 1)"),
+        ]
+        geom = GeometryCollection(geometries)
+        with self.assertRaises(Exception):
+            convert_geometry_collection(geom)
 
 
 class TestShapeVerification(TestCase):
