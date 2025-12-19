@@ -3,8 +3,10 @@ import math
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
@@ -666,6 +668,22 @@ class UserSerializer(serializers.ModelSerializer):
             or User.objects.filter(username=value).exists()
         ):
             raise serializers.ValidationError("Un utilisateur avec ce nom existe déjà.")
+        return value
+
+    def validate_password(self, value):
+        # virtual user to compare with the password for similairty checks
+        user = User(
+            username=self.initial_data.get("username"),
+            email=self.initial_data.get("email"),
+            first_name=self.initial_data.get("first_name"),
+            last_name=self.initial_data.get("last_name"),
+        )
+
+        try:
+            validate_password(value, user=user)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.messages)
+
         return value
 
     def create(self, validated_data):

@@ -19,7 +19,7 @@ class UserCreation(APITestCase):
             "first_name": "Julie",
             "email": "julie.b+test@exemple.com",
             "username": "juju",
-            "password": "tajine",
+            "password": "tajine1234!",
             "organization_name": "Mairie d'Angoulème",
             "job_title": "responsable SIG",
         }
@@ -44,7 +44,7 @@ class UserCreation(APITestCase):
         self.assertEqual(julie.last_name, "B")
         self.assertEqual(julie.email, "julie.b+test@exemple.com")
         # we check the password is properly hashed
-        self.assertNotEqual(julie.password, "tajine")
+        self.assertNotEqual(julie.password, "tajine1234!")
         self.assertIsNotNone(julie.password)
         self.assertEqual(julie.username, "juju")
         self.assertEqual(len(julie.organizations.all()), 1)
@@ -309,7 +309,7 @@ class UserCreation(APITestCase):
             "first_name": "Julie",
             "email": "julie.b+test@exemple.com",
             "username": "juju",
-            "password": "tajine",
+            "password": "tajine1234!",
             "organization_name": None,
             "job_title": None,
         }
@@ -343,3 +343,62 @@ class UserCreation(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
         email = mail.outbox[0]
         self.assertEqual(email.to, [julie.email])
+
+    @mock.patch("batid.tasks.create_sandbox_user.delay")
+    @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
+    def test_password_requirements(
+        self, mock_validate_captcha, mock_create_sandbox_user
+    ):
+        self.julie_data = {
+            "last_name": "Beach",
+            "first_name": "Julie",
+            "email": "Superjuju+test@exemple.com",
+            "username": "juju",
+            "password": "Superjuju+test@exemple.com",
+            "organization_name": None,
+            "job_title": None,
+        }
+        response = self.client.post(
+            "/api/alpha/auth/users/",
+            self.julie_data,
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertDictEqual(
+            response.json(),
+            {
+                "password": [
+                    "Le mot de passe est trop semblable au champ « adresse électronique »."
+                ]
+            },
+        )
+
+        self.julie_data["password"] = "Julie"
+        response = self.client.post(
+            "/api/alpha/auth/users/",
+            self.julie_data,
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertDictEqual(
+            response.json(),
+            {
+                "password": [
+                    "Le mot de passe est trop semblable au champ « prénom ».",
+                    "Ce mot de passe est trop court. Il doit contenir au minimum 8 caractères.",
+                    "Ce mot de passe est trop courant.",
+                ]
+            },
+        )
+
+        self.julie_data["password"] = "15487922584"
+        response = self.client.post(
+            "/api/alpha/auth/users/",
+            self.julie_data,
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertDictEqual(
+            response.json(),
+            {"password": ["Ce mot de passe est entièrement numérique."]},
+        )
