@@ -8,6 +8,7 @@ from datetime import timezone
 from typing import Optional
 
 import fiona  # type: ignore[import-untyped]
+import geopandas as gpd
 import psycopg2
 from celery import chain
 from celery import Signature
@@ -70,57 +71,60 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
         "bdtopo", bulk_launch_uuid, src_params["dpt"]
     )
 
-    with fiona.open(src.find(src.filename)) as f:
-        print("-- read bdtopo ")
+    path = src.find(src.filename)
 
-        # We extract the SRID from the crs attribute of the shapefile
-        srid = int(f.crs["init"].split(":")[1])
+    gdf = gpd.read_file(path, layer="batiment")
 
-        candidates = []
+    srid = gdf.crs.to_epsg()
 
-        for feature in f:
-            # We skip the light buildings
-            if feature["properties"]["LEGER"] == "Oui":
-                continue
+    # keep only where construction_legere is False
+    gdf = gdf[gdf["construction_legere"] == False]
 
-            if _known_bdtopo_id(feature["properties"]["ID"]):
-                continue
+    candidates = []
 
-            candidate = _transform_bdtopo_feature(feature, srid)
-            candidate = _add_import_info(candidate, building_import)
-            candidate["source_version"] = src_params["date"]
-            candidates.append(candidate)
+    # iterate over the rows
+    for index, row in gdf.iterrows():
 
-        buffer = BufferToCopy()
-        buffer.write_data(candidates)
+        if _known_bdtopo_id(row["cleabs"]):
+            continue
 
-        cols = candidates[0].keys()
+        candidate = _transform_bdtopo_feature(row, srid)
+        candidate = _add_import_info(candidate, building_import)
+        candidate["source_version"] = src_params["date"]
+        candidates.append(candidate)
 
-        with open(buffer.path, "r") as f:
-            with transaction.atomic():
-                print("-- transfer buffer to db --")
-                try:
-                    with connection.cursor() as cursor:
+        
 
-                        # Allow for a long COPY operation
-                        timeout = 5 * 3600 * 1000  # 5 hours in milliseconds
-                        cursor.execute(f"SET statement_timeout = {timeout};")
+    buffer = BufferToCopy()
+    buffer.write_data(candidates)
 
-                        cursor.copy_from(
-                            f, Candidate._meta.db_table, sep=";", columns=cols
-                        )
+    cols = candidates[0].keys()
 
-                    building_import_history.increment_created_candidates(
-                        building_import, len(candidates)
+    with open(buffer.path, "r") as f:
+        with transaction.atomic():
+            print("-- transfer buffer to db --")
+            try:
+                with connection.cursor() as cursor:
+
+                    # Allow for a long COPY operation
+                    timeout = 5 * 3600 * 1000  # 5 hours in milliseconds
+                    cursor.execute(f"SET statement_timeout = {timeout};")
+
+                    cursor.copy_from(
+                        f, Candidate._meta.db_table, sep=";", columns=cols
                     )
 
-                except (Exception, psycopg2.DatabaseError) as error:
-                    raise error
+                building_import_history.increment_created_candidates(
+                    building_import, len(candidates)
+                )
 
-        print("- remove buffer")
-        os.remove(buffer.path)
-        print(f"- remove {src.uncompress_folder} folder")
-        src.remove_uncompressed_folder()
+            except (Exception, psycopg2.DatabaseError) as error:
+                raise error
+
+    print("- remove buffer")
+    os.remove(buffer.path)
+    print(f"- remove {src.uncompress_folder} folder")
+    src.remove_uncompressed_folder()
 
 
 def _known_bdtopo_id(bdtopo_id: str) -> bool:
@@ -137,9 +141,9 @@ def _transform_bdtopo_feature(feature, from_srid) -> dict:
 
     candidate_dict = {
         "shape": geom_wkt,
-        "is_light": feature["properties"]["LEGER"] == "Oui",
+        "is_light": feature["construction_legere"],
         "source": "bdtopo",
-        "source_id": feature["properties"]["ID"],
+        "source_id": feature["cleabs"],
         "address_keys": f"{{{','.join(address_keys)}}}",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
@@ -156,8 +160,10 @@ def _add_import_info(candidate, building_import: BuildingImport):
 
 
 def feature_to_wkt(feature, from_srid):
-    # From shapefile feature to GEOS geometry
-    geom = GEOSGeometry(json.dumps(dict(feature["geometry"])))
+
+    
+    # From shapely geom to GEOS geometry
+    geom = GEOSGeometry(feature["geometry"].wkt)
     geom.srid = from_srid
 
     # From local SRID to WGS84

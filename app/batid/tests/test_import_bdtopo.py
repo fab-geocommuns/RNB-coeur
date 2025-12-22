@@ -13,8 +13,19 @@ from batid.services.imports.import_bdtopo import bdtopo_dpts_list
 from batid.services.imports.import_bdtopo import bdtopo_src_params
 from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
 from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
+from batid.services.source import Source
 from batid.tests import helpers
 from batid.tests.helpers import create_default_bdg
+
+class ImportBDTopoGeopackage(TransactionTestCase):
+    
+    def test_convert(self):
+
+        src_params = bdtopo_src_params("51", "2025-09-15")
+
+        create_candidate_from_bdtopo(src_params)
+
+        self.assertTrue(False)
 
 
 class ImportBDTopo(TransactionTestCase):
