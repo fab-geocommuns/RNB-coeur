@@ -19,9 +19,15 @@ from batid.tests.helpers import create_default_bdg
 
 class ImportBDTopoGeopackage(TransactionTestCase):
     
-    def test_convert(self):
+    
+    @patch("batid.services.imports.import_bdtopo.Source.find")
+    @patch("batid.services.imports.import_bdtopo.Source.remove_uncompressed_folder")
+    def test_convert(self, sourceRemoveFolderMock, sourceFindMock):
 
-        src_params = bdtopo_src_params("51", "2025-09-15")
+        sourceFindMock.return_value = helpers.fixture_path("bdtopo_for_test.gpkg")
+        sourceRemoveFolderMock.return_value = None
+
+        src_params = bdtopo_src_params("02", "2025-09-15")
 
         create_candidate_from_bdtopo(src_params)
 

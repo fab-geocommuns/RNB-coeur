@@ -93,6 +93,9 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
         candidate["source_version"] = src_params["date"]
         candidates.append(candidate)
 
+        print("---")
+        print(candidate)
+
         
 
     buffer = BufferToCopy()
