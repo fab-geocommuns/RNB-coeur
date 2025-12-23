@@ -18,6 +18,20 @@ from batid.tests import helpers
 from batid.tests.helpers import create_default_bdg
 
 class ImportBDTopoGeopackage(TransactionTestCase):
+
+    def setUp(self):
+        
+
+        # Create a bdg with a bdtopo ID also present in the file. It should be skipped
+        bdg = create_default_bdg("RNB_ID")
+        bdg.ext_ids = Building.add_ext_id(
+            bdg.ext_ids,
+            "bdtopo",
+            "2025-09-15",
+            "BATIMENT0000000312141319",
+            "2025-12-15",
+        )
+        bdg.save()
     
     
     @patch("batid.services.imports.import_bdtopo.Source.find")
@@ -31,7 +45,15 @@ class ImportBDTopoGeopackage(TransactionTestCase):
 
         create_candidate_from_bdtopo(src_params)
 
-        self.assertTrue(False)
+        # The fixture file has 6 buildings
+        # One of them is skipped because the database contains a bdg with the same bdtopo ID
+        # Another one is skipped because it is a light building
+        self.assertEqual(Candidate.objects.count(), 4)
+
+
+        # Check a light bdtopo building is not imported
+        c = Candidate.objects.filter(source_id="BATIMENT0000000312141366").first()
+        self.assertIsNone(c)
 
 
 class ImportBDTopo(TransactionTestCase):
