@@ -6,8 +6,6 @@ from datetime import date
 from datetime import datetime
 from datetime import timezone
 from typing import Optional
-
-import fiona  # type: ignore[import-untyped]
 import geopandas as gpd
 import psycopg2
 from celery import chain

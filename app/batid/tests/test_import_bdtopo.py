@@ -85,7 +85,7 @@ class ImportBDTopoGeopackage(TransactionTestCase):
         i = Inspector()
         i.inspect()
 
-        # Expect 4 buildings: one frome setUp and 3 from the import (candidate BATIMENT0000000312141318 should be rejected since it is too small)
+        # Expect 4 buildings: one from setUp and 3 from the import (candidate BATIMENT0000000312141318 should be rejected since it is too small)
         self.assertEqual(Building.objects.count(), 4)
 
 
