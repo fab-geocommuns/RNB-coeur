@@ -2,7 +2,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import Polygon, MultiPolygon
+from django.contrib.gis.geos import MultiPolygon
 from django.test import TestCase
 from django.test import TransactionTestCase
 
@@ -13,13 +13,11 @@ from batid.services.imports.import_bdtopo import bdtopo_dpts_list
 from batid.services.imports.import_bdtopo import bdtopo_src_params
 from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
 from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
-from batid.services.source import Source
 from batid.tests import helpers
 from batid.tests.helpers import create_default_bdg
 
 
 class ImportBDTopoGeopackage(TransactionTestCase):
-
     def setUp(self):
 
         # Create a bdg with a bdtopo ID also present in the file. It should be skipped
