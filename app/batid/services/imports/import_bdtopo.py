@@ -93,11 +93,6 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
         candidate["source_version"] = src_params["date"]
         candidates.append(candidate)
 
-        print("---")
-        print(candidate)
-
-        
-
     buffer = BufferToCopy()
     buffer.write_data(candidates)
 
@@ -113,9 +108,7 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
                     timeout = 5 * 3600 * 1000  # 5 hours in milliseconds
                     cursor.execute(f"SET statement_timeout = {timeout};")
 
-                    cursor.copy_from(
-                        f, Candidate._meta.db_table, sep=";", columns=cols
-                    )
+                    cursor.copy_from(f, Candidate._meta.db_table, sep=";", columns=cols)
 
                 building_import_history.increment_created_candidates(
                     building_import, len(candidates)
@@ -164,7 +157,6 @@ def _add_import_info(candidate, building_import: BuildingImport):
 
 def feature_to_wkt(feature, from_srid):
 
-    
     # From shapely geom to GEOS geometry
     geom = GEOSGeometry(feature["geometry"].wkt)
     geom.srid = from_srid
