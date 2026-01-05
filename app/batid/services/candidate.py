@@ -498,7 +498,7 @@ def _report_list_fake_updates(since: datetime) -> list:
         # We check each updated building
         for candidate in candidates:
 
-            rnb_id = candidate.inspection_details["rnb_id"]
+            rnb_id = candidate.inspection_details["rnb_id"]  # type: ignore[index]
 
             # todo : this query is ok with a rearely updated database.
             # We may upgrade it to get the right BuildingWithHistory based on a stronger critera

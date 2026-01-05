@@ -11,13 +11,9 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
-from django.db import connection
 from django.db import transaction
-from django.db.models import Q
-from django.db.models import Sum
 from django.http import HttpResponse
 from django.http import JsonResponse
-from django.http import QueryDict
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.utils.http import urlsafe_base64_decode
@@ -32,7 +28,6 @@ from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.decorators import api_view
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
@@ -59,8 +54,6 @@ from api_alpha.serializers.serializers import BuildingSplitSerializer
 from api_alpha.serializers.serializers import ContributionSerializer
 from api_alpha.serializers.serializers import DiffusionDatabaseSerializer
 from api_alpha.serializers.serializers import GuessBuildingSerializer
-from api_alpha.serializers.serializers import OrganizationSerializer
-from api_alpha.serializers.serializers import UserSerializer
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import build_schema_all_endpoints
@@ -77,7 +70,6 @@ from batid.models import Building
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
-from batid.models import SummerChallenge
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
@@ -88,7 +80,6 @@ from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.user import get_user_id_b64
 from batid.services.user import get_user_id_from_b64
-from batid.tasks import create_sandbox_user
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
@@ -1121,156 +1112,6 @@ class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             return Response(serializer.errors, status=400)
 
 
-def get_contributor_count_and_rank(email):
-    rawSql = """
-    with ranking as (select email, count(*) as count, rank() over(order by count(*) desc) from batid_contribution where email is not null and email != '' and status != 'refused' group by email order by count desc)
-    select count, rank from ranking where email = %s;
-    """
-
-    with connection.cursor() as cursor:
-        cursor.execute(rawSql, [email])
-        results = cursor.fetchall()
-        target_count, target_rank = results[0]
-
-        return (target_count, target_rank)
-
-
-def individual_ranking():
-    rawSql = """
-    select count(*) as count, rank() over(order by count(*) desc)
-    from batid_contribution
-    where email is not null and email != '' and status != 'refused' and created_at < '2024-09-04'
-    group by email
-    order by count desc;
-    """
-
-    with connection.cursor() as cursor:
-        cursor.execute(rawSql)
-        results = cursor.fetchall()
-        return results
-
-
-def departement_ranking():
-    rawSql = """
-    select d.code, d.name, count(*) as count_dpt
-    from batid_contribution c
-    left join batid_building b on c.rnb_id = b.rnb_id
-    left join batid_department_subdivided d on ST_Contains(d.shape, b.point)
-    where c.status != 'refused' and c.created_at < '2024-09-04'
-    group by d.code, d.name
-    order by count_dpt desc, d.code asc;
-    """
-
-    with connection.cursor() as cursor:
-        cursor.execute(rawSql)
-        results = cursor.fetchall()
-        return results
-
-
-def city_ranking():
-    rawSql = """
-    select city.code_insee, city.name, count(*) as count_city
-    from batid_contribution c
-    inner join batid_building b on c.rnb_id = b.rnb_id
-    inner join batid_city city on ST_Contains(city.shape, b.point)
-    where c.status != 'refused' and c.created_at < '2024-09-04'
-    group by city.code_insee, city.name
-    order by count_city desc, city.code_insee asc;
-    """
-
-    with connection.cursor() as cursor:
-        cursor.execute(rawSql)
-        results = cursor.fetchall()
-        return results
-
-
-def summer_challenge_targeted_score():
-    return 100_000
-
-
-def summer_challenge_global_score():
-    global_score = SummerChallenge.objects.aggregate(score=Sum("score"))
-    return global_score["score"]
-
-
-def summer_challenge_leaderboard(max_rank):
-    global_score = summer_challenge_global_score()
-
-    individual_ranking = (
-        SummerChallenge.objects.values_list("user__username")
-        .annotate(score=Sum("score"))
-        .order_by("-score")[:max_rank]
-    )
-    individual_ranking = [list(row) for row in individual_ranking]
-
-    city_ranking = (
-        SummerChallenge.objects.exclude(city__isnull=True)
-        .values_list("city__code_insee", "city__name")
-        .annotate(score=Sum("score"))
-        .order_by("-score")[:max_rank]
-    )
-    city_ranking = [list(row) for row in city_ranking]
-
-    departement = (
-        SummerChallenge.objects.exclude(department__isnull=True)
-        .values_list("department__code", "department__name")
-        .annotate(score=Sum("score"))
-        .order_by("-score")[:max_rank]
-    )
-    departement_ranking = [list(row) for row in departement]
-
-    return {
-        "goal": summer_challenge_targeted_score(),
-        "global": global_score,
-        "individual": individual_ranking,
-        "city": city_ranking,
-        "departement": departement_ranking,
-    }
-
-
-@api_view(["GET"])
-def get_summer_challenge_leaderboard(request):
-    max_rank = int(request.GET.get("max_rank", 5))
-    leaderboard = summer_challenge_leaderboard(max_rank)
-    return JsonResponse(leaderboard)
-
-
-@api_view(["GET"])
-def get_summer_challenge_user_score(request, username):
-
-    # Check the user exists, we by ursername or email
-    try:
-        User.objects.get(
-            Q(username=username) | Q(email=username)
-        )  # This will raise an exception if the user does not exist
-    except User.DoesNotExist:
-        raise NotFound()
-
-    global_score = summer_challenge_global_score()
-    individual_ranking = (
-        SummerChallenge.objects.values("user__username", "user__email")
-        .annotate(score=Sum("score"))
-        .order_by("-score")
-    )
-
-    user_score = 0
-    user_rank = None
-
-    for i, rank in enumerate(individual_ranking):
-        if rank["user__username"] == username or rank["user__email"] == username:
-            user_score = rank["score"]
-            user_rank = i + 1
-            break
-
-    data = {
-        "goal": summer_challenge_targeted_score(),
-        "global": global_score,
-        "user_score": user_score,
-        "user_rank": user_rank,
-    }
-    return JsonResponse(data)
-
-
 class RNBAuthToken(ObtainAuthToken):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
@@ -1283,51 +1124,6 @@ class RNBAuthToken(ObtainAuthToken):
                 "username": user.username,
                 "groups": [group.name for group in user.groups.all()],
             }
-        )
-
-
-def create_user_in_sandbox(user_data: dict) -> None:
-    user_data_without_password = {**user_data}
-    user_data_without_password.pop("password")
-    create_sandbox_user.delay(user_data_without_password)
-
-
-class CreateUserView(APIView):
-    throttle_scope = "create_user"
-
-    @transaction.atomic
-    def post(self, request, *args, **kwargs):
-        request_data = request.data
-        if isinstance(request_data, QueryDict):
-            request_data = request_data.dict()
-        user_serializer = UserSerializer(data=request_data)
-        user_serializer.is_valid(raise_exception=True)
-        user = user_serializer.save()
-
-        organization_serializer = None
-        organization_name = request_data.get("organization_name")
-        if organization_name:
-            organization_serializer = OrganizationSerializer(
-                data={"name": organization_name}
-            )
-            organization_serializer.is_valid(raise_exception=True)
-            organization, created = Organization.objects.get_or_create(
-                name=organization_name
-            )
-            organization.users.add(user)
-            organization.save()
-
-        if settings.HAS_SANDBOX:
-            create_user_in_sandbox(request_data)
-
-        return Response(
-            {
-                "user": user_serializer.data,
-                "organization": (
-                    organization_serializer.data if organization_serializer else None
-                ),
-            },
-            status=status.HTTP_201_CREATED,
         )
 
 
