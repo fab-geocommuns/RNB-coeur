@@ -1,5 +1,6 @@
 import json
 
+from django.contrib.gis.geos import GeometryCollection
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
 from django.test import TestCase
@@ -7,9 +8,11 @@ from django.test import TestCase
 from api_alpha.tests.utils import coordinates_almost_equal
 from batid.exceptions import BuildingTooLarge
 from batid.exceptions import BuildingTooSmall
+from batid.exceptions import ImpossibleShapeMerge
 from batid.exceptions import InvalidWGS84Geometry
 from batid.utils.geo import assert_shape_is_valid
 from batid.utils.geo import compute_shape_area
+from batid.utils.geo import convert_geometry_collection
 from batid.utils.geo import fix_nested_shells
 from batid.utils.geo import merge_contiguous_shapes
 
@@ -46,8 +49,8 @@ class TestGeo(TestCase):
 
     def test_merge_contiguous_shapes_empty(self):
         shapes = []
-        merged_shapes = merge_contiguous_shapes(shapes)
-        self.assertEqual(merged_shapes, None)
+        with self.assertRaises(ImpossibleShapeMerge):
+            merge_contiguous_shapes(shapes)
 
     def test_merge_contiguous_shapes_single(self):
         shapes = [GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")]
@@ -64,7 +67,13 @@ class TestGeo(TestCase):
         merged_shapes = merge_contiguous_shapes(shapes)
         res_coordinates = json.loads(merged_shapes.json)["coordinates"]
         expected_coordinates = [
-            [[3.0, 1.0], [3.0, 0.0], [0.0, 0.0], [0.0, 1.0], [3.0, 1.0]]
+            [
+                [0.0, 1.0],
+                [3.0, 1.0],
+                [3.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 1.0],
+            ]
         ]
 
         self.assertTrue(
@@ -116,6 +125,84 @@ class TestGeo(TestCase):
         self.assertTrue(
             coordinates_almost_equal.check(res_coordinates, expected_coordinates)
         )
+
+    def test_merge_shapes_almost_contiguous(self):
+        # if the shapes are almost contiguous, we would like to add a little flexibility
+        # and allow to merge them
+        # this test case comes from a real-world interesting scenario:
+        # a building is split in 4, the 4 geometry are almost contiguous but do not touch each other
+        # Additionally, the resulting merge is not valid and needs to be fixed afterwards using the make_valid() function
+
+        shape_1 = GEOSGeometry(
+            "MULTIPOLYGON (((3.399813196293031 47.84852361732513, 3.399785416914514 47.848563312224655, 3.399821611014261 47.848575788937545, 3.399835014986967 47.84858024327614, 3.399911395806362 47.84846932449911, 3.399878399999999 47.84844729999998, 3.399791017237281 47.848388369107376, 3.399813196293031 47.84852361732513)))"
+        )
+        shape_2 = GEOSGeometry(
+            "MULTIPOLYGON (((3.3997421 47.848407499999986, 3.399767427393122 47.84855739367596, 3.399785416914514 47.848563312224655, 3.399813196293031 47.84852361732513, 3.399791017237281 47.848388369107376, 3.399759576696018 47.84836716557327, 3.399739908225637 47.848394388497766, 3.3997421 47.848407499999986)))"
+        )
+        shape_3 = GEOSGeometry(
+            "MULTIPOLYGON (((3.399650040362037 47.84851877326723, 3.399767427393118 47.84855739367596, 3.3997421 47.84840749999999, 3.399739908225635 47.848394388497766, 3.399650040362037 47.84851877326723)))"
+        )
+        shape_4 = GEOSGeometry(
+            "MULTIPOLYGON (((3.399791017237283 47.84838836910738, 3.3998784 47.84844729999998, 3.399911395806356 47.84846932449911, 3.399958016224987 47.84840162295606, 3.399964633540605 47.84839260034244, 3.399917702844714 47.848374760245584, 3.399839264852122 47.84834762205743, 3.399830599999999 47.84834869999998, 3.399785714906284 47.84835603530853, 3.399791017237283 47.84838836910738)))"
+        )
+        shapes = [shape_1, shape_2, shape_3, shape_4]
+
+        # without the added the flexibility, the function would raise
+        merged_shape = merge_contiguous_shapes(shapes)
+
+        # also check the result is valid, because for this specific test case, the resulting merged shape is naturally invalid
+        # and is fixed by the make_valid() function
+        self.assertTrue(merged_shape.valid)
+
+
+class TestConvertGeometryCollection(TestCase):
+    def test_convert_polygon_and_line_string(self):
+        polygon_wkt = "POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))"
+        geometries = [GEOSGeometry(polygon_wkt), GEOSGeometry("LINESTRING (1 0, 1 1)")]
+        geom = GeometryCollection(geometries)
+        geom = convert_geometry_collection(geom)
+
+        self.assertEqual(geom.geom_type, "Polygon")
+        self.assertEqual(geom.wkt, polygon_wkt)
+
+    def test_convert_multi_polygon_and_line_string(self):
+        multi_polygon_wkt = "MULTIPOLYGON (((1 0, 1 1, 2 1, 2 0, 1 0)))"
+        geometries = [
+            GEOSGeometry(multi_polygon_wkt),
+            GEOSGeometry("LINESTRING (1 0, 1 1)"),
+            GEOSGeometry("LINESTRING (2 0, 1 1)"),
+        ]
+        geom = GeometryCollection(geometries)
+        geom = convert_geometry_collection(geom)
+
+        self.assertEqual(geom.geom_type, "MultiPolygon")
+        self.assertEqual(geom.wkt, multi_polygon_wkt)
+
+    def test_convert_diverse_geometry(self):
+        multi_polygon_wkt = "MULTIPOLYGON (((1 0, 1 1, 2 1, 2 0, 1 0)))"
+        multi_polygon_wkt_2 = "MULTIPOLYGON (((0 0, 1 0, 1 1, 0 1, 0 0)))"
+
+        geometries = [
+            GEOSGeometry(multi_polygon_wkt_2),
+            GEOSGeometry(multi_polygon_wkt),
+            GEOSGeometry("LINESTRING (1 0, 1 1)"),
+        ]
+        geom = GeometryCollection(geometries)
+        with self.assertRaises(Exception):
+            convert_geometry_collection(geom)
+
+    def test_convert_diverse_geometry_2(self):
+        multi_polygon_wkt = "MULTIPOLYGON (((1 0, 1 1, 2 1, 2 0, 1 0)))"
+        polygon_wkt = "POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))"
+
+        geometries = [
+            GEOSGeometry(polygon_wkt),
+            GEOSGeometry(multi_polygon_wkt),
+            GEOSGeometry("LINESTRING (1 0, 1 1)"),
+        ]
+        geom = GeometryCollection(geometries)
+        with self.assertRaises(Exception):
+            convert_geometry_collection(geom)
 
 
 class TestShapeVerification(TestCase):

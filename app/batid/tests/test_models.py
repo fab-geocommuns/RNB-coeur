@@ -7,6 +7,7 @@ from django.db.utils import IntegrityError
 from django.test import override_settings
 from django.test import TestCase
 
+from batid.exceptions import BuildingCannotMove
 from batid.exceptions import NotEnoughBuildings
 from batid.exceptions import OperationOnInactiveBuilding
 from batid.models import Address
@@ -216,7 +217,11 @@ class TestSplitBuilding(TestCase):
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     def test_split_a_building(self):
         # create a building
-        b1 = Building.objects.create(rnb_id="1", status="constructed")
+        b1 = Building.objects.create(
+            rnb_id="1",
+            status="constructed",
+            shape=GEOSGeometry("POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))"),
+        )
         event_origin = {"source": "xxx"}
         # split it in 3
         created_buildings = b1.split(
@@ -383,7 +388,7 @@ class TestUpdateBuilding(TestCase):
 
         self.user = ContributorUserFactory(username="solo_user")
 
-        b = Building.create_new(
+        self.b = Building.create_new(
             user=self.user,
             event_origin={"source": "dummy_creation"},
             status="constructed",
@@ -407,7 +412,7 @@ class TestUpdateBuilding(TestCase):
             ext_ids=[],
         )
 
-        self.rnb_id = b.rnb_id
+        self.rnb_id = self.b.rnb_id
 
     def test_updated_at(self):
         """
@@ -456,6 +461,23 @@ class TestUpdateBuilding(TestCase):
         )
         b.refresh_from_db()
         self.assertEqual(b.sys_period, sys_period)
+
+    def test_moving_a_building_raises(self):
+        with self.assertRaises(BuildingCannotMove) as e:
+            self.b.update(
+                self.user,
+                event_origin={"source": "xxx"},
+                status=None,
+                addresses_id=None,
+                shape=GEOSGeometry(
+                    "POLYGON((0 0, 0 0.00001, 0.0001 0.0001, 0.0001 0, 0 0))"
+                ),
+            )
+
+        self.assertEqual(
+            str(e.exception.api_message_with_details()),
+            "La géometrie d'un bâtiment ne peut pas être déplacée sur une trop grande distance",
+        )
 
 
 class TestExtIdsComparison(TestCase):
