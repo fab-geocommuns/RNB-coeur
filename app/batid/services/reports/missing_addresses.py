@@ -110,3 +110,10 @@ def insert_feve(creation_batch_uuid, dep_code):
     department = Department.objects.get(code=dep_code)
     feve = Feve.objects.create(report=report, department=department)
     feve.save()
+
+
+def generate_the_galettes():
+    departments = Department.objects.all()
+
+    for dep in departments:
+        generate_missing_addresses_reports_dep(100, dep.code)
