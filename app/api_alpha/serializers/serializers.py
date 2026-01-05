@@ -671,7 +671,7 @@ class UserSerializer(serializers.ModelSerializer):
         return value
 
     def validate_password(self, value):
-        # virtual user to compare with the password for similairty checks
+        # virtual user to compare with the password for similarity checks
         user = User(
             username=self.initial_data.get("username"),
             email=self.initial_data.get("email"),
