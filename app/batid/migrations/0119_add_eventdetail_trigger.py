@@ -127,6 +127,7 @@ class Migration(migrations.Migration):
 
                 -- The building shape can overlap multiple cities and departments, but we keep a single one
                 -- out of simplicity
+                -- City and department are optional (can be NULL if building is outside French territory)
                 SELECT id INTO v_city_id
                 FROM batid_city AS c
                 WHERE ST_Intersects(c.shape, building.point)
@@ -136,11 +137,6 @@ class Migration(migrations.Migration):
                 FROM batid_department AS d
                 WHERE ST_Intersects(d.shape, building.point)
                 LIMIT 1;
-
-                -- We don't specifically check out-of-bounds in the RNB, but I think we ordinarily want buildings to land in French territory
-                IF v_city_id IS NULL OR v_department_id IS NULL THEN
-                    RAISE EXCEPTION 'No city or department found for the building point';
-                END IF;
 
                 INSERT INTO batid_eventdetail (
                     event_id,

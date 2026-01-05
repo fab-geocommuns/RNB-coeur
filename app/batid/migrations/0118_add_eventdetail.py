@@ -27,12 +27,17 @@ class Migration(migrations.Migration):
                 (
                     "city",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.PROTECT, to="batid.city"
+                        db_index=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        to="batid.city",
                     ),
                 ),
                 (
                     "department",
                     models.ForeignKey(
+                        db_index=True,
+                        null=True,
                         on_delete=django.db.models.deletion.PROTECT,
                         to="batid.department",
                     ),
@@ -40,11 +45,28 @@ class Migration(migrations.Migration):
                 (
                     "user",
                     models.ForeignKey(
+                        db_index=True,
                         null=True,
                         on_delete=django.db.models.deletion.PROTECT,
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
             ],
+        ),
+        migrations.CreateModel(
+            name="BuildingEventDetail",
+            fields=[
+                ("id", models.AutoField(primary_key=True, serialize=False)),
+                ("event_id", models.UUIDField(db_index=True)),
+                ("rnb_id", models.CharField(db_index=True, max_length=12)),
+                ("changes", models.JSONField()),
+            ],
+            options={
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("event_id", "rnb_id"), name="unique_event_id_rnb_id"
+                    )
+                ],
+            },
         ),
     ]
