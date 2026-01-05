@@ -4,7 +4,9 @@ import uuid
 from django.db import connection
 from django.db import transaction
 
+from app.batid.models.others import Department
 from batid.models.building import Building
+from batid.models.feve import Feve
 from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
 from batid.services.RNB_team_user import get_RNB_team_user
@@ -71,7 +73,10 @@ limit %s;
         rnb_ids = cursor.fetchall()
 
         with transaction.atomic():
-            create_reports(rnb_ids, ["Bâtiment sans adresse", "La galette du RNB"])
+            creation_batch_uuid = create_reports(
+                rnb_ids, ["Bâtiment sans adresse", "La galette du RNB"]
+            )
+            insert_feve(creation_batch_uuid, dep_code)
 
         logging.info(
             f"{len(rnb_ids)} signalements ont été créés pour des bâtiments de plus de 100m² sans adresse situé dans le département {dep_code}."
@@ -95,3 +100,13 @@ def create_reports(rnb_ids, tags):
             tags=tags,
             creation_batch_uuid=creation_uuid,
         )
+    return creation_uuid
+
+
+def insert_feve(creation_batch_uuid, dep_code):
+    report = Report.objects.filter(creation_batch_uuid=creation_batch_uuid).order_by(
+        "?"
+    )[0]
+    department = Department.objects.get(code=dep_code)
+    feve = Feve.objects.create(report=report, department=department)
+    feve.save()
