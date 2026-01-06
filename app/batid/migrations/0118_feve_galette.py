@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
-                ("found_at", models.DateTimeField(auto_now=True)),
+                ("found_at", models.DateTimeField(auto_now=False, null=True)),
                 (
                     "department",
                     models.ForeignKey(

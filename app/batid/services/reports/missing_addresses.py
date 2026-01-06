@@ -4,9 +4,9 @@ import uuid
 from django.db import connection
 from django.db import transaction
 
-from app.batid.models.others import Department
 from batid.models.building import Building
 from batid.models.feve import Feve
+from batid.models.others import Department
 from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
 from batid.services.RNB_team_user import get_RNB_team_user
@@ -104,16 +104,19 @@ def create_reports(rnb_ids, tags):
 
 
 def insert_feve(creation_batch_uuid, dep_code):
-    report = Report.objects.filter(creation_batch_uuid=creation_batch_uuid).order_by(
+    reports = Report.objects.filter(creation_batch_uuid=creation_batch_uuid).order_by(
         "?"
-    )[0]
-    department = Department.objects.get(code=dep_code)
-    feve = Feve.objects.create(report=report, department=department)
-    feve.save()
+    )
+    selected_report = reports.first()
+    if selected_report:
+        department = Department.objects.get(code=dep_code)
+        feve = Feve.objects.create(report=selected_report, department=department)
+        feve.save()
 
 
 def generate_the_galettes():
     departments = Department.objects.all()
 
     for dep in departments:
+        logging.info(f"Galette for department {dep.code}.")
         generate_missing_addresses_reports_dep(100, dep.code)

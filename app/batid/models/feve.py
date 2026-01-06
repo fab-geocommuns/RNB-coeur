@@ -12,5 +12,5 @@ class Feve(models.Model):
     found_by = models.ForeignKey(
         User, on_delete=models.PROTECT, null=True, db_index=True
     )
-    found_at = models.DateTimeField(auto_now=True)
+    found_at = models.DateTimeField(auto_now=False, null=True)
     department = models.ForeignKey(Department, on_delete=models.PROTECT, null=False)
