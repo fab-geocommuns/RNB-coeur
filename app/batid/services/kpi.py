@@ -4,6 +4,7 @@ from typing import Optional
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import KPI
+from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
 
 KPI_ACTIVE_BUILDINGS_COUNT = "active_buildings_count"
@@ -129,16 +130,16 @@ def count_edits():
 
 
 def count_reports():
-    return Contribution.objects.filter(report=True).count()
+    return Report.objects.count()
 
 
 def count_pending_reports():
-    return Contribution.objects.filter(report=True, status="pending").count()
+    return Report.objects.filter(status="pending").count()
 
 
 def count_fixed_reports():
-    return Contribution.objects.filter(report=True, status="fixed").count()
+    return Report.objects.filter(status="fixed").count()
 
 
 def count_refused_reports():
-    return Contribution.objects.filter(report=True, status="refused").count()
+    return Report.objects.filter(status="rejected").count()
