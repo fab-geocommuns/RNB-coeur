@@ -58,13 +58,14 @@ left join batid_report br on
 inner join batid_department_subdivided d on
 	ST_INTERSECTS(d.shape, bb.shape) and d.code = %s
 where
-	st_area(bb.shape::geography) > 100
+	st_area(bb.shape) > 0.00000001200
 	and bb.addresses_id = '{}'
 	and br.building_id is null
     and bb.is_active
     and (bb.status = ANY(%s))
 limit %s;
     """
+    # note st_area(bb.shape) > 0.00000001200 is an approximation, but is much faster
 
     with connection.cursor() as cursor:
         cursor.execute("SET statement_timeout = '0';")
