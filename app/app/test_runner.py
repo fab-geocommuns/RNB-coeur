@@ -5,7 +5,6 @@ The trigger `building_versioning_trigger__1_insert_or_update_event_detail_trigge
 requires cities and departments to be present in the database to work correctly.
 Since tests typically don't have this data, we disable the trigger during tests.
 """
-
 from django.db import connection
 from django.test.runner import DiscoverRunner
 

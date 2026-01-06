@@ -1,6 +1,8 @@
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
-from .others import Department, City
+
+from .others import City
+from .others import Department
 
 
 class EventDetail(models.Model):
