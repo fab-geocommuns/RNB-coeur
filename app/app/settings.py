@@ -213,6 +213,9 @@ REST_FRAMEWORK = {
 if ENVIRONMENT == "test":
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["create_user"] = "1000/day"  # type: ignore[index]
 
+# Custom test runner that disables the event detail trigger during tests
+TEST_RUNNER = "app.test_runner.RNBTestRunner"
+
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Documentation de l'API du Référentiel National du Bâtiment (RNB)",
