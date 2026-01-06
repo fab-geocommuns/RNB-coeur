@@ -67,6 +67,7 @@ limit %s;
     """
 
     with connection.cursor() as cursor:
+        cursor.execute("SET statement_timeout = '0';")
         cursor.execute(
             raw_sql, [dep_code, BuildingStatus.REAL_BUILDINGS_STATUS, reports_number]
         )
