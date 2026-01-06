@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
@@ -212,6 +213,9 @@ REST_FRAMEWORK = {
 
 if ENVIRONMENT == "test":
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["create_user"] = "1000/day"  # type: ignore[index]
+
+# Custom test runner that disables the event detail trigger during tests
+TEST_RUNNER = "app.test_runner.RNBTestRunner"
 
 
 SPECTACULAR_SETTINGS = {
