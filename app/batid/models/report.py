@@ -11,6 +11,7 @@ from django.db.models import Q
 from taggit.managers import TaggableManager
 
 from .building import Building
+from batid.models.feve import Feve
 
 
 class Report(models.Model):
@@ -101,7 +102,7 @@ class Report(models.Model):
         created_by_user: User | None,
         created_by_email: str | None,
         status: str | None,
-    ) -> None:
+    ) -> bool:
         if self.is_closed():
             raise ValueError(f"{self} is closed")
         self.messages.create(  # type: ignore[attr-defined]
@@ -109,10 +110,19 @@ class Report(models.Model):
             created_by_user=created_by_user,
             created_by_email=created_by_email,
         )
+
+        feve_found = False
         if status is not None and status != self.status:
             self.status = status
             self.closed_by_user = created_by_user
             self.save()
+
+            if status == "fixed":
+                feve = Feve.objects.filter(report=self).first()
+                if feve:
+                    feve.found(created_by_user)
+                    feve_found = True
+        return feve_found
 
     def is_closed(self) -> bool:
         return self.status in ["fixed", "rejected"]

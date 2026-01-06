@@ -73,7 +73,7 @@ class ReplyToReportView(RNBLoggingMixin, APIView):
         email = data.get("email")
         authenticated_user = request.user if request.user.is_authenticated else None
 
-        report.add_message_and_update_status(
+        feve_found = report.add_message_and_update_status(
             text=text,
             created_by_user=authenticated_user,
             created_by_email=email,
@@ -81,4 +81,9 @@ class ReplyToReportView(RNBLoggingMixin, APIView):
         )
 
         serializer = ReportSerializer(report)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # temporary hack to add feve_found
+        data = dict(serializer.data)
+        data["feve_found"] = feve_found
+
+        return Response(data, status=status.HTTP_200_OK)
