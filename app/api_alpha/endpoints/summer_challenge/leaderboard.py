@@ -16,7 +16,7 @@ class LeaderboardView(APIView):
 
 
 class FevesView(APIView):
-    def get(self, request: Request) -> JsonResponse:
+    def get(self, request: Request) -> Response:
         qs = (
             Feve.objects.select_related("department", "found_by")
             .values(
