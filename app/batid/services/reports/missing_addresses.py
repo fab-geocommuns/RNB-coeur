@@ -109,7 +109,7 @@ JOIN LATERAL (
             insert_feve(creation_batch_uuid, dep_code)
 
         logging.info(
-            f"{len(rnb_ids)} signalements ont été créés pour des bâtiments de plus de 100m² sans adresse situé dans le département {dep_code}."
+            f"{len(rnb_ids)} signalements ont été créés pour des bâtiments de plus de 50m² sans adresse situé dans le département {dep_code}."
         )
 
 
@@ -124,7 +124,7 @@ def create_reports(rnb_ids, tags):
         Report.create(
             point=building.point,  # type: ignore
             building=building,
-            text=f"Ce bâtiment d'une surface supérieure à 100m² n'a pas d'adresse associée.",
+            text=f"Ce bâtiment d'une surface supérieure à 50m² n'a pas d'adresse associée.",
             email=None,
             user=team_rnb,
             tags=tags,
