@@ -2,7 +2,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import MultiPolygon
 from django.test import TestCase
 from django.test import TransactionTestCase
 
@@ -17,7 +17,7 @@ from batid.tests import helpers
 from batid.tests.helpers import create_default_bdg
 
 
-class ImportBDTopo(TransactionTestCase):
+class ImportBDTopoGeopackage(TransactionTestCase):
     def setUp(self):
 
         # Create a bdg with a bdtopo ID also present in the file. It should be skipped
@@ -25,49 +25,54 @@ class ImportBDTopo(TransactionTestCase):
         bdg.ext_ids = Building.add_ext_id(
             bdg.ext_ids,
             "bdtopo",
-            "2023-09-15",
-            "BATIMENT0000000301182075",
-            "2024-03-15",
+            "2025-09-15",
+            "BATIMENT0000000312141319",
+            "2025-12-15",
         )
         bdg.save()
 
     @patch("batid.services.imports.import_bdtopo.Source.find")
     @patch("batid.services.imports.import_bdtopo.Source.remove_uncompressed_folder")
-    def test_import_bdtopo_2023_09(self, sourceRemoveFolderMock, sourceFindMock):
-        sourceFindMock.return_value = helpers.fixture_path("bdtopo_2023_09_38.shp")
+    def test_convert(self, sourceRemoveFolderMock, sourceFindMock):
+
+        sourceFindMock.return_value = helpers.fixture_path("bdtopo_for_test.gpkg")
         sourceRemoveFolderMock.return_value = None
 
-        src_params = bdtopo_src_params("38", "2023-09-15")
+        src_params = bdtopo_src_params("02", "2025-09-15")
 
         create_candidate_from_bdtopo(src_params)
 
-        # The file contains 6 buildings, one of them is skipped because the database contains a bdg with the same bdtopo ID
-        self.assertEqual(Candidate.objects.count(), 5)
+        # The fixture file has 6 buildings
+        # One of them is skipped because the database contains a bdg with the same bdtopo ID
+        # Another one is skipped because it is a light building
+        self.assertEqual(Candidate.objects.count(), 4)
 
-        # Check a light bdtopo building is not imported
-        c = Candidate.objects.filter(source_id="BATIMENT0000000301181911").first()
+        # Check the light bdtopo building is not imported
+        c = Candidate.objects.filter(source_id="BATIMENT0000000312141366").first()
         self.assertIsNone(c)
 
-        c = Candidate.objects.filter(source_id="BATIMENT0000000301181909").first()
+        # Check, the already known building is not imported
+        c = Candidate.objects.filter(source_id="BATIMENT0000000312141319").first()
+        self.assertIsNone(c)
+
+        # Check one of the imported buildings
+        c = Candidate.objects.filter(source_id="BATIMENT0000000312141365").first()
+
         self.assertEqual(c.source, "bdtopo")
-        self.assertEqual(c.source_version, "2023-09-15")
+        self.assertEqual(c.source_version, "2025-09-15")
         self.assertEqual(c.is_light, False)
         self.assertListEqual(c.address_keys, [])
         self.assertIsInstance(c.created_by, dict)
         self.assertEqual(c.created_by["source"], "import")
         self.assertIsInstance(c.created_by["id"], int)
-        self.assertIsInstance(c.created_by, dict)
-        self.assertEqual(c.created_by["source"], "import")
-        self.assertIsInstance(c.created_by["id"], int)
-        self.assertIsInstance(c.shape, Polygon)
+        self.assertIsInstance(c.shape, MultiPolygon)
         self.assertEqual(c.shape.srid, 4326)
         self.assertEqual(c.shape.dims, 2)  # We verify the 3D shape became a 2D shape
-        self.assertIsInstance(c.created_at, datetime)
         self.assertIsInstance(c.created_at, datetime)
         self.assertIsInstance(c.random, int)
 
         refshape = GEOSGeometry(
-            '{ "type": "MultiPolygon", "coordinates": [ [ [ [ 904649.699999999953434, 6475829.5 ], [ 904650.699999999953434, 6475777.700000000186265 ], [ 904651.5, 6475774.400000000372529 ], [ 904650.800000000046566, 6475774.400000000372529 ], [ 904651.0, 6475766.400000000372529 ], [ 904645.900000000023283, 6475766.200000000186265 ], [ 904644.300000000046566, 6475766.200000000186265 ], [ 904644.400000000023283, 6475761.299999999813735 ], [ 904644.5, 6475757.900000000372529 ], [ 904629.5, 6475757.5 ], [ 904629.400000000023283, 6475761.0 ], [ 904627.300000000046566, 6475760.900000000372529 ], [ 904628.0, 6475760.0 ], [ 904626.599999999976717, 6475759.0 ], [ 904628.5, 6475756.5 ], [ 904626.900000000023283, 6475755.5 ], [ 904628.599999999976717, 6475753.299999999813735 ], [ 904628.599999999976717, 6475753.200000000186265 ], [ 904627.0, 6475752.200000000186265 ], [ 904628.699999999953434, 6475750.0 ], [ 904628.5, 6475749.799999999813735 ], [ 904627.099999999976717, 6475748.799999999813735 ], [ 904626.099999999976717, 6475748.799999999813735 ], [ 904626.300000000046566, 6475740.099999999627471 ], [ 904626.300000000046566, 6475739.599999999627471 ], [ 904615.199999999953434, 6475739.599999999627471 ], [ 904603.699999999953434, 6475739.5 ], [ 904603.0, 6475739.5 ], [ 904602.699999999953434, 6475739.5 ], [ 904588.800000000046566, 6475739.099999999627471 ], [ 904589.099999999976717, 6475738.400000000372529 ], [ 904587.199999999953434, 6475737.799999999813735 ], [ 904587.5, 6475736.900000000372529 ], [ 904580.599999999976717, 6475734.400000000372529 ], [ 904580.0, 6475736.400000000372529 ], [ 904579.5, 6475738.200000000186265 ], [ 904578.900000000023283, 6475740.299999999813735 ], [ 904578.5, 6475742.099999999627471 ], [ 904578.099999999976717, 6475744.099999999627471 ], [ 904577.599999999976717, 6475747.0 ], [ 904577.300000000046566, 6475749.099999999627471 ], [ 904577.199999999953434, 6475750.799999999813735 ], [ 904577.099999999976717, 6475752.599999999627471 ], [ 904577.0, 6475754.700000000186265 ], [ 904577.099999999976717, 6475756.0 ], [ 904577.099999999976717, 6475758.099999999627471 ], [ 904577.300000000046566, 6475760.099999999627471 ], [ 904577.400000000023283, 6475761.799999999813735 ], [ 904577.599999999976717, 6475763.799999999813735 ], [ 904578.0, 6475766.099999999627471 ], [ 904578.300000000046566, 6475768.099999999627471 ], [ 904578.800000000046566, 6475770.400000000372529 ], [ 904579.099999999976717, 6475771.700000000186265 ], [ 904579.599999999976717, 6475773.400000000372529 ], [ 904580.0, 6475774.700000000186265 ], [ 904580.300000000046566, 6475775.599999999627471 ], [ 904580.800000000046566, 6475777.200000000186265 ], [ 904581.199999999953434, 6475778.5 ], [ 904581.699999999953434, 6475779.799999999813735 ], [ 904582.199999999953434, 6475781.0 ], [ 904582.599999999976717, 6475782.0 ], [ 904582.199999999953434, 6475782.099999999627471 ], [ 904582.099999999976717, 6475788.200000000186265 ], [ 904582.0, 6475791.200000000186265 ], [ 904585.599999999976717, 6475790.200000000186265 ], [ 904586.0, 6475791.799999999813735 ], [ 904586.400000000023283, 6475793.200000000186265 ], [ 904586.699999999953434, 6475794.599999999627471 ], [ 904587.099999999976717, 6475796.599999999627471 ], [ 904587.400000000023283, 6475798.900000000372529 ], [ 904587.699999999953434, 6475801.0 ], [ 904587.800000000046566, 6475803.200000000186265 ], [ 904587.900000000023283, 6475805.299999999813735 ], [ 904587.800000000046566, 6475807.200000000186265 ], [ 904587.699999999953434, 6475809.400000000372529 ], [ 904587.599999999976717, 6475811.299999999813735 ], [ 904587.400000000023283, 6475811.299999999813735 ], [ 904586.699999999953434, 6475837.900000000372529 ], [ 904594.199999999953434, 6475838.099999999627471 ], [ 904594.300000000046566, 6475836.299999999813735 ], [ 904596.0, 6475836.299999999813735 ], [ 904596.900000000023283, 6475838.0 ], [ 904597.699999999953434, 6475837.5 ], [ 904599.300000000046566, 6475836.400000000372529 ], [ 904600.199999999953434, 6475838.099999999627471 ], [ 904602.599999999976717, 6475836.5 ], [ 904603.5, 6475838.200000000186265 ], [ 904605.800000000046566, 6475836.599999999627471 ], [ 904605.900000000023283, 6475836.799999999813735 ], [ 904606.800000000046566, 6475838.200000000186265 ], [ 904609.199999999953434, 6475836.700000000186265 ], [ 904610.099999999976717, 6475838.299999999813735 ], [ 904612.400000000023283, 6475836.799999999813735 ], [ 904613.300000000046566, 6475838.200000000186265 ], [ 904613.300000000046566, 6475838.400000000372529 ], [ 904613.300000000046566, 6475838.599999999627471 ], [ 904615.800000000046566, 6475838.700000000186265 ], [ 904616.099999999976717, 6475828.599999999627471 ], [ 904649.699999999953434, 6475829.5 ] ] ] ] }'
+            '{ "type": "MultiPolygon", "coordinates": [ [ [ [ 765634.199999999953434, 6971001.099999999627471, 181.6 ], [ 765626.599999999976717, 6970998.799999999813735, 181.6 ], [ 765620.300000000046566, 6970997.200000000186265, 181.6 ], [ 765620.599999999976717, 6970988.5, 181.6 ], [ 765625.599999999976717, 6970988.200000000186265, 181.6 ], [ 765625.400000000023283, 6970989.900000000372529, 181.6 ], [ 765633.800000000046566, 6970991.900000000372529, 181.6 ], [ 765633.0, 6970996.0, 181.6 ], [ 765635.0, 6970996.5, 181.6 ], [ 765634.199999999953434, 6971001.099999999627471, 181.6 ] ] ] ] }'
         )
         refshape.srid = 2154
         refshape.transform(4326)
@@ -78,7 +83,8 @@ class ImportBDTopo(TransactionTestCase):
         i = Inspector()
         i.inspect()
 
-        self.assertEqual(Building.objects.count(), 6)
+        # Expect 4 buildings: one from setUp and 3 from the import (candidate BATIMENT0000000312141318 should be rejected since it is too small)
+        self.assertEqual(Building.objects.count(), 4)
 
 
 class TestImportTasks(TestCase):
