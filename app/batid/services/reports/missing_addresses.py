@@ -103,9 +103,7 @@ JOIN LATERAL (
         rnb_ids = cursor.fetchall()
 
         with transaction.atomic():
-            creation_batch_uuid = create_reports(
-                rnb_ids, ["Bâtiment sans adresse", "Les fèves du RNB"]
-            )
+            creation_batch_uuid = create_reports(rnb_ids, ["Les fèves du RNB"])
             insert_feve(creation_batch_uuid, dep_code)
 
         logging.info(
