@@ -21,6 +21,7 @@ from api_alpha.endpoints.reports.create_report import CreateReportView
 from api_alpha.endpoints.reports.get_report import GetReport
 from api_alpha.endpoints.reports.reply_to_report import ReplyToReportView
 from api_alpha.endpoints.reports.stats import ReportStatsView
+from api_alpha.endpoints.summer_challenge.leaderboard import FevesView
 from api_alpha.endpoints.summer_challenge.leaderboard import LeaderboardView
 from api_alpha.endpoints.summer_challenge.user_score import UserScoreView
 from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
@@ -121,6 +122,7 @@ urlpatterns = [
         "auth/change_password/<str:user_id_b64>/<str:token>", ChangePassword.as_view()
     ),
     path("editions/ranking/", LeaderboardView.as_view()),
+    path("feves/", FevesView.as_view()),
     path("editions/ranking/<str:username>/", UserScoreView.as_view()),
     # Reports
     path("reports/", CreateReportView.as_view()),

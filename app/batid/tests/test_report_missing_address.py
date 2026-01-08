@@ -112,12 +112,12 @@ class TestReportMissingAddress(TestCase):
         self.assertEqual(report_1.status, "pending")
         self.assertEqual(report_1.created_by_user, self.team_rnb)
         self.assertEqual(report_1.messages.count(), 1)  # type: ignore
-        self.assertEqual(report_1.messages.first().text, "Ce bâtiment d'une surface supérieure à 100m² n'a pas d'adresse associée.")  # type: ignore
+        self.assertEqual(report_1.messages.first().text, "Ce bâtiment d'une surface supérieure à 50m² n'a pas d'adresse associée.")  # type: ignore
 
         self.assertEqual(report_2.status, "pending")
         self.assertEqual(report_2.created_by_user, self.team_rnb)
         self.assertEqual(report_2.messages.count(), 1)  # type: ignore
-        self.assertEqual(report_2.messages.first().text, "Ce bâtiment d'une surface supérieure à 100m² n'a pas d'adresse associée.")  # type: ignore
+        self.assertEqual(report_2.messages.first().text, "Ce bâtiment d'une surface supérieure à 50m² n'a pas d'adresse associée.")  # type: ignore
 
         self.assertEqual(report_1.creation_batch_uuid, report_2.creation_batch_uuid)
 
@@ -140,5 +140,5 @@ class TestReportMissingAddress(TestCase):
         self.assertEqual(new_report.messages.count(), 1)  # type: ignore
         self.assertEqual(
             new_report.messages.first().text,
-            "Ce bâtiment d'une surface supérieure à 100m² n'a pas d'adresse associée.",
+            "Ce bâtiment d'une surface supérieure à 50m² n'a pas d'adresse associée.",
         )
