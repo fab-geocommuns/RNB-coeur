@@ -42,7 +42,7 @@ limit %s;
             create_reports(rnb_ids, ["Bâtiment sans adresse"])
 
         logging.info(
-            f"{len(rnb_ids)} signalements ont été créés pour des bâtiments de plus de 100m² sans adresse situé sur la commune ayant pour code insee {insee_code}."
+            f"{len(rnb_ids)} signalements ont été créés pour des bâtiments de plus de 50m² sans adresse situé sur la commune ayant pour code insee {insee_code}."
         )
 
 
@@ -96,7 +96,7 @@ JOIN LATERAL (
     # note st_area(bb.shape) > 0.00000000600 is an approximation for 50m², but is much faster
 
     with connection.cursor() as cursor:
-        cursor.execute("SET statement_timeout = '0';")
+        cursor.execute("SET statement_timeout = '600000';")
         cursor.execute(
             raw_sql, [dep_code, BuildingStatus.REAL_BUILDINGS_STATUS, reports_number]
         )
@@ -140,8 +140,7 @@ def insert_feve(creation_batch_uuid, dep_code):
     selected_report = reports.first()
     if selected_report:
         department = Department.objects.get(code=dep_code)
-        feve = Feve.objects.create(report=selected_report, department=department)
-        feve.save()
+        Feve.objects.create(report=selected_report, department=department)
 
 
 def generate_the_galettes():
