@@ -86,14 +86,14 @@ JOIN LATERAL (
     AND bb.is_active
     AND bb.addresses_id = '{}'
     AND bb.status = ANY (%s)
-    AND ST_Area(bb.shape) > 0.00000001200
+    AND ST_Area(bb.shape) > 0.00000000600
     AND bb.shape && c.cell
     AND ST_Intersects(bb.shape, c.cell)
     AND ST_Intersects(bb.shape, dep.geom)
   LIMIT 3
 ) pick ON TRUE limit %s;
     """
-    # note st_area(bb.shape) > 0.00000001200 is an approximation, but is much faster
+    # note st_area(bb.shape) > 0.00000000600 is an approximation for 50m², but is much faster
 
     with connection.cursor() as cursor:
         cursor.execute("SET statement_timeout = '0';")
@@ -104,7 +104,7 @@ JOIN LATERAL (
 
         with transaction.atomic():
             creation_batch_uuid = create_reports(
-                rnb_ids, ["Bâtiment sans adresse", "La galette du RNB"]
+                rnb_ids, ["Bâtiment sans adresse", "Les fèves du RNB"]
             )
             insert_feve(creation_batch_uuid, dep_code)
 
