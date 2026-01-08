@@ -111,17 +111,18 @@ class Report(models.Model):
             created_by_email=created_by_email,
         )
 
-        feve_found = False
         if status is not None and status != self.status:
             self.status = status
             self.closed_by_user = created_by_user
             self.save()
 
-            if status == "fixed":
-                feve = Feve.objects.filter(report=self).first()
-                if feve:
-                    feve.found(created_by_user)
-                    feve_found = True
+        feve_found = False
+        # is there a feve that has not been found yet?
+        feve = Feve.objects.filter(report=self).filter(found_by__isnull=True).first()
+        if feve:
+            feve.found(created_by_user)
+            feve_found = True
+
         return feve_found
 
     def is_closed(self) -> bool:

@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from api_alpha.serializers.report import ReportSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from batid.models import Report
+from batid.models.others import Department
 
 
 class ReplyToReportSerializer(serializers.Serializer):
@@ -81,9 +82,16 @@ class ReplyToReportView(RNBLoggingMixin, APIView):
         )
 
         serializer = ReportSerializer(report)
-
-        # temporary hack to add feve_found
         data = dict(serializer.data)
-        data["feve_found"] = feve_found
+
+        if feve_found:
+            department = Department.objects.filter(
+                shape__intersects=report.point
+            ).first()
+            if department:
+                data["feve"] = {
+                    "dpt_name": department.name,
+                    "dpt_code": department.code,
+                }
 
         return Response(data, status=status.HTTP_200_OK)

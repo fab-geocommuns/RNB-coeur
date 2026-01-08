@@ -49,21 +49,50 @@ limit %s;
 def generate_missing_addresses_reports_dep(reports_number, dep_code):
 
     raw_sql = """
-select
-	bb.rnb_id
-from
-	batid_building bb
-left join batid_report br on
-	br.building_id = bb.id
-inner join batid_department_subdivided d on
-	ST_INTERSECTS(d.shape, bb.shape) and d.code = %s
-where
-	st_area(bb.shape) > 0.00000001200
-	and bb.addresses_id = '{}'
-	and br.building_id is null
-    and bb.is_active
-    and (bb.status = ANY(%s))
-limit %s;
+WITH dep AS (
+  SELECT shape AS geom
+  FROM batid_department
+  WHERE code = %s
+),
+env AS (
+  SELECT ST_Envelope(geom) AS e
+  FROM dep
+),
+params AS (
+  SELECT
+    (ST_XMax(e) - ST_XMin(e)) / 10.0 AS cell_size
+  FROM env
+),
+cells AS (
+  SELECT
+    row_number() OVER () AS cell_id,
+    g.geom AS cell
+  FROM env, params,
+  LATERAL ST_SquareGrid(params.cell_size, env.e) AS g
+  JOIN dep ON g.geom && dep.geom AND ST_Intersects(g.geom, dep.geom)
+)
+SELECT
+  c.cell_id,
+  pick.rnb_id, pick.shape
+FROM (
+  SELECT * FROM cells
+) c
+JOIN LATERAL (
+  SELECT bb.rnb_id, bb.shape
+  FROM batid_building bb
+  LEFT JOIN batid_report br ON br.building_id = bb.id
+  left join dep on true
+  WHERE
+    br.building_id IS NULL
+    AND bb.is_active
+    AND bb.addresses_id = '{}'
+    AND bb.status = ANY (%s)
+    AND ST_Area(bb.shape) > 0.00000001200
+    AND bb.shape && c.cell
+    AND ST_Intersects(bb.shape, c.cell)
+    AND ST_Intersects(bb.shape, dep.geom)
+  LIMIT 3
+) pick ON TRUE limit %s;
     """
     # note st_area(bb.shape) > 0.00000001200 is an approximation, but is much faster
 
