@@ -72,8 +72,7 @@ cells AS (
   JOIN dep ON g.geom && dep.geom AND ST_Intersects(g.geom, dep.geom)
 )
 SELECT
-  c.cell_id,
-  pick.rnb_id, pick.shape
+  pick.rnb_id
 FROM (
   SELECT * FROM cells
 ) c
