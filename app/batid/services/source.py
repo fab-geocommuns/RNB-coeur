@@ -49,8 +49,8 @@ class Source:
                 "filename": "buffer.csv",
             },
             "bdtopo": {
-                "url": "https://data.geopf.fr/telechargement/download/BDTOPO/BDTOPO_3-5_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}/BDTOPO_3-5_TOUSTHEMES_SHP_{{projection}}_D{{dpt}}_{{date}}.7z",
-                "filename": "BATIMENT.shp",
+                "url": "https://data.geopf.fr/telechargement/download/BDTOPO/BDTOPO_3-5_TOUSTHEMES_GPKG_{{projection}}_D{{dpt}}_{{date}}/BDTOPO_3-5_TOUSTHEMES_GPKG_{{projection}}_D{{dpt}}_{{date}}.7z",
+                "filename": "BDT_3-5_GPKG_{{projection}}_D{{dpt}}-ED{{date}}.gpkg",
             },
             "bdnb_2023_01": {
                 "url": "https://rnb-open.s3.fr-par.scw.cloud/bdnb_2023_01/{{dpt}}.zip"

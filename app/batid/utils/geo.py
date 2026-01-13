@@ -1,12 +1,14 @@
 from typing import List
 
 from django.conf import settings
+from django.contrib.gis.geos import GeometryCollection
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
 from pyproj import Geod
 from shapely import wkt
 
+from batid.exceptions import BuildingCannotMove
 from batid.exceptions import BuildingTooLarge
 from batid.exceptions import BuildingTooSmall
 from batid.exceptions import ImpossibleShapeMerge
@@ -48,59 +50,73 @@ def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:
 
 def merge_contiguous_shapes(shapes: List[GEOSGeometry]) -> GEOSGeometry:
     """
-    Merge a list of contiguous GEOSGeometry shapes into a single shape.
-    Supported GEOSGeometry types are Polygon and MultiPolygon.
-    Function will raise if shapes given are not contiguous
+    Merge a list of contiguous Polygon / MultiPolygon into a single Polygon or MultiPolygon.
+    Raises ImpossibleShapeMerge if shapes are not contiguous or result is invalid.
     """
-    # 7th decimal corresponds to approx 1cm
-    # https://wiki.openstreetmap.org/wiki/Precision_of_coordinates
-    buffer_size = 0.0000005
-    if len(shapes) == 0:
+
+    if not shapes:
         raise ImpossibleShapeMerge("Au moins une géométrie doit être fournie")
-    elif len(shapes) == 1:
-        return shapes[0]
-    else:
-        buffered_shapes = [
-            shape.buffer_with_style(buffer_size, quadsegs=1, join_style=2)
-            for shape in shapes
-        ]
 
-        if any(shape.geom_type not in ["Polygon", "MultiPolygon"] for shape in shapes):
-            # one day we will also need to merge points with polygons, that will require additionnal work
-            raise ImpossibleShapeMerge(
-                "Seules les formes Polygon et MultiPolygon peuvent être fusionnées"
-            )
-        merged_shape = buffered_shapes[0]
-        buffered_shapes = buffered_shapes[1:]
-
-        while len(buffered_shapes) > 0:
-            for i, buffered_shape in enumerate(buffered_shapes):
-                if buffered_shape.intersects(merged_shape):
-                    buffered_shape = buffered_shapes.pop(i)
-                    merged_shape = merged_shape.union(buffered_shape)
-                    break
-            else:  # no break
-                raise ImpossibleShapeMerge(
-                    "Fusionner des bâtiments non contigus n'est pas possible"
-                )
-
-        # quadsegs is the number of points used to approximate a quarter of circle
-        # we don't want the buffer to round corners, so we set quadsegs to 1 and join_style to 2
-        # which means square join style.
-        # that way a buffer around a rectangle is sill a rectangle.
-        merged_shape = merged_shape.buffer_with_style(
-            -buffer_size, quadsegs=1, join_style=2
+    if any(s.geom_type not in ("Polygon", "MultiPolygon") for s in shapes):
+        raise ImpossibleShapeMerge(
+            "Seules les formes Polygon et MultiPolygon peuvent être fusionnées"
         )
 
-        if not merged_shape.valid:
-            merged_shape = merged_shape.make_valid()  # type: ignore[attr-defined]
+    if len(shapes) == 1:
+        return shapes[0]
 
-        if not merged_shape.valid:
-            raise ImpossibleShapeMerge(
-                "La géometrie fusionnée serait invalide, la fusion est annulée."
-            )
+    # ~ 5 cm
+    # https://wiki.openstreetmap.org/wiki/Precision_of_coordinates
+    buffer_size = 0.0000005
 
-        return merged_shape
+    # positive buffer to force contiguity
+    buffered = [
+        s.buffer_with_style(buffer_size, quadsegs=1, join_style=2) for s in shapes
+    ]
+
+    # union of all shapes in a single step
+    merged = GeometryCollection(buffered).unary_union
+
+    # if the shapes are not contiguous, the result will be a MultiPolygon
+    # with more than one Polygon
+    if isinstance(merged, MultiPolygon) and len(merged) > 1:
+        raise ImpossibleShapeMerge(
+            "Fusionner des bâtiments non contigus n'est pas possible"
+        )
+
+    # negative buffer to go back to original shape
+    merged = merged.buffer_with_style(-buffer_size, quadsegs=1, join_style=2)
+
+    # in case the result is not a valid geometry
+    if not merged.valid:
+        merged = merged.make_valid()  # type: ignore[attr-defined]
+
+    if merged.geom_type == "GeometryCollection":
+        merged = convert_geometry_collection(merged)
+
+    if merged.geom_type not in ("Polygon", "MultiPolygon"):
+        raise ImpossibleShapeMerge(
+            f"Type de géométrie inattendu après fusion : {merged.geom_type}"
+        )
+
+    if not merged.valid:
+        raise ImpossibleShapeMerge("La géométrie fusionnée est invalide")
+
+    return merged
+
+
+def convert_geometry_collection(geom: GEOSGeometry) -> GEOSGeometry:
+    if geom.geom_type == "GeometryCollection":
+        polygons = [
+            g
+            for g in geom  # type: ignore
+            if g.geom_type in ("Polygon", "MultiPolygon") and not g.empty
+        ]
+
+        if len(polygons) == 1:
+            return polygons[0]
+
+    raise ImpossibleShapeMerge("La géométrie fusionnée est invalide")
 
 
 def assert_shape_is_valid(geom: GEOSGeometry):
@@ -152,6 +168,33 @@ def assert_shape_is_valid(geom: GEOSGeometry):
     check_coords(geom)
     check_area(geom)
     return True
+
+
+def assert_new_shape_is_close_enough(
+    old_shape: GEOSGeometry, new_shape: GEOSGeometry, max_dist: int = 40
+) -> bool:
+    # in case of intersection, we are fine
+    if old_shape.intersects(new_shape):
+        return True
+
+    # otherwise, we check if the distance is less than 40m
+    # using a simplified criteria
+    old_pos = old_shape.centroid
+    new_pos = new_shape.centroid
+
+    geod = Geod(ellps="WGS84")
+
+    _, _, dist_m = geod.inv(
+        old_pos.x,
+        old_pos.y,
+        new_pos.x,
+        new_pos.y,
+    )
+
+    if dist_m < max_dist:
+        return True
+
+    raise BuildingCannotMove()
 
 
 def compute_shape_area(shape: GEOSGeometry) -> float:

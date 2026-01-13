@@ -21,7 +21,9 @@ class BuildingPatchTest(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
         self.rnb_id = "XXXXYYYYZZZZ"
-        self.building = Building.objects.create(rnb_id=self.rnb_id)
+        self.building = Building.objects.create(
+            rnb_id=self.rnb_id, shape=GEOSGeometry("POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))")
+        )
         self.adr1 = Address.objects.create(id="cle_interop_1")
         self.adr2 = Address.objects.create(id="cle_interop_2")
 

@@ -297,7 +297,10 @@ class DiffTest(TransactionTestCase):
         user.save()
         UserProfile.objects.create(user=user)
         b1 = Building.objects.create(
-            rnb_id="1", status="constructed", event_type="creation"
+            rnb_id="1",
+            status="constructed",
+            event_type="creation",
+            shape=GEOSGeometry("POLYGON((0 0, 0 0.5, 0.5 0.5, 0.5 0, 0 0))"),
         )
         Building.objects.create(rnb_id="t", event_type="creation")
         # reload the buildings to get the sys_period
