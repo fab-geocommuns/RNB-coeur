@@ -128,6 +128,7 @@ class Address(models.Model):
     city_name = models.CharField(max_length=100, null=True)
     city_zipcode = models.CharField(max_length=5, null=True)
     city_insee_code = models.CharField(max_length=5, null=True)
+    ban_id = models.UUIDField(db_index=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
