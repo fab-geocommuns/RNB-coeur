@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0118_feve_galette"),
+        ("batid", "0119_alter_diffusiondatabase_options"),
     ]
 
     operations = [
