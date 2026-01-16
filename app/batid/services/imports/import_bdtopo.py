@@ -7,6 +7,7 @@ from datetime import datetime
 from datetime import timezone
 from typing import Optional
 
+import fiona
 import geopandas as gpd
 import psycopg2
 from celery import chain
@@ -71,26 +72,31 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
     )
 
     path = src.find(src.filename)
+    srid = int(src_params["projection"][-2:])
 
-    gdf = gpd.read_file(path, layer="batiment")
+    with fiona.open(path, layer="batiment") as layer:
+        print(f"- BD Topo source CRS: {layer.crs}")
 
-    srid = gdf.crs.to_epsg()
+        candidates = []
 
-    # keep only where construction_legere is False
-    gdf = gdf[gdf["construction_legere"] == False]
+        idx = 0
+        for feature in layer:
+            idx += 1
+            if idx > 10:
+                break
+            # check feature properties
+            print(feature["properties"]["cleabs"])
 
-    candidates = []
+            if feature["properties"]["construction_legere"] == True:
+                continue
 
-    # iterate over the rows
-    for index, row in gdf.iterrows():
+            if _known_bdtopo_id(feature["properties"]["cleabs"]):
+                continue
 
-        if _known_bdtopo_id(row["cleabs"]):
-            continue
-
-        candidate = _transform_bdtopo_feature(row, srid)
-        candidate = _add_import_info(candidate, building_import)
-        candidate["source_version"] = src_params["date"]
-        candidates.append(candidate)
+            candidate = _transform_bdtopo_feature(feature, srid)
+            candidate = _add_import_info(candidate, building_import)
+            candidate["source_version"] = src_params["date"]
+            candidates.append(candidate)
 
     buffer = BufferToCopy()
     buffer.write_data(candidates)
@@ -116,10 +122,12 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
             except (Exception, psycopg2.DatabaseError) as error:
                 raise error
 
-    print("- remove buffer")
-    os.remove(buffer.path)
-    print(f"- remove {src.uncompress_folder} folder")
-    src.remove_uncompressed_folder()
+    print("TODO !!!!! reinstall buffer remove and data remove")
+
+    # print("- remove buffer")
+    # os.remove(buffer.path)
+    # print(f"- remove {src.uncompress_folder} folder")
+    # src.remove_uncompressed_folder()
 
 
 def _known_bdtopo_id(bdtopo_id: str) -> bool:
@@ -155,6 +163,8 @@ def _add_import_info(candidate, building_import: BuildingImport):
 
 
 def feature_to_wkt(feature, from_srid):
+
+    print(f"- original feature geom: {feature['geometry']}")
 
     # From shapely geom to GEOS geometry
     geom = GEOSGeometry(feature["geometry"].wkt)
