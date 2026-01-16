@@ -18,6 +18,7 @@ from django.db import connection
 from django.db import transaction
 
 from batid.models import Building
+from batid.utils.geo import drop_z
 from batid.models import BuildingImport
 from batid.models import Candidate
 from batid.services.administrative_areas import dpts_list
@@ -72,24 +73,20 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
     )
 
     path = src.find(src.filename)
-    srid = int(src_params["projection"][-2:])
 
     with fiona.open(path, layer="batiment") as layer:
-        print(f"- BD Topo source CRS: {layer.crs}")
+
+        srid = int(layer.crs["init"].split(":")[1])
 
         candidates = []
 
-        idx = 0
         for feature in layer:
-            idx += 1
-            if idx > 10:
-                break
-            # check feature properties
-            print(feature["properties"]["cleabs"])
 
+            # Skip light constructions
             if feature["properties"]["construction_legere"] == True:
                 continue
 
+            # Skip already known buildings
             if _known_bdtopo_id(feature["properties"]["cleabs"]):
                 continue
 
@@ -122,12 +119,10 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
             except (Exception, psycopg2.DatabaseError) as error:
                 raise error
 
-    print("TODO !!!!! reinstall buffer remove and data remove")
-
-    # print("- remove buffer")
-    # os.remove(buffer.path)
-    # print(f"- remove {src.uncompress_folder} folder")
-    # src.remove_uncompressed_folder()
+    print("- remove buffer")
+    os.remove(buffer.path)
+    print(f"- remove {src.uncompress_folder} folder")
+    src.remove_uncompressed_folder()
 
 
 def _known_bdtopo_id(bdtopo_id: str) -> bool:
@@ -144,9 +139,9 @@ def _transform_bdtopo_feature(feature, from_srid) -> dict:
 
     candidate_dict = {
         "shape": geom_wkt,
-        "is_light": feature["construction_legere"],
+        "is_light": feature["properties"]["construction_legere"],
         "source": "bdtopo",
-        "source_id": feature["cleabs"],
+        "source_id": feature["properties"]["cleabs"],
         "address_keys": f"{{{','.join(address_keys)}}}",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
@@ -164,22 +159,17 @@ def _add_import_info(candidate, building_import: BuildingImport):
 
 def feature_to_wkt(feature, from_srid):
 
-    print(f"- original feature geom: {feature['geometry']}")
+    geojson = {
+        "type": feature["geometry"]["type"],
+        "coordinates": drop_z(feature["geometry"]["coordinates"]),
+    }
 
     # From shapely geom to GEOS geometry
-    geom = GEOSGeometry(feature["geometry"].wkt)
+    geom = GEOSGeometry(json.dumps(geojson))
     geom.srid = from_srid
 
     # From local SRID to WGS84
     geom.transform(4326)
-
-    # From 3D geom to 2D geom wkt
-    writer = WKTWriter()
-    writer.outdim = 2
-    wkt = writer.write(geom)
-
-    # Back to geom
-    geom = GEOSGeometry(wkt)
 
     # Eventually, fix nested shells
     if not geom.valid and "Nested shells" in geom.valid_reason:

@@ -15,6 +15,7 @@ from batid.utils.geo import compute_shape_area
 from batid.utils.geo import convert_geometry_collection
 from batid.utils.geo import fix_nested_shells
 from batid.utils.geo import merge_contiguous_shapes
+from batid.utils.geo import drop_z
 
 
 class TestGeo(TestCase):
@@ -259,3 +260,89 @@ class TestShapeVerification(TestCase):
         rounded_area = round(area, 4)
 
         self.assertEqual(rounded_area, 3.7724)
+
+
+class TestDropZ(TestCase):
+    def test_polygon_2d(self):
+        wkt = "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))"
+        geom = GEOSGeometry(wkt)
+        self.assertEqual(
+            json.loads(json.dumps(drop_z(geom.coords))),
+            json.loads(json.dumps(geom.coords)),
+        )
+
+    def test_polygon_3d(self):
+        wkt_3d = "POLYGON ((0 0 10, 0 1 10, 1 1 10, 1 0 10, 0 0 10))"
+        geom_3d = GEOSGeometry(wkt_3d)
+
+        wkt_2d = "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))"
+        geom_2d = GEOSGeometry(wkt_2d)
+
+        self.assertEqual(
+            json.loads(json.dumps(drop_z(geom_3d.coords))),
+            json.loads(json.dumps(geom_2d.coords)),
+        )
+
+    def test_multipolygon_2d(self):
+        wkt = "MULTIPOLYGON (((0 0, 0 1, 1 1, 1 0, 0 0)))"
+        geom = GEOSGeometry(wkt)
+        self.assertEqual(
+            json.loads(json.dumps(drop_z(geom.coords))),
+            json.loads(json.dumps(geom.coords)),
+        )
+
+    def test_multipolygon_3d(self):
+        wkt_3d = "MULTIPOLYGON (((0 0 10, 0 1 10, 1 1 10, 1 0 10, 0 0 10)))"
+        geom_3d = GEOSGeometry(wkt_3d)
+
+        wkt_2d = "MULTIPOLYGON (((0 0, 0 1, 1 1, 1 0, 0 0)))"
+        geom_2d = GEOSGeometry(wkt_2d)
+
+        self.assertEqual(
+            json.loads(json.dumps(drop_z(geom_3d.coords))),
+            json.loads(json.dumps(geom_2d.coords)),
+        )
+
+    def test_polygon_with_hole_2d(self):
+        wkt = "POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0), (2 2, 2 8, 8 8, 8 2, 2 2))"
+        geom = GEOSGeometry(wkt)
+        self.assertEqual(
+            json.loads(json.dumps(drop_z(geom.coords))),
+            json.loads(json.dumps(geom.coords)),
+        )
+
+    def test_polygon_with_hole_3d(self):
+        wkt_3d = "POLYGON ((0 0 10, 10 0 10, 10 10 10, 0 10 10, 0 0 10), (2 2 10, 2 8 10, 8 8 10, 8 2 10, 2 2 10))"
+        geom_3d = GEOSGeometry(wkt_3d)
+
+        wkt_2d = "POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0), (2 2, 2 8, 8 8, 8 2, 2 2))"
+        geom_2d = GEOSGeometry(wkt_2d)
+
+        self.assertEqual(
+            json.loads(json.dumps(drop_z(geom_3d.coords))),
+            json.loads(json.dumps(geom_2d.coords)),
+        )
+
+    def test_multipolygon_with_hole_2d(self):
+        wkt = (
+            "MULTIPOLYGON (((0 0, 10 0, 10 10, 0 10, 0 0), (2 2, 2 8, 8 8, 8 2, 2 2)))"
+        )
+        geom = GEOSGeometry(wkt)
+        self.assertEqual(
+            json.loads(json.dumps(drop_z(geom.coords))),
+            json.loads(json.dumps(geom.coords)),
+        )
+
+    def test_multipolygon_with_hole_3d(self):
+        wkt_3d = "MULTIPOLYGON (((0 0 10, 10 0 10, 10 10 10, 0 10 10, 0 0 10), (2 2 10, 2 8 10, 8 8 10, 8 2 10, 2 2 10)))"
+        geom_3d = GEOSGeometry(wkt_3d)
+
+        wkt_2d = (
+            "MULTIPOLYGON (((0 0, 10 0, 10 10, 0 10, 0 0), (2 2, 2 8, 8 8, 8 2, 2 2)))"
+        )
+        geom_2d = GEOSGeometry(wkt_2d)
+
+        self.assertEqual(
+            json.loads(json.dumps(drop_z(geom_3d.coords))),
+            json.loads(json.dumps(geom_2d.coords)),
+        )
