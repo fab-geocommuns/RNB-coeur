@@ -13,9 +13,9 @@ from batid.exceptions import InvalidWGS84Geometry
 from batid.utils.geo import assert_shape_is_valid
 from batid.utils.geo import compute_shape_area
 from batid.utils.geo import convert_geometry_collection
+from batid.utils.geo import drop_z
 from batid.utils.geo import fix_nested_shells
 from batid.utils.geo import merge_contiguous_shapes
-from batid.utils.geo import drop_z
 
 
 class TestGeo(TestCase):

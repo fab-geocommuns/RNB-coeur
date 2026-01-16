@@ -1,9 +1,10 @@
-import time
-import cProfile, pstats, io
-from django.core.management.base import BaseCommand
-from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
+import cProfile
+import io
+import pstats
 
-from batid.services.data_fix.fill_empty_event_id import fill_empty_event_id
+from django.core.management.base import BaseCommand
+
+from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
 
 
 class Command(BaseCommand):
