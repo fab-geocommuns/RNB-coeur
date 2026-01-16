@@ -8,23 +8,21 @@ from datetime import timezone
 from typing import Optional
 
 import fiona
-import geopandas as gpd
 import psycopg2
 from celery import chain
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import WKTWriter
 from django.db import connection
 from django.db import transaction
 
 from batid.models import Building
-from batid.utils.geo import drop_z
 from batid.models import BuildingImport
 from batid.models import Candidate
 from batid.services.administrative_areas import dpts_list
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
+from batid.utils.geo import drop_z
 from batid.utils.geo import fix_nested_shells
 
 
