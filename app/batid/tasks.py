@@ -1,9 +1,9 @@
+import uuid
 from datetime import datetime
 from typing import Optional
 
 from celery import chain
 from celery import shared_task
-import uuid
 
 from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list
@@ -48,10 +48,10 @@ from batid.services.imports.import_plots import (
 )
 from batid.services.mattermost import notify_if_error
 from batid.services.mattermost import notify_tech
+from batid.services.reports.arcep import dl_and_create_arcep_reports
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.source import Source
 from batid.utils.auth import make_random_password
-from batid.services.reports.arcep import dl_and_create_arcep_reports
 
 
 @shared_task
