@@ -20,7 +20,7 @@ def dl_and_create_arcep_reports() -> uuid.UUID:
     points = []
 
     with open(source.find(source.filename), "r") as f:
-        # Skip header
+
         reader = csv.DictReader(f)
 
         for line in reader:
