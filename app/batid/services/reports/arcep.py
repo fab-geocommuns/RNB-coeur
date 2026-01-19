@@ -1,12 +1,14 @@
-import uuid
-from batid.models.report import Report
-from batid.models.building import Building
-from batid.services.RNB_team_user import get_RNB_team_user
-from batid.services.bdg_status import BuildingStatus
-from django.contrib.gis.geos import Point
-from django.contrib.gis.db.models import functions
-from django.contrib.gis.db import models
 import csv
+import uuid
+
+from django.contrib.gis.db import models
+from django.contrib.gis.db.models import functions
+from django.contrib.gis.geos import Point
+
+from batid.models.building import Building
+from batid.models.report import Report
+from batid.services.bdg_status import BuildingStatus
+from batid.services.RNB_team_user import get_RNB_team_user
 
 ARCEP_TAG_NAME = "Nouveau bâtiment"
 
