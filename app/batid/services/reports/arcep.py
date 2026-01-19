@@ -2,7 +2,7 @@ import csv
 import uuid
 
 from django.contrib.gis.db import models
-from django.contrib.gis.db.models import functions
+from django.db.models.functions import Cast
 from django.contrib.gis.geos import Point
 
 from batid.models.building import Building
@@ -53,7 +53,7 @@ def create_reports(points: list[Point]) -> uuid.UUID:
                 is_active=True, status__in=BuildingStatus.REAL_BUILDINGS_STATUS
             )
             .annotate(
-                shape_geog=functions.Cast(
+                shape_geog=Cast(
                     "shape", models.GeometryField(geography=True, srid=4326)
                 )
             )
@@ -66,7 +66,7 @@ def create_reports(points: list[Point]) -> uuid.UUID:
         if (
             Report.objects.filter(tags__name="Nouveau bâtiment")
             .annotate(
-                point_geog=functions.Cast(
+                point_geog=Cast(
                     "point", models.GeometryField(geography=True, srid=4326)
                 )
             )
