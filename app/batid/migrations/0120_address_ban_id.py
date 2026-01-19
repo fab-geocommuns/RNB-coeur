@@ -10,6 +10,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(
+            "SET statement_timeout = '0';",
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         migrations.AddField(
             model_name="address",
             name="ban_id",
