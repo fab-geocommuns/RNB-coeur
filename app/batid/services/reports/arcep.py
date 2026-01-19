@@ -1,9 +1,7 @@
 import csv
 import uuid
 
-from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
-from django.db.models.functions import Cast
 
 from batid.models.building import Building
 from batid.models.report import Report
