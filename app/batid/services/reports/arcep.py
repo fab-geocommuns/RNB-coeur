@@ -62,18 +62,20 @@ def create_reports(points: list[Point]) -> uuid.UUID:
             print(f"- processing point {idx}")
 
         # Check if a real building exists in a 10 meters radius
-        if (
-            Building.objects.filter(
-                is_active=True, status__in=BuildingStatus.REAL_BUILDINGS_STATUS
-            )
-            .annotate(
-                shape_geog=Cast(
-                    "shape", models.GeometryField(geography=True, srid=4326)
-                )
-            )
-            .filter(shape_geog__dwithin=(point, 10))
-            .exists()
-        ):
+        q = """
+            SELECT id FROM batid_building
+            WHERE ST_DWithin(shape::geography, ST_GeomFromText(%(point)s)::geography, 10)
+            AND status IN %(status)s
+            AND is_active = TRUE
+            LIMIT 1
+        """
+        params = {
+            "point": point.wkt,
+            "status": tuple(BuildingStatus.REAL_BUILDINGS_STATUS),
+        }
+        buildings = Building.objects.raw(q, params)
+
+        if any(buildings):
             continue
 
         # Check if a report with the same tag exists in a 10 meters radius
