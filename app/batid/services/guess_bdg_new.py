@@ -578,39 +578,13 @@ class GeocodeAddressHandler(AbstractHandler):
         # Remove any newline in the middle of the adresse
         address = address.replace("\n", " ").strip()
 
-        # Transform any multiple space into single space
+        # Transform any multiple space into sisngle space
         address = re.sub(r"\s+", " ", address)
 
         # Remove any comma or space or both at the start of the address
         address = address.lstrip(",. ")
 
         return address
-
-    @staticmethod
-    def _address_to_ban_id(address: str, lat: float, lng: float) -> Optional[str]:
-
-        geocoder = BanGeocoder()
-        geocode_response = geocoder.geocode(
-            {
-                "q": address,
-                "lat": lat,
-                "lon": lng,
-                "type": "housenumber",
-            }
-        )
-
-        if geocode_response.status_code != 200:
-            return None
-
-        geo_results = geocode_response.json()
-
-        if "features" in geo_results and geo_results["features"]:
-            best = geo_results["features"][0]
-
-            if best["properties"]["score"] >= 0.8:
-                return best["properties"]["id"]
-
-        return None
 
 
 class GeocodeNameHandler(AbstractHandler):
