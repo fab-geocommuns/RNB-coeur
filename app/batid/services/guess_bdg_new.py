@@ -23,7 +23,6 @@ from batid.models import Building
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.closest_bdg import get_closest_from_poly
 from batid.services.geocoders import BanBatchGeocoder
-from batid.services.geocoders import BanGeocoder
 from batid.services.geocoders import PhotonGeocoder
 from batid.utils.misc import max_by_group
 
