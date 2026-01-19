@@ -16,16 +16,23 @@ ARCEP_TAG_NAME = "Nouveau bâtiment"
 def dl_and_create_arcep_reports() -> uuid.UUID:
     from batid.services.source import Source
 
+    print("- downloading ARCEP source")
     source = Source("arcep")
     source.download()
 
     points = []
 
+    print("- reading ARCEP source and creating reports")
     with open(source.find(source.filename), "r") as f:
 
         reader = csv.DictReader(f)
 
+        idx = 0
         for line in reader:
+
+            idx += 1
+            if idx % 100 == 0:
+                print(f"- reading line {idx}")
 
             try:
                 lat = float(line["latitude"])
@@ -40,13 +47,20 @@ def dl_and_create_arcep_reports() -> uuid.UUID:
 
 
 def create_reports(points: list[Point]) -> uuid.UUID:
+
+    print(f"- creating reports for {len(points)} points")
+
     creation_uuid = uuid.uuid4()
     team_rnb = get_RNB_team_user()
     tags = [ARCEP_TAG_NAME]
 
     text = "Un opérateur Internet indique qu'un nouveau bâtiment a été construit ici entre le 01/01/2023 et le 31/12/2025. Faut-il ajouter un nouveau bâtiment au RNB ?"
 
-    for point in points:
+    for idx, point in enumerate(points):
+
+        if idx % 100 == 0:
+            print(f"- processing point {idx}")
+
         # Check if a real building exists in a 10 meters radius
         if (
             Building.objects.filter(
