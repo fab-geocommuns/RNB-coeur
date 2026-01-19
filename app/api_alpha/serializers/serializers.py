@@ -495,15 +495,13 @@ class BuildingsADSSerializer(serializers.ModelSerializer):
 
         extra_kwargs = {
             "rnb_id": {"help_text": "A1B2C3A1B2C3"},
-            "shape": {
-                "help_text": """{
+            "shape": {"help_text": """{
                                         "type": "Point",
                                         "coordinates": [
                                             5.722961565015281,
                                             45.1851103238598
                                         ]
-                                    }"""
-            },
+                                    }"""},
             "operation": {"help_text": "demolish"},
         }
 

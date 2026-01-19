@@ -1,6 +1,7 @@
 import yaml
 from django.apps import AppConfig
 
+
 # Définition de la classe pour le block scalar "|"
 class LiteralStr(str):
     """Force PyYAML to use block scalar '|' for multilines"""

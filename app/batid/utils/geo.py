@@ -125,7 +125,7 @@ def assert_shape_is_valid(geom: GEOSGeometry):
         raise InvalidWGS84Geometry()
 
     def check_simple_tuple(t):
-        (lon, lat) = t
+        lon, lat = t
         if not (-180 <= lon <= 180):
             raise InvalidWGS84Geometry(
                 f"La longitude est hors de la plage autorisée pour WGS84 (±180°) : {lon}"

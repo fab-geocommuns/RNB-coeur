@@ -123,8 +123,7 @@ class SingleBuilding(RNBLoggingMixin, APIView):
         {
             "patch": {
                 "summary": "Mise à jour ou désactivation/réactivation d'un bâtiment",
-                "description": LiteralStr(
-                    """\
+                "description": LiteralStr("""\
 Cet endpoint permet de :
 * mettre à jour un bâtiment existant (status, addresses_cle_interop, shape)
 * désactiver son ID-RNB s'il s'avère qu'il ne devrait pas faire partie du
@@ -141,8 +140,7 @@ Exemples valides:
 * ```{"comment": "RNB ID désactivé par erreur, on le réactive", "is_active": True}```
 * ```{"comment": "bâtiment démoli", "status": "demolished"}```
 * ```{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}```
-"""
-                ),
+"""),
                 "operationId": "patchBuilding",
                 "parameters": [
                     {

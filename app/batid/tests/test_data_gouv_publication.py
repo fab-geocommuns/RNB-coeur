@@ -24,6 +24,7 @@ from batid.services.data_gouv_publication import publish_on_data_gouv
 from batid.services.data_gouv_publication import update_resource_metadata
 from batid.services.data_gouv_publication import upload_to_s3
 
+
 # Polygone dans Paris
 def get_geom_paris():
     coords = {
@@ -323,9 +324,7 @@ class TestDataGouvPublication(TestCase):
             # Finally, check the content of the rows
             self.assertListEqual(rows, expected_rows)
 
-        (archive_path, archive_size, archive_sha1) = create_archive(
-            directory_name, area
-        )
+        archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
 
         # check the archive exists
         self.assertTrue(os.path.exists(archive_path))
@@ -363,9 +362,7 @@ class TestDataGouvPublication(TestCase):
 
         create_csv(directory_name, area)
 
-        (archive_path, archive_size, archive_sha1) = create_archive(
-            directory_name, area
-        )
+        archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
 
         # create the mock s3 bucket
         conn = boto3.resource("s3")

@@ -23,9 +23,7 @@ def publish(area: str):
     try:
         directory_name = create_directory(area)
         create_csv(directory_name, area)
-        (archive_path, archive_size, archive_sha1) = create_archive(
-            directory_name, area
-        )
+        archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
 
         if os.environ.get("ENABLE_DATAGOUV_PUBLICATION") == "true":
             public_url = upload_to_s3(archive_path)

@@ -46,7 +46,6 @@ from api_alpha.views import RequestPasswordReset
 from api_alpha.views import RNBAuthToken
 from api_alpha.views import SplitBuildings
 
-
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
 router.register(r"ads", ADSViewSet)

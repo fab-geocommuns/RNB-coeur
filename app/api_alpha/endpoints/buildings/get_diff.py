@@ -96,11 +96,9 @@ class DiffView(APIView):
                 "SET statement_timeout = %(statement_timeout)s;",
                 {"statement_timeout": local_statement_timeout},
             )
-            most_recent_modification_query = sql.SQL(
-                """
+            most_recent_modification_query = sql.SQL("""
                 select max(lower(sys_period)) from batid_building_with_history
-                """
-            )
+                """)
             cursor.execute(most_recent_modification_query)
             most_recent_modification = cursor.fetchone()[0]
 

@@ -167,9 +167,9 @@ class BuildingListingCursorPagination(CursorPagination):
 
         self.cursor = self.decode_cursor(request)
         if self.cursor is None:
-            (offset, reverse, current_position) = (0, False, None)
+            offset, reverse, current_position = (0, False, None)
         else:
-            (offset, reverse, current_position) = self.cursor
+            offset, reverse, current_position = self.cursor
 
         current_id = int(current_position) if current_position else 0
 
