@@ -79,16 +79,24 @@ def create_reports(points: list[Point]) -> uuid.UUID:
             continue
 
         # Check if a report with the same tag exists in a 10 meters radius
-        if (
-            Report.objects.filter(tags__name="Nouveau bâtiment")
-            .annotate(
-                point_geog=Cast(
-                    "point", models.GeometryField(geography=True, srid=4326)
-                )
-            )
-            .filter(point_geog__dwithin=(point, 10))
-            .exists()
-        ):
+        q = """
+            SELECT r.id FROM batid_report as r
+            JOIN taggit_taggeditem AS tagged_item
+                ON tagged_item.object_id = r.id
+            JOIN django_content_type
+                ON tagged_item.content_type_id = django_content_type.id
+            JOIN taggit_tag AS tags
+                ON tagged_item.tag_id = tags.id
+            WHERE django_content_type.app_label = 'batid'
+            AND django_content_type.model = 'report'
+            AND ST_DWithin(r.point::geography, ST_GeomFromText(%(point)s)::geography, 10)
+            AND tags.name = %(tag)s
+            LIMIT 1
+        """
+        params = {"point": point.wkt, "tag": ARCEP_TAG_NAME}
+        reports = Report.objects.raw(q, params)
+        if any(reports):
+
             continue
 
         Report.create(
