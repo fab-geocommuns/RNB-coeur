@@ -6,8 +6,35 @@ from batid.services.bdg_status import BuildingStatus
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models import functions
 from django.contrib.gis.db import models
+import csv
 
 ARCEP_TAG_NAME = "Nouveau bâtiment"
+
+
+def dl_and_create_arcep_reports() -> uuid.UUID:
+    from batid.services.source import Source
+
+    source = Source("arcep")
+    source.download()
+
+    points = []
+
+    with open(source.find(source.filename), "r") as f:
+        # Skip header
+        reader = csv.DictReader(f)
+
+        for line in reader:
+
+            try:
+                lat = float(line["latitude"])
+                lng = float(line["longitude"])
+                point = Point(lng, lat, srid=4326)
+                points.append(point)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid lat/lng values: {line['latitude']}, {line['longitude']}"
+                )
+    return create_reports(points)
 
 
 def create_reports(points: list[Point]) -> uuid.UUID:

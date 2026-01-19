@@ -4,6 +4,9 @@ from batid.models.report import Report
 from batid.models.building import Building
 from batid.services.reports.arcep import create_reports
 import uuid
+from batid.tests import helpers
+from unittest.mock import patch
+from batid.services.reports.arcep import dl_and_create_arcep_reports
 
 
 class ReportArcepTestCase(TestCase):
@@ -99,3 +102,16 @@ class ReportArcepTestCase(TestCase):
         self.assertEqual(
             Report.objects.filter(creation_batch_uuid=reports_uuid).count(), 1
         )
+
+    @patch("batid.services.imports.import_bdtopo.Source.find")
+    @patch("batid.services.imports.import_bdtopo.Source.download")
+    def test_import(self, sourceDownloadMock, sourceFindMock):
+
+        sourceFindMock.return_value = helpers.fixture_path("arcep_reports_for_test.csv")
+        sourceDownloadMock.return_value = None
+
+        dl_and_create_arcep_reports()
+
+        count = Report.objects.all().count()
+        # There are 5 points in the fixture, but one is too close to another report
+        self.assertEqual(count, 4)

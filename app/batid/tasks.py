@@ -3,6 +3,7 @@ from typing import Optional
 
 from celery import chain
 from celery import shared_task
+import uuid
 
 from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list
@@ -50,6 +51,7 @@ from batid.services.mattermost import notify_tech
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.source import Source
 from batid.utils.auth import make_random_password
+from batid.services.reports.arcep import dl_and_create_arcep_reports
 
 
 @shared_task
@@ -407,3 +409,8 @@ def fill_empty_event_type(batch_size: int) -> int:
             break
 
     return f"Total updated rows: {total}"  # type: ignore[return-value]
+
+
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def create_arcep_reports() -> uuid.UUID:
+    return dl_and_create_arcep_reports()
