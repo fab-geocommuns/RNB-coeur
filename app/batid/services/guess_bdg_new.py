@@ -23,7 +23,6 @@ from batid.models import Building
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.closest_bdg import get_closest_from_poly
 from batid.services.geocoders import BanBatchGeocoder
-from batid.services.geocoders import BanGeocoder
 from batid.services.geocoders import PhotonGeocoder
 from batid.utils.misc import max_by_group
 
@@ -585,32 +584,6 @@ class GeocodeAddressHandler(AbstractHandler):
         address = address.lstrip(",. ")
 
         return address
-
-    @staticmethod
-    def _address_to_ban_id(address: str, lat: float, lng: float) -> Optional[str]:
-
-        geocoder = BanGeocoder()
-        geocode_response = geocoder.geocode(
-            {
-                "q": address,
-                "lat": lat,
-                "lon": lng,
-                "type": "housenumber",
-            }
-        )
-
-        if geocode_response.status_code != 200:
-            return None
-
-        geo_results = geocode_response.json()
-
-        if "features" in geo_results and geo_results["features"]:
-            best = geo_results["features"][0]
-
-            if best["properties"]["score"] >= 0.8:
-                return best["properties"]["id"]
-
-        return None
 
 
 class GeocodeNameHandler(AbstractHandler):

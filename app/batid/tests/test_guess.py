@@ -277,13 +277,10 @@ class TestGuesser(TransactionTestCase):
         reason = guesser.guesses.get("UNIQUE_ROW")["match_reason"]
         self.assertEqual(reason, "precise_address_match")
 
-    @patch("batid.services.guess_bdg_new.GeocodeAddressHandler._address_to_ban_id")
+    @patch("batid.services.guess_bdg_new.GeocodeAddressHandler._geocode_batch")
     @patch("batid.services.guess_bdg_new.GeocodeNameHandler._geocode_name_and_point")
-    def test_ambiguous_address(
-        self, geocode_name_and_point_mock, address_to_ban_id_mock
-    ):
+    def test_ambiguous_address(self, geocode_name_and_point_mock, geocode_batch_mock):
         geocode_name_and_point_mock.return_value = None
-        address_to_ban_id_mock.return_value = "AMBIGUOUS_ADDRESS"
 
         inputs = [
             {
@@ -297,6 +294,8 @@ class TestGuesser(TransactionTestCase):
 
         guesser = Guesser()
         guesser.load_inputs(inputs)
+
+        geocode_batch_mock.return_value = guesser.guesses
         guesser.guess_all()
 
         # We verify we found the right building
