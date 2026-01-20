@@ -5,8 +5,8 @@ from django.contrib.gis.geos import Point
 
 from batid.models.building import Building
 from batid.models.report import Report
-from batid.services.bdg_status import BuildingStatus
 from batid.services.RNB_team_user import get_RNB_team_user
+from batid.services.closest_bdg import get_closest_from_point
 
 ARCEP_TAG_NAME = "Nouveau bâtiment"
 
@@ -60,20 +60,7 @@ def create_reports(points: list[Point]) -> uuid.UUID:
             print(f"- processing point {idx}")
 
         # Check if a real building exists in a 10 meters radius
-        q = """
-            SELECT id FROM batid_building
-            WHERE ST_DWithin(shape::geography, ST_GeomFromText(%(point)s)::geography, 10)
-            AND status IN %(status)s
-            AND is_active = TRUE
-            LIMIT 1
-        """
-        params = {
-            "point": point.wkt,
-            "status": tuple(BuildingStatus.REAL_BUILDINGS_STATUS),
-        }
-        buildings = Building.objects.raw(q, params)
-
-        if any(buildings):
+        if get_closest_from_point(point.y, point.x, 10).exists():
             continue
 
         # Check if a report with the same tag exists in a 10 meters radius
@@ -107,3 +94,29 @@ def create_reports(points: list[Point]) -> uuid.UUID:
             creation_batch_uuid=creation_uuid,
         )
     return creation_uuid
+
+
+def reject_irrelevant_arcep_reports():
+    print("- closing irrelevant ARCEP reports")
+
+    team_rnb = get_RNB_team_user()
+    reports = Report.objects.filter(status="pending", tags__name=ARCEP_TAG_NAME)
+
+    count = 0
+    for report in reports:
+        closest_bdgs = get_closest_from_point(report.point.y, report.point.x, 10)
+
+        if closest_bdgs.exists():
+            rnb_ids = [b.rnb_id for b in closest_bdgs]
+            rnb_ids_str = ", ".join(rnb_ids)
+            msg = f"Nous fermons ce signalement car les bâtiments {rnb_ids_str} sont à moins de 10 mètres."
+
+            report.add_message_and_update_status(
+                text=msg,
+                created_by_user=team_rnb,
+                created_by_email=None,
+                status="rejected",
+            )
+            count += 1
+
+    print(f"- closed {count} irrelevant reports")
