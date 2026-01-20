@@ -3,10 +3,9 @@ import uuid
 
 from django.contrib.gis.geos import Point
 
-from batid.models.building import Building
 from batid.models.report import Report
-from batid.services.RNB_team_user import get_RNB_team_user
 from batid.services.closest_bdg import get_closest_from_point
+from batid.services.RNB_team_user import get_RNB_team_user
 
 ARCEP_TAG_NAME = "Nouveau bâtiment"
 
