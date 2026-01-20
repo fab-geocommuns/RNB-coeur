@@ -577,7 +577,7 @@ class GeocodeAddressHandler(AbstractHandler):
         # Remove any newline in the middle of the adresse
         address = address.replace("\n", " ").strip()
 
-        # Transform any multiple space into sisngle space
+        # Transform any multiple space into single space
         address = re.sub(r"\s+", " ", address)
 
         # Remove any comma or space or both at the start of the address
