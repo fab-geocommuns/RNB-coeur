@@ -1,3 +1,6 @@
+from typing import Any
+from typing import Mapping
+
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 
@@ -61,14 +64,13 @@ def _find_overlapping_buildings(
         FROM batid_building b, new_geom ng
         WHERE
             b.is_active = true
-            AND b.status IN %(real_statuses)s
+            AND b.status=ANY(%(real_statuses)s)
             AND ST_Intersects(b.shape, ng.geom)
-            AND b.shape IS NOT NULL
     """
 
-    params = {
+    params: Mapping[str, Any] = {
         "new_shape": shape.wkt,
-        "real_statuses": tuple(BuildingStatus.REAL_BUILDINGS_STATUS),
+        "real_statuses": list(BuildingStatus.REAL_BUILDINGS_STATUS),
     }
 
     overlapping_buildings = []
