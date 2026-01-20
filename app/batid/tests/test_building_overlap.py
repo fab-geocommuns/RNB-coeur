@@ -179,8 +179,8 @@ class TestBuildingOverlapService(TestCase):
         # Should not raise an error because "demolished" is not a "real" status
         check_building_overlap(new_shape)
 
-    def test_point_geometry_skipped(self):
-        """Point geometries should not be checked."""
+    def test_point_geometry(self):
+        """Point geometries are taken into account."""
         # Create an existing building
         Building.objects.create(
             rnb_id="EXISTING001",
@@ -194,8 +194,28 @@ class TestBuildingOverlapService(TestCase):
         center_lat = BASE_LAT + LARGE_OFFSET / 2
         new_shape = GEOSGeometry(f"SRID=4326;POINT({center_lon} {center_lat})")
 
-        # Should not raise an error because points have no area
-        check_building_overlap(new_shape)
+        # Should an error because the point is in the building
+        with self.assertRaises(BuildingOverlapError) as context:
+            check_building_overlap(new_shape)
+
+    def test_point_geometry_2(self):
+        """Point geometries are taken into account."""
+        # Create an existing building
+        center_lon = BASE_LON + LARGE_OFFSET / 2
+        center_lat = BASE_LAT + LARGE_OFFSET / 2
+
+        Building.objects.create(
+            rnb_id="EXISTING001",
+            shape=GEOSGeometry(f"SRID=4326;POINT({center_lon} {center_lat})"),
+            is_active=True,
+            status="constructed",
+        )
+
+        new_shape = make_large_building_shape()
+
+        # Should raise an error because the new shape encompasses the existing point building
+        with self.assertRaises(BuildingOverlapError) as context:
+            check_building_overlap(new_shape)
 
     def test_none_shape_skipped(self):
         """A None shape should not raise an error."""

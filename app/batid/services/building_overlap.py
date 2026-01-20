@@ -23,10 +23,6 @@ def check_building_overlap(
     if shape is None:
         return
 
-    # Points have no area, cannot compute overlap ratio
-    if shape.geom_type == "Point":
-        return
-
     overlapping = _find_overlapping_buildings(shape)
 
     if overlapping:
@@ -55,12 +51,12 @@ def _find_overlapping_buildings(
             CASE
                 WHEN ST_Area(ng.geom) > 0 THEN
                     ST_Area(ST_Intersection(b.shape, ng.geom)) / ST_Area(ng.geom)
-                ELSE 0
+                ELSE 1
             END as new_in_existing_ratio,
             CASE
                 WHEN ST_Area(b.shape) > 0 THEN
                     ST_Area(ST_Intersection(b.shape, ng.geom)) / ST_Area(b.shape)
-                ELSE 0
+                ELSE 1
             END as existing_in_new_ratio
         FROM batid_building b, new_geom ng
         WHERE
@@ -68,7 +64,6 @@ def _find_overlapping_buildings(
             AND b.status IN %(real_statuses)s
             AND ST_Intersects(b.shape, ng.geom)
             AND b.shape IS NOT NULL
-            AND ST_GeometryType(b.shape) IN ('ST_Polygon', 'ST_MultiPolygon')
     """
 
     params = {
