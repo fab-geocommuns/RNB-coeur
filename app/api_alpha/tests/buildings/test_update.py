@@ -342,7 +342,7 @@ class BuildingPatchTest(APITestCase):
             # not active, but not deactivated by a "deactivation" event
             self.building.reactivate()
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_update_building(self):
         comment = "maj du batiment"
         data = {
@@ -377,7 +377,7 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_update_building_duplicate_address(self):
         comment = "maj du batiment"
         data = {
@@ -412,7 +412,7 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_update_with_empty_addresses(self):
 
         # First, we have to add some addresses to the building
@@ -455,7 +455,7 @@ class BuildingPatchTest(APITestCase):
 
         self.assertListEqual(self.building.addresses_id, [])
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_update_building_shape_hex(self):
         comment = "maj du batiment"
         wkt = "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))"
@@ -477,6 +477,7 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(self.building.shape.wkt, wkt)
         self.assertTrue(g.contains(self.building.point))
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_update_building_shape_point(self):
         comment = "maj du batiment"
         wkt = "POINT (1 1)"
@@ -667,7 +668,7 @@ class BuildingPatchTest(APITestCase):
         self.user.profile.refresh_from_db()
         self.assertEqual(self.user.profile.total_contributions, 500)
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_update_building_contribution_limit_exceeded_but_sandbox(self):
 
         with self.settings(ENVIRONMENT="sandbox"):

@@ -1,13 +1,12 @@
 from typing import Any
 from typing import Mapping
 
+from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 
 from batid.exceptions import BuildingOverlapError
 from batid.services.bdg_status import BuildingStatus
-
-OVERLAP_THRESHOLD = 0.80  # 80%
 
 
 def check_building_overlap(
@@ -75,6 +74,9 @@ def _find_overlapping_buildings(
 
     overlapping_buildings = []
 
+    # used in tests to bypass the overlap verification
+    BUILDING_OVERLAP_THRESHOLD = settings.BUILDING_OVERLAP_THRESHOLD
+
     with connection.cursor() as cursor:
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -85,7 +87,7 @@ def _find_overlapping_buildings(
             # Take the max ratio from both directions
             max_ratio = max(new_in_existing or 0, existing_in_new or 0)
 
-            if max_ratio > OVERLAP_THRESHOLD:
+            if max_ratio > BUILDING_OVERLAP_THRESHOLD:
                 overlapping_buildings.append(
                     {
                         "rnb_id": rnb_id,

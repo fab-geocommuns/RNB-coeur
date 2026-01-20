@@ -3,6 +3,7 @@ from unittest import mock
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
+from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APITestCase
 
@@ -12,6 +13,7 @@ from batid.tests.factories.users import ContributorUserFactory
 
 
 class BuildingClosestViewTest(APITestCase):
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_closest(self):
         user = ContributorUserFactory(username="user")
         # It should be first in the results
@@ -299,6 +301,7 @@ class BuildingClosestViewTest(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertDictEqual(r.json(), {"results": [], "next": None, "previous": None})
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_closest_no_n_plus_1(self):
         user = ContributorUserFactory(username="user")
 
@@ -365,6 +368,7 @@ class BuildingClosestViewTest(APITestCase):
 
 
 class BuildingAddressViewTest(APITestCase):
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def setUp(self):
         self.cle_interop_ban_1 = "33522_2620_00021"
         self.address_1 = Address.objects.create(id=self.cle_interop_ban_1)
@@ -425,6 +429,7 @@ class BuildingAddressViewTest(APITestCase):
             ),
         )
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_allowed_parameters(self):
         r = self.client.get("/api/alpha/buildings/address/")
         self.assertEqual(r.status_code, 400)
@@ -437,6 +442,7 @@ class BuildingAddressViewTest(APITestCase):
         )
         self.assertEqual(r.status_code, 400)
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_by_cle_interop(self):
         # 2 buildings
         def buildings_by_address():
@@ -491,6 +497,7 @@ class BuildingAddressViewTest(APITestCase):
         self.assertEqual(data["results"], [])
 
     @mock.patch("api_alpha.views.requests.get")
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_by_address(self, get_mock):
         get_mock.return_value.status_code = 200
         q = "8 Boulevard du Port 95000 Cergy"
@@ -531,6 +538,7 @@ class BuildingAddressViewTest(APITestCase):
         self.assertEqual(data["results"], None)
 
     @mock.patch("api_alpha.views.requests.get")
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_address_not_found_on_ban(self, get_mock):
         get_mock.return_value.status_code = 200
         q = "lkjlkjlkjlkj"
@@ -546,6 +554,7 @@ class BuildingAddressViewTest(APITestCase):
         self.assertEqual(data["results"], None)
 
     @mock.patch("api_alpha.views.requests.get")
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_address_ban_5XX(self, get_mock):
         get_mock.return_value.status_code = 500
         q = "1 route de Toulouse"
