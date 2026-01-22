@@ -185,8 +185,6 @@ class DiffView(APIView):
                         spatial_filter = " AND ST_Intersects(bb.shape, ST_GeomFromText({city_shape}, 4326))"
 
                     raw_sql = (
-                        # nosec B608: spatial_filter comes from database (City.shape.wkt), not user input,
-                        # and is escaped via sql.Literal() below
                         """
                         COPY (
                             select
@@ -215,7 +213,7 @@ class DiffView(APIView):
                             event_type
                             FROM batid_building_with_history bb
                             where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone"""
-                        + spatial_filter
+                        + spatial_filter  # nosec B608: spatial_filter comes from database (City.shape.wkt), not user input, and is escaped via sql.Literal() below
                         + """
                             order by lower(sys_period)
                         ) TO STDOUT WITH CSV
