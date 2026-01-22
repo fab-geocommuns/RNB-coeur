@@ -114,5 +114,3 @@ Le projet est incubé au sein du programme beta.gouv.fr.
 ## License
 
 Projet distribué sous la License Apache 2. Voir la [`LICENSE`](LICENSE) pour plus de détails.
-
-
