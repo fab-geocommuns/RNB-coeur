@@ -10,6 +10,7 @@ from django.http import HttpRequest
 from django.http import HttpResponse
 from django.http import StreamingHttpResponse
 from django.utils.dateparse import parse_datetime
+from django.utils.html import escape
 from psycopg2 import sql
 from rest_framework.views import APIView
 
@@ -112,13 +113,13 @@ class DiffView(APIView):
                 city = City.objects.get(code_insee=insee_code)
             except City.DoesNotExist:
                 return HttpResponse(
-                    f"Le code INSEE '{insee_code}' n'a pas été trouvé",
+                    f"Le code INSEE '{escape(insee_code)}' n'a pas été trouvé",
                     status=404,
                 )
 
             if city.shape is None:
                 return HttpResponse(
-                    f"Erreur interne : la géométrie de la commune '{insee_code}' est absente",
+                    f"Erreur interne : la géométrie de la commune '{escape(insee_code)}' est absente",
                     status=500,
                 )
 
