@@ -11,6 +11,7 @@ from batid.services.RNB_team_user import get_RNB_team_user
 ARCEP_TAG_NAME = "Nouveau bâtiment"
 
 
+
 def dl_and_create_arcep_reports() -> uuid.UUID:
     from batid.services.source import Source
 
