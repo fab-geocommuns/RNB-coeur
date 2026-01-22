@@ -146,6 +146,7 @@ class TestSummerChallenge(TestCase):
         self.assertIsNone(score.department)
         self.assertEqual(score.event_id, building.event_id)
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_score_building_update(self):
         building = Building.create_new(
             user=self.user,
@@ -240,6 +241,7 @@ class TestSummerChallenge(TestCase):
         self.assertEqual(score.department, self.dpt_1)
         self.assertEqual(score.event_id, building.event_id)
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_score_building_deactivate(self):
         building = Building.create_new(
             user=self.user,
@@ -283,6 +285,7 @@ class TestSummerChallenge(TestCase):
         self.assertEqual(score.department, self.dpt_1)
         self.assertEqual(score.event_id, building.event_id)
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_score_building_split(self):
         shape = GEOSGeometry(
             json.dumps(
@@ -328,6 +331,7 @@ class TestSummerChallenge(TestCase):
         self.assertEqual(score.department, self.dpt_1)
         self.assertEqual(score.event_id, building.event_id)
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_score_building_merge(self):
         shape = GEOSGeometry(
             json.dumps(

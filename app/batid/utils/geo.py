@@ -206,3 +206,9 @@ def compute_shape_area(shape: GEOSGeometry) -> float:
     area, _ = geod.geometry_area_perimeter(geom)
 
     return abs(area)
+
+
+def drop_z(coords):
+    if isinstance(coords[0], (float, int)):
+        return coords[:2]  # (x, y, z) -> (x, y)
+    return [drop_z(c) for c in coords]

@@ -32,6 +32,7 @@ from batid.exceptions import NotEnoughBuildings
 from batid.exceptions import OperationOnInactiveBuilding
 from batid.exceptions import RevertNotAllowed
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
+from batid.services.building_overlap import check_building_overlap
 from batid.services.rnb_id import generate_rnb_id
 from batid.services.user import check_and_increment_contribution_count
 from batid.utils.db import from_now_to_infinity
@@ -367,6 +368,8 @@ class Building(BuildingAbstract):
             if self.shape:
                 assert_new_shape_is_close_enough(self.shape, shape)
 
+            check_building_overlap(shape)
+
         self.event_type = "update"
         self.event_id = uuid.uuid4()
         self.event_user = user
@@ -523,6 +526,7 @@ class Building(BuildingAbstract):
             raise Exception("Missing information to create a new building")
 
         assert_shape_is_valid(shape)
+        check_building_overlap(shape)
 
         point = shape if shape.geom_type == "Point" else shape.point_on_surface
         rnb_id = generate_rnb_id()
@@ -719,6 +723,8 @@ class Building(BuildingAbstract):
             assert_shape_is_valid(geos_shape)
             if self.shape:
                 assert_new_shape_is_close_enough(self.shape, geos_shape, max_dist=100)
+
+            check_building_overlap(geos_shape)
 
             child_building = Building()
             child_building.rnb_id = generate_rnb_id()

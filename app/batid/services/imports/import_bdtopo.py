@@ -7,12 +7,11 @@ from datetime import datetime
 from datetime import timezone
 from typing import Optional
 
-import geopandas as gpd
+import fiona
 import psycopg2
 from celery import chain
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import WKTWriter
 from django.db import connection
 from django.db import transaction
 
@@ -23,6 +22,7 @@ from batid.services.administrative_areas import dpts_list
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
+from batid.utils.geo import drop_z
 from batid.utils.geo import fix_nested_shells
 
 
@@ -72,25 +72,38 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
 
     path = src.find(src.filename)
 
-    gdf = gpd.read_file(path, layer="batiment")
+    with fiona.open(path, layer="batiment") as layer:
 
-    srid = gdf.crs.to_epsg()
+        srid = int(layer.crs["init"].split(":")[1])
 
-    # keep only where construction_legere is False
-    gdf = gdf[gdf["construction_legere"] == False]
+        candidates = []
 
-    candidates = []
+        iterator = iter(layer)
 
-    # iterate over the rows
-    for index, row in gdf.iterrows():
+        while True:
+            try:
+                feature = next(iterator)
 
-        if _known_bdtopo_id(row["cleabs"]):
-            continue
+                # Skip light constructions
+                if feature["properties"]["construction_legere"] == True:
+                    continue
 
-        candidate = _transform_bdtopo_feature(row, srid)
-        candidate = _add_import_info(candidate, building_import)
-        candidate["source_version"] = src_params["date"]
-        candidates.append(candidate)
+                # Skip already known buildings
+                if _known_bdtopo_id(feature["properties"]["cleabs"]):
+                    continue
+
+                candidate = _transform_bdtopo_feature(feature, srid)
+                candidate = _add_import_info(candidate, building_import)
+                candidate["source_version"] = src_params["date"]
+                candidates.append(candidate)
+
+            except StopIteration:
+                break
+            except ValueError as e:
+                # This catches the "second must be in 0..59" error
+                print(f"SKIPPING BAD FEATURE due to invalid date: {e}")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
 
     buffer = BufferToCopy()
     buffer.write_data(candidates)
@@ -136,9 +149,9 @@ def _transform_bdtopo_feature(feature, from_srid) -> dict:
 
     candidate_dict = {
         "shape": geom_wkt,
-        "is_light": feature["construction_legere"],
+        "is_light": feature["properties"]["construction_legere"],
         "source": "bdtopo",
-        "source_id": feature["cleabs"],
+        "source_id": feature["properties"]["cleabs"],
         "address_keys": f"{{{','.join(address_keys)}}}",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
@@ -156,20 +169,17 @@ def _add_import_info(candidate, building_import: BuildingImport):
 
 def feature_to_wkt(feature, from_srid):
 
+    geojson = {
+        "type": feature["geometry"]["type"],
+        "coordinates": drop_z(feature["geometry"]["coordinates"]),
+    }
+
     # From shapely geom to GEOS geometry
-    geom = GEOSGeometry(feature["geometry"].wkt)
+    geom = GEOSGeometry(json.dumps(geojson))
     geom.srid = from_srid
 
     # From local SRID to WGS84
     geom.transform(4326)
-
-    # From 3D geom to 2D geom wkt
-    writer = WKTWriter()
-    writer.outdim = 2
-    wkt = writer.write(geom)
-
-    # Back to geom
-    geom = GEOSGeometry(wkt)
 
     # Eventually, fix nested shells
     if not geom.valid and "Nested shells" in geom.valid_reason:
