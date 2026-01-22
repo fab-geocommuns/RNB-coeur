@@ -180,6 +180,8 @@ class DiffView(APIView):
 
                     spatial_filter = ""
                     if city_shape_wkt:
+                        # nosec B608: city_shape_wkt comes from database (City.shape.wkt), not user input,
+                        # and is escaped via sql.Literal() below
                         spatial_filter = " AND ST_Intersects(bb.shape, ST_GeomFromText({city_shape}, 4326))"
 
                     raw_sql = (
