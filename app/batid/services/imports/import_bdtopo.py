@@ -101,7 +101,7 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
                 break
             except ValueError as e:
                 # This catches the "second must be in 0..59" error
-                print(f"⚠️ SKIPPING BAD FEATURE due to invalid date: {e}")
+                print(f"SKIPPING BAD FEATURE due to invalid date: {e}")
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
 
