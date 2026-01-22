@@ -291,7 +291,7 @@ class DiffTest(TransactionTestCase):
         # event_id: we check the three rows share the same event_id
         self.assertEqual(rows[2]["event_id"], rows[0]["event_id"])
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_diff_split(self):
         user = User(email="test@exemple.fr")
         user.save()

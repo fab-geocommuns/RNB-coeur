@@ -88,7 +88,7 @@ plugins = ["mypy_django_plugin.main"]
 mypy_path = "stubs"
 
 [[tool.mypy.overrides]]
-module = ["boto3.*", "rest_framework", "rest_framework.*", "rest_framework_tracking.*", "rest_framework_gis.*", "geopandas", "taggit.*"]
+module = ["boto3.*", "rest_framework", "rest_framework.*", "rest_framework_tracking.*", "rest_framework_gis.*", "geopandas", "taggit.*", "fiona"]
 follow_untyped_imports = true
 
 [tool.django-stubs]

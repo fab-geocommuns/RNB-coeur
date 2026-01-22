@@ -163,6 +163,7 @@ class TestUnitaryRollback(TransactionTestCase):
             str(e.exception), "The event_id does not correspond to a deactivation."
         )
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_revert_update(self):
         ext_ids = [{"source": "bdtopo", "id": "XXX"}]
         self.building_1.update(
@@ -233,7 +234,7 @@ class TestUnitaryRollback(TransactionTestCase):
             str(e.exception), "The event_id does not correspond to an update."
         )
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_revert_split(self):
         created_buildings = self.building_1.split(
             [
@@ -288,6 +289,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertEqual(child_2.event_id, new_event_id)
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_revert_split_impossible(self):
         created_buildings = self.building_1.split(
             [
@@ -398,7 +400,7 @@ class TestUnitaryRollback(TransactionTestCase):
 
 
 class TestGlobalRollback(TransactionTestCase):
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def setUp(self):
         self.user = User.objects.create_user(
             username="contributor",
@@ -452,6 +454,7 @@ class TestGlobalRollback(TransactionTestCase):
         )
         self.address_1 = Address.objects.create(id="1")
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_global_rollback(self):
         self.building_1.refresh_from_db()
         start_time = self.building_1.sys_period.lower
@@ -497,6 +500,7 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(self.building_2.event_type, EventType.REVERT_CREATION.value)
         self.assertEqual(self.building_2.revert_event_id, building_2_creation_event_id)
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_global_rollback_2(self):
         """Here a user creates 2 buildings and then update one of the created building. An other user updates the other building.
         only the first building creation + update is revertable.
@@ -583,7 +587,7 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(self.building_2.event_type, EventType.UPDATE.value)
         self.assertEqual(self.building_2.revert_event_id, None)
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_dry_rollback_3(self):
         """The same user does multiple editions on the same building. All those updates should be revertable."""
         self.building_2.refresh_from_db()
@@ -693,7 +697,7 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(results["events_are_revert_n"], 1)
         self.assertEqual(results["events_already_reverted_n"], 1)
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_global_rollback_3(self):
         """The same user does multiple editions on the same building. All those updates should be revertable."""
         self.building_2.refresh_from_db()
@@ -788,6 +792,7 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(self.building_2.status, "constructed")
         self.assertFalse(self.building_2.is_active)
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_global_rollback_4(self):
         """Here a user creates 2 buildings and then update one of the created building.
         We ask for a rollback that excludes the update (via the end_time).
@@ -862,7 +867,7 @@ class TestGlobalRollback(TransactionTestCase):
         self.assertEqual(self.building_2.event_type, EventType.REVERT_CREATION.value)
         self.assertEqual(self.building_2.revert_event_id, building_2_creation_event_id)
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_global_rollback_5(self):
         """Building 1 and 2 are merged. Then the resulting building is split.
         Then everything is rolled back.
