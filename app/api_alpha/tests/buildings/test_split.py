@@ -65,7 +65,7 @@ class BuildingSplitTest(APITestCase):
 
         self.assertEqual(r.status_code, 403)
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_split_buildings(self):
         data = {
             "comment": "Ces deux bâtiments ne font qu'un !",
@@ -167,7 +167,7 @@ class BuildingSplitTest(APITestCase):
         self.assertEqual(contribution.review_user.id, self.building_1.event_user.id)
         self.assertEqual(contribution.text, data["comment"])
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_split_buildings_missing_info(self):
 
         # base case: correct
@@ -462,7 +462,7 @@ class BuildingSplitTest(APITestCase):
         self.user.profile.refresh_from_db()
         self.assertEqual(self.user.profile.total_contributions, 500)
 
-    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_split_buildings_contribution_limit_exceeded_but_sandbox(self):
 
         with self.settings(ENVIRONMENT="sandbox"):

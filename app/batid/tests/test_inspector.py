@@ -8,6 +8,7 @@ from django.contrib.gis.geos import Point
 from django.contrib.gis.geos import Polygon
 from django.db import connection
 from django.db import transaction
+from django.test import override_settings
 from django.test import TestCase
 from django.test import TransactionTestCase
 
@@ -894,6 +895,7 @@ class TestPolyCandidateOnPointBdg(InspectTest):
         }
     ]
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_result(self):
         # Before inspection we have only one building with a point shape
         b = Building.objects.all().first()
@@ -1154,8 +1156,8 @@ class TestUpdatePointBdgAndTouchingPolyBdgsWithOnePolyCandidate(InspectTest):
         }
     ]
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_result(self):
-
         since = datetime.now()
 
         i = Inspector()

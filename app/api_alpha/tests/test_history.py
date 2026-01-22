@@ -1,5 +1,6 @@
 import json
 
+from django.test import override_settings
 from django.utils.timezone import now
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
@@ -172,6 +173,7 @@ class SingleBuildingHistoryTest(APITestCase):
             },
         )
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_addresses_update(self):
         """
         We want to be sure that "addresses" is contained in the updated_fields in somes cases:
@@ -306,6 +308,7 @@ class SingleBuildingHistoryTest(APITestCase):
             most_recent["event"]["details"]["updated_fields"], ["ext_ids"]
         )
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_merge(self):
         """
         Merge specifics to test:

@@ -104,3 +104,31 @@ class ImpossibleShapeMerge(InvalidOperation):
 
 class EventUnknown(Exception):
     """The given event_id is not in the RNB database"""
+
+
+class BuildingOverlapError(InvalidOperation):
+    """A building overlaps too much with existing buildings"""
+
+    def __init__(self, overlapping_buildings: list[dict]):
+        """
+        Args:
+            overlapping_buildings: List of dicts with keys:
+                - rnb_id: str
+                - overlap_ratio: float (max ratio from both directions)
+        """
+        self.overlapping_buildings = overlapping_buildings
+        super().__init__()
+
+    def api_message(self):
+        return (
+            "Le bâtiment chevauche trop fortement un ou plusieurs bâtiments existants"
+        )
+
+    def api_message_with_details(self):
+        details = ", ".join(
+            [
+                f"{b['rnb_id']} ({b['overlap_ratio']:.0%})"
+                for b in self.overlapping_buildings
+            ]
+        )
+        return f"{self.api_message()}. Bâtiments en conflit : {details}"

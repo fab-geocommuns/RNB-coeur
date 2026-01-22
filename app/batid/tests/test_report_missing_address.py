@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
+from django.test import override_settings
 from django.test import TestCase
 
 from batid.models.building import Building
@@ -11,6 +12,7 @@ from batid.tests.helpers import create_cenac
 
 
 class TestReportMissingAddress(TestCase):
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def setUp(self):
         create_cenac()
         self.team_rnb = User.objects.create_user(username="RNB")
@@ -99,6 +101,7 @@ class TestReportMissingAddress(TestCase):
             ),
         )
 
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_create_reports(self):
         reports = Report.objects.all()
         self.assertEqual(len(reports), 0)

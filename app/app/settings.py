@@ -45,6 +45,7 @@ CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS").split(" ") 
 
 CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(" ")  # type: ignore[union-attr]
 CORS_ALLOW_ALL_ORIGINS = True
+BUILDING_OVERLAP_THRESHOLD = 0.8
 
 LOGIN_URL = "/admin/login/"
 
