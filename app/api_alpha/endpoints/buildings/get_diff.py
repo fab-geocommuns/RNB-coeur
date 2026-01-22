@@ -22,7 +22,6 @@ def get_datetime_months_ago(months: int) -> datetime:
     return datetime.now(timezone.utc) - relativedelta(days=months * 30)
 
 
-
 class DiffView(APIView):
     @rnb_doc(
         {
