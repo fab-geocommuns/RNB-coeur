@@ -1,8 +1,10 @@
+from django.conf import settings
 from django.urls import include
 from django.urls import path
 from django.urls import re_path
 from rest_framework import routers
 
+from api_alpha.endpoints.debug import RaiseExceptionView
 from api_alpha.endpoints.ads.create_token import CreateAdsTokenView
 from api_alpha.endpoints.auth.create_user import CreateUserView
 from api_alpha.endpoints.buildings.get_diff import DiffView
@@ -145,3 +147,6 @@ router.register(r"permis", ADSViewSet, basename="permis")
 
 # Add the router URLs to the urlpatterns
 urlpatterns.append(path("", include(router.urls)))
+
+if settings.ENVIRONMENT not in ["production", "sandbox"]:
+    urlpatterns.append(path("raise_exception", RaiseExceptionView.as_view()))

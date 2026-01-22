@@ -11,6 +11,7 @@ from api_alpha.serializers.serializers import OrganizationSerializer
 from api_alpha.serializers.serializers import UserSerializer
 from batid.models import Organization
 from batid.tasks import create_sandbox_user
+from batid.services.mattermost import notify_if_error
 
 
 def create_user_in_sandbox(user_data: dict) -> None:
