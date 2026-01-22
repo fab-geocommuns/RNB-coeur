@@ -358,7 +358,6 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid: Optional[str] =
     return create_dpt_bal_rnb_links_job(src_params, bulk_launch_uuid)
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def create_sandbox_user(user_data: dict) -> None:
     random_password = make_random_password(length=24)
