@@ -78,20 +78,32 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
 
         candidates = []
 
-        for feature in layer:
+        iterator = iter(layer)
 
-            # Skip light constructions
-            if feature["properties"]["construction_legere"] == True:
-                continue
+        while True:
+            try:
+                feature = next(iterator)
 
-            # Skip already known buildings
-            if _known_bdtopo_id(feature["properties"]["cleabs"]):
-                continue
+                # Skip light constructions
+                if feature["properties"]["construction_legere"] == True:
+                    continue
 
-            candidate = _transform_bdtopo_feature(feature, srid)
-            candidate = _add_import_info(candidate, building_import)
-            candidate["source_version"] = src_params["date"]
-            candidates.append(candidate)
+                # Skip already known buildings
+                if _known_bdtopo_id(feature["properties"]["cleabs"]):
+                    continue
+
+                candidate = _transform_bdtopo_feature(feature, srid)
+                candidate = _add_import_info(candidate, building_import)
+                candidate["source_version"] = src_params["date"]
+                candidates.append(candidate)
+
+            except StopIteration:
+                break
+            except ValueError as e:
+                # This catches the "second must be in 0..59" error
+                print(f"SKIPPING BAD FEATURE due to invalid date: {e}")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
 
     buffer = BufferToCopy()
     buffer.write_data(candidates)
