@@ -1,10 +1,9 @@
-from rest_framework.test import APITestCase
-import logging
 from unittest.mock import patch
+
+from rest_framework.test import APITestCase
 
 
 class DebugEndpointTest(APITestCase):
-
     @patch("batid.services.mattermost.notify_tech")
     def test_notify_if_error_is_called(self, mock_notify_tech):
         mock_notify_tech.return_value = None
