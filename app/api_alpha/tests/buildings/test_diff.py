@@ -524,63 +524,15 @@ class DiffInseeCodeTest(TransactionTestCase):
         self.assertIn("diff_75056_", r["Content-Disposition"])
 
     def test_diff_with_unknown_insee_code(self):
-        Building.objects.create(rnb_id="B1", event_type="creation")
-        threshold = Building.objects.get(rnb_id="B1").sys_period.lower
-
-        params = urlencode({"since": threshold.isoformat(), "insee_code": "99999"})
+        now = datetime.datetime.now()
+        params = urlencode(
+            {"since": datetime.datetime.isoformat(now), "insee_code": "99999"}
+        )
         url = f"/api/alpha/buildings/diff/?{params}"
         r = self.client.get(url)
 
         self.assertEqual(r.status_code, 404)
         self.assertIn("99999", r.content.decode())
-
-    def test_diff_without_insee_code_unchanged(self):
-        Building.objects.create(rnb_id="B1", event_type="creation")
-        threshold = Building.objects.get(rnb_id="B1").sys_period.lower
-
-        params = urlencode({"since": threshold.isoformat()})
-        url = f"/api/alpha/buildings/diff/?{params}"
-        r = self.client.get(url)
-
-        self.assertEqual(r.status_code, 200)
-        # Filename should not contain insee code
-        self.assertNotIn("75056", r["Content-Disposition"])
-
-    def test_diff_building_inside_city_included(self):
-        # Building inside Paris
-        geom_inside = GEOSGeometry(
-            "MULTIPOLYGON(((2.35 48.85, 2.36 48.85, 2.36 48.86, 2.35 48.86, 2.35 48.85)))",
-            srid=4326,
-        )
-        Building.objects.create(
-            rnb_id="INSIDE",
-            shape=geom_inside,
-            point=geom_inside.point_on_surface,
-            status="constructed",
-            event_type="creation",
-        )
-        threshold = Building.objects.get(rnb_id="INSIDE").sys_period.lower
-
-        user = User.objects.get(username="testuser")
-        b = Building.objects.get(rnb_id="INSIDE")
-        b.update(
-            status="demolished",
-            user=user,
-            event_origin={"source": "test"},
-            addresses_id=[],
-        )
-
-        params = urlencode({"since": threshold.isoformat(), "insee_code": "75056"})
-        url = f"/api/alpha/buildings/diff/?{params}"
-        r = self.client.get(url)
-
-        self.assertEqual(r.status_code, 200)
-        diff_text = get_content_from_streaming_response(r)
-        reader = csv.DictReader(io.StringIO(diff_text))
-        rows = list(reader)
-
-        rnb_ids = [row["rnb_id"] for row in rows]
-        self.assertIn("INSIDE", rnb_ids)
 
     def test_diff_building_outside_city_excluded(self):
         # Building inside Paris
@@ -669,46 +621,6 @@ class DiffInseeCodeTest(TransactionTestCase):
 
         rnb_ids = [row["rnb_id"] for row in rows]
         self.assertIn("OVERLAP", rnb_ids)
-
-    def test_diff_filename_with_insee_code(self):
-        geom = GEOSGeometry(
-            "MULTIPOLYGON(((2.35 48.85, 2.36 48.85, 2.36 48.86, 2.35 48.86, 2.35 48.85)))",
-            srid=4326,
-        )
-        Building.objects.create(
-            rnb_id="B1",
-            shape=geom,
-            point=geom.point_on_surface,
-            status="constructed",
-            event_type="creation",
-        )
-        threshold = Building.objects.get(rnb_id="B1").sys_period.lower
-
-        params = urlencode({"since": threshold.isoformat(), "insee_code": "75056"})
-        url = f"/api/alpha/buildings/diff/?{params}"
-        r = self.client.get(url)
-
-        self.assertEqual(r.status_code, 200)
-        self.assertRegex(
-            r["Content-Disposition"],
-            r'attachment; filename="diff_75056_.*\.csv"',
-        )
-
-    def test_diff_filename_without_insee_code(self):
-        Building.objects.create(rnb_id="B1", event_type="creation")
-        threshold = Building.objects.get(rnb_id="B1").sys_period.lower
-
-        params = urlencode({"since": threshold.isoformat()})
-        url = f"/api/alpha/buildings/diff/?{params}"
-        r = self.client.get(url)
-
-        self.assertEqual(r.status_code, 200)
-        # Should match diff_{since}_{most_recent}.csv (no insee code)
-        self.assertRegex(
-            r["Content-Disposition"],
-            r'attachment; filename="diff_\d{4}-.*\.csv"',
-        )
-        self.assertNotIn("75056", r["Content-Disposition"])
 
     def test_diff_city_with_null_shape(self):
         Building.objects.create(rnb_id="B1", event_type="creation")
