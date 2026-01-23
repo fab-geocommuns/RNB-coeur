@@ -1,5 +1,5 @@
 from typing import Any
-from typing import Mapping
+from typing import Dict
 
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
@@ -11,6 +11,7 @@ from batid.services.bdg_status import BuildingStatus
 
 def check_building_overlap(
     shape: GEOSGeometry,
+    exclude_rnb_id: str | None = None,
 ) -> None:
     """
     Check if a geometry overlaps too much with an existing building.
@@ -18,6 +19,7 @@ def check_building_overlap(
 
     Args:
         shape: The geometry of the new/modified building
+        exclude_rnb_id: Optional rnb_id to exclude from the check (used during updates)
 
     Raises:
         BuildingOverlapError: If significant overlap is detected
@@ -25,7 +27,7 @@ def check_building_overlap(
     if shape is None:
         return
 
-    overlapping = _find_overlapping_buildings(shape)
+    overlapping = _find_overlapping_buildings(shape, exclude_rnb_id)
 
     if overlapping:
         raise BuildingOverlapError(overlapping)
@@ -33,9 +35,14 @@ def check_building_overlap(
 
 def _find_overlapping_buildings(
     shape: GEOSGeometry,
+    exclude_rnb_id: str | None = None,
 ) -> list[dict]:
     """
     Find existing buildings that overlap too much with the given geometry.
+
+    Args:
+        shape: The geometry to check
+        exclude_rnb_id: Optional rnb_id to exclude from the check (used during updates)
 
     Returns:
         List of dicts {"rnb_id": str, "overlap_ratio": float} for buildings
@@ -67,10 +74,14 @@ def _find_overlapping_buildings(
             AND ST_Intersects(b.shape, ng.geom)
     """
 
-    params: Mapping[str, Any] = {
+    params: Dict[str, Any] = {
         "new_shape": shape.wkt,
         "real_statuses": list(BuildingStatus.REAL_BUILDINGS_STATUS),
     }
+
+    if exclude_rnb_id is not None:
+        query += "            AND b.rnb_id != %(exclude_rnb_id)s\n"
+        params["exclude_rnb_id"] = exclude_rnb_id
 
     overlapping_buildings = []
 
