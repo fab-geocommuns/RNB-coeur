@@ -368,7 +368,7 @@ class Building(BuildingAbstract):
             if self.shape:
                 assert_new_shape_is_close_enough(self.shape, shape)
 
-            check_building_overlap(shape)
+            check_building_overlap(shape, exclude_rnb_id=self.rnb_id)
 
         self.event_type = "update"
         self.event_id = uuid.uuid4()
