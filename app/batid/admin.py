@@ -17,6 +17,8 @@ from batid.models import Organization
 from batid.models import UserProfile
 from batid.views import export_ads
 from batid.views import export_contributions
+from batid.views import rollback_confirm_view
+from batid.views import rollback_view
 from batid.views import worker
 
 
@@ -162,6 +164,16 @@ def get_admin_urls(urls):
             path(r"worker/", admin.site.admin_view(worker)),
             path(r"export_ads/", export_ads),
             path(r"export_contributions/", export_contributions),
+            path(
+                r"rollback/",
+                admin.site.admin_view(rollback_view),
+                name="rollback",
+            ),
+            path(
+                r"rollback/confirm/",
+                admin.site.admin_view(rollback_confirm_view),
+                name="rollback_confirm",
+            ),
         ]
         return my_urls + urls
 

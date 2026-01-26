@@ -2,13 +2,17 @@ import csv
 import os
 from io import StringIO
 
+from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import UserPassesTestMixin
+from django.contrib.auth.models import User
 from django.db import transaction
 from django.http import HttpResponse
 from django.http import HttpResponseBadRequest
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
+from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import re_path
 from revproxy.views import ProxyView  # type: ignore[import-untyped]
@@ -16,10 +20,13 @@ from revproxy.views import ProxyView  # type: ignore[import-untyped]
 from app.celery import app as celery_app
 from batid.exceptions import BANAPIDown
 from batid.exceptions import BANUnknownCleInterop
+from batid.forms import RollbackForm
 from batid.models import Building
 from batid.models import Contribution
 from batid.services.ads import export_format as ads_export_format
 from batid.services.contributions import export_format as contrib_export_format
+from batid.services.rollback import rollback as rollback_service
+from batid.services.rollback import rollback_dry_run
 
 
 def worker(request):
@@ -355,3 +362,118 @@ def merge_buildings(request):
                     "action_success": True,
                 },
             )
+
+
+def superuser_required(view_func):
+    decorated_view = user_passes_test(lambda u: u.is_superuser)(view_func)
+    return decorated_view
+
+
+@superuser_required
+def rollback_view(request):
+    results = None
+    is_dry_run = False
+
+    if request.method == "POST":
+        form = RollbackForm(request.POST)
+        if form.is_valid():
+            user = form.cleaned_data["user"]
+            start_time = form.cleaned_data["start_time"]
+            end_time = form.cleaned_data["end_time"]
+
+            if "dry_run" in request.POST:
+                is_dry_run = True
+                results = rollback_dry_run(user, start_time, end_time)
+                messages.info(
+                    request,
+                    f"Dry Run pour {user.email} : {results['events_found_n']} events trouvés, "
+                    f"{results['events_revertable_n']} revertables, "
+                    f"{results['events_not_revertable_n']} non-revertables, "
+                    f"{results['events_already_reverted_n']} déjà revertés",
+                )
+            elif "rollback" in request.POST:
+                request.session["rollback_user_id"] = user.id
+                request.session["rollback_start_time"] = (
+                    start_time.isoformat() if start_time else None
+                )
+                request.session["rollback_end_time"] = (
+                    end_time.isoformat() if end_time else None
+                )
+                return redirect("admin:rollback_confirm")
+    else:
+        form = RollbackForm()
+
+    return render(
+        request,
+        "admin/rollback_form.html",
+        {
+            "form": form,
+            "results": results,
+            "is_dry_run": is_dry_run,
+            "title": "Rollback des événements",
+        },
+    )
+
+
+@superuser_required
+def rollback_confirm_view(request):
+    from datetime import datetime
+
+    user_id = request.session.get("rollback_user_id")
+    start_time_str = request.session.get("rollback_start_time")
+    end_time_str = request.session.get("rollback_end_time")
+
+    if not user_id:
+        messages.error(request, "Session expirée. Veuillez recommencer.")
+        return redirect("admin:rollback")
+
+    user = get_object_or_404(User, id=user_id)
+    start_time = datetime.fromisoformat(start_time_str) if start_time_str else None
+    end_time = datetime.fromisoformat(end_time_str) if end_time_str else None
+
+    if request.method == "POST":
+        if "confirm" in request.POST:
+            results = rollback_service(user, start_time, end_time)
+
+            del request.session["rollback_user_id"]
+            if "rollback_start_time" in request.session:
+                del request.session["rollback_start_time"]
+            if "rollback_end_time" in request.session:
+                del request.session["rollback_end_time"]
+
+            messages.success(
+                request,
+                f"Rollback effectué pour {user.email} : {results['events_reverted_n']} events revertés. "
+                f"DataFix ID: {results['data_fix_id']}",
+            )
+
+            return render(
+                request,
+                "admin/rollback_results.html",
+                {
+                    "results": results,
+                    "is_dry_run": False,
+                    "title": "Résultats du Rollback",
+                },
+            )
+        else:
+            del request.session["rollback_user_id"]
+            if "rollback_start_time" in request.session:
+                del request.session["rollback_start_time"]
+            if "rollback_end_time" in request.session:
+                del request.session["rollback_end_time"]
+            return redirect("admin:rollback")
+
+    dry_run_results = rollback_dry_run(user, start_time, end_time)
+
+    return render(
+        request,
+        "admin/rollback_confirm.html",
+        {
+            "user": user,
+            "start_time": start_time,
+            "end_time": end_time,
+            "dry_run_results": dry_run_results,
+            "title": "Confirmation du Rollback",
+        },
+    )
