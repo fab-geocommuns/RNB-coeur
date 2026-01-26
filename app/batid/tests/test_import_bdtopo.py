@@ -45,7 +45,8 @@ class ImportBDTopoGeopackage(TransactionTestCase):
         # The fixture file has 6 buildings
         # One of them is skipped because the database contains a bdg with the same bdtopo ID
         # Another one is skipped because it is a light building
-        self.assertEqual(Candidate.objects.count(), 4)
+        # BATIMENT0000000312141318 has a timestamp seconds set to 60 which is invalid but a common problem in bdtopo files. It should be skipped
+        self.assertEqual(Candidate.objects.count(), 3)
 
         # Check the light bdtopo building is not imported
         c = Candidate.objects.filter(source_id="BATIMENT0000000312141366").first()
@@ -53,6 +54,10 @@ class ImportBDTopoGeopackage(TransactionTestCase):
 
         # Check, the already known building is not imported
         c = Candidate.objects.filter(source_id="BATIMENT0000000312141319").first()
+        self.assertIsNone(c)
+
+        # Check the "60s" timestamp bdtopo building is not imported
+        c = Candidate.objects.filter(source_id="BATIMENT0000000312141318").first()
         self.assertIsNone(c)
 
         # Check one of the imported buildings
