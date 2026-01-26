@@ -415,7 +415,8 @@ def fill_empty_event_type(batch_size: int) -> int:
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 0})
 def manual_raise():
     raise Exception("Manual raise for testing purposes")
-    
+
+
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def create_arcep_reports() -> uuid.UUID:
     return dl_and_create_arcep_reports()
