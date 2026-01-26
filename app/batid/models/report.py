@@ -76,7 +76,7 @@ class Report(models.Model):
     @transaction.atomic
     def create(
         point: Point,
-        building: Building,
+        building: Building | None,
         text: str,
         email: str | None,
         user: User | None,

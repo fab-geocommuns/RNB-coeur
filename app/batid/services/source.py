@@ -39,6 +39,11 @@ class Source:
 
     def default_ref(self) -> dict:
         return {
+            "arcep": {
+                "folder": "arcep",
+                "url": "https://rnb-open.s3.fr-par.scw.cloud/arcep/arcep_reports_latlng.csv",
+                "filename": "arcep_reports_latlng.csv",
+            },
             "plot": {
                 "folder": "plots",
                 "url": "https://cadastre.data.gouv.fr/data/etalab-cadastre/{{date}}/geojson/departements/{{dpt}}/cadastre-{{dpt}}-parcelles.json.gz",
