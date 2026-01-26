@@ -363,6 +363,33 @@ class TestBuildingOverlapIntegration(TestCase):
                 shape=overlapping_shape,
             )
 
+    def test_update_shape_overlapping_itself_succeeds(self):
+        """Building.update should succeed when new shape overlaps the building's own shape."""
+        # Create a building
+        building = Building.objects.create(
+            rnb_id="TOUPDATE001",
+            shape=make_small_building_shape(),
+            is_active=True,
+            status="constructed",
+        )
+
+        # Update with a shape that overlaps the original (slightly shifted)
+        # This should succeed because we exclude the building's own rnb_id
+        new_shape = make_small_building_shape(
+            offset_lon=SMALL_OFFSET * 0.1, offset_lat=SMALL_OFFSET * 0.1
+        )
+
+        building.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status=None,
+            addresses_id=None,
+            shape=new_shape,
+        )
+
+        building.refresh_from_db()
+        self.assertEqual(building.shape, new_shape)
+
     def test_update_without_shape_change_no_check(self):
         """Building.update without shape change should not check overlap."""
         # Create a large "container" building
