@@ -7,6 +7,7 @@ from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon
 from pyproj import Geod
 from shapely import wkt
+from shapely.ops import nearest_points
 
 from batid.exceptions import BuildingCannotMove
 from batid.exceptions import BuildingTooLarge
@@ -171,16 +172,19 @@ def assert_shape_is_valid(geom: GEOSGeometry):
 
 
 def assert_new_shape_is_close_enough(
-    old_shape: GEOSGeometry, new_shape: GEOSGeometry, max_dist: int = 40
+    old_geom: GEOSGeometry, new_geom: GEOSGeometry, max_dist: int = 20
 ) -> bool:
     # in case of intersection, we are fine
-    if old_shape.intersects(new_shape):
+    if old_geom.intersects(new_geom):
         return True
 
-    # otherwise, we check if the distance is less than 40m
+    # otherwise, we check if the distance is less than max_dist
     # using a simplified criteria
-    old_pos = old_shape.centroid
-    new_pos = new_shape.centroid
+
+    # Using shapely to calculate nearest points
+    shapely_old_geom = wkt.loads(old_geom.wkt)
+    shapely_new_geom = wkt.loads(new_geom.wkt)
+    old_pos, new_pos = nearest_points(shapely_old_geom, shapely_new_geom)   
 
     geod = Geod(ellps="WGS84")
 
