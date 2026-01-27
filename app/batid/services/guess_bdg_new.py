@@ -673,7 +673,12 @@ class GeocodeNameHandler(AbstractHandler):
 
         response = geocoder.geocode(geocode_params)
 
-        geo_result = response.json()
+        try:
+            geo_result = response.json()
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON response from Photon: {response.text}")
+            print(f"Called url: {response.url}")
+            raise e
 
         if geo_result.get("features", None) and geo_result["features"][0]["properties"][
             "type"
