@@ -1,0 +1,121 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+
+<fieldset class="module">
+    <h2>{% if is_dry_run %}Dry Run{% else %}Rollback{% endif %} terminé</h2>
+
+    <table>
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Utilisateur</th>
+            <td>{{ results.user }}</td>
+        </tr>
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Période</th>
+            <td>
+                {% if results.start_time or results.end_time %}
+                    {{ results.start_time|default:"Début" }} → {{ results.end_time|default:"Fin" }}
+                {% else %}
+                    Toutes dates
+                {% endif %}
+            </td>
+        </tr>
+        {% if not is_dry_run and results.data_fix_id %}
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">DataFix ID</th>
+            <td>{{ results.data_fix_id }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Events trouvés</th>
+            <td>{{ results.events_found_n }}</td>
+        </tr>
+        {% if is_dry_run %}
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Events revertables</th>
+            <td>{{ results.events_revertable_n }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Events revertés</th>
+            <td style="color: green; font-weight: bold;">{{ results.events_reverted_n }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Events non-revertables</th>
+            <td>{{ results.events_not_revertable_n }}</td>
+        </tr>
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Events déjà revertés</th>
+            <td>{{ results.events_already_reverted_n }}</td>
+        </tr>
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Events qui sont des reverts</th>
+            <td>{{ results.events_are_revert_n }}</td>
+        </tr>
+    </table>
+</fieldset>
+
+{% if is_dry_run and results.events_revertable %}
+<fieldset class="module" style="margin-top: 20px;">
+    <h2>Events revertables ({{ results.events_revertable_n }})</h2>
+    <ul>
+        {% for uuid in results.events_revertable %}
+        <li>{{ uuid }}</li>
+        {% endfor %}
+    </ul>
+</fieldset>
+{% endif %}
+
+{% if not is_dry_run and results.events_reverted %}
+<fieldset class="module" style="margin-top: 20px;">
+    <h2>Events revertés ({{ results.events_reverted_n }})</h2>
+    <ul>
+        {% for uuid in results.events_reverted %}
+        <li>{{ uuid }}</li>
+        {% endfor %}
+    </ul>
+</fieldset>
+{% endif %}
+
+{% if results.events_not_revertable %}
+<fieldset class="module" style="margin-top: 20px;">
+    <h2>Events non-revertables ({{ results.events_not_revertable_n }})</h2>
+    <ul>
+        {% for uuid in results.events_not_revertable %}
+        <li>{{ uuid }}</li>
+        {% endfor %}
+    </ul>
+</fieldset>
+{% endif %}
+
+{% if results.events_already_reverted %}
+<fieldset class="module" style="margin-top: 20px;">
+    <h2>Events déjà revertés ({{ results.events_already_reverted_n }})</h2>
+    <ul>
+        {% for uuid in results.events_already_reverted %}
+        <li>{{ uuid }}</li>
+        {% endfor %}
+    </ul>
+</fieldset>
+{% endif %}
+
+{% if results.events_are_revert %}
+<fieldset class="module" style="margin-top: 20px;">
+    <h2>Events qui sont des reverts ({{ results.events_are_revert_n }})</h2>
+    <ul>
+        {% for uuid in results.events_are_revert %}
+        <li>{{ uuid }}</li>
+        {% endfor %}
+    </ul>
+</fieldset>
+{% endif %}
+
+<div style="margin-top: 20px;">
+    <a href="{% url 'admin:rollback' %}" class="button">Retour au formulaire</a>
+</div>
+
+{% endblock %}

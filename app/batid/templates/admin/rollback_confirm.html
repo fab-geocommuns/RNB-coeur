@@ -1,0 +1,65 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+
+<div class="module" style="padding: 20px; background-color: #ffc; border: 1px solid #dda;">
+    <h2 style="color: rgb(255, 255, 255);">⚠️ Attention - Action irréversible</h2>
+    <p>Vous êtes sur le point d'exécuter un rollback avec les paramètres suivants :</p>
+
+    <table style="margin: 20px 0;">
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Utilisateur</th>
+            <td>{{ user.username }} ({{ user.email }})</td>
+        </tr>
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Période</th>
+            <td>
+                {% if start_time or end_time %}
+                    {{ start_time|default:"Début" }} → {{ end_time|default:"Fin" }}
+                {% else %}
+                    Toutes dates
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <h3>Aperçu (Dry Run)</h3>
+    <table style="margin: 20px 0;">
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Events trouvés</th>
+            <td>{{ dry_run_results.events_found_n }}</td>
+        </tr>
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Events revertables</th>
+            <td>{{ dry_run_results.events_revertable_n }}</td>
+        </tr>
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Events non-revertables</th>
+            <td>{{ dry_run_results.events_not_revertable_n }}</td>
+        </tr>
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Events déjà revertés</th>
+            <td>{{ dry_run_results.events_already_reverted_n }}</td>
+        </tr>
+        <tr>
+            <th style="text-align: left; padding-right: 20px;">Events qui sont des reverts</th>
+            <td>{{ dry_run_results.events_are_revert_n }}</td>
+        </tr>
+    </table>
+
+    <p><strong>Cette action va créer un DataFix et reverter {{ dry_run_results.events_revertable_n }} événement(s).</strong></p>
+    <p>Êtes-vous sûr de vouloir continuer ?</p>
+</div>
+
+<form method="post" style="margin-top: 20px;">
+    {% csrf_token %}
+    <div class="submit-row">
+        <input type="submit" name="cancel" value="Annuler" class="default">
+        <input type="submit" name="confirm" value="Confirmer le Rollback" style="background-color: #c00;">
+    </div>
+</form>
+
+{% endblock %}
