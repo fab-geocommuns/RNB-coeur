@@ -10,10 +10,12 @@ from django.http import HttpRequest
 from django.http import HttpResponse
 from django.http import StreamingHttpResponse
 from django.utils.dateparse import parse_datetime
+from django.utils.html import escape
 from psycopg2 import sql
 from rest_framework.views import APIView
 
 from api_alpha.utils.rnb_doc import rnb_doc
+from batid.models import City
 
 
 def get_datetime_months_ago(months: int) -> datetime:
@@ -46,7 +48,19 @@ class DiffView(APIView):
                         "required": True,
                         "schema": {"type": "string"},
                         "example": "2024-04-02T00:00:00Z",
-                    }
+                    },
+                    {
+                        "name": "insee_code",
+                        "in": "query",
+                        "description": (
+                            "Code INSEE de la commune pour filtrer les modifications du RNB. "
+                            "Seules les modifications de bâtiments dont la géométrie intersecte "
+                            "la commune seront retournées. Le code INSEE est composé de 5 caractères."
+                        ),
+                        "required": False,
+                        "schema": {"type": "string"},
+                        "example": "75056",
+                    },
                 ],
                 "responses": {
                     "200": {
@@ -90,6 +104,28 @@ class DiffView(APIView):
                 status=400,
             )
 
+        # Optional insee_code filter
+        insee_code = request.GET.get("insee_code", None)
+        city_shape_wkt = None
+
+        if insee_code:
+            escaped_insee_code = escape(insee_code)
+            try:
+                city = City.objects.get(code_insee=insee_code)
+            except City.DoesNotExist:
+                return HttpResponse(
+                    f"Le code INSEE '{escaped_insee_code}' n'a pas été trouvé",
+                    status=404,
+                )
+
+            if city.shape is None:
+                return HttpResponse(
+                    f"Erreur interne : la géométrie de la commune '{escaped_insee_code}' est absente",
+                    status=500,
+                )
+
+            city_shape_wkt = city.shape.wkt
+
         local_statement_timeout = settings.DIFF_VIEW_POSTGRES_STATEMENT_TIMEOUT
         with connection.cursor() as cursor:
             cursor.execute(
@@ -118,12 +154,14 @@ class DiffView(APIView):
             os.close(wfd)
             # data coming from the child process arrives here
             r = os.fdopen(rfd)
+            if insee_code:
+                filename = f"diff_{insee_code}_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"
+            else:
+                filename = f"diff_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"
             return StreamingHttpResponse(
                 r,
                 content_type="text/csv",
-                headers={
-                    "Content-Disposition": f'attachment; filename="diff_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"'
-                },
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
             )
         else:
             # This is the child process
@@ -142,7 +180,12 @@ class DiffView(APIView):
                 while start_ts < most_recent_modification:
                     end_ts = start_ts + timedelta(days=1)
 
-                    raw_sql = """
+                    spatial_filter = ""
+                    if city_shape_wkt:
+                        spatial_filter = " AND ST_Intersects(bb.shape, ST_GeomFromText({city_shape}, 4326))"
+
+                    raw_sql = (
+                        """
                         COPY (
                             select
                             CASE
@@ -169,10 +212,13 @@ class DiffView(APIView):
                             event_id,
                             event_type
                             FROM batid_building_with_history bb
-                            where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone
+                            where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone"""
+                        + spatial_filter  # nosec B608: spatial_filter comes from database (City.shape.wkt), not user input, and is escaped via sql.Literal() below
+                        + """
                             order by lower(sys_period)
                         ) TO STDOUT WITH CSV
                         """
+                    )
 
                     if first_query:
                         raw_sql = raw_sql + " HEADER"
@@ -180,10 +226,15 @@ class DiffView(APIView):
 
                     start_literal = start_ts.isoformat()
                     end_literal = end_ts.isoformat()
-                    sql_query = sql.SQL(raw_sql).format(
-                        start=sql.Literal(start_literal),
-                        end=sql.Literal(end_literal),
-                    )
+
+                    format_args = {
+                        "start": sql.Literal(start_literal),
+                        "end": sql.Literal(end_literal),
+                    }
+                    if city_shape_wkt:
+                        format_args["city_shape"] = sql.Literal(city_shape_wkt)
+
+                    sql_query = sql.SQL(raw_sql).format(**format_args)
                     # the data coming from the query is streamed to the file descriptor w
                     # and will be received by the parent process as a stream
                     cursor.copy_expert(sql_query, w)
