@@ -118,3 +118,96 @@ class ReportArcepTestCase(TestCase):
         count = Report.objects.all().count()
         # There are 5 points in the fixture, but one is too close to another report
         self.assertEqual(count, 4)
+
+    def test_close_irrelevant_reports(self):
+        from batid.services.reports.arcep import reject_irrelevant_arcep_reports
+
+        # 1. Setup : Une position
+        p = Point(4.0, 48.0, srid=4326)
+
+        # 2. Cas : Un rapport ARCEP existant + un bâtiment réel à proximité
+        report = Report.objects.create(point=p, status="pending")
+        report.tags.add("Nouveau bâtiment")
+
+        # Bâtiment réel et actif
+        poly = Polygon.from_bbox((4.0, 48.0, 4.0001, 48.0001))
+        poly.srid = 4326
+        Building.objects.create(
+            rnb_id="BDG-CLS-001",
+            point=p,
+            shape=poly,
+            status="constructed",
+            is_active=True,
+        )
+
+        reject_irrelevant_arcep_reports()
+        report.refresh_from_db()
+        self.assertEqual(report.status, "rejected")
+
+        # Verify message
+        last_msg = report.messages.last()
+        self.assertIn(
+            "Nous fermons ce signalement car les bâtiments BDG-CLS-001 sont à moins de 10 mètres.",
+            last_msg.text,
+        )
+
+    def test_close_irrelevant_reports_no_action(self):
+        from batid.services.reports.arcep import reject_irrelevant_arcep_reports
+
+        p = Point(5.0, 49.0, srid=4326)
+
+        # Cas 1 : Bâtiment démoli (non réel) à proximité
+        report_demolished = Report.objects.create(point=p, status="pending")
+        report_demolished.tags.add("Nouveau bâtiment")
+
+        poly = Polygon.from_bbox((5.0, 49.0, 5.0001, 49.0001))
+        poly.srid = 4326
+        Building.objects.create(
+            rnb_id="BDG-CLS-002",
+            point=p,
+            shape=poly,
+            status="demolished",  # Pas un statut "réel"
+            is_active=True,
+        )
+
+        reject_irrelevant_arcep_reports()
+        report_demolished.refresh_from_db()
+        self.assertEqual(report_demolished.status, "pending")
+
+        # Cas 2 : Bâtiment réel mais inactif
+        p2 = Point(5.1, 49.1, srid=4326)
+        report_inactive = Report.objects.create(point=p2, status="pending")
+        report_inactive.tags.add("Nouveau bâtiment")
+
+        poly2 = Polygon.from_bbox((5.1, 49.1, 5.1001, 49.1001))
+        poly2.srid = 4326
+        Building.objects.create(
+            rnb_id="BDG-CLS-003",
+            point=p2,
+            shape=poly2,
+            status="constructed",
+            is_active=False,  # Inactif
+        )
+
+        reject_irrelevant_arcep_reports()
+        report_inactive.refresh_from_db()
+        self.assertEqual(report_inactive.status, "pending")
+
+        # Cas 3 : Pas de tag "Nouveau bâtiment"
+        p3 = Point(5.2, 49.2, srid=4326)
+        report_tag = Report.objects.create(point=p3, status="pending")
+        report_tag.tags.add("Autre tag")
+
+        poly3 = Polygon.from_bbox((5.2, 49.2, 5.2001, 49.2001))
+        poly3.srid = 4326
+        Building.objects.create(
+            rnb_id="BDG-CLS-004",
+            point=p3,
+            shape=poly3,
+            status="constructed",
+            is_active=True,
+        )
+
+        reject_irrelevant_arcep_reports()
+        report_tag.refresh_from_db()
+        self.assertEqual(report_tag.status, "pending")
