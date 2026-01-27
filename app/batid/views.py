@@ -364,12 +364,20 @@ def merge_buildings(request):
             )
 
 
-def superuser_required(view_func):
-    decorated_view = user_passes_test(lambda u: u.is_superuser)(view_func)
+def can_rollback(user):
+    """Check if user can access rollback functionality.
+
+    Access is granted if user is staff AND member of the "Rollback" group.
+    """
+    return user.is_staff and user.groups.filter(name="Rollback").exists()
+
+
+def rollback_permission_required(view_func):
+    decorated_view = user_passes_test(can_rollback)(view_func)
     return decorated_view
 
 
-@superuser_required
+@rollback_permission_required
 def rollback_view(request):
     results = None
     is_dry_run = False
@@ -410,12 +418,12 @@ def rollback_view(request):
             "form": form,
             "results": results,
             "is_dry_run": is_dry_run,
-            "title": "Rollback des événements",
+            "title": "Rollback des éditions d'un utilisateur",
         },
     )
 
 
-@superuser_required
+@rollback_permission_required
 def rollback_confirm_view(request):
     from datetime import datetime
 
