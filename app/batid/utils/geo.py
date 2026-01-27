@@ -184,7 +184,7 @@ def assert_new_shape_is_close_enough(
     # Using shapely to calculate nearest points
     shapely_old_geom = wkt.loads(old_geom.wkt)
     shapely_new_geom = wkt.loads(new_geom.wkt)
-    old_pos, new_pos = nearest_points(shapely_old_geom, shapely_new_geom)   
+    old_pos, new_pos = nearest_points(shapely_old_geom, shapely_new_geom)
 
     geod = Geod(ellps="WGS84")
 
