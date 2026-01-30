@@ -192,17 +192,17 @@ class DiffView(APIView):
                                 WHEN event_type = 'delete' THEN 'deactivate'
                                 WHEN event_type = 'deactivation' THEN 'deactivate'
                                 WHEN event_type = 'update' THEN 'update'
-                                WHEN event_type = 'split' and not is_active THEN 'deactivate'
-                                WHEN event_type = 'split' and is_active THEN 'create'
-                                WHEN event_type = 'merge' and not is_active THEN 'deactivate'
-                                WHEN event_type = 'merge' and is_active THEN 'create'
+                                WHEN event_type = 'split' and not bb.is_active THEN 'deactivate'
+                                WHEN event_type = 'split' and bb.is_active THEN 'create'
+                                WHEN event_type = 'merge' and not bb.is_active THEN 'deactivate'
+                                WHEN event_type = 'merge' and bb.is_active THEN 'create'
                                 WHEN event_type = 'reactivation' THEN 'reactivate'
                                 WHEN event_type = 'creation' THEN 'create'
                                 ELSE CONCAT('unhandled_event_type_', event_type)
                             END as action,
                             rnb_id,
                             status,
-                            is_active::int,
+                            bb.is_active::int,
                             sys_period,
                             ST_AsEWKT(point) as point,
                             ST_AsEWKT(shape) as shape,
@@ -210,12 +210,14 @@ class DiffView(APIView):
                             COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
                             parent_buildings,
                             event_id,
-                            event_type
+                            event_type,
+                            COALESCE(u.username, 'Équipe RNB') as username
                             FROM batid_building_with_history bb
+                            LEFT JOIN auth_user u on u.id = bb.event_user_id
                             where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone"""
                         + spatial_filter  # nosec B608: spatial_filter comes from database (City.shape.wkt), not user input, and is escaped via sql.Literal() below
                         + """
-                            order by lower(sys_period)
+                            order by lower(sys_period), is_active, rnb_id
                         ) TO STDOUT WITH CSV
                         """
                     )
