@@ -169,12 +169,12 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[1]["status"], "constructed")
         self.assertRegex(rows[1]["point"], r"SRID=4326;POINT\(\d+\.\d+ \d+\.\d+\)")
         self.assertRegex(rows[1]["shape"], r"SRID=4326;MULTIPOLYGON\(.+\)")
-        self.assertEqual(rows[1]["username"], "Équipe RNB")
+        self.assertEqual(rows[1]["username"], "RNB")
 
         self.assertEqual(rows[2]["action"], "create")
         self.assertEqual(rows[2]["rnb_id"], b3.rnb_id)
         self.assertEqual(rows[2]["status"], "constructed")
-        self.assertEqual(rows[2]["username"], "Équipe RNB")
+        self.assertEqual(rows[2]["username"], "RNB")
 
         self.assertEqual(rows[3]["action"], "deactivate")
         self.assertEqual(rows[3]["rnb_id"], b3.rnb_id)
