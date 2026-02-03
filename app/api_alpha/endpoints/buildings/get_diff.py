@@ -97,7 +97,7 @@ class DiffView(APIView):
         # nobody should download the whole database
         if since < last_available_modification:
             return HttpResponse(
-                "Maximum diff period is currently 6 months. Please let us know if you need more.",
+                f"Maximum diff period is currently 6 months ({last_available_modification}). Please let us know if you need more.",
                 status=400,
             )
 
