@@ -30,10 +30,12 @@ class DiffView(APIView):
                 "description": (
                     "Liste l'ensemble des modifications apportées au RNB depuis une date données. Génère un fichier CSV. Voici les points importants à retenir : <br />"
                     "<ul>"
-                    "<li>Les modifications listées sont de trois types : create, update et delete</li>"
+                    "<li>La colonne action correspond à l'action à mener sur une base local pour la garder synchronisée avec le RNB. Il existe 3 types d'actions : create, update et delete</li>"
                     "<li>Les modifications sont triées par date de modification croissante</li>"
                     "<li>Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. Par exemple, une création (create) suivie d'une mise à jour (update)</li>"
+                    "<li>La colonne `event_type` correspond à l'opération réalisée sur le bâtiment (création, désactivation, mise à jour, fusion, scission)</li>"
                     "</ul>"
+                    "Par exemple, une fusion de deux bâtiments fera apparaître 3 lignes qui partageront la même action (merge) et le même `event_id`. Les deux bâtiments parents auront l'action `delete` tandis que le bâtiment enfant aura l'action `create`."
                 ),
                 "operationId": "getDiff",
                 "parameters": [
@@ -69,7 +71,7 @@ class DiffView(APIView):
                             "text/csv": {
                                 "schema": {"type": "string"},
                                 "example": (
-                                    "action,rnb_id,status,sys_period,point,shape,addresses_id,ext_ids"
+                                    "action,rnb_id,status,is_active,sys_period,point,shape,addresses_id,ext_ids,parent_buildings,event_id,event_type,username"
                                 ),
                             }
                         },
