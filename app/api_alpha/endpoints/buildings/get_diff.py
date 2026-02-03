@@ -36,7 +36,7 @@ class DiffView(APIView):
                     "<li>La colonne `event_type` correspond à l'opération réalisée sur le bâtiment (création, désactivation, mise à jour, fusion, scission)</li>"
                     "</ul>"
                     "Par exemple, une fusion de deux bâtiments fera apparaître 3 lignes qui partageront la même action (merge) et le même `event_id`. Les deux bâtiments parents auront l'action `delete` tandis que le bâtiment enfant aura l'action `create`."
-                    f"Voici un exemple de requête permettant d'obtenir les modifications du RNB ayant eu lieu depuis une date déterminée : https://rnb-api.beta.gouv.fr/api/alpha/buildings/diff/?since={datetime.now(timezone.utc) - timedelta(days=1)}"
+                    f"Voici un exemple de requête permettant d'obtenir les modifications du RNB ayant eu lieu depuis une date déterminée : `https://rnb-api.beta.gouv.fr/api/alpha/buildings/diff/?since={datetime.now(timezone.utc) - timedelta(days=1)}`"
                 ),
                 "operationId": "getDiff",
                 "parameters": [
