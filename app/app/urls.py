@@ -18,13 +18,8 @@ from django.urls import include
 from django.urls import path
 
 from app.debug_views import test_error
-from batid.views import contribution
-from batid.views import delete_building
 from batid.views import FlowerProxyView
-from batid.views import merge_buildings
 from batid.views import MetabaseProxyView
-from batid.views import refuse_contribution
-from batid.views import update_building
 
 urlpatterns = [
     path("", include("website.urls")),
@@ -32,15 +27,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     FlowerProxyView.as_url(),
     MetabaseProxyView.as_url(),
-    path("contribution/fix/<int:contribution_id>", contribution),
-    path("contribution/fix/delete", delete_building, name="delete_building"),
-    path("contribution/fix/refuse", refuse_contribution, name="refuse_contribution"),
-    path(
-        "contribution/fix/update_building",
-        update_building,
-        name="update_building",
-    ),
-    path("contribution/fix/merge_buildings", merge_buildings, name="merge_buildings"),
     path("__debug__/", include("debug_toolbar.urls")),
     path("webhook/", include("webhook.urls")),
     path("__test__/error/", test_error, name="test_error"),

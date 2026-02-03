@@ -5,7 +5,6 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.db.models.fields.json import JSONField
 from django.urls import path
-from django.utils.html import format_html
 from jsoneditor.forms import JSONEditor  # type: ignore[import-untyped]
 
 from batid.models import Address
@@ -72,15 +71,9 @@ class ContributionAdmin(admin.ModelAdmin):
         "email",
         "created_at",
         "status",
-        "fix_issue",
         "review_user",
         "review_comment",
     )
-
-    def fix_issue(self, obj):
-        if obj.status == "pending":
-            link = f"/contribution/fix/{obj.id}"
-            return format_html('<a href="{}">{}</a>', link, "résoudre")
 
 
 admin.site.register(Contribution, ContributionAdmin)
