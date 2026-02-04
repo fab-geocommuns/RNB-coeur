@@ -129,7 +129,8 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
         # - The building must be active and in a "real" status
 
         on_plot_sql = """
-            SELECT bdg.id, bdg.rnb_id, bdg.is_active, bdg.updated_at, St_Area(ST_Intersection(bdg.shape, plot.shape)) / St_Area(bdg.shape) AS bdg_cover_ratio,
+            SELECT bdg.id, bdg.rnb_id, bdg.is_active, bdg.updated_at, 
+            St_Area(ST_Intersection(bdg.shape, plot.shape)) / St_Area(bdg.shape) AS bdg_cover_ratio,
             COALESCE (bdg.addresses_id, '{}') AS current_addresses,
             COALESCE(array_agg(DISTINCT unnested_address_id), '{}') AS past_addresses
             FROM batid_building as bdg

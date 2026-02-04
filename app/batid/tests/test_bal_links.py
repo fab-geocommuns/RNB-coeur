@@ -914,6 +914,59 @@ class LinkSearch(TestCase):
         bdg = self._run_geojson_scenario(data)
         self.assertIsNone(bdg)
 
+    def test_bdg_point_on_plot(self):
+        """
+        Only one building in the plot
+        The building is a point
+        We expect the building to be returned
+        """
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7332569431928846, 45.872036457541896],
+                                [2.732778363225435, 45.871415701898314],
+                                [2.7341253342617335, 45.870983049925144],
+                                [2.7343723432767035, 45.87203108306383],
+                                [2.7332569431928846, 45.872036457541896],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building", "rnb_id": "GOOD"},
+                    "geometry": {
+                        "coordinates": [2.73341518334297, 45.8718214780171],
+                        "type": "Point",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": {
+                        "coordinates": [2.7338397300876522, 45.87124102914697],
+                        "type": "Point",
+                    },
+                    "id": 2,
+                },
+            ],
+        }
+
+        bdg = self._run_geojson_scenario(data)
+
+        self.assertIsNotNone(bdg)
+        self.assertEqual(bdg.rnb_id, "GOOD")
+
     def _run_geojson_scenario(self, geojson_data):
 
         # just to shorten the code
