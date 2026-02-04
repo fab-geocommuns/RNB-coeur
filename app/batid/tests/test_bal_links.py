@@ -531,10 +531,11 @@ class LinkSearch(TestCase):
         bdg = find_bdg_to_link(address_point, address_id)
         self.assertIsNone(bdg)
 
-    def test_point_on_plot(self):
-
-        # It is possible to visualize the scenario with the geojson.io website
-        # copy/paste the geojson data below to see the buildings, plots and adress point
+    def test_address_on_plot(self):
+        """
+        One building is fully on the plot
+        We expect this building to be returned
+        """
 
         data = {
             "type": "FeatureCollection",
@@ -967,7 +968,160 @@ class LinkSearch(TestCase):
         self.assertIsNotNone(bdg)
         self.assertEqual(bdg.rnb_id, "GOOD")
 
+    def test_two_bdg_points_on_plot(self):
+        """
+        Two buildings represented as points are in the plot
+        We expect None
+        """
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7332569431928846, 45.872036457541896],
+                                [2.732778363225435, 45.871415701898314],
+                                [2.7341253342617335, 45.870983049925144],
+                                [2.7343723432767035, 45.87203108306383],
+                                [2.7332569431928846, 45.872036457541896],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building"},
+                    "geometry": {
+                        "coordinates": [2.73341518334297, 45.8718214780171],
+                        "type": "Point",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": {
+                        "coordinates": [2.7338397300876522, 45.87124102914697],
+                        "type": "Point",
+                    },
+                    "id": 2,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building"},
+                    "geometry": {
+                        "coordinates": [2.7337316636432263, 45.8718214780171],
+                        "type": "Point",
+                    },
+                    "id": 3,
+                },
+            ],
+        }
+
+        bdg = self._run_geojson_scenario(data)
+        self.assertIsNone(bdg)
+
+    def test_bdg_on_plot_with_address(self):
+        """
+        One building is fully on the plot
+        Initially this building has no adress : it should be returned
+        Then, we add the address to building and run again : it should return None
+        Finally, we remove the address from the building. Since the address has been in the history, it should return None
+        """
+
+        address_point = {
+            "coordinates": [4.337658457946446, 44.13921446369753],
+            "type": "Point",
+        }
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [4.336596580524599, 44.140553844425796],
+                                [4.336192402642638, 44.13951021813696],
+                                [4.337912139939817, 44.13889028971644],
+                                [4.338233104728431, 44.1401187654246],
+                                [4.336596580524599, 44.140553844425796],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building", "rnb_id": "GOOD"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [4.336733090548734, 44.140368534326285],
+                                [4.336733090548734, 44.14015863712456],
+                                [4.337056911871059, 44.14015863712456],
+                                [4.337056911871059, 44.140368534326285],
+                                [4.336733090548734, 44.140368534326285],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": address_point,
+                    "id": 2,
+                },
+            ],
+        }
+        # We create the address in advance
+        Address.objects.create(id="DUMMY")
+
+        # First run : building has no address yet
+        bdg = self._run_geojson_scenario(data)
+        self.assertIsNotNone(bdg)
+        self.assertEqual(bdg.rnb_id, "GOOD")
+
+        # Second run : building has now the address linked
+        bdg = Building.objects.get(rnb_id="GOOD")
+        bdg.addresses_id = ["DUMMY"]
+        bdg.save()
+
+        bdg = find_bdg_to_link(GEOSGeometry(json.dumps(address_point)), "DUMMY")
+        self.assertIsNone(bdg)
+
+        # Third run : building has had the address in the past
+        bdg = Building.objects.get(rnb_id="GOOD")
+        bdg.addresses_id = []
+        bdg.save()
+
+        bdg = find_bdg_to_link(GEOSGeometry(json.dumps(address_point)), "DUMMY")
+        self.assertIsNone(bdg)
+
     def _run_geojson_scenario(self, geojson_data):
+        """
+        It is possible to "draw" test scenario using geojson.io website
+        1. Draw the buildings as polygons (or points), add a type=building property
+        2. Draw the plot as a polygon, add a type=plot property
+        3. Draw the address point as a point, add a type=address property
+        4. Copy/paste the geojson in a new test and run it with this method
+
+        It is possible to visualize the scenario with the geojson.io website
+        First copy the geojson in the test
+        Paste it in https://jsonlint.com/, then validate and fix it
+        Then paste the resulting json in https://geojson.io/ to see the buildings, plots and adress point
+        """
 
         # just to shorten the code
         features = geojson_data["features"]

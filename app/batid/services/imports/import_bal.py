@@ -130,7 +130,7 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
 
         on_plot_sql = """
             SELECT bdg.id, bdg.rnb_id, bdg.is_active, bdg.updated_at, 
-            St_Area(ST_Intersection(bdg.shape, plot.shape)) / St_Area(bdg.shape) AS bdg_cover_ratio,
+            CASE WHEN ST_Area(bdg.shape) = 0 THEN 1 ELSE St_Area(ST_Intersection(bdg.shape, plot.shape)) / St_Area(bdg.shape) END AS bdg_cover_ratio,
             COALESCE (bdg.addresses_id, '{}') AS current_addresses,
             COALESCE(array_agg(DISTINCT unnested_address_id), '{}') AS past_addresses
             FROM batid_building as bdg
@@ -138,7 +138,7 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
             LEFT JOIN batid_building_history as history on history.rnb_id = bdg.rnb_id
             LEFT JOIN LATERAL unnest(history.addresses_id) AS unnested_address_id ON TRUE
             WHERE ST_Intersects(plot.shape, ST_Buffer(%(address_point)s, 3))
-            AND (ST_Area(ST_Intersection(bdg.shape, plot.shape)) / ST_Area(bdg.shape)) > 0.5
+            AND (CASE WHEN ST_Area(bdg.shape) = 0 THEN 1 ELSE ST_Area(ST_Intersection(bdg.shape, plot.shape)) / ST_Area(bdg.shape) END) > 0.5
             AND bdg.status IN %(status)s
             AND bdg.is_active = TRUE
             GROUP BY bdg.id, bdg.rnb_id, bdg.addresses_id, bdg.is_active, bdg.updated_at, bdg.shape, plot.shape
