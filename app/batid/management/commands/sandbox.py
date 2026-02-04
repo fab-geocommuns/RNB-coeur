@@ -1,11 +1,8 @@
 from django.core.management.base import BaseCommand
 from batid.services.source import Source
 from django.contrib.gis.geos import Point
-from batid.models import Building, Plot
-from batid.services.bdg_status import BuildingStatus
-from django.contrib.gis.db.models.functions import Area, Intersection
-from django.db.models import F
 import csv
+from batid.services.imports.import_bal import find_bdg_to_link
 
 
 class Command(BaseCommand):
@@ -21,7 +18,16 @@ class Command(BaseCommand):
         with open(src.find(src.filename), "r") as f:
             reader = csv.DictReader(f, delimiter=";")
 
+            idx = 0
             for row in reader:
+
+                idx += 1
+
+                if idx % 100 == 0:
+                    print(f"Processing row {idx}, found {found} links")
+
+                if idx == 5000:
+                    break
 
                 if row["certification_commune"] == "0":
                     continue
@@ -32,35 +38,12 @@ class Command(BaseCommand):
                     srid=4326,
                 )
 
-                address_point.transform(2154)
-                buffer = address_point.buffer(3)
-                buffer.transform(4326)
+                bdg = find_bdg_to_link(address_point, row["cle_interop"])
 
-                plots = Plot.objects.filter(shape__intersects=buffer)
-
-                if plots.count() != 1:
-                    continue
-
-                plot = plots.first()
-
-                bdgs = Building.objects.filter(
-                    shape__coveredby=plot.shape,
-                    is_active=True,
-                    status__in=BuildingStatus.REAL_BUILDINGS_STATUS,
-                ).exclude(shape__intersects=buffer)
-
-                if bdgs.count() == 1:
-
-                    found = found + 1
-
-                    address_point.transform(4326)
-
-                    lat_lng = f"{address_point.y},{address_point.x}"
-
+                if bdg is not None:
+                    found += 1
                     print(
-                        f"Linking {row['cle_interop']}, {lat_lng} to BDG {bdgs.first().rnb_id}"
+                        f"Found link for building {bdg.rnb_id} at address {row['cle_interop']}"
                     )
-                    print(f"Plot {plot.id}")
 
-                    if found >= 10:
-                        break
+        print(f"Finished processing, found {found} links")

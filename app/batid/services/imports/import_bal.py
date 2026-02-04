@@ -149,7 +149,7 @@ def _match_bdg_on_plot(address_point: Point) -> Optional[Building]:
     # We want to be SUPER conservative when linking a BAL address to a BDG via the plot.
     # There are many many edge cases where this can go wrong.
     # So we add the following constraints:
-    # - The address point buffer (3m) must intersect only one plot
+    # - The address point buffer (5m) must intersect only one plot
     # - Any building with more than 50% of its area on that plot is considered as belonging to that plot
     # - The plot must have only one building matching the above condition
     # - The matching building should have 90+% of its area on that plot
@@ -164,7 +164,7 @@ def _match_bdg_on_plot(address_point: Point) -> Optional[Building]:
             JOIN batid_plot as plot ON ST_Intersects(bdg.shape, plot.shape)
             LEFT JOIN batid_building_history as history on history.rnb_id = bdg.rnb_id
             LEFT JOIN LATERAL unnest(history.addresses_id) AS unnested_address_id ON TRUE
-            WHERE ST_Intersects(plot.shape, ST_Buffer(%(address_point)s, 3))
+            WHERE ST_Intersects(plot.shape, ST_Buffer(%(address_point)s, 5))
             AND (CASE WHEN ST_Area(bdg.shape) = 0 THEN 1 ELSE ST_Area(ST_Intersection(bdg.shape, plot.shape)) / ST_Area(bdg.shape) END) > 0.5
             AND bdg.status IN %(status)s
             AND bdg.is_active = TRUE
