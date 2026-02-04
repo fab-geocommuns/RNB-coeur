@@ -96,6 +96,27 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
 
 def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Building]:
 
+    bdg = _match_bdg_intersecting(address_point)
+
+    if bdg is None:
+
+        bdg = _match_bdg_on_plot(address_point)
+
+    if not isinstance(bdg, Building):
+        return None
+
+    # We do NOT want to create the bdg <> address link if the same link exists or has existed in the past
+    if (
+        cle_interop in bdg.current_addresses  # type: ignore[attr-defined]
+        or cle_interop in bdg.past_addresses  # type: ignore[attr-defined]
+    ):
+        return None
+
+    return bdg
+
+
+def _match_bdg_intersecting(address_point: Point) -> Optional[Building]:
+
     on_bdg_sql = """
         SELECT bdg.id, bdg.rnb_id, bdg.is_active, bdg.updated_at,
         COALESCE (bdg.addresses_id, '{}') AS current_addresses,
@@ -117,18 +138,24 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
     bdgs = Building.objects.raw(on_bdg_sql, params)
 
     if len(bdgs) != 1:
+        return None
 
-        # Quick note on the query below:
-        # We want to be SUPER conservative when linking a BAL address to a BDG via the plot.
-        # There are many many edge cases where this can go wrong.
-        # So we add the following constraints:
-        # - The address point buffer (3m) must intersect only one plot
-        # - Any building with more than 50% of its area on that plot is considered as belonging to that plot
-        # - The plot must have only one building matching the above condition
-        # - The matching building should have 90+% of its area on that plot
-        # - The building must be active and in a "real" status
+    return bdgs[0]
 
-        on_plot_sql = """
+
+def _match_bdg_on_plot(address_point: Point) -> Optional[Building]:
+
+    # Quick note on the query below:
+    # We want to be SUPER conservative when linking a BAL address to a BDG via the plot.
+    # There are many many edge cases where this can go wrong.
+    # So we add the following constraints:
+    # - The address point buffer (3m) must intersect only one plot
+    # - Any building with more than 50% of its area on that plot is considered as belonging to that plot
+    # - The plot must have only one building matching the above condition
+    # - The matching building should have 90+% of its area on that plot
+    # - The building must be active and in a "real" status
+
+    on_plot_sql = """
             SELECT bdg.id, bdg.rnb_id, bdg.is_active, bdg.updated_at, 
             CASE WHEN ST_Area(bdg.shape) = 0 THEN 1 ELSE St_Area(ST_Intersection(bdg.shape, plot.shape)) / St_Area(bdg.shape) END AS bdg_cover_ratio,
             COALESCE (bdg.addresses_id, '{}') AS current_addresses,
@@ -145,20 +172,18 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
             HAVING COUNT(plot.id) = 1
         """
 
-        bdgs = Building.objects.raw(on_plot_sql, params)
+    params = {
+        "address_point": f"{address_point}",
+        "status": tuple(BuildingStatus.REAL_BUILDINGS_STATUS),
+    }
 
-        if len(bdgs) != 1:
-            return None
+    bdgs = Building.objects.raw(on_plot_sql, params)
 
-        # If the building does not have 90%+ of its area on that plot, we refuse to link it
-        if bdgs[0].bdg_cover_ratio < 0.9:  # type: ignore[attr-defined]
-            return None
+    if len(bdgs) != 1:
+        return None
 
-    # We do NOT want to create the bdg <> address link if the same link exists or has existed in the past
-    if (
-        cle_interop in bdgs[0].current_addresses  # type: ignore[attr-defined]
-        or cle_interop in bdgs[0].past_addresses  # type: ignore[attr-defined]
-    ):
+    # If the building does not have 90%+ of its area on that plot, we refuse to link it
+    if bdgs[0].bdg_cover_ratio < 0.9:  # type: ignore[attr-defined]
         return None
 
     return bdgs[0]
