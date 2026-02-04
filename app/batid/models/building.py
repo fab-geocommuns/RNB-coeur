@@ -390,6 +390,7 @@ class Building(BuildingAbstract):
             SummerChallenge.score_shape(user, self.point, self.rnb_id, self.event_id)
 
         if addresses_id is not None:
+
             Address.add_addresses_to_db_if_needed(addresses_id)
 
             # Summer Challenge!

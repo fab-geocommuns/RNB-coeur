@@ -211,13 +211,13 @@ def find_and_update_bdg(  # type: ignore[return]
 
     if isinstance(bdg_to_link, Building):
 
-        current_addresses = bdg_to_link.current_addresses  # type: ignore[attr-defined]
-        current_addresses.append(cle_interop)
+        bdg_addresses = list(bdg_to_link.addresses_id or [])  # make a shallow copy
+        bdg_addresses.append(cle_interop)
 
         bdg_to_link.update(
             user=None,
             event_origin={"source": "import", "id": bdg_import_id},
-            addresses_id=current_addresses,
+            addresses_id=bdg_addresses,
             status=None,
         )
 
