@@ -6,17 +6,17 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from django.test import TransactionTestCase
+from nanoid import generate
 
 import batid.tests.helpers as helpers
-from batid.services.rnb_id import generate_rnb_id
-from nanoid import generate
 from batid.exceptions import BANUnknownCleInterop
 from batid.models import Address
 from batid.models import Building
-from batid.models import Plot
 from batid.models import BuildingImport
+from batid.models import Plot
 from batid.services.imports.import_bal import create_dpt_bal_rnb_links
 from batid.services.imports.import_bal import find_bdg_to_link
+from batid.services.rnb_id import generate_rnb_id
 
 
 class BALImport(TransactionTestCase):

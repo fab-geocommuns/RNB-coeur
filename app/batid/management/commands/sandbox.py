@@ -1,8 +1,10 @@
-from django.core.management.base import BaseCommand
-from batid.services.source import Source
-from django.contrib.gis.geos import Point
 import csv
+
+from django.contrib.gis.geos import Point
+from django.core.management.base import BaseCommand
+
 from batid.services.imports.import_bal import find_bdg_to_link
+from batid.services.source import Source
 
 
 class Command(BaseCommand):

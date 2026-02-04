@@ -5,6 +5,7 @@ from typing import Optional
 
 from celery import Signature
 from django.contrib.gis.geos import Point
+from django.db import connection
 from django.db import transaction
 
 from batid.exceptions import BANAPIDown
@@ -16,7 +17,6 @@ from batid.models import BuildingImport
 from batid.services.bdg_status import BuildingStatus
 from batid.services.imports import building_import_history
 from batid.services.source import Source
-from django.db import connection
 from batid.utils.db import dictfetchall
 
 
