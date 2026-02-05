@@ -128,8 +128,27 @@ services:
   #   ports:
   #     - "8081:8080"
 
+  # Uncomment this to use Photon locally
+  # photon:
+  #   container_name: photon
+  #   image: rtuszik/photon-docker:latest
+  #   environment:
+  #       - UPDATE_STRATEGY=PARALLEL
+  #       - UPDATE_INTERVAL=24h
+  #       - REGION=fr # Optional: country-specific index
+  #   volumes:
+  #       - photon_data:/photon/photon_data
+  #   restart: unless-stopped
+  #   ports:
+  #       - "2322:2322"
+
+
+
 volumes:
   postgres_data:
   rabbitmq_data:
   certs:
   html:
+
+  # Uncomment this to use Photon locally
+  # photon_data:
