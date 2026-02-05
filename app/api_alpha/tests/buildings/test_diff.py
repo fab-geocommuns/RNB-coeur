@@ -135,6 +135,7 @@ class DiffTest(TransactionTestCase):
                 "parent_buildings",
                 "event_id",
                 "event_type",
+                "username",
             ],
         )
 
@@ -161,20 +162,24 @@ class DiffTest(TransactionTestCase):
         self.assertListEqual(
             json.loads(rows[0]["addresses_id"]), ["ADDRESS_ID_2", "ADDRESS_ID_3"]
         )
+        self.assertEqual(rows[0]["username"], "marcella")
 
         self.assertEqual(rows[1]["action"], "create")
         self.assertEqual(rows[1]["rnb_id"], b2.rnb_id)
         self.assertEqual(rows[1]["status"], "constructed")
         self.assertRegex(rows[1]["point"], r"SRID=4326;POINT\(\d+\.\d+ \d+\.\d+\)")
         self.assertRegex(rows[1]["shape"], r"SRID=4326;MULTIPOLYGON\(.+\)")
+        self.assertEqual(rows[1]["username"], "RNB")
 
         self.assertEqual(rows[2]["action"], "create")
         self.assertEqual(rows[2]["rnb_id"], b3.rnb_id)
         self.assertEqual(rows[2]["status"], "constructed")
+        self.assertEqual(rows[2]["username"], "RNB")
 
         self.assertEqual(rows[3]["action"], "deactivate")
         self.assertEqual(rows[3]["rnb_id"], b3.rnb_id)
         self.assertEqual(rows[3]["status"], "constructed")
+        self.assertEqual(rows[3]["username"], "marcella")
 
         # check the CSV file name
         b3 = Building.objects.get(rnb_id="3")
@@ -261,6 +266,7 @@ class DiffTest(TransactionTestCase):
         self.assertListEqual(json.loads(rows[0]["ext_ids"]), [])
         self.assertEqual(rows[0]["parent_buildings"], "")
         self.assertEqual(rows[0]["event_type"], "merge")
+        self.assertEqual(rows[0]["username"], "marcella")
 
         # #####
         # second parent
@@ -272,6 +278,7 @@ class DiffTest(TransactionTestCase):
         self.assertListEqual(json.loads(rows[1]["ext_ids"]), [])
         self.assertEqual(rows[1]["parent_buildings"], "")
         self.assertEqual(rows[1]["event_type"], "merge")
+        self.assertEqual(rows[1]["username"], "marcella")
         # event_id: we check the three rows share the same event_id
         self.assertEqual(rows[1]["event_id"], rows[0]["event_id"])
 
@@ -289,6 +296,7 @@ class DiffTest(TransactionTestCase):
             json.loads(rows[2]["parent_buildings"]), [b1.rnb_id, b2.rnb_id]
         )
         self.assertEqual(rows[2]["event_type"], "merge")
+        self.assertEqual(rows[2]["username"], "marcella")
         # event_id: we check the three rows share the same event_id
         self.assertEqual(rows[2]["event_id"], rows[0]["event_id"])
 
@@ -348,13 +356,12 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[0][1], b1.rnb_id)
         self.assertEqual(rows[0][2], "constructed")
 
-        self.assertEqual(rows[1][0], "create")
-        self.assertEqual(rows[1][1], b2.rnb_id)
-        self.assertEqual(rows[1][2], "constructed")
-
-        self.assertEqual(rows[2][0], "create")
-        self.assertEqual(rows[2][1], b3.rnb_id)
-        self.assertEqual(rows[2][2], "constructed")
+        offset = 0
+        for rnb_id in sorted([b2.rnb_id, b3.rnb_id]):
+            self.assertEqual(rows[1 + offset][0], "create")
+            self.assertEqual(rows[1 + offset][1], rnb_id)
+            self.assertEqual(rows[1 + offset][2], "constructed")
+            offset = offset + 1
 
         # additional check: set a since date in the past to make sure the loop on the datetimes is working correctly
         # because rows of diff are fetched one day at a time
@@ -470,6 +477,7 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[0]["is_active"], "0")
         self.assertEqual(rows[0]["event_type"], "deactivation")
         self.assertListEqual(json.loads(rows[0]["addresses_id"]), ["ADDRESS_ID_1"])
+        self.assertEqual(rows[0]["username"], "marcella")
 
         self.assertEqual(rows[1]["action"], "reactivate")
         self.assertEqual(rows[1]["rnb_id"], b1.rnb_id)
@@ -477,6 +485,7 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[1]["is_active"], "1")
         self.assertEqual(rows[1]["event_type"], "reactivation")
         self.assertListEqual(json.loads(rows[1]["addresses_id"]), ["ADDRESS_ID_1"])
+        self.assertEqual(rows[1]["username"], "marcella")
 
 
 class DiffInseeCodeTest(TransactionTestCase):
