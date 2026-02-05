@@ -149,16 +149,19 @@ def _match_bdg_intersecting(cursor, address_point: Point) -> Optional[str]:
 
 
 def _match_bdg_on_plot(cursor, address_point: Point) -> Optional[str]:
+    """
 
-    # Quick note on the building match below:
-    # We want to be SUPER conservative when linking a BAL address to a BDG via the plot.
-    # There are many many edge cases where this can go wrong.
-    # So we add the following constraints:
-    # - The address point must be within 5 meters of one and only one plot
-    # - Any building with more than 50% of its area on that plot is considered as belonging to that plot
-    # - The plot must have only one building matching the above condition
-    # - The matching building should have 90+% of its area on that plot
-    # - The building must be active and with a "real" status
+    This function tries to create a link between a BAL address and a BDG via the plot.
+
+    We want to be SUPER conservative with this approach.
+    There are many many edge cases where this can go wrong.
+    So we add the following constraints:
+    - The address point must be within 5 meters of one and only one plot
+    - Any building with more than 50% of its area on that plot is considered as belonging to that plot
+    - The plot must have one and only one building matching the above condition
+    - The matching building should have 90+% of its area on that plot
+    - The building must be active and with a "real" status
+    """
 
     # First, we check how many plots are nearby (within 5 meters) of the address point. If there is not exactly one, we give up immediately
     close_plots_sql = """
