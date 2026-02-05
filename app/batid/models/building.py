@@ -1078,6 +1078,7 @@ class BuildingHistoryOnly(BuildingAbstract):
         db_table = "batid_building_history"
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_history_event_origin_idx"),
+            GinIndex(fields=["addresses_id"], name="bdg_history_addresses_id_idx"),
             models.Index(fields=("status",), name="bdg_history_status_idx"),
             Index(Lower("sys_period"), name="bdg_hist_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_history_event_type_idx"),

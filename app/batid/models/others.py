@@ -129,6 +129,8 @@ class Address(models.Model):
     city_zipcode = models.CharField(max_length=5, null=True)
     city_insee_code = models.CharField(max_length=5, null=True)
     ban_id = models.UUIDField(db_index=True, null=True, blank=True, unique=True)
+    # Does the cle d'interop still exists in the BAN?
+    still_exists = models.BooleanField(default=False, db_index=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
