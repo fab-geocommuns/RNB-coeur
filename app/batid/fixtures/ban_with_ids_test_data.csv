@@ -1,0 +1,5 @@
+id;id_fantoir;numero;rep;nom_voie;code_postal;code_insee;nom_commune;code_insee_ancienne_commune;nom_ancienne_commune;x;y;lon;lat;type_position;alias;nom_ld;libelle_acheminement;nom_afnor;source_position;source_nom_voie;certification_commune;cad_parcelles;id_ban_adresse;id_ban_toponyme;id_ban_commune
+04001_pk624e_00001;;1;bis;Impasse de la Treille;04510;04001;Aiglun;;;951088.5;6335099.35;6.135212;44.070028;entree;;;AIGLUN;IMPASSE DE LA TREILLE;commune;commune;1;040010000B0487;a1b2c3d4-e5f6-7890-abcd-ef1234567890;;
+04001_pk624e_00002;;2;;Impasse de la Treille;04510;04001;Aiglun;;;951098.29;6335095.07;6.135332;44.069986;entree;;;AIGLUN;IMPASSE DE LA TREILLE;commune;commune;1;040010000B0487;b2c3d4e5-f6a7-8901-bcde-f12345678901;;
+04001_pk624e_00003;;3;;Impasse de la Treille;04510;04001;Aiglun;;;951107.87;6335086;6.135447;44.069901;entree;;;AIGLUN;IMPASSE DE LA TREILLE;commune;commune;1;040010000B0728;;;
+04001_unknown_99999;;99;;Unknown Street;04510;04001;Aiglun;;;951107.87;6335086;6.135447;44.069901;entree;;;AIGLUN;UNKNOWN STREET;commune;commune;1;040010000B0999;c3d4e5f6-a7b8-9012-cdef-123456789012;;
