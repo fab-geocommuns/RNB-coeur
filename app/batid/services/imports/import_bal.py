@@ -98,15 +98,17 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
 
 def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Building]:
 
-    # Simple Intersects approach first
-    matching_rnb_id = _match_bdg_intersecting(address_point)
+    with connection.cursor() as cursor:
 
-    if matching_rnb_id is None:
+        # Simple Intersects approach first
+        matching_rnb_id = _match_bdg_intersecting(cursor, address_point)
 
-        # There was no match
-        # We try the more complex plot-based approach
+        if matching_rnb_id is None:
 
-        matching_rnb_id = _match_bdg_on_plot(address_point)
+            # There was no match
+            # We try the more complex plot-based approach
+
+            matching_rnb_id = _match_bdg_on_plot(cursor, address_point)
 
     if matching_rnb_id is None:
 
@@ -122,7 +124,7 @@ def find_bdg_to_link(address_point: Point, cle_interop: str) -> Optional[Buildin
     return Building.objects.get(rnb_id=matching_rnb_id)
 
 
-def _match_bdg_intersecting(address_point: Point) -> Optional[str]:
+def _match_bdg_intersecting(cursor, address_point: Point) -> Optional[str]:
 
     on_bdg_sql = """
         SELECT bdg.rnb_id
@@ -130,7 +132,7 @@ def _match_bdg_intersecting(address_point: Point) -> Optional[str]:
         WHERE ST_Intersects(bdg.shape, %(address_point)s)
         AND bdg.status IN %(status)s
         AND bdg.is_active = TRUE
-        GROUP BY bdg.id, bdg.rnb_id, bdg.addresses_id, bdg.is_active, bdg.updated_at
+        GROUP BY bdg.rnb_id
     """
 
     params = {
@@ -138,8 +140,7 @@ def _match_bdg_intersecting(address_point: Point) -> Optional[str]:
         "status": tuple(BuildingStatus.REAL_BUILDINGS_STATUS),
     }
 
-    with connection.cursor() as cursor:
-        rows = dictfetchall(cursor, on_bdg_sql, params)
+    rows = dictfetchall(cursor, on_bdg_sql, params)
 
     if len(rows) != 1:
         return None
@@ -147,7 +148,7 @@ def _match_bdg_intersecting(address_point: Point) -> Optional[str]:
     return rows[0]["rnb_id"]
 
 
-def _match_bdg_on_plot(address_point: Point) -> Optional[str]:
+def _match_bdg_on_plot(cursor, address_point: Point) -> Optional[str]:
 
     # Quick note on the building match below:
     # We want to be SUPER conservative when linking a BAL address to a BDG via the plot.
@@ -157,46 +158,52 @@ def _match_bdg_on_plot(address_point: Point) -> Optional[str]:
     # - Any building with more than 50% of its area on that plot is considered as belonging to that plot
     # - The plot must have only one building matching the above condition
     # - The matching building should have 90+% of its area on that plot
-    # - The building must be active and in a "real" status
+    # - The building must be active and with a "real" status
 
-    on_plot_sql = """
-        select bdg.rnb_id, plot.id as plot_id,
-        CASE WHEN ST_Area(bdg.shape) = 0 THEN 1 ELSE St_Area(ST_Intersection(bdg.shape, plot.shape)) / St_Area(bdg.shape) END AS bdg_cover_ratio
-        from batid_plot as plot
-        inner join batid_building bdg on st_intersects(plot.shape, bdg.shape)
-        where st_dwithin(%(address_point)s, plot.shape::geography, 5)
-        AND bdg.status IN %(status)s
-        AND bdg.is_active = true
-    ;
+    # First, we check how many plots are nearby (within 5 meters) of the address point. If there is not exactly one, we give up immediately
+    close_plots_sql = """
+        select shape from batid_plot
+        where st_dwithin(%(address_point)s, shape::geography, 5)
     """
 
-    params = {
-        "address_point": f"{address_point}",
-        "status": tuple(BuildingStatus.REAL_BUILDINGS_STATUS),
-    }
+    plots = dictfetchall(cursor, close_plots_sql, {"address_point": f"{address_point}"})
 
-    with connection.cursor() as cursor:
-        results = dictfetchall(cursor, on_plot_sql, params)
-
-    # First we verify there is only one plot in the results
-    plot_ids = set()
-    for row in results:
-        plot_ids.add(row["plot_id"])
-
-    if len(plot_ids) != 1:
+    if len(plots) != 1:
         return None
 
-    # Then we verify there is only one building with more than 50% area on that plot
-    candidate_bdgs = []
+    # Second, we get all buildings intersecting the plot, and check how much of their area is on the plot.
+    # If there is not exactly one building with more than 50% of its area on the plot, we give up
 
-    for row in results:
-        if row["bdg_cover_ratio"] >= 0.5:
-            candidate_bdgs.append(row)
+    plot_shape = plots[0]["shape"]
+
+    bdgs_on_plot_sql = """
+        select bdg.rnb_id,
+        CASE WHEN ST_Area(bdg.shape) = 0 THEN 1 ELSE St_Area(ST_Intersection(bdg.shape, %(plot_shape)s)) / St_Area(bdg.shape) END AS bdg_cover_ratio
+        from batid_building as bdg
+        where st_intersects(bdg.shape, %(plot_shape)s)
+        AND bdg.status IN %(status)s
+        AND bdg.is_active = true
+    """
+
+    bdgs_on_plot = dictfetchall(
+        cursor,
+        bdgs_on_plot_sql,
+        {
+            "plot_shape": f"{plot_shape}",
+            "status": tuple(BuildingStatus.REAL_BUILDINGS_STATUS),
+        },
+    )
+
+    # We check how many buidldings have more than 50% of their area on the plot
+    candidate_bdgs = []
+    for bdg in bdgs_on_plot:
+        if bdg["bdg_cover_ratio"] >= 0.5:
+            candidate_bdgs.append(bdg)
 
     if len(candidate_bdgs) != 1:
         return None
 
-    # Finally we verify the matching building has 90%+ of its area on that plot
+    # We check that the matching building has 90+% of its area on the plot, otherwise we consider the match too weak
     if candidate_bdgs[0]["bdg_cover_ratio"] < 0.9:
         return None
 

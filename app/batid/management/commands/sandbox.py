@@ -1,4 +1,5 @@
 import csv
+import time
 
 from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand
@@ -16,6 +17,8 @@ class Command(BaseCommand):
         # src.uncompress()
 
         found = 0
+        total_time = 0
+        c = 0
 
         with open(src.find(src.filename), "r") as f:
             reader = csv.DictReader(f, delimiter=";")
@@ -28,7 +31,7 @@ class Command(BaseCommand):
                 if idx % 100 == 0:
                     print(f"Processing row {idx}, found {found} links")
 
-                if idx == 5000:
+                if idx == 1000:
                     break
 
                 if row["certification_commune"] == "0":
@@ -40,7 +43,11 @@ class Command(BaseCommand):
                     srid=4326,
                 )
 
+                start = time.time()
                 bdg = find_bdg_to_link(address_point, row["cle_interop"])
+                end = time.time()
+                total_time += end - start
+                c += 1
 
                 if bdg is not None:
                     found += 1
@@ -49,3 +56,5 @@ class Command(BaseCommand):
                     )
 
         print(f"Finished processing, found {found} links")
+        print(f"Total time: {total_time}")
+        print(f"Average time: {total_time / c}")
