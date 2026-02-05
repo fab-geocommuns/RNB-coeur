@@ -26,7 +26,7 @@ class TestParseUuid(TestCase):
 
 class TestUpdateBatch(TestCase):
     def test_update_existing_address(self):
-        Address.objects.create(id="04001_test_00001", source="ban", still_exists=False)
+        Address.objects.create(id="04001_test_00001", source="ban")
 
         batch = [
             {
@@ -55,12 +55,12 @@ class TestUpdateBatch(TestCase):
         self.assertEqual(updated, 0)
         self.assertFalse(Address.objects.filter(id="99999_unknown_00001").exists())
 
-    def test_still_exists_false_by_default(self):
+    def test_still_exists_none_by_default(self):
         addr = Address.objects.create(
             id="04001_test_00002",
             source="ban",
         )
-        self.assertFalse(addr.still_exists)
+        self.assertIsNone(addr.still_exists)
 
     def test_update_with_null_ban_id(self):
         Address.objects.create(
@@ -136,19 +136,22 @@ class TestFlagAddressesFromBanFile(TestCase):
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
     @patch("batid.services.imports.update_addresses_ban.os.remove")
-    def test_flag_addresses_not_in_ban_stays_false(self, mock_remove, mock_find):
+    def test_flag_addresses_not_in_ban_marked_false(self, mock_remove, mock_find):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         # Create addresses: one in fixture, one not
         Address.objects.create(id="04001_pk624e_00001", source="ban")
         Address.objects.create(id="04001_not_in_ban_00001", source="ban")
 
-        flag_addresses_from_ban_file({"dpt": "04"})
+        result = flag_addresses_from_ban_file({"dpt": "04"})
 
         # Address in fixture should have still_exists=True
         addr_in_ban = Address.objects.get(id="04001_pk624e_00001")
         self.assertTrue(addr_in_ban.still_exists)
 
-        # Address NOT in fixture should still have still_exists=False
+        # Address NOT in fixture should be marked still_exists=False
         addr_not_in_ban = Address.objects.get(id="04001_not_in_ban_00001")
         self.assertFalse(addr_not_in_ban.still_exists)
+
+        # Check obsolete count in result
+        self.assertEqual(result["obsolete"], 1)
