@@ -1092,6 +1092,68 @@ class LinkSearch(TestCase):
         bdg = find_bdg_to_link(GEOSGeometry(json.dumps(address_point)), "DUMMY")
         self.assertIsNone(bdg)
 
+    def test_bdg_on_giant_plot(self):
+        """
+        One building is fully on the plot, but the plot is very big.
+        Big piece of land introduce uncertainty. An adresse close to it can be linked to a far away building on an adjacent plot.
+        We expect none
+        """
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [0.4303592640546867, 47.46117883192349],
+                                [0.43204021684735494, 47.45958206184622],
+                                [0.43693822308253516, 47.46084683525214],
+                                [0.43666676731530174, 47.461261770056666],
+                                [0.43955335480205804, 47.4631218042509],
+                                [0.43385868707900954, 47.46592242690684],
+                                [0.426305131183085, 47.46368433414139],
+                                [0.4303592640546867, 47.46117883192349],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [0.42967293263598094, 47.46207619665961],
+                                [0.4297779460523543, 47.461900571548625],
+                                [0.4300948286424102, 47.46199523480206],
+                                [0.4299566530939103, 47.46215093057208],
+                                [0.42967293263598094, 47.46207619665961],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": {
+                        "coordinates": [0.4304945688339501, 47.46114031898324],
+                        "type": "Point",
+                    },
+                    "id": 2,
+                },
+            ],
+        }
+
+        bdg = self._run_geojson_scenario(data)
+        self.assertIsNone(bdg)
+
     def _run_geojson_scenario(self, geojson_data):
         """
         It is possible to "draw" test scenario using geojson.io website

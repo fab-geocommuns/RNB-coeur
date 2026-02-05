@@ -165,13 +165,18 @@ def _match_bdg_on_plot(cursor, address_point: Point) -> Optional[str]:
 
     # First, we check how many plots are nearby (within 5 meters) of the address point. If there is not exactly one, we give up immediately
     close_plots_sql = """
-        select shape from batid_plot
+        select shape, st_area(shape::geography) as area 
+        from batid_plot
         where st_dwithin(%(address_point)s, shape::geography, 5)
     """
 
     plots = dictfetchall(cursor, close_plots_sql, {"address_point": f"{address_point}"})
 
     if len(plots) != 1:
+        return None
+
+    # We avoid plot bigger than 50_000m2
+    if plots[0]["area"] > 50_000:
         return None
 
     # Second, we get all buildings intersecting the plot, and check how much of their area is on the plot.
