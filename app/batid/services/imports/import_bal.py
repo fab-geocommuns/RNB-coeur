@@ -165,7 +165,7 @@ def _match_bdg_on_plot(cursor, address_point: Point) -> Optional[str]:
 
     # First, we check how many plots are nearby (within 5 meters) of the address point. If there is not exactly one, we give up immediately
     close_plots_sql = """
-        select shape, st_area(shape::geography) as area 
+        select shape, st_area(shape::geography) as area
         from batid_plot
         where st_dwithin(%(address_point)s, shape::geography, 5)
     """
