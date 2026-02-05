@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="address",
             name="still_exists",
-            field=models.BooleanField(db_index=True, default=False),
+            field=models.BooleanField(db_index=True, null=True, default=None),
         ),
         migrations.AddIndex(
             model_name="buildinghistoryonly",
