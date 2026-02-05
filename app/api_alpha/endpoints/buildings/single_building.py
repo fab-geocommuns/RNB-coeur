@@ -190,7 +190,7 @@ Liste des clés d'interopérabilité BAN liées au bâtiment.
 
 Si ce paramêtre est :
 * absent, alors les clés ne sont pas modifiées.
-* présent et que sa valeur est une liste vide, alors le bâtiment ne sera plus lié à aucune adresse."""
+* présent et que sa valeur est une liste vide (`[]`), alors le bâtiment ne sera plus lié à aucune adresse."""
                                         ),
                                         "exemple": [
                                             "75105_8884_00004",
