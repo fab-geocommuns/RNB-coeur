@@ -176,6 +176,7 @@ def _match_bdg_on_plot(cursor, address_point: Point) -> Optional[str]:
         return None
 
     # We avoid plot bigger than 50_000m2
+    # This value is somewhat arbitrary, we met one edge case which can be avoided by ignoring very big plots.
     if plots[0]["area"] > 50_000:
         return None
 
@@ -203,10 +204,7 @@ def _match_bdg_on_plot(cursor, address_point: Point) -> Optional[str]:
     )
 
     # We check how many buidldings have more than 50% of their area on the plot
-    candidate_bdgs = []
-    for bdg in bdgs_on_plot:
-        if bdg["bdg_cover_ratio"] >= 0.5:
-            candidate_bdgs.append(bdg)
+    candidate_bdgs = [bdg for bdg in bdgs_on_plot if bdg["bdg_cover_ratio"] >= 0.5]
 
     if len(candidate_bdgs) != 1:
         return None
