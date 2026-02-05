@@ -14,6 +14,7 @@ from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
 from batid.tests.factories.users import ContributorUserFactory
+from batid.tests.helpers import coords_to_mp_geom
 from batid.utils.misc import ext_ids_equal
 
 
@@ -495,6 +496,58 @@ class TestUpdateBuilding(TestCase):
             str(e.exception.api_message_with_details()),
             "La géometrie d'un bâtiment ne peut pas être déplacée sur une trop grande distance",
         )
+
+    def updating_point_to_closer_big_poly_not_raise(self):
+
+        point_bdg = Building.objects.create(
+            rnb_id="POINT_BDG",
+            shape=GEOSGeometry(
+                '{"type":"Point","coordinates":[2.62457926085049, 48.8755845066494]}'
+            ),
+            status="constructed",
+        )
+
+        new_poly = GEOSGeometry(
+            '{"type":"MultiPolygon","coordinates":[[[[2.623721779,48.875541813],[2.623736264,48.875424048],[2.626681569,48.875561872],[2.626913302,48.87556799],[2.627125904,48.875580344],[2.627112777,48.875699912],[2.623721779,48.875541813]]]]}'
+        )
+
+        point_bdg.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            shape=new_poly,
+            status=None,
+            addresses_id=None,
+        )
+
+    def updating_point_to_far_big_poly_raises(self):
+
+        point_bdg = Building.objects.create(
+            rnb_id="POINT_BDG",
+            shape=GEOSGeometry(
+                '{"type":"Point","coordinates":[2.62457926085049, 48.8755845066494]}'
+            ),
+            status="constructed",
+        )
+
+        new_mp = coords_to_mp_geom(
+            [
+                [3.08623598495754, 45.61185838134952],
+                [3.086189953169196, 45.61179511124274],
+                [3.0863369318603304, 45.611765170898906],
+                [3.086351468214332, 45.61189566548654],
+                [3.0862561743377626, 45.61191769701006],
+                [3.08623598495754, 45.61185838134952],
+            ]
+        )
+
+        with self.assertRaises(BuildingCannotMove):
+            point_bdg.update(
+                user=self.user,
+                event_origin={"source": "test"},
+                shape=new_mp,
+                status=None,
+                addresses_id=None,
+            )
 
 
 class TestExtIdsComparison(TestCase):

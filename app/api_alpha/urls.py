@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.urls import include
 from django.urls import path
 from django.urls import re_path
@@ -10,6 +11,7 @@ from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildi
 from api_alpha.endpoints.buildings.plot import BuildingPlotView
 from api_alpha.endpoints.buildings.single_building import SingleBuilding
 from api_alpha.endpoints.buildings.single_building import SingleBuildingHistory
+from api_alpha.endpoints.debug import RaiseExceptionView
 from api_alpha.endpoints.ogc.views import OGCBuildingItemsView
 from api_alpha.endpoints.ogc.views import OGCBuildingsCollectionView
 from api_alpha.endpoints.ogc.views import OGCCollectionsView
@@ -145,3 +147,6 @@ router.register(r"permis", ADSViewSet, basename="permis")
 
 # Add the router URLs to the urlpatterns
 urlpatterns.append(path("", include(router.urls)))
+
+if settings.ENVIRONMENT not in ["production", "sandbox"]:
+    urlpatterns.append(path("raise_exception", RaiseExceptionView.as_view()))
