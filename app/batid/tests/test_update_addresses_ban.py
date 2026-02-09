@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.test import TransactionTestCase
 
 import batid.tests.helpers as helpers
 from batid.models import Address
@@ -112,7 +113,7 @@ class TestFlagAddressesFromBanFile(TestCase):
         self.assertEqual(result["obsolete"], 1)
 
 
-class TestDeleteUnlinkedObsoleteAddresses(TestCase):
+class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
     def test_obsolete_address_not_linked_is_deleted(self):
         Address.objects.create(id="04001_old_00001", source="ban", still_exists=False)
 

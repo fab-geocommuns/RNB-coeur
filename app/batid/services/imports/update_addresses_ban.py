@@ -91,30 +91,40 @@ def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> int:
     """
     total_deleted = 0
 
-    while True:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "ALTER TABLE batid_address DISABLE TRIGGER delete_address_id_from_building_trigger"
+        )
+    try:
+        while True:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    DELETE FROM batid_address
+                    WHERE id IN (
+                        SELECT a.id FROM batid_address a
+                        WHERE a.still_exists = False
+                        AND NOT EXISTS (
+                            SELECT 1 FROM batid_building_with_history b
+                            WHERE b.addresses_id @> ARRAY[a.id]
+                        )
+                        LIMIT %s
+                    )
+                    """,
+                    [batch_size],
+                )
+                deleted = cursor.rowcount
+
+            if deleted == 0:
+                break
+
+            total_deleted += deleted
+            logger.info(f"Deleted {deleted} unlinked obsolete addresses (batch)")
+    finally:
         with connection.cursor() as cursor:
             cursor.execute(
-                """
-                DELETE FROM batid_address
-                WHERE id IN (
-                    SELECT a.id FROM batid_address a
-                    WHERE a.still_exists = False
-                    AND NOT EXISTS (
-                        SELECT 1 FROM batid_building_with_history b
-                        WHERE b.addresses_id @> ARRAY[a.id]
-                    )
-                    LIMIT %s
-                )
-                """,
-                [batch_size],
+                "ALTER TABLE batid_address ENABLE TRIGGER delete_address_id_from_building_trigger"
             )
-            deleted = cursor.rowcount
-
-        if deleted == 0:
-            break
-
-        total_deleted += deleted
-        logger.info(f"Deleted {deleted} unlinked obsolete addresses (batch)")
 
     logger.info(f"Total deleted unlinked obsolete addresses: {total_deleted}")
     return total_deleted
