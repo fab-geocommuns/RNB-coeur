@@ -2,6 +2,8 @@ import csv
 import logging
 import os
 
+from django.db import connection
+
 from batid.models import Address
 from batid.services.source import Source
 
@@ -79,3 +81,40 @@ def _mark_obsolete_addresses(dpt: str, seen_cle_interops: set) -> int:
     )
 
     return obsolete_count
+
+
+def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> int:
+    """Delete obsolete addresses (still_exists=False) that are not linked
+    to any building (current or historical).
+
+    Uses the @> operator to leverage the GIN index on addresses_id.
+    """
+    total_deleted = 0
+
+    while True:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                DELETE FROM batid_address
+                WHERE id IN (
+                    SELECT a.id FROM batid_address a
+                    WHERE a.still_exists = False
+                    AND NOT EXISTS (
+                        SELECT 1 FROM batid_building_with_history b
+                        WHERE b.addresses_id @> ARRAY[a.id]
+                    )
+                    LIMIT %s
+                )
+                """,
+                [batch_size],
+            )
+            deleted = cursor.rowcount
+
+        if deleted == 0:
+            break
+
+        total_deleted += deleted
+        logger.info(f"Deleted {deleted} unlinked obsolete addresses (batch)")
+
+    logger.info(f"Total deleted unlinked obsolete addresses: {total_deleted}")
+    return total_deleted
