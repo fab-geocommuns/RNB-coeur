@@ -446,12 +446,12 @@ def queue_ban_address_flag_exists(
         tasks = [
             Signature(
                 "batid.tasks.dl_source",
-                args=["ban_with_ids", src_params],
+                args=("ban_with_ids", src_params),
                 immutable=True,
             ),
             Signature(
                 "batid.tasks.flag_addresses_from_ban",
-                args=[src_params, bulk_launch_uuid],
+                args=(src_params, bulk_launch_uuid),
                 immutable=True,
             ),
         ]
