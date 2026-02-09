@@ -20,7 +20,7 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
     src = Source("ban_with_ids")
     src.set_params(src_params)
 
-    updated_count = 0
+    still_exists_count = 0
     seen_cle_interops: set[str] = set()
     file_path = src.find(src.filename)
 
@@ -35,11 +35,11 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
             seen_cle_interops.add(cle_interop)
 
             if len(batch) >= batch_size:
-                updated_count += _update_batch(batch)
+                still_exists_count += _update_batch(batch)
                 batch = []
 
         if batch:
-            updated_count += _update_batch(batch)
+            still_exists_count += _update_batch(batch)
 
     # Clean up the file
     os.remove(file_path)
@@ -48,9 +48,9 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
     obsolete_count = _mark_obsolete_addresses(dpt, seen_cle_interops)
 
     logger.info(
-        f"[{dpt}] Updated {updated_count} addresses, marked {obsolete_count} as obsolete"
+        f"[{dpt}] Confirmed existence of {still_exists_count} addresses, marked {obsolete_count} as obsolete"
     )
-    return {"dpt": dpt, "updated": updated_count, "obsolete": obsolete_count}
+    return {"dpt": dpt, "still_exist": still_exists_count, "obsolete": obsolete_count}
 
 
 def _update_batch(batch: list) -> int:
@@ -83,7 +83,7 @@ def _mark_obsolete_addresses(dpt: str, seen_cle_interops: set) -> int:
     return obsolete_count
 
 
-def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> int:
+def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
     """Delete obsolete addresses (still_exists=False) that are not linked
     to any building (current or historical).
 
@@ -127,4 +127,4 @@ def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> int:
             )
 
     logger.info(f"Total deleted unlinked obsolete addresses: {total_deleted}")
-    return total_deleted
+    return {"deleted_addresses": total_deleted}
