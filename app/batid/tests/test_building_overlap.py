@@ -9,7 +9,6 @@ from batid.services.building_overlap import (
 )
 from batid.tests.factories.users import ContributorUserFactory
 
-
 # Realistic base coordinates (Paris, ~10m x 10m)
 # In WGS84, 0.0001 degree ≈ 11m at Paris latitude
 BASE_LON = 2.3522  # Paris longitude

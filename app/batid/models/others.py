@@ -348,7 +348,7 @@ class SummerChallenge(models.Model):
     @staticmethod
     def score_address(user, point, rnb_id, event_id):
         if user:
-            (city, dpt) = SummerChallenge.get_areas(point)
+            city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
                 score=3,
                 user=user,
@@ -363,7 +363,7 @@ class SummerChallenge(models.Model):
     @staticmethod
     def score_creation(user, point, rnb_id, event_id):
         if user:
-            (city, dpt) = SummerChallenge.get_areas(point)
+            city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
                 score=2,
                 user=user,
@@ -378,7 +378,7 @@ class SummerChallenge(models.Model):
     @staticmethod
     def score_shape(user, point, rnb_id, event_id):
         if user:
-            (city, dpt) = SummerChallenge.get_areas(point)
+            city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
                 score=1,
                 user=user,
@@ -393,7 +393,7 @@ class SummerChallenge(models.Model):
     @staticmethod
     def score_status(user, point, rnb_id, event_id):
         if user:
-            (city, dpt) = SummerChallenge.get_areas(point)
+            city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
                 score=1,
                 user=user,
@@ -408,7 +408,7 @@ class SummerChallenge(models.Model):
     @staticmethod
     def score_deactivation(user, point, rnb_id, event_id):
         if user:
-            (city, dpt) = SummerChallenge.get_areas(point)
+            city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
                 score=2,
                 user=user,
@@ -423,7 +423,7 @@ class SummerChallenge(models.Model):
     @staticmethod
     def score_split(user, point, rnb_id, event_id):
         if user:
-            (city, dpt) = SummerChallenge.get_areas(point)
+            city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
                 score=1,
                 user=user,
@@ -438,7 +438,7 @@ class SummerChallenge(models.Model):
     @staticmethod
     def score_merge(user, point, rnb_id, event_id):
         if user:
-            (city, dpt) = SummerChallenge.get_areas(point)
+            city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
                 score=1,
                 user=user,
