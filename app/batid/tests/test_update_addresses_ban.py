@@ -156,7 +156,8 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         self.assertEqual(addr.city_name, "Aiglun")
         self.assertEqual(addr.street_rep, "bis")
         self.assertEqual(addr.ban_id, UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890"))
-        self.assertIsNone(addr.ban_update_flag)
+        self.assertEqual(addr.ban_update_flag, "update")
+        self.assertIsNone(addr.ban_update_details)
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
     @patch("batid.services.imports.update_addresses_ban.os.remove")
@@ -183,6 +184,12 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         self.assertEqual(addr.ban_update_flag, "text_mismatch")
         # Street should not be updated on mismatch
         self.assertEqual(addr.street, "rue de la gare")
+        # Details should contain the mismatched field
+        self.assertIn("street", addr.ban_update_details)
+        self.assertEqual(addr.ban_update_details["street"]["db"], "rue de la gare")
+        self.assertEqual(
+            addr.ban_update_details["street"]["ban"], "Impasse de la Treille"
+        )
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
     @patch("batid.services.imports.update_addresses_ban.os.remove")

@@ -135,6 +135,7 @@ class Address(models.Model):
     ban_update_flag = models.CharField(
         max_length=20, null=True, default=None, db_index=True
     )
+    ban_update_details = models.JSONField(null=True, default=None)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

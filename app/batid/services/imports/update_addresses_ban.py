@@ -3,6 +3,8 @@ import logging
 import os
 import unicodedata
 import uuid
+from datetime import datetime
+from datetime import timezone
 
 from batid.models import Address
 from batid.services.source import Source
@@ -141,24 +143,32 @@ def update_addresses_text_and_ban_id(src_params: dict, batch_size: int = 10000) 
     return {"dpt": dpt, "updated": updated_count, "mismatched": mismatch_count}
 
 
-def _fields_match(addr: Address, ban: dict) -> bool:
-    """Compare all address fields between DB and BAN data."""
+def _get_field_diffs(addr: Address, ban: dict) -> dict:
+    """Compare all address fields between DB and BAN data.
+
+    Returns an empty dict if all fields match, or a dict of mismatched fields
+    with their DB and BAN values.
+    """
+    diffs = {}
     # Text fields: normalize (strip + lower + remove accents)
     if normalize_text(addr.street or "") != normalize_text(ban["nom_voie"]):
-        return False
+        diffs["street"] = {"db": addr.street, "ban": ban["nom_voie"]}
     if normalize_text(addr.city_name or "") != normalize_text(ban["nom_commune"]):
-        return False
+        diffs["city_name"] = {"db": addr.city_name, "ban": ban["nom_commune"]}
     # street_rep: case-insensitive
     if (addr.street_rep or "").strip().lower() != ban["rep"].strip().lower():
-        return False
+        diffs["street_rep"] = {"db": addr.street_rep, "ban": ban["rep"]}
     # Exact comparison for codes/numbers
     if (addr.street_number or "").strip() != ban["numero"].strip():
-        return False
+        diffs["street_number"] = {"db": addr.street_number, "ban": ban["numero"]}
     if (addr.city_zipcode or "").strip() != ban["code_postal"].strip():
-        return False
+        diffs["city_zipcode"] = {"db": addr.city_zipcode, "ban": ban["code_postal"]}
     if (addr.city_insee_code or "").strip() != ban["code_insee"].strip():
-        return False
-    return True
+        diffs["city_insee_code"] = {
+            "db": addr.city_insee_code,
+            "ban": ban["code_insee"],
+        }
+    return diffs
 
 
 def _update_text_batch(batch: list) -> dict:
@@ -172,18 +182,24 @@ def _update_text_batch(batch: list) -> dict:
     mismatched = 0
     to_update = []
 
+    now = datetime.now(timezone.utc)
+
     for addr in addresses:
         ban = ban_data[addr.id]
 
-        if _fields_match(addr, ban):
+        diffs = _get_field_diffs(addr, ban)
+        if not diffs:
             addr.street = ban["nom_voie"]
             addr.city_name = ban["nom_commune"]
             addr.street_rep = ban["rep"] or None
             if ban["id_ban_adresse"]:
                 addr.ban_id = uuid.UUID(ban["id_ban_adresse"])
+            addr.ban_update_flag = "update"
+            addr.updated_at = now
             updated += 1
         else:
             addr.ban_update_flag = "text_mismatch"
+            addr.ban_update_details = diffs
             mismatched += 1
 
         to_update.append(addr)
@@ -191,7 +207,15 @@ def _update_text_batch(batch: list) -> dict:
     if to_update:
         Address.objects.bulk_update(
             to_update,
-            ["street", "city_name", "street_rep", "ban_id", "ban_update_flag"],
+            [
+                "street",
+                "city_name",
+                "street_rep",
+                "ban_id",
+                "ban_update_flag",
+                "ban_update_details",
+                "updated_at",
+            ],
         )
 
     return {"updated": updated, "mismatched": mismatched}
