@@ -92,6 +92,10 @@ def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
     total_deleted = 0
 
     with connection.cursor() as cursor:
+        # this trigger is triggered by an address deletion : it checks if Building is referencing
+        # the address and deletes the address from the addresses_id array if it is the case.
+        # In our case, by definition, we delete addresses that are not linked to any building.
+        # the trigger is time consuming, disabling it doubles the deletion process speed.
         cursor.execute(
             "ALTER TABLE batid_address DISABLE TRIGGER delete_address_id_from_building_trigger"
         )
