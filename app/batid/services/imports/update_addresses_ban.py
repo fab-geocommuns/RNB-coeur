@@ -128,6 +128,9 @@ def update_addresses_text_and_ban_id(src_params: dict, batch_size: int = 10000) 
                 counts = _update_text_batch(batch)
                 updated_count += counts["updated"]
                 mismatch_count += counts["mismatched"]
+                logger.info(
+                    f"[{dpt}] Batch done: {updated_count} updated, {mismatch_count} mismatched so far"
+                )
                 batch = []
 
         if batch:

@@ -462,12 +462,12 @@ def queue_ban_address_flag_exists(
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def update_addresses_text_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
+def update_addresses_text_ban(src_params: dict, batch_size: int = 10000):  # type: ignore[assignment]
     from batid.services.imports.update_addresses_ban import (
         update_addresses_text_and_ban_id,
     )
 
-    return update_addresses_text_and_ban_id(src_params)
+    return update_addresses_text_and_ban_id(src_params, batch_size=batch_size)
 
 
 @notify_if_error
@@ -475,10 +475,10 @@ def update_addresses_text_ban(src_params: dict, bulk_launch_uuid: str = None):  
 def queue_ban_address_text_update(
     dpt_start: Optional[str] = None,
     dpt_end: Optional[str] = None,
+    batch_size: int = 10000,
 ):
     """Queue text update tasks for all departments."""
     dpts = dpts_list(dpt_start, dpt_end)
-    bulk_launch_uuid = str(uuid.uuid4())
 
     for dpt in dpts:
         src_params = {"dpt": dpt}
@@ -490,7 +490,7 @@ def queue_ban_address_text_update(
             ),
             Signature(
                 "batid.tasks.update_addresses_text_ban",
-                args=(src_params, bulk_launch_uuid),
+                args=(src_params, batch_size),
                 immutable=True,
             ),
         ]
