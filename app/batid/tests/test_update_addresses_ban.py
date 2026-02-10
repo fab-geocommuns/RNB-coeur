@@ -124,6 +124,17 @@ class TestNormalizeText(TestCase):
     def test_handles_empty_string(self):
         self.assertEqual(normalize_text(""), "")
 
+    def test_apostrophe(self):
+        self.assertEqual(
+            normalize_text("Rue de l’Artisanat"), normalize_text("rue de l'artisanat")
+        )
+
+    def test_dash(self):
+        self.assertEqual(
+            normalize_text("chemin du pont vieux"),
+            normalize_text("Chemin du Pont-Vieux"),
+        )
+
 
 class TestUpdateAddressesTextAndBanId(TestCase):
     @patch("batid.services.imports.update_addresses_ban.Source.find")
@@ -140,7 +151,8 @@ class TestUpdateAddressesTextAndBanId(TestCase):
             still_exists=True,
             street="impasse de la treille",
             street_number="1",
-            street_rep="BIS",
+            # test de l'alias B / bis
+            street_rep="B",  # alias for "bis" in BAN fixture
             city_name="aiglun",
             city_zipcode="04510",
             city_insee_code="04001",

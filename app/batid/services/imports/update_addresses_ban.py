@@ -12,9 +12,21 @@ from batid.services.source import Source
 logger = logging.getLogger(__name__)
 
 
+APOSTROPHES = ["'", "\u2018", "\u2019", "\u02BC", "\u02BB", "\u0060", "\u00B4"]
+
+STREET_REP_ALIASES = {
+    "b": "bis",
+    "t": "ter",
+    "q": "quater",
+}
+
+
 def normalize_text(text: str) -> str:
-    """Normalize text for comparison: strip, lowercase, remove accents."""
+    """Normalize text for comparison: strip, lowercase, remove accents, normalize punctuation."""
     text = text.strip().lower()
+    text = text.replace("-", " ")
+    for apo in APOSTROPHES:
+        text = text.replace(apo, " ")
     nfkd = unicodedata.normalize("NFD", text)
     return "".join(c for c in nfkd if unicodedata.category(c) != "Mn")
 
@@ -158,8 +170,14 @@ def _get_field_diffs(addr: Address, ban: dict) -> dict:
         diffs["street"] = {"db": addr.street, "ban": ban["nom_voie"]}
     if normalize_text(addr.city_name or "") != normalize_text(ban["nom_commune"]):
         diffs["city_name"] = {"db": addr.city_name, "ban": ban["nom_commune"]}
-    # street_rep: case-insensitive
-    if (addr.street_rep or "").strip().lower() != ban["rep"].strip().lower():
+    # street_rep: case-insensitive + alias expansion (B→bis, T→ter, Q→quater)
+    db_rep = STREET_REP_ALIASES.get(
+        (addr.street_rep or "").strip().lower(), (addr.street_rep or "").strip().lower()
+    )
+    ban_rep = STREET_REP_ALIASES.get(
+        ban["rep"].strip().lower(), ban["rep"].strip().lower()
+    )
+    if db_rep != ban_rep:
         diffs["street_rep"] = {"db": addr.street_rep, "ban": ban["rep"]}
     # Exact comparison for codes/numbers
     if (addr.street_number or "").strip() != ban["numero"].strip():
