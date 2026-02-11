@@ -371,7 +371,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         # Fixture row 2: lon=6.135332, lat=44.069986, nom_voie=Impasse de la Treille
-        # DB street differs, but point is ~5m away → distance < 15m → update
+        # DB street differs, but point is ~5m away → distance < 20m → update
         Address.objects.create(
             id="04001_pk624e_00002",
             source="ban",
@@ -394,6 +394,9 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         # Fields should be updated to BAN values
         self.assertEqual(addr.street, "Impasse de la Treille")
         self.assertEqual(addr.ban_id, UUID("b2c3d4e5-f6a7-8901-bcde-f12345678901"))
+        # Point should be updated to BAN coordinates
+        self.assertAlmostEqual(addr.point.x, 6.135332, places=5)
+        self.assertAlmostEqual(addr.point.y, 44.069986, places=5)
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
     @patch("batid.services.imports.update_addresses_ban.os.remove")
@@ -423,6 +426,9 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         addr = Address.objects.get(id="04001_pk624e_00001")
         self.assertEqual(addr.ban_update_flag, "update")
         self.assertEqual(addr.street, "Impasse de la Treille")
+        # Point should be updated to BAN coordinates
+        self.assertAlmostEqual(addr.point.x, 6.135212, places=5)
+        self.assertAlmostEqual(addr.point.y, 44.070028, places=5)
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
     @patch("batid.services.imports.update_addresses_ban.os.remove")
@@ -453,6 +459,6 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         self.assertEqual(addr.ban_update_flag, "text_mismatch")
         self.assertEqual(addr.street, "rue de la gare")
         self.assertIn("street", addr.ban_update_details)
-        # Distance should be present and > 15m
+        # Distance should be present and > 20m
         self.assertIn("distance_m", addr.ban_update_details)
         self.assertGreater(addr.ban_update_details["distance_m"], 15)

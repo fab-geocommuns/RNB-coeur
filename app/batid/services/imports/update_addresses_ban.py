@@ -147,9 +147,10 @@ def _mark_obsolete_addresses(dpt: str, seen_cle_interops: set) -> int:
 
 def update_addresses_text_and_ban_id(src_params: dict, batch_size: int = 10000) -> dict:
     """
-    For addresses with still_exists=True, compare normalized text with BAN file.
-    - If all fields match: update street/city_name/street_rep with BAN version + set ban_id.
-    - If any field differs: set ban_update_flag="text_mismatch".
+    For addresses with still_exists=True, compare with BAN file using distance and normalized text.
+    - If distance < 20m: update all fields with BAN version (same address).
+    - Else if all normalized fields match: update all fields with BAN version.
+    - Else: set ban_update_flag="text_mismatch" with diff details.
     """
     dpt = src_params["dpt"]
     src = Source("ban_with_ids")
