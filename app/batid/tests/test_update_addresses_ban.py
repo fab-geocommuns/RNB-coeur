@@ -1,6 +1,7 @@
 from unittest.mock import patch
 from uuid import UUID
 
+from django.contrib.gis.geos import Point
 from django.test import TestCase
 
 import batid.tests.helpers as helpers
@@ -144,11 +145,14 @@ class TestUpdateAddressesTextAndBanId(TestCase):
 
         # Fixture row 1: numero=1, rep=bis, nom_voie=Impasse de la Treille,
         # code_postal=04510, code_insee=04001, nom_commune=Aiglun,
+        # lon=6.135212, lat=44.070028
         # id_ban_adresse=a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        # Point ~5m from BAN coordinates
         Address.objects.create(
             id="04001_pk624e_00001",
             source="ban",
             still_exists=True,
+            point=Point(6.13518, 44.07000, srid=4326),
             street="impasse de la treille",
             street_number="1",
             # test de l'alias B / bis
@@ -170,13 +174,19 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         self.assertEqual(addr.ban_id, UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890"))
         self.assertEqual(addr.ban_update_flag, "update")
         self.assertIsNone(addr.ban_update_details)
+        # Point should be updated to BAN coordinates
+        self.assertAlmostEqual(addr.point.x, 6.135212, places=5)
+        self.assertAlmostEqual(addr.point.y, 44.070028, places=5)
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
     @patch("batid.services.imports.update_addresses_ban.os.remove")
-    def test_mismatching_text_flags_text_mismatch(self, mock_remove, mock_find):
+    def test_mismatching_text_no_point_flags_mismatch_without_distance(
+        self, mock_remove, mock_find
+    ):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         # DB has "rue de la gare" but BAN has "Impasse de la Treille" → mismatch
+        # No point → distance_m should not appear in details
         Address.objects.create(
             id="04001_pk624e_00002",
             source="ban",
@@ -196,12 +206,13 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         self.assertEqual(addr.ban_update_flag, "text_mismatch")
         # Street should not be updated on mismatch
         self.assertEqual(addr.street, "rue de la gare")
-        # Details should contain the mismatched field
+        # Details should contain the mismatched field but no distance
         self.assertIn("street", addr.ban_update_details)
         self.assertEqual(addr.ban_update_details["street"]["db"], "rue de la gare")
         self.assertEqual(
             addr.ban_update_details["street"]["ban"], "Impasse de la Treille"
         )
+        self.assertNotIn("distance_m", addr.ban_update_details)
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
     @patch("batid.services.imports.update_addresses_ban.os.remove")
@@ -256,3 +267,95 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         # Street should remain unchanged
         self.assertEqual(addr.street, "impasse de la treille")
         self.assertIsNone(addr.ban_id)
+
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_close_distance_updates_despite_field_diffs(self, mock_remove, mock_find):
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+
+        # Fixture row 2: lon=6.135332, lat=44.069986, nom_voie=Impasse de la Treille
+        # DB street differs, but point is ~5m away → distance < 15m → update
+        Address.objects.create(
+            id="04001_pk624e_00002",
+            source="ban",
+            still_exists=True,
+            point=Point(6.13530, 44.06996, srid=4326),
+            street="rue de la gare",
+            street_number="2",
+            city_name="aiglun",
+            city_zipcode="04510",
+            city_insee_code="04001",
+        )
+
+        result = update_addresses_text_and_ban_id({"dpt": "04"})
+
+        self.assertEqual(result["updated"], 1)
+        self.assertEqual(result["mismatched"], 0)
+
+        addr = Address.objects.get(id="04001_pk624e_00002")
+        self.assertEqual(addr.ban_update_flag, "update")
+        # Fields should be updated to BAN values
+        self.assertEqual(addr.street, "Impasse de la Treille")
+        self.assertEqual(addr.ban_id, UUID("b2c3d4e5-f6a7-8901-bcde-f12345678901"))
+
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_far_distance_with_matching_fields_updates(self, mock_remove, mock_find):
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+
+        # Fixture row 1: lon=6.135212, lat=44.070028
+        # Point is ~500m away but all fields match → update
+        Address.objects.create(
+            id="04001_pk624e_00001",
+            source="ban",
+            still_exists=True,
+            point=Point(6.14, 44.073, srid=4326),
+            street="impasse de la treille",
+            street_number="1",
+            street_rep="B",
+            city_name="aiglun",
+            city_zipcode="04510",
+            city_insee_code="04001",
+        )
+
+        result = update_addresses_text_and_ban_id({"dpt": "04"})
+
+        self.assertEqual(result["updated"], 1)
+        self.assertEqual(result["mismatched"], 0)
+
+        addr = Address.objects.get(id="04001_pk624e_00001")
+        self.assertEqual(addr.ban_update_flag, "update")
+        self.assertEqual(addr.street, "Impasse de la Treille")
+
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_far_distance_with_field_diffs_flags_mismatch_with_distance(
+        self, mock_remove, mock_find
+    ):
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+
+        # Fixture row 2: lon=6.135332, lat=44.069986, nom_voie=Impasse de la Treille
+        # Point is ~500m away AND street differs → mismatch with distance_m
+        Address.objects.create(
+            id="04001_pk624e_00002",
+            source="ban",
+            still_exists=True,
+            point=Point(6.14, 44.073, srid=4326),
+            street="rue de la gare",
+            street_number="2",
+            city_name="aiglun",
+            city_zipcode="04510",
+            city_insee_code="04001",
+        )
+
+        result = update_addresses_text_and_ban_id({"dpt": "04"})
+
+        self.assertEqual(result["mismatched"], 1)
+
+        addr = Address.objects.get(id="04001_pk624e_00002")
+        self.assertEqual(addr.ban_update_flag, "text_mismatch")
+        self.assertEqual(addr.street, "rue de la gare")
+        self.assertIn("street", addr.ban_update_details)
+        # Distance should be present and > 15m
+        self.assertIn("distance_m", addr.ban_update_details)
+        self.assertGreater(addr.ban_update_details["distance_m"], 15)

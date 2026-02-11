@@ -6,6 +6,9 @@ import uuid
 from datetime import datetime
 from datetime import timezone
 
+from django.contrib.gis.geos import Point
+from pyproj import Geod
+
 from batid.models import Address
 from batid.services.source import Source
 
@@ -133,6 +136,8 @@ def update_addresses_text_and_ban_id(src_params: dict, batch_size: int = 10000) 
                     "code_postal": row["code_postal"],
                     "code_insee": row["code_insee"],
                     "id_ban_adresse": row.get("id_ban_adresse", ""),
+                    "lon": row.get("lon", ""),
+                    "lat": row.get("lat", ""),
                 }
             )
 
@@ -192,6 +197,35 @@ def _get_field_diffs(addr: Address, ban: dict) -> dict:
     return diffs
 
 
+def _calculate_distance(db_point, lon: str, lat: str):
+    """Calculate geodesic distance in meters between the DB point and BAN coordinates.
+
+    Returns the distance in meters, or None if either point is missing.
+    Uses WGS84 ellipsoid for accurate distance worldwide.
+    """
+    if db_point is None or not lon or not lat:
+        return None
+    geod = Geod(ellps="WGS84")
+    _, _, dist_m = geod.inv(db_point.x, db_point.y, float(lon), float(lat))
+    return dist_m
+
+
+def _apply_ban_update(addr: Address, ban: dict, now: datetime) -> None:
+    """Apply BAN field values to an address and flag it as updated."""
+    addr.street_number = ban["numero"]
+    addr.street_rep = ban["rep"] or None
+    addr.city_name = ban["nom_commune"]
+    addr.city_zipcode = ban["code_postal"]
+    if ban["lon"] and ban["lat"]:
+        addr.point = Point(float(ban["lon"]), float(ban["lat"]), srid=4326)
+    addr.city_insee_code = ban["code_insee"]
+    addr.street = ban["nom_voie"]
+    if ban["id_ban_adresse"]:
+        addr.ban_id = uuid.UUID(ban["id_ban_adresse"])
+    addr.ban_update_flag = "update"
+    addr.updated_at = now
+
+
 def _update_text_batch(batch: list) -> dict:
     """Compare normalized text and update or flag each address."""
     ban_data = {item["cle_interop"]: item for item in batch}
@@ -208,18 +242,22 @@ def _update_text_batch(batch: list) -> dict:
     for addr in addresses:
         ban = ban_data[addr.id]
 
+        distance_m = _calculate_distance(addr.point, ban["lon"], ban["lat"])
         diffs = _get_field_diffs(addr, ban)
-        if not diffs:
-            addr.street = ban["nom_voie"]
-            addr.city_name = ban["nom_commune"]
-            addr.street_rep = ban["rep"] or None
-            if ban["id_ban_adresse"]:
-                addr.ban_id = uuid.UUID(ban["id_ban_adresse"])
-            addr.ban_update_flag = "update"
-            addr.updated_at = now
+
+        if distance_m is not None and distance_m < 15:
+            # Close enough: same address, proceed with update
+            _apply_ban_update(addr, ban, now)
+            updated += 1
+        elif not diffs:
+            # All fields match: proceed with update
+            _apply_ban_update(addr, ban, now)
             updated += 1
         else:
+            # Both tests failed: flag as mismatch with distance
             addr.ban_update_flag = "text_mismatch"
+            if distance_m is not None:
+                diffs["distance_m"] = round(distance_m, 2)
             addr.ban_update_details = diffs
             mismatched += 1
 
@@ -229,9 +267,13 @@ def _update_text_batch(batch: list) -> dict:
         Address.objects.bulk_update(
             to_update,
             [
+                "point",
+                "street_number",
                 "street",
-                "city_name",
                 "street_rep",
+                "city_name",
+                "city_zipcode",
+                "city_insee_code",
                 "ban_id",
                 "ban_update_flag",
                 "ban_update_details",
