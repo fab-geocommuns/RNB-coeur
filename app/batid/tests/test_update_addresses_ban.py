@@ -6,6 +6,8 @@ from django.test import TestCase
 
 import batid.tests.helpers as helpers
 from batid.models import Address
+from batid.services.imports.update_addresses_ban import _expand_street_abbreviations
+from batid.services.imports.update_addresses_ban import _streets_match
 from batid.services.imports.update_addresses_ban import _update_batch
 from batid.services.imports.update_addresses_ban import flag_addresses_from_ban_file
 from batid.services.imports.update_addresses_ban import normalize_text
@@ -137,6 +139,66 @@ class TestNormalizeText(TestCase):
         )
 
 
+class TestExpandStreetAbbreviations(TestCase):
+    def test_expands_first_word(self):
+        self.assertEqual(
+            _expand_street_abbreviations("imp des lilas"), "impasse des lilas"
+        )
+
+    def test_expands_chemin(self):
+        self.assertEqual(
+            _expand_street_abbreviations("che du moulin"), "chemin du moulin"
+        )
+
+    def test_no_expansion_when_no_abbreviation(self):
+        self.assertEqual(_expand_street_abbreviations("rue des lilas"), "rue des lilas")
+
+    def test_empty_string(self):
+        self.assertEqual(_expand_street_abbreviations(""), "")
+
+    def test_only_first_word_is_expanded(self):
+        self.assertEqual(
+            _expand_street_abbreviations("av imp des lilas"), "avenue imp des lilas"
+        )
+
+
+class TestStreetsMatch(TestCase):
+    def test_exact_match(self):
+        self.assertTrue(_streets_match("Rue des Lilas", "Rue des Lilas"))
+
+    def test_match_with_case_and_accents(self):
+        self.assertTrue(_streets_match("rue de la république", "Rue de la République"))
+
+    def test_du_vs_des(self):
+        # Levenshtein distance of 2 between "du" and "des"
+        self.assertTrue(_streets_match("Rue du Moulin", "Rue des Moulin"))
+
+    def test_abbreviation_imp(self):
+        self.assertTrue(_streets_match("Imp de la Treille", "Impasse de la Treille"))
+
+    def test_abbreviation_che(self):
+        self.assertTrue(_streets_match("Che du Pont Vieux", "Chemin du Pont Vieux"))
+
+    def test_abbreviation_plus_small_diff(self):
+        # "Imp du Moulin" → expand → "impasse du moulin"
+        # "Impasse des Moulin" → "impasse des moulin"
+        # Levenshtein("impasse du moulin", "impasse des moulin") = 2 → match
+        self.assertTrue(_streets_match("Imp du Moulin", "Impasse des Moulin"))
+
+    def test_large_difference_no_match(self):
+        self.assertFalse(_streets_match("Rue de la Gare", "Impasse de la Treille"))
+
+    def test_none_db_street(self):
+        self.assertFalse(_streets_match(None, "Rue des Lilas"))
+
+    def test_both_empty(self):
+        self.assertTrue(_streets_match("", ""))
+
+    def test_single_char_difference(self):
+        # Levenshtein distance = 1
+        self.assertTrue(_streets_match("Rue des Lilas", "Rue des Lilac"))
+
+
 class TestUpdateAddressesTextAndBanId(TestCase):
     @patch("batid.services.imports.update_addresses_ban.Source.find")
     @patch("batid.services.imports.update_addresses_ban.os.remove")
@@ -161,12 +223,37 @@ class TestUpdateAddressesTextAndBanId(TestCase):
             city_zipcode="04510",
             city_insee_code="04001",
         )
+        # Fixture row 2: nom_voie=Impasse de la Treille
+        # DB has abbreviation "Imp" → should match via alias expansion
+        Address.objects.create(
+            id="04001_pk624e_00002",
+            source="ban",
+            still_exists=True,
+            street="Imp de la Treille",
+            street_number="2",
+            city_name="aiglun",
+            city_zipcode="04510",
+            city_insee_code="04001",
+        )
+        # Fixture row 3: nom_voie=Impasse de la Treille
+        # DB has "Impasse de las Treilles" (Levenshtein distance = 2) → should match
+        Address.objects.create(
+            id="04001_pk624e_00003",
+            source="ban",
+            still_exists=True,
+            street="Impasse de las Treilles",
+            street_number="3",
+            city_name="aiglun",
+            city_zipcode="04510",
+            city_insee_code="04001",
+        )
 
         result = update_addresses_text_and_ban_id({"dpt": "04"})
 
-        self.assertEqual(result["updated"], 1)
+        self.assertEqual(result["updated"], 3)
         self.assertEqual(result["mismatched"], 0)
 
+        # Row 1: exact match (after normalization)
         addr = Address.objects.get(id="04001_pk624e_00001")
         self.assertEqual(addr.street, "Impasse de la Treille")
         self.assertEqual(addr.city_name, "Aiglun")
@@ -177,6 +264,16 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         # Point should be updated to BAN coordinates
         self.assertAlmostEqual(addr.point.x, 6.135212, places=5)
         self.assertAlmostEqual(addr.point.y, 44.070028, places=5)
+
+        # Row 2: abbreviation "Imp" expanded to "impasse" → match
+        addr2 = Address.objects.get(id="04001_pk624e_00002")
+        self.assertEqual(addr2.street, "Impasse de la Treille")
+        self.assertEqual(addr2.ban_update_flag, "update")
+
+        # Row 3: Levenshtein distance = 2 → match
+        addr3 = Address.objects.get(id="04001_pk624e_00003")
+        self.assertEqual(addr3.street, "Impasse de la Treille")
+        self.assertEqual(addr3.ban_update_flag, "update")
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
     @patch("batid.services.imports.update_addresses_ban.os.remove")

@@ -8,6 +8,7 @@ from datetime import timezone
 
 from django.contrib.gis.geos import Point
 from pyproj import Geod
+from rapidfuzz.distance import Levenshtein
 
 from batid.models import Address
 from batid.services.source import Source
@@ -22,6 +23,43 @@ STREET_REP_ALIASES = {
     "t": "ter",
     "q": "quater",
 }
+
+STREET_TYPE_ALIASES = {
+    "imp": "impasse",
+    "che": "chemin",
+    "av": "avenue",
+    "bd": "boulevard",
+    "bld": "boulevard",
+    "blvd": "boulevard",
+    "pl": "place",
+    "rte": "route",
+    "all": "allee",
+    "sq": "square",
+    "pass": "passage",
+    "res": "residence",
+    "r": "rue",
+    "lot": "lotissement",
+    "ham": "hameau",
+    "chem": "chemin",
+    "sent": "sentier",
+    "car": "carrefour",
+    "crs": "cours",
+}
+
+
+def _expand_street_abbreviations(text: str) -> str:
+    """Expand common French street type abbreviations (first word only)."""
+    words = text.split()
+    if words and words[0] in STREET_TYPE_ALIASES:
+        words[0] = STREET_TYPE_ALIASES[words[0]]
+    return " ".join(words)
+
+
+def _streets_match(db_street: str | None, ban_street: str) -> bool:
+    """Check if two street names match, allowing abbreviations and Levenshtein distance <= 2."""
+    s1 = _expand_street_abbreviations(normalize_text(db_street or ""))
+    s2 = _expand_street_abbreviations(normalize_text(ban_street))
+    return Levenshtein.distance(s1, s2) <= 2
 
 
 def normalize_text(text: str) -> str:
@@ -171,7 +209,7 @@ def _get_field_diffs(addr: Address, ban: dict) -> dict:
     """
     diffs = {}
     # Text fields: normalize (strip + lower + remove accents)
-    if normalize_text(addr.street or "") != normalize_text(ban["nom_voie"]):
+    if not _streets_match(addr.street, ban["nom_voie"]):
         diffs["street"] = {"db": addr.street, "ban": ban["nom_voie"]}
     if normalize_text(addr.city_name or "") != normalize_text(ban["nom_commune"]):
         diffs["city_name"] = {"db": addr.city_name, "ban": ban["nom_commune"]}
@@ -245,7 +283,7 @@ def _update_text_batch(batch: list) -> dict:
         distance_m = _calculate_distance(addr.point, ban["lon"], ban["lat"])
         diffs = _get_field_diffs(addr, ban)
 
-        if distance_m is not None and distance_m < 15:
+        if distance_m is not None and distance_m < 20:
             # Close enough: same address, proceed with update
             _apply_ban_update(addr, ban, now)
             updated += 1
