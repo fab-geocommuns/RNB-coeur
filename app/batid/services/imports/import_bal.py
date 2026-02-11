@@ -163,57 +163,47 @@ def _match_bdg_on_plot(cursor, address_point: Point) -> Optional[str]:
     - The building must be active and with a "real" status
     """
 
-    # First, we check how many plots are nearby (within 5 meters) of the address point. If there is not exactly one, we give up immediately
-    close_plots_sql = """
-        select shape, st_area(shape::geography) as area
-        from batid_plot
-        where st_dwithin(%(address_point)s, shape::geography, 5)
+    sql = """
+        WITH close_plots AS (
+            SELECT shape, st_area(shape::geography) AS area
+            FROM batid_plot
+            WHERE st_dwithin(%(address_point)s, shape::geography, 5)
+        ),
+        single_plot AS (
+            SELECT shape FROM close_plots
+            WHERE (SELECT count(*) FROM close_plots) = 1
+              AND area <= 50000
+        ),
+        bdgs_on_plot AS (
+            SELECT bdg.rnb_id,
+                CASE WHEN ST_Area(bdg.shape) = 0 THEN 1
+                     ELSE ST_Area(ST_Intersection(bdg.shape, single_plot.shape)) / ST_Area(bdg.shape)
+                END AS bdg_cover_ratio
+            FROM batid_building AS bdg, single_plot
+            WHERE st_intersects(bdg.shape, single_plot.shape)
+              AND bdg.status IN %(status)s
+              AND bdg.is_active = true
+        )
+        SELECT rnb_id, bdg_cover_ratio FROM bdgs_on_plot
+        WHERE bdg_cover_ratio >= 0.5
     """
 
-    plots = dictfetchall(cursor, close_plots_sql, {"address_point": f"{address_point}"})
-
-    if len(plots) != 1:
-        return None
-
-    # We avoid plot bigger than 50_000m2
-    # This value is somewhat arbitrary, we met one edge case which can be avoided by ignoring very big plots.
-    if plots[0]["area"] > 50_000:
-        return None
-
-    # Second, we get all buildings intersecting the plot, and check how much of their area is on the plot.
-    # If there is not exactly one building with more than 50% of its area on the plot, we give up
-
-    plot_shape = plots[0]["shape"]
-
-    bdgs_on_plot_sql = """
-        select bdg.rnb_id,
-        CASE WHEN ST_Area(bdg.shape) = 0 THEN 1 ELSE St_Area(ST_Intersection(bdg.shape, %(plot_shape)s)) / St_Area(bdg.shape) END AS bdg_cover_ratio
-        from batid_building as bdg
-        where st_intersects(bdg.shape, %(plot_shape)s)
-        AND bdg.status IN %(status)s
-        AND bdg.is_active = true
-    """
-
-    bdgs_on_plot = dictfetchall(
+    rows = dictfetchall(
         cursor,
-        bdgs_on_plot_sql,
+        sql,
         {
-            "plot_shape": f"{plot_shape}",
+            "address_point": f"{address_point}",
             "status": tuple(BuildingStatus.REAL_BUILDINGS_STATUS),
         },
     )
 
-    # We check how many buidldings have more than 50% of their area on the plot
-    candidate_bdgs = [bdg for bdg in bdgs_on_plot if bdg["bdg_cover_ratio"] >= 0.5]
-
-    if len(candidate_bdgs) != 1:
+    if len(rows) != 1:
         return None
 
-    # We check that the matching building has 90+% of its area on the plot, otherwise we consider the match too weak
-    if candidate_bdgs[0]["bdg_cover_ratio"] < 0.9:
+    if rows[0]["bdg_cover_ratio"] < 0.9:
         return None
 
-    return candidate_bdgs[0]["rnb_id"]
+    return rows[0]["rnb_id"]
 
 
 def find_and_update_bdg(  # type: ignore[return]
@@ -240,6 +230,10 @@ def find_and_update_bdg(  # type: ignore[return]
 def process_batch(batch: list, bdg_import: BuildingImport):
 
     with transaction.atomic():
+
+        # JIT is taking too long compared to the queries cost, we disable it
+        with connection.cursor() as cursor:
+            cursor.execute("SET LOCAL jit = off")
 
         updated_count = 0
         refused_count = 0
