@@ -1,6 +1,9 @@
+import logging
 import uuid
 from datetime import datetime
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from celery import chain
 from celery import shared_task
@@ -68,10 +71,19 @@ def dl_source(src_name: str, src_params: dict):
     for param, value in src_params.items():
         src.set_param(param, value)
 
-    print(f"-- downloading {src.url}")
-    src.download()
-    src.uncompress()
-    src.remove_archive()
+    # Skip download if the file already exists (useful for local testing)
+    if src.find(src.filename):
+        logger.info(
+            "dl_source: file already exists, skipping download for %s %s",
+            src_name,
+            src_params,
+        )
+    else:
+        logger.info("dl_source: downloading %s", src.url)
+        src.download()
+        src.uncompress()
+        src.remove_archive()
+        logger.info("dl_source: download complete for %s %s", src_name, src_params)
 
     return "done"
 
@@ -336,7 +348,9 @@ def import_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_full_bal_rnb_links(
-    dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
+    dpt_start: Optional[str] = None,
+    dpt_end: Optional[str] = None,
+    batch_size: int = 1000,
 ):
 
     # Get list of dpts
@@ -346,7 +360,7 @@ def queue_full_bal_rnb_links(
         f"Création de liens bâtiment <> adresse via BAL. Départements: {dpts[0]} à {dpts[-1]}"
     )
 
-    all_tasks = create_all_bal_links_tasks(dpts)
+    all_tasks = create_all_bal_links_tasks(dpts, batch_size)
 
     for one_dpt_tasks in all_tasks:
         chain(*one_dpt_tasks)()
@@ -355,9 +369,13 @@ def queue_full_bal_rnb_links(
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid: Optional[str] = None):
+def create_dpt_bal_rnb_links(
+    src_params: dict,
+    bulk_launch_uuid: Optional[str] = None,
+    batch_size: int = 1000,
+):
 
-    return create_dpt_bal_rnb_links_job(src_params, bulk_launch_uuid)
+    return create_dpt_bal_rnb_links_job(src_params, bulk_launch_uuid, batch_size)
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
