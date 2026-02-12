@@ -165,7 +165,7 @@ class Address(models.Model):
             raise BANAPIDown
 
     @staticmethod
-    def save_new_address(data):
+    def save_new_address(data: dict):
         if data["type"] != "numero":
             raise BANBadResultType
 
@@ -179,7 +179,7 @@ class Address(models.Model):
             city_name=data["commune"]["nom"],
             city_zipcode=data["codePostal"],
             city_insee_code=data["commune"]["code"],
-            ban_id=data["banId"],
+            ban_id=data.get("banId"),
         )
 
 
