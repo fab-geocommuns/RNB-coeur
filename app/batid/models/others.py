@@ -2,6 +2,7 @@ import requests
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
+from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
 
 from batid.exceptions import BANAPIDown
@@ -172,7 +173,7 @@ class Address(models.Model):
         Address.objects.create(
             id=data["cleInterop"],
             source="ban",
-            point=f'POINT ({data["lon"]} {data["lat"]})',
+            point=Point(data["lon"], data["lat"], srid=4326),
             street_number=data["numero"],
             street_rep=data["suffixe"],
             street=data["voie"]["nomVoie"],
