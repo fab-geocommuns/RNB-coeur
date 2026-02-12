@@ -76,6 +76,7 @@ def import_ban_addresses(
                     city_name=row["nom_commune"],
                     city_zipcode=row["code_postal"],
                     city_insee_code=row["code_insee"],
+                    ban_id=row.get("id_ban_adresse") or None,
                 )
             )
 
