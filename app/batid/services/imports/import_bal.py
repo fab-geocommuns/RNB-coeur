@@ -162,7 +162,6 @@ def _match_bdg_intersecting(cursor, address_point: Point) -> Optional[str]:
         WHERE ST_Intersects(bdg.shape, %(address_point)s)
         AND bdg.status IN %(status)s
         AND bdg.is_active = TRUE
-        GROUP BY bdg.rnb_id
     """
 
     params = {
