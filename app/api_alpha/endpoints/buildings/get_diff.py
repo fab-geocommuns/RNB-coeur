@@ -30,10 +30,13 @@ class DiffView(APIView):
                 "description": (
                     "Liste l'ensemble des modifications apportées au RNB depuis une date données. Génère un fichier CSV. Voici les points importants à retenir : <br />"
                     "<ul>"
-                    "<li>Les modifications listées sont de trois types : create, update et delete</li>"
+                    "<li>La colonne action correspond à l'action à mener sur une base local pour la garder synchronisée avec le RNB. Il existe 3 types d'actions : create, update et delete</li>"
                     "<li>Les modifications sont triées par date de modification croissante</li>"
                     "<li>Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. Par exemple, une création (create) suivie d'une mise à jour (update)</li>"
+                    "<li>La colonne `event_type` correspond à l'opération réalisée sur le bâtiment (création, désactivation, mise à jour, fusion, scission)</li>"
                     "</ul>"
+                    "Par exemple, une fusion de deux bâtiments fera apparaître 3 lignes qui partageront la même action (merge) et le même `event_id`. Les deux bâtiments parents auront l'action `delete` tandis que le bâtiment enfant aura l'action `create`."
+                    f"Voici un exemple de requête permettant d'obtenir les modifications du RNB ayant eu lieu depuis une date déterminée : `https://rnb-api.beta.gouv.fr/api/alpha/buildings/diff/?since={datetime.now(timezone.utc) - timedelta(days=1)}`"
                 ),
                 "operationId": "getDiff",
                 "parameters": [
@@ -69,7 +72,7 @@ class DiffView(APIView):
                             "text/csv": {
                                 "schema": {"type": "string"},
                                 "example": (
-                                    "action,rnb_id,status,sys_period,point,shape,addresses_id,ext_ids"
+                                    "action,rnb_id,status,is_active,sys_period,point,shape,addresses_id,ext_ids,parent_buildings,event_id,event_type,username"
                                 ),
                             }
                         },
@@ -79,11 +82,6 @@ class DiffView(APIView):
         }
     )
     def get(self, request: HttpRequest) -> HttpResponse | StreamingHttpResponse:
-
-        # Alternative idea:
-        # In case the streaming solution becomes a problem (might be because of the process fork or any other reason), here is another idea for avoiding relying too heavily on the database:
-        # Since the list of modifications between two dates is static, we could precalculate large time chunks (eg: one each month) and save those results in CSV files. When the diff endpoint is requested, we could assemble some of those large CSV chunks into one, add remaining rows to complete the time period by fetching them from db and finally serve the combined file.
-
         since_input = request.GET.get("since", "")
         # parse since to a timestamp
         since = parse_datetime(since_input)
@@ -100,7 +98,7 @@ class DiffView(APIView):
         # nobody should download the whole database
         if since < last_available_modification:
             return HttpResponse(
-                "The 'since' parameter must be after 2024-04-01T00:00:00Z",
+                f"Maximum diff period is currently 6 months ({last_available_modification}). Please let us know if you need more.",
                 status=400,
             )
 
@@ -197,17 +195,17 @@ class DiffView(APIView):
                                 WHEN event_type = 'delete' THEN 'deactivate'
                                 WHEN event_type = 'deactivation' THEN 'deactivate'
                                 WHEN event_type = 'update' THEN 'update'
-                                WHEN event_type = 'split' and not is_active THEN 'deactivate'
-                                WHEN event_type = 'split' and is_active THEN 'create'
-                                WHEN event_type = 'merge' and not is_active THEN 'deactivate'
-                                WHEN event_type = 'merge' and is_active THEN 'create'
+                                WHEN event_type = 'split' and not bb.is_active THEN 'deactivate'
+                                WHEN event_type = 'split' and bb.is_active THEN 'create'
+                                WHEN event_type = 'merge' and not bb.is_active THEN 'deactivate'
+                                WHEN event_type = 'merge' and bb.is_active THEN 'create'
                                 WHEN event_type = 'reactivation' THEN 'reactivate'
                                 WHEN event_type = 'creation' THEN 'create'
                                 ELSE CONCAT('unhandled_event_type_', event_type)
                             END as action,
                             rnb_id,
                             status,
-                            is_active::int,
+                            bb.is_active::int,
                             sys_period,
                             ST_AsEWKT(point) as point,
                             ST_AsEWKT(shape) as shape,
@@ -215,12 +213,14 @@ class DiffView(APIView):
                             COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
                             parent_buildings,
                             event_id,
-                            event_type
+                            event_type,
+                            COALESCE(u.username, 'RNB') as username
                             FROM batid_building_with_history bb
+                            LEFT JOIN auth_user u on u.id = bb.event_user_id
                             where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone"""
                         + spatial_filter  # nosec B608: spatial_filter comes from database (City.shape.wkt), not user input, and is escaped via sql.Literal() below
                         + """
-                            order by lower(sys_period)
+                            order by lower(sys_period), is_active, rnb_id
                         ) TO STDOUT WITH CSV
                         """
                     )

@@ -248,7 +248,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                         "type": "array",
                                         # currently a bug in gitbook, addding info on items hides the description
                                         # "items": {"type": "string"},
-                                        "description": "Liste des clés d'interopérabilité BAN liées au bâtiment.",
+                                        "description": "Liste des clés d'interopérabilité BAN liées au bâtiment, éventuellement vide (`[]`) en l'absence d'adresse à attribuer.",
                                         "example": [
                                             "75105_8884_00004",
                                             "75105_8884_00006",
