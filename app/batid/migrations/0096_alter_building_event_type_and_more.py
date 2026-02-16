@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="building",
             constraint=models.CheckConstraint(
-                check=models.Q(
+                condition=models.Q(
                     (
                         "event_type__in",
                         [
