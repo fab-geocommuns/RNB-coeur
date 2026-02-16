@@ -5,7 +5,6 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.db.models.fields.json import JSONField
 from django.urls import path
-from django.utils.html import format_html
 from jsoneditor.forms import JSONEditor  # type: ignore[import-untyped]
 
 from batid.models import Address
@@ -17,6 +16,8 @@ from batid.models import Organization
 from batid.models import UserProfile
 from batid.views import export_ads
 from batid.views import export_contributions
+from batid.views import rollback_confirm_view
+from batid.views import rollback_view
 from batid.views import worker
 
 
@@ -70,15 +71,9 @@ class ContributionAdmin(admin.ModelAdmin):
         "email",
         "created_at",
         "status",
-        "fix_issue",
         "review_user",
         "review_comment",
     )
-
-    def fix_issue(self, obj):
-        if obj.status == "pending":
-            link = f"/contribution/fix/{obj.id}"
-            return format_html('<a href="{}">{}</a>', link, "résoudre")
 
 
 admin.site.register(Contribution, ContributionAdmin)
@@ -162,6 +157,16 @@ def get_admin_urls(urls):
             path(r"worker/", admin.site.admin_view(worker)),
             path(r"export_ads/", export_ads),
             path(r"export_contributions/", export_contributions),
+            path(
+                r"rollback/",
+                admin.site.admin_view(rollback_view),
+                name="rollback",
+            ),
+            path(
+                r"rollback/confirm/",
+                admin.site.admin_view(rollback_confirm_view),
+                name="rollback_confirm",
+            ),
         ]
         return my_urls + urls
 

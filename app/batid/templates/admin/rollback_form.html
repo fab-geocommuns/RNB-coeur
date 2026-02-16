@@ -1,0 +1,141 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+{{ form.media }}
+{% endblock %}
+
+{% block content %}
+
+<form method="post">
+    {% csrf_token %}
+
+    <fieldset class="module aligned">
+        <h2>Paramètres du rollback</h2>
+
+        {% for field in form %}
+        <div class="form-row">
+            <label{% if field.field.required %} class="required"{% endif %} for="{{ field.id_for_label }}">
+                {{ field.label }}:
+            </label>
+            {{ field }}
+            {% if field.errors %}
+            <ul class="errorlist">
+                {% for error in field.errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% if field.help_text %}
+            <p class="help">{{ field.help_text }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </fieldset>
+
+    <div class="submit-row">
+        <input type="submit" name="dry_run" value="Dry Run" class="default">
+        <input type="submit" name="rollback" value="Rollback">
+    </div>
+</form>
+
+{% if results %}
+<div style="margin-top: 20px;">
+    <fieldset class="module">
+        <h2>Résultats du {% if is_dry_run %}Dry Run{% else %}Rollback{% endif %}</h2>
+
+        <table>
+            <tr>
+                <th>Utilisateur</th>
+                <td>{{ results.user }}</td>
+            </tr>
+            <tr>
+                <th>Période</th>
+                <td>
+                    {% if results.start_time or results.end_time %}
+                        {{ results.start_time|default:"Début" }} → {{ results.end_time|default:"Fin" }}
+                    {% else %}
+                        Toutes dates
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Events trouvés</th>
+                <td>{{ results.events_found_n }}</td>
+            </tr>
+            {% if is_dry_run %}
+            <tr>
+                <th>Events revertables</th>
+                <td>{{ results.events_revertable_n }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <th>Events revertés</th>
+                <td>{{ results.events_reverted_n }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <th>Events non-revertables</th>
+                <td>{{ results.events_not_revertable_n }}</td>
+            </tr>
+            <tr>
+                <th>Events déjà revertés</th>
+                <td>{{ results.events_already_reverted_n }}</td>
+            </tr>
+            <tr>
+                <th>Events qui sont des reverts</th>
+                <td>{{ results.events_are_revert_n }}</td>
+            </tr>
+        </table>
+
+        {% if is_dry_run and results.events_revertable %}
+        <details style="margin-top: 10px;">
+            <summary>UUIDs des events revertables ({{ results.events_revertable_n }})</summary>
+            <ul>
+                {% for uuid in results.events_revertable %}
+                <li>{{ uuid }}</li>
+                {% endfor %}
+            </ul>
+        </details>
+        {% endif %}
+
+        {% if results.events_not_revertable %}
+        <details style="margin-top: 10px;">
+            <summary>UUIDs des events non-revertables ({{ results.events_not_revertable_n }})</summary>
+            <ul>
+                {% for uuid in results.events_not_revertable %}
+                <li>{{ uuid }}</li>
+                {% endfor %}
+            </ul>
+        </details>
+        {% endif %}
+
+        {% if results.events_already_reverted %}
+        <details style="margin-top: 10px;">
+            <summary>UUIDs des events déjà revertés ({{ results.events_already_reverted_n }})</summary>
+            <ul>
+                {% for uuid in results.events_already_reverted %}
+                <li>{{ uuid }}</li>
+                {% endfor %}
+            </ul>
+        </details>
+        {% endif %}
+
+        {% if results.events_are_revert %}
+        <details style="margin-top: 10px;">
+            <summary>UUIDs des events qui sont des reverts ({{ results.events_are_revert_n }})</summary>
+            <ul>
+                {% for uuid in results.events_are_revert %}
+                <li>{{ uuid }}</li>
+                {% endfor %}
+            </ul>
+        </details>
+        {% endif %}
+    </fieldset>
+</div>
+{% endif %}
+
+{% endblock %}
