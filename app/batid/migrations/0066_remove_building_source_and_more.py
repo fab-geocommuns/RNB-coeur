@@ -3,6 +3,8 @@ from django.db import migrations
 
 from batid.migrations.utils.create_view import (
     sql_migration_building_with_history_create_view,
+)
+from batid.migrations.utils.create_view import (
     sql_migration_building_with_history_drop_view,
 )
 
