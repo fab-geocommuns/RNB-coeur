@@ -244,6 +244,7 @@ class DiffView(APIView):
                     # and will be received by the parent process as a stream
                     cursor.copy_expert(sql_query, w)
                     start_ts = end_ts
+            connection.close()
             w.close()
             # the child process is terminated
             os._exit(0)
