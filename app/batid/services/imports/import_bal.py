@@ -62,6 +62,32 @@ def _create_bal_links_dpt_tasks(dpt: str, bulk_launch_uuid=None):
     return tasks
 
 
+def filter_by_position(rows: list) -> list:
+    """
+    For each cle_interop, keep only rows whose position is "bâtiment" if any such
+    row exists. Otherwise keep all rows for that cle_interop.
+    """
+    batiment_rows = {}
+    other_rows = {}
+
+    for row in rows:
+        key = row["cle_interop"]
+        if row["position"] == "bâtiment":
+            batiment_rows.setdefault(key, []).append(row)
+        else:
+            other_rows.setdefault(key, []).append(row)
+
+    result = []
+    all_keys = set(batiment_rows) | set(other_rows)
+    for key in all_keys:
+        if key in batiment_rows:
+            result.extend(batiment_rows[key])
+        else:
+            result.extend(other_rows[key])
+
+    return result
+
+
 def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
 
     dpt = src_params["dpt"]
@@ -80,27 +106,27 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
 
     with open(src.find(src.filename), "r") as f:
         reader = csv.DictReader(f, delimiter=";")
+        certified_rows = [row for row in reader if row["certification_commune"] != "0"]
 
-        batch = []
+    filtered_rows = filter_by_position(certified_rows)
 
-        for row in reader:
+    batch = []
 
-            if row["certification_commune"] == "0":
-                continue
+    for row in filtered_rows:
 
-            address_point = Point(
-                float(row["long"]),
-                float(row["lat"]),
-                srid=4326,
-            )
+        address_point = Point(
+            float(row["long"]),
+            float(row["lat"]),
+            srid=4326,
+        )
 
-            batch.append((address_point, row["cle_interop"]))
-            if len(batch) >= 1000:
-                batch_num += 1
-                updated, refused = process_batch(batch, building_import)
-                total_updated += updated
-                total_refused += refused
-                batch = []
+        batch.append((address_point, row["cle_interop"]))
+        if len(batch) >= 1000:
+            batch_num += 1
+            updated, refused = process_batch(batch, building_import)
+            total_updated += updated
+            total_refused += refused
+            batch = []
 
     if len(batch) > 0:
         batch_num += 1

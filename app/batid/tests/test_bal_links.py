@@ -15,6 +15,7 @@ from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import Plot
 from batid.services.imports.import_bal import create_dpt_bal_rnb_links
+from batid.services.imports.import_bal import filter_by_position
 from batid.services.imports.import_bal import find_bdg_to_link
 from batid.services.rnb_id import generate_rnb_id
 
@@ -134,6 +135,79 @@ class BALImport(TransactionTestCase):
         self.assertDictEqual(
             bdg_two.event_origin, {"source": "import", "id": report.id}
         )
+
+
+    @patch("batid.services.imports.import_bal.Source.find")
+    def test_bal_import_filters_by_position(self, source_mock):
+        """
+        When a cle_interop has both a bâtiment row and an entrée row, only the
+        bâtiment row is processed. The building at the entrée coordinates must
+        NOT be linked.
+        """
+        source_mock.return_value = helpers.copy_fixture(
+            "bal_import_test_data.csv", "bal_import_test_data_COPY.csv"
+        )
+
+        Address.objects.create(
+            id="FILTERED_CLE",
+            source="Import BAL",
+            point=Point(0, 0),
+        )
+
+        # Building matched by the bâtiment row of FILTERED_CLE
+        Building.objects.create(
+            rnb_id="THREE",
+            status="constructed",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.521, 44.833],
+                                [-0.521, 44.832],
+                                [-0.5205, 44.832],
+                                [-0.5205, 44.833],
+                                [-0.521, 44.833],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+        )
+
+        # Building matched by the entrée row of FILTERED_CLE — must NOT be linked
+        Building.objects.create(
+            rnb_id="FOUR",
+            status="constructed",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5225, 44.833],
+                                [-0.5225, 44.832],
+                                [-0.522, 44.832],
+                                [-0.522, 44.833],
+                                [-0.5225, 44.833],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+        )
+
+        bulk_launch_uuid = uuid.uuid4()
+        create_dpt_bal_rnb_links({"dpt": "01"}, bulk_launch_uuid)
+
+        # THREE was linked via the bâtiment row
+        bdg_three = Building.objects.get(rnb_id="THREE")
+        self.assertIn("FILTERED_CLE", bdg_three.addresses_id)
+
+        # FOUR was NOT linked — the entrée row was filtered out
+        bdg_four = Building.objects.get(rnb_id="FOUR")
+        self.assertFalse(bdg_four.addresses_id)
 
 
 class BALImportWithUnknownCleInterop(TestCase):
@@ -1214,3 +1288,32 @@ class LinkSearch(TestCase):
         # ###
         # 2. We search for the building to link to the address point
         return find_bdg_to_link(address_point, "ANY_ADDRESS_ID")
+
+
+class FilterByPositionTest(TestCase):
+    def test_filter_by_position(self):
+        """
+        When a cle_interop has at least one row with position="bâtiment", only
+        those rows are kept. For cle_interop values without any "bâtiment" row,
+        all rows are kept.
+        """
+        rows = [
+            # cle_interop A has one "bâtiment" row and two others → keep only the "bâtiment" one
+            {"cle_interop": "A", "position": "entrée"},
+            {"cle_interop": "A", "position": "bâtiment"},
+            {"cle_interop": "A", "position": "délivrance postale"},
+            # cle_interop B has no "bâtiment" row → keep all rows
+            {"cle_interop": "B", "position": "entrée"},
+            {"cle_interop": "B", "position": "délivrance postale"},
+        ]
+
+        result = filter_by_position(rows)
+
+        self.assertEqual(len(result), 3)
+
+        a_rows = [r for r in result if r["cle_interop"] == "A"]
+        self.assertEqual(len(a_rows), 1)
+        self.assertEqual(a_rows[0]["position"], "bâtiment")
+
+        b_rows = [r for r in result if r["cle_interop"] == "B"]
+        self.assertEqual(len(b_rows), 2)

@@ -5,3 +5,5 @@ uid_adresse;cle_interop;commune_insee;commune_nom;commune_deleguee_insee;commune
 ;04004_jwjf04_00001;04004;Allemagne-en-Provence;;;Le Tartavel;;1;;;942556.59;6302560.07;6.013287;43.780401;;commune;2023-12-14;1
 ;04004_jwjf04_00002;04004;Allemagne-en-Provence;;;Le Tartavel;;2;;;942555.13;6302558.24;6.013268;43.780385;;commune;2023-12-14;0
 ;UNKNOWN;04004;Allemagne-en-Provence;;;Le Tartavel;;3;;;942548.59;6302556.65;-0.5208465518688001;44.83137629535605;;commune;2023-12-14;1
+;FILTERED_CLE;04004;Allemagne-en-Provence;;;Rue du Four;;50;;bâtiment;942000;6302700;-0.52075;44.8325;;commune;2023-12-14;1
+;FILTERED_CLE;04004;Allemagne-en-Provence;;;Rue du Four;;50;;entrée;942100;6302700;-0.52225;44.8325;;commune;2023-12-14;1
