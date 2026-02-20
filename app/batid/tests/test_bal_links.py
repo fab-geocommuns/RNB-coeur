@@ -136,7 +136,6 @@ class BALImport(TransactionTestCase):
             bdg_two.event_origin, {"source": "import", "id": report.id}
         )
 
-
     @patch("batid.services.imports.import_bal.Source.find")
     def test_bal_import_filters_by_position(self, source_mock):
         """
