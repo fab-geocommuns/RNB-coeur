@@ -2,6 +2,7 @@ import requests
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
+from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
 
 from batid.exceptions import BANAPIDown
@@ -134,13 +135,13 @@ class Address(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     @staticmethod
-    def add_addresses_to_db_if_needed(addresses_id):
+    def add_addresses_to_db_if_needed(addresses_id: list[str]) -> None:
         """given a list of "clés d'interopérabilité BAN", we add those addresses to our Address table if they don't exist yet."""
         for address_id in addresses_id:
             Address.add_address_to_db_if_needed(address_id)
 
     @staticmethod
-    def add_address_to_db_if_needed(address_id):
+    def add_address_to_db_if_needed(address_id: str) -> None:
         if Address.objects.filter(id=address_id).exists():
             return
         else:
@@ -165,20 +166,21 @@ class Address(models.Model):
             raise BANAPIDown
 
     @staticmethod
-    def save_new_address(data):
+    def save_new_address(data: dict):
         if data["type"] != "numero":
             raise BANBadResultType
 
         Address.objects.create(
             id=data["cleInterop"],
             source="ban",
-            point=f'POINT ({data["lon"]} {data["lat"]})',
+            point=Point(data["lon"], data["lat"], srid=4326),
             street_number=data["numero"],
             street_rep=data["suffixe"],
             street=data["voie"]["nomVoie"],
             city_name=data["commune"]["nom"],
             city_zipcode=data["codePostal"],
             city_insee_code=data["commune"]["code"],
+            ban_id=data.get("banId"),
         )
 
 
