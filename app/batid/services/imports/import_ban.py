@@ -54,7 +54,7 @@ def import_ban_addresses(
             "ban", bulk_launch_uuid, src_params["dpt"]
         )
 
-    src = Source("ban")
+    src = Source("ban_with_ids")
     src.set_params(src_params)
 
     with open(src.find(src.filename), "r") as f:
