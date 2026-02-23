@@ -67,8 +67,8 @@ def filter_by_position(rows: list) -> list:
     For each cle_interop, keep only rows whose position is "bâtiment" if any such
     row exists. Otherwise keep all rows for that cle_interop.
     """
-    batiment_rows = {}
-    other_rows = {}
+    batiment_rows: dict[str, list] = {}
+    other_rows: dict[str, list] = {}
 
     for row in rows:
         key = row["cle_interop"]
