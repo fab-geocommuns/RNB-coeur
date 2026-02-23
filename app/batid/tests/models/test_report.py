@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
+from django.db import transaction
 from django.db.utils import IntegrityError
 from django.test import TestCase
 
@@ -22,11 +23,12 @@ class TestReport(TestCase):
 
     def test_report_creation_without_point_fails(self):
         with self.assertRaises(IntegrityError) as context:
-            Report.objects.create(
-                building=self.building,
-                created_by_user=self.user,
-                status="pending",
-            )
+            with transaction.atomic():
+                Report.objects.create(
+                    building=self.building,
+                    created_by_user=self.user,
+                    status="pending",
+                )
 
     def test_report_creation_with_user_succeeds(self):
         report = Report.objects.create(
