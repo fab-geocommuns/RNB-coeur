@@ -9,6 +9,10 @@ from batid.services.email import build_reset_password_email
 
 
 class ResetPasswordEmail(TestCase):
+    @override_settings(
+        RNB_SEND_ADDRESS="coucou@rnb.beta.gouv.fr",
+        RNB_REPLY_TO_ADDRESS="reply@rnb.beta.gouv.fr",
+    )
     def test_email(self):
         email = build_reset_password_email("token", "fake_bd64", "email@address.com")
         self.assertIsInstance(email, EmailMultiAlternatives)
