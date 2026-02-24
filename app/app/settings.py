@@ -20,7 +20,7 @@ from app.schedule import get_celery_beat_schedule
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WRITABLE_DATA_DIR = os.path.join(BASE_DIR, "data")
+WRITABLE_DATA_DIR = os.environ.get("WRITABLE_DATA_DIR", os.path.join(BASE_DIR, "data"))
 
 PRIVATE_CAPTCHA_API_KEY = os.environ.get("PRIVATE_CAPTCHA_API_KEY")
 PRIVATE_CAPTCHA_SITEKEY = os.environ.get("PRIVATE_CAPTCHA_SITEKEY")
