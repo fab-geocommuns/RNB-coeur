@@ -1,5 +1,6 @@
 from datetime import datetime
 from unittest.mock import patch
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -14,7 +15,7 @@ from batid.services.imports.import_ban import import_ban_addresses
 class BANImportDB(TestCase):
     @patch("batid.services.imports.import_ban.Source.find")
     def test_import_on_empty_db_one_batch(self, sourceMock):
-        sourceMock.return_value = helpers.fixture_path("ban_import_test_data.csv")
+        sourceMock.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         self.assertEqual(Address.objects.count(), 0)
 
@@ -23,7 +24,7 @@ class BANImportDB(TestCase):
 
         import_ban_addresses({"dpt": "dummy"}, batch_size=100)
 
-        self.assertEqual(Address.objects.count(), 50)
+        self.assertEqual(Address.objects.count(), 4)
 
         # Verify the first address
         address = Address.objects.get(id="04001_pk624e_00001")
@@ -32,26 +33,31 @@ class BANImportDB(TestCase):
         self.assertEqual(address.point, Point(6.135212, 44.070028, srid=4326))
         self.assertEqual(address.street_number, "1")
         self.assertEqual(address.street_rep, "bis")
-        self.assertEqual(address.street, "Impasse de la Treille àéêù")
+        self.assertEqual(address.street, "Impasse de la Treille")
         self.assertEqual(address.city_name, "Aiglun")
         self.assertEqual(address.city_zipcode, "04510")
         self.assertEqual(address.city_insee_code, "04001")
+        self.assertEqual(address.ban_id, UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890"))
         self.assertGreater(address.created_at, before_import)
         self.assertGreater(address.updated_at, before_import)
 
+        # Verify an address without id_ban_adresse has ban_id=None
+        address_without_ban_id = Address.objects.get(id="04001_pk624e_00003")
+        self.assertIsNone(address_without_ban_id.ban_id)
+
     @patch("batid.services.imports.import_ban.Source.find")
     def test_import_on_empty_db_many_batches(self, sourceMock):
-        sourceMock.return_value = helpers.fixture_path("ban_import_test_data.csv")
+        sourceMock.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         self.assertEqual(Address.objects.count(), 0)
 
         import_ban_addresses({"dpt": "dummy"}, batch_size=1)
 
-        self.assertEqual(Address.objects.count(), 50)
+        self.assertEqual(Address.objects.count(), 4)
 
     @patch("batid.services.imports.import_ban.Source.find")
     def test_import_with_existing_addresses(self, sourceMock):
-        sourceMock.return_value = helpers.fixture_path("ban_import_test_data.csv")
+        sourceMock.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         # Create some addresse before import
         existing_address = Address.objects.create(
@@ -72,7 +78,7 @@ class BANImportDB(TestCase):
 
         import_ban_addresses({"dpt": "dummy"}, batch_size=100)
 
-        self.assertEqual(Address.objects.count(), 50)
+        self.assertEqual(Address.objects.count(), 4)
 
         # We verify the existing address has not been modified at all
         address = Address.objects.get(id="04001_pk624e_00001")

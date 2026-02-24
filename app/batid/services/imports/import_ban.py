@@ -54,7 +54,7 @@ def import_ban_addresses(
             "ban", bulk_launch_uuid, src_params["dpt"]
         )
 
-    src = Source("ban")
+    src = Source("ban_with_ids")
     src.set_params(src_params)
 
     with open(src.find(src.filename), "r") as f:
@@ -76,6 +76,7 @@ def import_ban_addresses(
                     city_name=row["nom_commune"],
                     city_zipcode=row["code_postal"],
                     city_insee_code=row["code_insee"],
+                    ban_id=row.get("id_ban_adresse") or None,
                 )
             )
 

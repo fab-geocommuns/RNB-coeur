@@ -25,6 +25,7 @@ class UserCreation(APITestCase):
         }
         self.override = self.settings(
             RNB_SEND_ADDRESS="coucou@rnb.beta.gouv.fr",
+            RNB_REPLY_TO_ADDRESS="reply@rnb.beta.gouv.fr",
             FRONTEND_URL="https://rnb.beta.gouv.fr",
         )
 

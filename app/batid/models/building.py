@@ -843,7 +843,7 @@ class Building(BuildingAbstract):
         constraints = [
             # a DB level constraint on the authorized values for the event_type columns
             CheckConstraint(
-                check=Q(event_type__in=EventType.values()),
+                condition=Q(event_type__in=EventType.values()),
                 name="valid_event_type_check",
             ),
         ]
