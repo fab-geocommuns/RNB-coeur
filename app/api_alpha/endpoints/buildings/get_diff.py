@@ -167,6 +167,11 @@ class DiffView(APIView):
             os.close(rfd)
             w = os.fdopen(wfd, "w")
 
+            # Abandon the inherited database connection without closing it
+            # (the parent process still needs it). Setting connection to None
+            # forces Django to create a new connection for this child process.
+            connection.connection = None
+
             with connection.cursor() as cursor:
                 cursor.execute(
                     "SET statement_timeout = %(statement_timeout)s;",
@@ -239,6 +244,7 @@ class DiffView(APIView):
                     # and will be received by the parent process as a stream
                     cursor.copy_expert(sql_query, w)
                     start_ts = end_ts
+            connection.close()
             w.close()
             # the child process is terminated
             os._exit(0)

@@ -43,7 +43,7 @@ class ReportMessage(models.Model):
         ]
         constraints = [
             CheckConstraint(
-                check=~(
+                condition=~(
                     Q(created_by_user__isnull=False) & Q(created_by_email__isnull=False)
                 ),
                 name="report_message_creator_not_both",
