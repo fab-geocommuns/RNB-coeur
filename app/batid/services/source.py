@@ -8,7 +8,6 @@ import zipfile
 import nanoid
 import py7zr
 import requests
-
 from django.conf import settings
 
 
