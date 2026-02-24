@@ -1,6 +1,9 @@
+import logging
 import uuid
 from datetime import datetime
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from celery import chain
 from celery import shared_task
@@ -68,10 +71,11 @@ def dl_source(src_name: str, src_params: dict):
     for param, value in src_params.items():
         src.set_param(param, value)
 
-    print(f"-- downloading {src.url}")
+    logger.info("dl_source: downloading %s", src.url)
     src.download()
     src.uncompress()
     src.remove_archive()
+    logger.info("dl_source: download complete for %s %s", src_name, src_params)
 
     return "done"
 
