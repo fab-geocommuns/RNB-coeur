@@ -1,10 +1,8 @@
-from django.test import TestCase
 from django.test import TransactionTestCase
 
 from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingAddressesReadOnly
-from batid.models import BuildingWithHistory
 
 
 class BuildingAddressLinkCase(TransactionTestCase):
