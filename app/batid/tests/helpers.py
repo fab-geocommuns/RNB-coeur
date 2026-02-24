@@ -1,5 +1,7 @@
 import json
 import os
+import shutil
+import tempfile
 
 from batid.models import Building, City
 from django.contrib.gis.geos import GEOSGeometry
@@ -1188,9 +1190,9 @@ def fixture_path(filename):
 def copy_fixture(original_filename, copy_filename) -> str:
 
     original_path = fixture_path(original_filename)
-    copy_path = fixture_path(copy_filename)
+    tmp_dir = tempfile.mkdtemp()
+    copy_path = os.path.join(tmp_dir, copy_filename)
 
-    with open(original_path, "r") as f, open(copy_path, "w") as f_copy:
-        f_copy.write(f.read())
+    shutil.copy2(original_path, copy_path)
 
     return copy_path
