@@ -1,7 +1,10 @@
 import csv
+import logging
 import uuid
 
 from django.contrib.gis.geos import Point
+
+logger = logging.getLogger(__name__)
 
 from batid.models.report import Report
 from batid.services.closest_bdg import get_closest_from_point
@@ -96,7 +99,7 @@ def create_reports(points: list[Point]) -> uuid.UUID:
 
 
 def reject_irrelevant_arcep_reports():
-    print("- closing irrelevant ARCEP reports")
+    logger.info("- closing irrelevant ARCEP reports")
 
     team_rnb = get_RNB_team_user()
     reports = Report.objects.filter(status="pending", tags__name=ARCEP_TAG_NAME)
@@ -108,7 +111,10 @@ def reject_irrelevant_arcep_reports():
         if closest_bdgs.exists():
             rnb_ids = [b.rnb_id for b in closest_bdgs]
             rnb_ids_str = ", ".join(rnb_ids)
-            msg = f"Nous fermons ce signalement car les bâtiments {rnb_ids_str} sont à moins de 10 mètres."
+            if len(rnb_ids) == 1:
+                msg = f"Nous fermons ce signalement car le bâtiment {rnb_ids_str} est à moins de 10 mètres."
+            else:
+                msg = f"Nous fermons ce signalement car les bâtiments {rnb_ids_str} sont à moins de 10 mètres."
 
             report.add_message_and_update_status(
                 text=msg,
@@ -118,4 +124,4 @@ def reject_irrelevant_arcep_reports():
             )
             count += 1
 
-    print(f"- closed {count} irrelevant reports")
+    logger.info(f"- closed {count} irrelevant reports")

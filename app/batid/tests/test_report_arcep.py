@@ -7,6 +7,7 @@ from django.test import TestCase
 
 from batid.models.building import Building
 from batid.models.report import Report
+from batid.services.reports.arcep import ARCEP_TAG_NAME
 from batid.services.reports.arcep import create_reports
 from batid.services.reports.arcep import dl_and_create_arcep_reports
 from batid.tests import helpers
@@ -89,7 +90,7 @@ class ReportArcepTestCase(TestCase):
         # Case 1: Existing report with tag nearby -> No report
         # Create existing report
         existing_report = Report.objects.create(point=p, status="pending")
-        existing_report.tags.add("Nouveau bâtiment")
+        existing_report.tags.add(ARCEP_TAG_NAME)
 
         reports_uuid = create_reports([p])
         # Should be 0 created because existing one is there
@@ -122,12 +123,12 @@ class ReportArcepTestCase(TestCase):
     def test_close_irrelevant_reports(self):
         from batid.services.reports.arcep import reject_irrelevant_arcep_reports
 
-        # 1. Setup : Une position
+        # 1. Mise en place : une position
         p = Point(4.0, 48.0, srid=4326)
 
-        # 2. Cas : Un rapport ARCEP existant + un bâtiment réel à proximité
+        # 2. Cas : un rapport ARCEP existant + un bâtiment réel à proximité
         report = Report.objects.create(point=p, status="pending")
-        report.tags.add("Nouveau bâtiment")
+        report.tags.add(ARCEP_TAG_NAME)
 
         # Bâtiment réel et actif
         poly = Polygon.from_bbox((4.0, 48.0, 4.0001, 48.0001))
@@ -144,10 +145,10 @@ class ReportArcepTestCase(TestCase):
         report.refresh_from_db()
         self.assertEqual(report.status, "rejected")
 
-        # Verify message
+        # Vérification du message
         last_msg = report.messages.last()
         self.assertIn(
-            "Nous fermons ce signalement car les bâtiments BDG-CLS-001 sont à moins de 10 mètres.",
+            "Nous fermons ce signalement car le bâtiment BDG-CLS-001 est à moins de 10 mètres.",
             last_msg.text,
         )
 
@@ -158,7 +159,7 @@ class ReportArcepTestCase(TestCase):
 
         # Cas 1 : Bâtiment démoli (non réel) à proximité
         report_demolished = Report.objects.create(point=p, status="pending")
-        report_demolished.tags.add("Nouveau bâtiment")
+        report_demolished.tags.add(ARCEP_TAG_NAME)
 
         poly = Polygon.from_bbox((5.0, 49.0, 5.0001, 49.0001))
         poly.srid = 4326
@@ -177,7 +178,7 @@ class ReportArcepTestCase(TestCase):
         # Cas 2 : Bâtiment réel mais inactif
         p2 = Point(5.1, 49.1, srid=4326)
         report_inactive = Report.objects.create(point=p2, status="pending")
-        report_inactive.tags.add("Nouveau bâtiment")
+        report_inactive.tags.add(ARCEP_TAG_NAME)
 
         poly2 = Polygon.from_bbox((5.1, 49.1, 5.1001, 49.1001))
         poly2.srid = 4326
