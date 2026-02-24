@@ -10,7 +10,11 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunSQL(
             """
-            CREATE OR REPLACE FUNCTION public.delete_address_id_from_building()
+            -- Disable the old trigger
+            ALTER TABLE batid_address DISABLE TRIGGER delete_address_id_from_building_trigger;
+
+            -- Create the new function and trigger
+            CREATE OR REPLACE FUNCTION public.check_address_is_linked()
             RETURNS trigger
             LANGUAGE plpgsql
             AS $function$
@@ -37,23 +41,16 @@ class Migration(migrations.Migration):
             END;
             $function$
             ;
+
+            CREATE TRIGGER prevent_delete_linked_address_trigger BEFORE DELETE ON batid_address FOR EACH ROW EXECUTE FUNCTION check_address_is_linked();
             """,
             reverse_sql="""
-            CREATE OR REPLACE FUNCTION public.delete_address_id_from_building()
-            RETURNS trigger
-            LANGUAGE plpgsql
-            AS $function$
-            DECLARE
-                address_id VARCHAR;
-            BEGIN
-                IF TG_OP = 'DELETE' THEN
-                    UPDATE batid_building SET addresses_id = array_remove(addresses_id, OLD.id) WHERE addresses_id @> ARRAY[OLD.id];
-                END IF;
+            -- Drop the new trigger and function
+            DROP TRIGGER IF EXISTS prevent_delete_linked_address_trigger ON batid_address;
+            DROP FUNCTION IF EXISTS public.check_address_is_linked();
 
-                RETURN NEW;
-            END;
-            $function$
-            ;
+            -- Re-enable the old trigger
+            ALTER TABLE batid_address ENABLE TRIGGER delete_address_id_from_building_trigger;
             """,
         ),
     ]
