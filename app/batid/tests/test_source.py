@@ -2,8 +2,8 @@ import csv
 import os
 import shutil
 
-from django.test import SimpleTestCase
 from django.test import override_settings
+from django.test import SimpleTestCase
 
 from batid.services.source import BufferToCopy
 from batid.services.source import Source
