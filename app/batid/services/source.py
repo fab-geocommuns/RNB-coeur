@@ -9,12 +9,12 @@ import nanoid
 import py7zr
 import requests
 
-from app.settings import WRITABLE_DATA_DIR
+from django.conf import settings
 
 
 def source_data_directory() -> str:
     directory_name = "source_data"
-    directory_path = os.path.join(WRITABLE_DATA_DIR, directory_name)
+    directory_path = os.path.join(settings.WRITABLE_DATA_DIR, directory_name)
     os.makedirs(directory_path, exist_ok=True)
     return directory_path
 
