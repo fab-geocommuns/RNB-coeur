@@ -116,7 +116,7 @@ ROOT_URLCONF = "app.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [os.path.join(BASE_DIR, "batid", "templates")],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -211,7 +211,7 @@ REST_FRAMEWORK = {
     "URL_FORMAT_OVERRIDE": None,
 }
 
-if ENVIRONMENT == "test":
+if ENVIRONMENT in ("test", "development"):
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["create_user"] = "1000/day"  # type: ignore[index]
 
 

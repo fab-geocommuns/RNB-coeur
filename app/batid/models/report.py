@@ -132,7 +132,7 @@ class Report(models.Model):
         ordering = ["-created_at"]
         constraints = [
             CheckConstraint(
-                check=~(
+                condition=~(
                     Q(created_by_user__isnull=False) & Q(created_by_email__isnull=False)
                 ),
                 name="report_creator_not_both",
