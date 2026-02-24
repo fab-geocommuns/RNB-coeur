@@ -29,15 +29,15 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
         for row in reader:
             cle_interop = row["id"]
 
-            batch.append({"cle_interop": cle_interop})
+            batch.append(cle_interop)
             seen_cle_interops.add(cle_interop)
 
             if len(batch) >= batch_size:
-                updated_count += _update_batch(batch)
+                updated_count += _mark_existing_addresses(batch)
                 batch = []
 
         if batch:
-            updated_count += _update_batch(batch)
+            updated_count += _mark_existing_addresses(batch)
 
     # Clean up the file
     os.remove(file_path)
@@ -51,9 +51,8 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
     return {"dpt": dpt, "updated": updated_count, "obsolete": obsolete_count}
 
 
-def _update_batch(batch: list) -> int:
+def _mark_existing_addresses(cle_interops: list) -> int:
     """Update a batch of addresses."""
-    cle_interops = [item["cle_interop"] for item in batch]
     addresses = list(Address.objects.filter(id__in=cle_interops))
 
     for addr in addresses:
