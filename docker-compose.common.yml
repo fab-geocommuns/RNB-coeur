@@ -44,6 +44,8 @@ services:
       redis:
         condition: service_healthy
     container_name: web
+    environment:
+      - WRITABLE_DATA_DIR=/data
 
   db:
     image: postgis/postgis:16-3.5
@@ -72,6 +74,8 @@ services:
         condition: service_healthy
     restart: unless-stopped
     container_name: worker
+    environment:
+      - WRITABLE_DATA_DIR=/data
 
   celery_beat:
     cap_drop: ["ALL"]
@@ -79,7 +83,7 @@ services:
       context: ./app
       dockerfile: ./Dockerfile
       target: app_worker
-    command: celery -A app beat --loglevel=WARNING -s ./data/celerybeat-schedule
+    command: celery -A app beat --loglevel=WARNING -s /data/celerybeat-schedule
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -87,6 +91,8 @@ services:
         condition: service_healthy
     container_name: celery_beat
     restart: unless-stopped
+    environment:
+      - WRITABLE_DATA_DIR=/data
 
   rabbitmq:
     restart: unless-stopped
