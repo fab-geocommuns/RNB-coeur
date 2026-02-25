@@ -133,6 +133,10 @@ class Address(models.Model):
     # Does the cle d'interop still exists in the BAN?
     # None = not yet checked, True = exists, False = explicitly absent
     still_exists = models.BooleanField(db_index=True, null=True, default=None)
+    ban_update_flag = models.CharField(
+        max_length=20, null=True, default=None, db_index=True
+    )
+    ban_update_details = models.JSONField(null=True, default=None)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
