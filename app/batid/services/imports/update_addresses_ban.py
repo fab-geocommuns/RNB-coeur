@@ -208,7 +208,7 @@ def _rep_match(db_rep: str | None, ban_rep: str) -> bool:
         (db_rep or "").strip().lower(), (db_rep or "").strip().lower()
     )
     ban_rep = STREET_REP_ALIASES.get(ban_rep.strip().lower(), ban_rep.strip().lower())
-    return db_rep != ban_rep
+    return db_rep == ban_rep
 
 
 def _get_field_diffs(addr: Address, ban: dict) -> dict:
