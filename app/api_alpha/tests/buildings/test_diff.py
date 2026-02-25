@@ -410,6 +410,9 @@ class DiffTest(TransactionTestCase):
         url = f"/api/alpha/buildings/diff/?{params}"
         r = self.client.get(url)
         self.assertEqual(r.status_code, 200)
+        # Consume the streaming response to ensure the forked child process
+        # finishes and closes its DB connection before teardown runs flush.
+        get_content_from_streaming_response(r)
 
     def test_since_only_date(self):
         b = Building.objects.create(rnb_id="t", event_type="creation")
@@ -427,6 +430,9 @@ class DiffTest(TransactionTestCase):
         url = f"/api/alpha/buildings/diff/?{params}"
         r = self.client.get(url)
         self.assertEqual(r.status_code, 200)
+        # Consume the streaming response to ensure the forked child process
+        # finishes and closes its DB connection before teardown runs flush.
+        get_content_from_streaming_response(r)
 
     def test_since_is_invalid(self):
         url = f"/api/alpha/buildings/diff/?since=invalid"
@@ -528,6 +534,9 @@ class DiffInseeCodeTest(TransactionTestCase):
         r = self.client.get(url)
 
         self.assertEqual(r.status_code, 200)
+        # Consume the streaming response to ensure the forked child process
+        # finishes and closes its DB connection before teardown runs flush.
+        get_content_from_streaming_response(r)
 
         # Check filename contains insee_code
         self.assertIn("diff_75056_", r["Content-Disposition"])

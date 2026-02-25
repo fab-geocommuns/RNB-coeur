@@ -29,7 +29,7 @@ def _create_ban_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
     # 1) We download the BAN file
     dl_task = Signature(  # type: ignore[var-annotated]
         "batid.tasks.dl_source",
-        args=["ban", src_params],  # type: ignore[arg-type]
+        args=["ban_with_ids", src_params],  # type: ignore[arg-type]
         immutable=True,
     )
     tasks.append(dl_task)
@@ -54,7 +54,7 @@ def import_ban_addresses(
             "ban", bulk_launch_uuid, src_params["dpt"]
         )
 
-    src = Source("ban")
+    src = Source("ban_with_ids")
     src.set_params(src_params)
 
     with open(src.find(src.filename), "r") as f:
@@ -76,6 +76,7 @@ def import_ban_addresses(
                     city_name=row["nom_commune"],
                     city_zipcode=row["code_postal"],
                     city_insee_code=row["code_insee"],
+                    ban_id=row.get("id_ban_adresse") or None,
                 )
             )
 
