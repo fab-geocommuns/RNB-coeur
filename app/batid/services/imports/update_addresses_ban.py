@@ -202,6 +202,15 @@ def update_addresses_text_and_ban_id(src_params: dict, batch_size: int = 10000) 
     return {"dpt": dpt, "updated": updated_count, "mismatched": mismatch_count}
 
 
+def _rep_match(db_rep: str | None, ban_rep: str) -> bool:
+    # street_rep: case-insensitive + alias expansion (B→bis, T→ter, Q→quater)
+    db_rep = STREET_REP_ALIASES.get(
+        (db_rep or "").strip().lower(), (db_rep or "").strip().lower()
+    )
+    ban_rep = STREET_REP_ALIASES.get(ban_rep.strip().lower(), ban_rep.strip().lower())
+    return db_rep != ban_rep
+
+
 def _get_field_diffs(addr: Address, ban: dict) -> dict:
     """Compare all address fields between DB and BAN data.
 
@@ -214,15 +223,10 @@ def _get_field_diffs(addr: Address, ban: dict) -> dict:
         diffs["street"] = {"db": addr.street, "ban": ban["nom_voie"]}
     if normalize_text(addr.city_name or "") != normalize_text(ban["nom_commune"]):
         diffs["city_name"] = {"db": addr.city_name, "ban": ban["nom_commune"]}
-    # street_rep: case-insensitive + alias expansion (B→bis, T→ter, Q→quater)
-    db_rep = STREET_REP_ALIASES.get(
-        (addr.street_rep or "").strip().lower(), (addr.street_rep or "").strip().lower()
-    )
-    ban_rep = STREET_REP_ALIASES.get(
-        ban["rep"].strip().lower(), ban["rep"].strip().lower()
-    )
-    if db_rep != ban_rep:
+
+    if not _rep_match(addr.street_rep, ban["rep"]):
         diffs["street_rep"] = {"db": addr.street_rep, "ban": ban["rep"]}
+
     # Exact comparison for codes/numbers
     if (addr.street_number or "").strip() != ban["numero"].strip():
         diffs["street_number"] = {"db": addr.street_number, "ban": ban["numero"]}
