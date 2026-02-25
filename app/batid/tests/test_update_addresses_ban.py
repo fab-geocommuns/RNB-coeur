@@ -133,7 +133,7 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         self.assertEqual(deleted, {"deleted_addresses": 0})
         self.assertTrue(Address.objects.filter(id="04001_old_00002").exists())
 
-    def test_obsolete_address_linked_to_historical_building_is_kept(self):
+    def test_obsolete_address_linked_to_building_history_is_kept(self):
         Address.objects.create(id="04001_old_00003", source="ban", still_exists=False)
         bdg = helpers.create_default_bdg()
         bdg.addresses_id = ["04001_old_00003"]
