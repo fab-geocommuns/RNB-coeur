@@ -1,6 +1,9 @@
+import logging
 import uuid
 from datetime import datetime
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from celery import chain
 from celery import shared_task
@@ -69,10 +72,11 @@ def dl_source(src_name: str, src_params: dict):
     for param, value in src_params.items():
         src.set_param(param, value)
 
-    print(f"-- downloading {src.url}")
+    logger.info("dl_source: downloading %s", src.url)
     src.download()
     src.uncompress()
     src.remove_archive()
+    logger.info("dl_source: download complete for %s %s", src_name, src_params)
 
     return "done"
 
@@ -497,3 +501,11 @@ def queue_ban_address_text_update(
         chain(*tasks)()
 
     return f"Queued text update for {len(dpts)} departments"
+
+
+def delete_unlinked_obsolete_addresses_task(batch_size: int = 10000):
+    from batid.services.imports.update_addresses_ban import (
+        delete_unlinked_obsolete_addresses,
+    )
+
+    return delete_unlinked_obsolete_addresses(batch_size)

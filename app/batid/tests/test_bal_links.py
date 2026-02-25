@@ -6,14 +6,18 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 from django.test import TransactionTestCase
+from nanoid import generate
 
 import batid.tests.helpers as helpers
 from batid.exceptions import BANUnknownCleInterop
 from batid.models import Address
 from batid.models import Building
 from batid.models import BuildingImport
+from batid.models import Plot
 from batid.services.imports.import_bal import create_dpt_bal_rnb_links
+from batid.services.imports.import_bal import filter_by_position
 from batid.services.imports.import_bal import find_bdg_to_link
+from batid.services.rnb_id import generate_rnb_id
 
 
 class BALImport(TransactionTestCase):
@@ -131,6 +135,78 @@ class BALImport(TransactionTestCase):
         self.assertDictEqual(
             bdg_two.event_origin, {"source": "import", "id": report.id}
         )
+
+    @patch("batid.services.imports.import_bal.Source.find")
+    def test_bal_import_filters_by_position(self, source_mock):
+        """
+        When a cle_interop has both a bâtiment row and an entrée row, only the
+        bâtiment row is processed. The building at the entrée coordinates must
+        NOT be linked.
+        """
+        source_mock.return_value = helpers.copy_fixture(
+            "bal_import_test_data.csv", "bal_import_test_data_COPY.csv"
+        )
+
+        Address.objects.create(
+            id="FILTERED_CLE",
+            source="Import BAL",
+            point=Point(0, 0),
+        )
+
+        # Building matched by the bâtiment row of FILTERED_CLE
+        Building.objects.create(
+            rnb_id="THREE",
+            status="constructed",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.521, 44.833],
+                                [-0.521, 44.832],
+                                [-0.5205, 44.832],
+                                [-0.5205, 44.833],
+                                [-0.521, 44.833],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+        )
+
+        # Building matched by the entrée row of FILTERED_CLE — must NOT be linked
+        Building.objects.create(
+            rnb_id="FOUR",
+            status="constructed",
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [-0.5225, 44.833],
+                                [-0.5225, 44.832],
+                                [-0.522, 44.832],
+                                [-0.522, 44.833],
+                                [-0.5225, 44.833],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+        )
+
+        bulk_launch_uuid = uuid.uuid4()
+        create_dpt_bal_rnb_links({"dpt": "01"}, bulk_launch_uuid)
+
+        # THREE was linked via the bâtiment row
+        bdg_three = Building.objects.get(rnb_id="THREE")
+        self.assertIn("FILTERED_CLE", bdg_three.addresses_id)
+
+        # FOUR was NOT linked — the entrée row was filtered out
+        bdg_four = Building.objects.get(rnb_id="FOUR")
+        self.assertFalse(bdg_four.addresses_id)
 
 
 class BALImportWithUnknownCleInterop(TestCase):
@@ -527,3 +603,716 @@ class LinkSearch(TestCase):
         # Since the building is already linked to the address, we should not link it again
         bdg = find_bdg_to_link(address_point, address_id)
         self.assertIsNone(bdg)
+
+    def test_address_on_plot(self):
+        """
+        One building is fully on the plot
+        We expect this building to be returned
+        """
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [4.336596580524599, 44.140553844425796],
+                                [4.336192402642638, 44.13951021813696],
+                                [4.337912139939817, 44.13889028971644],
+                                [4.338233104728431, 44.1401187654246],
+                                [4.336596580524599, 44.140553844425796],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building", "rnb_id": "GOOD"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [4.336733090548734, 44.140368534326285],
+                                [4.336733090548734, 44.14015863712456],
+                                [4.337056911871059, 44.14015863712456],
+                                [4.337056911871059, 44.140368534326285],
+                                [4.336733090548734, 44.140368534326285],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": {
+                        "coordinates": [4.337658457946446, 44.13921446369753],
+                        "type": "Point",
+                    },
+                    "id": 2,
+                },
+            ],
+        }
+
+        bdg = self._run_geojson_scenario(data)
+
+        self.assertIsNotNone(bdg)
+        self.assertEqual(bdg.rnb_id, "GOOD")
+
+    def test_two_buildings_on_plot(self):
+        """
+        Two buildings are fully covered by the plot.
+        We expect None
+        """
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7331853542955002, 45.87125206781718],
+                                [2.7341582052359854, 45.87101726197966],
+                                [2.734407157530427, 45.87124346238235],
+                                [2.7344106887536554, 45.87184706893788],
+                                [2.7332559787598996, 45.87192943429352],
+                                [2.7331853542955002, 45.87125206781718],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7333795706323656, 45.87176839139161],
+                                [2.733353086458237, 45.87159013733972],
+                                [2.733676193383957, 45.87155202777859],
+                                [2.733681490218771, 45.87177699674518],
+                                [2.7333795706323656, 45.87176839139161],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.733826270370713, 45.871759786036705],
+                                [2.733815676701113, 45.871545881072706],
+                                [2.7342429547105667, 45.87150900082332],
+                                [2.734209408089953, 45.871764703382524],
+                                [2.733826270370713, 45.871759786036705],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 2,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": {
+                        "coordinates": [2.7340469718218685, 45.87120043511055],
+                        "type": "Point",
+                    },
+                    "id": 3,
+                },
+            ],
+        }
+
+        bdg = self._run_geojson_scenario(data)
+
+        self.assertIsNone(bdg)
+
+    def test_ambiguous_second_building_on_plot(self):
+        """
+        One building is covered by the plot, the other one only intersects it.
+        We expect None
+        """
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7331853542955002, 45.87125206781718],
+                                [2.7341582052359854, 45.87101726197966],
+                                [2.734407157530427, 45.87124346238235],
+                                [2.7344106887536554, 45.87184706893788],
+                                [2.7332559787598996, 45.87192943429352],
+                                [2.7331853542955002, 45.87125206781718],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7333795706323656, 45.87176839139161],
+                                [2.733353086458237, 45.87159013733972],
+                                [2.733676193383957, 45.87155202777859],
+                                [2.733681490218771, 45.87177699674518],
+                                [2.7333795706323656, 45.87176839139161],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": {
+                        "coordinates": [2.7340469718218685, 45.87120043511055],
+                        "type": "Point",
+                    },
+                    "id": 3,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7341129160415676, 45.87166896108437],
+                                [2.7341437242809548, 45.87148407543734],
+                                [2.734510489035614, 45.87149020425315],
+                                [2.7345280937438474, 45.87168428307166],
+                                [2.7341129160415676, 45.87166896108437],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                },
+            ],
+        }
+
+        bdg = self._run_geojson_scenario(data)
+
+        self.assertIsNone(bdg)
+
+    def test_neighbor_touches_the_plot(self):
+        """
+        One building is covered by the plot, the neighbor building intersects just a little bit the plot.
+        Expect the first building to be returned
+        """
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7331853542955002, 45.87125206781718],
+                                [2.7341582052359854, 45.87101726197966],
+                                [2.734407157530427, 45.87124346238235],
+                                [2.7344106887536554, 45.87184706893788],
+                                [2.7332559787598996, 45.87192943429352],
+                                [2.7331853542955002, 45.87125206781718],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building", "rnb_id": "GOOD"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7333795706323656, 45.87176839139161],
+                                [2.733353086458237, 45.87159013733972],
+                                [2.733676193383957, 45.87155202777859],
+                                [2.733681490218771, 45.87177699674518],
+                                [2.7333795706323656, 45.87176839139161],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": {
+                        "coordinates": [2.7340469718218685, 45.87120043511055],
+                        "type": "Point",
+                    },
+                    "id": 3,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.734406522806779, 45.871627004232636],
+                                [2.7344056862377784, 45.87155419461931],
+                                [2.7345115122209336, 45.87154749612964],
+                                [2.734518204773252, 45.87163312023583],
+                                [2.734406522806779, 45.871627004232636],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 3,
+                },
+            ],
+        }
+        bdg = self._run_geojson_scenario(data)
+        self.assertIsNotNone(bdg)
+        self.assertEqual(bdg.rnb_id, "GOOD")
+
+    def test_ambiguous_plots(self):
+        """
+        Two plots are neighboring each other.
+        - one has building on it
+        - the other one is empty
+        The address point is on the occupied plot AND very close to the other one.
+        We expect None because of this ambiguity
+        """
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7331167961568212, 45.87182777699999],
+                                [2.733044241045377, 45.871250429332036],
+                                [2.7340289178587796, 45.87117104355784],
+                                [2.734099745489061, 45.87185544143196],
+                                [2.7331167961568212, 45.87182777699999],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7341005953169315, 45.871855740071226],
+                                [2.7340303340256185, 45.871170421734234],
+                                [2.7349907102394013, 45.87117402326933],
+                                [2.7349613989366333, 45.87189432559481],
+                                [2.7341005953169315, 45.871855740071226],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7331923768389004, 45.87176227000404],
+                                [2.733206170393146, 45.871522169695794],
+                                [2.733635494769999, 45.87153537523969],
+                                [2.7335613544147463, 45.87176827249843],
+                                [2.7331923768389004, 45.87176227000404],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 2,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": {
+                        "coordinates": [2.734027425020031, 45.87117466146867],
+                        "type": "Point",
+                    },
+                    "id": 4,
+                },
+            ],
+        }
+
+        bdg = self._run_geojson_scenario(data)
+        self.assertIsNone(bdg)
+
+    def test_bdg_point_on_plot(self):
+        """
+        Only one building in the plot
+        The building is a point
+        We expect the building to be returned
+        """
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7332569431928846, 45.872036457541896],
+                                [2.732778363225435, 45.871415701898314],
+                                [2.7341253342617335, 45.870983049925144],
+                                [2.7343723432767035, 45.87203108306383],
+                                [2.7332569431928846, 45.872036457541896],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building", "rnb_id": "GOOD"},
+                    "geometry": {
+                        "coordinates": [2.73341518334297, 45.8718214780171],
+                        "type": "Point",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": {
+                        "coordinates": [2.7338397300876522, 45.87124102914697],
+                        "type": "Point",
+                    },
+                    "id": 2,
+                },
+            ],
+        }
+
+        bdg = self._run_geojson_scenario(data)
+
+        self.assertIsNotNone(bdg)
+        self.assertEqual(bdg.rnb_id, "GOOD")
+
+    def test_two_bdg_points_on_plot(self):
+        """
+        Two buildings represented as points are in the plot
+        We expect None
+        """
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [2.7332569431928846, 45.872036457541896],
+                                [2.732778363225435, 45.871415701898314],
+                                [2.7341253342617335, 45.870983049925144],
+                                [2.7343723432767035, 45.87203108306383],
+                                [2.7332569431928846, 45.872036457541896],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building"},
+                    "geometry": {
+                        "coordinates": [2.73341518334297, 45.8718214780171],
+                        "type": "Point",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": {
+                        "coordinates": [2.7338397300876522, 45.87124102914697],
+                        "type": "Point",
+                    },
+                    "id": 2,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building"},
+                    "geometry": {
+                        "coordinates": [2.7337316636432263, 45.8718214780171],
+                        "type": "Point",
+                    },
+                    "id": 3,
+                },
+            ],
+        }
+
+        bdg = self._run_geojson_scenario(data)
+        self.assertIsNone(bdg)
+
+    def test_bdg_on_plot_with_address(self):
+        """
+        One building is fully on the plot
+        Initially this building has no adress : it should be returned
+        Then, we add the address to building and run again : it should return None
+        Finally, we remove the address from the building. Since the address has been in the history, it should return None
+        """
+
+        address_point = {
+            "coordinates": [4.337658457946446, 44.13921446369753],
+            "type": "Point",
+        }
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [4.336596580524599, 44.140553844425796],
+                                [4.336192402642638, 44.13951021813696],
+                                [4.337912139939817, 44.13889028971644],
+                                [4.338233104728431, 44.1401187654246],
+                                [4.336596580524599, 44.140553844425796],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building", "rnb_id": "GOOD"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [4.336733090548734, 44.140368534326285],
+                                [4.336733090548734, 44.14015863712456],
+                                [4.337056911871059, 44.14015863712456],
+                                [4.337056911871059, 44.140368534326285],
+                                [4.336733090548734, 44.140368534326285],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": address_point,
+                    "id": 2,
+                },
+            ],
+        }
+        # We create the address in advance
+        Address.objects.create(id="DUMMY")
+
+        # First run : building has no address yet
+        bdg = self._run_geojson_scenario(data)
+        self.assertIsNotNone(bdg)
+        self.assertEqual(bdg.rnb_id, "GOOD")
+
+        # Second run : building has now the address linked
+        bdg = Building.objects.get(rnb_id="GOOD")
+        bdg.addresses_id = ["DUMMY"]
+        bdg.save()
+
+        bdg = find_bdg_to_link(GEOSGeometry(json.dumps(address_point)), "DUMMY")
+        self.assertIsNone(bdg)
+
+        # Third run : building has had the address in the past
+        bdg = Building.objects.get(rnb_id="GOOD")
+        bdg.addresses_id = []
+        bdg.save()
+
+        bdg = find_bdg_to_link(GEOSGeometry(json.dumps(address_point)), "DUMMY")
+        self.assertIsNone(bdg)
+
+    def test_bdg_on_giant_plot(self):
+        """
+        One building is fully on the plot, but the plot is very big.
+        Big piece of land introduce uncertainty. An adresse close to it can be linked to a far away building on an adjacent plot.
+        We expect none
+        """
+
+        data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"type": "plot"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [0.4303592640546867, 47.46117883192349],
+                                [0.43204021684735494, 47.45958206184622],
+                                [0.43693822308253516, 47.46084683525214],
+                                [0.43666676731530174, 47.461261770056666],
+                                [0.43955335480205804, 47.4631218042509],
+                                [0.43385868707900954, 47.46592242690684],
+                                [0.426305131183085, 47.46368433414139],
+                                [0.4303592640546867, 47.46117883192349],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 0,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "building"},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [0.42967293263598094, 47.46207619665961],
+                                [0.4297779460523543, 47.461900571548625],
+                                [0.4300948286424102, 47.46199523480206],
+                                [0.4299566530939103, 47.46215093057208],
+                                [0.42967293263598094, 47.46207619665961],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "id": 1,
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"type": "address"},
+                    "geometry": {
+                        "coordinates": [0.4304945688339501, 47.46114031898324],
+                        "type": "Point",
+                    },
+                    "id": 2,
+                },
+            ],
+        }
+
+        bdg = self._run_geojson_scenario(data)
+        self.assertIsNone(bdg)
+
+    def _run_geojson_scenario(self, geojson_data):
+        """
+        It is possible to "draw" test scenario using geojson.io website
+        1. Draw the buildings as polygons (or points), add a type=building property
+        2. Draw the plot as a polygon, add a type=plot property
+        3. Draw the address point as a point, add a type=address property
+        4. Copy/paste the geojson in a new test and run it with this method
+
+        It is possible to visualize the scenario with the geojson.io website
+        First copy the geojson in the test
+        Paste it in https://jsonlint.com/, then validate and fix it
+        Then paste the resulting json in https://geojson.io/ to see the buildings, plots and adress point
+        """
+
+        # just to shorten the code
+        features = geojson_data["features"]
+
+        # ###
+        # 1. We create all the models from the geojson : buildings and plots
+        # and retrieve the address point
+
+        address_point = None
+
+        for feature in features:
+
+            # create buildings
+            if feature["properties"]["type"] == "building":
+
+                rnb_id = feature["properties"].get("rnb_id", generate_rnb_id())
+
+                Building.objects.create(
+                    rnb_id=rnb_id,
+                    status="constructed",
+                    shape=GEOSGeometry(json.dumps(feature["geometry"])),
+                )
+
+            # create plots
+            elif feature["properties"]["type"] == "plot":
+
+                # convert the polygon to multipolygon
+                multipolygon = {
+                    "type": "MultiPolygon",
+                    "coordinates": [feature["geometry"]["coordinates"]],
+                }
+
+                Plot.objects.create(
+                    shape=GEOSGeometry(json.dumps(multipolygon)), id=generate(size=10)
+                )
+
+            # retrieve address point
+            elif feature["properties"]["type"] == "address":
+
+                address_point = GEOSGeometry(json.dumps(feature["geometry"]))
+
+            else:
+                raise Exception("Unknown feature type")
+
+        # ###
+        # 2. We search for the building to link to the address point
+        return find_bdg_to_link(address_point, "ANY_ADDRESS_ID")
+
+
+class FilterByPositionTest(TestCase):
+    def test_filter_by_position(self):
+        """
+        When a cle_interop has at least one row with position="bâtiment", only
+        those rows are kept. For cle_interop values without any "bâtiment" row,
+        all rows are kept.
+        """
+        rows = [
+            # cle_interop A has one "bâtiment" row and two others → keep only the "bâtiment" one
+            {"cle_interop": "A", "position": "entrée"},
+            {"cle_interop": "A", "position": "bâtiment"},
+            {"cle_interop": "A", "position": "délivrance postale"},
+            # cle_interop B has no "bâtiment" row → keep all rows
+            {"cle_interop": "B", "position": "entrée"},
+            {"cle_interop": "B", "position": "délivrance postale"},
+        ]
+
+        result = filter_by_position(rows)
+
+        self.assertEqual(len(result), 3)
+
+        a_rows = [r for r in result if r["cle_interop"] == "A"]
+        self.assertEqual(len(a_rows), 1)
+        self.assertEqual(a_rows[0]["position"], "bâtiment")
+
+        b_rows = [r for r in result if r["cle_interop"] == "B"]
+        self.assertEqual(len(b_rows), 2)

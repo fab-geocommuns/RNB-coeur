@@ -3,12 +3,16 @@ from uuid import UUID
 
 from django.contrib.gis.geos import Point
 from django.test import TestCase
+from django.test import TransactionTestCase
 
 import batid.tests.helpers as helpers
 from batid.models import Address
 from batid.services.imports.update_addresses_ban import _expand_street_abbreviations
+from batid.services.imports.update_addresses_ban import _mark_existing_addresses
 from batid.services.imports.update_addresses_ban import _streets_match
-from batid.services.imports.update_addresses_ban import _update_batch
+from batid.services.imports.update_addresses_ban import (
+    delete_unlinked_obsolete_addresses,
+)
 from batid.services.imports.update_addresses_ban import flag_addresses_from_ban_file
 from batid.services.imports.update_addresses_ban import normalize_text
 from batid.services.imports.update_addresses_ban import (
@@ -20,26 +24,18 @@ class TestUpdateBatch(TestCase):
     def test_update_existing_address(self):
         Address.objects.create(id="04001_test_00001", source="ban")
 
-        batch = [
-            {
-                "cle_interop": "04001_test_00001",
-            }
-        ]
+        batch = ["04001_test_00001"]
 
-        updated = _update_batch(batch)
+        updated = _mark_existing_addresses(batch)
 
         self.assertEqual(updated, 1)
         addr = Address.objects.get(id="04001_test_00001")
         self.assertTrue(addr.still_exists)
 
     def test_address_not_in_db_is_ignored(self):
-        batch = [
-            {
-                "cle_interop": "99999_unknown_00001",
-            }
-        ]
+        batch = ["99999_unknown_00001"]
 
-        updated = _update_batch(batch)
+        updated = _mark_existing_addresses(batch)
 
         self.assertEqual(updated, 0)
         self.assertFalse(Address.objects.filter(id="99999_unknown_00001").exists())
@@ -66,7 +62,7 @@ class TestFlagAddressesFromBanFile(TestCase):
         result = flag_addresses_from_ban_file({"dpt": "04"})
 
         self.assertEqual(result["dpt"], "04")
-        self.assertEqual(result["updated"], 3)
+        self.assertEqual(result["still_exist"], 3)
 
         # Check addresses have still_exists=True
         addr1 = Address.objects.get(id="04001_pk624e_00001")
@@ -89,7 +85,7 @@ class TestFlagAddressesFromBanFile(TestCase):
         result = flag_addresses_from_ban_file({"dpt": "04"})
 
         # Only 1 address should be updated (the one that exists in DB)
-        self.assertEqual(result["updated"], 1)
+        self.assertEqual(result["still_exist"], 1)
 
         # The unknown address from fixture should not be created
         self.assertFalse(Address.objects.filter(id="04001_unknown_99999").exists())
@@ -116,6 +112,22 @@ class TestFlagAddressesFromBanFile(TestCase):
         # Check obsolete count in result
         self.assertEqual(result["obsolete"], 1)
 
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_flag_addresses_does_not_touch_other_departments(
+        self, mock_remove, mock_find
+    ):
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+
+        # Create an address in another department
+        other_dept_addr = Address.objects.create(id="75001_other_00001", source="ban")
+
+        flag_addresses_from_ban_file({"dpt": "04"})
+
+        # Address from other department should remain untouched (still_exists=None)
+        other_dept_addr.refresh_from_db()
+        self.assertIsNone(other_dept_addr.still_exists)
+
 
 class TestNormalizeText(TestCase):
     def test_removes_accents_and_lowercases(self):
@@ -129,7 +141,7 @@ class TestNormalizeText(TestCase):
 
     def test_apostrophe(self):
         self.assertEqual(
-            normalize_text("Rue de l’Artisanat"), normalize_text("rue de l'artisanat")
+            normalize_text("Rue de l'Artisanat"), normalize_text("rue de l'artisanat")
         )
 
     def test_dash(self):
@@ -462,3 +474,56 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         # Distance should be present and > 20m
         self.assertIn("distance_m", addr.ban_update_details)
         self.assertGreater(addr.ban_update_details["distance_m"], 15)
+
+
+class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
+    def test_obsolete_address_not_linked_is_deleted(self):
+        Address.objects.create(id="04001_old_00001", source="ban", still_exists=False)
+
+        deleted = delete_unlinked_obsolete_addresses()
+
+        self.assertEqual(deleted, {"deleted_addresses": 1})
+        self.assertFalse(Address.objects.filter(id="04001_old_00001").exists())
+
+    def test_obsolete_address_linked_to_current_building_is_kept(self):
+        Address.objects.create(id="04001_old_00002", source="ban", still_exists=False)
+        bdg = helpers.create_default_bdg()
+        bdg.addresses_id = ["04001_old_00002"]
+        bdg.save()
+
+        deleted = delete_unlinked_obsolete_addresses()
+
+        self.assertEqual(deleted, {"deleted_addresses": 0})
+        self.assertTrue(Address.objects.filter(id="04001_old_00002").exists())
+
+    def test_obsolete_address_linked_to_building_history_is_kept(self):
+        Address.objects.create(id="04001_old_00003", source="ban", still_exists=False)
+        bdg = helpers.create_default_bdg()
+        bdg.addresses_id = ["04001_old_00003"]
+        bdg.save()
+
+        # Update building with empty addresses — the trigger saves the old
+        # version (with the address) to batid_building_history
+        bdg.update(
+            user=None,
+            event_origin={"source": "test"},
+            status=None,
+            addresses_id=[],
+        )
+
+        # Address is no longer in batid_building but still in history
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_id, [])
+
+        deleted = delete_unlinked_obsolete_addresses()
+
+        self.assertEqual(deleted, {"deleted_addresses": 0})
+        self.assertTrue(Address.objects.filter(id="04001_old_00003").exists())
+
+    def test_address_with_still_exists_true_is_not_touched(self):
+        Address.objects.create(id="04001_ok_00001", source="ban", still_exists=True)
+
+        deleted = delete_unlinked_obsolete_addresses()
+
+        self.assertEqual(deleted, {"deleted_addresses": 0})
+        self.assertTrue(Address.objects.filter(id="04001_ok_00001").exists())
