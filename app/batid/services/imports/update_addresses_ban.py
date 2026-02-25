@@ -2,6 +2,8 @@ import csv
 import logging
 import os
 
+from django.db import connection
+
 from batid.models import Address
 from batid.services.source import Source
 
@@ -18,7 +20,7 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
     src = Source("ban_with_ids")
     src.set_params(src_params)
 
-    updated_count = 0
+    still_exists_count = 0
     seen_cle_interops: set[str] = set()
     file_path = src.find(src.filename)
 
@@ -33,11 +35,11 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
             seen_cle_interops.add(cle_interop)
 
             if len(batch) >= batch_size:
-                updated_count += _mark_existing_addresses(batch)
+                still_exists_count += _mark_existing_addresses(batch)
                 batch = []
 
         if batch:
-            updated_count += _mark_existing_addresses(batch)
+            still_exists_count += _mark_existing_addresses(batch)
 
     # Clean up the file
     os.remove(file_path)
@@ -46,9 +48,9 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
     obsolete_count = _mark_obsolete_addresses(dpt, seen_cle_interops)
 
     logger.info(
-        f"[{dpt}] Updated {updated_count} addresses, marked {obsolete_count} as obsolete"
+        f"[{dpt}] Confirmed existence of {still_exists_count} addresses, marked {obsolete_count} as obsolete"
     )
-    return {"dpt": dpt, "updated": updated_count, "obsolete": obsolete_count}
+    return {"dpt": dpt, "still_exist": still_exists_count, "obsolete": obsolete_count}
 
 
 def _mark_existing_addresses(cle_interops: list) -> int:
@@ -78,3 +80,54 @@ def _mark_obsolete_addresses(dpt: str, seen_cle_interops: set) -> int:
     )
 
     return obsolete_count
+
+
+def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
+    """Delete obsolete addresses (still_exists=False) that are not linked
+    to any building (current or historical).
+
+    Uses the @> operator to leverage the GIN index on addresses_id.
+    """
+    total_deleted = 0
+
+    with connection.cursor() as cursor:
+        # this trigger is triggered by an address deletion : it checks if Building is referencing
+        # the address and deletes the address from the addresses_id array if it is the case.
+        # In our case, by definition, we delete addresses that are not linked to any building.
+        # the trigger is time consuming, disabling it doubles the deletion process speed.
+        cursor.execute(
+            "ALTER TABLE batid_address DISABLE TRIGGER delete_address_id_from_building_trigger"
+        )
+    try:
+        while True:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    DELETE FROM batid_address
+                    WHERE id IN (
+                        SELECT a.id FROM batid_address a
+                        WHERE a.still_exists = False
+                        AND NOT EXISTS (
+                            SELECT 1 FROM batid_building_with_history b
+                            WHERE b.addresses_id @> ARRAY[a.id]
+                        )
+                        LIMIT %s
+                    )
+                    """,
+                    [batch_size],
+                )
+                deleted = cursor.rowcount
+
+            if deleted == 0:
+                break
+
+            total_deleted += deleted
+            logger.info(f"Deleted {deleted} unlinked obsolete addresses (batch)")
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "ALTER TABLE batid_address ENABLE TRIGGER delete_address_id_from_building_trigger"
+            )
+
+    logger.info(f"Total deleted unlinked obsolete addresses: {total_deleted}")
+    return {"deleted_addresses": total_deleted}

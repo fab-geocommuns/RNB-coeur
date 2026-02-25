@@ -462,3 +462,13 @@ def queue_ban_address_flag_exists(
         chain(*tasks)()
 
     return f"Queued {len(dpts)} departments"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def delete_unlinked_obsolete_addresses_task(batch_size: int = 10000):
+    from batid.services.imports.update_addresses_ban import (
+        delete_unlinked_obsolete_addresses,
+    )
+
+    return delete_unlinked_obsolete_addresses(batch_size)
