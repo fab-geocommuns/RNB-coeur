@@ -29,7 +29,7 @@ def _create_ban_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
     # 1) We download the BAN file
     dl_task = Signature(  # type: ignore[var-annotated]
         "batid.tasks.dl_source",
-        args=["ban", src_params],  # type: ignore[arg-type]
+        args=["ban_with_ids", src_params],  # type: ignore[arg-type]
         immutable=True,
     )
     tasks.append(dl_task)
