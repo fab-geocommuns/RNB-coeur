@@ -60,7 +60,8 @@ class Migration(migrations.Migration):
             DROP FUNCTION IF EXISTS public.check_address_is_linked();
 
             -- Recreate the old trigger and function
-            {DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL}
-            """,
+            
+            """
+            + DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL,
         ),
     ]
