@@ -1,4 +1,13 @@
+import importlib
+
 from django.db import migrations
+
+_migration0081 = importlib.import_module(
+    "batid.migrations.0081_buildingaddressesreadonly_building_addresses_id_and_more"
+)
+DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL = (
+    _migration0081.DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL
+)
 
 
 class Migration(migrations.Migration):
@@ -10,8 +19,9 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunSQL(
             """
-            -- Disable the old trigger
-            ALTER TABLE batid_address DISABLE TRIGGER delete_address_id_from_building_trigger;
+            -- Drop the old trigger and function
+            DROP TRIGGER IF EXISTS delete_address_id_from_building_trigger ON batid_address;
+            DROP FUNCTION IF EXISTS public.delete_address_id_from_building();
 
             -- Create the new function and trigger
             CREATE OR REPLACE FUNCTION public.check_address_is_linked()
@@ -44,13 +54,13 @@ class Migration(migrations.Migration):
 
             CREATE TRIGGER prevent_delete_linked_address_trigger BEFORE DELETE ON batid_address FOR EACH ROW EXECUTE FUNCTION check_address_is_linked();
             """,
-            reverse_sql="""
+            reverse_sql=f"""
             -- Drop the new trigger and function
             DROP TRIGGER IF EXISTS prevent_delete_linked_address_trigger ON batid_address;
             DROP FUNCTION IF EXISTS public.check_address_is_linked();
 
-            -- Re-enable the old trigger
-            ALTER TABLE batid_address ENABLE TRIGGER delete_address_id_from_building_trigger;
+            -- Recreate the old trigger and function
+            {DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL}
             """,
         ),
     ]

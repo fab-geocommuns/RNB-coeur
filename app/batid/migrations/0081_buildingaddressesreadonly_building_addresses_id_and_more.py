@@ -8,6 +8,28 @@ from django.db import models
 from batid.migrations.utils.create_view import sql_migration_building_with_history
 
 
+DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL = """
+            CREATE OR REPLACE FUNCTION public.delete_address_id_from_building()
+            RETURNS trigger
+            LANGUAGE plpgsql
+            AS $function$
+            DECLARE
+                address_id VARCHAR;
+            BEGIN
+                IF TG_OP = 'DELETE' THEN
+                    -- remove the address_id from the addresses_id array
+                    UPDATE batid_building SET addresses_id = array_remove(addresses_id, OLD.id) WHERE addresses_id @> ARRAY[OLD.id];
+                END IF;
+
+                RETURN NEW;
+            END;
+            $function$
+            ;
+
+            CREATE TRIGGER delete_address_id_from_building_trigger AFTER DELETE ON batid_address FOR EACH ROW EXECUTE FUNCTION delete_address_id_from_building();
+"""
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -79,7 +101,7 @@ class Migration(migrations.Migration):
         ),
         sql_migration_building_with_history(),
         migrations.RunSQL(
-            """
+            f"""
             CREATE OR REPLACE FUNCTION public.keep_building_address_link_updated()
             RETURNS trigger
             LANGUAGE plpgsql
@@ -127,24 +149,8 @@ class Migration(migrations.Migration):
 
             create trigger building_addresses_trigger AFTER insert or update or delete on public.batid_building for each row execute function keep_building_address_link_updated();
 
-            CREATE OR REPLACE FUNCTION public.delete_address_id_from_building()
-            RETURNS trigger
-            LANGUAGE plpgsql
-            AS $function$
-            DECLARE
-                address_id VARCHAR;
-            BEGIN
-                IF TG_OP = 'DELETE' THEN
-                    -- remove the address_id from the addresses_id array
-                    UPDATE batid_building SET addresses_id = array_remove(addresses_id, OLD.id) WHERE addresses_id @> ARRAY[OLD.id];
-                END IF;
-
-                RETURN NEW;
-            END;
-            $function$
-            ;
-
-            CREATE TRIGGER delete_address_id_from_building_trigger AFTER DELETE ON batid_address FOR EACH ROW EXECUTE FUNCTION delete_address_id_from_building();
+            {DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL}
+            
             """,
             reverse_sql="""
             DROP TRIGGER building_addresses_trigger ON batid_building;
