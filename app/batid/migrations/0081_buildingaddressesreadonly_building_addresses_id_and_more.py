@@ -149,7 +149,7 @@ class Migration(migrations.Migration):
 
             create trigger building_addresses_trigger AFTER insert or update or delete on public.batid_building for each row execute function keep_building_address_link_updated();
 
-            
+
 
             """
             + DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL,
