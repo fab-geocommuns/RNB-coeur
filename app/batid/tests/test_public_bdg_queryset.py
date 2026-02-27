@@ -26,7 +26,7 @@ class SearchStatusTestCase(TestCase):
 
         qs = list_bdgs(params)
 
-        self.assertEqual(len(qs), 1)
+        self.assertEqual(len(qs), 2)
 
         rnb_id = qs[0].rnb_id
         self.assertEqual(rnb_id, "BDG-CONSTR")
@@ -38,7 +38,7 @@ class SearchStatusTestCase(TestCase):
 
         qs = list_bdgs(params)
 
-        self.assertEqual(len(list(qs)), 2)
+        self.assertEqual(len(list(qs)), 3)
 
     def _bdg_constructed(self):
         coords = {
@@ -113,7 +113,7 @@ class SearchStatusTestCase(TestCase):
             rnb_id="BDG-PROJ",
             shape=geom,
             point=geom.point_on_surface,
-            status="constructionProject",
+            status="constructed",
         )
 
         return b

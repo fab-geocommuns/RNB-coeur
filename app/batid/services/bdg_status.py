@@ -1,19 +1,12 @@
 class BuildingStatus:
     # if a new status is added to the list, the front-end code should be updated accordingly
     TYPES = [
-        {"key": "constructionProject", "label": "En projet", "public": False},
         {
             "key": "canceledConstructionProject",
             "label": "Projet annulé",
             "public": False,
         },
-        {
-            "key": "ongoingConstruction",
-            "label": "Construction en cours",
-            "public": True,
-        },
         {"key": "constructed", "label": "Construit", "public": True},
-        {"key": "ongoingChange", "label": "En cours de modification", "public": True},
         {
             "key": "notUsable",
             "label": "Non utilisable",
@@ -32,16 +25,13 @@ class BuildingStatus:
     # It is used in many places:
     # eg: default status values in the listing API or the Candidate Inspector to match buildings
     REAL_BUILDINGS_STATUS = [
-        "ongoingConstruction",
         "constructed",
-        "ongoingChange",
         "notUsable",
     ]
 
     # Those are the status which trigger the creation of a "constructed" status
     # if the building does not have one
     POST_CONSTRUCTED_KEYS = [
-        "ongoingChange",
         "notUsable",
         "demolished",
     ]
