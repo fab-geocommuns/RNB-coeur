@@ -101,7 +101,7 @@ class Migration(migrations.Migration):
         ),
         sql_migration_building_with_history(),
         migrations.RunSQL(
-            f"""
+            """
             CREATE OR REPLACE FUNCTION public.keep_building_address_link_updated()
             RETURNS trigger
             LANGUAGE plpgsql
@@ -149,9 +149,10 @@ class Migration(migrations.Migration):
 
             create trigger building_addresses_trigger AFTER insert or update or delete on public.batid_building for each row execute function keep_building_address_link_updated();
 
-            {DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL}
+            
 
-            """,
+            """
+            + DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL,
             reverse_sql="""
             DROP TRIGGER building_addresses_trigger ON batid_building;
             DROP FUNCTION keep_building_address_link_updated();
