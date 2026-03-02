@@ -6,6 +6,11 @@ common_schedule = {
         # everyday at 3am
         "schedule": crontab(hour=3, minute=0),
     },
+    "close_irrelevant_reports": {
+        "task": "batid.tasks.close_irrelevant_reports",
+        # everyday at 4am
+        "schedule": crontab(hour=4, minute=0),
+    },
 }
 
 development_schedule = {

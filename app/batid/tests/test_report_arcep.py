@@ -7,6 +7,7 @@ from django.test import TestCase
 
 from batid.models.building import Building
 from batid.models.report import Report
+from batid.services.reports.arcep import ARCEP_TAG_NAME
 from batid.services.reports.arcep import create_reports
 from batid.services.reports.arcep import dl_and_create_arcep_reports
 from batid.tests import helpers
@@ -89,7 +90,7 @@ class ReportArcepTestCase(TestCase):
         # Case 1: Existing report with tag nearby -> No report
         # Create existing report
         existing_report = Report.objects.create(point=p, status="pending")
-        existing_report.tags.add("Nouveau bâtiment")
+        existing_report.tags.add(ARCEP_TAG_NAME)
 
         reports_uuid = create_reports([p])
         # Should be 0 created because existing one is there
@@ -118,3 +119,96 @@ class ReportArcepTestCase(TestCase):
         count = Report.objects.all().count()
         # There are 5 points in the fixture, but one is too close to another report
         self.assertEqual(count, 4)
+
+    def test_close_irrelevant_reports(self):
+        from batid.services.reports.arcep import reject_irrelevant_arcep_reports
+
+        # 1. Mise en place : une position
+        p = Point(4.0, 48.0, srid=4326)
+
+        # 2. Cas : un rapport ARCEP existant + un bâtiment réel à proximité
+        report = Report.objects.create(point=p, status="pending")
+        report.tags.add(ARCEP_TAG_NAME)
+
+        # Bâtiment réel et actif
+        poly = Polygon.from_bbox((4.0, 48.0, 4.0001, 48.0001))
+        poly.srid = 4326
+        Building.objects.create(
+            rnb_id="BDG-CLS-001",
+            point=p,
+            shape=poly,
+            status="constructed",
+            is_active=True,
+        )
+
+        reject_irrelevant_arcep_reports()
+        report.refresh_from_db()
+        self.assertEqual(report.status, "rejected")
+
+        # Vérification du message
+        last_msg = report.messages.last()
+        self.assertIn(
+            "Nous fermons ce signalement car le bâtiment BDG-CLS-001 est à moins de 10 mètres.",
+            last_msg.text,
+        )
+
+    def test_close_irrelevant_reports_no_action(self):
+        from batid.services.reports.arcep import reject_irrelevant_arcep_reports
+
+        p = Point(5.0, 49.0, srid=4326)
+
+        # Cas 1 : Bâtiment démoli (non réel) à proximité
+        report_demolished = Report.objects.create(point=p, status="pending")
+        report_demolished.tags.add(ARCEP_TAG_NAME)
+
+        poly = Polygon.from_bbox((5.0, 49.0, 5.0001, 49.0001))
+        poly.srid = 4326
+        Building.objects.create(
+            rnb_id="BDG-CLS-002",
+            point=p,
+            shape=poly,
+            status="demolished",  # Pas un statut "réel"
+            is_active=True,
+        )
+
+        reject_irrelevant_arcep_reports()
+        report_demolished.refresh_from_db()
+        self.assertEqual(report_demolished.status, "pending")
+
+        # Cas 2 : Bâtiment réel mais inactif
+        p2 = Point(5.1, 49.1, srid=4326)
+        report_inactive = Report.objects.create(point=p2, status="pending")
+        report_inactive.tags.add(ARCEP_TAG_NAME)
+
+        poly2 = Polygon.from_bbox((5.1, 49.1, 5.1001, 49.1001))
+        poly2.srid = 4326
+        Building.objects.create(
+            rnb_id="BDG-CLS-003",
+            point=p2,
+            shape=poly2,
+            status="constructed",
+            is_active=False,  # Inactif
+        )
+
+        reject_irrelevant_arcep_reports()
+        report_inactive.refresh_from_db()
+        self.assertEqual(report_inactive.status, "pending")
+
+        # Cas 3 : Pas de tag "Nouveau bâtiment"
+        p3 = Point(5.2, 49.2, srid=4326)
+        report_tag = Report.objects.create(point=p3, status="pending")
+        report_tag.tags.add("Autre tag")
+
+        poly3 = Polygon.from_bbox((5.2, 49.2, 5.2001, 49.2001))
+        poly3.srid = 4326
+        Building.objects.create(
+            rnb_id="BDG-CLS-004",
+            point=p3,
+            shape=poly3,
+            status="constructed",
+            is_active=True,
+        )
+
+        reject_irrelevant_arcep_reports()
+        report_tag.refresh_from_db()
+        self.assertEqual(report_tag.status, "pending")
