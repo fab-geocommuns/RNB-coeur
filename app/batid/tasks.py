@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 from celery import chain
 from celery import shared_task
+from celery import Signature
 
 from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list
@@ -424,3 +425,87 @@ def manual_raise():
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def create_arcep_reports() -> uuid.UUID:
     return dl_and_create_arcep_reports()
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def flag_addresses_from_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
+    from batid.services.imports.update_addresses_ban import flag_addresses_from_ban_file
+
+    return flag_addresses_from_ban_file(src_params)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_ban_address_flag_exists(
+    dpt_start: Optional[str] = None,
+    dpt_end: Optional[str] = None,
+):
+    """Queue address flag verification tasks for all departments."""
+    dpts = dpts_list(dpt_start, dpt_end)
+    bulk_launch_uuid = str(uuid.uuid4())
+
+    for dpt in dpts:
+        src_params = {"dpt": dpt}
+        tasks = [
+            Signature(
+                "batid.tasks.dl_source",
+                args=("ban_with_ids", src_params),
+                immutable=True,
+            ),
+            Signature(
+                "batid.tasks.flag_addresses_from_ban",
+                args=(src_params, bulk_launch_uuid),
+                immutable=True,
+            ),
+        ]
+        chain(*tasks)()
+
+    return f"Queued {len(dpts)} departments"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def update_addresses_text_ban(src_params: dict, batch_size: int = 10000):  # type: ignore[assignment]
+    from batid.services.imports.update_addresses_ban import (
+        update_addresses_text_and_ban_id,
+    )
+
+    return update_addresses_text_and_ban_id(src_params, batch_size=batch_size)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_ban_address_text_update(
+    dpt_start: Optional[str] = None,
+    dpt_end: Optional[str] = None,
+    batch_size: int = 10000,
+):
+    """Queue text update tasks for all departments."""
+    dpts = dpts_list(dpt_start, dpt_end)
+
+    for dpt in dpts:
+        src_params = {"dpt": dpt}
+        tasks = [
+            Signature(
+                "batid.tasks.dl_source",
+                args=("ban_with_ids", src_params),
+                immutable=True,
+            ),
+            Signature(
+                "batid.tasks.update_addresses_text_ban",
+                args=(src_params, batch_size),
+                immutable=True,
+            ),
+        ]
+        chain(*tasks)()
+
+    return f"Queued text update for {len(dpts)} departments"
+
+
+def delete_unlinked_obsolete_addresses_task(batch_size: int = 10000):
+    from batid.services.imports.update_addresses_ban import (
+        delete_unlinked_obsolete_addresses,
+    )
+
+    return delete_unlinked_obsolete_addresses(batch_size)
