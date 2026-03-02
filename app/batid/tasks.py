@@ -431,8 +431,8 @@ def create_arcep_reports() -> uuid.UUID:
 @shared_task
 def close_irrelevant_reports():
     reject_irrelevant_arcep_reports()
-    
-    
+
+
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def flag_addresses_from_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
