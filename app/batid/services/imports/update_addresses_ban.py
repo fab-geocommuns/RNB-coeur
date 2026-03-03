@@ -274,7 +274,11 @@ def _update_text_batch(batch: list) -> dict:
     ban_data = {item["cle_interop"]: item for item in batch}
     cle_interops = list(ban_data.keys())
 
-    addresses = list(Address.objects.filter(id__in=cle_interops, still_exists=True))
+    addresses = list(
+        Address.objects.filter(
+            id__in=cle_interops, still_exists=True, ban_update_flag__isnull=True
+        )
+    )
 
     updated = 0
     mismatched = 0
