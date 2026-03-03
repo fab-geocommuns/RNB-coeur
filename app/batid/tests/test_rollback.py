@@ -244,7 +244,7 @@ class TestUnitaryRollback(TransactionTestCase):
                     "shape": "POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))",
                 },
                 {
-                    "status": "constructionProject",
+                    "status": "constructed",
                     "addresses_cle_interop": [self.address_1.id],
                     "shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
                 },
@@ -299,7 +299,7 @@ class TestUnitaryRollback(TransactionTestCase):
                     "shape": "POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))",
                 },
                 {
-                    "status": "constructionProject",
+                    "status": "constructed",
                     "addresses_cle_interop": [self.address_1.id],
                     "shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
                 },
@@ -895,7 +895,7 @@ class TestGlobalRollback(TransactionTestCase):
                     "shape": "POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))",
                 },
                 {
-                    "status": "constructionProject",
+                    "status": "constructed",
                     "addresses_cle_interop": [self.address_1.id],
                     "shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
                 },

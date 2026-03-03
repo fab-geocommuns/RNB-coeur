@@ -17,7 +17,6 @@ class SearchStatusTestCase(TestCase):
     def setUp(self) -> None:
         self._bdg_constructed()
         self._bdg_demolished()
-        self._bdg_construction_project()
 
     def test_status_search(self):
         params = {
@@ -88,32 +87,6 @@ class SearchStatusTestCase(TestCase):
             shape=geom,
             point=geom.point_on_surface,
             status="demolished",
-        )
-
-        return b
-
-    def _bdg_construction_project(self):
-        coords = {
-            "coordinates": [
-                [
-                    [2.6000591402070654, 48.814763140563656],
-                    [2.599867663762808, 48.814565787565414],
-                    [2.600525343722012, 48.8144177723068],
-                    [2.600708495117374, 48.81477684560585],
-                    [2.600367167550303, 48.81493074787656],
-                    [2.6000591402070654, 48.814763140563656],
-                ]
-            ],
-            "type": "MultiPolygon",
-        }
-
-        geom = GEOSGeometry(json.dumps(coords), srid=4326)
-
-        b = Building.objects.create(
-            rnb_id="BDG-PROJ",
-            shape=geom,
-            point=geom.point_on_surface,
-            status="constructionProject",
         )
 
         return b

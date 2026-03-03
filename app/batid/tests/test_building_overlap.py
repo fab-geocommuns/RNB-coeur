@@ -415,13 +415,13 @@ class TestBuildingOverlapIntegration(TestCase):
         building.update(
             user=self.user,
             event_origin={"source": "test"},
-            status="ongoingChange",
+            status="constructed",
             addresses_id=None,
             shape=None,  # No shape change
         )
 
         building.refresh_from_db()
-        self.assertEqual(building.status, "ongoingChange")
+        self.assertEqual(building.status, "constructed")
 
     def test_split_with_non_overlapping_children_succeeds(self):
         """Building.split should succeed when children don't overlap existing buildings."""
