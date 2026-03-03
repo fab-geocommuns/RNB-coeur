@@ -54,7 +54,7 @@ class OGCEndpointsTest(APITestCase):
             rnb_id="BDGPROJ",
             shape=geom,
             point=geom.point_on_surface,
-            status="canceledConstructionProject",
+            status="demolished",
         )
 
         # Check buildings in a city
