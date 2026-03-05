@@ -277,7 +277,8 @@ class BuildingsEndpointsTest(APITestCase):
 
     def test_bdg_with_cle_interop_ban(self):
         cle_interop_ban = "33522_2620_00021"
-        Address.objects.create(id=cle_interop_ban)
+        ban_id = "fd9736e8-9970-4127-84eb-f2886043c122"
+        Address.objects.create(id=cle_interop_ban, ban_id=ban_id)
         Address.objects.create(id="123")
 
         bdg = Building.objects.create(
@@ -301,6 +302,7 @@ class BuildingsEndpointsTest(APITestCase):
                     "addresses": [
                         {
                             "id": "33522_2620_00021",
+                            "ban_id": ban_id,
                             "source": "",
                             "street_number": None,
                             "street_rep": None,

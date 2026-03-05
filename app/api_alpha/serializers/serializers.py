@@ -53,6 +53,7 @@ class AddressSerializer(serializers.ModelSerializer):
         model = Address
         fields = [
             "id",
+            "ban_id",
             "source",
             "street_number",
             "street_rep",
