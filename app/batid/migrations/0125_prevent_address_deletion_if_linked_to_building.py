@@ -13,7 +13,7 @@ DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL = (
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0123_address_ban_update_details"),
+        ("batid", "0124_remove_unused_building_statuses"),
     ]
 
     operations = [
