@@ -476,6 +476,54 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         self.assertGreater(addr.ban_update_details["distance_m"], 15)
 
 
+class TestUpdateAddressesTextAndBanIdDuplicateBanId(TestCase):
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_duplicate_ban_id_second_row_is_skipped(self, _mock_remove, mock_find):
+        """
+        This test exists because unfortunately we can have BAN files with duplicated ban_ids.
+        """
+        mock_find.return_value = helpers.fixture_path(
+            "ban_with_ids_duplicate_ban_id.csv"
+        )
+
+        # Two addresses in DB, both present in the fixture with the same id_ban_adresse
+        Address.objects.create(
+            id="85288_p1h9zg_02965",
+            source="ban",
+            still_exists=True,
+            street="route de la martiniere",
+            street_number="2965",
+            city_name="talmont-saint-hilaire",
+            city_zipcode="85440",
+            city_insee_code="85288",
+        )
+        Address.objects.create(
+            id="85103_0099_02965",
+            source="ban",
+            still_exists=True,
+            street="route de la martiniere",
+            street_number="2965",
+            city_name="grosbreuil",
+            city_zipcode="85440",
+            city_insee_code="85103",
+        )
+
+        result = update_addresses_text_and_ban_id({"dpt": "85"})
+
+        # Only the first row is processed; the second (duplicate ban_id) is skipped
+        self.assertEqual(result["updated"], 1)
+
+        addr1 = Address.objects.get(id="85288_p1h9zg_02965")
+        self.assertEqual(addr1.ban_id, UUID("9e63d301-1c76-4d33-a508-9ea9e39293d2"))
+        self.assertEqual(addr1.ban_update_flag, "update")
+
+        # Second address was skipped entirely: no ban_id, no update flag
+        addr2 = Address.objects.get(id="85103_0099_02965")
+        self.assertIsNone(addr2.ban_id)
+        self.assertIsNone(addr2.ban_update_flag)
+
+
 class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
     def test_obsolete_address_not_linked_is_deleted(self):
         Address.objects.create(id="04001_old_00001", source="ban", still_exists=False)
