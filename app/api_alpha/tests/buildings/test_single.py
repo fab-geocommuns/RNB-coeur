@@ -88,6 +88,7 @@ class SingleBuildingTest(APITestCase):
             [
                 {
                     "id": "addr-1",
+                    "ban_id": None,
                     "source": "bdnb",
                     "street_number": "3",
                     "street_rep": "",

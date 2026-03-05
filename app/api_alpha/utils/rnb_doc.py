@@ -266,6 +266,13 @@ def _get_components() -> dict:
                         "description": "Identifiant de l'adresse au sein de la Base Adresse Nationale (BAN)",
                         "example": "02191_0020_00003",
                     },
+                    "ban_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Identifiant UUID de l'adresse au sein de la Base Adresse Nationale (BAN)",
+                        "example": "a2ef3456-7890-1234-abcd-ef1234567890",
+                        "nullable": True,
+                    },
                     "source": {
                         "type": "string",
                         "description": "Source du lien bâtiment ↔ adresse",

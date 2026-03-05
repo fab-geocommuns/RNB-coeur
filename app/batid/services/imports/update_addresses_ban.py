@@ -163,8 +163,18 @@ def update_addresses_text_and_ban_id(src_params: dict, batch_size: int = 10000) 
     with open(file_path, "r") as f:
         reader = csv.DictReader(f, delimiter=";")
         batch = []
+        seen_ban_ids: set[str] = set()
 
         for row in reader:
+            ban_id = row.get("id_ban_adresse", "")
+            if ban_id and ban_id in seen_ban_ids:
+                logger.warning(
+                    f"[{dpt}] Duplicate ban_id in source file: {ban_id}, skipping row"
+                )
+                continue
+            if ban_id:
+                seen_ban_ids.add(ban_id)
+
             batch.append(
                 {
                     "cle_interop": row["id"],
@@ -174,7 +184,7 @@ def update_addresses_text_and_ban_id(src_params: dict, batch_size: int = 10000) 
                     "rep": row["rep"],
                     "code_postal": row["code_postal"],
                     "code_insee": row["code_insee"],
-                    "id_ban_adresse": row.get("id_ban_adresse", ""),
+                    "id_ban_adresse": ban_id,
                     "lon": row.get("lon", ""),
                     "lat": row.get("lat", ""),
                 }
@@ -274,7 +284,11 @@ def _update_text_batch(batch: list) -> dict:
     ban_data = {item["cle_interop"]: item for item in batch}
     cle_interops = list(ban_data.keys())
 
-    addresses = list(Address.objects.filter(id__in=cle_interops, still_exists=True))
+    addresses = list(
+        Address.objects.filter(
+            id__in=cle_interops, still_exists=True, ban_update_flag__isnull=True
+        )
+    )
 
     updated = 0
     mismatched = 0
