@@ -53,6 +53,7 @@ from batid.services.imports.import_plots import (
 from batid.services.mattermost import notify_if_error
 from batid.services.mattermost import notify_tech
 from batid.services.reports.arcep import dl_and_create_arcep_reports
+from batid.services.reports.arcep import reject_irrelevant_arcep_reports
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.source import Source
 from batid.utils.auth import make_random_password
@@ -427,6 +428,11 @@ def create_arcep_reports() -> uuid.UUID:
     return dl_and_create_arcep_reports()
 
 
+@shared_task
+def close_irrelevant_reports():
+    reject_irrelevant_arcep_reports()
+
+
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def flag_addresses_from_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
@@ -466,7 +472,7 @@ def queue_ban_address_flag_exists(
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def update_addresses_text_ban(src_params: dict, batch_size: int = 10000):  # type: ignore[assignment]
+def update_addresses_text_ban(src_params: dict, batch_size: int = 1000):  # type: ignore[assignment]
     from batid.services.imports.update_addresses_ban import (
         update_addresses_text_and_ban_id,
     )
@@ -479,7 +485,7 @@ def update_addresses_text_ban(src_params: dict, batch_size: int = 10000):  # typ
 def queue_ban_address_text_update(
     dpt_start: Optional[str] = None,
     dpt_end: Optional[str] = None,
-    batch_size: int = 10000,
+    batch_size: int = 1000,
 ):
     """Queue text update tasks for all departments."""
     dpts = dpts_list(dpt_start, dpt_end)
@@ -496,6 +502,7 @@ def queue_ban_address_text_update(
                 "batid.tasks.update_addresses_text_ban",
                 args=(src_params, batch_size),
                 immutable=True,
+                priority=8,
             ),
         ]
         chain(*tasks)()

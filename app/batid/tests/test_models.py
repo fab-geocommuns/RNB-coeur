@@ -255,7 +255,7 @@ class TestSplitBuilding(TestCase):
                     "shape": child2_point,
                 },
                 {
-                    "status": "constructionProject",
+                    "status": "constructed",
                     "addresses_cle_interop": [self.adr1.id, self.adr2.id],
                     "shape": child3_shape,
                 },
@@ -313,7 +313,7 @@ class TestSplitBuilding(TestCase):
         self.assertEqual(b4.shape.geom_type, "Polygon")
         self.assertEqual(b4.event_origin, event_origin)
         self.assertEqual(b4.parent_buildings, [b1.rnb_id])
-        self.assertEqual(b4.status, "constructionProject")
+        self.assertEqual(b4.status, "constructed")
         self.assertEqual(b4.event_id, event_id)
         self.assertEqual(b4.event_origin, event_origin)
         self.assertEqual(b4.event_type, "split")

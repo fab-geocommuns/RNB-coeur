@@ -61,7 +61,7 @@ class BuildingsEndpointsTest(APITestCase):
             rnb_id="BDGPROJ",
             shape=geom,
             point=geom.point_on_surface,
-            status="constructionProject",
+            status="demolished",
         )
 
         # Check buildings in a city
@@ -596,7 +596,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                 {
                     "ext_ids": None,
                     "rnb_id": "BDGPROJ",
-                    "status": "constructionProject",
+                    "status": "demolished",
                     "point": {
                         "type": "Point",
                         "coordinates": [1.065566787499344, 46.634163236377134],
