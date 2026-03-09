@@ -429,13 +429,11 @@ class MergeBuildings(RNBLoggingMixin, APIView):
         {
             "post": {
                 "summary": "Fusion de bâtiments",
-                "description": LiteralStr(
-                    """\
+                "description": LiteralStr("""\
 Permet de corriger le RNB en fusionnant plusieurs bâtiments existants, donnant lieu à la création d'un nouveau bâtiment.
 
 Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
-                """
-                ),
+                """),
                 "operationId": "mergeBuildings",
                 "parameters": [],
                 "requestBody": {
@@ -579,12 +577,10 @@ class SplitBuildings(RNBLoggingMixin, APIView):
         {
             "post": {
                 "summary": "Scission de bâtiments",
-                "description": LiteralStr(
-                    """\
+                "description": LiteralStr("""\
 Permet de corriger le RNB en scindant un bâtiment existant, donnant lieu à la création de plusieurs nouveaux bâtiments.
 
-Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB."""
-                ),
+Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB."""),
                 "operationId": "splitBuildings",
                 "parameters": [
                     {

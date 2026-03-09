@@ -60,10 +60,8 @@ def import_one_department(code: str):
     Department_subdivided.objects.filter(code=code).delete()
 
     with connection.cursor() as cursor:
-        cursor.execute(
-            f"""
+        cursor.execute(f"""
             INSERT INTO {Department_subdivided._meta.db_table} (code, name, shape)
             SELECT code, name, ST_SubDivide(shape) as shape
             FROM {Department._meta.db_table};
-            """
-        )
+            """)
