@@ -310,7 +310,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": "Score minimal attendu du géocodage BAN. Valeur par défaut : **0.8**. Si le score est strictement inférieur à cette limite, aucun résultat n'est renvoyé et le champ **status** de la réponse contient **geocoding_score_is_too_low**",
                         "required": False,
-                        "schema": {"type": "float"},
+                        "schema": {"type": "number"},
                         "example": "0.9",
                     },
                     {
@@ -351,7 +351,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                                             "nullable": False,
                                         },
                                         "score_ban": {
-                                            "type": "float",
+                                            "type": "number",
                                             "description": "Si un géocodage a lieu, renvoie le score du meilleur résultat, celui utilisé pour lister les bâtiments. Ce score doit être supérieur à 'min_score' pour que des bâtiments soient renvoyés.",
                                             "nullable": False,
                                         },
@@ -455,7 +455,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                         "exemple": ["XXXXYYYYZZZZ", "AAAABBBBCCCC"],
                                     },
                                     "merge_existing_addresses": {
-                                        "type": "bool",
+                                        "type": "boolean",
                                         "description": LiteralStr(
                                             """\
 - `True`, le bâtiment nouvellement créé hérite des adresses des bâtiments dont il est issu.
