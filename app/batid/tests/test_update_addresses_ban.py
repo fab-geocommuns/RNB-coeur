@@ -714,6 +714,61 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
 
         self.assertEqual(history_count_before, history_count_after)
 
+    def test_building_history_addresses_id_updated(self):
+        """
+        Input: obsolete address linked to a building; the building is saved twice
+               (two status changes) producing two history entries both referencing the old address.
+               Geocoder returns score=0.9, type=housenumber, new cle_interop=04001_new_00005.
+        Expected: all BuildingHistoryOnly entries referencing the old address ID are updated
+                  to reference the new address ID (both versions).
+        """
+        addr, bdg = self._create_linked_obsolete_address("04001_old_00005", "BDG5")
+
+        # Second save: change status to produce a second history entry still referencing old address
+        bdg.status = "demolished"
+        bdg.save()
+        bdg.status = "constructed"
+        bdg.save()
+
+        history_with_old = BuildingHistoryOnly.objects.filter(
+            rnb_id=bdg.rnb_id,
+            addresses_id__contains=["04001_old_00005"],
+        )
+        self.assertGreaterEqual(history_with_old.count(), 2)
+
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_old_00005",
+                    "result_id": "04001_new_00005",
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                }
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            geocode_and_update_obsolete_addresses()
+
+        # No history entry should still reference the old address
+        self.assertFalse(
+            BuildingHistoryOnly.objects.filter(
+                rnb_id=bdg.rnb_id,
+                addresses_id__contains=["04001_old_00005"],
+            ).exists()
+        )
+        # All formerly-referencing entries should now reference the new address
+        self.assertGreaterEqual(
+            BuildingHistoryOnly.objects.filter(
+                rnb_id=bdg.rnb_id,
+                addresses_id__contains=["04001_new_00005"],
+            ).count(),
+            2,
+        )
+
 
 class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
     def test_obsolete_address_not_linked_is_deleted(self):

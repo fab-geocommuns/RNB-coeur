@@ -527,6 +527,17 @@ def _apply_geocode_updates(successes: list) -> None:
                         """,
                         bldg_values,
                     )
+
+                # Step 4: Update Building history table
+                cursor.execute(
+                    f"""
+                    UPDATE batid_building_history
+                    SET addresses_id = array_replace(addresses_id, v.old_id, v.new_id)
+                    FROM (VALUES {addr_placeholders}) AS v(old_id, new_id)
+                    WHERE addresses_id @> ARRAY[v.old_id::varchar]
+                    """,
+                    addr_flat_values,
+                )
     finally:
         with connection.cursor() as cursor:
             cursor.execute(
