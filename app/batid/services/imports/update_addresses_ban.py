@@ -5,13 +5,16 @@ import unicodedata
 import uuid
 from datetime import datetime
 from datetime import timezone
+from io import StringIO
 
 from django.contrib.gis.geos import Point
 from django.db import connection
+from django.db import transaction
 from pyproj import Geod
 from rapidfuzz.distance import Levenshtein
 
 from batid.models import Address
+from batid.services.geocoders import BanBatchGeocoder
 from batid.services.source import Source
 
 logger = logging.getLogger(__name__)
@@ -339,6 +342,201 @@ def _update_text_batch(batch: list) -> dict:
         )
 
     return {"updated": updated, "mismatched": mismatched}
+
+
+def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
+    """
+    Géocode par batches toutes les adresses still_exists=False liées à un bâtiment.
+    - Si score >= 0.9 et type == housenumber : MAJ cle interop + Building.addresses_id
+    - Sinon : ban_update_flag = 'not_found'
+    Boucle jusqu'à épuisement des adresses non traitées.
+    """
+    geocoder = BanBatchGeocoder()
+    total_updated = 0
+    total_not_found = 0
+
+    while True:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT a.id, a.street_number, a.street, a.city_zipcode, a.city_name, a.city_insee_code
+                FROM batid_address a
+                WHERE a.still_exists = False
+                AND a.ban_update_flag IS NULL
+                AND EXISTS (
+                    SELECT 1 FROM batid_building_with_history b
+                    WHERE b.addresses_id @> ARRAY[a.id]
+                )
+                LIMIT %s
+                """,
+                [batch_size],
+            )
+            rows = cursor.fetchall()
+
+        if not rows:
+            break
+
+        csv_data = [
+            {
+                "db_id": row[0],
+                "numero": row[1] or "",
+                "voie": row[2] or "",
+                "postcode": row[3] or "",
+                "city": row[4] or "",
+                "citycode": row[5] or "",
+            }
+            for row in rows
+        ]
+
+        response = geocoder.geocode(
+            data=csv_data,
+            columns=["numero", "voie", "postcode", "city"],
+            citycode_col="citycode",
+            result_columns=[
+                "result_id",
+                "result_score",
+                "result_type",
+            ],
+        )
+
+        reader = csv.DictReader(StringIO(response.text))
+        successes = []
+        failures = []
+
+        for row in reader:
+            try:
+                score = float(row.get("result_score") or 0)
+            except (ValueError, TypeError):
+                score = 0.0
+            result_type = row.get("result_type", "")
+            new_id = row.get("result_id", "")
+            old_id = row.get("db_id", "")
+
+            if score >= 0.9 and result_type == "housenumber" and new_id:
+                successes.append({"old_id": old_id, "new_id": new_id})
+            else:
+                failures.append(old_id)
+
+        if successes:
+            _apply_geocode_updates(successes)
+            total_updated += len(successes)
+
+        if failures:
+            _flag_not_found(failures)
+            total_not_found += len(failures)
+
+        logger.info(
+            f"Geocoded batch: {len(successes)} updated, {len(failures)} not found"
+        )
+
+    logger.info(f"Total: {total_updated} updated, {total_not_found} not found")
+    return {"updated": total_updated, "not_found": total_not_found}
+
+
+def _apply_geocode_updates(successes: list) -> None:
+    """Update Address PKs and Building.addresses_id for successfully geocoded addresses.
+
+    Only the PK (cle_interop) is updated here. Text fields and ban_id will be
+    populated on the next run of update_addresses_text_and_ban_id.
+
+    Disables the versioning trigger during the operation to avoid spurious history entries.
+    Uses a 3-step approach to work around the non-cascading FK on BuildingAddressesReadOnly:
+    1. Remove old address IDs from Building.addresses_id (trigger cleans junction table)
+    2. Update Address PKs to new values
+    3. Add new address IDs to Building.addresses_id (trigger recreates junction entries)
+    """
+    bldg_placeholders = ", ".join(["(%s, %s)"] * len(successes))
+    # => "(%s, %s), (%s, %s), (%s, %s), ..."
+
+    bldg_flat_values = []
+    for s in successes:
+        bldg_flat_values.extend([s["old_id"], s["new_id"]])
+    # => [old_id_1, new_id_1, old_id_2, new_id_2, ...]
+
+    addr_placeholders = ", ".join(["(%s, %s)"] * len(successes))
+    addr_flat_values = []
+    for s in successes:
+        addr_flat_values.extend([s["old_id"], s["new_id"]])
+
+    # Pre-query building-address links before modifying anything
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            SELECT b.id, v.old_id, v.new_id
+            FROM batid_building b
+            -- VALUES (...) AS v(old_id, new_id) builds an inline temporary table from the
+            -- batch of (old_id, new_id) pairs passed as parameters, avoiding N separate queries.
+            JOIN (VALUES {bldg_placeholders}) AS v(old_id, new_id)
+            ON b.addresses_id @> ARRAY[v.old_id::varchar]
+            """,
+            bldg_flat_values,
+        )
+        building_address_links = cursor.fetchall()
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "ALTER TABLE batid_building DISABLE TRIGGER building_versioning_trigger"
+        )
+
+    try:
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                # Step 1: Remove old address IDs from Building.addresses_id
+                # building_addresses_trigger deletes from BuildingAddressesReadOnly
+                cursor.execute(
+                    f"""
+                    UPDATE batid_building
+                    SET addresses_id = array_remove(addresses_id, v.old_id)
+                    FROM (VALUES {bldg_placeholders}) AS v(old_id, new_id)
+                    WHERE addresses_id @> ARRAY[v.old_id::varchar]
+                    """,
+                    bldg_flat_values,
+                )
+
+                # Step 2: Update Address PK only.
+                # Text fields and ban_id will be populated on the next run
+                # of update_addresses_text_and_ban_id.
+                cursor.execute(
+                    f"""
+                    UPDATE batid_address
+                    SET id = v.new_id,
+                        still_exists = TRUE,
+                        ban_update_flag = NULL,
+                        ban_id = NULL
+                    FROM (VALUES {addr_placeholders}) AS v(old_id, new_id)
+                    WHERE batid_address.id = v.old_id
+                    """,
+                    addr_flat_values,
+                )
+
+                # Step 3: Add new address IDs to Building.addresses_id
+                # building_addresses_trigger recreates BuildingAddressesReadOnly entries
+                if building_address_links:
+                    bldg_placeholders = ", ".join(
+                        ["(%s::bigint, %s)"] * len(building_address_links)
+                    )
+                    bldg_values = []
+                    for blink in building_address_links:
+                        bldg_values.extend([blink[0], blink[2]])
+                    cursor.execute(
+                        f"""
+                        UPDATE batid_building
+                        SET addresses_id = array_append(addresses_id, v.new_id)
+                        FROM (VALUES {bldg_placeholders}) AS v(building_id, new_id)
+                        WHERE batid_building.id = v.building_id
+                        """,
+                        bldg_values,
+                    )
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "ALTER TABLE batid_building ENABLE TRIGGER building_versioning_trigger"
+            )
+
+
+def _flag_not_found(ids: list) -> None:
+    """Mark addresses that could not be geocoded with ban_update_flag='not_found'."""
+    Address.objects.filter(id__in=ids).update(ban_update_flag="not_found")
 
 
 def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
