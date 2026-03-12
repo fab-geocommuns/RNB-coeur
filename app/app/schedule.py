@@ -11,6 +11,11 @@ common_schedule = {
         # everyday at 4am
         "schedule": crontab(hour=4, minute=0),
     },
+    "send_monthly_leaderboard_emails": {
+        "task": "batid.tasks.send_monthly_leaderboard_emails",
+        # 1st of each month at 6am UTC
+        "schedule": crontab(hour=6, minute=0, day_of_month=1),
+    },
 }
 
 development_schedule = {
