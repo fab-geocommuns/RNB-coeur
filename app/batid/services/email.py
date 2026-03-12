@@ -44,6 +44,33 @@ def activate_account_url(user_id_b64: str, token: str) -> str:
     return f"{backend_site_url}/api/alpha/auth/activate/{user_id_b64}/{token}/"
 
 
+def build_monthly_leaderboard_email(
+    leaderboard: list,
+    month_label: str,
+    email: str,
+) -> EmailMultiAlternatives:
+    """
+    Input:
+        leaderboard: [{"event_user__username": str, "edit_count": int}, ...] sorted by edit_count desc
+        month_label: human-readable month in French, e.g. "février 2026"
+        email: recipient address
+    Returns: EmailMultiAlternatives ready to send
+    """
+    html_content = render_to_string(
+        "emails/monthly_leaderboard.html",
+        {"leaderboard": leaderboard, "month_label": month_label},
+    )
+    msg = EmailMultiAlternatives(
+        subject=f"Contributions RNB – {month_label}",
+        body="Veuillez consulter la version HTML de cet email.",
+        from_email=get_rnb_email_sender(),
+        headers={"Reply-To": settings.RNB_REPLY_TO_ADDRESS},  # type: ignore
+        to=[email],
+    )
+    msg.attach_alternative(html_content, "text/html")
+    return msg
+
+
 def build_activate_account_email(
     token: str, user_id_b64: str, email: str
 ) -> EmailMultiAlternatives:
