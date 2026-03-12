@@ -589,7 +589,7 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
             result = geocode_and_update_obsolete_addresses()
 
         self.assertEqual(result["updated"], 1)
-        self.assertEqual(result["not_found"], 0)
+        self.assertEqual(result["geocoding_failures"], 0)
 
         self.assertFalse(Address.objects.filter(id="04001_old_00001").exists())
         addr_new = Address.objects.get(id="04001_new_00001")
@@ -641,11 +641,11 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
             result = geocode_and_update_obsolete_addresses()
 
         self.assertEqual(result["updated"], 0)
-        self.assertEqual(result["not_found"], 1)
+        self.assertEqual(result["geocoding_failures"], 1)
 
         addr.refresh_from_db()
         self.assertFalse(addr.still_exists)
-        self.assertEqual(addr.ban_update_flag, "not_found")
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
         self.assertTrue(Address.objects.filter(id="04001_old_00002").exists())
 
     def test_non_housenumber_type_flags_not_found(self):
@@ -673,11 +673,14 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
             result = geocode_and_update_obsolete_addresses()
 
         self.assertEqual(result["updated"], 0)
-        self.assertEqual(result["not_found"], 1)
+        self.assertEqual(result["geocoding_failures"], 1)
 
         addr.refresh_from_db()
         self.assertFalse(addr.still_exists)
-        self.assertEqual(addr.ban_update_flag, "not_found")
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertEqual(
+            addr.ban_update_details, {"new_id": "04001_new_00003", "score": 0.9}
+        )
 
     def test_versioning_trigger_not_fired_during_update(self):
         """

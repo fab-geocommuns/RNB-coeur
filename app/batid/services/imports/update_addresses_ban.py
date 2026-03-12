@@ -348,7 +348,7 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
     """
     Géocode par batches toutes les adresses still_exists=False liées à un bâtiment.
     - Si score >= 0.9 et type == housenumber : MAJ cle interop + Building.addresses_id
-    - Sinon : ban_update_flag = 'not_found'
+    - Sinon : ban_update_flag = 'geocoding_failure'
     Boucle jusqu'à épuisement des adresses non traitées.
     """
     geocoder = BanBatchGeocoder()
@@ -363,10 +363,6 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
                 FROM batid_address a
                 WHERE a.still_exists = False
                 AND a.ban_update_flag IS NULL
-                AND EXISTS (
-                    SELECT 1 FROM batid_building_with_history b
-                    WHERE b.addresses_id @> ARRAY[a.id]
-                )
                 LIMIT %s
                 """,
                 [batch_size],
@@ -412,25 +408,25 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
             new_id = row.get("result_id", "")
             old_id = row.get("db_id", "")
 
-            if score >= 0.9 and result_type == "housenumber" and new_id:
+            if score >= 0.85 and result_type == "housenumber" and new_id:
                 successes.append({"old_id": old_id, "new_id": new_id})
             else:
-                failures.append(old_id)
+                failures.append({"old_id": old_id, "score": score, "new_id": new_id})
 
         if successes:
             _apply_geocode_updates(successes)
             total_updated += len(successes)
 
         if failures:
-            _flag_not_found(failures)
+            _flag_failures(failures)
             total_not_found += len(failures)
 
         logger.info(
             f"Geocoded batch: {len(successes)} updated, {len(failures)} not found"
         )
 
-    logger.info(f"Total: {total_updated} updated, {total_not_found} not found")
-    return {"updated": total_updated, "not_found": total_not_found}
+    logger.info(f"Total: {total_updated} updated, {total_not_found} geocoding failures")
+    return {"updated": total_updated, "geocoding_failures": total_not_found}
 
 
 def _apply_geocode_updates(successes: list) -> None:
@@ -444,19 +440,15 @@ def _apply_geocode_updates(successes: list) -> None:
     1. Remove old address IDs from Building.addresses_id (trigger cleans junction table)
     2. Update Address PKs to new values
     3. Add new address IDs to Building.addresses_id (trigger recreates junction entries)
+    Building history is also updated, but in a simple 1 step approach because there are no triggers on this table.
     """
-    bldg_placeholders = ", ".join(["(%s, %s)"] * len(successes))
+    placeholders = ", ".join(["(%s, %s)"] * len(successes))
     # => "(%s, %s), (%s, %s), (%s, %s), ..."
 
-    bldg_flat_values = []
-    for s in successes:
-        bldg_flat_values.extend([s["old_id"], s["new_id"]])
-    # => [old_id_1, new_id_1, old_id_2, new_id_2, ...]
-
-    addr_placeholders = ", ".join(["(%s, %s)"] * len(successes))
     addr_flat_values = []
     for s in successes:
         addr_flat_values.extend([s["old_id"], s["new_id"]])
+    # => [old_id_1, new_id_1, old_id_2, new_id_2, ...]
 
     # Pre-query building-address links before modifying anything
     with connection.cursor() as cursor:
@@ -466,10 +458,10 @@ def _apply_geocode_updates(successes: list) -> None:
             FROM batid_building b
             -- VALUES (...) AS v(old_id, new_id) builds an inline temporary table from the
             -- batch of (old_id, new_id) pairs passed as parameters, avoiding N separate queries.
-            JOIN (VALUES {bldg_placeholders}) AS v(old_id, new_id)
+            JOIN (VALUES {placeholders}) AS v(old_id, new_id)
             ON b.addresses_id @> ARRAY[v.old_id::varchar]
             """,
-            bldg_flat_values,
+            addr_flat_values,
         )
         building_address_links = cursor.fetchall()
 
@@ -487,10 +479,10 @@ def _apply_geocode_updates(successes: list) -> None:
                     f"""
                     UPDATE batid_building
                     SET addresses_id = array_remove(addresses_id, v.old_id)
-                    FROM (VALUES {bldg_placeholders}) AS v(old_id, new_id)
+                    FROM (VALUES {placeholders}) AS v(old_id, new_id)
                     WHERE addresses_id @> ARRAY[v.old_id::varchar]
                     """,
-                    bldg_flat_values,
+                    addr_flat_values,
                 )
 
                 # Step 2: Update Address PK only.
@@ -503,7 +495,7 @@ def _apply_geocode_updates(successes: list) -> None:
                         still_exists = TRUE,
                         ban_update_flag = NULL,
                         ban_id = NULL
-                    FROM (VALUES {addr_placeholders}) AS v(old_id, new_id)
+                    FROM (VALUES {placeholders}) AS v(old_id, new_id)
                     WHERE batid_address.id = v.old_id
                     """,
                     addr_flat_values,
@@ -512,17 +504,18 @@ def _apply_geocode_updates(successes: list) -> None:
                 # Step 3: Add new address IDs to Building.addresses_id
                 # building_addresses_trigger recreates BuildingAddressesReadOnly entries
                 if building_address_links:
-                    bldg_placeholders = ", ".join(
+                    building_address_placeholders = ", ".join(
                         ["(%s::bigint, %s)"] * len(building_address_links)
                     )
                     bldg_values = []
-                    for blink in building_address_links:
-                        bldg_values.extend([blink[0], blink[2]])
+                    for ba_link in building_address_links:
+                        bldg_values.extend([ba_link[0], ba_link[2]])
+
                     cursor.execute(
                         f"""
                         UPDATE batid_building
                         SET addresses_id = array_append(addresses_id, v.new_id)
-                        FROM (VALUES {bldg_placeholders}) AS v(building_id, new_id)
+                        FROM (VALUES {building_address_placeholders}) AS v(building_id, new_id)
                         WHERE batid_building.id = v.building_id
                         """,
                         bldg_values,
@@ -533,7 +526,7 @@ def _apply_geocode_updates(successes: list) -> None:
                     f"""
                     UPDATE batid_building_history
                     SET addresses_id = array_replace(addresses_id, v.old_id, v.new_id)
-                    FROM (VALUES {addr_placeholders}) AS v(old_id, new_id)
+                    FROM (VALUES {placeholders}) AS v(old_id, new_id)
                     WHERE addresses_id @> ARRAY[v.old_id::varchar]
                     """,
                     addr_flat_values,
@@ -545,9 +538,20 @@ def _apply_geocode_updates(successes: list) -> None:
             )
 
 
-def _flag_not_found(ids: list) -> None:
-    """Mark addresses that could not be geocoded with ban_update_flag='not_found'."""
-    Address.objects.filter(id__in=ids).update(ban_update_flag="not_found")
+def _flag_failures(failures: list) -> None:
+    """Mark addresses that could not be geocoded with ban_update_flag='geocoding_failure'.
+
+    Each failure is a dict with keys: old_id, score, new_id.
+    Stores score and new_id in ban_update_details.
+    """
+    for failure in failures:
+        Address.objects.filter(id=failure["old_id"]).update(
+            ban_update_flag="geocoding_failure",
+            ban_update_details={
+                "score": failure["score"],
+                "new_id": failure["new_id"],
+            },
+        )
 
 
 def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
