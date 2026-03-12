@@ -3,8 +3,8 @@ import uuid
 
 from django.contrib.auth.models import User
 from django.core.mail import EmailMultiAlternatives
-from django.test import TestCase
 from django.test import override_settings
+from django.test import TestCase
 
 from batid.models.building import Building
 from batid.services.email import build_monthly_leaderboard_email
@@ -32,7 +32,9 @@ class LeaderboardQueryTestCase(TestCase):
         event_b1 = uuid.uuid4()
 
         self._create_building("RNBA0000001", user_a, event_a1)
-        self._create_building("RNBA0000002", user_a, event_a1)  # same event, counts as 1
+        self._create_building(
+            "RNBA0000002", user_a, event_a1
+        )  # same event, counts as 1
         self._create_building("RNBA0000003", user_a, event_a2)
         self._create_building("RNBB0000001", user_b, event_b1)
 
