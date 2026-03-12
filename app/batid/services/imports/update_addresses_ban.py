@@ -488,6 +488,9 @@ def _apply_geocode_updates(successes: list) -> None:
                 # Step 2: Update Address PK only.
                 # Text fields and ban_id will be populated on the next run
                 # of update_addresses_text_and_ban_id.
+                # Rows where new_id already exists in the table are skipped:
+                # the building is re-linked to the existing address via steps 1+3,
+                # and the old address is marked for deletion.
                 cursor.execute(
                     f"""
                     UPDATE batid_address
@@ -497,6 +500,25 @@ def _apply_geocode_updates(successes: list) -> None:
                         ban_id = NULL
                     FROM (VALUES {placeholders}) AS v(old_id, new_id)
                     WHERE batid_address.id = v.old_id
+                      AND NOT EXISTS (
+                          SELECT 1 FROM batid_address a2
+                          WHERE a2.id = v.new_id AND a2.id != v.old_id
+                      )
+                    """,
+                    addr_flat_values,
+                )
+
+                # Step 2b: Mark skipped addresses (new_id already existed) for deletion.
+                cursor.execute(
+                    f"""
+                    UPDATE batid_address
+                    SET ban_update_flag = 'mark_for_delete'
+                    FROM (VALUES {placeholders}) AS v(old_id, new_id)
+                    WHERE batid_address.id = v.old_id
+                      AND EXISTS (
+                          SELECT 1 FROM batid_address a2
+                          WHERE a2.id = v.new_id AND a2.id != v.old_id
+                      )
                     """,
                     addr_flat_values,
                 )

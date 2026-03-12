@@ -772,6 +772,66 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
             2,
         )
 
+    def test_geocoder_returns_existing_key_marks_old_for_delete(self):
+        """
+        Input: interop_1 (still_exists=True) and interop_2 (still_exists=False) linked to a building.
+               Geocoder returns that interop_2's address now has key interop_1 (already in DB).
+        Expected: building re-linked to interop_1, interop_2 marked with ban_update_flag='mark_for_delete'.
+        """
+        Address.objects.create(
+            id="04001_interop_00001",
+            source="ban",
+            still_exists=True,
+            street_number="1",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+        )
+        addr2, bdg = self._create_linked_obsolete_address("04001_interop_00002", "BDG6")
+
+        bdg.status = "demolished"
+        bdg.save()
+
+        bdg_history = BuildingHistoryOnly.objects.filter(rnb_id=bdg.rnb_id).order_by(
+            "id"
+        )
+        # _create_linked_obsolete_address creates a first history version
+        # status change creates a second one.
+        self.assertEqual(len(bdg_history), 2)
+        bdg_history = bdg_history[1]
+
+        # the old key is in the addresses array
+        self.assertEqual(bdg_history.addresses_id, ["04001_interop_00002"])
+
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_interop_00002",
+                    "result_id": "04001_interop_00001",
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                }
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            geocode_and_update_obsolete_addresses()
+
+        bdg.refresh_from_db()
+        self.assertIn("04001_interop_00001", bdg.addresses_id)
+        self.assertNotIn("04001_interop_00002", bdg.addresses_id)
+
+        addr2.refresh_from_db()
+        self.assertEqual(addr2.ban_update_flag, "mark_for_delete")
+
+        bdg_history.refresh_from_db()
+        # the old key has been replaced by the new one
+        self.assertEqual(bdg_history.addresses_id, ["04001_interop_00001"])
+
 
 class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
     def test_obsolete_address_not_linked_is_deleted(self):
