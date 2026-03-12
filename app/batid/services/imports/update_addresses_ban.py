@@ -539,6 +539,7 @@ def _apply_geocode_updates(successes: list) -> None:
                         SET addresses_id = array_append(addresses_id, v.new_id)
                         FROM (VALUES {building_address_placeholders}) AS v(building_id, new_id)
                         WHERE batid_building.id = v.building_id
+                        AND NOT (addresses_id @> ARRAY[v.new_id]::varchar[])
                         """,
                         bldg_values,
                     )
