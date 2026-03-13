@@ -22,11 +22,11 @@ jobs:
       - name: Run static typing checks
         run: docker compose -f docker-compose.test.yml exec -T web mypy .
       - name: Run tests with coverage
-        run: docker compose -f docker-compose.test.yml exec -T web coverage run manage.py test
+        run: docker compose -f docker-compose.test.yml exec -T web coverage run --data-file=/tmp/.coverage manage.py test
       - name: Generate coverage report
         run: |
           docker compose -f docker-compose.test.yml exec -T web \
-            coverage report --omit="*/tests/*,*/migrations/*" > coverage_report.txt
+            coverage report --data-file=/tmp/.coverage --omit="*/tests/*,*/migrations/*" > coverage_report.txt
       - name: Post coverage comment on PR
         uses: actions/github-script@v7
         with:
