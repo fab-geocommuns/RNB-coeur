@@ -10,8 +10,12 @@ from batid.models import Building
 from batid.models import Contribution
 from batid.models import KPI
 from batid.models.report import Report
+from batid.models import BuildingImport
 from batid.services.kpi import compute_today_kpis
 from batid.services.kpi import count_active_buildings
+from batid.services.kpi import count_building_changes_contributions
+from batid.services.kpi import count_building_changes_import_bal
+from batid.services.kpi import count_building_changes_import_bdtopo
 from batid.services.kpi import count_editors
 from batid.services.kpi import count_edits
 from batid.services.kpi import count_fixed_reports
@@ -20,6 +24,7 @@ from batid.services.kpi import count_real_buildings
 from batid.services.kpi import count_real_buildings_wo_addresses
 from batid.services.kpi import count_refused_reports
 from batid.services.kpi import count_reports
+from batid.services.kpi import get_building_change_stats
 from batid.services.kpi import get_kpi
 from batid.services.kpi import get_kpi_most_recent
 
@@ -40,6 +45,9 @@ class KPIDailyRun(TestCase):
             "pending_reports_count",
             "fixed_reports_count",
             "refused_reports_count",
+            "building_changes_import_bdtopo",
+            "building_changes_import_bal",
+            "building_changes_contributions",
         ]
 
         kpis = KPI.objects.all()
@@ -221,3 +229,204 @@ class TestKPI(TestCase):
         yesterday = date.today() - timedelta(days=1)
         with self.assertRaises(Exception):
             KPI.objects.create(name="dummy", value=4, value_date=yesterday)
+
+
+class CountBuildingChangesImportBdtopo(TestCase):
+    def setUp(self):
+        self.building_import = BuildingImport.objects.create(
+            import_source="bdtopo",
+            building_created_count=0,
+            building_updated_count=0,
+        )
+        Building.objects.create(
+            rnb_id="BDGBDTOPO01",
+            status="constructed",
+            event_origin={"source": "import", "id": self.building_import.id},
+        )
+
+    def test(self):
+        self.assertEqual(count_building_changes_import_bdtopo(date.today()), 1)
+
+    def test_ignores_other_sources(self):
+        bal_import = BuildingImport.objects.create(
+            import_source="bal",
+            building_created_count=0,
+            building_updated_count=0,
+        )
+        Building.objects.create(
+            rnb_id="BDGBAL00002",
+            status="constructed",
+            event_origin={"source": "import", "id": bal_import.id},
+        )
+        self.assertEqual(count_building_changes_import_bdtopo(date.today()), 1)
+
+    def test_empty_returns_zero(self):
+        """Date sans aucun event bdtopo : compte 0."""
+        self.assertEqual(count_building_changes_import_bdtopo(date(2000, 1, 1)), 0)
+
+
+class CountBuildingChangesImportBal(TestCase):
+    def setUp(self):
+        self.building_import = BuildingImport.objects.create(
+            import_source="bal",
+            building_created_count=0,
+            building_updated_count=0,
+        )
+        Building.objects.create(
+            rnb_id="BDGBAL00001",
+            status="constructed",
+            event_origin={"source": "import", "id": self.building_import.id},
+        )
+
+        Building.objects.create(
+            rnb_id="BDGBAL00002",
+            status="constructed",
+            event_origin={"source": "import", "id": self.building_import.id},
+        )
+        Building.objects.create(
+            rnb_id="BDGBAL00003",
+            status="constructed",
+            event_origin={"source": "import", "id": self.building_import.id},
+        )
+
+    def test(self):
+        self.assertEqual(count_building_changes_import_bal(date.today()), 3)
+
+    def test_empty_returns_zero(self):
+        """Date sans aucun event bal : compte 0."""
+        self.assertEqual(count_building_changes_import_bal(date(2000, 1, 1)), 0)
+
+
+class CountBuildingChangesContributions(TestCase):
+    def setUp(self):
+        Building.objects.create(
+            rnb_id="BDGCONTRIB01",
+            status="constructed",
+            event_origin={"source": "contribution"},
+        )
+
+    def test(self):
+        self.assertGreaterEqual(count_building_changes_contributions(date.today()), 1)
+
+    def test_empty_returns_zero(self):
+        self.assertEqual(count_building_changes_contributions(date(2000, 1, 1)), 0)
+
+
+class GetBuildingChangeStats(TestCase):
+    def test_returns_one_entry_per_day_with_zeros_when_no_kpis(self):
+        since = date.today() - timedelta(days=2)
+        until = date.today()
+        result = get_building_change_stats(since=since, until=until)
+        self.assertEqual(len(result), 3)
+        for item in result:
+            self.assertIn("date", item)
+            self.assertIn("events_count", item)
+            self.assertEqual(
+                item["events_count"],
+                {"import_bdtopo": 0, "import_bal": 0, "contributions": 0},
+            )
+
+    def test_single_day_returns_one_entry(self):
+        """Plage d'un seul jour (since == until) : une entrée."""
+        d = date(2024, 6, 15)
+        result = get_building_change_stats(since=d, until=d)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["date"], "2024-06-15")
+        self.assertEqual(
+            result[0]["events_count"],
+            {"import_bdtopo": 0, "import_bal": 0, "contributions": 0},
+        )
+
+    def test_returns_stored_kpi_values(self):
+        since = date.today() - timedelta(days=1)
+        until = date.today()
+        KPI.objects.create(
+            name="building_changes_import_bdtopo",
+            value=10,
+            value_date=since,
+        )
+        KPI.objects.create(
+            name="building_changes_import_bal",
+            value=5,
+            value_date=since,
+        )
+        KPI.objects.create(
+            name="building_changes_contributions",
+            value=2,
+            value_date=since,
+        )
+        result = get_building_change_stats(since=since, until=until)
+        self.assertEqual(len(result), 2)
+        first = result[0]
+        self.assertEqual(first["date"], since.isoformat())
+        self.assertEqual(first["events_count"]["import_bdtopo"], 10)
+        self.assertEqual(first["events_count"]["import_bal"], 5)
+        self.assertEqual(first["events_count"]["contributions"], 2)
+        second = result[1]
+        self.assertEqual(second["date"], until.isoformat())
+        self.assertEqual(second["events_count"]["import_bdtopo"], 0)
+        self.assertEqual(second["events_count"]["import_bal"], 0)
+        self.assertEqual(second["events_count"]["contributions"], 0)
+
+    def test_month_with_kpis_only_first_two_days_and_last_day(self):
+        """
+        Plage d'un mois (janv. 2024) : KPI uniquement pour le 1er, 2e et 31e jour.
+        Attendu : 31 entrées, valeurs correctes pour ces 3 jours, 0 pour les jours 3 à 30.
+        """
+        since = date(2024, 1, 1)
+        until = date(2024, 1, 31)
+        # 1er janvier
+        KPI.objects.create(
+            name="building_changes_import_bdtopo", value=10, value_date=since
+        )
+        KPI.objects.create(
+            name="building_changes_import_bal", value=2, value_date=since
+        )
+        KPI.objects.create(
+            name="building_changes_contributions", value=1, value_date=since
+        )
+        # 2 janvier
+        day2 = date(2024, 1, 2)
+        KPI.objects.create(
+            name="building_changes_import_bdtopo", value=5, value_date=day2
+        )
+        KPI.objects.create(
+            name="building_changes_import_bal", value=0, value_date=day2
+        )
+        KPI.objects.create(
+            name="building_changes_contributions", value=0, value_date=day2
+        )
+        # 31 janvier (pas de KPI pour les jours 3 à 30)
+        day31 = date(2024, 1, 31)
+        KPI.objects.create(
+            name="building_changes_import_bdtopo", value=0, value_date=day31
+        )
+        KPI.objects.create(
+            name="building_changes_import_bal", value=3, value_date=day31
+        )
+        KPI.objects.create(
+            name="building_changes_contributions", value=2, value_date=day31
+        )
+
+        result = get_building_change_stats(since=since, until=until)
+
+        self.assertEqual(len(result), 31)
+        # 1er jour
+        self.assertEqual(result[0]["date"], "2024-01-01")
+        self.assertEqual(result[0]["events_count"]["import_bdtopo"], 10)
+        self.assertEqual(result[0]["events_count"]["import_bal"], 2)
+        self.assertEqual(result[0]["events_count"]["contributions"], 1)
+        # 2e jour
+        self.assertEqual(result[1]["date"], "2024-01-02")
+        self.assertEqual(result[1]["events_count"]["import_bdtopo"], 5)
+        self.assertEqual(result[1]["events_count"]["import_bal"], 0)
+        self.assertEqual(result[1]["events_count"]["contributions"], 0)
+        # Jours 3 à 30 : tout à 0
+        zero_events = {"import_bdtopo": 0, "import_bal": 0, "contributions": 0}
+        for i in range(2, 30):
+            self.assertEqual(result[i]["events_count"], zero_events)
+        # 31e jour
+        self.assertEqual(result[30]["date"], "2024-01-31")
+        self.assertEqual(result[30]["events_count"]["import_bdtopo"], 0)
+        self.assertEqual(result[30]["events_count"]["import_bal"], 3)
+        self.assertEqual(result[30]["events_count"]["contributions"], 2)

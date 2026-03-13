@@ -1,5 +1,8 @@
 from datetime import date
+from datetime import timedelta
 from typing import Optional
+
+from django.db import connection
 
 from batid.models import Building
 from batid.models import Contribution
@@ -16,6 +19,10 @@ KPI_REPORTS_COUNT = "reports_count"
 KPI_PENDING_REPORTS_COUNT = "pending_reports_count"
 KPI_FIXED_REPORTS_COUNT = "fixed_reports_count"
 KPI_REFUSED_REPORTS_COUNT = "refused_reports_count"
+
+KPI_BUILDING_CHANGES_IMPORT_BDTOPO = "building_changes_import_bdtopo"
+KPI_BUILDING_CHANGES_IMPORT_BAL = "building_changes_import_bal"
+KPI_BUILDING_CHANGES_CONTRIBUTIONS = "building_changes_contributions"
 
 
 def get_kpi(name: str, since: Optional[date] = None, until: Optional[date] = None):
@@ -89,6 +96,96 @@ def compute_today_kpis():
     KPI.objects.create(
         name=KPI_REFUSED_REPORTS_COUNT, value=refused_reports_count, value_date=today
     )
+
+    # Building change stats (import_bdtopo, import_bal, contributions)
+    bdtopo_count = count_building_changes_import_bdtopo(today)
+    KPI.objects.create(
+        name=KPI_BUILDING_CHANGES_IMPORT_BDTOPO, value=bdtopo_count, value_date=today
+    )
+    bal_count = count_building_changes_import_bal(today)
+    KPI.objects.create(
+        name=KPI_BUILDING_CHANGES_IMPORT_BAL, value=bal_count, value_date=today
+    )
+    contributions_count = count_building_changes_contributions(today)
+    KPI.objects.create(
+        name=KPI_BUILDING_CHANGES_CONTRIBUTIONS,value=contributions_count, value_date=today,
+    )
+
+
+def _count_building_changes_import(for_date: date, import_source: str) -> int:
+    """Nombre de lignes dans la vue (event_origin=import + BuildingImport.import_source=...) à la date for_date."""
+    sql = """
+        SELECT COUNT(*) FROM batid_building_with_history b
+        JOIN batid_buildingimport bi ON bi.id = (b.event_origin->>'id')::int
+        WHERE b.event_origin->>'source' = 'import'
+        AND bi.import_source = %s
+        AND (lower(b.sys_period))::date = %s
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, [import_source, for_date])
+        row = cursor.fetchone()
+    return row[0] if row else 0
+
+
+def count_building_changes_import_bdtopo(for_date: date) -> int:
+    """Nombre de lignes dans la vue (event_origin=import + BuildingImport.import_source=bdtopo) à la date for_date."""
+    return _count_building_changes_import(for_date, "bdtopo")
+
+
+def count_building_changes_import_bal(for_date: date) -> int:
+    """Nombre de lignes dans la vue (event_origin=import + BuildingImport.import_source=bal) à la date for_date."""
+    return _count_building_changes_import(for_date, "bal")
+
+
+def count_building_changes_contributions(for_date: date) -> int:
+    """Nombre de lignes dans la vue (event_origin.source=contribution) à la date for_date."""
+    sql = """
+        SELECT COUNT(*) FROM batid_building_with_history
+        WHERE event_origin->>'source' = 'contribution'
+        AND (lower(sys_period))::date = %s
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, [for_date])
+        row = cursor.fetchone()
+    return row[0] if row else 0
+
+
+def get_building_change_stats(since: date, until: date) -> list[dict]:
+    """Liste des stats par jour entre since et until. Chaque élément : date (ISO), events_count (import_bdtopo, import_bal, contributions)."""
+    qs_bdtopo = get_kpi(KPI_BUILDING_CHANGES_IMPORT_BDTOPO, since=since, until=until)
+    qs_bal = get_kpi(KPI_BUILDING_CHANGES_IMPORT_BAL, since=since, until=until)
+    qs_contrib = get_kpi(KPI_BUILDING_CHANGES_CONTRIBUTIONS, since=since, until=until)
+
+    by_date = {}
+    for k in qs_bdtopo:
+        by_date.setdefault(
+            k.value_date,
+            {"import_bdtopo": 0, "import_bal": 0, "contributions": 0},
+        )
+        by_date[k.value_date]["import_bdtopo"] = int(k.value)
+    for k in qs_bal:
+        by_date.setdefault(
+            k.value_date,
+            {"import_bdtopo": 0, "import_bal": 0, "contributions": 0},
+        )
+        by_date[k.value_date]["import_bal"] = int(k.value)
+    for k in qs_contrib:
+        by_date.setdefault(
+            k.value_date,
+            {"import_bdtopo": 0, "import_bal": 0, "contributions": 0},
+        )
+        by_date[k.value_date]["contributions"] = int(k.value)
+
+    out = []
+    d = since
+    # Jours sans KPI (ex. calcul nocturne non exécuté) : on renvoie 0 par défaut. je ne sais pas trop si il faut mettre un null ou un 0 par defaut
+    while d <= until:
+        events = by_date.get(
+            d, {"import_bdtopo": 0, "import_bal": 0, "contributions": 0}
+        )
+        out.append({"date": d.isoformat(), "events_count": events})
+        d += timedelta(days=1)
+    return out
 
 
 def count_active_buildings():
