@@ -6,6 +6,7 @@ from rest_framework import routers
 
 from api_alpha.endpoints.ads.create_token import CreateAdsTokenView
 from api_alpha.endpoints.auth.create_user import CreateUserView
+from api_alpha.endpoints.buildings.change_stats import BuildingChangeStatsView
 from api_alpha.endpoints.buildings.get_diff import DiffView
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.plot import BuildingPlotView
@@ -87,6 +88,8 @@ urlpatterns = [
     path("buildings/address/", BuildingAddressView.as_view()),
     path("buildings/plot/<str:plot_id>/", BuildingPlotView.as_view()),
     path("buildings/diff/", DiffView.as_view()),
+    # A confirmeer avec les autres @à vous de voir est bien une route littérale placée avant toute route qui contient un paramètre 
+    path("buildings/change_stats/", BuildingChangeStatsView.as_view()),
     path("buildings/merge/", MergeBuildings.as_view()),
     re_path(
         r"buildings/(?P<rnb_id>[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4})/split/",
