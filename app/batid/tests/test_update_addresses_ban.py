@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import UUID
 
@@ -7,6 +8,8 @@ from django.test import TransactionTestCase
 
 import batid.tests.helpers as helpers
 from batid.models import Address
+from batid.models import BuildingAddressesReadOnly
+from batid.models import BuildingHistoryOnly
 from batid.services.imports.update_addresses_ban import _expand_street_abbreviations
 from batid.services.imports.update_addresses_ban import _mark_existing_addresses
 from batid.services.imports.update_addresses_ban import _streets_match
@@ -14,6 +17,9 @@ from batid.services.imports.update_addresses_ban import (
     delete_unlinked_obsolete_addresses,
 )
 from batid.services.imports.update_addresses_ban import flag_addresses_from_ban_file
+from batid.services.imports.update_addresses_ban import (
+    geocode_and_update_obsolete_addresses,
+)
 from batid.services.imports.update_addresses_ban import normalize_text
 from batid.services.imports.update_addresses_ban import (
     update_addresses_text_and_ban_id,
@@ -522,6 +528,468 @@ class TestUpdateAddressesTextAndBanIdDuplicateBanId(TestCase):
         addr2 = Address.objects.get(id="85103_0099_02965")
         self.assertIsNone(addr2.ban_id)
         self.assertIsNone(addr2.ban_update_flag)
+
+
+class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
+    def _make_geocoder_response(self, rows):
+        """Build a mock geocoder response with a CSV body."""
+        header = "db_id,numero,voie,postcode,city,citycode,result_id,result_score,result_type"
+        lines = [header] + [
+            f"{r['db_id']},,,,,,"
+            f"{r.get('result_id', '')},"
+            f"{r.get('result_score', '')},"
+            f"{r.get('result_type', '')}"
+            for r in rows
+        ]
+        mock_resp = MagicMock()
+        mock_resp.text = "\n".join(lines)
+        return mock_resp
+
+    def _create_linked_obsolete_address(self, addr_id, bdg_rnb_id="BDG1"):
+        addr = Address.objects.create(
+            id=addr_id,
+            source="ban",
+            still_exists=False,
+            street_number="1",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+        )
+        bdg = helpers.create_default_bdg(bdg_rnb_id)
+        bdg.addresses_id = [addr_id]
+        bdg.save()
+        return addr, bdg
+
+    def test_good_score_housenumber_updates_pk_and_buildings(self):
+        """
+        Input: obsolete address linked to a building, geocoder returns score=0.9, type=housenumber,
+               new cle_interop=04001_new_00001.
+        Expected: Address.id updated to new value, still_exists=True, ban_update_flag=None,
+                  text fields unchanged (will be updated by update_addresses_text_and_ban_id),
+                  Building.addresses_id updated, BuildingAddressesReadOnly synchronized.
+        """
+        addr, bdg = self._create_linked_obsolete_address("04001_old_00001", "BDG1")
+
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_old_00001",
+                    "result_id": "04001_new_00001",
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                }
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            result = geocode_and_update_obsolete_addresses()
+
+        self.assertEqual(result["updated"], 1)
+        self.assertEqual(result["geocoding_failures"], 0)
+
+        self.assertFalse(Address.objects.filter(id="04001_old_00001").exists())
+        addr_new = Address.objects.get(id="04001_new_00001")
+        self.assertTrue(addr_new.still_exists)
+        self.assertIsNone(addr_new.ban_update_flag)
+        # Text fields are not updated here — update_addresses_text_and_ban_id handles that
+        self.assertEqual(addr_new.street, "Rue de la Paix")
+        self.assertEqual(addr_new.street_number, "1")
+        self.assertEqual(addr_new.city_name, "Aiglun")
+
+        bdg.refresh_from_db()
+        self.assertIn("04001_new_00001", bdg.addresses_id)
+        self.assertNotIn("04001_old_00001", bdg.addresses_id)
+
+        self.assertTrue(
+            BuildingAddressesReadOnly.objects.filter(
+                building=bdg, address_id="04001_new_00001"
+            ).exists()
+        )
+
+        self.assertFalse(
+            BuildingAddressesReadOnly.objects.filter(
+                building=bdg, address_id="04001_old_00001"
+            ).exists()
+        )
+
+    def test_bad_score_flags_not_found(self):
+        """
+        Input: obsolete address linked to building, geocoder returns score=0.5 (below threshold).
+        Expected: ban_update_flag='not_found', still_exists=False unchanged, Address.id unchanged.
+        """
+        addr, bdg = self._create_linked_obsolete_address("04001_old_00002", "BDG2")
+
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_old_00002",
+                    "result_id": "04001_new_00002",
+                    "result_score": "0.5",
+                    "result_type": "housenumber",
+                }
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            result = geocode_and_update_obsolete_addresses()
+
+        self.assertEqual(result["updated"], 0)
+        self.assertEqual(result["geocoding_failures"], 1)
+
+        addr.refresh_from_db()
+        self.assertFalse(addr.still_exists)
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertTrue(Address.objects.filter(id="04001_old_00002").exists())
+
+    def test_non_housenumber_type_flags_not_found(self):
+        """
+        Input: obsolete address linked to building, geocoder returns score=0.9 but type='street'.
+        Expected: ban_update_flag='not_found', Address.id unchanged.
+        """
+        addr, bdg = self._create_linked_obsolete_address("04001_old_00003", "BDG3")
+
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_old_00003",
+                    "result_id": "04001_new_00003",
+                    "result_score": "0.9",
+                    "result_type": "street",
+                }
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            result = geocode_and_update_obsolete_addresses()
+
+        self.assertEqual(result["updated"], 0)
+        self.assertEqual(result["geocoding_failures"], 1)
+
+        addr.refresh_from_db()
+        self.assertFalse(addr.still_exists)
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertEqual(
+            addr.ban_update_details, {"new_id": "04001_new_00003", "score": 0.9}
+        )
+
+    def test_versioning_trigger_not_fired_during_update(self):
+        """
+        Input: obsolete address linked to building, geocoder returns good result.
+        Expected: no new entry in batid_building_history after the PK update
+                  (versioning trigger is disabled during the operation).
+        """
+        addr, bdg = self._create_linked_obsolete_address("04001_old_00004", "BDG4")
+
+        history_count_before = BuildingHistoryOnly.objects.filter(
+            rnb_id=bdg.rnb_id
+        ).count()
+
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_old_00004",
+                    "result_id": "04001_new_00004",
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                }
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            geocode_and_update_obsolete_addresses()
+
+        history_count_after = BuildingHistoryOnly.objects.filter(
+            rnb_id=bdg.rnb_id
+        ).count()
+
+        self.assertEqual(history_count_before, history_count_after)
+
+    def test_building_history_addresses_id_updated(self):
+        """
+        Input: obsolete address linked to a building; the building is saved twice
+               (two status changes) producing two history entries both referencing the old address.
+               Geocoder returns score=0.9, type=housenumber, new cle_interop=04001_new_00005.
+        Expected: all BuildingHistoryOnly entries referencing the old address ID are updated
+                  to reference the new address ID (both versions).
+        """
+        addr, bdg = self._create_linked_obsolete_address("04001_old_00005", "BDG5")
+
+        # Second save: change status to produce a second history entry still referencing old address
+        bdg.status = "demolished"
+        bdg.save()
+        bdg.status = "constructed"
+        bdg.save()
+
+        history_with_old = BuildingHistoryOnly.objects.filter(
+            rnb_id=bdg.rnb_id,
+            addresses_id__contains=["04001_old_00005"],
+        )
+        self.assertGreaterEqual(history_with_old.count(), 2)
+
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_old_00005",
+                    "result_id": "04001_new_00005",
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                }
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            geocode_and_update_obsolete_addresses()
+
+        # No history entry should still reference the old address
+        self.assertFalse(
+            BuildingHistoryOnly.objects.filter(
+                rnb_id=bdg.rnb_id,
+                addresses_id__contains=["04001_old_00005"],
+            ).exists()
+        )
+        # All formerly-referencing entries should now reference the new address
+        self.assertGreaterEqual(
+            BuildingHistoryOnly.objects.filter(
+                rnb_id=bdg.rnb_id,
+                addresses_id__contains=["04001_new_00005"],
+            ).count(),
+            2,
+        )
+
+    def test_geocoder_returns_existing_key_marks_old_for_delete(self):
+        """
+        Input: interop_1 (still_exists=True) and interop_2 (still_exists=False) linked to a building.
+               Geocoder returns that interop_2's address now has key interop_1 (already in DB).
+        Expected: building re-linked to interop_1, interop_2 marked with ban_update_flag='mark_for_delete'.
+        """
+        Address.objects.create(
+            id="04001_interop_00001",
+            source="ban",
+            still_exists=True,
+            street_number="1",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+        )
+        addr2, bdg = self._create_linked_obsolete_address("04001_interop_00002", "BDG6")
+
+        bdg.status = "demolished"
+        bdg.save()
+
+        bdg_history = BuildingHistoryOnly.objects.filter(rnb_id=bdg.rnb_id).order_by(
+            "id"
+        )
+        # _create_linked_obsolete_address creates a first history version
+        # status change creates a second one.
+        self.assertEqual(len(bdg_history), 2)
+        bdg_history = bdg_history[1]
+
+        # the old key is in the addresses array
+        self.assertEqual(bdg_history.addresses_id, ["04001_interop_00002"])
+
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_interop_00002",
+                    "result_id": "04001_interop_00001",
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                }
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            geocode_and_update_obsolete_addresses()
+
+        bdg.refresh_from_db()
+        self.assertIn("04001_interop_00001", bdg.addresses_id)
+        self.assertNotIn("04001_interop_00002", bdg.addresses_id)
+
+        addr2.refresh_from_db()
+        self.assertEqual(addr2.ban_update_flag, "mark_for_delete")
+
+        bdg_history.refresh_from_db()
+        # the old key has been replaced by the new one
+        self.assertEqual(bdg_history.addresses_id, ["04001_interop_00001"])
+
+    def test_building_already_linked_to_replacement_address_no_duplicate(self):
+        """
+        Input: building already linked to both interop_1 (still_exists=True) and interop_2
+               (still_exists=False). Geocoder returns that interop_2 maps to interop_1.
+        Expected: interop_1 appears exactly once in building.addresses_id (no duplicate added).
+        """
+        Address.objects.create(
+            id="04001_interop_00001",
+            source="ban",
+            still_exists=True,
+            street_number="1",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+        )
+        addr2 = Address.objects.create(
+            id="04001_interop_00002",
+            source="ban",
+            still_exists=False,
+            street_number="1",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+        )
+        bdg = helpers.create_default_bdg("BDG7")
+        bdg.addresses_id = ["04001_interop_00001", "04001_interop_00002"]
+        bdg.save()
+
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_interop_00002",
+                    "result_id": "04001_interop_00001",
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                }
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            geocode_and_update_obsolete_addresses()
+
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_id, ["04001_interop_00001"])
+
+        addr2.refresh_from_db()
+        self.assertEqual(addr2.ban_update_flag, "mark_for_delete")
+
+    def test_intra_batch_duplicate_new_id(self):
+        """
+        Input: building BDG8 linked to old_id_1 and old_id_2 (both still_exists=False).
+               The building has two history entries (created via a status change) both
+               referencing [old_id_1, old_id_2].
+               Geocoder returns new_id for both old_id_1 and old_id_2 in the same batch.
+        Expected:
+          - building.addresses_id == [new_id] (exactly once, no duplicate)
+          - old_id_1 renamed to new_id (PK updated, still_exists=True)
+          - old_id_2 marked with ban_update_flag='mark_for_delete'
+          - all BuildingHistoryOnly entries formerly referencing [old_id_1, old_id_2]
+            now reference [new_id] only (no duplicate, no stale old_id)
+        """
+        Address.objects.create(
+            id="04001_old_00010",
+            source="ban",
+            still_exists=False,
+            street_number="10",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+        )
+        addr2 = Address.objects.create(
+            id="04001_old_00011",
+            source="ban",
+            still_exists=False,
+            street_number="10",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+        )
+        bdg = helpers.create_default_bdg("BDG8")
+        bdg.addresses_id = ["04001_old_00010", "04001_old_00011"]
+        bdg.save()
+
+        # Two status changes to produce two history entries still referencing both old addresses
+        bdg.status = "demolished"
+        bdg.save()
+        bdg.status = "constructed"
+        bdg.save()
+
+        history_with_both = BuildingHistoryOnly.objects.filter(
+            rnb_id=bdg.rnb_id,
+            addresses_id__contains=["04001_old_00010", "04001_old_00011"],
+        )
+        self.assertEqual(history_with_both.count(), 2)
+
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_old_00010",
+                    "result_id": "04001_new_00010",
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                },
+                {
+                    "db_id": "04001_old_00011",
+                    "result_id": "04001_new_00010",  # same new_id as addr1
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                },
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            geocode_and_update_obsolete_addresses()
+
+        # Building is linked to new_id exactly once
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_id, ["04001_new_00010"])
+
+        # addr1 was renamed to new_id
+        new_addr = Address.objects.get(id="04001_new_00010")
+        self.assertTrue(new_addr.still_exists)
+
+        # addr2 is marked for deletion
+        addr2.refresh_from_db()
+        self.assertEqual(addr2.ban_update_flag, "mark_for_delete")
+
+        # No history entry references any old id
+        self.assertFalse(
+            BuildingHistoryOnly.objects.filter(
+                rnb_id=bdg.rnb_id,
+                addresses_id__contains=["04001_old_00010"],
+            ).exists()
+        )
+        self.assertFalse(
+            BuildingHistoryOnly.objects.filter(
+                rnb_id=bdg.rnb_id,
+                addresses_id__contains=["04001_old_00011"],
+            ).exists()
+        )
+        # Entries that previously had both old ids now reference new_id exactly once
+        self.assertEqual(
+            BuildingHistoryOnly.objects.filter(
+                rnb_id=bdg.rnb_id,
+                addresses_id=["04001_new_00010"],
+            ).count(),
+            2,
+        )
 
 
 class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
