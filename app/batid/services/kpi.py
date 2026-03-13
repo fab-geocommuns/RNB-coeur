@@ -108,7 +108,9 @@ def compute_today_kpis():
     )
     contributions_count = count_building_changes_contributions(today)
     KPI.objects.create(
-        name=KPI_BUILDING_CHANGES_CONTRIBUTIONS,value=contributions_count, value_date=today,
+        name=KPI_BUILDING_CHANGES_CONTRIBUTIONS,
+        value=contributions_count,
+        value_date=today,
     )
 
 

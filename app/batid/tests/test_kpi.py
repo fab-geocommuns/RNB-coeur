@@ -7,10 +7,10 @@ from django.test import TestCase
 
 from batid.models import Address
 from batid.models import Building
+from batid.models import BuildingImport
 from batid.models import Contribution
 from batid.models import KPI
 from batid.models.report import Report
-from batid.models import BuildingImport
 from batid.services.kpi import compute_today_kpis
 from batid.services.kpi import count_active_buildings
 from batid.services.kpi import count_building_changes_contributions
@@ -390,9 +390,7 @@ class GetBuildingChangeStats(TestCase):
         KPI.objects.create(
             name="building_changes_import_bdtopo", value=5, value_date=day2
         )
-        KPI.objects.create(
-            name="building_changes_import_bal", value=0, value_date=day2
-        )
+        KPI.objects.create(name="building_changes_import_bal", value=0, value_date=day2)
         KPI.objects.create(
             name="building_changes_contributions", value=0, value_date=day2
         )
