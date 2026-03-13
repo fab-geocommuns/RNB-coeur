@@ -885,6 +885,112 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
         addr2.refresh_from_db()
         self.assertEqual(addr2.ban_update_flag, "mark_for_delete")
 
+    def test_intra_batch_duplicate_new_id(self):
+        """
+        Input: building BDG8 linked to old_id_1 and old_id_2 (both still_exists=False).
+               The building has two history entries (created via a status change) both
+               referencing [old_id_1, old_id_2].
+               Geocoder returns new_id for both old_id_1 and old_id_2 in the same batch.
+        Expected:
+          - building.addresses_id == [new_id] (exactly once, no duplicate)
+          - old_id_1 renamed to new_id (PK updated, still_exists=True)
+          - old_id_2 marked with ban_update_flag='mark_for_delete'
+          - all BuildingHistoryOnly entries formerly referencing [old_id_1, old_id_2]
+            now reference [new_id] only (no duplicate, no stale old_id)
+        """
+        Address.objects.create(
+            id="04001_old_00010",
+            source="ban",
+            still_exists=False,
+            street_number="10",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+        )
+        addr2 = Address.objects.create(
+            id="04001_old_00011",
+            source="ban",
+            still_exists=False,
+            street_number="10",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+        )
+        bdg = helpers.create_default_bdg("BDG8")
+        bdg.addresses_id = ["04001_old_00010", "04001_old_00011"]
+        bdg.save()
+
+        # Two status changes to produce two history entries still referencing both old addresses
+        bdg.status = "demolished"
+        bdg.save()
+        bdg.status = "constructed"
+        bdg.save()
+
+        history_with_both = BuildingHistoryOnly.objects.filter(
+            rnb_id=bdg.rnb_id,
+            addresses_id__contains=["04001_old_00010", "04001_old_00011"],
+        )
+        self.assertEqual(history_with_both.count(), 2)
+
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_old_00010",
+                    "result_id": "04001_new_00010",
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                },
+                {
+                    "db_id": "04001_old_00011",
+                    "result_id": "04001_new_00010",  # same new_id as addr1
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                },
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            geocode_and_update_obsolete_addresses()
+
+        # Building is linked to new_id exactly once
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_id, ["04001_new_00010"])
+
+        # addr1 was renamed to new_id
+        new_addr = Address.objects.get(id="04001_new_00010")
+        self.assertTrue(new_addr.still_exists)
+
+        # addr2 is marked for deletion
+        addr2.refresh_from_db()
+        self.assertEqual(addr2.ban_update_flag, "mark_for_delete")
+
+        # No history entry references any old id
+        self.assertFalse(
+            BuildingHistoryOnly.objects.filter(
+                rnb_id=bdg.rnb_id,
+                addresses_id__contains=["04001_old_00010"],
+            ).exists()
+        )
+        self.assertFalse(
+            BuildingHistoryOnly.objects.filter(
+                rnb_id=bdg.rnb_id,
+                addresses_id__contains=["04001_old_00011"],
+            ).exists()
+        )
+        # Entries that previously had both old ids now reference new_id exactly once
+        self.assertEqual(
+            BuildingHistoryOnly.objects.filter(
+                rnb_id=bdg.rnb_id,
+                addresses_id=["04001_new_00010"],
+            ).count(),
+            2,
+        )
+
 
 class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
     def test_obsolete_address_not_linked_is_deleted(self):
