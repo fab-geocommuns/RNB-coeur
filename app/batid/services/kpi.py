@@ -156,7 +156,7 @@ def get_building_change_stats(since: date, until: date) -> list[dict]:
     qs_bal = get_kpi(KPI_BUILDING_CHANGES_IMPORT_BAL, since=since, until=until)
     qs_contrib = get_kpi(KPI_BUILDING_CHANGES_CONTRIBUTIONS, since=since, until=until)
 
-    by_date = {}
+    by_date: dict[date, dict[str, int]] = {}
     for k in qs_bdtopo:
         by_date.setdefault(
             k.value_date,
