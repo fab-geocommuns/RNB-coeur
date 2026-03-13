@@ -8,12 +8,16 @@ from batid.models import KPI
 
 class BuildingChangeStatsTest(APITestCase):
     def test_missing_since_returns_400(self):
-        response = self.client.get("/api/alpha/buildings/change_stats/?until=2024-01-15")
+        response = self.client.get(
+            "/api/alpha/buildings/change_stats/?until=2024-01-15"
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn("since", response.json().get("detail", ""))
 
     def test_missing_until_returns_400(self):
-        response = self.client.get("/api/alpha/buildings/change_stats/?since=2024-01-01")
+        response = self.client.get(
+            "/api/alpha/buildings/change_stats/?since=2024-01-01"
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn("until", response.json().get("detail", ""))
 

@@ -560,9 +560,7 @@ class GetBuildingChangeStats(TestCase):
         KPI.objects.create(
             name="building_changes_import_bdtopo", value=5, value_date=day2
         )
-        KPI.objects.create(
-            name="building_changes_import_bal", value=0, value_date=day2
-        )
+        KPI.objects.create(name="building_changes_import_bal", value=0, value_date=day2)
         KPI.objects.create(
             name="building_changes_contributions", value=0, value_date=day2
         )
