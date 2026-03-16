@@ -138,6 +138,13 @@ class CountContributions(TestCase):
         Contribution.objects.create(report=False, status="fixed", review_user=self.u1)
         Contribution.objects.create(report=False, status="fixed", review_user=self.u1)
         Contribution.objects.create(report=False, status="fixed", review_user=self.u2)
+        # count_edits() utilise batid_building_with_history : 3 bâtiments contribution
+        for i in range(3):
+            Building.objects.create(
+                rnb_id=f"EDITS{i:02d}",
+                status="constructed",
+                event_origin={"source": "contribution"},
+            )
 
     def test_count(self):
         # Test reports
