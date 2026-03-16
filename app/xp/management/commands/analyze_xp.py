@@ -6,7 +6,6 @@ from django.core.management.base import BaseCommand
 
 from batid.services.source import Source
 
-
 # This command analyze a city buildings stock and compare it to the RNB
 # The city stock must be in a geojson file made of multiploygons
 

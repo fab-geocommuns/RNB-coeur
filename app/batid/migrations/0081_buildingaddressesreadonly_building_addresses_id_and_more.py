@@ -7,7 +7,6 @@ from django.db import models
 
 from batid.migrations.utils.create_view import sql_migration_building_with_history
 
-
 DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL = """
             CREATE OR REPLACE FUNCTION public.delete_address_id_from_building()
             RETURNS trigger
@@ -151,8 +150,7 @@ class Migration(migrations.Migration):
 
 
 
-            """
-            + DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL,  # nosec
+            """ + DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL,  # nosec
             reverse_sql="""
             DROP TRIGGER building_addresses_trigger ON batid_building;
             DROP FUNCTION keep_building_address_link_updated();

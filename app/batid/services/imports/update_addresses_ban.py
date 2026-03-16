@@ -17,7 +17,7 @@ from batid.services.source import Source
 logger = logging.getLogger(__name__)
 
 
-APOSTROPHES = ["'", "\u2018", "\u2019", "\u02BC", "\u02BB", "\u0060", "\u00B4"]
+APOSTROPHES = ["'", "\u2018", "\u2019", "\u02bc", "\u02bb", "\u0060", "\u00b4"]
 
 STREET_REP_ALIASES = {
     "b": "bis",
