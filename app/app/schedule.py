@@ -11,11 +11,6 @@ common_schedule = {
         # everyday at 4am
         "schedule": crontab(hour=4, minute=0),
     },
-    "send_monthly_leaderboard_emails": {
-        "task": "batid.tasks.send_monthly_leaderboard_emails",
-        # 1st of each month at 6am UTC
-        "schedule": crontab(hour=6, minute=0, day_of_month=1),
-    },
 }
 
 development_schedule = {
@@ -65,6 +60,11 @@ production_schedule = {
         "task": "batid.tasks.queue_full_bal_rnb_links",
         # we create links after the BAN has been imported
         "schedule": crontab(minute=0, hour=0, day_of_month="2,16"),
+    },
+    "send_monthly_leaderboard_emails": {
+        "task": "batid.tasks.send_monthly_leaderboard_emails",
+        # 1st of each month at 6am UTC
+        "schedule": crontab(hour=6, minute=0, day_of_month=1),
     },
 }
 

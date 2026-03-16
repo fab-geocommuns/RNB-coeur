@@ -108,7 +108,8 @@ class LeaderboardEmailTestCase(TestCase):
     def test_build_monthly_leaderboard_email(self):
         """
         Input: leaderboard with one entry (alice, 5 edits) and a recipient email.
-        Expected: EmailMultiAlternatives instance; HTML body contains the username, edit count, and month label.
+        Expected: EmailMultiAlternatives instance; subject and HTML body both contain the month label,
+        username, and edit count.
         """
         leaderboard = [{"event_user__username": "alice", "edit_count": 5}]
         email = build_monthly_leaderboard_email(
@@ -116,6 +117,7 @@ class LeaderboardEmailTestCase(TestCase):
         )
 
         self.assertIsInstance(email, EmailMultiAlternatives)
+        self.assertIn("janvier 2026", email.subject)
         html_body = email.alternatives[0][0]
         self.assertIn("alice", html_body)
         self.assertIn("5", html_body)
