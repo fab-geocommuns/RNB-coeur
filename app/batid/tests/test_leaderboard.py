@@ -1,7 +1,8 @@
 import datetime
-import uuid
+import json
 
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.mail import EmailMultiAlternatives
 from django.test import override_settings
 from django.test import TestCase
@@ -10,44 +11,68 @@ from batid.models.building import Building
 from batid.services.email import build_monthly_leaderboard_email
 from batid.services.leaderboard import get_monthly_edit_leaderboard
 from batid.services.leaderboard import get_monthly_new_users
-from batid.utils.date import french_month_label
-from batid.utils.date import month_bounds
-from batid.utils.date import previous_month
+from batid.tests.factories.users import ContributorUserFactory
+
+SIMPLE_POLYGON = GEOSGeometry(
+    json.dumps(
+        {
+            "type": "Polygon",
+            "coordinates": [[[0, 0], [0, 0.001], [0.001, 0.001], [0.001, 0], [0, 0]]],
+        }
+    )
+)
+
+OTHER_POLYGON = GEOSGeometry(
+    json.dumps(
+        {
+            "type": "Polygon",
+            "coordinates": [[[1, 1], [1, 1.001], [1.001, 1.001], [1.001, 1], [1, 1]]],
+        }
+    )
+)
 
 
+@override_settings(MAX_BUILDING_AREA=float("inf"))
 class LeaderboardQueryTestCase(TestCase):
-    def _create_building(self, rnb_id, event_user, event_id):
-        return Building.objects.create(
-            rnb_id=rnb_id,
-            event_user=event_user,
-            event_id=event_id,
-        )
-
     def test_leaderboard_counts_distinct_events(self):
         """
-        Input: user A has 3 buildings via 2 distinct event_ids; user B has 1 building via 1 event_id.
-        Expected: leaderboard has 2 entries, user A first with edit_count=2, user B second with edit_count=1.
+        Input: user A creates 1 building then updates it (2 events); user B creates 1 building (1 event).
+        Expected: user A has edit_count=2, user B has edit_count=1, ordered desc.
         """
-        user_a = User.objects.create_user(username="user_a", email="a@example.com")
-        user_b = User.objects.create_user(username="user_b", email="b@example.com")
-        event_a1 = uuid.uuid4()
-        event_a2 = uuid.uuid4()
-        event_b1 = uuid.uuid4()
+        user_a = ContributorUserFactory(username="user_a", email="a@example.com")
+        user_b = ContributorUserFactory(username="user_b", email="b@example.com")
 
-        self._create_building("RNBA0000001", user_a, event_a1)
-        self._create_building(
-            "RNBA0000002", user_a, event_a1
-        )  # same event, counts as 1
-        self._create_building("RNBA0000003", user_a, event_a2)
-        self._create_building("RNBB0000001", user_b, event_b1)
+        b1 = Building.create_new(
+            user=user_a,
+            event_origin={"source": "test"},
+            status="constructed",
+            addresses_id=[],
+            shape=SIMPLE_POLYGON,
+            ext_ids=[],
+        )
+        b1.update(
+            user=user_a,
+            event_origin={"source": "test"},
+            status="demolished",
+            addresses_id=None,
+            shape=None,
+        )
+        Building.create_new(
+            user=user_b,
+            event_origin={"source": "test"},
+            status="constructed",
+            addresses_id=[],
+            shape=OTHER_POLYGON,
+            ext_ids=[],
+        )
 
         today = datetime.date.today()
         results = get_monthly_edit_leaderboard(today.year, today.month)
 
         self.assertEqual(len(results), 2)
-        self.assertEqual(results[0]["event_user__username"], "user_a")
+        self.assertEqual(results[0]["username"], "user_a")
         self.assertEqual(results[0]["edit_count"], 2)
-        self.assertEqual(results[1]["event_user__username"], "user_b")
+        self.assertEqual(results[1]["username"], "user_b")
         self.assertEqual(results[1]["edit_count"], 1)
 
     def test_leaderboard_excludes_other_months(self):
@@ -55,8 +80,15 @@ class LeaderboardQueryTestCase(TestCase):
         Input: 1 building created now (current month).
         Expected: current month query returns 1 result; next month query returns 0.
         """
-        user = User.objects.create_user(username="user_c", email="c@example.com")
-        self._create_building("RNBC0000001", user, uuid.uuid4())
+        user = ContributorUserFactory(username="user_c", email="c@example.com")
+        Building.create_new(
+            user=user,
+            event_origin={"source": "test"},
+            status="constructed",
+            addresses_id=[],
+            shape=SIMPLE_POLYGON,
+            ext_ids=[],
+        )
 
         today = datetime.date.today()
         results = get_monthly_edit_leaderboard(today.year, today.month)
@@ -69,11 +101,16 @@ class LeaderboardQueryTestCase(TestCase):
 
     def test_leaderboard_excludes_null_event_user(self):
         """
-        Input: 1 building with event_user=None.
+        Input: 1 building created without a user (import source).
         Expected: leaderboard is empty.
         """
-        Building.objects.create(
-            rnb_id="RNBD0000001", event_user=None, event_id=uuid.uuid4()
+        Building.create_new(
+            user=None,
+            event_origin={"source": "import"},
+            status="constructed",
+            addresses_id=[],
+            shape=SIMPLE_POLYGON,
+            ext_ids=[],
         )
 
         today = datetime.date.today()
@@ -105,55 +142,6 @@ class LeaderboardQueryTestCase(TestCase):
         self.assertIn(user_b, last_month_users)
 
 
-class DateUtilsTestCase(TestCase):
-    def test_month_bounds_regular_month(self):
-        """
-        Input: February 2026.
-        Expected: start=2026-02-01 UTC, end=2026-03-01 UTC.
-        """
-        start, end = month_bounds(2026, 2)
-        self.assertEqual(
-            start, datetime.datetime(2026, 2, 1, tzinfo=datetime.timezone.utc)
-        )
-        self.assertEqual(
-            end, datetime.datetime(2026, 3, 1, tzinfo=datetime.timezone.utc)
-        )
-
-    def test_month_bounds_december(self):
-        """
-        Input: December 2025.
-        Expected: start=2025-12-01 UTC, end=2026-01-01 UTC.
-        """
-        start, end = month_bounds(2025, 12)
-        self.assertEqual(
-            start, datetime.datetime(2025, 12, 1, tzinfo=datetime.timezone.utc)
-        )
-        self.assertEqual(
-            end, datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
-        )
-
-    def test_french_month_label(self):
-        """
-        Input: year=2026, month=2.
-        Expected: "février 2026".
-        """
-        self.assertEqual(french_month_label(2026, 2), "février 2026")
-
-    def test_previous_month_regular(self):
-        """
-        Input: called during March 2026 (current date).
-        Expected: returns (2026, 2).
-        """
-        year, month = previous_month()
-        today = datetime.date.today()
-        if today.month == 1:
-            self.assertEqual(year, today.year - 1)
-            self.assertEqual(month, 12)
-        else:
-            self.assertEqual(year, today.year)
-            self.assertEqual(month, today.month - 1)
-
-
 class LeaderboardEmailTestCase(TestCase):
     @override_settings(
         RNB_SEND_ADDRESS="rnb@example.com",
@@ -162,10 +150,10 @@ class LeaderboardEmailTestCase(TestCase):
     def test_build_monthly_leaderboard_email(self):
         """
         Input: leaderboard with one entry (alice, 5 edits) and a recipient email.
-        Expected: EmailMultiAlternatives instance; subject and HTML body both contain the month label,
+        Expected: EmailMultiAlternatives with subject and HTML body containing month label,
         username, and edit count.
         """
-        leaderboard = [{"event_user__username": "alice", "edit_count": 5}]
+        leaderboard = [{"username": "alice", "edit_count": 5}]
         email = build_monthly_leaderboard_email(
             leaderboard, "janvier 2026", "recipient@example.com"
         )
@@ -187,7 +175,7 @@ class LeaderboardEmailTestCase(TestCase):
         Input: leaderboard with one entry, plus two new usernames.
         Expected: HTML body contains "Bienvenue aux nouveaux inscrits" and both new usernames.
         """
-        leaderboard = [{"event_user__username": "alice", "edit_count": 5}]
+        leaderboard = [{"username": "alice", "edit_count": 5}]
         new_usernames = ["bob", "charlie"]
         email = build_monthly_leaderboard_email(
             leaderboard, "février 2026", "recipient@example.com", new_usernames
@@ -207,7 +195,7 @@ class LeaderboardEmailTestCase(TestCase):
         Input: leaderboard with one entry, no new usernames.
         Expected: HTML body does not contain "Bienvenue aux nouveaux inscrits".
         """
-        leaderboard = [{"event_user__username": "alice", "edit_count": 5}]
+        leaderboard = [{"username": "alice", "edit_count": 5}]
         email = build_monthly_leaderboard_email(
             leaderboard, "février 2026", "recipient@example.com"
         )

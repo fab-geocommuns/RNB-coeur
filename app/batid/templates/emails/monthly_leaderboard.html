@@ -3,7 +3,7 @@
     <p>Voici le résumé des contributions au Référentiel National des Bâtiments pour le mois de {{ month_label }} :</p>
     <ul>
         {% for entry in leaderboard %}
-        <li>{{ entry.event_user__username }} – {{ entry.edit_count }} édition{{ entry.edit_count|pluralize }}</li>
+        <li>{{ entry.username }} – {{ entry.edit_count }} édition{{ entry.edit_count|pluralize }}</li>
         {% endfor %}
     </ul>
     {% if new_usernames %}

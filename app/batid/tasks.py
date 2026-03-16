@@ -435,7 +435,9 @@ def send_monthly_leaderboard_emails():
         send_monthly_leaderboard_emails as send_emails,
     )
 
-    return send_emails()
+    result = send_emails()
+    notify_tech(result)
+    return result
 
 
 @shared_task

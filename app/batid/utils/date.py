@@ -1,19 +1,7 @@
 import datetime
 
-FRENCH_MONTHS = {
-    1: "janvier",
-    2: "février",
-    3: "mars",
-    4: "avril",
-    5: "mai",
-    6: "juin",
-    7: "juillet",
-    8: "août",
-    9: "septembre",
-    10: "octobre",
-    11: "novembre",
-    12: "décembre",
-}
+from django.utils import translation
+from django.utils.dates import MONTHS
 
 
 def month_bounds(year: int, month: int) -> tuple:
@@ -26,7 +14,8 @@ def month_bounds(year: int, month: int) -> tuple:
 
 
 def french_month_label(year: int, month: int) -> str:
-    return f"{FRENCH_MONTHS[month]} {year}"
+    with translation.override("fr"):
+        return f"{MONTHS[month]} {year}"
 
 
 def previous_month() -> tuple[int, int]:

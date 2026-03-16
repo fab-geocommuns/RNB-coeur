@@ -52,7 +52,7 @@ def build_monthly_leaderboard_email(
 ) -> EmailMultiAlternatives:
     """
     Input:
-        leaderboard: [{"event_user__username": str, "edit_count": int}, ...] sorted by edit_count desc
+        leaderboard: [{"username": str, "edit_count": int}, ...] sorted by edit_count desc
         month_label: human-readable month in French, e.g. "février 2026"
         email: recipient address
         new_usernames: list of usernames of users who joined this month
