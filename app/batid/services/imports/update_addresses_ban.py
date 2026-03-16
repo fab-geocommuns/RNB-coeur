@@ -437,9 +437,13 @@ def _apply_geocode_updates(successes: list) -> None:
 
     Disables the versioning trigger during the operation to avoid spurious history entries.
     Uses a 3-step approach to work around the non-cascading FK on BuildingAddressesReadOnly:
-    1. Remove old address IDs from Building.addresses_id (trigger cleans junction table)
+    1. Remove ALL old address IDs from Building.addresses_id (trigger cleans junction table).
+       Uses a single-array filter instead of a VALUES JOIN to guarantee each building row is
+       updated exactly once. A VALUES JOIN is non-deterministic when multiple old_ids from the
+       same batch match the same building, which would leave stale FK references and cause an
+       IntegrityError in step 2.
     2. Update Address PKs to new values
-    3. Add new address IDs to Building.addresses_id (trigger recreates junction entries)
+    3. Add new address IDs to Building.addresses_id, grouping per building (same fix as step 1).
     Building history is also updated, but in a simple 1 step approach because there are no triggers on this table.
     """
     # Deduplicate on new_id: keep only the first old_id per new_id within the batch.
@@ -507,36 +511,24 @@ def _apply_geocode_updates(successes: list) -> None:
     try:
         with transaction.atomic():
             with connection.cursor() as cursor:
-                # Step 1: Remove old address IDs from Building.addresses_id
-                # building_addresses_trigger deletes from BuildingAddressesReadOnly
+                # Step 1: Remove ALL old address IDs from Building.addresses_id.
+                # building_addresses_trigger deletes from BuildingAddressesReadOnly.
+                # Covers both unique_successes and intra_batch_dupes in a single statement,
+                # using a per-element filter so each building row is updated exactly once.
+                all_old_ids = [s["old_id"] for s in unique_successes] + [
+                    s["old_id"] for s in intra_batch_dupes
+                ]
                 cursor.execute(
-                    f"""
+                    """
                     UPDATE batid_building
-                    SET addresses_id = array_remove(addresses_id, v.old_id)
-                    FROM (VALUES {placeholders}) AS v(old_id, new_id)
-                    WHERE addresses_id @> ARRAY[v.old_id::varchar]
+                    SET addresses_id = ARRAY(
+                        SELECT a FROM unnest(addresses_id) a
+                        WHERE a != ALL(%s::varchar[])
+                    )
+                    WHERE addresses_id && %s::varchar[]
                     """,
-                    addr_flat_values,
+                    [all_old_ids, all_old_ids],
                 )
-
-                # Step 1b: Remove intra-batch duplicate old_ids from Building.addresses_id.
-                # These are not in unique_successes so they are not covered by step 1.
-                if intra_batch_building_links:
-                    ib_placeholders = ", ".join(
-                        ["(%s::bigint, %s)"] * len(intra_batch_building_links)
-                    )
-                    ib_values = []
-                    for link in intra_batch_building_links:
-                        ib_values.extend([link[0], link[1]])  # building_id, old_id
-                    cursor.execute(
-                        f"""
-                        UPDATE batid_building
-                        SET addresses_id = array_remove(addresses_id, v.old_id)
-                        FROM (VALUES {ib_placeholders}) AS v(building_id, old_id)
-                        WHERE batid_building.id = v.building_id
-                        """,
-                        ib_values,
-                    )
 
                 # Step 2: Update Address PK only.
                 # Text fields and ban_id will be populated on the next run
@@ -592,11 +584,10 @@ def _apply_geocode_updates(successes: list) -> None:
                         intra_batch_dupe_old_ids,
                     )
 
-                # Step 3: Add new address IDs to Building.addresses_id
-                # building_addresses_trigger recreates BuildingAddressesReadOnly entries
-                # Combine links from unique_successes and intra-batch dupes. The guard
-                # NOT (addresses_id @> ARRAY[v.new_id]) prevents double-appends when a
-                # building had multiple old_ids resolving to the same new_id.
+                # Step 3: Add new address IDs to Building.addresses_id.
+                # building_addresses_trigger recreates BuildingAddressesReadOnly entries.
+                # Groups new_ids per building so each building row is updated exactly once
+                # (same non-determinism fix as step 1).
                 all_building_links = building_address_links + intra_batch_building_links
                 if all_building_links:
                     building_address_placeholders = ", ".join(
@@ -608,11 +599,16 @@ def _apply_geocode_updates(successes: list) -> None:
 
                     cursor.execute(
                         f"""
-                        UPDATE batid_building
-                        SET addresses_id = array_append(addresses_id, v.new_id)
-                        FROM (VALUES {building_address_placeholders}) AS v(building_id, new_id)
-                        WHERE batid_building.id = v.building_id
-                        AND NOT (addresses_id @> ARRAY[v.new_id]::varchar[])
+                        UPDATE batid_building b
+                        SET addresses_id = ARRAY(
+                            SELECT DISTINCT unnest(b.addresses_id || v.new_ids)
+                        )
+                        FROM (
+                            SELECT building_id, array_agg(DISTINCT new_id::varchar) AS new_ids
+                            FROM (VALUES {building_address_placeholders}) AS t(building_id, new_id)
+                            GROUP BY building_id
+                        ) v
+                        WHERE b.id = v.building_id
                         """,
                         bldg_values,
                     )

@@ -991,6 +991,98 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
             2,
         )
 
+    def test_one_building_two_obsolete_addresses_different_new_ids_same_batch(self):
+        """
+        Input: building BDG9 linked to old_id_A and old_id_B (both still_exists=False).
+               Geocoder returns a distinct new_id for each (new_id_A and new_id_B) in
+               the same batch.
+        Expected: no IntegrityError (FK violation), both addresses renamed,
+                  building.addresses_id == [new_id_A, new_id_B],
+                  BuildingAddressesReadOnly has entries for both new ids only.
+
+        Regression: step 1 of _apply_geocode_updates uses UPDATE ... FROM (VALUES ...)
+        which is non-deterministic when multiple VALUES rows match the same building row.
+        This left one of the old address ids still referenced in
+        batid_buildingaddressesreadonly, causing an FK violation in step 2.
+        """
+        addr_a = Address.objects.create(
+            id="04001_old_00020",
+            source="ban",
+            still_exists=False,
+            street_number="1",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+        )
+        addr_b = Address.objects.create(
+            id="04001_old_00021",
+            source="ban",
+            still_exists=False,
+            street_number="2",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+        )
+        bdg = helpers.create_default_bdg("BDG9")
+        bdg.addresses_id = ["04001_old_00020", "04001_old_00021"]
+        bdg.save()
+
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_old_00020",
+                    "result_id": "04001_new_00020",
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                },
+                {
+                    "db_id": "04001_old_00021",
+                    "result_id": "04001_new_00021",
+                    "result_score": "0.9",
+                    "result_type": "housenumber",
+                },
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            result = geocode_and_update_obsolete_addresses()
+
+        self.assertEqual(result["updated"], 2)
+
+        bdg.refresh_from_db()
+        self.assertCountEqual(bdg.addresses_id, ["04001_new_00020", "04001_new_00021"])
+
+        self.assertFalse(Address.objects.filter(id="04001_old_00020").exists())
+        self.assertFalse(Address.objects.filter(id="04001_old_00021").exists())
+        self.assertTrue(Address.objects.get(id="04001_new_00020").still_exists)
+        self.assertTrue(Address.objects.get(id="04001_new_00021").still_exists)
+
+        self.assertTrue(
+            BuildingAddressesReadOnly.objects.filter(
+                building=bdg, address_id="04001_new_00020"
+            ).exists()
+        )
+        self.assertTrue(
+            BuildingAddressesReadOnly.objects.filter(
+                building=bdg, address_id="04001_new_00021"
+            ).exists()
+        )
+        self.assertFalse(
+            BuildingAddressesReadOnly.objects.filter(
+                building=bdg, address_id="04001_old_00020"
+            ).exists()
+        )
+        self.assertFalse(
+            BuildingAddressesReadOnly.objects.filter(
+                building=bdg, address_id="04001_old_00021"
+            ).exists()
+        )
+
 
 class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
     def test_obsolete_address_not_linked_is_deleted(self):
