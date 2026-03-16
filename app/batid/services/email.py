@@ -48,17 +48,23 @@ def build_monthly_leaderboard_email(
     leaderboard: list,
     month_label: str,
     email: str,
+    new_usernames: list[str] | None = None,
 ) -> EmailMultiAlternatives:
     """
     Input:
         leaderboard: [{"event_user__username": str, "edit_count": int}, ...] sorted by edit_count desc
         month_label: human-readable month in French, e.g. "février 2026"
         email: recipient address
+        new_usernames: list of usernames of users who joined this month
     Returns: EmailMultiAlternatives ready to send
     """
     html_content = render_to_string(
         "emails/monthly_leaderboard.html",
-        {"leaderboard": leaderboard, "month_label": month_label},
+        {
+            "leaderboard": leaderboard,
+            "month_label": month_label,
+            "new_usernames": new_usernames or [],
+        },
     )
     msg = EmailMultiAlternatives(
         subject=f"Contributions RNB – {month_label}",

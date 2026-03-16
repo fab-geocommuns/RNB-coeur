@@ -431,60 +431,11 @@ def create_arcep_reports() -> uuid.UUID:
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def send_monthly_leaderboard_emails():
-    """
-    Computes the leaderboard for the previous month and sends an email to each eligible recipient
-    (users who edited the RNB or created an account that month, with a non-empty email).
-    Does nothing if the leaderboard is empty.
-    """
-    import datetime
-
-    from batid.services.email import build_monthly_leaderboard_email
-    from batid.services.leaderboard import get_monthly_edit_leaderboard
-    from batid.services.leaderboard import get_monthly_new_users
-
-    today = datetime.date.today()
-    if today.month == 1:
-        year, month = today.year - 1, 12
-    else:
-        year, month = today.year, today.month - 1
-
-    leaderboard = get_monthly_edit_leaderboard(year, month)
-    if not leaderboard:
-        return "No edits this month, no emails sent"
-
-    french_months = {
-        1: "janvier",
-        2: "février",
-        3: "mars",
-        4: "avril",
-        5: "mai",
-        6: "juin",
-        7: "juillet",
-        8: "août",
-        9: "septembre",
-        10: "octobre",
-        11: "novembre",
-        12: "décembre",
-    }
-    month_label = f"{french_months[month]} {year}"
-
-    editor_emails = {
-        entry["event_user__email"]
-        for entry in leaderboard
-        if entry.get("event_user__email")
-    }
-    new_user_emails = set(
-        get_monthly_new_users(year, month).values_list("email", flat=True)
+    from batid.services.leaderboard import (
+        send_monthly_leaderboard_emails as send_emails,
     )
-    recipient_emails = editor_emails | new_user_emails
 
-    sent = 0
-    for email in recipient_emails:
-        msg = build_monthly_leaderboard_email(leaderboard, month_label, email)
-        msg.send()
-        sent += 1
-
-    return f"Sent {sent} emails for {month_label}"
+    return send_emails()
 
 
 @shared_task

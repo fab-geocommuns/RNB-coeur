@@ -6,6 +6,14 @@
         <li>{{ entry.event_user__username }} – {{ entry.edit_count }} édition{{ entry.edit_count|pluralize }}</li>
         {% endfor %}
     </ul>
+    {% if new_usernames %}
+    <p><strong>Bienvenue aux nouveaux inscrits :</strong></p>
+    <ul>
+        {% for username in new_usernames %}
+        <li>{{ username }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
     <p>Merci pour vos contributions !</p>
     <p>L'équipe RNB</p>
     <p>

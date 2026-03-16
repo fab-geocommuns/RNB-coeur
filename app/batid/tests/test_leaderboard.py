@@ -10,6 +10,9 @@ from batid.models.building import Building
 from batid.services.email import build_monthly_leaderboard_email
 from batid.services.leaderboard import get_monthly_edit_leaderboard
 from batid.services.leaderboard import get_monthly_new_users
+from batid.utils.date import french_month_label
+from batid.utils.date import month_bounds
+from batid.utils.date import previous_month
 
 
 class LeaderboardQueryTestCase(TestCase):
@@ -100,6 +103,47 @@ class LeaderboardQueryTestCase(TestCase):
         self.assertIn(user_b, last_month_users)
 
 
+class DateUtilsTestCase(TestCase):
+    def test_month_bounds_regular_month(self):
+        """
+        Input: February 2026.
+        Expected: start=2026-02-01 UTC, end=2026-03-01 UTC.
+        """
+        start, end = month_bounds(2026, 2)
+        self.assertEqual(start, datetime.datetime(2026, 2, 1, tzinfo=datetime.timezone.utc))
+        self.assertEqual(end, datetime.datetime(2026, 3, 1, tzinfo=datetime.timezone.utc))
+
+    def test_month_bounds_december(self):
+        """
+        Input: December 2025.
+        Expected: start=2025-12-01 UTC, end=2026-01-01 UTC.
+        """
+        start, end = month_bounds(2025, 12)
+        self.assertEqual(start, datetime.datetime(2025, 12, 1, tzinfo=datetime.timezone.utc))
+        self.assertEqual(end, datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc))
+
+    def test_french_month_label(self):
+        """
+        Input: year=2026, month=2.
+        Expected: "février 2026".
+        """
+        self.assertEqual(french_month_label(2026, 2), "février 2026")
+
+    def test_previous_month_regular(self):
+        """
+        Input: called during March 2026 (current date).
+        Expected: returns (2026, 2).
+        """
+        year, month = previous_month()
+        today = datetime.date.today()
+        if today.month == 1:
+            self.assertEqual(year, today.year - 1)
+            self.assertEqual(month, 12)
+        else:
+            self.assertEqual(year, today.year)
+            self.assertEqual(month, today.month - 1)
+
+
 class LeaderboardEmailTestCase(TestCase):
     @override_settings(
         RNB_SEND_ADDRESS="rnb@example.com",
@@ -123,3 +167,40 @@ class LeaderboardEmailTestCase(TestCase):
         self.assertIn("5", html_body)
         self.assertIn("janvier 2026", html_body)
         self.assertEqual(email.to, ["recipient@example.com"])
+
+    @override_settings(
+        RNB_SEND_ADDRESS="rnb@example.com",
+        RNB_REPLY_TO_ADDRESS="reply@example.com",
+    )
+    def test_build_monthly_leaderboard_email_with_new_users(self):
+        """
+        Input: leaderboard with one entry, plus two new usernames.
+        Expected: HTML body contains "Bienvenue aux nouveaux inscrits" and both new usernames.
+        """
+        leaderboard = [{"event_user__username": "alice", "edit_count": 5}]
+        new_usernames = ["bob", "charlie"]
+        email = build_monthly_leaderboard_email(
+            leaderboard, "février 2026", "recipient@example.com", new_usernames
+        )
+
+        html_body = email.alternatives[0][0]
+        self.assertIn("Bienvenue aux nouveaux inscrits", html_body)
+        self.assertIn("bob", html_body)
+        self.assertIn("charlie", html_body)
+
+    @override_settings(
+        RNB_SEND_ADDRESS="rnb@example.com",
+        RNB_REPLY_TO_ADDRESS="reply@example.com",
+    )
+    def test_build_monthly_leaderboard_email_no_new_users(self):
+        """
+        Input: leaderboard with one entry, no new usernames.
+        Expected: HTML body does not contain "Bienvenue aux nouveaux inscrits".
+        """
+        leaderboard = [{"event_user__username": "alice", "edit_count": 5}]
+        email = build_monthly_leaderboard_email(
+            leaderboard, "février 2026", "recipient@example.com"
+        )
+
+        html_body = email.alternatives[0][0]
+        self.assertNotIn("Bienvenue aux nouveaux inscrits", html_body)

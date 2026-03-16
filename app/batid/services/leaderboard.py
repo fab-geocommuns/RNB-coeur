@@ -1,9 +1,11 @@
-import datetime
-
 from django.contrib.auth.models import User
 from django.db.models import Count
 
 from batid.models.building import BuildingWithHistory
+from batid.services.mattermost import notify_tech
+from batid.utils.date import french_month_label
+from batid.utils.date import month_bounds
+from batid.utils.date import previous_month
 
 
 def get_monthly_edit_leaderboard(year: int, month: int) -> list[dict]:
@@ -14,7 +16,7 @@ def get_monthly_edit_leaderboard(year: int, month: int) -> list[dict]:
     A single event_id touching N buildings counts as 1 edit.
     Excludes rows with no event_user.
     """
-    start, end = _month_bounds(year, month)
+    start, end = month_bounds(year, month)
     return list(
         BuildingWithHistory.objects.filter(event_user__isnull=False)
         .extra(
@@ -32,7 +34,7 @@ def get_monthly_new_users(year: int, month: int):
     Input: year and month.
     Returns: User queryset of non-staff users who joined in the given month and have an email.
     """
-    start, end = _month_bounds(year, month)
+    start, end = month_bounds(year, month)
     return User.objects.filter(
         date_joined__gte=start,
         date_joined__lt=end,
@@ -40,10 +42,39 @@ def get_monthly_new_users(year: int, month: int):
     ).exclude(email="")
 
 
-def _month_bounds(year: int, month: int) -> tuple:
-    start = datetime.datetime(year, month, 1, tzinfo=datetime.timezone.utc)
-    if month == 12:
-        end = datetime.datetime(year + 1, 1, 1, tzinfo=datetime.timezone.utc)
-    else:
-        end = datetime.datetime(year, month + 1, 1, tzinfo=datetime.timezone.utc)
-    return start, end
+def send_monthly_leaderboard_emails() -> str:
+    """
+    Computes the leaderboard for the previous month and sends an email to each eligible recipient
+    (users who edited the RNB or created an account that month, with a non-empty email).
+    Sends a Mattermost notification after sending.
+    Returns a summary message.
+    """
+    from batid.services.email import build_monthly_leaderboard_email
+
+    year, month = previous_month()
+    leaderboard = get_monthly_edit_leaderboard(year, month)
+    if not leaderboard:
+        return "No edits this month, no emails sent"
+
+    label = french_month_label(year, month)
+    new_users = get_monthly_new_users(year, month)
+
+    editor_emails = {
+        entry["event_user__email"]
+        for entry in leaderboard
+        if entry.get("event_user__email")
+    }
+    new_user_emails = set(new_users.values_list("email", flat=True))
+    recipient_emails = editor_emails | new_user_emails
+
+    new_usernames = list(new_users.values_list("username", flat=True))
+
+    sent = 0
+    for email in recipient_emails:
+        msg = build_monthly_leaderboard_email(leaderboard, label, email, new_usernames)
+        msg.send()
+        sent += 1
+
+    result = f"Sent {sent} emails for {label}"
+    notify_tech(result)
+    return result
