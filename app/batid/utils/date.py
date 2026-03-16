@@ -13,7 +13,7 @@ def month_bounds(year: int, month: int) -> tuple:
     return start, end
 
 
-def french_month_label(year: int, month: int) -> str:
+def french_month_year_label(year: int, month: int) -> str:
     with translation.override("fr"):
         return f"{MONTHS[month]} {year}"
 

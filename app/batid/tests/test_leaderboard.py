@@ -36,7 +36,7 @@ OTHER_POLYGON = GEOSGeometry(
 class LeaderboardQueryTestCase(TestCase):
     def test_leaderboard_counts_distinct_events(self):
         """
-        Input: user A creates 1 building then updates it (2 events); user B creates 1 building (1 event).
+        Input: user A creates 1 building then updates it (2 contribution events); user B creates 1 building (1 contribution event).
         Expected: user A has edit_count=2, user B has edit_count=1, ordered desc.
         """
         user_a = ContributorUserFactory(username="user_a", email="a@example.com")
@@ -44,7 +44,7 @@ class LeaderboardQueryTestCase(TestCase):
 
         b1 = Building.create_new(
             user=user_a,
-            event_origin={"source": "test"},
+            event_origin={"source": "contribution"},
             status="constructed",
             addresses_id=[],
             shape=SIMPLE_POLYGON,
@@ -52,14 +52,14 @@ class LeaderboardQueryTestCase(TestCase):
         )
         b1.update(
             user=user_a,
-            event_origin={"source": "test"},
+            event_origin={"source": "contribution"},
             status="demolished",
             addresses_id=None,
             shape=None,
         )
         Building.create_new(
             user=user_b,
-            event_origin={"source": "test"},
+            event_origin={"source": "contribution"},
             status="constructed",
             addresses_id=[],
             shape=OTHER_POLYGON,
@@ -77,13 +77,13 @@ class LeaderboardQueryTestCase(TestCase):
 
     def test_leaderboard_excludes_other_months(self):
         """
-        Input: 1 building created now (current month).
+        Input: 1 building created now (current month) with source=contribution.
         Expected: current month query returns 1 result; next month query returns 0.
         """
         user = ContributorUserFactory(username="user_c", email="c@example.com")
         Building.create_new(
             user=user,
-            event_origin={"source": "test"},
+            event_origin={"source": "contribution"},
             status="constructed",
             addresses_id=[],
             shape=SIMPLE_POLYGON,
@@ -98,6 +98,25 @@ class LeaderboardQueryTestCase(TestCase):
         next_month = today.month + 1 if today.month < 12 else 1
         results_next = get_monthly_edit_leaderboard(next_year, next_month)
         self.assertEqual(len(results_next), 0)
+
+    def test_leaderboard_excludes_non_contribution_source(self):
+        """
+        Input: 1 building created by a logged-in user with event_origin source != 'contribution'.
+        Expected: leaderboard is empty (non-contribution edits are excluded).
+        """
+        user = ContributorUserFactory(username="user_import", email="import@example.com")
+        Building.create_new(
+            user=user,
+            event_origin={"source": "import"},
+            status="constructed",
+            addresses_id=[],
+            shape=SIMPLE_POLYGON,
+            ext_ids=[],
+        )
+
+        today = datetime.date.today()
+        results = get_monthly_edit_leaderboard(today.year, today.month)
+        self.assertEqual(len(results), 0)
 
     def test_leaderboard_excludes_null_event_user(self):
         """

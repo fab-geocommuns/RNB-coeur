@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.db.models import Count
 
 from batid.models.building import BuildingWithHistory
-from batid.utils.date import french_month_label
+from batid.utils.date import french_month_year_label
 from batid.utils.date import month_bounds
 from batid.utils.date import previous_month
 
@@ -17,7 +17,10 @@ def get_monthly_edit_leaderboard(year: int, month: int) -> list[dict]:
     """
     start, end = month_bounds(year, month)
     rows = (
-        BuildingWithHistory.objects.filter(event_user__isnull=False)
+        BuildingWithHistory.objects.filter(
+            event_user__isnull=False,
+            event_origin__source="contribution",
+        )
         .extra(
             where=["lower(sys_period) >= %s AND lower(sys_period) < %s"],
             params=[start, end],
@@ -58,11 +61,12 @@ def send_monthly_leaderboard_emails() -> str:
     from batid.services.email import build_monthly_leaderboard_email
 
     year, month = previous_month()
+
     leaderboard = get_monthly_edit_leaderboard(year, month)
     if not leaderboard:
         return "No edits this month, no emails sent"
 
-    label = french_month_label(year, month)
+    label = french_month_year_label(year, month)
     new_users = get_monthly_new_users(year, month)
 
     editor_emails = {entry["email"] for entry in leaderboard if entry.get("email")}

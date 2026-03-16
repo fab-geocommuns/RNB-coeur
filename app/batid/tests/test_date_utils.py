@@ -2,7 +2,7 @@ import datetime
 
 from django.test import TestCase
 
-from batid.utils.date import french_month_label
+from batid.utils.date import french_month_year_label
 from batid.utils.date import month_bounds
 from batid.utils.date import previous_month
 
@@ -39,7 +39,7 @@ class DateUtilsTestCase(TestCase):
         Input: year=2026, month=2.
         Expected: "février 2026".
         """
-        self.assertEqual(french_month_label(2026, 2), "février 2026")
+        self.assertEqual(french_month_year_label(2026, 2), "février 2026")
 
     def test_previous_month_regular(self):
         """
@@ -48,6 +48,8 @@ class DateUtilsTestCase(TestCase):
         """
         year, month = previous_month()
         today = datetime.date.today()
+
+        # REVIEW : Do not write dynamic test based on today. Test fixed dates
         if today.month == 1:
             self.assertEqual(year, today.year - 1)
             self.assertEqual(month, 12)
