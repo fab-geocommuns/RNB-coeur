@@ -1,4 +1,3 @@
-from django.test import TestCase
 from django.test import TransactionTestCase
 
 from batid.models import Address
@@ -90,35 +89,47 @@ class BuildingAddressLinkCase(TransactionTestCase):
             b.save()
 
 
-class AddressDeletionTrigger(TestCase):
-    def test_delete_address(self):
+class AddressDeletionTrigger(TransactionTestCase):
+    def test_cannot_delete_address_linked_to_building(self):
+        """Deleting an address that is currently linked to a building should raise an error."""
+        from django.db.utils import InternalError
+
         a1 = Address.objects.create(id="address_1")
         a2 = Address.objects.create(id="address_2")
 
-        b1 = Building.objects.create(rnb_id="1", addresses_id=[a1.id, a2.id])
-        b2 = Building.objects.create(rnb_id="2", addresses_id=[a1.id])
-        b3 = Building.objects.create(rnb_id="3", addresses_id=[a2.id])
+        Building.objects.create(rnb_id="1", addresses_id=[a1.id, a2.id])
 
-        links_n = BuildingAddressesReadOnly.objects.count()
-        self.assertEqual(links_n, 4)
+        with self.assertRaises(InternalError):
+            a1.delete()
 
-        # the address is deleted
+        # The address should still exist
+        self.assertTrue(Address.objects.filter(id="address_1").exists())
+
+    def test_cannot_delete_address_referenced_in_history_only(self):
+        """Deleting an address that is no longer linked to any current building
+        but is still referenced in building history should raise an error."""
+        from django.db.utils import InternalError
+
+        a1 = Address.objects.create(id="address_1")
+        a2 = Address.objects.create(id="address_2")
+
+        # Create a building with both addresses
+        b = Building.objects.create(rnb_id="1", addresses_id=[a1.id, a2.id])
+
+        # Remove a1 from the building — this creates a history entry referencing a1
+        b.addresses_id = [a2.id]
+        b.save()
+
+        # a1 is no longer in any current building, but is still in history
+        with self.assertRaises(InternalError):
+            a1.delete()
+
+        self.assertTrue(Address.objects.filter(id="address_1").exists())
+
+    def test_can_delete_address_never_linked_to_building(self):
+        """Deleting an address that was never linked to any building should work fine."""
+        a1 = Address.objects.create(id="address_1")
+
         a1.delete()
 
-        # the building should have been updated by the trigger, only a2 should be left
-        b1 = Building.objects.get(rnb_id="1")
-        self.assertEqual(b1.addresses_id, [a2.id])
-
-        b2 = Building.objects.get(rnb_id="2")
-        self.assertEqual(b2.addresses_id, [])
-
-        b3 = Building.objects.get(rnb_id="3")
-        self.assertEqual(b3.addresses_id, [a2.id])
-
-        # the update of the buildings should have triggered the deletion of the links
-        links = BuildingAddressesReadOnly.objects.all().order_by("building_id")
-        self.assertEqual(links.count(), 2)
-        self.assertEqual(links[0].building_id, b1.id)
-        self.assertEqual(links[0].address_id, a2.id)
-        self.assertEqual(links[1].building_id, b3.id)
-        self.assertEqual(links[1].address_id, a2.id)
+        self.assertFalse(Address.objects.filter(id="address_1").exists())

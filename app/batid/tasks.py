@@ -510,7 +510,9 @@ def queue_ban_address_text_update(
     return f"Queued text update for {len(dpts)} departments"
 
 
-def delete_unlinked_obsolete_addresses_task(batch_size: int = 10000):
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def delete_unlinked_obsolete_addresses_task(batch_size: int = 1000):
     from batid.services.imports.update_addresses_ban import (
         delete_unlinked_obsolete_addresses,
     )
