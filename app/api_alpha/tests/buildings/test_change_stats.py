@@ -52,15 +52,11 @@ class BuildingChangeStatsTest(APITestCase):
         data = response.json()
         self.assertIsInstance(data, list)
         self.assertEqual(len(data), 2)
-        for index, item in enumerate(data):
-            self.assertIn("date", item)
-            self.assertIn("events_count", item)
-            self.assertIn("import_bdtopo", item["events_count"])
-            self.assertIn("import_bal", item["events_count"])
-            self.assertIn("contributions", item["events_count"])
-            self.assertEqual(data[index]["events_count"]["import_bdtopo"], 0)
-            self.assertEqual(data[index]["events_count"]["import_bal"], 0)
-            self.assertEqual(data[index]["events_count"]["contributions"], 0)
+        zero_events = {"import_bdtopo": 0, "import_bal": 0, "contributions": 0}
+        expected_first = {"date": since, "events_count": zero_events}
+        expected_second = {"date": until, "events_count": zero_events}
+        self.assertDictEqual(data[0], expected_first)
+        self.assertDictEqual(data[1], expected_second)
 
     def test_returns_stored_kpi_values(self):
         since = date.today() - timedelta(days=1)

@@ -301,7 +301,15 @@ def count_editors():
 
 
 def count_edits():
-    return Contribution.objects.filter(report=False).count()
+    """Total d'événements contribution (toutes dates)"""
+    sql = """
+        SELECT COUNT(*) FROM batid_building_with_history
+        WHERE event_origin->>'source' = 'contribution'
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql)
+        row = cursor.fetchone()
+    return row[0] if row else 0
 
 
 def count_reports():

@@ -434,6 +434,22 @@ class CountBuildingChangesImportBdtopo(TestCase):
         """Date sans aucun event bdtopo : compte 0."""
         self.assertEqual(count_building_changes_import_bdtopo(date(2000, 1, 1)), 0)
 
+    def test_two_events_same_day_returns_two(self):
+        """Un même bâtiment import bdtopo créé puis démoli le même jour"""
+        b = Building.objects.get(rnb_id="BDGBDTOPO01")
+        b.status = "demolished"
+        b.save()
+        self.assertEqual(count_building_changes_import_bdtopo(date.today()), 2)
+
+    def test_contribution_on_same_building_counted_separately(self):
+        """Un bâtiment import bdtopo modifié par une contribution le même jour : 1 event bdtopo (création) + 1 event contribution."""
+        b = Building.objects.get(rnb_id="BDGBDTOPO01")
+        b.event_origin = {"source": "contribution"}
+        b.status = "demolished"
+        b.save()
+        self.assertEqual(count_building_changes_import_bdtopo(date.today()), 1)
+        self.assertEqual(count_building_changes_contributions(date.today()), 1)
+
 
 class CountBuildingChangesImportBal(TestCase):
     def setUp(self):
@@ -462,9 +478,39 @@ class CountBuildingChangesImportBal(TestCase):
     def test(self):
         self.assertEqual(count_building_changes_import_bal(date.today()), 3)
 
+    def test_ignores_other_sources(self):
+        """Un bâtiment import bdtopo ne doit pas être compté dans les events bal."""
+        bdtopo_import = BuildingImport.objects.create(
+            import_source="bdtopo",
+            building_created_count=0,
+            building_updated_count=0,
+        )
+        Building.objects.create(
+            rnb_id="BDGBDTOPO99",
+            status="constructed",
+            event_origin={"source": "import", "id": bdtopo_import.id},
+        )
+        self.assertEqual(count_building_changes_import_bal(date.today()), 3)
+
     def test_empty_returns_zero(self):
         """Date sans aucun event bal : compte 0."""
         self.assertEqual(count_building_changes_import_bal(date(2000, 1, 1)), 0)
+
+    def test_two_events_same_day_returns_two(self):
+        """Un même bâtiment import bal créé puis mis à jour le même jour : 2 lignes dans la vue pour ce bâtiment (plus les 2 autres), compte 4."""
+        b = Building.objects.get(rnb_id="BDGBAL00001")
+        b.status = "demolished"
+        b.save()
+        self.assertEqual(count_building_changes_import_bal(date.today()), 4)
+
+    def test_contribution_on_same_building_counted_separately(self):
+        """Un bâtiment import bal modifié par une contribution le même jour : 3 events bal (créations) + 1 event contribution."""
+        b = Building.objects.get(rnb_id="BDGBAL00001")
+        b.event_origin = {"source": "contribution"}
+        b.status = "demolished"
+        b.save()
+        self.assertEqual(count_building_changes_import_bal(date.today()), 3)
+        self.assertEqual(count_building_changes_contributions(date.today()), 1)
 
 
 class CountBuildingChangesContributions(TestCase):
@@ -476,10 +522,46 @@ class CountBuildingChangesContributions(TestCase):
         )
 
     def test(self):
-        self.assertGreaterEqual(count_building_changes_contributions(date.today()), 1)
+        self.assertEqual(count_building_changes_contributions(date.today()), 1)
+
+    def test_ignores_other_sources(self):
+        """Un bâtiment d'origine import ne doit pas être compté dans les contributions."""
+        bi = BuildingImport.objects.create(
+            import_source="bdtopo",
+            building_created_count=0,
+            building_updated_count=0,
+        )
+        Building.objects.create(
+            rnb_id="BDGIMP00001",
+            status="constructed",
+            event_origin={"source": "import", "id": bi.id},
+        )
+        self.assertEqual(count_building_changes_contributions(date.today()), 1)
 
     def test_empty_returns_zero(self):
+        """Date sans aucun event contribution : compte 0."""
         self.assertEqual(count_building_changes_contributions(date(2000, 1, 1)), 0)
+
+    def test_two_events_same_day_returns_two(self):
+        """Un même bâtiment contribution créé puis mis à jour le même jour : 2 lignes dans la vue, compte 2."""
+        b = Building.objects.get(rnb_id="BDGCONTRIB01")
+        b.status = "demolished"
+        b.save()
+        self.assertEqual(count_building_changes_contributions(date.today()), 2)
+
+    def test_contribution_on_same_building_counted_separately(self):
+        """Un bâtiment bdtopo modifié par une contribution le même jour : 1 event contribution (création) + 1 event bdtopo."""
+        bi = BuildingImport.objects.create(
+            import_source="bdtopo",
+            building_created_count=0,
+            building_updated_count=0,
+        )
+        b = Building.objects.get(rnb_id="BDGCONTRIB01")
+        b.event_origin = {"source": "import", "id": bi.id}
+        b.status = "demolished"
+        b.save()
+        self.assertEqual(count_building_changes_contributions(date.today()), 1)
+        self.assertEqual(count_building_changes_import_bdtopo(date.today()), 1)
 
 
 class GetBuildingChangeStats(TestCase):
