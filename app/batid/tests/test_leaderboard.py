@@ -104,7 +104,9 @@ class LeaderboardQueryTestCase(TestCase):
         Input: 1 building created by a logged-in user with event_origin source != 'contribution'.
         Expected: leaderboard is empty (non-contribution edits are excluded).
         """
-        user = ContributorUserFactory(username="user_import", email="import@example.com")
+        user = ContributorUserFactory(
+            username="user_import", email="import@example.com"
+        )
         Building.create_new(
             user=user,
             event_origin={"source": "import"},
