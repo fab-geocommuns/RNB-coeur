@@ -65,9 +65,7 @@ def send_monthly_leaderboard_emails() -> str:
     label = french_month_label(year, month)
     new_users = get_monthly_new_users(year, month)
 
-    editor_emails = {
-        entry["email"] for entry in leaderboard if entry.get("email")
-    }
+    editor_emails = {entry["email"] for entry in leaderboard if entry.get("email")}
     new_user_emails = set(new_users.values_list("email", flat=True))
     recipient_emails = editor_emails | new_user_emails
 
