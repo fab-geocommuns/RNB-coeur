@@ -31,7 +31,9 @@ class Command(BaseCommand):
         self.stdout.write(f"Building leaderboard for {label}...")
 
         staff_emails = list(
-            User.objects.filter(is_staff=True).exclude(email="").values_list("email", flat=True)
+            User.objects.filter(is_staff=True, is_active=True)
+            .exclude(email="")
+            .values_list("email", flat=True)
         )
 
         if not staff_emails:
@@ -39,11 +41,14 @@ class Command(BaseCommand):
             return
 
         msg = build_monthly_leaderboard_email(year, month)
+        msg.subject = f"TEST EQUIPE RNB - {msg.subject}"
         for email in staff_emails:
             msg.to = [email]
             msg.send()
             self.stdout.write(f"  Sent to {email}")
 
         self.stdout.write(
-            self.style.SUCCESS(f"Sent leaderboard email for {label} to {len(staff_emails)} staff user(s).")
+            self.style.SUCCESS(
+                f"Sent leaderboard email for {label} to {len(staff_emails)} staff user(s)."
+            )
         )
