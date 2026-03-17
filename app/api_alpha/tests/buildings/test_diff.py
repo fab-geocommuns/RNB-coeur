@@ -2,6 +2,7 @@ import csv
 import datetime
 import io
 import json
+import uuid
 
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
@@ -440,6 +441,252 @@ class DiffTest(TransactionTestCase):
         r = self.client.get(url)
 
         self.assertEqual(r.status_code, 400)
+
+    def test_diff_revert_creation(self):
+        """
+        Input: a building is created, then its creation is reverted.
+        Expected: the diff CSV shows one row with action='deactivate' and event_type='revert_creation'.
+        """
+        user = User.objects.get(username="marcella")
+        creation_event_id = uuid.uuid4()
+
+        b1 = Building.objects.create(
+            rnb_id="1",
+            status="constructed",
+            event_type="creation",
+            event_id=creation_event_id,
+            event_user=user,
+        )
+        threshold = Building.objects.get(rnb_id="1").sys_period.lower
+
+        Building.revert_creation(
+            user=user,
+            event_origin={"source": "test"},
+            event_id_to_revert=creation_event_id,
+        )
+
+        params = urlencode({"since": threshold.isoformat()})
+        url = f"/api/alpha/buildings/diff/?{params}"
+        r = self.client.get(url)
+
+        self.assertEqual(r.status_code, 200)
+
+        diff_text = get_content_from_streaming_response(r)
+        reader = csv.DictReader(io.StringIO(diff_text))
+        rows = list(reader)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["action"], "deactivate")
+        self.assertEqual(rows[0]["rnb_id"], b1.rnb_id)
+        self.assertEqual(rows[0]["is_active"], "0")
+        self.assertEqual(rows[0]["event_type"], "revert_creation")
+        self.assertEqual(rows[0]["username"], "marcella")
+
+    def test_diff_revert_update(self):
+        """
+        Input: a building is created, updated, then its update is reverted.
+        Expected: one row with action='update' and event_type='revert_update'.
+        """
+        user = User.objects.get(username="marcella")
+
+        b1 = Building.objects.create(
+            rnb_id="1",
+            status="constructed",
+            event_type="creation",
+            event_id=uuid.uuid4(),
+            event_user=user,
+        )
+        b1.update(
+            user=user,
+            event_origin={"source": "test"},
+            status="demolished",
+            addresses_id=[],
+        )
+        b1.refresh_from_db()
+        update_event_id = b1.event_id
+        threshold = b1.sys_period.lower
+
+        Building.revert_update(
+            user=user,
+            event_origin={"source": "test"},
+            event_id_to_revert=update_event_id,
+        )
+
+        params = urlencode({"since": threshold.isoformat()})
+        url = f"/api/alpha/buildings/diff/?{params}"
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
+
+        diff_text = get_content_from_streaming_response(r)
+        reader = csv.DictReader(io.StringIO(diff_text))
+        rows = list(reader)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["action"], "update")
+        self.assertEqual(rows[0]["rnb_id"], b1.rnb_id)
+        self.assertEqual(rows[0]["is_active"], "1")
+        self.assertEqual(rows[0]["event_type"], "revert_update")
+        self.assertEqual(rows[0]["username"], "marcella")
+
+    def test_diff_revert_merge(self):
+        """
+        Input: two buildings are created, merged, then the merge is reverted.
+        Expected: three rows with event_type='revert_merge' — parents reactivated
+        (action='reactivate', is_active=1) and merged child deactivated (action='deactivate', is_active=0).
+        """
+        user = User.objects.get(username="marcella")
+        coords = {
+            "coordinates": [
+                [
+                    [
+                        [1.0654705955877262, 46.63423852982024],
+                        [1.065454930919401, 46.634105152847496],
+                        [1.0656648374661017, 46.63409009413692],
+                        [1.0656773692001593, 46.63422131990677],
+                        [1.0654705955877262, 46.63423852982024],
+                    ]
+                ]
+            ],
+            "type": "MultiPolygon",
+        }
+        geom = GEOSGeometry(json.dumps(coords), srid=4326)
+
+        b1 = Building.objects.create(
+            rnb_id="1",
+            status="constructed",
+            event_type="creation",
+            event_id=uuid.uuid4(),
+            event_user=user,
+            shape=geom,
+            point=geom.point_on_surface,
+        )
+        b2 = Building.objects.create(
+            rnb_id="2",
+            status="constructed",
+            event_type="creation",
+            event_id=uuid.uuid4(),
+            event_user=user,
+            shape=geom,
+            point=geom.point_on_surface,
+        )
+
+        b3 = Building.merge(
+            [b1, b2],
+            user=user,
+            event_origin={"source": "test"},
+            status="constructed",
+            addresses_id=[],
+        )
+        b3.refresh_from_db()
+        merge_event_id = b3.event_id
+        threshold = b3.sys_period.lower
+
+        Building.revert_merge(
+            user=user,
+            event_origin={"source": "test"},
+            event_id_to_revert=merge_event_id,
+        )
+
+        params = urlencode({"since": threshold.isoformat()})
+        url = f"/api/alpha/buildings/diff/?{params}"
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
+
+        diff_text = get_content_from_streaming_response(r)
+        reader = csv.DictReader(io.StringIO(diff_text))
+        rows = list(reader)
+
+        self.assertEqual(len(rows), 3)
+        for row in rows:
+            self.assertEqual(row["event_type"], "revert_merge")
+        self.assertEqual(len({row["event_id"] for row in rows}), 1)
+
+        deactivated = [r for r in rows if r["is_active"] == "0"]
+        reactivated = [r for r in rows if r["is_active"] == "1"]
+
+        self.assertEqual(len(deactivated), 1)
+        self.assertEqual(deactivated[0]["action"], "deactivate")
+        self.assertEqual(deactivated[0]["rnb_id"], b3.rnb_id)
+
+        self.assertEqual(len(reactivated), 2)
+        for row in reactivated:
+            self.assertEqual(row["action"], "reactivate")
+        self.assertCountEqual(
+            [r["rnb_id"] for r in reactivated], [b1.rnb_id, b2.rnb_id]
+        )
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
+    def test_diff_revert_split(self):
+        """
+        Input: a building is created, split into two children, then the split is reverted.
+        Expected: three rows with event_type='revert_split' — parent reactivated
+        (action='reactivate', is_active=1) and split children deactivated (action='deactivate', is_active=0).
+        """
+        user = User.objects.get(username="marcella")
+
+        b1 = Building.objects.create(
+            rnb_id="1",
+            status="constructed",
+            event_type="creation",
+            event_id=uuid.uuid4(),
+            event_user=user,
+            shape=GEOSGeometry("POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"),
+        )
+
+        children = b1.split(
+            [
+                {
+                    "status": "constructed",
+                    "addresses_cle_interop": [],
+                    "shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
+                },
+                {
+                    "status": "constructed",
+                    "addresses_cle_interop": [],
+                    "shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
+                },
+            ],
+            user,
+            {"source": "test"},
+        )
+
+        b1.refresh_from_db()
+        split_event_id = b1.event_id
+        threshold = b1.sys_period.lower
+
+        Building.revert_split(
+            user=user,
+            event_origin={"source": "test"},
+            event_id_to_revert=split_event_id,
+        )
+
+        params = urlencode({"since": threshold.isoformat()})
+        url = f"/api/alpha/buildings/diff/?{params}"
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
+
+        diff_text = get_content_from_streaming_response(r)
+        reader = csv.DictReader(io.StringIO(diff_text))
+        rows = list(reader)
+
+        self.assertEqual(len(rows), 3)
+        for row in rows:
+            self.assertEqual(row["event_type"], "revert_split")
+        self.assertEqual(len({row["event_id"] for row in rows}), 1)
+
+        deactivated = [r for r in rows if r["is_active"] == "0"]
+        reactivated = [r for r in rows if r["is_active"] == "1"]
+
+        self.assertEqual(len(deactivated), 2)
+        for row in deactivated:
+            self.assertEqual(row["action"], "deactivate")
+        self.assertCountEqual(
+            [r["rnb_id"] for r in deactivated], [c.rnb_id for c in children]
+        )
+
+        self.assertEqual(len(reactivated), 1)
+        self.assertEqual(reactivated[0]["action"], "reactivate")
+        self.assertEqual(reactivated[0]["rnb_id"], b1.rnb_id)
 
     def test_diff_reactivation(self):
         user = User.objects.get(username="marcella")
