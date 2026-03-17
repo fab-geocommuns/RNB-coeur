@@ -201,6 +201,12 @@ class DiffView(APIView):
                                 WHEN event_type = 'merge' and bb.is_active THEN 'create'
                                 WHEN event_type = 'reactivation' THEN 'reactivate'
                                 WHEN event_type = 'creation' THEN 'create'
+                                WHEN event_type = 'revert_creation' THEN 'deactivate'
+                                WHEN event_type = 'revert_update' THEN 'update'
+                                WHEN event_type = 'revert_merge' and not bb.is_active THEN 'deactivate'
+                                WHEN event_type = 'revert_merge' and bb.is_active THEN 'reactivate'
+                                WHEN event_type = 'revert_split' and not bb.is_active THEN 'deactivate'
+                                WHEN event_type = 'revert_split' and bb.is_active THEN 'reactivate'
                                 ELSE CONCAT('unhandled_event_type_', event_type)
                             END as action,
                             rnb_id,
