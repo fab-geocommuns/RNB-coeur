@@ -104,7 +104,9 @@ class LeaderboardQueryTestCase(TestCase):
         Input: 1 building created by a logged-in user with event_origin source != 'contribution'.
         Expected: leaderboard is empty (non-contribution edits are excluded).
         """
-        user = ContributorUserFactory(username="user_import", email="import@example.com")
+        user = ContributorUserFactory(
+            username="user_import", email="import@example.com"
+        )
         Building.create_new(
             user=user,
             event_origin={"source": "import"},
@@ -141,24 +143,31 @@ class LeaderboardQueryTestCase(TestCase):
         Input: user A joined this month (default), user B's date_joined set to last month.
         Expected: this month query returns user A only; last month query returns user B only.
         """
-        user_a = User.objects.create_user(username="user_d", email="d@example.com")
-        user_b = User.objects.create_user(username="user_e", email="e@example.com")
+        user_joined_today = User.objects.create_user(
+            username="user_d", email="d@example.com"
+        )
+        user_last_month = User.objects.create_user(
+            username="user_e", email="e@example.com"
+        )
 
         today = datetime.date.today()
+
         last_year = today.year if today.month > 1 else today.year - 1
         last_month = today.month - 1 if today.month > 1 else 12
         last_month_date = datetime.datetime(
             last_year, last_month, 15, tzinfo=datetime.timezone.utc
         )
-        User.objects.filter(pk=user_b.pk).update(date_joined=last_month_date)
+        User.objects.filter(pk=user_last_month.pk).update(date_joined=last_month_date)
 
+        # check this month new user
         this_month_users = get_monthly_new_users(today.year, today.month)
-        self.assertIn(user_a, this_month_users)
-        self.assertNotIn(user_b, this_month_users)
+        self.assertIn(user_joined_today, this_month_users)
+        self.assertNotIn(user_last_month, this_month_users)
 
+        # check mast month new user
         last_month_users = get_monthly_new_users(last_year, last_month)
-        self.assertNotIn(user_a, last_month_users)
-        self.assertIn(user_b, last_month_users)
+        self.assertNotIn(user_joined_today, last_month_users)
+        self.assertIn(user_last_month, last_month_users)
 
 
 class LeaderboardEmailTestCase(TestCase):
@@ -179,7 +188,7 @@ class LeaderboardEmailTestCase(TestCase):
 
         self.assertIsInstance(email, EmailMultiAlternatives)
         self.assertIn("janvier 2026", email.subject)
-        html_body = email.alternatives[0][0]
+        html_body = str(email.alternatives[0][0])
         self.assertIn("alice", html_body)
         self.assertIn("5", html_body)
         self.assertIn("janvier 2026", html_body)
@@ -200,7 +209,7 @@ class LeaderboardEmailTestCase(TestCase):
             leaderboard, "février 2026", "recipient@example.com", new_usernames
         )
 
-        html_body = email.alternatives[0][0]
+        html_body = str(email.alternatives[0][0])
         self.assertIn("Bienvenue aux nouveaux inscrits", html_body)
         self.assertIn("bob", html_body)
         self.assertIn("charlie", html_body)
@@ -219,5 +228,5 @@ class LeaderboardEmailTestCase(TestCase):
             leaderboard, "février 2026", "recipient@example.com"
         )
 
-        html_body = email.alternatives[0][0]
+        html_body = str(email.alternatives[0][0])
         self.assertNotIn("Bienvenue aux nouveaux inscrits", html_body)
