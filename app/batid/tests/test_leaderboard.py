@@ -6,6 +6,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.mail import EmailMultiAlternatives
 from django.test import override_settings
 from django.test import TestCase
+from freezegun import freeze_time
 
 from batid.models.building import Building
 from batid.services.email import build_monthly_leaderboard_email
@@ -33,10 +34,11 @@ OTHER_POLYGON = GEOSGeometry(
 
 
 @override_settings(MAX_BUILDING_AREA=float("inf"))
+@freeze_time("2026-03-15")
 class LeaderboardQueryTestCase(TestCase):
     def test_leaderboard_counts_distinct_events(self):
         """
-        Input: user A creates 1 building then updates it (2 contribution events); user B creates 1 building (1 contribution event).
+        Input: frozen at 2026-03-15; user A creates 1 building then updates it (2 contribution events); user B creates 1 building (1 contribution event).
         Expected: user A has edit_count=2, user B has edit_count=1, ordered desc.
         """
         user_a = ContributorUserFactory(username="user_a", email="a@example.com")
@@ -66,8 +68,7 @@ class LeaderboardQueryTestCase(TestCase):
             ext_ids=[],
         )
 
-        today = datetime.date.today()
-        results = get_monthly_edit_leaderboard(today.year, today.month)
+        results = get_monthly_edit_leaderboard(2026, 3)
 
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0]["username"], "user_a")
@@ -77,8 +78,8 @@ class LeaderboardQueryTestCase(TestCase):
 
     def test_leaderboard_excludes_other_months(self):
         """
-        Input: 1 building created now (current month) with source=contribution.
-        Expected: current month query returns 1 result; next month query returns 0.
+        Input: frozen at 2026-03-15; 1 building created in March 2026 with source=contribution.
+        Expected: March 2026 query returns 1 result; April 2026 query returns 0.
         """
         user = ContributorUserFactory(username="user_c", email="c@example.com")
         Building.create_new(
@@ -90,18 +91,15 @@ class LeaderboardQueryTestCase(TestCase):
             ext_ids=[],
         )
 
-        today = datetime.date.today()
-        results = get_monthly_edit_leaderboard(today.year, today.month)
+        results = get_monthly_edit_leaderboard(2026, 3)
         self.assertEqual(len(results), 1)
 
-        next_year = today.year if today.month < 12 else today.year + 1
-        next_month = today.month + 1 if today.month < 12 else 1
-        results_next = get_monthly_edit_leaderboard(next_year, next_month)
+        results_next = get_monthly_edit_leaderboard(2026, 4)
         self.assertEqual(len(results_next), 0)
 
     def test_leaderboard_excludes_non_contribution_source(self):
         """
-        Input: 1 building created by a logged-in user with event_origin source != 'contribution'.
+        Input: frozen at 2026-03-15; 1 building created by a logged-in user with event_origin source != 'contribution'.
         Expected: leaderboard is empty (non-contribution edits are excluded).
         """
         user = ContributorUserFactory(
@@ -116,13 +114,12 @@ class LeaderboardQueryTestCase(TestCase):
             ext_ids=[],
         )
 
-        today = datetime.date.today()
-        results = get_monthly_edit_leaderboard(today.year, today.month)
+        results = get_monthly_edit_leaderboard(2026, 3)
         self.assertEqual(len(results), 0)
 
     def test_leaderboard_excludes_null_event_user(self):
         """
-        Input: 1 building created without a user (import source).
+        Input: frozen at 2026-03-15; 1 building created without a user (import source).
         Expected: leaderboard is empty.
         """
         Building.create_new(
@@ -134,39 +131,32 @@ class LeaderboardQueryTestCase(TestCase):
             ext_ids=[],
         )
 
-        today = datetime.date.today()
-        results = get_monthly_edit_leaderboard(today.year, today.month)
+        results = get_monthly_edit_leaderboard(2026, 3)
         self.assertEqual(len(results), 0)
 
     def test_get_monthly_new_users(self):
         """
-        Input: user A joined this month (default), user B's date_joined set to last month.
-        Expected: this month query returns user A only; last month query returns user B only.
+        Input: frozen at 2026-03-15; user A joined in March 2026 (default), user B's date_joined set to February 2026.
+        Expected: March 2026 query returns user A only; February 2026 query returns user B only.
         """
-        user_joined_today = User.objects.create_user(
+        user_joined_this_month = User.objects.create_user(
             username="user_d", email="d@example.com"
         )
         user_last_month = User.objects.create_user(
             username="user_e", email="e@example.com"
         )
 
-        today = datetime.date.today()
-
-        last_year = today.year if today.month > 1 else today.year - 1
-        last_month = today.month - 1 if today.month > 1 else 12
-        last_month_date = datetime.datetime(
-            last_year, last_month, 15, tzinfo=datetime.timezone.utc
-        )
+        last_month_date = datetime.datetime(2026, 2, 15, tzinfo=datetime.timezone.utc)
         User.objects.filter(pk=user_last_month.pk).update(date_joined=last_month_date)
 
         # check this month new user
-        this_month_users = get_monthly_new_users(today.year, today.month)
-        self.assertIn(user_joined_today, this_month_users)
+        this_month_users = get_monthly_new_users(2026, 3)
+        self.assertIn(user_joined_this_month, this_month_users)
         self.assertNotIn(user_last_month, this_month_users)
 
-        # check mast month new user
-        last_month_users = get_monthly_new_users(last_year, last_month)
-        self.assertNotIn(user_joined_today, last_month_users)
+        # check last month new user
+        last_month_users = get_monthly_new_users(2026, 2)
+        self.assertNotIn(user_joined_this_month, last_month_users)
         self.assertIn(user_last_month, last_month_users)
 
 
