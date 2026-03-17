@@ -46,7 +46,7 @@ def activate_account_url(user_id_b64: str, token: str) -> str:
 
 def build_monthly_leaderboard_email(
     leaderboard: list,
-    month_label: str,
+    month_year_label: str,
     email: str,
     new_usernames: list[str] | None = None,
 ) -> EmailMultiAlternatives:
@@ -62,12 +62,12 @@ def build_monthly_leaderboard_email(
         "emails/monthly_leaderboard.html",
         {
             "leaderboard": leaderboard,
-            "month_label": month_label,
+            "month_year_label": month_year_label,
             "new_usernames": new_usernames or [],
         },
     )
     msg = EmailMultiAlternatives(
-        subject=f"Contributions RNB – {month_label}",
+        subject=f"Contributions RNB – {month_year_label}",
         body="Veuillez consulter la version HTML de cet email.",
         from_email=get_rnb_email_sender(),
         headers={"Reply-To": settings.RNB_REPLY_TO_ADDRESS},  # type: ignore

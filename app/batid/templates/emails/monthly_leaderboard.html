@@ -1,6 +1,6 @@
 <div>
     <p>Bonjour,</p>
-    <p>Voici le résumé des contributions au Référentiel National des Bâtiments pour le mois de {{ month_label }} :</p>
+    <p>Voici le résumé des contributions au Référentiel National des Bâtiments pour le mois de {{ month_year_label }} :</p>
     <ul>
         {% for entry in leaderboard %}
         <li>{{ entry.username }} – {{ entry.edit_count }} édition{{ entry.edit_count|pluralize }}</li>
