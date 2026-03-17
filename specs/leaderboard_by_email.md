@@ -1,4 +1,5 @@
 # Spec: Leaderboard mensuel par email
+[PR 858](https://github.com/fab-geocommuns/RNB-coeur/pull/858)
 
 ## Objectif
 
