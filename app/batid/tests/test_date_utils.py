@@ -1,6 +1,7 @@
 import datetime
 
 from django.test import TestCase
+from freezegun import freeze_time
 
 from batid.utils.date import french_month_year_label
 from batid.utils.date import month_bounds
@@ -41,18 +42,22 @@ class DateUtilsTestCase(TestCase):
         """
         self.assertEqual(french_month_year_label(2026, 2), "février 2026")
 
+    @freeze_time("2026-03-15")
     def test_previous_month_regular(self):
         """
-        Input: called during March 2026 (current date).
+        Input: called on 2026-03-15.
         Expected: returns (2026, 2).
         """
         year, month = previous_month()
-        today = datetime.date.today()
+        self.assertEqual(year, 2026)
+        self.assertEqual(month, 2)
 
-        # REVIEW : Do not write dynamic test based on today. Test fixed dates
-        if today.month == 1:
-            self.assertEqual(year, today.year - 1)
-            self.assertEqual(month, 12)
-        else:
-            self.assertEqual(year, today.year)
-            self.assertEqual(month, today.month - 1)
+    @freeze_time("2026-01-15")
+    def test_previous_month_january(self):
+        """
+        Input: called on 2026-01-15 (January edge case).
+        Expected: returns (2025, 12).
+        """
+        year, month = previous_month()
+        self.assertEqual(year, 2025)
+        self.assertEqual(month, 12)
