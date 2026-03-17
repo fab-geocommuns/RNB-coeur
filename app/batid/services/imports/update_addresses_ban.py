@@ -460,74 +460,71 @@ def _apply_geocode_updates(successes: list) -> None:
         else:
             intra_batch_dupes.append(s)
 
-    placeholders = ", ".join(["(%s, %s)"] * len(unique_successes))
-    # => "(%s, %s), (%s, %s), (%s, %s), ..."
-
-    addr_flat_values = []
-    for s in unique_successes:
-        addr_flat_values.extend([s["old_id"], s["new_id"]])
-    # => [old_id_1, new_id_1, old_id_2, new_id_2, ...]
-
-    # Pre-query building-address links before modifying anything
+    # Load all (old_id, new_id) pairs into a temp table with an index.
+    # This lets the planner use hash joins and index scans instead of scanning
+    # large in-line arrays or VALUES lists on every step.
     with connection.cursor() as cursor:
         cursor.execute(
-            f"""
-            SELECT b.id, v.old_id, v.new_id
-            FROM batid_building b
-            -- VALUES (...) AS v(old_id, new_id) builds an inline temporary table from the
-            -- batch of (old_id, new_id) pairs passed as parameters, avoiding N separate queries.
-            JOIN (VALUES {placeholders}) AS v(old_id, new_id)
-            ON b.addresses_id @> ARRAY[v.old_id::varchar]
-            """,
-            addr_flat_values,
+            """
+            CREATE TEMP TABLE _ban_ids (
+                old_id varchar,
+                new_id varchar,
+                is_dupe boolean DEFAULT FALSE
+            )
+            """
         )
-        building_address_links = cursor.fetchall()
+        all_pairs = [(s["old_id"], s["new_id"], False) for s in unique_successes] + [
+            (s["old_id"], s["new_id"], True) for s in intra_batch_dupes
+        ]
+        cursor.executemany(
+            "INSERT INTO _ban_ids (old_id, new_id, is_dupe) VALUES (%s, %s, %s)",
+            all_pairs,
+        )
+        cursor.execute("CREATE INDEX ON _ban_ids (old_id)")
 
-    # Pre-query building links for intra-batch dupes so we can remove their old_id
-    # from buildings (step 1b) and re-link them to new_id (step 3).
-    intra_batch_building_links = []
-    if intra_batch_dupes:
-        dupe_placeholders = ", ".join(["(%s, %s)"] * len(intra_batch_dupes))
-        dupe_flat_values = []
-        for s in intra_batch_dupes:
-            dupe_flat_values.extend([s["old_id"], s["new_id"]])
+    try:
+        # Pre-query building-address links before modifying anything
         with connection.cursor() as cursor:
             cursor.execute(
-                f"""
-                SELECT b.id, v.old_id, v.new_id
+                """
+                SELECT b.id, t.old_id, t.new_id
                 FROM batid_building b
-                JOIN (VALUES {dupe_placeholders}) AS v(old_id, new_id)
-                ON b.addresses_id @> ARRAY[v.old_id::varchar]
-                """,
-                dupe_flat_values,
+                JOIN _ban_ids t ON b.addresses_id @> ARRAY[t.old_id::varchar]
+                WHERE t.is_dupe = FALSE
+                """
+            )
+            building_address_links = cursor.fetchall()
+
+            cursor.execute(
+                """
+                SELECT b.id, t.old_id, t.new_id
+                FROM batid_building b
+                JOIN _ban_ids t ON b.addresses_id @> ARRAY[t.old_id::varchar]
+                WHERE t.is_dupe = TRUE
+                """
             )
             intra_batch_building_links = cursor.fetchall()
 
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "ALTER TABLE batid_building DISABLE TRIGGER building_versioning_trigger"
-        )
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "ALTER TABLE batid_building DISABLE TRIGGER building_versioning_trigger"
+            )
 
-    try:
         with transaction.atomic():
             with connection.cursor() as cursor:
                 # Step 1: Remove ALL old address IDs from Building.addresses_id.
                 # building_addresses_trigger deletes from BuildingAddressesReadOnly.
                 # Covers both unique_successes and intra_batch_dupes in a single statement,
                 # using a per-element filter so each building row is updated exactly once.
-                all_old_ids = [s["old_id"] for s in unique_successes] + [
-                    s["old_id"] for s in intra_batch_dupes
-                ]
                 cursor.execute(
                     """
                     UPDATE batid_building
                     SET addresses_id = ARRAY(
                         SELECT a FROM unnest(addresses_id) a
-                        WHERE a != ALL(%s::varchar[])
+                        WHERE NOT EXISTS (SELECT 1 FROM _ban_ids t WHERE t.old_id = a)
                     )
-                    WHERE addresses_id && %s::varchar[]
-                    """,
-                    [all_old_ids, all_old_ids],
+                    WHERE addresses_id && ARRAY(SELECT old_id FROM _ban_ids)
+                    """
                 )
 
                 # Step 2: Update Address PK only.
@@ -537,52 +534,48 @@ def _apply_geocode_updates(successes: list) -> None:
                 # the building is re-linked to the existing address via steps 1+3,
                 # and the old address is marked for deletion.
                 cursor.execute(
-                    f"""
+                    """
                     UPDATE batid_address
-                    SET id = v.new_id,
+                    SET id = t.new_id,
                         still_exists = TRUE,
                         ban_update_flag = NULL,
                         ban_id = NULL
-                    FROM (VALUES {placeholders}) AS v(old_id, new_id)
-                    WHERE batid_address.id = v.old_id
+                    FROM _ban_ids t
+                    WHERE batid_address.id = t.old_id
+                      AND t.is_dupe = FALSE
                       AND NOT EXISTS (
                           SELECT 1 FROM batid_address a2
-                          WHERE a2.id = v.new_id AND a2.id != v.old_id
+                          WHERE a2.id = t.new_id AND a2.id != t.old_id
                       )
-                    """,
-                    addr_flat_values,
+                    """
                 )
 
                 # Step 2b: Mark skipped addresses (new_id already existed in DB) for deletion.
                 cursor.execute(
-                    f"""
+                    """
                     UPDATE batid_address
                     SET ban_update_flag = 'mark_for_delete'
-                    FROM (VALUES {placeholders}) AS v(old_id, new_id)
-                    WHERE batid_address.id = v.old_id
+                    FROM _ban_ids t
+                    WHERE batid_address.id = t.old_id
+                      AND t.is_dupe = FALSE
                       AND EXISTS (
                           SELECT 1 FROM batid_address a2
-                          WHERE a2.id = v.new_id AND a2.id != v.old_id
+                          WHERE a2.id = t.new_id AND a2.id != t.old_id
                       )
-                    """,
-                    addr_flat_values,
+                    """
                 )
 
                 # Step 2c: Mark intra-batch duplicates for deletion (multiple old_ids in the
                 # same batch resolved to the same new_id — only the first one is kept).
-                if intra_batch_dupes:
-                    intra_batch_dupe_old_ids = [s["old_id"] for s in intra_batch_dupes]
-                    intra_batch_placeholders = ", ".join(
-                        ["%s"] * len(intra_batch_dupe_old_ids)
-                    )
-                    cursor.execute(
-                        f"""
-                        UPDATE batid_address
-                        SET ban_update_flag = 'mark_for_delete'
-                        WHERE id IN ({intra_batch_placeholders})
-                        """,
-                        intra_batch_dupe_old_ids,
-                    )
+                cursor.execute(
+                    """
+                    UPDATE batid_address
+                    SET ban_update_flag = 'mark_for_delete'
+                    FROM _ban_ids t
+                    WHERE batid_address.id = t.old_id
+                      AND t.is_dupe = TRUE
+                    """
+                )
 
                 # Step 3: Add new address IDs to Building.addresses_id.
                 # building_addresses_trigger recreates BuildingAddressesReadOnly entries.
@@ -615,38 +608,35 @@ def _apply_geocode_updates(successes: list) -> None:
 
                 # Step 4: Update Building history table
                 cursor.execute(
-                    f"""
+                    """
                     UPDATE batid_building_history
-                    SET addresses_id = array_replace(addresses_id, v.old_id, v.new_id)
-                    FROM (VALUES {placeholders}) AS v(old_id, new_id)
-                    WHERE addresses_id @> ARRAY[v.old_id::varchar]
-                    """,
-                    addr_flat_values,
+                    SET addresses_id = array_replace(addresses_id, t.old_id, t.new_id)
+                    FROM _ban_ids t
+                    WHERE t.is_dupe = FALSE
+                      AND addresses_id @> ARRAY[t.old_id::varchar]
+                    """
                 )
 
                 # Step 4b: Replace intra-batch duplicate old_ids in Building history.
                 # Use ARRAY(SELECT DISTINCT unnest(...)) to deduplicate in case new_id
                 # was already present in the row (added by step 4 via old_id_1).
-                if intra_batch_dupes:
-                    dupe_placeholders_hist = ", ".join(
-                        ["(%s, %s)"] * len(intra_batch_dupes)
+                cursor.execute(
+                    """
+                    UPDATE batid_building_history
+                    SET addresses_id = ARRAY(
+                        SELECT DISTINCT unnest(array_replace(addresses_id, t.old_id, t.new_id))
                     )
-                    cursor.execute(
-                        f"""
-                        UPDATE batid_building_history
-                        SET addresses_id = ARRAY(
-                            SELECT DISTINCT unnest(array_replace(addresses_id, v.old_id, v.new_id))
-                        )
-                        FROM (VALUES {dupe_placeholders_hist}) AS v(old_id, new_id)
-                        WHERE addresses_id @> ARRAY[v.old_id::varchar]
-                        """,
-                        dupe_flat_values,
-                    )
+                    FROM _ban_ids t
+                    WHERE t.is_dupe = TRUE
+                      AND addresses_id @> ARRAY[t.old_id::varchar]
+                    """
+                )
     finally:
         with connection.cursor() as cursor:
             cursor.execute(
                 "ALTER TABLE batid_building ENABLE TRIGGER building_versioning_trigger"
             )
+            cursor.execute("DROP TABLE IF EXISTS _ban_ids")
 
 
 def _flag_failures(failures: list) -> None:
