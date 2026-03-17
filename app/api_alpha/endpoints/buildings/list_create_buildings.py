@@ -270,7 +270,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                     },
                 },
                 "responses": {
-                    "200": {
+                    "201": {
                         "description": "Détails du bâtiment nouvellement créé dans le RNB",
                         "content": {
                             "application/json": {

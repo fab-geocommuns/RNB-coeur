@@ -483,7 +483,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                     },
                 },
                 "responses": {
-                    "200": {
+                    "201": {
                         "description": "Détails du bâtiment nouvellement créé",
                         "content": {
                             "application/json": {
@@ -648,7 +648,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                     },
                 },
                 "responses": {
-                    "200": {
+                    "201": {
                         "description": "Détails des bâtiments nouvellement créés",
                         "content": {
                             "application/json": {
