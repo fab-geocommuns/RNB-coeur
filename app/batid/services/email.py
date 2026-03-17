@@ -45,25 +45,31 @@ def activate_account_url(user_id_b64: str, token: str) -> str:
 
 
 def build_monthly_leaderboard_email(
-    leaderboard: list,
-    month_year_label: str,
-    email: str,
-    new_usernames: list[str] | None = None,
+    year: int,
+    month: int,
 ) -> EmailMultiAlternatives:
     """
     Input:
-        leaderboard: [{"username": str, "edit_count": int}, ...] sorted by edit_count desc
-        month_label: human-readable month in French, e.g. "février 2026"
-        email: recipient address
-        new_usernames: list of usernames of users who joined this month
-    Returns: EmailMultiAlternatives ready to send
+        year: e.g. 2026
+        month: e.g. 2 for February
+    Returns: EmailMultiAlternatives with to=[] (no recipient set).
+    Set msg.to = [email] before each msg.send() in the caller loop.
     """
+    from batid.services.leaderboard import get_monthly_edit_leaderboard
+    from batid.services.leaderboard import get_monthly_new_users
+    from batid.utils.date import french_month_year_label
+
+    leaderboard = get_monthly_edit_leaderboard(year, month)
+    month_year_label = french_month_year_label(year, month)
+    new_users = get_monthly_new_users(year, month)
+    new_usernames = list(new_users.values_list("username", flat=True))
+
     html_content = render_to_string(
         "emails/monthly_leaderboard.html",
         {
             "leaderboard": leaderboard,
             "month_year_label": month_year_label,
-            "new_usernames": new_usernames or [],
+            "new_usernames": new_usernames,
         },
     )
     msg = EmailMultiAlternatives(
@@ -71,7 +77,7 @@ def build_monthly_leaderboard_email(
         body="Veuillez consulter la version HTML de cet email.",
         from_email=get_rnb_email_sender(),
         headers={"Reply-To": settings.RNB_REPLY_TO_ADDRESS},  # type: ignore
-        to=[email],
+        to=[],
     )
     msg.attach_alternative(html_content, "text/html")
     return msg

@@ -73,11 +73,10 @@ def send_monthly_leaderboard_emails() -> str:
     new_user_emails = set(new_users.values_list("email", flat=True))
     recipient_emails = editor_emails | new_user_emails
 
-    new_usernames = list(new_users.values_list("username", flat=True))
-
+    msg = build_monthly_leaderboard_email(year, month)
     sent = 0
     for email in recipient_emails:
-        msg = build_monthly_leaderboard_email(leaderboard, label, email, new_usernames)
+        msg.to = [email]
         msg.send()
         sent += 1
 

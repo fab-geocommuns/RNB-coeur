@@ -160,63 +160,82 @@ class LeaderboardQueryTestCase(TestCase):
         self.assertIn(user_last_month, last_month_users)
 
 
+@override_settings(
+    MAX_BUILDING_AREA=float("inf"),
+    RNB_SEND_ADDRESS="rnb@example.com",
+    RNB_REPLY_TO_ADDRESS="reply@example.com",
+)
+@freeze_time("2026-03-15")
 class LeaderboardEmailTestCase(TestCase):
-    @override_settings(
-        RNB_SEND_ADDRESS="rnb@example.com",
-        RNB_REPLY_TO_ADDRESS="reply@example.com",
-    )
+    def setUp(self):
+        # alice joined in February so she doesn't count as a new user in March
+        self.alice = ContributorUserFactory(username="alice", email="alice@example.com")
+        User.objects.filter(pk=self.alice.pk).update(
+            date_joined=datetime.datetime(2026, 2, 1, tzinfo=datetime.timezone.utc)
+        )
+        # 1 create + 4 updates = 5 distinct contribution events for alice in March 2026
+        b = Building.create_new(
+            user=self.alice,
+            event_origin={"source": "contribution"},
+            status="constructed",
+            addresses_id=[],
+            shape=SIMPLE_POLYGON,
+            ext_ids=[],
+        )
+        for status in ["demolished", "constructed", "demolished", "constructed"]:
+            b.update(
+                user=self.alice,
+                event_origin={"source": "contribution"},
+                status=status,
+                addresses_id=None,
+                shape=None,
+            )
+
+    def test_build_monthly_leaderboard_email_has_no_recipient(self):
+        """
+        Input: year=2026, month=3.
+        Expected: returned EmailMultiAlternatives has to=[] (no recipient pre-set).
+        """
+        msg = build_monthly_leaderboard_email(2026, 3)
+
+        self.assertEqual(msg.to, [])
+
     def test_build_monthly_leaderboard_email(self):
         """
-        Input: leaderboard with one entry (alice, 5 edits) and a recipient email.
+        Input: year=2026, month=3; alice has 5 contribution edits, no new users in March.
         Expected: EmailMultiAlternatives with subject and HTML body containing month label,
-        username, and edit count.
+        alice's username, and edit count 5.
         """
-        leaderboard = [{"username": "alice", "edit_count": 5}]
-        email = build_monthly_leaderboard_email(
-            leaderboard, "janvier 2026", "recipient@example.com"
-        )
+        msg = build_monthly_leaderboard_email(2026, 3)
 
-        self.assertIsInstance(email, EmailMultiAlternatives)
-        self.assertIn("janvier 2026", email.subject)
-        html_body = str(email.alternatives[0][0])
+        self.assertIsInstance(msg, EmailMultiAlternatives)
+        self.assertIn("mars 2026", msg.subject)
+        html_body = str(msg.alternatives[0][0])
         self.assertIn("alice", html_body)
         self.assertIn("5", html_body)
-        self.assertIn("janvier 2026", html_body)
-        self.assertEqual(email.to, ["recipient@example.com"])
+        self.assertIn("mars 2026", html_body)
 
-    @override_settings(
-        RNB_SEND_ADDRESS="rnb@example.com",
-        RNB_REPLY_TO_ADDRESS="reply@example.com",
-    )
     def test_build_monthly_leaderboard_email_with_new_users(self):
         """
-        Input: leaderboard with one entry, plus two new usernames.
+        Input: year=2026, month=3; alice has 5 edits; bob and charlie joined in March 2026.
         Expected: HTML body contains "Bienvenue aux nouveaux inscrits" and both new usernames.
         """
-        leaderboard = [{"username": "alice", "edit_count": 5}]
-        new_usernames = ["bob", "charlie"]
-        email = build_monthly_leaderboard_email(
-            leaderboard, "février 2026", "recipient@example.com", new_usernames
-        )
+        ContributorUserFactory(username="bob", email="bob@example.com")
+        ContributorUserFactory(username="charlie", email="charlie@example.com")
 
-        html_body = str(email.alternatives[0][0])
+        msg = build_monthly_leaderboard_email(2026, 3)
+
+        html_body = str(msg.alternatives[0][0])
         self.assertIn("Bienvenue aux nouveaux inscrits", html_body)
         self.assertIn("bob", html_body)
         self.assertIn("charlie", html_body)
 
-    @override_settings(
-        RNB_SEND_ADDRESS="rnb@example.com",
-        RNB_REPLY_TO_ADDRESS="reply@example.com",
-    )
     def test_build_monthly_leaderboard_email_no_new_users(self):
         """
-        Input: leaderboard with one entry, no new usernames.
+        Input: year=2026, month=3; alice has 5 edits, no users joined in March 2026.
         Expected: HTML body does not contain "Bienvenue aux nouveaux inscrits".
         """
-        leaderboard = [{"username": "alice", "edit_count": 5}]
-        email = build_monthly_leaderboard_email(
-            leaderboard, "février 2026", "recipient@example.com"
-        )
+        msg = build_monthly_leaderboard_email(2026, 3)
 
-        html_body = str(email.alternatives[0][0])
+        html_body = str(msg.alternatives[0][0])
         self.assertNotIn("Bienvenue aux nouveaux inscrits", html_body)
