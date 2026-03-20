@@ -84,7 +84,10 @@ def verify_id_token(id_token, nonce):
 
 
 def fetch_userinfo(access_token):
-    """Fetch user claims from the userinfo endpoint."""
+    """Fetch user claims from the userinfo endpoint.
+
+    Pro Connect returns a signed JWT, not plain JSON.
+    """
     oidc_config = get_oidc_config()
     resp = requests.get(
         oidc_config["userinfo_endpoint"],
@@ -92,6 +95,11 @@ def fetch_userinfo(access_token):
         timeout=10,
     )
     resp.raise_for_status()
+    content_type = resp.headers.get("Content-Type", "")
+    if "application/jwt" in content_type or "application/json" not in content_type:
+        jwks = get_jwks()
+        claims = jose_jwt.decode(resp.text, jwks)
+        return dict(claims)
     return resp.json()
 
 
