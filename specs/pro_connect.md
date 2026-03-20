@@ -1,14 +1,11 @@
 # Plan : Intégration Pro Connect (OIDC) dans le backend RNB
 
-# TODO : plan brut par Claude. A relire. Sans doute un peu trop lourd (il parle notamment de Redis)
-
 ## Contexte
 
 Pro Connect est la solution d'identification de l'État français pour les agents publics, basée sur OpenID Connect / OAuth 2.0. L'objectif est de fournir les endpoints backend nécessaires pour que le site RNB (repo séparé, Next.js + NextAuth) puisse proposer l'authentification via Pro Connect. Actuellement, le backend utilise uniquement une authentification par username/email + mot de passe avec des tokens DRF.
 
 ## Choix de la bibliothèque : `authlib`
 
-- `mozilla-django-oidc` est trop couplé au système de sessions Django, inadapté à notre architecture API + tokens DRF
 - `authlib` offre un contrôle fin sur chaque étape du flux OIDC (discovery, authorization, token exchange, JWT verification)
 - Activement maintenu, supporte OIDC discovery nativement
 - Critique : l'access_token Pro Connect n'est valide que 60 secondes, il faut appeler userinfo immédiatement
@@ -18,7 +15,7 @@ Pro Connect est la solution d'identification de l'État français pour les agent
 | Fichier                      | Action                                   |
 | ---------------------------- | ---------------------------------------- |
 | `app/pyproject.toml`         | Ajouter `authlib`                        |
-| `app/app/settings.py`        | Ajouter config Pro Connect + cache Redis |
+| `app/app/settings.py`        | Ajouter config Pro Connect               |
 | `app/batid/models/others.py` | Ajouter modèle `ProConnectIdentity`      |
 | `app/api_alpha/urls.py`      | Enregistrer 4 nouveaux endpoints         |
 | `.env.app.example`           | Ajouter variables Pro Connect            |
@@ -68,16 +65,7 @@ PRO_CONNECT_REDIRECT_URI = os.environ.get("PRO_CONNECT_REDIRECT_URI")  # callbac
 PRO_CONNECT_POST_LOGOUT_REDIRECT_URI = os.environ.get("PRO_CONNECT_POST_LOGOUT_REDIRECT_URI")
 ```
 
-Ajouter le cache Redis (Django 6 a le backend Redis natif) :
-
-```python
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/0"),
-    }
-}
-```
+Pas de configuration de cache supplémentaire : le cache par défaut (`LocMemCache`) est suffisant pour mettre en cache le document OIDC discovery et les clés JWKS.
 
 ## 3. Endpoints
 
@@ -86,8 +74,8 @@ Tous sous `/api/alpha/auth/pro_connect/` :
 ### 3a. `GET /auth/pro_connect/authorize/`
 
 - Paramètre query optionnel : `redirect_uri` (URL frontend où rediriger après callback)
-- Génère `state` et `nonce` (via `secrets.token_urlsafe(32)`)
-- Stocke dans le cache Redis (clé: `pro_connect:{state}`, TTL: 300s) : `{nonce, frontend_redirect_uri}`
+- Génère un `nonce` (via `secrets.token_urlsafe(32)`)
+- Encode `nonce` + `frontend_redirect_uri` dans le `state` via `django.core.signing.dumps(..., salt='pro_connect', max_age=300)` — pas de stockage serveur
 - Retourne JSON : `{"authorization_url": "https://...", "state": "..."}`
 - Pas d'authentification requise
 
@@ -95,7 +83,7 @@ Tous sous `/api/alpha/auth/pro_connect/` :
 
 - Paramètres query reçus de Pro Connect : `code`, `state`
 - Flow :
-  1. Récupérer et vérifier `state` depuis le cache, supprimer l'entrée
+  1. Décoder et vérifier le `state` via `signing.loads(state, salt='pro_connect', max_age=300)` — lève une exception si expiré ou falsifié
   2. Échanger `code` contre tokens via le token endpoint Pro Connect
   3. Vérifier la signature JWT de l'`id_token` (JWKS) et le `nonce`
   4. Appeler immédiatement userinfo avec l'access_token
@@ -112,14 +100,14 @@ Tous sous `/api/alpha/auth/pro_connect/` :
 - Flow :
   1. Récupérer `ProConnectIdentity` de l'utilisateur et le `last_id_token`
   2. Si pas d'identité Pro Connect → 400
-  3. Générer un `state`, stocker dans le cache avec `post_logout_redirect_uri`
+  3. Encoder `post_logout_redirect_uri` dans un `state` signé via `signing.dumps(..., salt='pro_connect_logout')`
   4. Supprimer le token DRF
   5. Redirect 302 vers `end_session_endpoint` avec `id_token_hint`, `state`, `post_logout_redirect_uri` (du backend)
 
 ### 3d. `GET /auth/pro_connect/logout/callback/`
 
 - Paramètre query : `state`
-- Vérifier le state depuis le cache
+- Décoder et vérifier le `state` via `signing.loads(state, salt='pro_connect_logout')`
 - Redirect 302 vers le `post_logout_redirect_uri` du frontend
 
 ## 4. Logique de provisioning/linking (`services.py`)
@@ -143,10 +131,10 @@ Le `last_id_token` est mis à jour à chaque authentification pour être disponi
 
 ```python
 def get_oidc_config():
-    """Fetch et cache le document de discovery OIDC (TTL 1h)."""
+    """Fetch et cache le document de discovery OIDC (TTL 1h) via LocMemCache."""
 
 def get_jwks():
-    """Fetch et cache les clés JWKS pour vérification des id_tokens (TTL 1h)."""
+    """Fetch et cache les clés JWKS pour vérification des id_tokens (TTL 1h) via LocMemCache."""
 
 def create_oauth_session():
     """Crée une session OAuth2 authlib configurée pour Pro Connect."""
@@ -178,11 +166,11 @@ PRO_CONNECT_POST_LOGOUT_REDIRECT_URI=http://localhost:3000
 
 Mocker les appels HTTP vers Pro Connect (token exchange, userinfo, OIDC discovery, JWKS) :
 
-1. **test_authorize_returns_authorization_url** : vérifie la réponse JSON et le stockage dans le cache
+1. **test_authorize_returns_authorization_url** : vérifie la réponse JSON et que le `state` est décodable via `signing.loads`
 2. **test_callback_creates_new_user** : mock token exchange + userinfo, vérifie création User + UserProfile + ProConnectIdentity + Token + ajout au groupe Contributors
 3. **test_callback_links_existing_user_by_email** : créer un utilisateur existant, vérifier qu'il est lié (pas de doublon)
 4. **test_callback_returns_existing_pro_connect_user** : utilisateur avec ProConnectIdentity existant, vérifier la mise à jour des claims
-5. **test_callback_invalid_state** : state inconnu → redirect avec error
+5. **test_callback_invalid_state** : state falsifié/expiré → redirect avec error
 6. **test_logout_redirects_to_pro_connect** : utilisateur Pro Connect → redirect vers end_session
 7. **test_logout_without_pro_connect_identity** : utilisateur classique → 400
 
@@ -190,7 +178,7 @@ Mocker les appels HTTP vers Pro Connect (token exchange, userinfo, OIDC discover
 
 1. Ajouter `authlib` dans `pyproject.toml`
 2. Ajouter le modèle `ProConnectIdentity` + migration
-3. Ajouter les settings (Pro Connect + cache Redis)
+3. Ajouter les settings Pro Connect
 4. Ajouter les variables d'env dans `.env.app.example`
 5. Créer `services.py` (client OIDC, provisioning)
 6. Créer `views.py` (4 vues)
@@ -200,8 +188,8 @@ Mocker les appels HTTP vers Pro Connect (token exchange, userinfo, OIDC discover
 
 ## 10. Sécurité
 
-- **State** : `secrets.token_urlsafe(32)`, TTL 300s, usage unique (supprimé après vérification)
-- **Nonce** : vérifié dans le claim du `id_token`
+- **State** : signé avec `django.core.signing` (HMAC + SECRET_KEY), TTL 300s, falsification détectée automatiquement
+- **Nonce** : `secrets.token_urlsafe(32)`, embarqué dans le `state` signé, vérifié dans le claim du `id_token`
 - **JWT** : signature vérifiée via JWKS du provider
 - **Mot de passe** : `set_unusable_password()` pour les comptes créés via Pro Connect
 - **Token dans l'URL de redirect** : acceptable car redirect one-shot vers le frontend. Le frontend doit extraire le token et nettoyer l'URL
