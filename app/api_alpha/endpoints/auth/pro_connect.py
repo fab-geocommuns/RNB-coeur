@@ -12,7 +12,9 @@ from django.db import transaction
 from django.http import HttpResponseRedirect
 from nanoid import generate as nanoid
 from rest_framework import status
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -238,3 +240,41 @@ class CallbackView(APIView):
             "username": user.username,
         })
         return HttpResponseRedirect(f"{redirect_uri}?{params}")
+
+
+class LogoutView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            identity = request.user.pro_connect
+        except ProConnectIdentity.DoesNotExist:
+            return Response(
+                {"error": "no_pro_connect_identity"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        post_logout_redirect_uri = request.query_params.get(
+            "post_logout_redirect_uri", ""
+        )
+        if post_logout_redirect_uri and post_logout_redirect_uri not in settings.PRO_CONNECT_ALLOWED_REDIRECT_URIS:
+            return Response(
+                {"error": "invalid_redirect_uri"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        state = signing.dumps(
+            {"post_logout_redirect_uri": post_logout_redirect_uri},
+            salt="pro_connect_logout",
+        )
+
+        oidc_config = get_oidc_config()
+        params = urlencode({
+            "id_token_hint": identity.last_id_token,
+            "state": state,
+            "post_logout_redirect_uri": settings.PRO_CONNECT_POST_LOGOUT_REDIRECT_URI,
+        })
+        return HttpResponseRedirect(
+            f"{oidc_config['end_session_endpoint']}?{params}"
+        )

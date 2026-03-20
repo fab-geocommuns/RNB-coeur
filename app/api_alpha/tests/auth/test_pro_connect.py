@@ -197,3 +197,45 @@ class CallbackTest(APITestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("error=", response.url)
+
+
+@override_settings(
+    PRO_CONNECT_POST_LOGOUT_REDIRECT_URI="http://localhost:8000/api/alpha/auth/pro_connect/logout/callback/",
+    PRO_CONNECT_ALLOWED_REDIRECT_URIS=["http://localhost:3000"],
+)
+class LogoutTest(APITestCase):
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.get_oidc_config",
+        return_value=FAKE_OIDC_CONFIG,
+    )
+    def test_logout_redirects_to_pro_connect(self, mock_config):
+        """Authenticated user with ProConnectIdentity → redirect 302 to Pro Connect end_session_endpoint."""
+        user = ContributorUserFactory(is_active=True)
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-123", last_id_token="the-id-token"
+        )
+        token = Token.objects.get(user=user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+        response = self.client.get(
+            "/api/alpha/auth/pro_connect/logout/",
+            {"post_logout_redirect_uri": "http://localhost:3000"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("proconnect.example/logout", response.url)
+        self.assertIn("id_token_hint=the-id-token", response.url)
+        self.assertIn("state=", response.url)
+
+    def test_logout_without_pro_connect_identity(self):
+        """Authenticated user without ProConnectIdentity → 400."""
+        user = ContributorUserFactory(is_active=True)
+        token = Token.objects.get(user=user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+        response = self.client.get(
+            "/api/alpha/auth/pro_connect/logout/",
+            {"post_logout_redirect_uri": "http://localhost:3000"},
+        )
+
+        self.assertEqual(response.status_code, 400)

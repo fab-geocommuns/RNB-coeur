@@ -9,6 +9,7 @@ from api_alpha.endpoints.auth.create_user import CreateUserView
 from api_alpha.endpoints.buildings.change_stats import BuildingChangeStatsView
 from api_alpha.endpoints.auth.pro_connect import AuthorizeView
 from api_alpha.endpoints.auth.pro_connect import CallbackView
+from api_alpha.endpoints.auth.pro_connect import LogoutView
 from api_alpha.endpoints.buildings.get_diff import DiffView
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.plot import BuildingPlotView
@@ -127,6 +128,7 @@ urlpatterns = [
     ),
     path("auth/pro_connect/authorize/", AuthorizeView.as_view()),
     path("auth/pro_connect/callback/", CallbackView.as_view()),
+    path("auth/pro_connect/logout/", LogoutView.as_view()),
     path("editions/ranking/", LeaderboardView.as_view()),
     path("feves/", FevesView.as_view()),
     path("editions/ranking/<str:username>/", UserScoreView.as_view()),
