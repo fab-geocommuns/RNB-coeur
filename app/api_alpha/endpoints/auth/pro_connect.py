@@ -1,3 +1,4 @@
+import logging
 import secrets
 from urllib.parse import urlencode
 
@@ -20,6 +21,8 @@ from rest_framework.views import APIView
 
 from batid.models import ProConnectIdentity
 from batid.models import UserProfile
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -196,6 +199,7 @@ class AuthorizeView(APIView):
             "scope": settings.PRO_CONNECT_SCOPES,
             "state": state,
             "nonce": nonce,
+            "acr_values": "eidas1",
         })
         authorization_url = f"{oidc_config['authorization_endpoint']}?{params}"
 
@@ -210,14 +214,16 @@ class CallbackView(APIView):
         code = request.query_params.get("code")
         state_str = request.query_params.get("state")
 
+        fallback_uri = getattr(settings, "FRONTEND_URL", "/") or "/"
+
         if not code or not state_str:
-            return HttpResponseRedirect("/?error=missing_parameters")
+            return HttpResponseRedirect(f"{fallback_uri}?error=missing_parameters")
 
         # Decode and verify state
         try:
             state = signing.loads(state_str, salt="pro_connect", max_age=300)
         except signing.BadSignature:
-            return HttpResponseRedirect("/?error=invalid_state")
+            return HttpResponseRedirect(f"{fallback_uri}?error=invalid_state")
 
         redirect_uri = state["redirect_uri"]
         nonce = state["nonce"]
@@ -227,10 +233,11 @@ class CallbackView(APIView):
             verify_id_token(id_token, nonce)
             userinfo = fetch_userinfo(access_token)
             user, token = get_or_create_user_from_pro_connect(userinfo, id_token)
-        except Exception as e:
+        except Exception:
+            logger.exception("Pro Connect callback failed")
             error_params = urlencode({
                 "error": "authentication_failed",
-                "error_description": str(e),
+                "error_description": "An error occurred during authentication",
             })
             return HttpResponseRedirect(f"{redirect_uri}?{error_params}")
 

@@ -93,18 +93,6 @@ def _make_state(redirect_uri="http://localhost:3000", nonce="test-nonce"):
     )
 
 
-def _mock_token_exchange(mock_post, id_token="fake-id-token", access_token="fake-access-token"):
-    """Configure mock for token endpoint POST."""
-    mock_response = mock.Mock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "access_token": access_token,
-        "id_token": id_token,
-        "token_type": "Bearer",
-    }
-    mock_post.return_value = mock_response
-
-
 @override_settings(
     PRO_CONNECT_CLIENT_ID="test-client-id",
     PRO_CONNECT_CLIENT_SECRET="test-client-secret",
@@ -112,6 +100,7 @@ def _mock_token_exchange(mock_post, id_token="fake-id-token", access_token="fake
     PRO_CONNECT_SCOPES="openid email given_name usual_name",
     PRO_CONNECT_ALLOWED_REDIRECT_URIS=["http://localhost:3000"],
     CONTRIBUTORS_GROUP_NAME="Contributors",
+    FRONTEND_URL="http://localhost:3000",
 )
 class CallbackTest(APITestCase):
     def _call_callback(self, code="auth-code", state=None):
