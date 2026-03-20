@@ -239,3 +239,29 @@ class LogoutTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+
+class LogoutCallbackTest(APITestCase):
+    def test_logout_callback_redirects_to_frontend(self):
+        """Logout callback with valid state → redirect 302 to frontend post_logout_redirect_uri."""
+        state = signing.dumps(
+            {"post_logout_redirect_uri": "http://localhost:3000"},
+            salt="pro_connect_logout",
+        )
+
+        response = self.client.get(
+            "/api/alpha/auth/pro_connect/logout/callback/",
+            {"state": state},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000")
+
+    def test_logout_callback_invalid_state(self):
+        """Logout callback with tampered state → 400."""
+        response = self.client.get(
+            "/api/alpha/auth/pro_connect/logout/callback/",
+            {"state": "tampered"},
+        )
+
+        self.assertEqual(response.status_code, 400)

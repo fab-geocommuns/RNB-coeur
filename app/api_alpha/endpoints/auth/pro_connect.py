@@ -278,3 +278,20 @@ class LogoutView(APIView):
         return HttpResponseRedirect(
             f"{oidc_config['end_session_endpoint']}?{params}"
         )
+
+
+class LogoutCallbackView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        state_str = request.query_params.get("state")
+        try:
+            state = signing.loads(state_str, salt="pro_connect_logout", max_age=300)
+        except (signing.BadSignature, TypeError):
+            return Response(
+                {"error": "invalid_state"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return HttpResponseRedirect(state["post_logout_redirect_uri"])
