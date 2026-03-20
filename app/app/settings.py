@@ -242,6 +242,24 @@ RNB_REPLY_TO_ADDRESS = os.environ.get("RNB_REPLY_TO_ADDRESS")
 MAX_BUILDING_AREA = 500000
 MIN_BUILDING_AREA = 5
 
+# Pro Connect (OIDC)
+PRO_CONNECT_CLIENT_ID = os.environ.get("PRO_CONNECT_CLIENT_ID")
+PRO_CONNECT_CLIENT_SECRET = os.environ.get("PRO_CONNECT_CLIENT_SECRET")
+PRO_CONNECT_DISCOVERY_URL = os.environ.get(
+    "PRO_CONNECT_DISCOVERY_URL",
+    "https://fca.integ01.dev-agentconnect.fr/api/v2/.well-known/openid-configuration",
+)
+PRO_CONNECT_SCOPES = "openid email given_name usual_name"
+PRO_CONNECT_REDIRECT_URI = os.environ.get("PRO_CONNECT_REDIRECT_URI")
+PRO_CONNECT_POST_LOGOUT_REDIRECT_URI = os.environ.get(
+    "PRO_CONNECT_POST_LOGOUT_REDIRECT_URI"
+)
+PRO_CONNECT_ALLOWED_REDIRECT_URIS = [
+    u.strip()
+    for u in os.environ.get("PRO_CONNECT_ALLOWED_REDIRECT_URIS", "").split(",")
+    if u.strip()
+]
+
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Internationalization

@@ -222,6 +222,14 @@ class UserProfile(models.Model):
         self.save(update_fields=["total_contributions"])
 
 
+class ProConnectIdentity(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="pro_connect")
+    sub = models.CharField(max_length=255, unique=True, db_index=True)
+    last_id_token = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
 class BuildingImport(models.Model):
     id = models.AutoField(primary_key=True)
     import_source = models.CharField(max_length=20, null=False)
