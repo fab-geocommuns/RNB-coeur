@@ -45,6 +45,7 @@ PRO_CONNECT_DISCOVERY_URL = os.environ.get(
 PRO_CONNECT_SCOPES = "openid email given_name usual_name"
 PRO_CONNECT_REDIRECT_URI = os.environ.get("PRO_CONNECT_REDIRECT_URI")
 PRO_CONNECT_POST_LOGOUT_REDIRECT_URI = os.environ.get("PRO_CONNECT_POST_LOGOUT_REDIRECT_URI")
+PRO_CONNECT_ALLOWED_REDIRECT_URIS = os.environ.get("PRO_CONNECT_ALLOWED_REDIRECT_URIS", "").split(",")
 ```
 
 - Discovery URL par défaut : environnement d'intégration Pro Connect
@@ -60,6 +61,7 @@ Tous sous `/api/alpha/auth/pro_connect/`.
 Démarre le flow OIDC.
 
 - Paramètre query : `redirect_uri` (URL du frontend où revenir après auth)
+- **Valide `redirect_uri` contre `PRO_CONNECT_ALLOWED_REDIRECT_URIS`** — rejette avec 400 si non autorisé ou absent
 - Génère un `nonce` via `secrets.token_urlsafe(32)`
 - Encode `{nonce, redirect_uri}` dans un `state` signé via `django.core.signing.dumps(max_age=300)`
 - Retourne JSON : `{"authorization_url": "https://..."}`
@@ -89,16 +91,16 @@ Initie le logout auprès de Pro Connect.
 - Paramètre query : `post_logout_redirect_uri` (URL frontend après déconnexion)
 - Flow :
   1. Récupère `ProConnectIdentity` de l'utilisateur — 400 si absente
-  2. Encode `post_logout_redirect_uri` dans un `state` signé (salt : `pro_connect_logout`)
-  3. Supprime le token DRF
-  4. Redirect 302 vers `end_session_endpoint` de Pro Connect avec `id_token_hint` + `state` + `post_logout_redirect_uri` (du backend)
+  2. Encode `post_logout_redirect_uri` dans un `state` signé (salt : `pro_connect_logout`, max_age=300)
+  3. Redirect 302 vers `end_session_endpoint` de Pro Connect avec `id_token_hint` + `state` + `post_logout_redirect_uri` (du backend)
+  Note : le token DRF n'est **pas** supprimé — le logout Pro Connect termine la session Pro Connect, pas l'accès API RNB
 
 ### `GET /logout/callback/`
 
 Retour après logout Pro Connect.
 
 - Paramètre query : `state`
-- `signing.loads(state, salt='pro_connect_logout')` — récupère `post_logout_redirect_uri`
+- `signing.loads(state, salt='pro_connect_logout', max_age=300)` — récupère `post_logout_redirect_uri`
 - Redirect 302 vers le frontend
 
 ## Provisioning / linking utilisateur
@@ -111,9 +113,11 @@ Fonction `get_or_create_user_from_pro_connect(userinfo, id_token)` :
 
 **Étape 2 — Recherche par email**
 
-`User.objects.filter(email=userinfo["email"])` — si trouvé, crée une `ProConnectIdentity` liée à cet utilisateur existant. L'utilisateur conserve son mot de passe et peut se connecter des deux façons.
+`User.objects.filter(email=userinfo["email"])` — si trouvé et **n'a pas déjà** une `ProConnectIdentity` → crée une `ProConnectIdentity` liée à cet utilisateur existant. L'utilisateur conserve son mot de passe et peut se connecter des deux façons. Si l'utilisateur a déjà une `ProConnectIdentity` (liée à un autre `sub`), rejeter avec une erreur explicite.
 
 **Étape 3 — Création d'un nouvel utilisateur**
+
+Toute la création se fait dans un `transaction.atomic()` :
 
 1. Génère un username depuis l'email (partie avant `@`, avec suffixe aléatoire si collision)
 2. `User.objects.create(email=..., first_name=..., last_name=..., is_active=True)`
@@ -122,6 +126,8 @@ Fonction `get_or_create_user_from_pro_connect(userinfo, id_token)` :
 5. Crée un `UserProfile`
 6. Crée la `ProConnectIdentity`
 7. Crée le token DRF
+
+Note : **pas d'email de vérification** — contrairement au flow d'inscription classique, l'email est déjà vérifié par Pro Connect.
 
 ## Fonctions utilitaires OIDC
 
@@ -135,11 +141,13 @@ Dans le même fichier `pro_connect.py` :
 
 ## Sécurité
 
-- **State** : signé avec `django.core.signing` (HMAC + SECRET_KEY), TTL 300s
+- **Redirect URI** : validé contre une allowlist (`PRO_CONNECT_ALLOWED_REDIRECT_URIS`) pour prévenir les open redirects
+- **State** : signé avec `django.core.signing` (HMAC + SECRET_KEY), TTL 300s (login et logout)
 - **Nonce** : `secrets.token_urlsafe(32)`, embarqué dans le state signé, vérifié dans l'id_token
 - **JWT** : signature vérifiée via JWKS du provider
 - **Mot de passe** : `set_unusable_password()` pour les comptes créés via Pro Connect
 - **Token dans l'URL** : redirect one-shot, le frontend nettoie l'URL immédiatement
+- **Provisioning** : `transaction.atomic()` pour éviter les états partiels
 
 ## Tests
 
