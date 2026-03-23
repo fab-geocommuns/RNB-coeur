@@ -41,7 +41,7 @@ class Command(BaseCommand):
             return
 
         msg = build_monthly_leaderboard_email(year, month)
-        msg.subject = f"TEST EQUIPE RNB - {msg.subject}"
+        msg.subject = f"TEST ÉQUIPE RNB - {msg.subject}"
         for email in staff_emails:
             msg.to = [email]
             msg.send()
