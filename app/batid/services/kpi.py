@@ -4,12 +4,14 @@ from typing import Optional
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import KPI
+from batid.models.others import BuildingAddressesReadOnly
 from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
 
 KPI_ACTIVE_BUILDINGS_COUNT = "active_buildings_count"
 KPI_REAL_BUILDINGS_COUNT = "real_buildings_count"
 KPI_REAL_BUILDINGS_WO_ADDRESSES_COUNT = "real_buildings_wo_addresses_count"
+KPI_BUILDING_ADDRESS_COUNT = "building_address_links_count"
 KPI_EDITORS_COUNT = "editors_count"
 KPI_EDITS_COUNT = "edits_count"
 KPI_REPORTS_COUNT = "reports_count"
@@ -55,6 +57,14 @@ def compute_today_kpis():
     KPI.objects.create(
         name=KPI_REAL_BUILDINGS_WO_ADDRESSES_COUNT,
         value=real_bdgs_wo_addresses_count,
+        value_date=today,
+    )
+
+    # Building - address links
+    building_address_links_count = count_building_address_links()
+    KPI.objects.create(
+        name=KPI_BUILDING_ADDRESS_COUNT,
+        value=building_address_links_count,
         value_date=today,
     )
 
@@ -119,6 +129,13 @@ def count_real_buildings_wo_addresses():
         status__in=BuildingStatus.REAL_BUILDINGS_STATUS,
         addresses_read_only=None,
     ).count()
+
+
+def count_building_address_links():
+    """
+    Count the number of building - address links
+    """
+    return BuildingAddressesReadOnly.objects.filter(building__is_active=True).count()
 
 
 def count_editors():
