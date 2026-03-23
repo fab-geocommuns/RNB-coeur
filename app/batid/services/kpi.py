@@ -2,6 +2,7 @@ from datetime import date
 from typing import Optional
 
 from django.db import connection
+from rest_framework_tracking.models import APIRequestLog
 
 from batid.models import Building
 from batid.models import Contribution
@@ -21,6 +22,7 @@ KPI_PENDING_REPORTS_COUNT = "pending_reports_count"
 KPI_FIXED_REPORTS_COUNT = "fixed_reports_count"
 KPI_REFUSED_REPORTS_COUNT = "refused_reports_count"
 KPI_EDITS_COUNT_BY_DEPT = "edits_count_by_dept_{}"
+KPI_API_REQUESTS_COUNT = "api_requests_count"
 
 
 def get_kpi(name: str, since: Optional[date] = None, until: Optional[date] = None):
@@ -103,6 +105,12 @@ def compute_today_kpis():
         name=KPI_REFUSED_REPORTS_COUNT, value=refused_reports_count, value_date=today
     )
 
+    # API requests
+    api_requests_count = count_api_requests()
+    KPI.objects.create(
+        name=KPI_API_REQUESTS_COUNT, value=api_requests_count, value_date=today
+    )
+
     # Edits by department
     for dept_code, count in count_edits_by_department().items():
         KPI.objects.create(
@@ -171,6 +179,13 @@ def count_fixed_reports():
 
 def count_refused_reports():
     return Report.objects.filter(status="rejected").count()
+
+
+def count_api_requests():
+    """
+    Count the total number of API requests logged in rest_framework_tracking_apirequestlog
+    """
+    return APIRequestLog.objects.count()
 
 
 def count_edits_by_department():

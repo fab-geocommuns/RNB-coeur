@@ -32,7 +32,7 @@ class KPIDailyRun(TestCase):
         compute_today_kpis()
 
     def test_all_are_done(self):
-        """No data: only the 10 scalar KPIs should be created (0 dept KPIs)."""
+        """No data: only the 11 scalar KPIs should be created (0 dept KPIs)."""
 
         daily_kpis = [
             "active_buildings_count",
@@ -45,6 +45,7 @@ class KPIDailyRun(TestCase):
             "pending_reports_count",
             "fixed_reports_count",
             "refused_reports_count",
+            "api_requests_count",
         ]
 
         kpis = KPI.objects.all()
