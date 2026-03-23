@@ -1,4 +1,5 @@
 from datetime import date
+from datetime import timedelta
 from typing import Optional
 
 from django.db import connection
@@ -186,6 +187,41 @@ def count_api_requests():
     Count the total number of API requests logged in rest_framework_tracking_apirequestlog
     """
     return APIRequestLog.objects.count()
+
+
+def backfill_api_requests_kpi():
+    """
+    One-shot function to backfill api_requests_count KPI, one cumulative value per month,
+    from the first recorded API request until the previous month (current month excluded).
+    Skips months that already have an entry.
+    """
+    first = (
+        APIRequestLog.objects.order_by("requested_at")
+        .values_list("requested_at", flat=True)
+        .first()
+    )
+    if not first:
+        return
+
+    today = date.today()
+    year, month = first.year, first.month
+
+    while (year, month) < (today.year, today.month):
+        # Last day of this month
+        if month == 12:
+            next_first = date(year + 1, 1, 1)
+        else:
+            next_first = date(year, month + 1, 1)
+        last_day = next_first - timedelta(days=1)
+
+        count = APIRequestLog.objects.filter(requested_at__date__lte=last_day).count()
+        KPI.objects.get_or_create(
+            name=KPI_API_REQUESTS_COUNT,
+            value_date=last_day,
+            defaults={"value": count},
+        )
+
+        year, month = next_first.year, next_first.month
 
 
 def count_edits_by_department():
