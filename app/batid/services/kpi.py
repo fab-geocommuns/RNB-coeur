@@ -1,6 +1,8 @@
 from datetime import date
 from typing import Optional
 
+from django.db import connection
+
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import KPI
@@ -18,6 +20,7 @@ KPI_REPORTS_COUNT = "reports_count"
 KPI_PENDING_REPORTS_COUNT = "pending_reports_count"
 KPI_FIXED_REPORTS_COUNT = "fixed_reports_count"
 KPI_REFUSED_REPORTS_COUNT = "refused_reports_count"
+KPI_EDITS_COUNT_BY_DEPT = "edits_count_by_dept_{}"
 
 
 def get_kpi(name: str, since: Optional[date] = None, until: Optional[date] = None):
@@ -100,6 +103,14 @@ def compute_today_kpis():
         name=KPI_REFUSED_REPORTS_COUNT, value=refused_reports_count, value_date=today
     )
 
+    # Edits by department
+    for dept_code, count in count_edits_by_department().items():
+        KPI.objects.create(
+            name=KPI_EDITS_COUNT_BY_DEPT.format(dept_code),
+            value=count,
+            value_date=today,
+        )
+
 
 def count_active_buildings():
     """
@@ -160,3 +171,21 @@ def count_fixed_reports():
 
 def count_refused_reports():
     return Report.objects.filter(status="rejected").count()
+
+
+def count_edits_by_department():
+    """
+    Count contributions (edits, not reports) per department using a spatial join.
+    Returns a dict {dept_code: count}.
+    """
+    sql = """
+        SELECT d.code, COUNT(*) AS count
+        FROM batid_contribution c
+            INNER JOIN batid_building b ON c.rnb_id = b.rnb_id
+            LEFT JOIN batid_department_subdivided d ON ST_Contains(d.shape, b.point)
+        WHERE c.report = false
+        GROUP BY d.code
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql)
+        return {row[0]: row[1] for row in cursor.fetchall()}

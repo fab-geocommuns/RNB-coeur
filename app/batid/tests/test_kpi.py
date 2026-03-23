@@ -2,18 +2,21 @@ from datetime import date
 from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.test import TestCase
 
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
+from batid.models import Department_subdivided
 from batid.models import KPI
 from batid.models.report import Report
 from batid.services.kpi import compute_today_kpis
 from batid.services.kpi import count_active_buildings
 from batid.services.kpi import count_editors
 from batid.services.kpi import count_edits
+from batid.services.kpi import count_edits_by_department
 from batid.services.kpi import count_fixed_reports
 from batid.services.kpi import count_pending_reports
 from batid.services.kpi import count_real_buildings
@@ -29,11 +32,13 @@ class KPIDailyRun(TestCase):
         compute_today_kpis()
 
     def test_all_are_done(self):
+        """No data: only the 10 scalar KPIs should be created (0 dept KPIs)."""
 
         daily_kpis = [
             "active_buildings_count",
             "real_buildings_count",
             "real_buildings_wo_addresses_count",
+            "building_address_links_count",
             "editors_count",
             "edits_count",
             "reports_count",
@@ -221,3 +226,45 @@ class TestKPI(TestCase):
         yesterday = date.today() - timedelta(days=1)
         with self.assertRaises(Exception):
             KPI.objects.create(name="dummy", value=4, value_date=yesterday)
+
+
+class CountEditsByDepartment(TestCase):
+    def setUp(self):
+        """
+        2 contributions in dept 75, 1 in dept 69, 1 report (excluded).
+        Expected: {75: 2, 69: 1}.
+        """
+        dept_75_polygon = GEOSGeometry(
+            "POLYGON((2.0 48.0, 2.0 49.0, 3.0 49.0, 3.0 48.0, 2.0 48.0))", srid=4326
+        )
+        dept_69_polygon = GEOSGeometry(
+            "POLYGON((4.0 45.0, 4.0 46.0, 5.0 46.0, 5.0 45.0, 4.0 45.0))", srid=4326
+        )
+        Department_subdivided.objects.create(
+            code="75", name="Paris", shape=dept_75_polygon
+        )
+        Department_subdivided.objects.create(
+            code="69", name="Rhône", shape=dept_69_polygon
+        )
+
+        Building.objects.create(
+            rnb_id="BDG75A", point=Point(2.5, 48.5, srid=4326), is_active=True
+        )
+        Building.objects.create(
+            rnb_id="BDG75B", point=Point(2.6, 48.6, srid=4326), is_active=True
+        )
+        Building.objects.create(
+            rnb_id="BDG69A", point=Point(4.5, 45.5, srid=4326), is_active=True
+        )
+
+        Contribution.objects.create(rnb_id="BDG75A", report=False)
+        Contribution.objects.create(rnb_id="BDG75B", report=False)
+        Contribution.objects.create(rnb_id="BDG69A", report=False)
+        # report=True should be excluded
+        Contribution.objects.create(rnb_id="BDG75A", report=True)
+
+    def test(self):
+        result = count_edits_by_department()
+        self.assertEqual(result["75"], 2)
+        self.assertEqual(result["69"], 1)
+        self.assertEqual(len(result), 2)
