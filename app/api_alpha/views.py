@@ -76,7 +76,6 @@ from batid.services.geocoders import BanGeocoder
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.kpi import get_kpi_most_recent
 from batid.services.kpi import KPI_ACTIVE_BUILDINGS_COUNT
-from batid.services.kpi import KPI_BUILDING_ADDRESS_COUNT
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.user import get_user_id_b64
@@ -1083,9 +1082,6 @@ def get_stats(request):
     # Get the cached value of the building count
     bdg_count_kpi = get_kpi_most_recent(KPI_ACTIVE_BUILDINGS_COUNT)
 
-    # Get the cached value of the building-address links count
-    bdg_address_links_kpi = get_kpi_most_recent(KPI_BUILDING_ADDRESS_COUNT)
-
     data = {
         "building_counts": bdg_count_kpi.value,
         "api_calls_since_2024_count": api_calls_since_2024_count,
@@ -1093,7 +1089,6 @@ def get_stats(request):
         "editions_count": editions_count,
         "data_gouv_publication_count": data_gouv_publication_count,
         "diffusion_databases_count": diffusion_databases_count,
-        "building_address_links_count": bdg_address_links_kpi.value,
     }
 
     renderer = JSONRenderer()

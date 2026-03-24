@@ -8,23 +8,17 @@ from batid.models import Building
 from batid.models import Contribution
 from batid.models import DiffusionDatabase
 from batid.models import Organization
-from batid.models.others import Address
 from batid.services.kpi import compute_today_kpis
 
 
 class StatsTest(APITestCase):
     @mock.patch("api_alpha.views.requests.get")
     def test_stats(self, get_mock):
-        Address.objects.create(id="addr_1")
-        Address.objects.create(id="addr_2")
-        Address.objects.create(id="addr_3")
-
         # create buildings for building count
         Building.objects.create(rnb_id="1", is_active=True)
-        Building.objects.create(
-            rnb_id="2", is_active=True, addresses_id=["addr_1", "addr_2", "addr_3"]
-        )
-        Building.objects.create(rnb_id="3", is_active=False, addresses_id=["addr_1"])
+        Building.objects.create(rnb_id="2", is_active=True)
+        Building.objects.create(rnb_id="3", is_active=False)
+
         # trigger the stats computation for building count
         compute_today_kpis()
 
@@ -54,7 +48,6 @@ class StatsTest(APITestCase):
         self.assertEqual(results["editions_count"], 1)
         self.assertEqual(results["data_gouv_publication_count"], 11)
         self.assertEqual(results["diffusion_databases_count"], 1)
-        self.assertEqual(results["building_address_links_count"], 3)
 
         # assert the mock was called
         get_mock.assert_called_with("https://www.data.gouv.fr/api/1/datasets/?tag=rnb")
