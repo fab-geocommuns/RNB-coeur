@@ -49,7 +49,6 @@ class KPIDailyRun(TestCase):
         compute_today_kpis()
 
     def test_all_are_done(self):
-        """No data: only the 11 scalar KPIs should be created (0 dept KPIs)."""
 
         daily_kpis = [
             "active_buildings_count",
@@ -249,17 +248,25 @@ class TestKPI(TestCase):
 class CountEditsByDepartment(TestCase):
     def setUp(self):
         """
-        2 contributions in dept 75, 1 in dept 69, 1 report (excluded).
-        Expected: {75: 2, 69: 1}.
+        Dept 75 split into 2 subdivided polygons, 2 contributions in the first subdivision,
+        1 in the second. 1 contribution in dept 69. 1 report (excluded).
+        Expected: {75: 3, 69: 1}.
         """
         dept_75_polygon = GEOSGeometry(
             "POLYGON((2.0 48.0, 2.0 49.0, 3.0 49.0, 3.0 48.0, 2.0 48.0))", srid=4326
+        )
+        # Second subdivision of Paris (same code "75", different polygon)
+        dept_75_polygon_2 = GEOSGeometry(
+            "POLYGON((2.0 49.0, 2.0 50.0, 3.0 50.0, 3.0 49.0, 2.0 49.0))", srid=4326
         )
         dept_69_polygon = GEOSGeometry(
             "POLYGON((4.0 45.0, 4.0 46.0, 5.0 46.0, 5.0 45.0, 4.0 45.0))", srid=4326
         )
         Department_subdivided.objects.create(
             code="75", name="Paris", shape=dept_75_polygon
+        )
+        Department_subdivided.objects.create(
+            code="75", name="Paris", shape=dept_75_polygon_2
         )
         Department_subdivided.objects.create(
             code="69", name="Rhône", shape=dept_69_polygon
@@ -271,19 +278,24 @@ class CountEditsByDepartment(TestCase):
         Building.objects.create(
             rnb_id="BDG75B", point=Point(2.6, 48.6, srid=4326), is_active=True
         )
+        # Building in the second subdivision of Paris
+        Building.objects.create(
+            rnb_id="BDG75C", point=Point(2.5, 49.5, srid=4326), is_active=True
+        )
         Building.objects.create(
             rnb_id="BDG69A", point=Point(4.5, 45.5, srid=4326), is_active=True
         )
 
         Contribution.objects.create(rnb_id="BDG75A", report=False)
         Contribution.objects.create(rnb_id="BDG75B", report=False)
+        Contribution.objects.create(rnb_id="BDG75C", report=False)
         Contribution.objects.create(rnb_id="BDG69A", report=False)
         # report=True should be excluded
         Contribution.objects.create(rnb_id="BDG75A", report=True)
 
     def test(self):
         result = count_edits_by_department()
-        self.assertEqual(result["75"], 2)
+        self.assertEqual(result["75"], 3)
         self.assertEqual(result["69"], 1)
         self.assertEqual(len(result), 2)
 
@@ -339,10 +351,11 @@ class BackfillApiRequestsKpi(TestCase):
     def test_idempotent(self):
         """Calling backfill twice should not create duplicate entries."""
         backfill_api_requests_kpi()
-        backfill_api_requests_kpi()
-        count = KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count()
         first_count = KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count()
-        self.assertEqual(count, first_count)
+        backfill_api_requests_kpi()
+        second_count = KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count()
+
+        self.assertEqual(second_count, first_count)
 
     def test_empty_log(self):
         """Empty APIRequestLog: backfill should create no KPIs."""
