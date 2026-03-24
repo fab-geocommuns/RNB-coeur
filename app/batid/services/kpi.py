@@ -113,10 +113,9 @@ def compute_today_kpis():
 
     # Edits by department
     for dept_code, count in count_edits_by_department().items():
-        KPI.objects.create(
+        KPI.objects.update_or_create(
             name=KPI_EDITS_COUNT_BY_DEPT.format(dept_code),
-            value=count,
-            value_date=today,
+            defaults={"value": count, "value_date": today},
         )
 
 
