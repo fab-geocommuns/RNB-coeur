@@ -4,12 +4,10 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 
 from batid.models import KPI
-from batid.services.kpi import count_building_changes_contributions
-from batid.services.kpi import count_building_changes_import_bal
-from batid.services.kpi import count_building_changes_import_bdtopo
 from batid.services.kpi import KPI_BUILDING_CHANGES_CONTRIBUTIONS
 from batid.services.kpi import KPI_BUILDING_CHANGES_IMPORT_BAL
 from batid.services.kpi import KPI_BUILDING_CHANGES_IMPORT_BDTOPO
+from batid.services.kpi import count_building_changes_daily
 
 
 class Command(BaseCommand):
@@ -27,9 +25,10 @@ class Command(BaseCommand):
 
         d = since
         while d <= until:
-            bdtopo_count = count_building_changes_import_bdtopo(d)
-            bal_count = count_building_changes_import_bal(d)
-            contributions_count = count_building_changes_contributions(d)
+            daily_changes = count_building_changes_daily(d)
+            bdtopo_count = daily_changes["import_bdtopo"]
+            bal_count = daily_changes["import_bal"]
+            contributions_count = daily_changes["contributions"]
 
             KPI.objects.update_or_create(
                 name=KPI_BUILDING_CHANGES_IMPORT_BDTOPO,

@@ -143,15 +143,16 @@ def compute_today_kpis(external_calls=True):
             )
 
     # Building change stats (import_bdtopo, import_bal, contributions)
-    bdtopo_count = count_building_changes_import_bdtopo(today)
+    daily_changes = count_building_changes_daily(today)
+    bdtopo_count = daily_changes["import_bdtopo"]
     KPI.objects.create(
         name=KPI_BUILDING_CHANGES_IMPORT_BDTOPO, value=bdtopo_count, value_date=today
     )
-    bal_count = count_building_changes_import_bal(today)
+    bal_count = daily_changes["import_bal"]
     KPI.objects.create(
         name=KPI_BUILDING_CHANGES_IMPORT_BAL, value=bal_count, value_date=today
     )
-    contributions_count = count_building_changes_contributions(today)
+    contributions_count = daily_changes["contributions"]
     KPI.objects.create(
         name=KPI_BUILDING_CHANGES_CONTRIBUTIONS,
         value=contributions_count,
@@ -159,19 +160,43 @@ def compute_today_kpis(external_calls=True):
     )
 
 
-def _count_building_changes_import(for_date: date, import_source: str) -> int:
-    """Nombre de lignes dans la vue (event_origin=import + BuildingImport.import_source=...) à la date for_date."""
+def count_building_changes_daily(for_date: date) -> dict[str, int]:
+    """Comptes journaliers des changements bâtiments par source (bdtopo, bal, contributions)."""
     sql = """
-        SELECT COUNT(*) FROM batid_building_with_history b
-        JOIN batid_buildingimport bi ON bi.id = (b.event_origin->>'id')::int
-        WHERE b.event_origin->>'source' = 'import'
-        AND bi.import_source = %(import_source)s
-        AND (lower(b.sys_period))::date = %(for_date)s
+        SELECT
+            COUNT(*) FILTER (
+                WHERE b.event_origin->>'source' = 'import'
+                  AND bi.import_source = 'bdtopo'
+            ) AS import_bdtopo,
+            COUNT(*) FILTER (
+                WHERE b.event_origin->>'source' = 'import'
+                  AND bi.import_source = 'bal'
+            ) AS import_bal,
+            COUNT(*) FILTER (
+                WHERE b.event_origin->>'source' = 'contribution'
+            ) AS contributions
+        FROM batid_building_with_history b
+        LEFT JOIN batid_buildingimport bi
+            ON b.event_origin->>'source' = 'import'
+           AND (b.event_origin->>'id')::int = bi.id
+        WHERE (lower(b.sys_period))::date = %(for_date)s
     """
     with connection.cursor() as cursor:
-        cursor.execute(sql, {"import_source": import_source, "for_date": for_date})
+        cursor.execute("SET statement_timeout = '0';")
+        cursor.execute(sql, {"for_date": for_date})
         row = cursor.fetchone()
-    return row[0] if row else 0
+    if not row:
+        return {"import_bdtopo": 0, "import_bal": 0, "contributions": 0}
+    return {
+        "import_bdtopo": int(row[0] or 0),
+        "import_bal": int(row[1] or 0),
+        "contributions": int(row[2] or 0),
+    }
+
+
+def _count_building_changes_import(for_date: date, import_source: str) -> int:
+    """Nombre de lignes dans la vue (event_origin=import + BuildingImport.import_source=...) à la date for_date."""
+    return count_building_changes_daily(for_date).get(f"import_{import_source}", 0)
 
 
 def count_building_changes_import_bdtopo(for_date: date) -> int:
@@ -186,15 +211,7 @@ def count_building_changes_import_bal(for_date: date) -> int:
 
 def count_building_changes_contributions(for_date: date) -> int:
     """Nombre de lignes dans la vue (event_origin.source=contribution) à la date for_date."""
-    sql = """
-        SELECT COUNT(*) FROM batid_building_with_history
-        WHERE event_origin->>'source' = 'contribution'
-        AND (lower(sys_period))::date = %(for_date)s
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, {"for_date": for_date})
-        row = cursor.fetchone()
-    return row[0] if row else 0
+    return count_building_changes_daily(for_date)["contributions"]
 
 
 def get_building_change_stats(since: date, until: date) -> list[dict]:
