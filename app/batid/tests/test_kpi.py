@@ -339,10 +339,11 @@ class BackfillApiRequestsKpi(TestCase):
     def test_idempotent(self):
         """Calling backfill twice should not create duplicate entries."""
         backfill_api_requests_kpi()
-        backfill_api_requests_kpi()
-        count = KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count()
         first_count = KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count()
-        self.assertEqual(count, first_count)
+        backfill_api_requests_kpi()
+        second_count = KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count()
+
+        self.assertEqual(second_count, first_count)
 
     def test_empty_log(self):
         """Empty APIRequestLog: backfill should create no KPIs."""
