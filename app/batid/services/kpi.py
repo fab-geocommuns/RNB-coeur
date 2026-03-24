@@ -8,7 +8,6 @@ from rest_framework_tracking.models import APIRequestLog
 from batid.models import Building
 from batid.models import Contribution
 from batid.models import KPI
-from batid.models.others import BuildingAddressesReadOnly
 from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
 
@@ -155,7 +154,15 @@ def count_building_address_links():
     """
     Count the number of building - address links
     """
-    return BuildingAddressesReadOnly.objects.filter(building__is_active=True).count()
+    with connection.cursor() as cursor:
+        cursor.execute("SET statement_timeout = 30000;")
+        cursor.execute(
+            "SELECT COUNT(*) FROM batid_buildingaddressesreadonly ba"
+            " JOIN batid_building b ON ba.building_id = b.id"
+            " WHERE b.is_active = TRUE"
+        )
+        row = cursor.fetchone()
+        return row[0] if row else 0
 
 
 def count_editors():
@@ -186,7 +193,11 @@ def count_api_requests():
     """
     Count the total number of API requests logged in rest_framework_tracking_apirequestlog
     """
-    return APIRequestLog.objects.count()
+    with connection.cursor() as cursor:
+        cursor.execute("SET statement_timeout = 30000;")
+        cursor.execute("SELECT COUNT(*) FROM rest_framework_tracking_apirequestlog")
+        row = cursor.fetchone()
+        return row[0] if row else 0
 
 
 def backfill_api_requests_kpi():
