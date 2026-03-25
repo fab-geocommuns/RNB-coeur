@@ -1,5 +1,9 @@
 from datetime import date
+from datetime import timedelta
 from typing import Optional
+
+from django.db import connection
+from rest_framework_tracking.models import APIRequestLog
 
 from batid.models import Building
 from batid.models import Contribution
@@ -10,12 +14,15 @@ from batid.services.bdg_status import BuildingStatus
 KPI_ACTIVE_BUILDINGS_COUNT = "active_buildings_count"
 KPI_REAL_BUILDINGS_COUNT = "real_buildings_count"
 KPI_REAL_BUILDINGS_WO_ADDRESSES_COUNT = "real_buildings_wo_addresses_count"
+KPI_BUILDING_ADDRESS_COUNT = "building_address_links_count"
 KPI_EDITORS_COUNT = "editors_count"
 KPI_EDITS_COUNT = "edits_count"
 KPI_REPORTS_COUNT = "reports_count"
 KPI_PENDING_REPORTS_COUNT = "pending_reports_count"
 KPI_FIXED_REPORTS_COUNT = "fixed_reports_count"
 KPI_REFUSED_REPORTS_COUNT = "refused_reports_count"
+KPI_EDITS_COUNT_BY_DEPT = "edits_count_by_dept_{}"
+KPI_API_REQUESTS_COUNT = "api_requests_count"
 
 
 def get_kpi(name: str, since: Optional[date] = None, until: Optional[date] = None):
@@ -58,6 +65,14 @@ def compute_today_kpis():
         value_date=today,
     )
 
+    # Building - address links
+    building_address_links_count = count_building_address_links()
+    KPI.objects.create(
+        name=KPI_BUILDING_ADDRESS_COUNT,
+        value=building_address_links_count,
+        value_date=today,
+    )
+
     # Editors
     editors_count = count_editors()
     KPI.objects.create(name=KPI_EDITORS_COUNT, value=editors_count, value_date=today)
@@ -90,6 +105,19 @@ def compute_today_kpis():
         name=KPI_REFUSED_REPORTS_COUNT, value=refused_reports_count, value_date=today
     )
 
+    # API requests
+    api_requests_count = count_api_requests()
+    KPI.objects.create(
+        name=KPI_API_REQUESTS_COUNT, value=api_requests_count, value_date=today
+    )
+
+    # Edits by department
+    for dept_code, count in count_edits_by_department().items():
+        KPI.objects.update_or_create(
+            name=KPI_EDITS_COUNT_BY_DEPT.format(dept_code),
+            defaults={"value": count, "value_date": today},
+        )
+
 
 def count_active_buildings():
     """
@@ -121,6 +149,21 @@ def count_real_buildings_wo_addresses():
     ).count()
 
 
+def count_building_address_links():
+    """
+    Count the number of building - address links
+    """
+    with connection.cursor() as cursor:
+        cursor.execute("SET statement_timeout = 30000;")
+        cursor.execute(
+            "SELECT COUNT(*) FROM batid_buildingaddressesreadonly ba"
+            " JOIN batid_building b ON ba.building_id = b.id"
+            " WHERE b.is_active = TRUE"
+        )
+        row = cursor.fetchone()
+        return row[0] if row else 0
+
+
 def count_editors():
     return Contribution.objects.filter(report=False).distinct("review_user_id").count()
 
@@ -143,3 +186,67 @@ def count_fixed_reports():
 
 def count_refused_reports():
     return Report.objects.filter(status="rejected").count()
+
+
+def count_api_requests():
+    """
+    Count the total number of API requests logged in rest_framework_tracking_apirequestlog
+    """
+    with connection.cursor() as cursor:
+        cursor.execute("SET statement_timeout = 30000;")
+        cursor.execute("SELECT COUNT(*) FROM rest_framework_tracking_apirequestlog")
+        row = cursor.fetchone()
+        return row[0] if row else 0
+
+
+def backfill_api_requests_kpi():
+    """
+    One-shot function to backfill api_requests_count KPI, one cumulative value per month,
+    from the first recorded API request until the previous month (current month excluded).
+    Skips months that already have an entry.
+    """
+    first = (
+        APIRequestLog.objects.order_by("requested_at")
+        .values_list("requested_at", flat=True)
+        .first()
+    )
+    if not first:
+        return
+
+    today = date.today()
+    year, month = first.year, first.month
+
+    while (year, month) < (today.year, today.month):
+        # Last day of this month
+        if month == 12:
+            next_first = date(year + 1, 1, 1)
+        else:
+            next_first = date(year, month + 1, 1)
+        last_day = next_first - timedelta(days=1)
+
+        count = APIRequestLog.objects.filter(requested_at__date__lte=last_day).count()
+        KPI.objects.get_or_create(
+            name=KPI_API_REQUESTS_COUNT,
+            value_date=last_day,
+            defaults={"value": count},
+        )
+
+        year, month = next_first.year, next_first.month
+
+
+def count_edits_by_department():
+    """
+    Count contributions (edits, not reports) per department using a spatial join.
+    Returns a dict {dept_code: count}.
+    """
+    sql = """
+        SELECT d.code, COUNT(*) AS count
+        FROM batid_contribution c
+            INNER JOIN batid_building b ON c.rnb_id = b.rnb_id
+            LEFT JOIN batid_department_subdivided d ON ST_Contains(d.shape, b.point)
+        WHERE c.report = false
+        GROUP BY d.code
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql)
+        return {row[0]: row[1] for row in cursor.fetchall()}

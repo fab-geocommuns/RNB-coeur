@@ -14,11 +14,11 @@ from batid.services.kpi import compute_today_kpis
 class StatsTest(APITestCase):
     @mock.patch("api_alpha.views.requests.get")
     def test_stats(self, get_mock):
-
         # create buildings for building count
         Building.objects.create(rnb_id="1", is_active=True)
         Building.objects.create(rnb_id="2", is_active=True)
         Building.objects.create(rnb_id="3", is_active=False)
+
         # trigger the stats computation for building count
         compute_today_kpis()
 
