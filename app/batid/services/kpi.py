@@ -191,7 +191,7 @@ def count_building_address_links():
     Count the number of building - address links
     """
     with connection.cursor() as cursor:
-        cursor.execute("SET statement_timeout = 30000;")
+        cursor.execute("SET statement_timeout = 3600000;")
         cursor.execute(
             "SELECT COUNT(*) FROM batid_buildingaddressesreadonly ba"
             " JOIN batid_building b ON ba.building_id = b.id"
@@ -230,7 +230,7 @@ def count_api_requests():
     Count the total number of API requests logged in rest_framework_tracking_apirequestlog
     """
     with connection.cursor() as cursor:
-        cursor.execute("SET statement_timeout = 30000;")
+        cursor.execute("SET statement_timeout = 3600000;")
         cursor.execute("SELECT COUNT(*) FROM rest_framework_tracking_apirequestlog")
         row = cursor.fetchone()
         return row[0] if row else 0
