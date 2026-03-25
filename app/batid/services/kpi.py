@@ -2,6 +2,7 @@ from datetime import date
 from datetime import timedelta
 from typing import Optional
 
+import requests
 from django.db import connection
 from rest_framework_tracking.models import APIRequestLog
 
@@ -23,6 +24,8 @@ KPI_FIXED_REPORTS_COUNT = "fixed_reports_count"
 KPI_REFUSED_REPORTS_COUNT = "refused_reports_count"
 KPI_EDITS_COUNT_BY_DEPT = "edits_count_by_dept_{}"
 KPI_API_REQUESTS_COUNT = "api_requests_count"
+KPI_DATA_GOUV_VIEWS = "data_gouv_views_count"
+KPI_DATA_GOUV_DOWNLOADS = "data_gouv_downloads_count"
 
 
 def get_kpi(name: str, since: Optional[date] = None, until: Optional[date] = None):
@@ -120,6 +123,33 @@ def compute_today_kpis(external_calls=True):
             name=KPI_EDITS_COUNT_BY_DEPT.format(dept_code),
             defaults={"value": count, "value_date": today},
         )
+
+    # data.gouv stats
+    if external_calls:
+        stats = get_data_gouv_stats()
+        if stats:
+            (views_count, downloads_count) = stats
+            KPI.objects.create(
+                name=KPI_DATA_GOUV_VIEWS, value=views_count, value_date=today
+            )
+            KPI.objects.create(
+                name=KPI_DATA_GOUV_DOWNLOADS, value=downloads_count, value_date=today
+            )
+
+
+def get_data_gouv_stats():
+    """
+    fetch some stats on the data.gouv API
+    """
+    resp = requests.get(
+        "https://www.data.gouv.fr/api/1/datasets/referentiel-national-des-batiments/"
+    )
+
+    if resp.status_code == 200:
+        data = resp.json()
+        views_count = data.get("metrics", {}).get("views")
+        downloads_count = data.get("metrics", {}).get("resources_downloads", None)
+        return (views_count, downloads_count)
 
 
 def count_active_buildings():

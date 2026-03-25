@@ -2,6 +2,7 @@ from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
@@ -362,3 +363,29 @@ class BackfillApiRequestsKpi(TestCase):
         APIRequestLog.objects.all().delete()
         backfill_api_requests_kpi()
         self.assertEqual(KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count(), 0)
+
+
+class DataGouvMetrics(TestCase):
+    @mock.patch("batid.services.kpi.requests.get")
+    def test_data_gouv_metrics(self, get_mock):
+        get_mock.return_value.status_code = 200
+        get_mock.return_value.json.return_value = {
+            "metrics": {"views": 100, "resources_downloads": 10}
+        }
+        today = date.today()
+
+        compute_today_kpis(external_calls=True)
+
+        kpi_views = get_kpi_most_recent("data_gouv_views_count")
+        self.assertIsNotNone(kpi_views)
+
+        if kpi_views:
+            self.assertEqual(kpi_views.value, 100)
+            self.assertEqual(kpi_views.value_date, today)
+
+        kpi_downloads = get_kpi_most_recent("data_gouv_downloads_count")
+        self.assertIsNotNone(kpi_downloads)
+
+        if kpi_downloads:
+            self.assertEqual(kpi_downloads.value, 10)
+            self.assertEqual(kpi_downloads.value_date, today)
