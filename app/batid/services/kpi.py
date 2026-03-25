@@ -41,7 +41,10 @@ def get_kpi_most_recent(name: str):
     return KPI.objects.filter(name=name).last()
 
 
-def compute_today_kpis():
+def compute_today_kpis(external_calls=True):
+    """
+    external_calls=False is for testing purposes, to avoid creating a Mock
+    """
 
     today = date.today()
 

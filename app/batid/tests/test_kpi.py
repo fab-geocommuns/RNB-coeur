@@ -46,7 +46,7 @@ def make_api_log(requested_at):
 
 class KPIDailyRun(TestCase):
     def setUp(self):
-        compute_today_kpis()
+        compute_today_kpis(external_calls=False)
 
     def test_all_are_done(self):
 
@@ -313,7 +313,7 @@ class CountApiRequests(TestCase):
 
     def test_kpi_created_by_compute(self):
         """compute_today_kpis creates an api_requests_count KPI with the total count."""
-        compute_today_kpis()
+        compute_today_kpis(external_calls=False)
         kpi = KPI.objects.get(name=KPI_API_REQUESTS_COUNT, value_date=date.today())
         self.assertEqual(kpi.value, 3)
 
