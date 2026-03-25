@@ -126,18 +126,20 @@ def compute_today_kpis(external_calls=True):
 
     # data.gouv stats
     if external_calls:
-        stats = get_data_gouv_stats()
-        if stats:
-            (views_count, downloads_count) = stats
+        (views_count, downloads_count) = get_data_gouv_stats()
+        if views_count is not None:
             KPI.objects.create(
                 name=KPI_DATA_GOUV_VIEWS, value=views_count, value_date=today
             )
+        if downloads_count is not None:
             KPI.objects.create(
-                name=KPI_DATA_GOUV_DOWNLOADS, value=downloads_count, value_date=today
+                name=KPI_DATA_GOUV_DOWNLOADS,
+                value=downloads_count,
+                value_date=today,
             )
 
 
-def get_data_gouv_stats():
+def get_data_gouv_stats() -> tuple:
     """
     fetch some stats on the data.gouv API
     """
@@ -150,6 +152,8 @@ def get_data_gouv_stats():
         views_count = data.get("metrics", {}).get("views")
         downloads_count = data.get("metrics", {}).get("resources_downloads", None)
         return (views_count, downloads_count)
+    else:
+        return (None, None)
 
 
 def count_active_buildings():
