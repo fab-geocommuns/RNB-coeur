@@ -4,7 +4,6 @@ from datetime import datetime
 from datetime import timezone
 from typing import Any
 
-import requests
 import yaml
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -32,10 +31,8 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import ParseError
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_tracking.models import APIRequestLog
 
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest
@@ -74,8 +71,6 @@ from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
 from batid.services.guess_bdg import BuildingGuess
-from batid.services.kpi import get_kpi_most_recent
-from batid.services.kpi import KPI_ACTIVE_BUILDINGS_COUNT
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
 from batid.services.user import get_user_id_b64
@@ -1057,44 +1052,6 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     )
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
-
-
-def get_data_gouv_publication_count():
-    # call data.gouv.fr API to get the number of datasets
-    req = requests.get("https://www.data.gouv.fr/api/1/datasets/?tag=rnb")
-    if req.status_code != 200:
-        return None
-    else:
-        # remove the dataset that is the RNB
-        return req.json()["total"] - 1
-
-
-def get_stats(request):
-
-    api_calls_since_2024_count = APIRequestLog.objects.filter(
-        requested_at__gte="2024-01-01T00:00:00Z"
-    ).count()
-    reports_count = Contribution.objects.filter(report=True).count()
-    editions_count = Contribution.objects.filter(report=False).count()
-    data_gouv_publication_count = get_data_gouv_publication_count()
-    diffusion_databases_count = DiffusionDatabase.objects.count()
-
-    # Get the cached value of the building count
-    bdg_count_kpi = get_kpi_most_recent(KPI_ACTIVE_BUILDINGS_COUNT)
-
-    data = {
-        "building_counts": bdg_count_kpi.value,
-        "api_calls_since_2024_count": api_calls_since_2024_count,
-        "reports_count": reports_count,
-        "editions_count": editions_count,
-        "data_gouv_publication_count": data_gouv_publication_count,
-        "diffusion_databases_count": diffusion_databases_count,
-    }
-
-    renderer = JSONRenderer()
-    response = HttpResponse(renderer.render(data), content_type="application/json")
-
-    return response
 
 
 @extend_schema(exclude=True)

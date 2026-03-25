@@ -2,6 +2,7 @@ from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
@@ -31,6 +32,8 @@ from batid.services.kpi import count_reports
 from batid.services.kpi import get_kpi
 from batid.services.kpi import get_kpi_most_recent
 from batid.services.kpi import KPI_API_REQUESTS_COUNT
+from batid.services.kpi import KPI_DATA_GOUV_DOWNLOADS
+from batid.services.kpi import KPI_DATA_GOUV_VIEWS
 
 
 def make_api_log(requested_at):
@@ -46,7 +49,7 @@ def make_api_log(requested_at):
 
 class KPIDailyRun(TestCase):
     def setUp(self):
-        compute_today_kpis()
+        compute_today_kpis(external_calls=False)
 
     def test_all_are_done(self):
 
@@ -313,7 +316,7 @@ class CountApiRequests(TestCase):
 
     def test_kpi_created_by_compute(self):
         """compute_today_kpis creates an api_requests_count KPI with the total count."""
-        compute_today_kpis()
+        compute_today_kpis(external_calls=False)
         kpi = KPI.objects.get(name=KPI_API_REQUESTS_COUNT, value_date=date.today())
         self.assertEqual(kpi.value, 3)
 
@@ -362,3 +365,29 @@ class BackfillApiRequestsKpi(TestCase):
         APIRequestLog.objects.all().delete()
         backfill_api_requests_kpi()
         self.assertEqual(KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count(), 0)
+
+
+class DataGouvMetrics(TestCase):
+    @mock.patch("batid.services.kpi.requests.get")
+    def test_data_gouv_metrics(self, get_mock):
+        get_mock.return_value.status_code = 200
+        get_mock.return_value.json.return_value = {
+            "metrics": {"views": 100, "resources_downloads": 10}
+        }
+        today = date.today()
+
+        compute_today_kpis(external_calls=True)
+
+        kpi_views = get_kpi_most_recent(KPI_DATA_GOUV_VIEWS)
+        self.assertIsNotNone(kpi_views)
+
+        if kpi_views:
+            self.assertEqual(kpi_views.value, 100)
+            self.assertEqual(kpi_views.value_date, today)
+
+        kpi_downloads = get_kpi_most_recent(KPI_DATA_GOUV_DOWNLOADS)
+        self.assertIsNotNone(kpi_downloads)
+
+        if kpi_downloads:
+            self.assertEqual(kpi_downloads.value, 10)
+            self.assertEqual(kpi_downloads.value_date, today)
