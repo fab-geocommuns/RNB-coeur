@@ -32,6 +32,8 @@ from batid.services.kpi import count_reports
 from batid.services.kpi import get_kpi
 from batid.services.kpi import get_kpi_most_recent
 from batid.services.kpi import KPI_API_REQUESTS_COUNT
+from batid.services.kpi import KPI_DATA_GOUV_DOWNLOADS
+from batid.services.kpi import KPI_DATA_GOUV_VIEWS
 
 
 def make_api_log(requested_at):
@@ -376,14 +378,14 @@ class DataGouvMetrics(TestCase):
 
         compute_today_kpis(external_calls=True)
 
-        kpi_views = get_kpi_most_recent("data_gouv_views_count")
+        kpi_views = get_kpi_most_recent(KPI_DATA_GOUV_VIEWS)
         self.assertIsNotNone(kpi_views)
 
         if kpi_views:
             self.assertEqual(kpi_views.value, 100)
             self.assertEqual(kpi_views.value_date, today)
 
-        kpi_downloads = get_kpi_most_recent("data_gouv_downloads_count")
+        kpi_downloads = get_kpi_most_recent(KPI_DATA_GOUV_DOWNLOADS)
         self.assertIsNotNone(kpi_downloads)
 
         if kpi_downloads:
