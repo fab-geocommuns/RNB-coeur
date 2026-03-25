@@ -496,7 +496,7 @@ class BuildingAddressViewTest(APITestCase):
         self.assertEqual(data["score_ban"], None)
         self.assertEqual(data["results"], [])
 
-    @mock.patch("api_alpha.views.requests.get")
+    @mock.patch("batid.services.geocoders.requests.get")
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_by_address(self, get_mock):
         get_mock.return_value.status_code = 200
@@ -537,7 +537,7 @@ class BuildingAddressViewTest(APITestCase):
         self.assertEqual(data["score_ban"], 0.85)
         self.assertEqual(data["results"], None)
 
-    @mock.patch("api_alpha.views.requests.get")
+    @mock.patch("batid.services.geocoders.requests.get")
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_address_not_found_on_ban(self, get_mock):
         get_mock.return_value.status_code = 200
