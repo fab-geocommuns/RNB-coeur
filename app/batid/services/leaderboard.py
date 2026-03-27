@@ -21,6 +21,8 @@ def get_monthly_edit_leaderboard(year: int, month: int) -> list[dict]:
 
     with connection.cursor() as cursor:
 
+        cursor.execute("SET statement_timeout = 60000;")
+
         q = """
             SELECT u.username, u.email, COUNT(DISTINCT bdg.event_id) as edit_count 
             FROM batid_building_with_history bdg
