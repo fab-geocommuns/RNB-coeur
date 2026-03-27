@@ -1,10 +1,10 @@
 from django.contrib.auth.models import User
-from django.db.models import Count
+from django.db import connection
 
-from batid.models.building import BuildingWithHistory
 from batid.utils.date import french_month_year_label
 from batid.utils.date import month_bounds
 from batid.utils.date import previous_month
+from batid.utils.db import dictfetchall
 
 
 def get_monthly_edit_leaderboard(year: int, month: int) -> list[dict]:
@@ -16,27 +16,24 @@ def get_monthly_edit_leaderboard(year: int, month: int) -> list[dict]:
     Excludes rows with no event_user.
     """
     start, end = month_bounds(year, month)
-    rows = (
-        BuildingWithHistory.objects.filter(
-            event_user__isnull=False,
-            event_origin__source="contribution",
-        )
-        .extra(
-            where=["lower(sys_period) >= %s AND lower(sys_period) < %s"],
-            params=[start, end],
-        )
-        .values("event_user__username", "event_user__email")
-        .annotate(edit_count=Count("event_id", distinct=True))
-        .order_by("-edit_count")
-    )
-    return [
-        {
-            "username": row["event_user__username"],
-            "email": row["event_user__email"],
-            "edit_count": row["edit_count"],
-        }
-        for row in rows
-    ]
+
+    with connection.cursor() as cursor:
+
+        cursor.execute("SET statement_timeout = 600000;")
+
+        q = """
+            SELECT u.username, u.email, COUNT(DISTINCT bdg.event_id) as edit_count
+            FROM batid_building_with_history bdg
+            INNER JOIN auth_user u on u.id = bdg.event_user_id
+            WHERE lower(bdg.sys_period) >= %(start)s AND lower(bdg.sys_period) < %(end)s
+            AND bdg.event_origin ->> 'source' = 'contribution'
+            GROUP BY u.username, u.email
+            ORDER BY edit_count DESC;
+        """
+
+        params = {"start": start, "end": end}
+
+        return dictfetchall(cursor, q, params)
 
 
 def get_monthly_new_users(year: int, month: int):
