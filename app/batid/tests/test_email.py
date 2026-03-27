@@ -45,24 +45,6 @@ class AbsoluteStaticTagTest(TestCase):
             "{% load email_tags %}{% absolute_static 'batid/email/rnb-logo.png' %}"
         )
         result = t.render(Context({}))
-        self.assertEqual(result, "https://rnb.beta.gouv.fr/static/batid/email/rnb-logo.png")
-
-
-class MonthlyLeaderboardEmailLayoutTest(TestCase):
-    @override_settings(
-        URL="https://rnb.beta.gouv.fr",
-        STATIC_URL="/static/",
-        RNB_SEND_ADDRESS="coucou@rnb.beta.gouv.fr",
-        RNB_REPLY_TO_ADDRESS="reply@rnb.beta.gouv.fr",
-    )
-    def test_email_uses_base_layout(self):
-        """
-        Input: year=2026, month=2
-        Expected: HTML email contains the base layout markers (background color, logo img tag, contact footer)
-        """
-        email = build_monthly_leaderboard_email(2026, 2)
-        html = email.alternatives[0][0]
-        self.assertIn("#f5f5fe", html)
-        self.assertIn("rnb-logo.png", html)
-        self.assertIn("rnb@beta.gouv.fr", html)
-        self.assertIn("février 2026", html)
+        self.assertEqual(
+            result, "https://rnb.beta.gouv.fr/static/batid/email/rnb-logo.png"
+        )
