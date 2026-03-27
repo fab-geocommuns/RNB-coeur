@@ -7,7 +7,6 @@ from django.test import override_settings
 from django.test import TestCase
 
 from batid.services.email import _reset_password_url
-from batid.services.email import build_monthly_leaderboard_email
 from batid.services.email import build_reset_password_email
 
 
