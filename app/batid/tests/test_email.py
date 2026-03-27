@@ -1,10 +1,13 @@
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
 from django.core.validators import URLValidator
+from django.template import Context
+from django.template import Template
 from django.test import override_settings
 from django.test import TestCase
 
 from batid.services.email import _reset_password_url
+from batid.services.email import build_monthly_leaderboard_email
 from batid.services.email import build_reset_password_email
 
 
@@ -29,3 +32,17 @@ class ResetPasswordEmail(TestCase):
             validator(url)
         except ValidationError:
             self.fail(f"{url} is not a valid URL")
+
+
+class AbsoluteStaticTagTest(TestCase):
+    @override_settings(URL="https://rnb.beta.gouv.fr", STATIC_URL="/static/")
+    def test_absolute_static_returns_full_url(self):
+        """
+        Input: static path 'batid/email/rnb-logo.png', settings.URL='https://rnb.beta.gouv.fr', STATIC_URL='/static/'
+        Expected: returns 'https://rnb.beta.gouv.fr/static/batid/email/rnb-logo.png'
+        """
+        t = Template(
+            "{% load email_tags %}{% absolute_static 'batid/email/rnb-logo.png' %}"
+        )
+        result = t.render(Context({}))
+        self.assertEqual(result, "https://rnb.beta.gouv.fr/static/batid/email/rnb-logo.png")
