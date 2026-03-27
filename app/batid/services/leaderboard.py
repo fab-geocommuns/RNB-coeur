@@ -1,12 +1,10 @@
 from django.contrib.auth.models import User
-from django.db.models import Count
+from django.db import connection
 
-from batid.utils.db import dictfetchall
-from batid.models.building import BuildingWithHistory
 from batid.utils.date import french_month_year_label
 from batid.utils.date import month_bounds
 from batid.utils.date import previous_month
-from django.db import connection
+from batid.utils.db import dictfetchall
 
 
 def get_monthly_edit_leaderboard(year: int, month: int) -> list[dict]:
@@ -22,12 +20,12 @@ def get_monthly_edit_leaderboard(year: int, month: int) -> list[dict]:
     with connection.cursor() as cursor:
 
         q = """
-            SELECT u.username, u.email, COUNT(DISTINCT bdg.event_id) as edit_count 
+            SELECT u.username, u.email, COUNT(DISTINCT bdg.event_id) as edit_count
             FROM batid_building_with_history bdg
             INNER JOIN auth_user u on u.id = bdg.event_user_id
             WHERE lower(bdg.sys_period) >= %(start)s AND lower(bdg.sys_period) < %(end)s
             AND bdg.event_origin ->> 'source' = 'contribution'
-            GROUP BY u.username, u.email 
+            GROUP BY u.username, u.email
             ORDER BY edit_count DESC;
         """
 
