@@ -45,7 +45,9 @@ class AbsoluteStaticTagTest(TestCase):
             "{% load email_tags %}{% absolute_static 'batid/email/rnb-logo.png' %}"
         )
         result = t.render(Context({}))
-        self.assertEqual(result, "https://rnb.beta.gouv.fr/static/batid/email/rnb-logo.png")
+        self.assertEqual(
+            result, "https://rnb.beta.gouv.fr/static/batid/email/rnb-logo.png"
+        )
 
 
 class MonthlyLeaderboardEmailLayoutTest(TestCase):
