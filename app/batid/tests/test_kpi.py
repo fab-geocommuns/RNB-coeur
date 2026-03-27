@@ -1,19 +1,28 @@
 from datetime import date
+from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
+from unittest import mock
 
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.test import TestCase
+from rest_framework_tracking.models import APIRequestLog
 
 from batid.models import Address
 from batid.models import Building
 from batid.models import Contribution
+from batid.models import Department_subdivided
 from batid.models import KPI
 from batid.models.report import Report
+from batid.services.kpi import backfill_api_requests_kpi
 from batid.services.kpi import compute_today_kpis
 from batid.services.kpi import count_active_buildings
+from batid.services.kpi import count_api_requests
 from batid.services.kpi import count_editors
 from batid.services.kpi import count_edits
+from batid.services.kpi import count_edits_by_department
 from batid.services.kpi import count_fixed_reports
 from batid.services.kpi import count_pending_reports
 from batid.services.kpi import count_real_buildings
@@ -22,11 +31,25 @@ from batid.services.kpi import count_refused_reports
 from batid.services.kpi import count_reports
 from batid.services.kpi import get_kpi
 from batid.services.kpi import get_kpi_most_recent
+from batid.services.kpi import KPI_API_REQUESTS_COUNT
+from batid.services.kpi import KPI_DATA_GOUV_DOWNLOADS
+from batid.services.kpi import KPI_DATA_GOUV_VIEWS
+
+
+def make_api_log(requested_at):
+    """Helper to create a minimal APIRequestLog at a given datetime."""
+    return APIRequestLog.objects.create(
+        requested_at=requested_at,
+        response_ms=10,
+        path="/api/alpha/buildings/",
+        host="http://testserver",
+        method="GET",
+    )
 
 
 class KPIDailyRun(TestCase):
     def setUp(self):
-        compute_today_kpis()
+        compute_today_kpis(external_calls=False)
 
     def test_all_are_done(self):
 
@@ -34,12 +57,14 @@ class KPIDailyRun(TestCase):
             "active_buildings_count",
             "real_buildings_count",
             "real_buildings_wo_addresses_count",
+            "building_address_links_count",
             "editors_count",
             "edits_count",
             "reports_count",
             "pending_reports_count",
             "fixed_reports_count",
             "refused_reports_count",
+            "api_requests_count",
         ]
 
         kpis = KPI.objects.all()
@@ -221,3 +246,148 @@ class TestKPI(TestCase):
         yesterday = date.today() - timedelta(days=1)
         with self.assertRaises(Exception):
             KPI.objects.create(name="dummy", value=4, value_date=yesterday)
+
+
+class CountEditsByDepartment(TestCase):
+    def setUp(self):
+        """
+        Dept 75 split into 2 subdivided polygons, 2 contributions in the first subdivision,
+        1 in the second. 1 contribution in dept 69. 1 report (excluded).
+        Expected: {75: 3, 69: 1}.
+        """
+        dept_75_polygon = GEOSGeometry(
+            "POLYGON((2.0 48.0, 2.0 49.0, 3.0 49.0, 3.0 48.0, 2.0 48.0))", srid=4326
+        )
+        # Second subdivision of Paris (same code "75", different polygon)
+        dept_75_polygon_2 = GEOSGeometry(
+            "POLYGON((2.0 49.0, 2.0 50.0, 3.0 50.0, 3.0 49.0, 2.0 49.0))", srid=4326
+        )
+        dept_69_polygon = GEOSGeometry(
+            "POLYGON((4.0 45.0, 4.0 46.0, 5.0 46.0, 5.0 45.0, 4.0 45.0))", srid=4326
+        )
+        Department_subdivided.objects.create(
+            code="75", name="Paris", shape=dept_75_polygon
+        )
+        Department_subdivided.objects.create(
+            code="75", name="Paris", shape=dept_75_polygon_2
+        )
+        Department_subdivided.objects.create(
+            code="69", name="Rhône", shape=dept_69_polygon
+        )
+
+        Building.objects.create(
+            rnb_id="BDG75A", point=Point(2.5, 48.5, srid=4326), is_active=True
+        )
+        Building.objects.create(
+            rnb_id="BDG75B", point=Point(2.6, 48.6, srid=4326), is_active=True
+        )
+        # Building in the second subdivision of Paris
+        Building.objects.create(
+            rnb_id="BDG75C", point=Point(2.5, 49.5, srid=4326), is_active=True
+        )
+        Building.objects.create(
+            rnb_id="BDG69A", point=Point(4.5, 45.5, srid=4326), is_active=True
+        )
+
+        Contribution.objects.create(rnb_id="BDG75A", report=False)
+        Contribution.objects.create(rnb_id="BDG75B", report=False)
+        Contribution.objects.create(rnb_id="BDG75C", report=False)
+        Contribution.objects.create(rnb_id="BDG69A", report=False)
+        # report=True should be excluded
+        Contribution.objects.create(rnb_id="BDG75A", report=True)
+
+    def test(self):
+        result = count_edits_by_department()
+        self.assertEqual(result["75"], 3)
+        self.assertEqual(result["69"], 1)
+        self.assertEqual(len(result), 2)
+
+
+class CountApiRequests(TestCase):
+    def setUp(self):
+        """3 API requests in the log."""
+        make_api_log(datetime(2024, 1, 10, 12, 0, tzinfo=timezone.utc))
+        make_api_log(datetime(2024, 2, 5, 8, 0, tzinfo=timezone.utc))
+        make_api_log(datetime(2024, 3, 20, 9, 0, tzinfo=timezone.utc))
+
+    def test_count(self):
+        """3 log entries: count_api_requests should return 3."""
+        self.assertEqual(count_api_requests(), 3)
+
+    def test_kpi_created_by_compute(self):
+        """compute_today_kpis creates an api_requests_count KPI with the total count."""
+        compute_today_kpis(external_calls=False)
+        kpi = KPI.objects.get(name=KPI_API_REQUESTS_COUNT, value_date=date.today())
+        self.assertEqual(kpi.value, 3)
+
+
+class BackfillApiRequestsKpi(TestCase):
+    def setUp(self):
+        """
+        2 requests in Jan 2024, 1 in Feb 2024.
+        Expected backfill: Jan KPI = 2, Feb KPI = 3 (cumulative).
+        """
+        make_api_log(datetime(2024, 1, 10, 12, 0, tzinfo=timezone.utc))
+        make_api_log(datetime(2024, 1, 25, 8, 0, tzinfo=timezone.utc))
+        make_api_log(datetime(2024, 2, 5, 9, 0, tzinfo=timezone.utc))
+
+    def test_creates_one_kpi_per_month(self):
+        """Backfill should create one KPI per past month, stopping before current month."""
+        backfill_api_requests_kpi()
+        kpis = KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).order_by("value_date")
+        # Should not include current month
+        for kpi in kpis:
+            self.assertLess(kpi.value_date, date.today().replace(day=1))
+
+    def test_cumulative_values(self):
+        """Jan KPI = 2 (requests up to Jan 31), Feb KPI = 3 (cumulative up to Feb 29)."""
+        backfill_api_requests_kpi()
+        jan_kpi = KPI.objects.get(
+            name=KPI_API_REQUESTS_COUNT, value_date=date(2024, 1, 31)
+        )
+        feb_kpi = KPI.objects.get(
+            name=KPI_API_REQUESTS_COUNT, value_date=date(2024, 2, 29)
+        )
+        self.assertEqual(jan_kpi.value, 2)
+        self.assertEqual(feb_kpi.value, 3)
+
+    def test_idempotent(self):
+        """Calling backfill twice should not create duplicate entries."""
+        backfill_api_requests_kpi()
+        first_count = KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count()
+        backfill_api_requests_kpi()
+        second_count = KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count()
+
+        self.assertEqual(second_count, first_count)
+
+    def test_empty_log(self):
+        """Empty APIRequestLog: backfill should create no KPIs."""
+        APIRequestLog.objects.all().delete()
+        backfill_api_requests_kpi()
+        self.assertEqual(KPI.objects.filter(name=KPI_API_REQUESTS_COUNT).count(), 0)
+
+
+class DataGouvMetrics(TestCase):
+    @mock.patch("batid.services.kpi.requests.get")
+    def test_data_gouv_metrics(self, get_mock):
+        get_mock.return_value.status_code = 200
+        get_mock.return_value.json.return_value = {
+            "metrics": {"views": 100, "resources_downloads": 10}
+        }
+        today = date.today()
+
+        compute_today_kpis(external_calls=True)
+
+        kpi_views = get_kpi_most_recent(KPI_DATA_GOUV_VIEWS)
+        self.assertIsNotNone(kpi_views)
+
+        if kpi_views:
+            self.assertEqual(kpi_views.value, 100)
+            self.assertEqual(kpi_views.value_date, today)
+
+        kpi_downloads = get_kpi_most_recent(KPI_DATA_GOUV_DOWNLOADS)
+        self.assertIsNotNone(kpi_downloads)
+
+        if kpi_downloads:
+            self.assertEqual(kpi_downloads.value, 10)
+            self.assertEqual(kpi_downloads.value_date, today)

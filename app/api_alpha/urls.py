@@ -39,7 +39,6 @@ from api_alpha.views import BuildingGuessView
 from api_alpha.views import ChangePassword
 from api_alpha.views import DiffusionDatabaseView
 from api_alpha.views import get_all_endpoints_schema
-from api_alpha.views import get_stats
 from api_alpha.views import GetCurrentUserTokens
 from api_alpha.views import GetUserToken
 from api_alpha.views import MergeBuildings
@@ -58,7 +57,6 @@ router.register(r"ads", ADSViewSet)
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
     path("schema/", get_all_endpoints_schema, name="schema"),
-    path("stats", get_stats),
     # OGC API Features minimal endpoints
     path("ogc/", OGCIndexView.as_view(), name="ogc_root"),
     path("ogc/openapi", OGCOpenAPIDefinitionView.as_view(), name="ogc_openapi"),
