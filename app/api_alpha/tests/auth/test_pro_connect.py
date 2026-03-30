@@ -1,4 +1,5 @@
 from unittest import mock
+from django.test import TestCase
 from urllib.parse import parse_qs
 from urllib.parse import urlparse
 
@@ -9,6 +10,8 @@ from rest_framework.test import APITestCase
 
 from batid.models import ProConnectIdentity
 from batid.tests.factories.users import ContributorUserFactory
+
+from api_alpha.endpoints.auth.pro_connect import get_or_create_user_from_pro_connect
 
 FAKE_OIDC_CONFIG = {
     "authorization_endpoint": "https://proconnect.example/authorize",
@@ -74,9 +77,7 @@ class AuthorizeTest(APITestCase):
         self.assertEqual(response.status_code, 400)
 
 
-FAKE_JWKS = {
-    "keys": [{"kty": "RSA", "kid": "test-key", "n": "fake", "e": "AQAB"}]
-}
+FAKE_JWKS = {"keys": [{"kty": "RSA", "kid": "test-key", "n": "fake", "e": "AQAB"}]}
 
 FAKE_USERINFO = {
     "sub": "pro-connect-sub-123",
@@ -111,9 +112,18 @@ class CallbackTest(APITestCase):
             {"code": code, "state": state},
         )
 
-    @mock.patch("api_alpha.endpoints.auth.pro_connect.fetch_userinfo", return_value=FAKE_USERINFO)
-    @mock.patch("api_alpha.endpoints.auth.pro_connect.verify_id_token", return_value={"nonce": "test-nonce"})
-    @mock.patch("api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens", return_value=("fake-access-token", "fake-id-token"))
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
+        return_value=FAKE_USERINFO,
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+        return_value={"nonce": "test-nonce"},
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+        return_value=("fake-access-token", "fake-id-token"),
+    )
     def test_callback_creates_new_user(self, mock_exchange, mock_verify, mock_userinfo):
         """Callback with unknown sub and email creates User + UserProfile + ProConnectIdentity + Token + Contributors group."""
         from django.contrib.auth.models import Group, User
@@ -137,10 +147,21 @@ class CallbackTest(APITestCase):
         self.assertEqual(user.pro_connect.sub, "pro-connect-sub-123")
         self.assertTrue(Token.objects.filter(user=user).exists())
 
-    @mock.patch("api_alpha.endpoints.auth.pro_connect.fetch_userinfo", return_value=FAKE_USERINFO)
-    @mock.patch("api_alpha.endpoints.auth.pro_connect.verify_id_token", return_value={"nonce": "test-nonce"})
-    @mock.patch("api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens", return_value=("fake-access-token", "fake-id-token"))
-    def test_callback_links_existing_user_by_email(self, mock_exchange, mock_verify, mock_userinfo):
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
+        return_value=FAKE_USERINFO,
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+        return_value={"nonce": "test-nonce"},
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+        return_value=("fake-access-token", "fake-id-token"),
+    )
+    def test_callback_links_existing_user_by_email(
+        self, mock_exchange, mock_verify, mock_userinfo
+    ):
         """Callback with unknown sub but known email links ProConnectIdentity to existing user."""
         from django.contrib.auth.models import Group, User
 
@@ -158,19 +179,35 @@ class CallbackTest(APITestCase):
         # User keeps their password
         self.assertTrue(existing_user.has_usable_password())
 
-    @mock.patch("api_alpha.endpoints.auth.pro_connect.fetch_userinfo", return_value=FAKE_USERINFO)
-    @mock.patch("api_alpha.endpoints.auth.pro_connect.verify_id_token", return_value={"nonce": "test-nonce"})
-    @mock.patch("api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens", return_value=("fake-access-token", "fake-id-token"))
-    def test_callback_returns_existing_pro_connect_user(self, mock_exchange, mock_verify, mock_userinfo):
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
+        return_value=FAKE_USERINFO,
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+        return_value={"nonce": "test-nonce"},
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+        return_value=("fake-access-token", "fake-id-token"),
+    )
+    def test_callback_returns_existing_pro_connect_user(
+        self, mock_exchange, mock_verify, mock_userinfo
+    ):
         """Callback with known sub updates User fields and last_id_token."""
         from django.contrib.auth.models import Group, User
 
         Group.objects.get_or_create(name="Contributors")
         user = User.objects.create_user(
-            username="existing", email="agent@gouv.fr", password="testpass123",
-            first_name="Old", last_name="Name",
+            username="existing",
+            email="agent@gouv.fr",
+            password="testpass123",
+            first_name="Old",
+            last_name="Name",
         )
-        ProConnectIdentity.objects.create(user=user, sub="pro-connect-sub-123", last_id_token="old-token")
+        ProConnectIdentity.objects.create(
+            user=user, sub="pro-connect-sub-123", last_id_token="old-token"
+        )
 
         response = self._call_callback()
 
@@ -179,6 +216,62 @@ class CallbackTest(APITestCase):
         self.assertEqual(user.first_name, "Marie")
         self.assertEqual(user.last_name, "Dupont")
         self.assertEqual(user.pro_connect.last_id_token, "fake-id-token")
+
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
+        return_value=FAKE_USERINFO,
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+        return_value={"nonce": "test-nonce"},
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+        return_value=("fake-access-token", "fake-id-token"),
+    )
+    def test_callback_updates_last_login(
+        self, mock_exchange, mock_verify, mock_userinfo
+    ):
+        """Successful callback sets last_login on the authenticated user."""
+        from django.contrib.auth.models import Group, User
+
+        Group.objects.get_or_create(name="Contributors")
+
+        self._call_callback()
+
+        user = User.objects.get(email="agent@gouv.fr")
+        self.assertIsNotNone(user.last_login)
+
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
+        return_value=FAKE_USERINFO,
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+        return_value={"nonce": "test-nonce"},
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+        return_value=("fake-access-token", "fake-id-token"),
+    )
+    def test_callback_rejects_disabled_user(
+        self, mock_exchange, mock_verify, mock_userinfo
+    ):
+        """Callback for a disabled user (is_active=False) redirects with account_disabled error."""
+        from django.contrib.auth.models import User
+
+        user = User.objects.create_user(
+            username="disabled", email="agent@gouv.fr", is_active=False
+        )
+        ProConnectIdentity.objects.create(
+            user=user, sub="pro-connect-sub-123", last_id_token="old-token"
+        )
+
+        response = self._call_callback()
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("error=account_disabled", response.url)
+        self.assertNotIn("token=", response.url)
 
     def test_callback_invalid_state(self):
         """Callback with tampered state redirects with error."""
