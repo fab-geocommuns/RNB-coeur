@@ -8,10 +8,10 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.core import signing
-from django.utils import timezone
 from django.core.cache import cache
 from django.db import transaction
 from django.http import HttpResponseRedirect
+from django.utils import timezone
 from nanoid import generate as nanoid
 from rest_framework import status
 from rest_framework.authentication import TokenAuthentication

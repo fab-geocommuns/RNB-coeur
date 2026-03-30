@@ -223,7 +223,9 @@ class UserProfile(models.Model):
 
 
 class ProConnectIdentity(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="pro_connect")
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="pro_connect"
+    )
     sub = models.CharField(max_length=255, unique=True, db_index=True)
     last_id_token = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
