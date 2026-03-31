@@ -11,6 +11,7 @@ from batid.models import Contribution
 from batid.models import KPI
 from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
+from batid.utils.db import dictfetchone
 
 KPI_ACTIVE_BUILDINGS_COUNT = "active_buildings_count"
 KPI_REAL_BUILDINGS_COUNT = "real_buildings_count"
@@ -183,14 +184,11 @@ def count_building_changes_daily(for_date: date) -> dict[str, int]:
     """
     with connection.cursor() as cursor:
         cursor.execute("SET statement_timeout = '0';")
-        cursor.execute(sql, {"for_date": for_date})
-        row = cursor.fetchone()
-    if not row:
-        return {"import_bdtopo": 0, "import_bal": 0, "contributions": 0}
+        row = dictfetchone(cursor, sql, {"for_date": for_date})
     return {
-        "import_bdtopo": int(row[0] or 0),
-        "import_bal": int(row[1] or 0),
-        "contributions": int(row[2] or 0),
+        "import_bdtopo": int(row.get("import_bdtopo") or 0),
+        "import_bal": int(row.get("import_bal") or 0),
+        "contributions": int(row.get("contributions") or 0),
     }
 
 
