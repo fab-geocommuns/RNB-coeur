@@ -897,3 +897,14 @@ class DiffInseeCodeTest(TransactionTestCase):
 
         self.assertEqual(r.status_code, 500)
         self.assertIn("99998", r.content.decode())
+
+    def test_diff_with_missing_plus(self):
+        Building.objects.create(rnb_id="B1", event_type="creation")
+        threshold = Building.objects.get(rnb_id="B1").sys_period.lower
+
+        # mimic the brower behavior that replaces "+" by a space
+        params = urlencode({"since": threshold.isoformat().replace("+", " ")})
+        url = f"/api/alpha/buildings/diff/?{params}"
+        r = self.client.get(url)
+
+        self.assertEqual(r.status_code, 200)
