@@ -57,6 +57,7 @@ types-requests = "^2.32.4.20260107"
 pyproj = "^3.7.2"
 types-shapely = "^2.1.0.20250917"
 factory_boy = "^3.3.3"
+coverage = "^7.0"
 
 
 [build-system]
