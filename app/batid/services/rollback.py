@@ -24,10 +24,10 @@ def _prefetch_event_data(event_ids: list) -> tuple[dict, set]:
     instead of one query per event (avoids N+1).
 
     Returns:
-        buildings_by_event_id: dict mapping event_id -> BuildingWithHistory
+        one_building_by_event_id: dict mapping event_id -> one BuildingWithHistory (arbitrary when multiple buildings share the same event)
         already_reverted_ids: set of event_ids that have already been reverted
     """
-    buildings_by_event_id = {
+    one_building_by_event_id = {
         b.event_id: b
         for b in BuildingWithHistory.objects.filter(event_id__in=event_ids)
     }
@@ -36,7 +36,7 @@ def _prefetch_event_data(event_ids: list) -> tuple[dict, set]:
             "revert_event_id", flat=True
         )
     )
-    return buildings_by_event_id, already_reverted_ids
+    return one_building_by_event_id, already_reverted_ids
 
 
 def _check_incoherent_event(building) -> None:
@@ -65,7 +65,7 @@ def rollback(user: User, start_time: datetime | None, end_time: datetime | None)
     event_ids = get_user_events(user, start_time, end_time)
 
     # Pre-fetch in bulk to avoid N+1 (3 queries/event → 2 bulk queries)
-    buildings_by_event_id, already_reverted_ids = _prefetch_event_data(event_ids)
+    one_building_by_event_id, already_reverted_ids = _prefetch_event_data(event_ids)
 
     events_reverted = []
     events_not_revertable = []
@@ -75,7 +75,7 @@ def rollback(user: User, start_time: datetime | None, end_time: datetime | None)
     for event_id in event_ids:
         try:
             if event_id:
-                building = buildings_by_event_id.get(event_id)
+                building = one_building_by_event_id.get(event_id)
                 _check_incoherent_event(building)
 
                 if event_id in already_reverted_ids:
@@ -116,7 +116,7 @@ def rollback_dry_run(
     event_ids = get_user_events(user, start_time, end_time)
 
     # Pre-fetch in bulk to avoid N+1 (3 queries/event → 2 bulk queries)
-    buildings_by_event_id, already_reverted_ids = _prefetch_event_data(event_ids)
+    one_building_by_event_id, already_reverted_ids = _prefetch_event_data(event_ids)
 
     events_n = len(event_ids)
     events_not_revertable = []
@@ -126,7 +126,7 @@ def rollback_dry_run(
 
     for event_id in event_ids:
         if event_id:
-            building = buildings_by_event_id.get(event_id)
+            building = one_building_by_event_id.get(event_id)
             _check_incoherent_event(building)
 
             if event_id in already_reverted_ids:
