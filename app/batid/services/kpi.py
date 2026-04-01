@@ -192,26 +192,6 @@ def count_building_changes_daily(for_date: date) -> dict[str, int]:
     }
 
 
-def _count_building_changes_import(for_date: date, import_source: str) -> int:
-    """Nombre de lignes dans la vue (event_origin=import + BuildingImport.import_source=...) à la date for_date."""
-    return count_building_changes_daily(for_date).get(f"import_{import_source}", 0)
-
-
-def count_building_changes_import_bdtopo(for_date: date) -> int:
-    """Nombre de lignes dans la vue (event_origin=import + BuildingImport.import_source=bdtopo) à la date for_date."""
-    return _count_building_changes_import(for_date, "bdtopo")
-
-
-def count_building_changes_import_bal(for_date: date) -> int:
-    """Nombre de lignes dans la vue (event_origin=import + BuildingImport.import_source=bal) à la date for_date."""
-    return _count_building_changes_import(for_date, "bal")
-
-
-def count_building_changes_contributions(for_date: date) -> int:
-    """Nombre de lignes dans la vue (event_origin.source=contribution) à la date for_date."""
-    return count_building_changes_daily(for_date)["contributions"]
-
-
 def get_building_change_stats(since: date, until: date) -> list[dict]:
     """Liste des stats par jour entre since et until. Chaque élément : date (ISO), events_count (import_bdtopo, import_bal, contributions)."""
     qs_bdtopo = get_kpi(KPI_BUILDING_CHANGES_IMPORT_BDTOPO, since=since, until=until)
