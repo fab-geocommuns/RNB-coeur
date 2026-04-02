@@ -1,5 +1,7 @@
 from datetime import date
+from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from typing import Optional
 
 import requests
@@ -163,6 +165,9 @@ def compute_today_kpis(external_calls=True):
 
 def count_building_changes_daily(for_date: date) -> dict[str, int]:
     """Comptes journaliers des changements bâtiments par source (bdtopo, bal, contributions)."""
+    day_start = datetime(for_date.year, for_date.month, for_date.day, tzinfo=timezone.utc)
+    day_end = day_start + timedelta(days=1)
+
     sql = """
         SELECT
             COUNT(*) FILTER (
@@ -180,11 +185,12 @@ def count_building_changes_daily(for_date: date) -> dict[str, int]:
         LEFT JOIN batid_buildingimport bi
             ON b.event_origin->>'source' = 'import'
            AND (b.event_origin->>'id')::int = bi.id
-        WHERE (lower(b.sys_period))::date = %(for_date)s
+        WHERE lower(b.sys_period) >= %(day_start)s
+          AND lower(b.sys_period) < %(day_end)s
     """
     with connection.cursor() as cursor:
         cursor.execute("SET statement_timeout = '0';")
-        row = dictfetchone(cursor, sql, {"for_date": for_date})
+        row = dictfetchone(cursor, sql, {"day_start": day_start, "day_end": day_end})
     return {
         "import_bdtopo": int(row.get("import_bdtopo") or 0),
         "import_bal": int(row.get("import_bal") or 0),
