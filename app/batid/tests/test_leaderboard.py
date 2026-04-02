@@ -239,4 +239,3 @@ class LeaderboardEmailTestCase(TestCase):
 
         html_body = str(msg.alternatives[0][0])
         self.assertNotIn("Bienvenue aux nouveaux inscrits", html_body)
-
