@@ -165,7 +165,9 @@ def compute_today_kpis(external_calls=True):
 
 def count_building_changes_daily(for_date: date) -> dict[str, int]:
     """Comptes journaliers des changements bâtiments par source (bdtopo, bal, contributions)."""
-    day_start = datetime(for_date.year, for_date.month, for_date.day, tzinfo=timezone.utc)
+    day_start = datetime(
+        for_date.year, for_date.month, for_date.day, tzinfo=timezone.utc
+    )
     day_end = day_start + timedelta(days=1)
 
     sql = """
