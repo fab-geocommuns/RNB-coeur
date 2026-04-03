@@ -31,7 +31,7 @@ from batid.services.bdg_history import get_bdg_history
 from batid.services.rnb_id import clean_rnb_id
 
 
-class SingleBuildingHistory(APIView):
+class SingleBuildingHistory(RNBLoggingMixin, APIView):
     def get(self, request, rnb_id):
 
         # check the building exists
