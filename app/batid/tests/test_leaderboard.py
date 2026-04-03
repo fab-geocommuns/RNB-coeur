@@ -7,6 +7,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
+
 from batid.models.building import Building
 from batid.services.email import build_monthly_leaderboard_email
 from batid.services.leaderboard import get_monthly_edit_leaderboard
