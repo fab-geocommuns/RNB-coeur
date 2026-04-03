@@ -776,7 +776,7 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
         """
         Input: interop_1 (still_exists=True) and interop_2 (still_exists=False) linked to a building.
                Geocoder returns that interop_2's address now has key interop_1 (already in DB).
-        Expected: building re-linked to interop_1, interop_2 marked with ban_update_flag='mark_for_delete'.
+        Expected: building re-linked to interop_1, interop_2 is deleted.
         """
         Address.objects.create(
             id="04001_interop_00001",
@@ -825,8 +825,7 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
         self.assertIn("04001_interop_00001", bdg.addresses_id)
         self.assertNotIn("04001_interop_00002", bdg.addresses_id)
 
-        addr2.refresh_from_db()
-        self.assertEqual(addr2.ban_update_flag, "mark_for_delete")
+        self.assertFalse(Address.objects.filter(id=addr2.id).exists())
 
         bdg_history.refresh_from_db()
         # the old key has been replaced by the new one
@@ -882,8 +881,7 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
         bdg.refresh_from_db()
         self.assertEqual(bdg.addresses_id, ["04001_interop_00001"])
 
-        addr2.refresh_from_db()
-        self.assertEqual(addr2.ban_update_flag, "mark_for_delete")
+        self.assertFalse(Address.objects.filter(id=addr2.id).exists())
 
     def test_intra_batch_duplicate_new_id(self):
         """
@@ -965,9 +963,8 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
         new_addr = Address.objects.get(id="04001_new_00010")
         self.assertTrue(new_addr.still_exists)
 
-        # addr2 is marked for deletion
-        addr2.refresh_from_db()
-        self.assertEqual(addr2.ban_update_flag, "mark_for_delete")
+        # addr2 is deleted
+        self.assertFalse(Address.objects.filter(id=addr2.id).exists())
 
         # No history entry references any old id
         self.assertFalse(
