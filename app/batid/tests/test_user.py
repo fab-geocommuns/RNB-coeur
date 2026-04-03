@@ -12,7 +12,10 @@ class GetStaffEmailsTestCase(TestCase):
         """
         User.objects.create_user("staff1", email="staff1@example.com", is_staff=True)
         User.objects.create_user(
-            "inactive_staff", email="inactive@example.com", is_staff=True, is_active=False
+            "inactive_staff",
+            email="inactive@example.com",
+            is_staff=True,
+            is_active=False,
         )
         User.objects.create_user("regular", email="regular@example.com", is_staff=False)
 
