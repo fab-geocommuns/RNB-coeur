@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -83,6 +84,9 @@ class DiffView(APIView):
     )
     def get(self, request: HttpRequest) -> HttpResponse | StreamingHttpResponse:
         since_input = request.GET.get("since", "")
+        # A '+' in query strings is decoded as a space (HTTP standard).
+        # Fix timezone offsets like " 00:00" → "+00:00" at end of string.
+        since_input = re.sub(r" (\d{2}:\d{2})$", r"+\1", since_input)
         # parse since to a timestamp
         since = parse_datetime(since_input)
         last_available_modification = get_datetime_months_ago(6)

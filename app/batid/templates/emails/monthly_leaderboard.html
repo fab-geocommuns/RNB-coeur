@@ -1,0 +1,21 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<p style="margin:0 0 12px;font-size:15px;color:#333333;">Bonjour,</p>
+<p style="margin:0 0 12px;font-size:15px;color:#333333;">Voici le résumé des contributions au Référentiel National des Bâtiments pour le mois de {{ month_year_label }} :</p>
+<ul style="padding-left:20px;font-size:15px;color:#333333;margin:0 0 16px;">
+  {% for entry in leaderboard %}
+  <li style="margin-bottom:6px;">{{ entry.username }} – {{ entry.edit_count }} édition{{ entry.edit_count|pluralize }}</li>
+  {% endfor %}
+</ul>
+{% if new_usernames %}
+<p style="margin:0 0 8px;font-size:15px;color:#333333;"><strong>Bienvenue aux nouveaux inscrits :</strong></p>
+<ul style="padding-left:20px;font-size:15px;color:#333333;margin:0 0 16px;">
+  {% for username in new_usernames %}
+  <li style="margin-bottom:4px;">{{ username }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+<p style="margin:0 0 4px;font-size:15px;color:#333333;">Merci pour vos contributions !</p>
+<p style="margin:0;font-size:15px;color:#333333;">L'équipe RNB</p>
+{% endblock %}

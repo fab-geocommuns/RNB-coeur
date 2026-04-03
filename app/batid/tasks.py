@@ -428,6 +428,18 @@ def create_arcep_reports() -> uuid.UUID:
     return dl_and_create_arcep_reports()
 
 
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def send_monthly_leaderboard_emails():
+    from batid.services.leaderboard import (
+        send_monthly_leaderboard_emails as send_emails,
+    )
+
+    result = send_emails()
+    notify_tech(result)
+    return result
+
+
 @shared_task
 def close_irrelevant_reports():
     reject_irrelevant_arcep_reports()
