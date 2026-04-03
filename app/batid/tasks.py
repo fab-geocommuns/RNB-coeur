@@ -179,9 +179,7 @@ def import_cities(dpt):
 def queue_full_cities_import():
     dpts = dpts_list()
 
-    notify_tech(
-        f"Import des communes. Départements: {dpts[0]} à {dpts[-1]}"
-    )
+    notify_tech(f"Import des communes. Départements: {dpts[0]} à {dpts[-1]}")
 
     tasks = [
         Signature("batid.tasks.import_cities", args=[dpt], immutable=True)
