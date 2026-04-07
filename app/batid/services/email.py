@@ -64,12 +64,15 @@ def build_monthly_leaderboard_email(
     new_users = get_monthly_new_users(year, month)
     new_usernames = list(new_users.values_list("username", flat=True))
 
+    total_contributions = sum(entry["edit_count"] for entry in leaderboard)
+
     html_content = render_to_string(
         "emails/monthly_leaderboard.html",
         {
             "leaderboard": leaderboard,
             "month_year_label": month_year_label,
-            "new_usernames": new_usernames,
+            "new_usernames": sorted(new_usernames, key=str.lower),
+            "total_contributions": total_contributions,
         },
     )
     msg = EmailMultiAlternatives(
