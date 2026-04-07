@@ -15,6 +15,7 @@ from django.utils.html import escape
 from psycopg2 import sql
 from rest_framework.views import APIView
 
+from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import rnb_doc
 from batid.models import City
 
@@ -23,7 +24,7 @@ def get_datetime_months_ago(months: int) -> datetime:
     return datetime.now(timezone.utc) - relativedelta(days=months * 30)
 
 
-class DiffView(APIView):
+class DiffView(RNBLoggingMixin, APIView):
     @rnb_doc(
         {
             "get": {
