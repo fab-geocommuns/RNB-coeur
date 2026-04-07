@@ -7,6 +7,7 @@ from datetime import datetime
 from datetime import timezone
 from io import StringIO
 
+from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.db import connection
 from django.db import transaction
@@ -359,7 +360,7 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT a.id, a.street_number, a.street, a.city_zipcode, a.city_name, a.city_insee_code
+                SELECT a.id, a.street_number, a.street, a.city_zipcode, a.city_name, a.city_insee_code, a.point
                 FROM batid_address a
                 WHERE a.still_exists = False
                 AND a.ban_update_flag IS NULL
@@ -384,6 +385,11 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
             for row in rows
         ]
 
+        # {cle_interop: Point, ...} — raw cursor returns WKB hex, convert to GEOSGeometry
+        addr_positions = {
+            row[0]: GEOSGeometry(row[6]) if row[6] else None for row in rows
+        }
+
         response = geocoder.geocode(
             data=csv_data,
             columns=["numero", "voie", "postcode", "city"],
@@ -399,6 +405,22 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
         successes = []
         failures = []
 
+        def is_success(score, result_type, new_id, old_position, row):
+            if result_type == "housenumber" and new_id:
+                # good score
+                if score >= 0.85:
+                    return True
+                # lower score but very close geographically
+                if score >= 0.55:
+                    distance = _calculate_distance(
+                        old_position,
+                        row.get("longitude", ""),
+                        row.get("latitude", ""),
+                    )
+                    if distance and distance < 20:
+                        return True
+            return False
+
         for row in reader:
             try:
                 score = float(row.get("result_score") or 0)
@@ -408,7 +430,7 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
             new_id = row.get("result_id", "")
             old_id = row.get("db_id", "")
 
-            if score >= 0.85 and result_type == "housenumber" and new_id:
+            if is_success(score, result_type, new_id, addr_positions[old_id], row):
                 successes.append({"old_id": old_id, "new_id": new_id})
             else:
                 failures.append({"old_id": old_id, "score": score, "new_id": new_id})

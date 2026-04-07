@@ -533,12 +533,14 @@ class TestUpdateAddressesTextAndBanIdDuplicateBanId(TestCase):
 class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
     def _make_geocoder_response(self, rows):
         """Build a mock geocoder response with a CSV body."""
-        header = "db_id,numero,voie,postcode,city,citycode,result_id,result_score,result_type"
+        header = "db_id,numero,voie,postcode,city,citycode,result_id,result_score,result_type,longitude,latitude"
         lines = [header] + [
             f"{r['db_id']},,,,,,"
             f"{r.get('result_id', '')},"
             f"{r.get('result_score', '')},"
-            f"{r.get('result_type', '')}"
+            f"{r.get('result_type', '')},"
+            f"{r.get('longitude', '')},"
+            f"{r.get('latitude', '')}"
             for r in rows
         ]
         mock_resp = MagicMock()
@@ -1079,6 +1081,99 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
                 building=bdg, address_id="04001_old_00021"
             ).exists()
         )
+
+    def test_low_score_close_distance_updates(self):
+        """
+        Input: obsolete address with point at (6.0, 44.0), geocoder returns score=0.6,
+               type=housenumber, and coordinates ~10m away.
+        Expected: score is below 0.85 but >= 0.55 and distance < 20m, so address is updated.
+        """
+        addr = Address.objects.create(
+            id="04001_old_00030",
+            source="ban",
+            still_exists=False,
+            street_number="1",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+            point=Point(6.0, 44.0, srid=4326),
+        )
+        bdg = helpers.create_default_bdg("BDG30")
+        bdg.addresses_id = ["04001_old_00030"]
+        bdg.save()
+
+        # ~10m away from (6.0, 44.0)
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_old_00030",
+                    "result_id": "04001_new_00030",
+                    "result_score": "0.6",
+                    "result_type": "housenumber",
+                    "longitude": "6.0001",
+                    "latitude": "44.0",
+                }
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            result = geocode_and_update_obsolete_addresses()
+
+        self.assertEqual(result["updated"], 1)
+        self.assertEqual(result["geocoding_failures"], 0)
+        self.assertFalse(Address.objects.filter(id="04001_old_00030").exists())
+        self.assertTrue(Address.objects.filter(id="04001_new_00030").exists())
+
+    def test_low_score_far_distance_flags_failure(self):
+        """
+        Input: obsolete address with point at (6.0, 44.0), geocoder returns score=0.6,
+               type=housenumber, and coordinates ~1km away.
+        Expected: score is below 0.85 and distance > 20m, so address is flagged as failure.
+        """
+        addr = Address.objects.create(
+            id="04001_old_00031",
+            source="ban",
+            still_exists=False,
+            street_number="1",
+            street="Rue de la Paix",
+            city_zipcode="04510",
+            city_name="Aiglun",
+            city_insee_code="04001",
+            point=Point(6.0, 44.0, srid=4326),
+        )
+        bdg = helpers.create_default_bdg("BDG31")
+        bdg.addresses_id = ["04001_old_00031"]
+        bdg.save()
+
+        # ~1km away
+        mock_resp = self._make_geocoder_response(
+            [
+                {
+                    "db_id": "04001_old_00031",
+                    "result_id": "04001_new_00031",
+                    "result_score": "0.6",
+                    "result_type": "housenumber",
+                    "longitude": "6.01",
+                    "latitude": "44.0",
+                }
+            ]
+        )
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.BanBatchGeocoder"
+        ) as MockGeocoder:
+            MockGeocoder.return_value.geocode.return_value = mock_resp
+            result = geocode_and_update_obsolete_addresses()
+
+        self.assertEqual(result["updated"], 0)
+        self.assertEqual(result["geocoding_failures"], 1)
+        addr.refresh_from_db()
+        self.assertFalse(addr.still_exists)
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
 
 
 class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
