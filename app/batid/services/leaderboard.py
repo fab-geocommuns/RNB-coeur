@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import connection
 
+from batid.services.user import get_staff_emails
 from batid.utils.date import french_month_year_label
 from batid.utils.date import month_bounds
 from batid.utils.date import previous_month
@@ -66,9 +67,11 @@ def send_monthly_leaderboard_emails() -> str:
     label = french_month_year_label(year, month)
     new_users = get_monthly_new_users(year, month)
 
+    # Sets to deduplicate: a user can be both staff and editor
     editor_emails = {entry["email"] for entry in leaderboard if entry.get("email")}
     new_user_emails = set(new_users.values_list("email", flat=True))
-    recipient_emails = editor_emails | new_user_emails
+    staff_emails = set(get_staff_emails())
+    recipient_emails = editor_emails | new_user_emails | staff_emails
 
     msg = build_monthly_leaderboard_email(year, month)
     sent = 0
