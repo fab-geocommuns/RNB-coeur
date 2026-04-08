@@ -293,9 +293,7 @@ class DiffusionDatabase(models.Model):
     featured_summary = models.TextField(blank=True)
     # displayed on the website on outils-services/rapprochement
     # if not displayed, still used for the stat page
-    is_displayed = models.BooleanField(
-        default=False, verbose_name="visible sur le site"
-    )
+    is_displayed = models.BooleanField(default=True, verbose_name="visible sur le site")
     attributes = models.JSONField(
         null=False,
         default=list,
