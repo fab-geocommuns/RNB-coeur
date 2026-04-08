@@ -1167,7 +1167,7 @@ class TokenScheme(OpenApiAuthenticationExtension):
 class DiffusionDatabaseView(APIView):
     def get(self, request):
         """Lists all databases in which ID-RNBs are published and available attributes"""
-        databases = DiffusionDatabase.objects.all()
+        databases = DiffusionDatabase.objects.filter(is_displayed=True)
         serializer = DiffusionDatabaseSerializer(databases, many=True)
         return Response(serializer.data)
 

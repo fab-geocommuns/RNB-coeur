@@ -14,10 +14,19 @@ class TestDiffusionDatabases(APITestCase):
             publisher="le Cerema",
             licence="Réservée aux ayant droits",
         )
+        DiffusionDatabase.objects.create(
+            name="Petite ville",
+            documentation_url="https://petiteville.fr",
+            publisher="La petite ville",
+            licence="Réservée aux ayant droits",
+            is_displayed=False,
+        )
         url = "/api/alpha/diffusion_databases"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+        # is_displayed is True by default
         self.assertIn("Fichiers fonciers", response.content.decode())
+        self.assertNotIn("Petite ville", response.content.decode())
 
 
 class TestOrganizationNames(APITestCase):
