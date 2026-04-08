@@ -1,7 +1,7 @@
-from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 
 from batid.services.email import build_monthly_leaderboard_email
+from batid.services.user import get_staff_emails
 from batid.utils.date import french_month_year_label
 from batid.utils.date import previous_month
 
@@ -30,11 +30,7 @@ class Command(BaseCommand):
         label = french_month_year_label(year, month)
         self.stdout.write(f"Building leaderboard for {label}...")
 
-        staff_emails = list(
-            User.objects.filter(is_staff=True, is_active=True)
-            .exclude(email="")
-            .values_list("email", flat=True)
-        )
+        staff_emails = get_staff_emails()
 
         if not staff_emails:
             self.stdout.write(self.style.WARNING("No staff users with email found."))
