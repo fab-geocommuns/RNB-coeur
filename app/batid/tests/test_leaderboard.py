@@ -13,8 +13,6 @@ from batid.services.email import build_monthly_leaderboard_email
 from batid.services.leaderboard import get_monthly_edit_leaderboard
 from batid.services.leaderboard import get_monthly_new_users
 from batid.tests.factories.users import ContributorUserFactory
-from batid.tests.pg_temporal_time import reset_pg_temporal_system_time
-from batid.tests.pg_temporal_time import set_pg_temporal_system_time
 
 SIMPLE_POLYGON = GEOSGeometry(
     json.dumps(
@@ -34,23 +32,10 @@ OTHER_POLYGON = GEOSGeometry(
     )
 )
 
-# Aligné sur @freeze_time("2026-03-15") : le trigger PG doit utiliser la même « date réelle ».
-FROZEN_LEADERBOARD_TIME = datetime.datetime(
-    2026, 3, 15, 12, 0, 0, tzinfo=datetime.timezone.utc
-)
-
 
 @override_settings(MAX_BUILDING_AREA=float("inf"))
 @freeze_time("2026-03-15")
 class LeaderboardQueryTestCase(TestCase):
-    def setUp(self):
-        super().setUp()
-        set_pg_temporal_system_time(FROZEN_LEADERBOARD_TIME)
-
-    def tearDown(self):
-        reset_pg_temporal_system_time()
-        super().tearDown()
-
     def test_leaderboard_counts_distinct_events(self):
         """
         Input: frozen at 2026-03-15; user A creates 1 building then updates it (2 contribution events); user B creates 1 building (1 contribution event).
@@ -184,7 +169,6 @@ class LeaderboardQueryTestCase(TestCase):
 class LeaderboardEmailTestCase(TestCase):
     def setUp(self):
         super().setUp()
-        set_pg_temporal_system_time(FROZEN_LEADERBOARD_TIME)
         # alice joined in February so she doesn't count as a new user in March
         self.alice = ContributorUserFactory(username="alice", email="alice@example.com")
         User.objects.filter(pk=self.alice.pk).update(
@@ -207,10 +191,6 @@ class LeaderboardEmailTestCase(TestCase):
                 addresses_id=None,
                 shape=None,
             )
-
-    def tearDown(self):
-        reset_pg_temporal_system_time()
-        super().tearDown()
 
     def test_build_monthly_leaderboard_email_has_no_recipient(self):
         """
