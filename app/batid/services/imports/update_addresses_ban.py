@@ -398,6 +398,8 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
                 "result_id",
                 "result_score",
                 "result_type",
+                "longitude",
+                "latitude",
             ],
         )
 
@@ -405,20 +407,19 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
         successes = []
         failures = []
 
-        def is_success(score, result_type, new_id, old_position, row):
+        def _geocode_distance(old_position, row):
+            return _calculate_distance(
+                old_position,
+                row.get("longitude", ""),
+                row.get("latitude", ""),
+            )
+
+        def is_success(score, result_type, new_id, distance):
             if result_type == "housenumber" and new_id:
-                # good score
                 if score >= 0.85:
                     return True
-                # lower score but very close geographically
-                if score >= 0.55:
-                    distance = _calculate_distance(
-                        old_position,
-                        row.get("longitude", ""),
-                        row.get("latitude", ""),
-                    )
-                    if distance and distance < 20:
-                        return True
+                if score >= 0.55 and distance and distance < 20:
+                    return True
             return False
 
         for row in reader:
@@ -429,11 +430,15 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
             result_type = row.get("result_type", "")
             new_id = row.get("result_id", "")
             old_id = row.get("db_id", "")
+            distance = _geocode_distance(addr_positions[old_id], row)
 
-            if is_success(score, result_type, new_id, addr_positions[old_id], row):
+            if is_success(score, result_type, new_id, distance):
                 successes.append({"old_id": old_id, "new_id": new_id})
             else:
-                failures.append({"old_id": old_id, "score": score, "new_id": new_id})
+                failure = {"old_id": old_id, "score": score, "new_id": new_id}
+                if distance is not None:
+                    failure["distance_m"] = round(distance, 2)
+                failures.append(failure)
 
         if successes:
             _apply_geocode_updates(successes)
@@ -545,12 +550,17 @@ def _flag_failures(failures: list) -> None:
     Stores score and new_id in ban_update_details.
     """
     for failure in failures:
+        details = {
+            "score": failure["score"],
+            "new_id": failure["new_id"],
+        }
+        distance = failure.get("distance_m")
+        if distance:
+            details["distance_m"] = distance
+
         Address.objects.filter(id=failure["old_id"]).update(
             ban_update_flag="geocoding_failure",
-            ban_update_details={
-                "score": failure["score"],
-                "new_id": failure["new_id"],
-            },
+            ban_update_details=details,
         )
 
 

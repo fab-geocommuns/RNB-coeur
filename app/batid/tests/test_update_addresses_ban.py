@@ -1149,7 +1149,7 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
         bdg.addresses_id = ["04001_old_00031"]
         bdg.save()
 
-        # ~1km away
+        # ~800m away
         mock_resp = self._make_geocoder_response(
             [
                 {
@@ -1174,6 +1174,7 @@ class TestGeocodeAndUpdateObsoleteAddresses(TransactionTestCase):
         addr.refresh_from_db()
         self.assertFalse(addr.still_exists)
         self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertAlmostEqual(addr.ban_update_details.get("distance_m"), 802, places=0)
 
 
 class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
