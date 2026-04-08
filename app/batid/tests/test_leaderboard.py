@@ -188,7 +188,6 @@ class LeaderboardQueryTestCase(TestCase):
 )
 class LeaderboardEmailTestCase(TestCase):
     def setUp(self):
-        super().setUp()
         self.now = timezone.now()
         self.year = self.now.year
         self.month = self.now.month
