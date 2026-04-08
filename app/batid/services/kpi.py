@@ -1,5 +1,7 @@
 from datetime import date
+from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from typing import Optional
 
 import requests
@@ -11,6 +13,7 @@ from batid.models import Contribution
 from batid.models import KPI
 from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
+from batid.utils.db import dictfetchone
 
 KPI_ACTIVE_BUILDINGS_COUNT = "active_buildings_count"
 KPI_REAL_BUILDINGS_COUNT = "real_buildings_count"
@@ -26,6 +29,10 @@ KPI_EDITS_COUNT_BY_DEPT = "edits_count_by_dept_{}"
 KPI_API_REQUESTS_COUNT = "api_requests_count"
 KPI_DATA_GOUV_VIEWS = "data_gouv_views_count"
 KPI_DATA_GOUV_DOWNLOADS = "data_gouv_downloads_count"
+
+KPI_BUILDING_CHANGES_IMPORT_BDTOPO = "building_changes_import_bdtopo"
+KPI_BUILDING_CHANGES_IMPORT_BAL = "building_changes_import_bal"
+KPI_BUILDING_CHANGES_CONTRIBUTIONS = "building_changes_contributions"
 
 
 def get_kpi(name: str, since: Optional[date] = None, until: Optional[date] = None):
@@ -138,6 +145,97 @@ def compute_today_kpis(external_calls=True):
                 value_date=today,
             )
 
+    # Building change stats (import_bdtopo, import_bal, contributions)
+    daily_changes = count_building_changes_daily(today)
+    bdtopo_count = daily_changes["import_bdtopo"]
+    KPI.objects.create(
+        name=KPI_BUILDING_CHANGES_IMPORT_BDTOPO, value=bdtopo_count, value_date=today
+    )
+    bal_count = daily_changes["import_bal"]
+    KPI.objects.create(
+        name=KPI_BUILDING_CHANGES_IMPORT_BAL, value=bal_count, value_date=today
+    )
+    contributions_count = daily_changes["contributions"]
+    KPI.objects.create(
+        name=KPI_BUILDING_CHANGES_CONTRIBUTIONS,
+        value=contributions_count,
+        value_date=today,
+    )
+
+
+def count_building_changes_daily(for_date: date) -> dict[str, int]:
+    """Comptes journaliers des changements bâtiments par source (bdtopo, bal, contributions)."""
+    day_start = datetime(
+        for_date.year, for_date.month, for_date.day, tzinfo=timezone.utc
+    )
+    day_end = day_start + timedelta(days=1)
+
+    sql = """
+        SELECT
+            COUNT(*) FILTER (
+                WHERE b.event_origin->>'source' = 'import'
+                  AND bi.import_source = 'bdtopo'
+            ) AS import_bdtopo,
+            COUNT(*) FILTER (
+                WHERE b.event_origin->>'source' = 'import'
+                  AND bi.import_source = 'bal'
+            ) AS import_bal,
+            COUNT(*) FILTER (
+                WHERE b.event_origin->>'source' = 'contribution'
+            ) AS contributions
+        FROM batid_building_with_history b
+        LEFT JOIN batid_buildingimport bi
+            ON b.event_origin->>'source' = 'import'
+           AND (b.event_origin->>'id')::int = bi.id
+        WHERE lower(b.sys_period) >= %(day_start)s
+          AND lower(b.sys_period) < %(day_end)s
+    """
+    with connection.cursor() as cursor:
+        cursor.execute("SET statement_timeout = '0';")
+        row = dictfetchone(cursor, sql, {"day_start": day_start, "day_end": day_end})
+    return {
+        "import_bdtopo": int(row.get("import_bdtopo") or 0),
+        "import_bal": int(row.get("import_bal") or 0),
+        "contributions": int(row.get("contributions") or 0),
+    }
+
+
+def get_building_change_stats(since: date, until: date) -> list[dict]:
+    """Liste des stats par jour entre since et until. Chaque élément : date (ISO), events_count (import_bdtopo, import_bal, contributions)."""
+    qs_bdtopo = get_kpi(KPI_BUILDING_CHANGES_IMPORT_BDTOPO, since=since, until=until)
+    qs_bal = get_kpi(KPI_BUILDING_CHANGES_IMPORT_BAL, since=since, until=until)
+    qs_contrib = get_kpi(KPI_BUILDING_CHANGES_CONTRIBUTIONS, since=since, until=until)
+
+    by_date: dict[date, dict[str, int]] = {}
+    for k in qs_bdtopo:
+        by_date.setdefault(
+            k.value_date,
+            {"import_bdtopo": 0, "import_bal": 0, "contributions": 0},
+        )
+        by_date[k.value_date]["import_bdtopo"] = k.value
+    for k in qs_bal:
+        by_date.setdefault(
+            k.value_date,
+            {"import_bdtopo": 0, "import_bal": 0, "contributions": 0},
+        )
+        by_date[k.value_date]["import_bal"] = k.value
+    for k in qs_contrib:
+        by_date.setdefault(
+            k.value_date,
+            {"import_bdtopo": 0, "import_bal": 0, "contributions": 0},
+        )
+        by_date[k.value_date]["contributions"] = k.value
+
+    out = []
+    d = since
+    while d <= until:
+        events = by_date.get(
+            d, {"import_bdtopo": 0, "import_bal": 0, "contributions": 0}
+        )
+        out.append({"date": d.isoformat(), "events_count": events})
+        d += timedelta(days=1)
+    return out
+
 
 def get_data_gouv_stats() -> tuple:
     """
@@ -206,7 +304,15 @@ def count_editors():
 
 
 def count_edits():
-    return Contribution.objects.filter(report=False).count()
+    """Total d'événements contribution (toutes dates)"""
+    sql = """
+        SELECT COUNT(*) FROM batid_building_with_history
+        WHERE event_origin->>'source' = 'contribution'
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql)
+        row = cursor.fetchone()
+    return row[0] if row else 0
 
 
 def count_reports():
