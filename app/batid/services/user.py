@@ -11,6 +11,14 @@ def get_user_id_from_b64(user_id_b64: str) -> int:
     return _b64_to_int(user_id_b64)
 
 
+def get_staff_emails() -> list[str]:
+    return list(
+        User.objects.filter(is_staff=True, is_active=True)
+        .exclude(email="")
+        .values_list("email", flat=True)
+    )
+
+
 def check_and_increment_contribution_count(user: User | None) -> None:
     if user is None:
         return
