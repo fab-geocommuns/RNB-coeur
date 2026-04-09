@@ -16,11 +16,7 @@ def import_etalab_cities(dpt: str):
         if geom.geom_type == "Polygon":
             # transform into a multipolygon
             geom = MultiPolygon([geom], srid=4326)
-        try:
-            city = City.objects.get(code_insee=c["properties"]["code"])
-        except City.DoesNotExist:
-            city = City(code_insee=c["properties"]["code"])
-
-        city.shape = geom  # type: ignore
-        city.name = c["properties"]["nom"]
-        city.save()
+        City.objects.update_or_create(
+            code_insee=c["properties"]["code"],
+            defaults={"shape": geom, "name": c["properties"]["nom"]},
+        )
