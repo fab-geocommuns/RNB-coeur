@@ -174,6 +174,22 @@ def import_cities(dpt):
     return "done"
 
 
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_full_cities_import():
+    dpts = dpts_list()
+
+    notify_tech(f"Import des communes. Départements: {dpts[0]} à {dpts[-1]}")
+
+    tasks = [
+        Signature("batid.tasks.import_cities", args=[dpt], immutable=True)
+        for dpt in dpts
+    ]
+
+    chain(*tasks)()
+    return f"Queued {len(tasks)} tasks"
+
+
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_dpts():
     import_etalab_dpts()

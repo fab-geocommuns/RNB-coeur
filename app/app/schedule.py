@@ -66,6 +66,12 @@ production_schedule = {
         # 1st of each month at 6am UTC
         "schedule": crontab(hour=6, minute=0, day_of_month=1),
     },
+    "import_cities": {
+        "task": "batid.tasks.queue_full_cities_import",
+        # Insee publishes the new COG in march
+        # twice a year: april 1st and october 1st at 2am
+        "schedule": crontab(minute=0, hour=2, day_of_month=1, month_of_year="4,10"),
+    },
 }
 
 
