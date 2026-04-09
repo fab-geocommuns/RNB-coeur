@@ -41,23 +41,23 @@ private-captcha = "^0.0.6"
 rapidfuzz = "^3.14.3"
 
 [tool.poetry.group.dev.dependencies]
-moto = "^5.1.21"
+moto = "^5.1.22"
 freezegun = "^1.5.5"
 notebook = "==6.5.7"
 jupyter = "^1.0.0"
 openpyxl = "^3.1.5"
 tqdm = "^4.67.3"
 mypy = "==1.19.1"
-django-stubs = {extras = ["compatible-mypy"], version = "^5.2.9"}
+django-stubs = {extras = ["compatible-mypy"], version = "^6.0.1"}
 types-psycopg2 = "^2.9.21.20260223"
 types-nanoid = "^2.0.0.20240601"
-celery-types = "^0.24.0"
+celery-types = "^0.26.0"
 pandas-stubs = "^3.0.0.260204"
-types-requests = "^2.32.4.20260107"
+types-requests = "^2.33.0.20260327"
 pyproj = "^3.7.2"
 types-shapely = "^2.1.0.20250917"
 factory_boy = "^3.3.3"
-coverage = "^7.0"
+coverage = "^7.13"
 
 
 [build-system]
