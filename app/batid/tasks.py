@@ -530,3 +530,13 @@ def delete_unlinked_obsolete_addresses_task(batch_size: int = 1000):
     )
 
     return delete_unlinked_obsolete_addresses(batch_size)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def geocode_obsolete_addresses_task(batch_size: int = 8000):
+    from batid.services.imports.update_addresses_ban import (
+        geocode_and_update_obsolete_addresses,
+    )
+
+    return geocode_and_update_obsolete_addresses(batch_size)

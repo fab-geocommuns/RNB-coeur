@@ -5,13 +5,17 @@ import unicodedata
 import uuid
 from datetime import datetime
 from datetime import timezone
+from io import StringIO
 
+from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Point
 from django.db import connection
+from django.db import transaction
 from pyproj import Geod
 from rapidfuzz.distance import Levenshtein
 
 from batid.models import Address
+from batid.services.geocoders import BanBatchGeocoder
 from batid.services.source import Source
 
 logger = logging.getLogger(__name__)
@@ -339,6 +343,225 @@ def _update_text_batch(batch: list) -> dict:
         )
 
     return {"updated": updated, "mismatched": mismatched}
+
+
+def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
+    """
+    Géocode par batches toutes les adresses still_exists=False liées à un bâtiment.
+    - Si score >= 0.9 et type == housenumber : MAJ cle interop + Building.addresses_id
+    - Sinon : ban_update_flag = 'geocoding_failure'
+    Boucle jusqu'à épuisement des adresses non traitées.
+    """
+    geocoder = BanBatchGeocoder()
+    total_updated = 0
+    total_not_found = 0
+
+    while True:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT a.id, a.street_number, a.street, a.city_zipcode, a.city_name, a.city_insee_code, a.point
+                FROM batid_address a
+                WHERE a.still_exists = False
+                AND a.ban_update_flag IS NULL
+                LIMIT %s
+                """,
+                [batch_size],
+            )
+            rows = cursor.fetchall()
+
+        if not rows:
+            break
+
+        csv_data = [
+            {
+                "db_id": row[0],
+                "numero": row[1] or "",
+                "voie": row[2] or "",
+                "postcode": row[3] or "",
+                "city": row[4] or "",
+                "citycode": row[5] or "",
+            }
+            for row in rows
+        ]
+
+        # {cle_interop: Point, ...} — raw cursor returns WKB hex, convert to GEOSGeometry
+        addr_positions = {
+            row[0]: GEOSGeometry(row[6]) if row[6] else None for row in rows
+        }
+
+        response = geocoder.geocode(
+            data=csv_data,
+            columns=["numero", "voie", "postcode", "city"],
+            citycode_col="citycode",
+            result_columns=[
+                "result_id",
+                "result_score",
+                "result_type",
+                "longitude",
+                "latitude",
+            ],
+        )
+
+        reader = csv.DictReader(StringIO(response.text))
+        successes = []
+        failures = []
+
+        def _geocode_distance(old_position, row):
+            return _calculate_distance(
+                old_position,
+                row.get("longitude", ""),
+                row.get("latitude", ""),
+            )
+
+        def is_success(score, result_type, new_id, distance):
+            if result_type == "housenumber" and new_id:
+                if score >= 0.85:
+                    return True
+                if score >= 0.55 and distance and distance < 20:
+                    return True
+            return False
+
+        for row in reader:
+            try:
+                score = float(row.get("result_score") or 0)
+            except (ValueError, TypeError):
+                score = 0.0
+            result_type = row.get("result_type", "")
+            new_id = row.get("result_id", "")
+            old_id = row.get("db_id", "")
+            distance = _geocode_distance(addr_positions[old_id], row)
+
+            if is_success(score, result_type, new_id, distance):
+                successes.append({"old_id": old_id, "new_id": new_id})
+            else:
+                failure = {"old_id": old_id, "score": score, "new_id": new_id}
+                if distance is not None:
+                    failure["distance_m"] = round(distance, 2)
+                failures.append(failure)
+
+        if successes:
+            _apply_geocode_updates(successes)
+            total_updated += len(successes)
+
+        if failures:
+            _flag_failures(failures)
+            total_not_found += len(failures)
+
+        logger.info(
+            f"Geocoded batch: {len(successes)} updated, {len(failures)} not found"
+        )
+
+    logger.info(f"Total: {total_updated} updated, {total_not_found} geocoding failures")
+    return {"updated": total_updated, "geocoding_failures": total_not_found}
+
+
+def _apply_geocode_updates(successes: list) -> None:
+    """Update addresses for successfully geocoded entries.
+
+    Processes each (old_id → new_id) in its own transaction for debuggability.
+    Disables the versioning trigger once to avoid spurious history entries.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "ALTER TABLE batid_building DISABLE TRIGGER building_versioning_trigger"
+        )
+    try:
+        for item in successes:
+            _apply_single_geocode_update(item["old_id"], item["new_id"])
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "ALTER TABLE batid_building ENABLE TRIGGER building_versioning_trigger"
+            )
+
+
+def _apply_single_geocode_update(old_id: str, new_id: str) -> None:
+    """Apply a single address geocode update in its own transaction.
+
+    - If new_id is unknown: create a new Address, replace old_id in buildings, delete old
+    - If new_id already exists: replace old_id in buildings, delete old
+    """
+    if old_id == new_id:
+        Address.objects.filter(id=old_id).update(
+            still_exists=True, ban_update_flag=None, ban_id=None
+        )
+        return
+
+    with transaction.atomic():
+        new_id_exists = Address.objects.filter(id=new_id).exists()
+
+        if not new_id_exists:
+            old_addr = Address.objects.get(id=old_id)
+            Address.objects.create(
+                id=new_id,
+                source=old_addr.source,
+                point=old_addr.point,
+                street_number=old_addr.street_number,
+                street_rep=old_addr.street_rep,
+                street=old_addr.street,
+                city_name=old_addr.city_name,
+                city_zipcode=old_addr.city_zipcode,
+                city_insee_code=old_addr.city_insee_code,
+                still_exists=True,
+            )
+
+        # Replace old_id → new_id in Building.addresses_id
+        # (building_addresses_trigger keeps BuildingAddressesReadOnly in sync)
+        # DISTINCT handles the case where new_id was already present
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE batid_building
+                SET addresses_id = ARRAY(
+                    SELECT DISTINCT unnest(
+                        array_replace(addresses_id, %s, %s)
+                    )
+                )
+                WHERE addresses_id @> ARRAY[%s::varchar]
+                """,
+                [old_id, new_id, old_id],
+            )
+
+            # Replace old_id → new_id in BuildingHistory
+            cursor.execute(
+                """
+                UPDATE batid_building_history
+                SET addresses_id = ARRAY(
+                    SELECT DISTINCT unnest(
+                        array_replace(addresses_id, %s, %s)
+                    )
+                )
+                WHERE addresses_id @> ARRAY[%s::varchar]
+                """,
+                [old_id, new_id, old_id],
+            )
+
+        # Delete old address
+        # (delete_address_id_from_building_trigger is a no-op since old_id
+        # was already replaced in buildings above)
+        Address.objects.filter(id=old_id).delete()
+
+
+def _flag_failures(failures: list) -> None:
+    """Mark addresses that could not be geocoded with ban_update_flag='geocoding_failure'.
+
+    Each failure is a dict with keys: old_id, score, new_id.
+    Stores score and new_id in ban_update_details.
+    """
+    for failure in failures:
+        details = {
+            "score": failure["score"],
+            "new_id": failure["new_id"],
+        }
+        distance = failure.get("distance_m")
+        if distance:
+            details["distance_m"] = distance
+
+        Address.objects.filter(id=failure["old_id"]).update(
+            ban_update_flag="geocoding_failure",
+            ban_update_details=details,
+        )
 
 
 def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
