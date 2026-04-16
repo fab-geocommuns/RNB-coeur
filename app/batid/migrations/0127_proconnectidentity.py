@@ -8,7 +8,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0126_diffusiondatabase_is_displayed_and_more.py"),
+        ("batid", "0126_diffusiondatabase_is_displayed_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
