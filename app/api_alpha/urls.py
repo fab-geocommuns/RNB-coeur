@@ -6,11 +6,11 @@ from rest_framework import routers
 
 from api_alpha.endpoints.ads.create_token import CreateAdsTokenView
 from api_alpha.endpoints.auth.create_user import CreateUserView
-from api_alpha.endpoints.buildings.change_stats import BuildingChangeStatsView
 from api_alpha.endpoints.auth.pro_connect import AuthorizeView
 from api_alpha.endpoints.auth.pro_connect import CallbackView
 from api_alpha.endpoints.auth.pro_connect import LogoutCallbackView
 from api_alpha.endpoints.auth.pro_connect import LogoutView
+from api_alpha.endpoints.buildings.change_stats import BuildingChangeStatsView
 from api_alpha.endpoints.buildings.get_diff import DiffView
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.plot import BuildingPlotView
