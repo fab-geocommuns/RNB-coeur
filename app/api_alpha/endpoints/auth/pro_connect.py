@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 #  2. AuthorizeView (rnb-coeur)
 #  — generates a nonce + state, builds the Pro Connect, authorization URL, and returns it to the site.
 #
-#  3. Website redicts (rnb-site)
+#  3. Website redirects (rnb-site)
 #  - the website receive the AuthorizeView response and use the authorizaton URL it conains to redirect the user
 #  to the Pro Connect site
 #
