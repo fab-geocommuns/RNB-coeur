@@ -102,6 +102,10 @@ def _make_state(redirect_uri="http://localhost:3000", nonce="test-nonce"):
     CONTRIBUTORS_GROUP_NAME="Contributors",
     FRONTEND_URL="http://localhost:3000",
 )
+@mock.patch(
+    "batid.services.organization.fetch_siren_data",
+    return_value=None,
+)
 class CallbackTest(APITestCase):
     def _call_callback(self, code="auth-code", state=None):
         if state is None:
@@ -123,7 +127,7 @@ class CallbackTest(APITestCase):
         "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
         return_value=("fake-access-token", "fake-id-token"),
     )
-    def test_callback_creates_new_user(self, mock_exchange, mock_verify, mock_userinfo):
+    def test_callback_creates_new_user(self, mock_exchange, mock_verify, mock_userinfo, mock_siren):
         """Callback with unknown sub and email creates User + UserProfile + ProConnectIdentity + Token + Contributors group."""
         from django.contrib.auth.models import Group, User
 
@@ -160,7 +164,7 @@ class CallbackTest(APITestCase):
         return_value=("fake-access-token", "fake-id-token"),
     )
     def test_callback_links_existing_user_by_email(
-        self, mock_exchange, mock_verify, mock_userinfo
+        self, mock_exchange, mock_verify, mock_userinfo, mock_siren
     ):
         """Callback with unknown sub but known email links ProConnectIdentity to existing user."""
         from django.contrib.auth.models import Group, User
@@ -192,7 +196,7 @@ class CallbackTest(APITestCase):
         return_value=("fake-access-token", "fake-id-token"),
     )
     def test_callback_returns_existing_pro_connect_user(
-        self, mock_exchange, mock_verify, mock_userinfo
+        self, mock_exchange, mock_verify, mock_userinfo, mock_siren
     ):
         """Callback with known sub updates User fields and last_id_token."""
         from django.contrib.auth.models import Group, User
@@ -236,7 +240,7 @@ class CallbackTest(APITestCase):
         return_value=("fake-access-token", "fake-id-token"),
     )
     def test_callback_updates_last_login(
-        self, mock_exchange, mock_verify, mock_userinfo
+        self, mock_exchange, mock_verify, mock_userinfo, mock_siren
     ):
         """Successful callback sets last_login on the authenticated user."""
         from django.contrib.auth.models import Group, User
@@ -261,7 +265,7 @@ class CallbackTest(APITestCase):
         return_value=("fake-access-token", "fake-id-token"),
     )
     def test_callback_rejects_disabled_user(
-        self, mock_exchange, mock_verify, mock_userinfo
+        self, mock_exchange, mock_verify, mock_userinfo, mock_siren
     ):
         """Callback for a disabled user (is_active=False) redirects with account_disabled error."""
         from django.contrib.auth.models import User
@@ -279,7 +283,7 @@ class CallbackTest(APITestCase):
         self.assertIn("error=account_disabled", response.url)
         self.assertNotIn("token=", response.url)
 
-    def test_callback_invalid_state(self):
+    def test_callback_invalid_state(self, mock_siren):
         """Callback with tampered state redirects with error."""
         response = self._call_callback(state="tampered-state")
 
@@ -304,7 +308,7 @@ class CallbackTest(APITestCase):
         return_value=("fake-access-token", "fake-id-token"),
     )
     def test_callback_without_siret_claim_stores_empty_string(
-        self, mock_exchange, mock_verify, mock_userinfo
+        self, mock_exchange, mock_verify, mock_userinfo, mock_siren
     ):
         """Input: userinfo with no siret claim. Expected: ProConnectIdentity is still created with siret as empty string (claim is optional)."""
         from django.contrib.auth.models import Group, User

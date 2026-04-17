@@ -73,6 +73,7 @@ from batid.services.geocoders import BanGeocoder
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
+from batid.services.organization import link_user_to_organization
 from batid.services.user import get_user_id_b64
 from batid.services.user import get_user_id_from_b64
 
@@ -1205,6 +1206,7 @@ class ActivateUser(APIView):
         if user and default_token_generator.check_token(user, token):
             user.is_active = True
             user.save()
+            link_user_to_organization(user)
             return redirect(
                 f"{site_url}/activation?status=success&email={urllib.parse.quote(user.email)}"
             )

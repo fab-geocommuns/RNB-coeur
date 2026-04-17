@@ -22,6 +22,7 @@ from rest_framework.views import APIView
 
 from batid.models import ProConnectIdentity
 from batid.models import UserProfile
+from batid.services.organization import link_user_to_organization
 
 logger = logging.getLogger(__name__)
 
@@ -332,6 +333,13 @@ class CallbackView(APIView):
                 # We block any user we disabled manually
                 error_params = urlencode({"error": "account_disabled"})
                 return HttpResponseRedirect(f"{redirect_uri}?{error_params}")
+
+            try:
+                link_user_to_organization(user)
+            except Exception:
+                logger.exception(
+                    "Failed to link user %s to organization (non-fatal)", user.pk
+                )
 
             user.last_login = timezone.now()
             user.save(update_fields=["last_login"])
