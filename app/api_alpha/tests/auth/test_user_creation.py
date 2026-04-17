@@ -265,7 +265,6 @@ class UserCreation(APITestCase):
                     "last_name": self.julie_data["last_name"],
                     "email": self.julie_data["email"],
                     "username": self.julie_data["username"],
-                    "organization_name": None,
                     "job_title": self.julie_data.get("job_title"),
                 }
                 mock_create_sandbox_user.assert_called_once_with(expected_user_data)
@@ -294,7 +293,6 @@ class UserCreation(APITestCase):
                     "last_name": self.julie_data["last_name"],
                     "email": self.julie_data["email"],
                     "username": self.julie_data["username"],
-                    "organization_name": None,
                     "job_title": self.julie_data.get("job_title"),
                 }
                 mock_create_sandbox_user.assert_called_once_with(expected_user_data)
