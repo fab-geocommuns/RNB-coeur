@@ -193,7 +193,6 @@ class Address(models.Model):
 
 class Organization(models.Model):
     name = models.CharField(max_length=100, null=False)
-    users = models.ManyToManyField(User, related_name="organizations")
     managed_cities = ArrayField(models.CharField(max_length=6), null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
