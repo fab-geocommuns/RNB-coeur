@@ -7,9 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api_alpha.exceptions import BadRequest
-from api_alpha.serializers.serializers import OrganizationSerializer
 from api_alpha.serializers.serializers import UserSerializer
-from batid.models import Organization
 from batid.tasks import create_sandbox_user
 
 
@@ -19,7 +17,6 @@ def create_user_in_sandbox(user_data: dict) -> None:
         "last_name": user_data["last_name"],
         "email": user_data["email"],
         "username": user_data["username"],
-        "organization_name": user_data.get("organization_name", None),
         "job_title": user_data.get("job_title", None),
     }
     create_sandbox_user.delay(user_data_without_password)
@@ -61,28 +58,10 @@ class CreateUserView(APIView):
         user_serializer.is_valid(raise_exception=True)
         user = user_serializer.save()
 
-        organization_serializer = None
-        organization_name = request_data.get("organization_name")
-        if organization_name:
-            organization_serializer = OrganizationSerializer(
-                data={"name": organization_name}
-            )
-            organization_serializer.is_valid(raise_exception=True)
-            organization, created = Organization.objects.get_or_create(
-                name=organization_name
-            )
-            organization.users.add(user)
-            organization.save()
-
         if settings.HAS_SANDBOX:
             create_user_in_sandbox(request_data)
 
         return Response(
-            {
-                "user": user_serializer.data,
-                "organization": (
-                    organization_serializer.data if organization_serializer else None
-                ),
-            },
+            {"user": user_serializer.data},
             status=status.HTTP_201_CREATED,
         )
