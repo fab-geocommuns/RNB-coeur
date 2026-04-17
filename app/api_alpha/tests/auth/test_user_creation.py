@@ -20,7 +20,6 @@ class UserCreation(APITestCase):
             "email": "julie.b+test@exemple.com",
             "username": "juju",
             "password": "tajine1234!",
-            "organization_name": "Mairie d'Angoulème",
             "job_title": "responsable SIG",
         }
         self.override = self.settings(
@@ -39,7 +38,7 @@ class UserCreation(APITestCase):
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post("/api/alpha/auth/users/", self.julie_data)
         self.assertEqual(response.status_code, 201)
-        julie = User.objects.prefetch_related("organizations", "profile").get(
+        julie = User.objects.prefetch_related("profile").get(
             first_name="Julie"
         )
         self.assertEqual(julie.last_name, "B")
@@ -48,9 +47,6 @@ class UserCreation(APITestCase):
         self.assertNotEqual(julie.password, "tajine1234!")
         self.assertIsNotNone(julie.password)
         self.assertEqual(julie.username, "juju")
-        self.assertEqual(len(julie.organizations.all()), 1)
-        orgas = julie.organizations.all()
-        self.assertEqual(orgas[0].name, "Mairie d'Angoulème")
         self.assertEqual(julie.profile.job_title, "responsable SIG")
         # Julie is a contributor and has a token
         self.assertTrue(
@@ -102,13 +98,6 @@ class UserCreation(APITestCase):
         )
 
     @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
-    def test_create_user_no_orga(self, mock_validate_captcha):
-        # come as you are: someone can create an account without having a job or an organization
-        self.julie_data.pop("organization_name")
-        response = self.client.post("/api/alpha/auth/users/", self.julie_data)
-        self.assertEqual(response.status_code, 201)
-
-    @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
     def test_mandatory_info(self, mock_validate_captcha):
         data = {}
         response = self.client.post("/api/alpha/auth/users/", data)
@@ -131,7 +120,7 @@ class UserCreation(APITestCase):
         with self.captureOnCommitCallbacks(execute=True):
             self.client.post("/api/alpha/auth/users/", self.julie_data)
 
-        julie = User.objects.prefetch_related("organizations", "profile").get(
+        julie = User.objects.prefetch_related("profile").get(
             first_name="Julie"
         )
 
@@ -174,7 +163,7 @@ class UserCreation(APITestCase):
         with self.captureOnCommitCallbacks(execute=True):
             self.client.post("/api/alpha/auth/users/", self.julie_data)
 
-        julie = User.objects.prefetch_related("organizations", "profile").get(
+        julie = User.objects.prefetch_related("profile").get(
             first_name="Julie"
         )
 
@@ -271,8 +260,14 @@ class UserCreation(APITestCase):
                 response = self.client.post("/api/alpha/auth/users/", self.julie_data)
                 self.assertEqual(response.status_code, 201)
 
-                expected_user_data = self.julie_data.copy()
-                expected_user_data.pop("password")
+                expected_user_data = {
+                    "first_name": self.julie_data["first_name"],
+                    "last_name": self.julie_data["last_name"],
+                    "email": self.julie_data["email"],
+                    "username": self.julie_data["username"],
+                    "organization_name": None,
+                    "job_title": self.julie_data.get("job_title"),
+                }
                 mock_create_sandbox_user.assert_called_once_with(expected_user_data)
 
                 self.assertTrue(User.objects.filter(first_name="Julie").exists())
@@ -294,8 +289,14 @@ class UserCreation(APITestCase):
                 )
                 self.assertEqual(response.status_code, 201)
 
-                expected_user_data = self.julie_data.copy()
-                expected_user_data.pop("password")
+                expected_user_data = {
+                    "first_name": self.julie_data["first_name"],
+                    "last_name": self.julie_data["last_name"],
+                    "email": self.julie_data["email"],
+                    "username": self.julie_data["username"],
+                    "organization_name": None,
+                    "job_title": self.julie_data.get("job_title"),
+                }
                 mock_create_sandbox_user.assert_called_once_with(expected_user_data)
 
                 self.assertTrue(User.objects.filter(first_name="Julie").exists())
@@ -311,7 +312,6 @@ class UserCreation(APITestCase):
             "email": "julie.b+test@exemple.com",
             "username": "juju",
             "password": "tajine1234!",
-            "organization_name": None,
             "job_title": None,
         }
         with self.captureOnCommitCallbacks(execute=True):
@@ -321,7 +321,7 @@ class UserCreation(APITestCase):
                 content_type="application/json",
             )
         self.assertEqual(response.status_code, 201)
-        julie = User.objects.prefetch_related("organizations", "profile").get(
+        julie = User.objects.prefetch_related("profile").get(
             first_name="Julie"
         )
         self.assertEqual(julie.last_name, "B")
@@ -330,7 +330,6 @@ class UserCreation(APITestCase):
         self.assertNotEqual(julie.password, "tajine")
         self.assertIsNotNone(julie.password)
         self.assertEqual(julie.username, "juju")
-        self.assertEqual(len(julie.organizations.all()), 0)
         self.assertEqual(julie.profile.job_title, None)
         # Julie is a contributor and has a token
         self.assertTrue(
@@ -356,7 +355,6 @@ class UserCreation(APITestCase):
             "email": "Superjuju+test@exemple.com",
             "username": "juju",
             "password": "Superjuju+test@exemple.com",
-            "organization_name": None,
             "job_title": None,
         }
         response = self.client.post(
