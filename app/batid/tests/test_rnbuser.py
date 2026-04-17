@@ -80,3 +80,12 @@ class TestPopulateOrganizationOnProfile(TestCase):
         populate_organization_on_profiles()
         self.user_no_org.profile.refresh_from_db()
         self.assertIsNone(self.user_no_org.profile.organization)
+
+    def test_user_without_profile_gets_profile_created(self):
+        """User with an org membership but no UserProfile row: profile is created and org is assigned."""
+        user = User.objects.create_user(username="no_profile", email="no_profile@test.com")
+        # No UserProfile created here
+        self.org_a.users.add(user)
+        populate_organization_on_profiles()
+        profile = UserProfile.objects.get(user=user)
+        self.assertEqual(profile.organization, self.org_a)
