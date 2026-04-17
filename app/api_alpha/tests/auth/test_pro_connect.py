@@ -127,7 +127,9 @@ class CallbackTest(APITestCase):
         "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
         return_value=("fake-access-token", "fake-id-token"),
     )
-    def test_callback_creates_new_user(self, mock_exchange, mock_verify, mock_userinfo, mock_siren):
+    def test_callback_creates_new_user(
+        self, mock_exchange, mock_verify, mock_userinfo, mock_siren
+    ):
         """Callback with unknown sub and email creates User + UserProfile + ProConnectIdentity + Token + Contributors group."""
         from django.contrib.auth.models import Group, User
 

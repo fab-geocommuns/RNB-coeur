@@ -1,10 +1,12 @@
 from unittest import mock
 
 from django.core.exceptions import ImproperlyConfigured
-from django.test import TestCase, override_settings
+from django.test import override_settings
+from django.test import TestCase
 
 from batid.exceptions import INSEESireneAPIDown
-from batid.services.insee_siren import extract_org_name, fetch_siren_data
+from batid.services.insee_siren import extract_org_name
+from batid.services.insee_siren import fetch_siren_data
 
 FAKE_SIREN_RESPONSE = {
     "uniteLegale": {
