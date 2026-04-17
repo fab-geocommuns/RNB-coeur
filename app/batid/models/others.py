@@ -228,6 +228,7 @@ class ProConnectIdentity(models.Model):
     )
     sub = models.CharField(max_length=255, unique=True, db_index=True)
     last_id_token = models.TextField(blank=True)
+    siret = models.CharField(max_length=14, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

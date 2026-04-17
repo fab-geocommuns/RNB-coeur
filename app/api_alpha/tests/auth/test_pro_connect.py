@@ -82,6 +82,7 @@ FAKE_USERINFO = {
     "email": "agent@gouv.fr",
     "given_name": "Marie",
     "usual_name": "Dupont",
+    "siret": "13002526500013",
 }
 
 
@@ -143,6 +144,7 @@ class CallbackTest(APITestCase):
         self.assertTrue(hasattr(user, "profile"))
         self.assertTrue(hasattr(user, "pro_connect"))
         self.assertEqual(user.pro_connect.sub, "pro-connect-sub-123")
+        self.assertEqual(user.pro_connect.siret, "13002526500013")
         self.assertTrue(Token.objects.filter(user=user).exists())
 
     @mock.patch(
@@ -204,7 +206,10 @@ class CallbackTest(APITestCase):
             last_name="Name",
         )
         ProConnectIdentity.objects.create(
-            user=user, sub="pro-connect-sub-123", last_id_token="old-token"
+            user=user,
+            sub="pro-connect-sub-123",
+            last_id_token="old-token",
+            siret="00000000000000",
         )
 
         response = self._call_callback()
@@ -214,6 +219,9 @@ class CallbackTest(APITestCase):
         self.assertEqual(user.first_name, "Marie")
         self.assertEqual(user.last_name, "Dupont")
         self.assertEqual(user.pro_connect.last_id_token, "fake-id-token")
+        self.assertEqual(
+            user.pro_connect.siret, "13002526500013"
+        )  # siret is updated from userinfo
 
     @mock.patch(
         "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
@@ -277,6 +285,36 @@ class CallbackTest(APITestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("error=", response.url)
+
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
+        return_value={
+            "sub": "pro-connect-sub-123",
+            "email": "agent@gouv.fr",
+            "given_name": "Marie",
+            "usual_name": "Dupont",
+        },
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+        return_value={"nonce": "test-nonce"},
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+        return_value=("fake-access-token", "fake-id-token"),
+    )
+    def test_callback_without_siret_claim_stores_empty_string(
+        self, mock_exchange, mock_verify, mock_userinfo
+    ):
+        """Input: userinfo with no siret claim. Expected: ProConnectIdentity is still created with siret as empty string (claim is optional)."""
+        from django.contrib.auth.models import Group, User
+
+        Group.objects.get_or_create(name="Contributors")
+
+        self._call_callback()
+
+        user = User.objects.get(email="agent@gouv.fr")
+        self.assertEqual(user.pro_connect.siret, "")
 
 
 @override_settings(

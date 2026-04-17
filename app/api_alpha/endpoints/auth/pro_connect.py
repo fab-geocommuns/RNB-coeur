@@ -193,6 +193,7 @@ def get_or_create_user_from_pro_connect(userinfo, id_token):
     email = userinfo["email"]
     first_name = userinfo.get("given_name", "")
     last_name = userinfo.get("usual_name", "")
+    siret = userinfo.get("siret", "")
 
     # Step 1: Known Pro Connect identity
     try:
@@ -203,7 +204,8 @@ def get_or_create_user_from_pro_connect(userinfo, id_token):
         user.last_name = last_name
         user.save(update_fields=["email", "first_name", "last_name"])
         identity.last_id_token = id_token
-        identity.save(update_fields=["last_id_token", "updated_at"])
+        identity.siret = siret
+        identity.save(update_fields=["last_id_token", "siret", "updated_at"])
         token, _ = Token.objects.get_or_create(user=user)
         return user, token
     except ProConnectIdentity.DoesNotExist:
@@ -216,7 +218,9 @@ def get_or_create_user_from_pro_connect(userinfo, id_token):
             raise ValueError(
                 f"User {email} already has a Pro Connect identity with a different sub"
             )
-        ProConnectIdentity.objects.create(user=user, sub=sub, last_id_token=id_token)
+        ProConnectIdentity.objects.create(
+            user=user, sub=sub, last_id_token=id_token, siret=siret
+        )
         user.first_name = first_name
         user.last_name = last_name
         user.save(update_fields=["first_name", "last_name"])
@@ -245,7 +249,9 @@ def get_or_create_user_from_pro_connect(userinfo, id_token):
         user.groups.add(group)
 
         UserProfile.objects.create(user=user)
-        ProConnectIdentity.objects.create(user=user, sub=sub, last_id_token=id_token)
+        ProConnectIdentity.objects.create(
+            user=user, sub=sub, last_id_token=id_token, siret=siret
+        )
         token = Token.objects.create(user=user)
 
     return user, token
