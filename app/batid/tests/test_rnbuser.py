@@ -83,7 +83,9 @@ class TestPopulateOrganizationOnProfile(TestCase):
 
     def test_user_without_profile_gets_profile_created(self):
         """User with an org membership but no UserProfile row: profile is created and org is assigned."""
-        user = User.objects.create_user(username="no_profile", email="no_profile@test.com")
+        user = User.objects.create_user(
+            username="no_profile", email="no_profile@test.com"
+        )
         # No UserProfile created here
         self.org_a.users.add(user)
         populate_organization_on_profiles()

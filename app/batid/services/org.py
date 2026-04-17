@@ -1,4 +1,5 @@
-from batid.models import Organization, UserProfile
+from batid.models import Organization
+from batid.models import UserProfile
 
 
 def populate_organization_on_profiles():
