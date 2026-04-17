@@ -26,6 +26,8 @@ PRIVATE_CAPTCHA_API_KEY = os.environ.get("PRIVATE_CAPTCHA_API_KEY")
 PRIVATE_CAPTCHA_SITEKEY = os.environ.get("PRIVATE_CAPTCHA_SITEKEY")
 ENABLE_CAPTCHA = os.environ.get("ENABLE_CAPTCHA", default="false").lower() == "true"
 
+RNB_TEAM_ORG_NAME = "Équipe RNB"
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
 
