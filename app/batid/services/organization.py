@@ -2,7 +2,8 @@ from django.conf import settings
 from django.contrib.auth.models import User
 
 from batid.models import Organization
-from batid.services.insee_siren import extract_org_name, fetch_siren_data
+from batid.services.insee_siren import extract_org_name
+from batid.services.insee_siren import fetch_siren_data
 
 
 def link_user_to_organization(user: User) -> None:

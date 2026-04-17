@@ -8,12 +8,12 @@ from django.utils.http import urlsafe_base64_encode
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from batid.models import Organization, ProConnectIdentity, UserProfile
-
-from api_alpha.tests.auth.test_pro_connect import (
-    FAKE_USERINFO,
-    _make_state,
-)
+from api_alpha.tests.auth.test_pro_connect import _make_state
+from api_alpha.tests.auth.test_pro_connect import FAKE_OIDC_CONFIG
+from api_alpha.tests.auth.test_pro_connect import FAKE_USERINFO
+from batid.models import Organization
+from batid.models import ProConnectIdentity
+from batid.models import UserProfile
 
 
 @override_settings(

@@ -1,10 +1,13 @@
 from unittest import mock
 
 from django.contrib.auth.models import User
-from django.test import TestCase, override_settings
+from django.test import override_settings
+from django.test import TestCase
 
 from batid.exceptions import INSEESireneAPIDown
-from batid.models import Organization, ProConnectIdentity, UserProfile
+from batid.models import Organization
+from batid.models import ProConnectIdentity
+from batid.models import UserProfile
 from batid.services.organization import link_user_to_organization
 
 
@@ -31,7 +34,9 @@ class LinkUserToOrganizationTest(TestCase):
         user.save()
         rnb_org = Organization.objects.create(name="Equipe RNB")
         Organization.objects.create(name="Other", siren="130025265")
-        ProConnectIdentity.objects.create(user=user, sub="sub-s1", siret="13002526500013")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-s1", siret="13002526500013"
+        )
 
         link_user_to_organization(user)
 
@@ -68,7 +73,9 @@ class LinkUserToOrganizationTest(TestCase):
     def test_links_via_siren_match(self):
         """Non-staff user whose ProConnect SIRET[:9] matches org.siren -> added to org."""
         user = self._make_user()
-        ProConnectIdentity.objects.create(user=user, sub="sub-1", siret="13002526500013")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-1", siret="13002526500013"
+        )
         org = Organization.objects.create(name="DINUM", siren="130025265")
 
         link_user_to_organization(user)
@@ -86,7 +93,9 @@ class LinkUserToOrganizationTest(TestCase):
             }
         }
         user = self._make_user()
-        ProConnectIdentity.objects.create(user=user, sub="sub-2", siret="13002526500013")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-2", siret="13002526500013"
+        )
 
         link_user_to_organization(user)
 
@@ -99,7 +108,9 @@ class LinkUserToOrganizationTest(TestCase):
     def test_no_link_when_siren_not_in_db_and_insee_returns_none(self, _mock_fetch):
         """No org in DB and INSEE returns None -> user not added to any org."""
         user = self._make_user()
-        ProConnectIdentity.objects.create(user=user, sub="sub-3", siret="13002526500013")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-3", siret="13002526500013"
+        )
 
         link_user_to_organization(user)
 
@@ -112,7 +123,9 @@ class LinkUserToOrganizationTest(TestCase):
             "uniteLegale": {"periodesUniteLegale": [{"dateFin": None}]}
         }
         user = self._make_user()
-        ProConnectIdentity.objects.create(user=user, sub="sub-4", siret="13002526500013")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-4", siret="13002526500013"
+        )
 
         link_user_to_organization(user)
 
@@ -145,7 +158,9 @@ class LinkUserToOrganizationTest(TestCase):
     def test_siren_takes_priority_over_email_domain(self):
         """SIREN match wins even when email domain also matches a different org."""
         user = self._make_user(email="agent@gouv.fr")
-        ProConnectIdentity.objects.create(user=user, sub="sub-6", siret="13002526500013")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-6", siret="13002526500013"
+        )
         org_siren = Organization.objects.create(name="DINUM", siren="130025265")
         org_domain = Organization.objects.create(name="Etat", email_domain="gouv.fr")
 
@@ -171,7 +186,9 @@ class LinkUserToOrganizationTest(TestCase):
     def test_no_match_leaves_user_unlinked(self, _mock_fetch):
         """No matching SIREN or domain -> user not added to any org."""
         user = self._make_user()
-        ProConnectIdentity.objects.create(user=user, sub="sub-7", siret="99999999900000")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-7", siret="99999999900000"
+        )
         Organization.objects.create(name="Other", siren="130025265")
 
         link_user_to_organization(user)
@@ -190,7 +207,9 @@ class LinkUserToOrganizationTest(TestCase):
     def test_calling_twice_is_idempotent(self):
         """Calling twice with the same SIREN adds the user once (M2M add is idempotent)."""
         user = self._make_user()
-        ProConnectIdentity.objects.create(user=user, sub="sub-9", siret="13002526500013")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-9", siret="13002526500013"
+        )
         org = Organization.objects.create(name="DINUM", siren="130025265")
 
         link_user_to_organization(user)
@@ -206,6 +225,8 @@ class LinkUserToOrganizationTest(TestCase):
     def test_insee_api_error_propagates(self, _mock_fetch):
         """INSEESireneAPIDown raised by INSEE is not suppressed — propagates to caller."""
         user = self._make_user()
-        ProConnectIdentity.objects.create(user=user, sub="sub-x", siret="13002526500013")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-x", siret="13002526500013"
+        )
         with self.assertRaises(INSEESireneAPIDown):
             link_user_to_organization(user)

@@ -38,10 +38,11 @@ from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
 from batid.services.guess_bdg import BuildingGuess
+from batid.services.organization import link_user_to_organization
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.organization import link_user_to_organization
-from batid.services.user import get_user_id_b64, get_user_id_from_b64
+from batid.services.user import get_user_id_b64
+from batid.services.user import get_user_id_from_b64
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
