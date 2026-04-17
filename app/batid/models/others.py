@@ -195,7 +195,8 @@ class Organization(models.Model):
     name = models.CharField(max_length=100, null=False)
     users = models.ManyToManyField(User, related_name="organizations")
     managed_cities = ArrayField(models.CharField(max_length=6), null=True)
-
+    siren = models.CharField(max_length=9, blank=True, null=True, unique=True)
+    email_domain = models.CharField(max_length=255, blank=True, null=True, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
