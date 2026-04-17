@@ -106,6 +106,10 @@ class EventUnknown(Exception):
     """The given event_id is not in the RNB database"""
 
 
+class INSEESireneAPIDown(Exception):
+    """The INSEE SIRENE API returned an unexpected error"""
+
+
 class BuildingOverlapError(InvalidOperation):
     """A building overlaps too much with existing buildings"""
 
