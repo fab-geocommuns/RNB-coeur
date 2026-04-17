@@ -202,6 +202,13 @@ class Organization(models.Model):
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    organization = models.ForeignKey(
+        "Organization",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="members",
+    )
     job_title = models.CharField(max_length=255, blank=True, null=True)
     max_allowed_contributions = models.IntegerField(null=False, default=500)
     total_contributions = models.IntegerField(null=False, default=0)
