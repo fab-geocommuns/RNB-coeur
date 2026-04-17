@@ -203,6 +203,7 @@ class Organization(models.Model):
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    # TO CHECK: attach_organization tried to remove this FK; kept from replug_ads
     organization = models.ForeignKey(
         "Organization",
         null=True,

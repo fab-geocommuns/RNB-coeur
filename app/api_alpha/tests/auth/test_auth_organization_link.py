@@ -11,7 +11,6 @@ from rest_framework.test import APITestCase
 from batid.models import Organization, ProConnectIdentity, UserProfile
 
 from api_alpha.tests.auth.test_pro_connect import (
-    FAKE_OIDC_CONFIG,
     FAKE_USERINFO,
     _make_state,
 )
@@ -25,46 +24,51 @@ from api_alpha.tests.auth.test_pro_connect import (
     PRO_CONNECT_ALLOWED_REDIRECT_URIS=["http://localhost:3000"],
 )
 @mock.patch("batid.services.organization.fetch_siren_data", return_value=None)
+@mock.patch(
+    "api_alpha.endpoints.auth.pro_connect.fetch_userinfo", return_value=FAKE_USERINFO
+)
+@mock.patch(
+    "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+    return_value={"nonce": "test-nonce"},
+)
+@mock.patch(
+    "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+    return_value=("access-123", "id-token-abc"),
+)
 class ProConnectOrgLinkTest(APITestCase):
-    """ProConnect callback sets user.profile.organization to matching org.
+    """ProConnect callback adds user to matching org via Organization.users M2M.
 
     FAKE_USERINFO["siret"] = "13002526500013" -> SIREN = "130025265".
-    Expected: after callback, user.profile.organization equals the matching org.
+    Expected: after callback, user belongs to the matching org.
     Inactive users must not be linked.
     """
 
-    def _do_callback(self, *args):
-        with mock.patch.multiple(
-            "api_alpha.endpoints.auth.pro_connect",
-            get_oidc_config=mock.DEFAULT,
-            exchange_code_for_tokens=mock.DEFAULT,
-            verify_id_token=mock.DEFAULT,
-            fetch_userinfo=mock.DEFAULT,
-        ) as mocks:
-            mocks["get_oidc_config"].return_value = FAKE_OIDC_CONFIG
-            mocks["exchange_code_for_tokens"].return_value = (
-                "access-123",
-                "id-token-abc",
-            )
-            mocks["verify_id_token"].return_value = {"nonce": "test-nonce"}
-            mocks["fetch_userinfo"].return_value = FAKE_USERINFO
-            return self.client.get(
-                "/api/alpha/auth/pro_connect/callback/",
-                {"code": "auth-code", "state": _make_state()},
-            )
+    def _do_callback(self):
+        return self.client.get(
+            "/api/alpha/auth/pro_connect/callback/",
+            {"code": "auth-code", "state": _make_state()},
+        )
 
-    def test_new_user_profile_linked_to_org_via_siren(self, _mock_siren):
-        """New active user created via ProConnect has profile.organization set."""
+    def test_new_user_linked_to_org_via_siren(
+        self, _mock_exchange, _mock_verify, _mock_userinfo, _mock_siren
+    ):
+        """New active user created via ProConnect is added to org.users."""
         org = Organization.objects.create(name="DINUM", siren="130025265")
 
         response = self._do_callback()
 
         self.assertEqual(response.status_code, 302)
         user = User.objects.get(email=FAKE_USERINFO["email"])
-        self.assertEqual(user.profile.organization, org)
+        self.assertIn(user, org.users.all())
 
-    def test_returning_user_profile_org_updated_on_login(self, _mock_siren):
-        """Returning active user (known sub) has profile.organization updated on login."""
+    def test_returning_user_org_updated_on_login(
+        self, _mock_exchange, _mock_verify, _mock_userinfo, _mock_siren
+    ):
+        """
+        Returning active user (known sub) is added to org.users on login.
+        - We create a user without org membership, with a ProConnectIdentity with the right SIRET.
+        - On callback, we expect the user to be in the matching org.
+        """
         user = User.objects.create(username="marie", email=FAKE_USERINFO["email"])
         UserProfile.objects.create(user=user)
         Token.objects.create(user=user)
@@ -79,12 +83,13 @@ class ProConnectOrgLinkTest(APITestCase):
         response = self._do_callback()
 
         self.assertEqual(response.status_code, 302)
-        user.profile.refresh_from_db()
-        self.assertEqual(user.profile.organization, org)
+        self.assertIn(user, org.users.all())
 
-    def test_inactive_user_is_not_linked_to_org(self, _mock_siren):
-        """Disabled user (is_active=False) is redirected with error and not linked."""
-        Organization.objects.create(name="DINUM", siren="130025265")
+    def test_inactive_user_is_not_linked_to_org(
+        self, _mock_exchange, _mock_verify, _mock_userinfo, _mock_siren
+    ):
+        """Disabled user (is_active=False) is redirected with error and not added to org."""
+        org = Organization.objects.create(name="DINUM", siren="130025265")
         user = User.objects.create(
             username="marie",
             email=FAKE_USERINFO["email"],
@@ -102,19 +107,18 @@ class ProConnectOrgLinkTest(APITestCase):
         response = self._do_callback()
 
         self.assertIn("account_disabled", response["Location"])
-        user.profile.refresh_from_db()
-        self.assertIsNone(user.profile.organization)
+        self.assertNotIn(user, org.users.all())
 
 
 @override_settings(FRONTEND_URL="http://localhost:3000")
 class ActivateUserOrgLinkTest(APITestCase):
-    """ActivateUser sets profile.organization via email domain on activation.
+    """ActivateUser adds user to org via email domain on activation.
 
     Inputs: inactive user, valid activation token, Organization with matching email_domain.
-    Expected: after GET /auth/activate/..., user.profile.organization is that org.
+    Expected: after GET /auth/activate/..., user is in org.users.
     """
 
-    def test_activation_links_user_profile_to_org_via_email_domain(self):
+    def test_activation_links_user_to_org_via_email_domain(self):
         user = User.objects.create(
             username="newuser", email="agent@gouv.fr", is_active=False
         )
@@ -127,5 +131,4 @@ class ActivateUserOrgLinkTest(APITestCase):
 
         user.refresh_from_db()
         self.assertTrue(user.is_active)
-        user.profile.refresh_from_db()
-        self.assertEqual(user.profile.organization, org)
+        self.assertIn(user, org.users.all())
