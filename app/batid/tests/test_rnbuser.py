@@ -24,3 +24,14 @@ class TestRNBUser(TestCase):
         managed_codes = get_managed_insee_codes(u)
         managed_codes.sort()
         self.assertListEqual(managed_codes, ["12345", "67890"])
+
+    def test_user_with_no_profile_returns_empty(self):
+        """User with no UserProfile row gets an empty list."""
+        u = User.objects.create_user(username="noprofile", email="np@test.com")
+        self.assertListEqual(get_managed_insee_codes(u), [])
+
+    def test_user_with_no_org_returns_empty(self):
+        """User whose profile has no org assignment gets an empty list."""
+        u = User.objects.create_user(username="noordg", email="no@test.com")
+        UserProfile.objects.create(user=u)
+        self.assertListEqual(get_managed_insee_codes(u), [])
