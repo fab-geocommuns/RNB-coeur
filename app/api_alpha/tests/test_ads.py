@@ -12,6 +12,7 @@ from batid.models import ADS
 from batid.models import Building
 from batid.models import BuildingADS
 from batid.models import Organization
+from batid.models import UserProfile
 from batid.tests.helpers import create_cenac
 from batid.tests.helpers import create_from_geojson_feature
 from batid.tests.helpers import create_grenoble
@@ -41,7 +42,9 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
             group.permissions.add(permission)
 
         org = Organization.objects.create(name="Test Org", managed_cities=["38185"])
-        org.users.add(user)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.organization = org
+        profile.save(update_fields=["organization"])
 
         # Create an ADS set in Grenoble (managed)
         create_from_geojson_feature(
@@ -1294,7 +1297,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
             first_name="John", last_name="Doe", username="johndoe"
         )
         org = Organization.objects.create(name="Test Org", managed_cities=["38185"])
-        org.users.add(self.user)
+        profile, _ = UserProfile.objects.get_or_create(user=self.user)
+        profile.organization = org
+        profile.save(update_fields=["organization"])
         self.token = Token.objects.create(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
 
@@ -1316,7 +1321,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
             email="superuser@ilovepower.fr",
             is_superuser=True,
         )
-        org.users.add(self.superuser)
+        profile, _ = UserProfile.objects.get_or_create(user=self.superuser)
+        profile.organization = org
+        profile.save(update_fields=["organization"])
         self.token_superuser = Token.objects.create(user=self.superuser)
 
 

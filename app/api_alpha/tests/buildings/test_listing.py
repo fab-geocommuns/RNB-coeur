@@ -550,7 +550,9 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
             first_name="John", last_name="Doe", username="johndoe"
         )
         org = Organization.objects.create(name="Test Org", managed_cities=["38185"])
-        org.users.add(u)
+        profile, _ = UserProfile.objects.get_or_create(user=u)
+        profile.organization = org
+        profile.save(update_fields=["organization"])
 
         token = Token.objects.create(user=u)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)

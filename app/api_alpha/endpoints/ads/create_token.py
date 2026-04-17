@@ -13,6 +13,7 @@ from rest_framework.request import Request
 from rest_framework.views import APIView
 
 from batid.models import Organization
+from batid.models import UserProfile
 from batid.utils.constants import ADS_GROUP_NAME
 
 
@@ -51,8 +52,9 @@ class CreateAdsTokenView(APIView):
                         },
                     )
 
-                    organization.users.add(user)
-                    organization.save()
+                    profile, _ = UserProfile.objects.get_or_create(user=user)
+                    profile.organization = organization
+                    profile.save(update_fields=["organization"])
 
                     token, created = Token.objects.get_or_create(user=user)
 

@@ -59,9 +59,9 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    		end,
 	    		'organizations_names', (
                     SELECT json_agg(org.name)
-                    FROM batid_organization_users AS uo
-                    JOIN batid_organization AS org ON uo.organization_id = org.id
-                    WHERE uo.user_id = u.id
+                    FROM batid_userprofile AS up
+                    JOIN batid_organization AS org ON up.organization_id = org.id
+                    WHERE up.user_id = u.id
                 )
 	    	) else null
 	    end,

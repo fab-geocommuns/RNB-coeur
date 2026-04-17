@@ -10,6 +10,7 @@ from batid.models import Building
 from batid.models import BuildingImport
 from batid.models import DataFix
 from batid.models import Organization
+from batid.models import UserProfile
 from batid.tests.factories.users import ContributorUserFactory
 
 
@@ -30,7 +31,9 @@ class SingleBuildingHistoryTest(APITestCase):
 
         # She is working in this org
         org = Organization.objects.create(name="Mairie de Dreux")
-        org.users.set([user])
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.organization = org
+        profile.save(update_fields=["organization"])
 
         token = Token.objects.get(user=user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
