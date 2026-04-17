@@ -301,7 +301,7 @@ class UserCreation(APITestCase):
 
     @mock.patch("batid.tasks.create_sandbox_user.delay")
     @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
-    def test_works_with_empty_organization_name_and_job_title(
+    def test_works_with_empty_job_title(
         self, mock_validate_captcha, mock_create_sandbox_user
     ):
         self.julie_data = {
