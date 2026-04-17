@@ -59,30 +59,13 @@ class CreateUserView(APIView):
         validate_captcha(request_data.get("captcha_solution"))
         user_serializer = UserSerializer(data=request_data)
         user_serializer.is_valid(raise_exception=True)
-        user = user_serializer.save()
 
-        organization_serializer = None
-        organization_name = request_data.get("organization_name")
-        if organization_name:
-            organization_serializer = OrganizationSerializer(
-                data={"name": organization_name}
-            )
-            organization_serializer.is_valid(raise_exception=True)
-            organization, created = Organization.objects.get_or_create(
-                name=organization_name
-            )
-            organization.users.add(user)
-            organization.save()
+        user_serializer.save()
 
         if settings.HAS_SANDBOX:
             create_user_in_sandbox(request_data)
 
         return Response(
-            {
-                "user": user_serializer.data,
-                "organization": (
-                    organization_serializer.data if organization_serializer else None
-                ),
-            },
+            {"user": user_serializer.data},
             status=status.HTTP_201_CREATED,
         )

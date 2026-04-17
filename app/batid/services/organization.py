@@ -6,32 +6,38 @@ from batid.services.insee_siren import extract_org_name, fetch_siren_data
 
 
 def link_user_to_organization(user: User) -> None:
+    """
+    Link a user to an organization based on the following logic:
+    1. Staff and superusers always belong to the RNB team
+    2. SIRET from Pro Connect — users log in via Pro Connect, we have their SIRET, we can extract the SIREN and find the org
+    3. Email domain — organization have an email domain, if the user's email matches that domain, we link them to the org.
+    """
+
     # Staff and superusers always belong to the RNB team — skip all other logic
     if user.is_staff or user.is_superuser:
         org = Organization.objects.filter(name=settings.RNB_TEAM_ORG_NAME).first()
         if org:
-            user.profile.organization = org
-            user.profile.save(update_fields=["organization"])
+            org.users.add(user)
         return
 
-    # SIREN match — authoritative, always replayed, always updates profile.organization
+    # SIREN match — authoritative, always replayed
     if hasattr(user, "pro_connect") and len(user.pro_connect.siret) >= 9:
+
+        # SIREN number is the first 9 digits of the SIRET
         siren = user.pro_connect.siret[:9]
         org = Organization.objects.filter(siren=siren).first()
         if org is None:
             org = _create_org_from_siren(siren)
         if org:
-            user.profile.organization = org
-            user.profile.save(update_fields=["organization"])
+            org.users.add(user)
             return
 
-    # Email domain — fallback, only when profile has no org yet
-    if user.profile.organization is None and user.email and "@" in user.email:
+    # Email domain — fallback, only when user has no org yet
+    if user.email and "@" in user.email and not Organization.objects.filter(users=user).exists():
         domain = user.email.split("@")[1]
         org = Organization.objects.filter(email_domain=domain).first()
         if org:
-            user.profile.organization = org
-            user.profile.save(update_fields=["organization"])
+            org.users.add(user)
 
 
 def _create_org_from_siren(siren: str) -> Organization | None:
