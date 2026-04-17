@@ -38,9 +38,7 @@ class UserCreation(APITestCase):
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post("/api/alpha/auth/users/", self.julie_data)
         self.assertEqual(response.status_code, 201)
-        julie = User.objects.prefetch_related("profile").get(
-            first_name="Julie"
-        )
+        julie = User.objects.prefetch_related("profile").get(first_name="Julie")
         self.assertEqual(julie.last_name, "B")
         self.assertEqual(julie.email, "julie.b+test@exemple.com")
         # we check the password is properly hashed
@@ -120,9 +118,7 @@ class UserCreation(APITestCase):
         with self.captureOnCommitCallbacks(execute=True):
             self.client.post("/api/alpha/auth/users/", self.julie_data)
 
-        julie = User.objects.prefetch_related("profile").get(
-            first_name="Julie"
-        )
+        julie = User.objects.prefetch_related("profile").get(first_name="Julie")
 
         # the account is inactive
         self.assertFalse(julie.is_active)
@@ -163,9 +159,7 @@ class UserCreation(APITestCase):
         with self.captureOnCommitCallbacks(execute=True):
             self.client.post("/api/alpha/auth/users/", self.julie_data)
 
-        julie = User.objects.prefetch_related("profile").get(
-            first_name="Julie"
-        )
+        julie = User.objects.prefetch_related("profile").get(first_name="Julie")
 
         # the account is inactive
         self.assertFalse(julie.is_active)
@@ -319,9 +313,7 @@ class UserCreation(APITestCase):
                 content_type="application/json",
             )
         self.assertEqual(response.status_code, 201)
-        julie = User.objects.prefetch_related("profile").get(
-            first_name="Julie"
-        )
+        julie = User.objects.prefetch_related("profile").get(first_name="Julie")
         self.assertEqual(julie.last_name, "B")
         self.assertEqual(julie.email, "julie.b+test@exemple.com")
         # we check the password is properly hashed

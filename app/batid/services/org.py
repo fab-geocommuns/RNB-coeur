@@ -2,7 +2,6 @@
 # UserProfile.organization from the Organization.users M2M relation.
 # The M2M was removed when migrating from N:N to 1:N user-org membership
 # (migration 0129). The function is kept here for reference only.
-
 # from batid.models import Organization, UserProfile
 #
 #
