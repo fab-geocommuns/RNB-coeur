@@ -80,7 +80,6 @@ def normalize_text(text: str) -> str:
 def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> dict:
     """
     Update addresses for a department with still_exists=True
-    and their ban_id from the BAN file.
     Addresses in the department but NOT in the BAN file are marked still_exists=False.
     """
     dpt = src_params["dpt"]
