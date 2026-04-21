@@ -226,8 +226,16 @@ class ProConnectIdentity(models.Model):
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name="pro_connect"
     )
+    # sub
+    # ID sent by the ID provider, unique for each user and stable over time. We use it to identify the user and link it to their account in the RNB.
+    # documentation: https://partenaires.proconnect.gouv.fr/docs/fournisseur-service/donnees_fournies
     sub = models.CharField(max_length=255, unique=True, db_index=True)
+
+    # last_id_token
+    # Raw JWT id_token from the last login, kept to pass as id_token_hint during logout
     last_id_token = models.TextField(blank=True)
+
+    # SIRET of the user's employer, provided by Pro Connect in the userinfo claims
     siret = models.CharField(max_length=14, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
