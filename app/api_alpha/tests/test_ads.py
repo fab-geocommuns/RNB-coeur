@@ -34,7 +34,7 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
         # Add permission
-        group, created = Group.objects.get_or_create(name=ADS_GROUP_NAME)
+        group, _ = Group.objects.get_or_create(name=ADS_GROUP_NAME)
         user.groups.add(group)
         content_type = ContentType.objects.get_for_model(ADS)
         permissions = Permission.objects.filter(content_type=content_type)
