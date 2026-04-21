@@ -27,6 +27,7 @@ class Migration(migrations.Migration):
                 ),
                 ("sub", models.CharField(db_index=True, max_length=255, unique=True)),
                 ("last_id_token", models.TextField(blank=True)),
+                ("siret", models.CharField(blank=True, max_length=14)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 (
