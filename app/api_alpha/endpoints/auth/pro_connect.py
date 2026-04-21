@@ -12,7 +12,6 @@ from django.core.cache import cache
 from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.utils import timezone
-from nanoid import generate as nanoid
 from rest_framework import status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
@@ -223,7 +222,10 @@ def get_or_create_user_from_pro_connect(userinfo, id_token):
         )
         user.first_name = first_name
         user.last_name = last_name
-        user.save(update_fields=["first_name", "last_name"])
+        if not user.is_active:
+            user.is_active = True
+            user.set_unusable_password()
+        user.save(update_fields=["first_name", "last_name", "is_active", "password"])
         token, _ = Token.objects.get_or_create(user=user)
         return user, token
     except User.DoesNotExist:
@@ -233,7 +235,10 @@ def get_or_create_user_from_pro_connect(userinfo, id_token):
     with transaction.atomic():
         username = email.split("@")[0]
         if User.objects.filter(username=username).exists():
-            username = f"{username}_{nanoid(size=6)}"
+            index = 2
+            while User.objects.filter(username=f"{username}_{index}").exists():
+                index += 1
+            username = f"{username}_{index}"
 
         user = User.objects.create(
             username=username,

@@ -167,7 +167,7 @@ class CallbackTest(APITestCase):
 
         Group.objects.get_or_create(name="Contributors")
         existing_user = User.objects.create_user(
-            username="existing", email="agent@gouv.fr", password="testpass123"
+            username="existing", email="agent@gouv.fr", password="testpass123", is_active=True
         )
 
         response = self._call_callback()
@@ -178,6 +178,39 @@ class CallbackTest(APITestCase):
         self.assertEqual(existing_user.pro_connect.sub, "pro-connect-sub-123")
         # User keeps their password
         self.assertTrue(existing_user.has_usable_password())
+
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
+        return_value=FAKE_USERINFO,
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+        return_value={"nonce": "test-nonce"},
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+        return_value=("fake-access-token", "fake-id-token"),
+    )
+    def test_callback_links_inactive_account_activates_and_removes_password(
+        self, mock_exchange, mock_verify, mock_userinfo
+    ):
+        """Callback with unknown sub but known email matching an inactive account:
+        links ProConnectIdentity, activates the account, and removes the password."""
+        from django.contrib.auth.models import Group, User
+
+        Group.objects.get_or_create(name="Contributors")
+        existing_user = User.objects.create_user(
+            username="existing", email="agent@gouv.fr", password="testpass123", is_active=False
+        )
+
+        response = self._call_callback()
+
+        self.assertEqual(response.status_code, 302)
+        existing_user.refresh_from_db()
+        self.assertTrue(hasattr(existing_user, "pro_connect"))
+        self.assertEqual(existing_user.pro_connect.sub, "pro-connect-sub-123")
+        self.assertTrue(existing_user.is_active)
+        self.assertFalse(existing_user.has_usable_password())
 
     @mock.patch(
         "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
