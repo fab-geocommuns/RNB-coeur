@@ -2,6 +2,14 @@
 # See https://pre-commit.com/hooks.html for more hooks
 exclude: app/static
 repos:
+  - repo: local
+    hooks:
+      - id: show-python-version
+        name: Show Python version
+        entry: python --version
+        language: system
+        always_run: true
+        pass_filenames: false
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.2.0
     hooks:
@@ -13,7 +21,7 @@ repos:
       - id: autoflake
         args: [--in-place, --remove-all-unused-imports]
   - repo: https://github.com/asottile/reorder_python_imports
-    rev: v3.9.0
+    rev: v3.16.0
     hooks:
       - id: reorder-python-imports
         args: ["--application-directories", "app"]
