@@ -4,9 +4,9 @@ from urllib.parse import urlencode
 
 import requests
 from authlib.jose import jwt as jose_jwt
+from batid.models import ProConnectIdentity, UserProfile
 from django.conf import settings
-from django.contrib.auth.models import Group
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core import signing
 from django.core.cache import cache
 from django.db import transaction
@@ -18,9 +18,6 @@ from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from batid.models import ProConnectIdentity
-from batid.models import UserProfile
 
 logger = logging.getLogger(__name__)
 

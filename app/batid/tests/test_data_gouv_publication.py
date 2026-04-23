@@ -23,7 +23,6 @@ from freezegun import freeze_time
 from moto import mock_aws
 
 
-
 # Polygone dans Paris
 def get_geom_paris():
     coords = {
