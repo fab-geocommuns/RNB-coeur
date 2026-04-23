@@ -1,11 +1,10 @@
 from abc import abstractmethod
 
+from batid.services.vector_tiles import TileParams
 from django.db import connection
 from django.http import HttpResponse
 from rest_framework.request import Request
 from rest_framework.views import APIView
-
-from batid.services.vector_tiles import TileParams
 
 
 class BaseVectorTileView(APIView):

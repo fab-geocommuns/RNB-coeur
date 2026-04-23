@@ -1,8 +1,6 @@
-from rest_framework import serializers
-
-from api_alpha.serializers.serializers import ExtIdSerializer
-from api_alpha.serializers.serializers import RNBIdField
+from api_alpha.serializers.serializers import ExtIdSerializer, RNBIdField
 from batid.utils.misc import ext_ids_equal
+from rest_framework import serializers
 
 
 class PlainAddressSerializer(serializers.Serializer):

@@ -1,11 +1,8 @@
 import datetime
 
+from batid.utils.date import french_month_year_label, month_bounds, previous_month
 from django.test import TestCase
 from freezegun import freeze_time
-
-from batid.utils.date import french_month_year_label
-from batid.utils.date import month_bounds
-from batid.utils.date import previous_month
 
 
 class DateUtilsTestCase(TestCase):

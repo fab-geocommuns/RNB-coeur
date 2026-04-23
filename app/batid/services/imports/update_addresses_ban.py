@@ -3,16 +3,14 @@ import logging
 import os
 import unicodedata
 import uuid
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 
+from batid.models import Address
+from batid.services.source import Source
 from django.contrib.gis.geos import Point
 from django.db import connection
 from pyproj import Geod
 from rapidfuzz.distance import Levenshtein
-
-from batid.models import Address
-from batid.services.source import Source
 
 logger = logging.getLogger(__name__)
 

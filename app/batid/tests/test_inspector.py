@@ -1,32 +1,31 @@
 import json
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 from unittest import mock
 
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import Point
-from django.contrib.gis.geos import Polygon
-from django.db import connection
-from django.db import transaction
-from django.test import override_settings
-from django.test import TestCase
-from django.test import TransactionTestCase
-
 from batid.exceptions import BANUnknownCleInterop
-from batid.models import Address
-from batid.models import Building
-from batid.models import BuildingImport
-from batid.models import BuildingWithHistory
-from batid.models import Candidate
-from batid.services.candidate import _report_count_decisions
-from batid.services.candidate import _report_count_refusals
-from batid.services.candidate import _report_list_fake_updates
-from batid.services.candidate import Inspector
+from batid.models import (
+    Address,
+    Building,
+    BuildingImport,
+    BuildingWithHistory,
+    Candidate,
+)
+from batid.services.candidate import (
+    Inspector,
+    _report_count_decisions,
+    _report_count_refusals,
+    _report_list_fake_updates,
+)
 from batid.services.rnb_id import generate_rnb_id
-from batid.tests.helpers import coords_to_mp_geom
-from batid.tests.helpers import coords_to_point_geom
-from batid.tests.helpers import create_bdg
-from batid.tests.helpers import create_paris
+from batid.tests.helpers import (
+    coords_to_mp_geom,
+    coords_to_point_geom,
+    create_bdg,
+    create_paris,
+)
+from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
+from django.db import connection, transaction
+from django.test import TestCase, TransactionTestCase, override_settings
 
 
 class TestInspectorBdgCreate(TestCase):

@@ -1,14 +1,11 @@
 import json
 from unittest import mock
 
+from api_alpha.tests.utils import coordinates_almost_equal
+from batid.models import Address, Building, Contribution
+from batid.tests.factories.users import ContributorUserFactory
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
-
-from api_alpha.tests.utils import coordinates_almost_equal
-from batid.models import Address
-from batid.models import Building
-from batid.models import Contribution
-from batid.tests.factories.users import ContributorUserFactory
 
 
 class BuildingMergeTest(APITestCase):

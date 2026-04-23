@@ -1,7 +1,8 @@
+from api_alpha.serializers.serializers import (
+    BuildingGeoJSONSerializer,
+    BuildingSerializer,
+)
 from django.test import TestCase
-
-from api_alpha.serializers.serializers import BuildingGeoJSONSerializer
-from api_alpha.serializers.serializers import BuildingSerializer
 
 
 class GeoJSONSerializer(TestCase):

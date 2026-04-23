@@ -1,23 +1,18 @@
 import os
 import re
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
-
-from dateutil.relativedelta import relativedelta  # type: ignore
-from django.conf import settings
-from django.db import connection
-from django.http import HttpRequest
-from django.http import HttpResponse
-from django.http import StreamingHttpResponse
-from django.utils.dateparse import parse_datetime
-from django.utils.html import escape
-from psycopg2 import sql
-from rest_framework.views import APIView
+from datetime import datetime, timedelta, timezone
 
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import rnb_doc
 from batid.models import City
+from dateutil.relativedelta import relativedelta  # type: ignore
+from django.conf import settings
+from django.db import connection
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
+from django.utils.dateparse import parse_datetime
+from django.utils.html import escape
+from psycopg2 import sql
+from rest_framework.views import APIView
 
 
 def get_datetime_months_ago(months: int) -> datetime:

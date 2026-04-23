@@ -5,13 +5,8 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-from celery import chain
-from celery import shared_task
-from celery import Signature
-
 from api_alpha.utils.sandbox_client import SandboxClient
-from batid.services.administrative_areas import dpts_list
-from batid.services.administrative_areas import slice_dpts
+from batid.services.administrative_areas import dpts_list, slice_dpts
 from batid.services.building import export_city as export_city_job
 from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
 from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
@@ -25,38 +20,47 @@ from batid.services.data_fix.remove_light_buildings import (
 from batid.services.data_fix.remove_light_buildings import (
     remove_light_buildings as remove_light_buildings_job,
 )
-from batid.services.data_gouv_publication import get_area_publish_task
-from batid.services.data_gouv_publication import publish
+from batid.services.data_gouv_publication import get_area_publish_task, publish
 from batid.services.imports.import_bal import create_all_bal_links_tasks
 from batid.services.imports.import_bal import (
     create_dpt_bal_rnb_links as create_dpt_bal_rnb_links_job,
 )
-from batid.services.imports.import_ban import create_ban_full_import_tasks
-from batid.services.imports.import_ban import import_ban_addresses
-from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_addresses
-from batid.services.imports.import_bdnb_2023_01 import import_bdnd_2023_01_bdgs
-from batid.services.imports.import_bdtopo import bdtopo_dpts_list
-from batid.services.imports.import_bdtopo import bdtopo_recente_release_date
-from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
-from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
+from batid.services.imports.import_ban import (
+    create_ban_full_import_tasks,
+    import_ban_addresses,
+)
+from batid.services.imports.import_bdnb_2023_01 import (
+    import_bdnd_2023_01_addresses,
+    import_bdnd_2023_01_bdgs,
+)
+from batid.services.imports.import_bdtopo import (
+    bdtopo_dpts_list,
+    bdtopo_recente_release_date,
+    create_bdtopo_full_import_tasks,
+    create_candidate_from_bdtopo,
+)
 from batid.services.imports.import_cities import import_etalab_cities
 from batid.services.imports.import_dgfip_ads import (
     import_dgfip_ads_achievements as import_dgfip_ads_achievements_job,
 )
 from batid.services.imports.import_dpt import import_etalab_dpts
-from batid.services.imports.import_plots import create_plots_full_import_tasks
-from batid.services.imports.import_plots import etalab_dpt_list
-from batid.services.imports.import_plots import etalab_recent_release_date
+from batid.services.imports.import_plots import (
+    create_plots_full_import_tasks,
+    etalab_dpt_list,
+    etalab_recent_release_date,
+)
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
 )
-from batid.services.mattermost import notify_if_error
-from batid.services.mattermost import notify_tech
-from batid.services.reports.arcep import dl_and_create_arcep_reports
-from batid.services.reports.arcep import reject_irrelevant_arcep_reports
+from batid.services.mattermost import notify_if_error, notify_tech
+from batid.services.reports.arcep import (
+    dl_and_create_arcep_reports,
+    reject_irrelevant_arcep_reports,
+)
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.source import Source
 from batid.utils.auth import make_random_password
+from celery import Signature, chain, shared_task
 
 
 @shared_task

@@ -1,10 +1,8 @@
 from unittest.mock import patch
 
-from rest_framework.test import APITestCase
-
 from api_alpha.serializers.serializers import ListBuildingQuerySerializer
-from batid.tests.helpers import create_default_bdg
-from batid.tests.helpers import create_grenoble
+from batid.tests.helpers import create_default_bdg, create_grenoble
+from rest_framework.test import APITestCase
 
 
 class EndpointTest(APITestCase):

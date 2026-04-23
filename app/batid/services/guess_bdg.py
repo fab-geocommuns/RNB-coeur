@@ -1,14 +1,10 @@
-from django.contrib.gis.geos import Point
-from django.contrib.gis.geos import Polygon
+from batid.models import Building, Plot
+from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
+from batid.services.geocoders import BanGeocoder, PhotonGeocoder
+from batid.utils.misc import is_float
+from django.contrib.gis.geos import Point, Polygon
 from django.db.models import QuerySet
 from geopy import distance  # type: ignore[import-untyped]
-
-from batid.models import Building
-from batid.models import Plot
-from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
-from batid.services.geocoders import BanGeocoder
-from batid.services.geocoders import PhotonGeocoder
-from batid.utils.misc import is_float
 
 
 class BuildingGuess:

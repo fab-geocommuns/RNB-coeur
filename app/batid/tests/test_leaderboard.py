@@ -1,19 +1,19 @@
 import datetime
 import json
 
+from batid.models.building import Building
+from batid.services.email import build_monthly_leaderboard_email
+from batid.services.leaderboard import (
+    get_monthly_edit_leaderboard,
+    get_monthly_new_users,
+)
+from batid.tests.factories.users import ContributorUserFactory
+from batid.utils.date import french_month_year_label
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.mail import EmailMultiAlternatives
-from django.test import override_settings
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
-
-from batid.models.building import Building
-from batid.services.email import build_monthly_leaderboard_email
-from batid.services.leaderboard import get_monthly_edit_leaderboard
-from batid.services.leaderboard import get_monthly_new_users
-from batid.tests.factories.users import ContributorUserFactory
-from batid.utils.date import french_month_year_label
 
 SIMPLE_POLYGON = GEOSGeometry(
     json.dumps(

@@ -1,10 +1,9 @@
 # empty django command
 import json
 
+from batid.services.source import Source
 from django.core.management import BaseCommand
 from django.db import connections
-
-from batid.services.source import Source
 
 
 class Command(BaseCommand):

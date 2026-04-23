@@ -2,15 +2,12 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 
 import boto3
 import requests
-from botocore.config import Config  # type: ignore[import-untyped]
-
 from batid.services.mattermost import notify_tech
+from botocore.config import Config  # type: ignore[import-untyped]
 
 
 # main function to be called by the cron job

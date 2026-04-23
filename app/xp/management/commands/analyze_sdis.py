@@ -1,9 +1,8 @@
 import json
 
 import pandas as pd
-from django.core.management.base import BaseCommand
-
 from batid.services.source import Source
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):

@@ -1,5 +1,26 @@
 from datetime import datetime
 
+from api_alpha.apps import LiteralStr
+from api_alpha.exceptions import BadRequest, ServiceUnavailable
+from api_alpha.permissions import ReadOnly, RNBContributorPermission
+from api_alpha.serializers.building_history import BuildingHistorySerializer
+from api_alpha.serializers.serializers import (
+    BuildingGeoJSONSerializer,
+    BuildingSerializer,
+    BuildingUpdateSerializer,
+)
+from api_alpha.utils.logging_mixin import RNBLoggingMixin
+from api_alpha.utils.rnb_doc import get_status_list, rnb_doc
+from batid.exceptions import (
+    BANAPIDown,
+    BANBadResultType,
+    BANUnknownCleInterop,
+    InvalidOperation,
+)
+from batid.list_bdg import list_bdgs
+from batid.models import Building, Contribution
+from batid.services.bdg_history import get_bdg_history
+from batid.services.rnb_id import clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -7,28 +28,6 @@ from rest_framework import status as http_status
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from api_alpha.apps import LiteralStr
-from api_alpha.exceptions import BadRequest
-from api_alpha.exceptions import ServiceUnavailable
-from api_alpha.permissions import ReadOnly
-from api_alpha.permissions import RNBContributorPermission
-from api_alpha.serializers.building_history import BuildingHistorySerializer
-from api_alpha.serializers.serializers import BuildingGeoJSONSerializer
-from api_alpha.serializers.serializers import BuildingSerializer
-from api_alpha.serializers.serializers import BuildingUpdateSerializer
-from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.rnb_doc import get_status_list
-from api_alpha.utils.rnb_doc import rnb_doc
-from batid.exceptions import BANAPIDown
-from batid.exceptions import BANBadResultType
-from batid.exceptions import BANUnknownCleInterop
-from batid.exceptions import InvalidOperation
-from batid.list_bdg import list_bdgs
-from batid.models import Building
-from batid.models import Contribution
-from batid.services.bdg_history import get_bdg_history
-from batid.services.rnb_id import clean_rnb_id
 
 
 class SingleBuildingHistory(RNBLoggingMixin, APIView):

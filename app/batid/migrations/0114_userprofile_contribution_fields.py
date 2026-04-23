@@ -1,7 +1,5 @@
 # Generated manually
-from django.db import migrations
-from django.db import models
-
+from django.db import migrations, models
 
 forward_backfill_contribution_counts_sql = """
     WITH contributions_per_user AS (

@@ -1,7 +1,6 @@
-from django.core.management.base import BaseCommand
-
 from batid.services.administrative_areas import validate_dpt_code
 from batid.services.imports.import_dpt import import_one_department
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):

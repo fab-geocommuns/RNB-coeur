@@ -1,8 +1,6 @@
-from rest_framework.request import Request
-
 from api_alpha.endpoints.tiles.base import BaseVectorTileView
-from batid.services.vector_tiles import reports_tiles_sql
-from batid.services.vector_tiles import TileParams
+from batid.services.vector_tiles import TileParams, reports_tiles_sql
+from rest_framework.request import Request
 
 
 class ReportVectorTileView(BaseVectorTileView):

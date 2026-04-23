@@ -1,16 +1,16 @@
 import json
 
-from django.contrib.gis.geos import GEOSGeometry
-from django.test import override_settings
-from django.test import TestCase
-
-from batid.models import Address
-from batid.models import Building
-from batid.models import City
-from batid.models import Department
-from batid.models import Department_subdivided
-from batid.models import SummerChallenge
+from batid.models import (
+    Address,
+    Building,
+    City,
+    Department,
+    Department_subdivided,
+    SummerChallenge,
+)
 from batid.tests.factories.users import ContributorUserFactory
+from django.contrib.gis.geos import GEOSGeometry
+from django.test import TestCase, override_settings
 
 
 def create_city_dpt(self):

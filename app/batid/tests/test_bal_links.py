@@ -2,22 +2,18 @@ import json
 import uuid
 from unittest.mock import patch
 
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import Point
-from django.test import TestCase
-from django.test import TransactionTestCase
-from nanoid import generate
-
 import batid.tests.helpers as helpers
 from batid.exceptions import BANUnknownCleInterop
-from batid.models import Address
-from batid.models import Building
-from batid.models import BuildingImport
-from batid.models import Plot
-from batid.services.imports.import_bal import create_dpt_bal_rnb_links
-from batid.services.imports.import_bal import filter_by_position
-from batid.services.imports.import_bal import find_bdg_to_link
+from batid.models import Address, Building, BuildingImport, Plot
+from batid.services.imports.import_bal import (
+    create_dpt_bal_rnb_links,
+    filter_by_position,
+    find_bdg_to_link,
+)
 from batid.services.rnb_id import generate_rnb_id
+from django.contrib.gis.geos import GEOSGeometry, Point
+from django.test import TestCase, TransactionTestCase
+from nanoid import generate
 
 
 class BALImport(TransactionTestCase):

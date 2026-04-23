@@ -1,14 +1,9 @@
-from django.contrib.gis.geos import GEOSGeometry
-from django.test import override_settings
-from django.test import TestCase
-
 from batid.exceptions import BuildingOverlapError
 from batid.models import Building
-from batid.services.building_overlap import (
-    check_building_overlap,
-)
+from batid.services.building_overlap import check_building_overlap
 from batid.tests.factories.users import ContributorUserFactory
-
+from django.contrib.gis.geos import GEOSGeometry
+from django.test import TestCase, override_settings
 
 # Realistic base coordinates (Paris, ~10m x 10m)
 # In WGS84, 0.0001 degree ≈ 11m at Paris latitude

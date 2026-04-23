@@ -1,14 +1,8 @@
-from django.contrib.gis.db.models.functions import Area
-from django.contrib.gis.db.models.functions import Intersection
-from django.db.models import Case
-from django.db.models import F
-from django.db.models import Func
-from django.db.models import When
-from django.db.models.lookups import Exact
-
 from batid.exceptions import PlotUnknown
-from batid.models import Building
-from batid.models import Plot
+from batid.models import Building, Plot
+from django.contrib.gis.db.models.functions import Area, Intersection
+from django.db.models import Case, F, Func, When
+from django.db.models.lookups import Exact
 
 
 def get_buildings_on_plot(plot_id: str):

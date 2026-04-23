@@ -1,13 +1,9 @@
+from batid.services.email import _reset_password_url, build_reset_password_email
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
 from django.core.validators import URLValidator
-from django.template import Context
-from django.template import Template
-from django.test import override_settings
-from django.test import TestCase
-
-from batid.services.email import _reset_password_url
-from batid.services.email import build_reset_password_email
+from django.template import Context, Template
+from django.test import TestCase, override_settings
 
 
 class ResetPasswordEmail(TestCase):

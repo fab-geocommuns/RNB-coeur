@@ -4,21 +4,20 @@ import os
 import uuid
 from typing import Optional
 
-from celery import Signature
-from django.contrib.gis.geos import Point
-from django.db import connection
-from django.db import transaction
-
-from batid.exceptions import BANAPIDown
-from batid.exceptions import BANBadRequest
-from batid.exceptions import BANBadResultType
-from batid.exceptions import BANUnknownCleInterop
-from batid.models import Building
-from batid.models import BuildingImport
+from batid.exceptions import (
+    BANAPIDown,
+    BANBadRequest,
+    BANBadResultType,
+    BANUnknownCleInterop,
+)
+from batid.models import Building, BuildingImport
 from batid.services.bdg_status import BuildingStatus
 from batid.services.imports import building_import_history
 from batid.services.source import Source
 from batid.utils.db import dictfetchall
+from celery import Signature
+from django.contrib.gis.geos import Point
+from django.db import connection, transaction
 
 logger = logging.getLogger(__name__)
 

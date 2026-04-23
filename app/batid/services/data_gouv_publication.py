@@ -3,18 +3,16 @@ import logging
 import os
 import shutil
 from datetime import datetime
-from zipfile import ZIP_DEFLATED
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import boto3
 import requests
+from batid.services.administrative_areas import dpts_list
 from celery import Signature
 from django.conf import settings
-from django.db import connection
-from django.db import transaction
+from django.db import connection, transaction
 
 from app.settings import WRITABLE_DATA_DIR
-from batid.services.administrative_areas import dpts_list
 
 
 def publish(area: str):

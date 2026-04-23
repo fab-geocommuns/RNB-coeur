@@ -1,8 +1,7 @@
-from django.contrib.auth.models import User
-from django.test import TestCase
-
 from batid.models import Organization
 from batid.services.ads import get_managed_insee_codes
+from django.contrib.auth.models import User
+from django.test import TestCase
 
 
 class TestRNBUser(TestCase):

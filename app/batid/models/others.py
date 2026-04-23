@@ -1,15 +1,16 @@
 import requests
+from batid.exceptions import (
+    BANAPIDown,
+    BANBadRequest,
+    BANBadResultType,
+    BANUnknownCleInterop,
+)
+from batid.validators import JSONSchemaValidator
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
-
-from batid.exceptions import BANAPIDown
-from batid.exceptions import BANBadRequest
-from batid.exceptions import BANBadResultType
-from batid.exceptions import BANUnknownCleInterop
-from batid.validators import JSONSchemaValidator
 
 
 class BuildingAddressesReadOnly(models.Model):

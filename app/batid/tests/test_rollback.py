@@ -1,21 +1,18 @@
 import uuid
 
+from batid.exceptions import DatabaseInconsistency, RevertNotAllowed
+from batid.models.building import (
+    Address,
+    Building,
+    BuildingWithHistory,
+    Event,
+    EventType,
+)
+from batid.models.others import DataFix, UserProfile
+from batid.services.rollback import rollback, rollback_dry_run
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
-from django.test import override_settings
-from django.test import TransactionTestCase
-
-from batid.exceptions import DatabaseInconsistency
-from batid.exceptions import RevertNotAllowed
-from batid.models.building import Address
-from batid.models.building import Building
-from batid.models.building import BuildingWithHistory
-from batid.models.building import Event
-from batid.models.building import EventType
-from batid.models.others import DataFix
-from batid.models.others import UserProfile
-from batid.services.rollback import rollback
-from batid.services.rollback import rollback_dry_run
+from django.test import TransactionTestCase, override_settings
 
 
 class TestUnitaryRollback(TransactionTestCase):

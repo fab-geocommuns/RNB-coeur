@@ -1,8 +1,6 @@
-from django.db import transaction
-
 from batid.exceptions import ContributionFixTooBroad
-from batid.models import Building
-from batid.models import Contribution
+from batid.models import Building, Contribution
+from django.db import transaction
 
 
 def _fix_contributions_with_action(

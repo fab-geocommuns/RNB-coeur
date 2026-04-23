@@ -1,11 +1,9 @@
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 
 from django.db.models import BooleanField
 from django.db.models.expressions import RawSQL
 from rest_framework.exceptions import ValidationError
-from rest_framework.pagination import BasePagination
-from rest_framework.pagination import CursorPagination
+from rest_framework.pagination import BasePagination, CursorPagination
 from rest_framework.response import Response
 from rest_framework.utils.urls import replace_query_param
 
