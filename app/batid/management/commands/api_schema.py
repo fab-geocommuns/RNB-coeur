@@ -1,10 +1,9 @@
 import json
 
+from api_alpha.utils.rnb_doc import build_schema_all_endpoints
 from django.core.management.base import BaseCommand
 from openapi_spec_validator import validate
 from openapi_spec_validator.validation.exceptions import OpenAPIValidationError
-
-from api_alpha.utils.rnb_doc import build_schema_all_endpoints
 
 
 class Command(BaseCommand):

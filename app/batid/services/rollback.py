@@ -1,16 +1,12 @@
 import uuid
 from datetime import datetime
 
-from django.contrib.auth.models import User
-from django.db.models import Func
-
-from batid.exceptions import DatabaseInconsistency
-from batid.exceptions import RevertNotAllowed
-from batid.models.building import BuildingWithHistory
-from batid.models.building import Event
-from batid.models.building import EventType
+from batid.exceptions import DatabaseInconsistency, RevertNotAllowed
+from batid.models.building import BuildingWithHistory, Event, EventType
 from batid.models.others import DataFix
 from batid.services.RNB_team_user import get_RNB_team_user
+from django.contrib.auth.models import User
+from django.db.models import Func
 
 
 class RangeLower(Func):

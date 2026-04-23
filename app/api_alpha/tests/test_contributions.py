@@ -1,8 +1,6 @@
+from batid.models import Building, Report
 from django.contrib.gis.geos import Point
 from rest_framework.test import APITestCase
-
-from batid.models import Building
-from batid.models import Report
 
 
 class TestContribution(APITestCase):

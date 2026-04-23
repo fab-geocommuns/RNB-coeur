@@ -1,9 +1,7 @@
-from django.core.management.base import BaseCommand
-
 from batid.services.email import build_monthly_leaderboard_email
 from batid.services.user import get_staff_emails
-from batid.utils.date import french_month_year_label
-from batid.utils.date import previous_month
+from batid.utils.date import french_month_year_label, previous_month
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):

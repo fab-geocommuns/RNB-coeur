@@ -1,7 +1,6 @@
+from batid.models import Candidate
 from django.db.utils import IntegrityError
 from django.test import TransactionTestCase
-
-from batid.models import Candidate
 
 
 class CandidateTestCase(TransactionTestCase):

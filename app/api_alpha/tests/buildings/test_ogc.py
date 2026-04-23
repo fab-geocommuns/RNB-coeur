@@ -1,12 +1,10 @@
 import json
 
+from batid.models import Building
+from batid.tests.helpers import create_bdg, create_grenoble
 from django.contrib.gis.geos import GEOSGeometry
 from freezegun import freeze_time
 from rest_framework.test import APITestCase
-
-from batid.models import Building
-from batid.tests.helpers import create_bdg
-from batid.tests.helpers import create_grenoble
 
 
 class OGCEndpointsTest(APITestCase):

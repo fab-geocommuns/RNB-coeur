@@ -1,7 +1,6 @@
+from batid.services.mattermost import notify_if_error
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
-
-from batid.services.mattermost import notify_if_error
 
 
 class RaiseExceptionView(APIView):

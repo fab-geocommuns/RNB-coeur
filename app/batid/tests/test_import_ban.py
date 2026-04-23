@@ -3,13 +3,12 @@ from unittest.mock import patch
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from django.conf import settings
-from django.contrib.gis.geos import Point
-from django.test import TestCase
-
 import batid.tests.helpers as helpers
 from batid.models import Address
 from batid.services.imports.import_ban import import_ban_addresses
+from django.conf import settings
+from django.contrib.gis.geos import Point
+from django.test import TestCase
 
 
 class BANImportDB(TestCase):

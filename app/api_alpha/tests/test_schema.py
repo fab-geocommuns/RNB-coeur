@@ -1,10 +1,11 @@
+from api_alpha.utils.rnb_doc import (
+    build_schema_all_endpoints,
+    build_schema_ogc_endpoints,
+)
 from django.test import TestCase
 from openapi_spec_validator import validate
 from openapi_spec_validator.validation.exceptions import OpenAPIValidationError
 from rest_framework.test import APITestCase
-
-from api_alpha.utils.rnb_doc import build_schema_all_endpoints
-from api_alpha.utils.rnb_doc import build_schema_ogc_endpoints
 
 
 class OpenAPISchemaEndpoint(APITestCase):

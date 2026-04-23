@@ -1,9 +1,8 @@
 from datetime import datetime
 
+from batid.models.others import Department
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
-
-from batid.models.others import Department
 
 
 class Feve(models.Model):

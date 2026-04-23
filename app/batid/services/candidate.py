@@ -1,23 +1,16 @@
 import os
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Literal
 
-from celery import Signature
-from django.contrib.gis.geos import GEOSGeometry
-from django.db import connection
-from django.db import transaction
-from psycopg2 import sql
-
-from batid.exceptions import BuildingTooLarge
-from batid.exceptions import BuildingTooSmall
-from batid.exceptions import InvalidWGS84Geometry
-from batid.models import Building
-from batid.models import BuildingWithHistory
-from batid.models import Candidate
+from batid.exceptions import BuildingTooLarge, BuildingTooSmall, InvalidWGS84Geometry
+from batid.models import Building, BuildingWithHistory, Candidate
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.services.data_fix.fill_empty_event_origin import building_identicals
 from batid.utils.geo import assert_shape_is_valid
+from celery import Signature
+from django.contrib.gis.geos import GEOSGeometry
+from django.db import connection, transaction
+from psycopg2 import sql
 
 
 class Inspector:

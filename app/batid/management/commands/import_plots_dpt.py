@@ -1,5 +1,4 @@
-from celery import chain
-from celery import Signature
+from celery import Signature, chain
 from django.core.management.base import BaseCommand
 
 

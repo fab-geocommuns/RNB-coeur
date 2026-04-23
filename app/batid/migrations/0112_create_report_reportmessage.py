@@ -3,8 +3,7 @@ import django.contrib.gis.db.models.fields
 import django.db.models.deletion
 import taggit.managers
 from django.conf import settings
-from django.db import migrations
-from django.db import models
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

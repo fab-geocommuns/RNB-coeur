@@ -1,15 +1,13 @@
 import json
 from unittest import mock
 
+from batid.models import Address, Building
+from batid.tests.factories.users import ContributorUserFactory
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APITestCase
-
-from batid.models import Address
-from batid.models import Building
-from batid.tests.factories.users import ContributorUserFactory
 
 
 class BuildingClosestViewTest(APITestCase):

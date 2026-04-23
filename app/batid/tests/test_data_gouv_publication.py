@@ -5,24 +5,23 @@ from datetime import datetime
 from unittest import mock
 
 import boto3
+from batid.models import Address, Building, Department_subdivided, Plot
+from batid.services.data_gouv_publication import (
+    cleanup_directory,
+    create_archive,
+    create_csv,
+    create_directory,
+    data_gouv_create_resource,
+    data_gouv_resource_id,
+    publish_on_data_gouv,
+    update_resource_metadata,
+    upload_to_s3,
+)
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
 from freezegun import freeze_time
 from moto import mock_aws
 
-from batid.models import Address
-from batid.models import Building
-from batid.models import Department_subdivided
-from batid.models import Plot
-from batid.services.data_gouv_publication import cleanup_directory
-from batid.services.data_gouv_publication import create_archive
-from batid.services.data_gouv_publication import create_csv
-from batid.services.data_gouv_publication import create_directory
-from batid.services.data_gouv_publication import data_gouv_create_resource
-from batid.services.data_gouv_publication import data_gouv_resource_id
-from batid.services.data_gouv_publication import publish_on_data_gouv
-from batid.services.data_gouv_publication import update_resource_metadata
-from batid.services.data_gouv_publication import upload_to_s3
 
 # Polygone dans Paris
 def get_geom_paris():

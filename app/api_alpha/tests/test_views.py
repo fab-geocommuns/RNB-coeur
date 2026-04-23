@@ -1,8 +1,6 @@
+from batid.models import DiffusionDatabase, Organization
 from django.core import signing
 from rest_framework.test import APITestCase
-
-from batid.models import DiffusionDatabase
-from batid.models import Organization
 
 
 class TestDiffusionDatabases(APITestCase):

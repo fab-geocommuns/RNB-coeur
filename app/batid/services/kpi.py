@@ -1,19 +1,13 @@
-from datetime import date
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 import requests
-from django.db import connection
-from rest_framework_tracking.models import APIRequestLog
-
-from batid.models import Building
-from batid.models import Contribution
-from batid.models import KPI
+from batid.models import KPI, Building, Contribution
 from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
 from batid.utils.db import dictfetchone
+from django.db import connection
+from rest_framework_tracking.models import APIRequestLog
 
 KPI_ACTIVE_BUILDINGS_COUNT = "active_buildings_count"
 KPI_REAL_BUILDINGS_COUNT = "real_buildings_count"

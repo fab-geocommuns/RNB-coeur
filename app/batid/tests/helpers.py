@@ -1,11 +1,9 @@
 import json
 import os
 
+from batid.models import Building, City
 from django.contrib.gis.geos import GEOSGeometry
 from requests import Response
-
-from batid.models import Building
-from batid.models import City
 
 
 def create_paris():

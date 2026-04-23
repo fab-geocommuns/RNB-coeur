@@ -1,9 +1,8 @@
 import json
 from unittest.mock import patch
 
-from django.test import TestCase
-
 from batid.tasks import backup_to_s3
+from django.test import TestCase
 
 
 class TestS3Backups(TestCase):

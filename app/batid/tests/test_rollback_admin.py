@@ -1,12 +1,8 @@
-from django.contrib.auth.models import Group
-from django.contrib.auth.models import User
-from django.contrib.gis.geos import GEOSGeometry
-from django.test import override_settings
-from django.test import TransactionTestCase
-
 from batid.models.building import Building
-from batid.models.others import DataFix
-from batid.models.others import UserProfile
+from batid.models.others import DataFix, UserProfile
+from django.contrib.auth.models import Group, User
+from django.contrib.gis.geos import GEOSGeometry
+from django.test import TransactionTestCase, override_settings
 
 
 class RollbackAdminTestCase(TransactionTestCase):

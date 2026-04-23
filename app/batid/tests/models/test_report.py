@@ -1,11 +1,9 @@
+from batid.models import Building, Report
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
 from django.db import transaction
 from django.db.utils import IntegrityError
 from django.test import TestCase
-
-from batid.models import Building
-from batid.models import Report
 
 
 class TestReport(TestCase):

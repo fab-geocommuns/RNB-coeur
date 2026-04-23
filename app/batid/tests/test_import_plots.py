@@ -1,12 +1,11 @@
 from unittest.mock import patch
 
-from django.contrib.gis.geos import Point
-from django.contrib.gis.measure import D
-from django.test import TestCase
-
 import batid.services.imports.import_plots as import_plots
 import batid.tests.helpers as helpers
 from batid.models import Plot
+from django.contrib.gis.geos import Point
+from django.contrib.gis.measure import D
+from django.test import TestCase
 
 
 class ImportPlotsTestCase(TestCase):

@@ -1,16 +1,16 @@
 import uuid
 from unittest.mock import patch
 
-from django.contrib.gis.geos import Point
-from django.contrib.gis.geos import Polygon
-from django.test import TestCase
-
 from batid.models.building import Building
 from batid.models.report import Report
-from batid.services.reports.arcep import ARCEP_TAG_NAME
-from batid.services.reports.arcep import create_reports
-from batid.services.reports.arcep import dl_and_create_arcep_reports
+from batid.services.reports.arcep import (
+    ARCEP_TAG_NAME,
+    create_reports,
+    dl_and_create_arcep_reports,
+)
 from batid.tests import helpers
+from django.contrib.gis.geos import Point, Polygon
+from django.test import TestCase
 
 
 class ReportArcepTestCase(TestCase):

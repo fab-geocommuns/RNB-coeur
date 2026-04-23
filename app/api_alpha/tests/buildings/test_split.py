@@ -1,14 +1,11 @@
 import json
 from unittest import mock
 
+from batid.models import Address, Building, Contribution
+from batid.tests.factories.users import ContributorUserFactory
 from django.test import override_settings
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
-
-from batid.models import Address
-from batid.models import Building
-from batid.models import Contribution
-from batid.tests.factories.users import ContributorUserFactory
 
 
 class BuildingSplitTest(APITestCase):

@@ -4,16 +4,12 @@
 import uuid
 from unittest.mock import patch
 
-from django.contrib.gis.geos import Point
-from django.test import TransactionTestCase
-
 import batid.services.imports.import_bdnb7 as import_bdnb7
 import batid.tests.helpers as helpers
-from batid.models import Address
-from batid.models import Building
-from batid.models import BuildingImport
-from batid.models import Candidate
+from batid.models import Address, Building, BuildingImport, Candidate
 from batid.services.candidate import Inspector
+from django.contrib.gis.geos import Point
+from django.test import TransactionTestCase
 
 
 class ImportBDNB7TestCase(TransactionTestCase):

@@ -1,15 +1,12 @@
-from django.test import TransactionTestCase
-
 from batid.exceptions import ContributionFixTooBroad
-from batid.models import Address
-from batid.models import Building
-from batid.models import Contribution
-from batid.services.contribution_fix.fix_methods import fix_contributions_deactivate
-from batid.services.contribution_fix.fix_methods import fix_contributions_demolish
+from batid.models import Address, Building, Contribution
 from batid.services.contribution_fix.fix_methods import (
+    fix_contributions_deactivate,
+    fix_contributions_demolish,
     fix_contributions_merge_if_obvious,
 )
 from batid.tests.factories.users import ContributorUserFactory
+from django.test import TransactionTestCase
 
 
 class FixMethodTest(TransactionTestCase):

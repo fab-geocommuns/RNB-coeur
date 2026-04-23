@@ -1,11 +1,8 @@
 import json
 
+from batid.models import Address, Building, Plot
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.test import APITestCase
-
-from batid.models import Address
-from batid.models import Building
-from batid.models import Plot
 
 
 class SingleBuildingTest(APITestCase):

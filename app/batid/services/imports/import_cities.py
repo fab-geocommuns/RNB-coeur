@@ -1,10 +1,8 @@
 import json
 
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import MultiPolygon
-
 from batid.models import City
 from batid.services.administrative_areas import fetch_dpt_cities_geojson
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 
 
 def import_etalab_cities(dpt: str):

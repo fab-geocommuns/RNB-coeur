@@ -1,3 +1,19 @@
+from batid.models import (
+    ADS,
+    Address,
+    BuildingImport,
+    Contribution,
+    DiffusionDatabase,
+    Organization,
+    UserProfile,
+)
+from batid.views import (
+    export_ads,
+    export_contributions,
+    rollback_confirm_view,
+    rollback_view,
+    worker,
+)
 from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -6,19 +22,6 @@ from django.contrib.auth.models import User
 from django.db.models.fields.json import JSONField
 from django.urls import path
 from jsoneditor.forms import JSONEditor  # type: ignore[import-untyped]
-
-from batid.models import Address
-from batid.models import ADS
-from batid.models import BuildingImport
-from batid.models import Contribution
-from batid.models import DiffusionDatabase
-from batid.models import Organization
-from batid.models import UserProfile
-from batid.views import export_ads
-from batid.views import export_contributions
-from batid.views import rollback_confirm_view
-from batid.views import rollback_view
-from batid.views import worker
 
 
 class OrganizationAdmin(admin.ModelAdmin):

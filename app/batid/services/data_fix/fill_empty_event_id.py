@@ -1,10 +1,7 @@
 import uuid
 
-from django.db import connection
-from django.db import transaction
-
-from batid.models import Building
-from batid.models import BuildingHistoryOnly
+from batid.models import Building, BuildingHistoryOnly
+from django.db import connection, transaction
 
 
 def _fetch_old_rows(batch_size: int):

@@ -1,9 +1,10 @@
 from collections import Counter
 
+from batid.management.commands.import_france import (
+    create_tasks_list_france,
+    dpt_list_metropole,
+)
 from django.test import TestCase
-
-from batid.management.commands.import_france import create_tasks_list_france
-from batid.management.commands.import_france import dpt_list_metropole
 
 
 class ImportFranceTestCase(TestCase):

@@ -1,15 +1,13 @@
 import logging
 import uuid
 
-from django.db import connection
-from django.db import transaction
-
 from batid.models.building import Building
 from batid.models.feve import Feve
 from batid.models.others import Department
 from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
 from batid.services.RNB_team_user import get_RNB_team_user
+from django.db import connection, transaction
 
 
 def generate_missing_addresses_reports(reports_number, insee_code=None):
