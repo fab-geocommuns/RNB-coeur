@@ -1,6 +1,5 @@
-from django.test import TestCase
-
 from batid.models import Building
+from django.test import TestCase
 
 
 class TestVectorTiles(TestCase):

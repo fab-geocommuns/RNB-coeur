@@ -2,9 +2,8 @@ import csv
 from io import StringIO
 
 import requests
-from requests import Response
-
 from batid.exceptions import BANAPIDown
+from requests import Response
 
 
 class BanGeocoder:

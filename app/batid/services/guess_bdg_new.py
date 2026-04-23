@@ -3,28 +3,20 @@ import csv
 import json
 import re
 import time
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from io import StringIO
-from typing import Callable
-from typing import Optional
-from typing import TypedDict
+from typing import Callable, Optional, TypedDict
 
 import orjson
 import pandas as pd
 import shapely
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import Point
-from django.contrib.gis.geos import Polygon
+from batid.models import Building
+from batid.services.closest_bdg import get_closest_from_point, get_closest_from_poly
+from batid.services.geocoders import BanBatchGeocoder, PhotonGeocoder
+from batid.utils.misc import max_by_group
+from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
 from django.db import connection
 from tqdm.notebook import tqdm  # type: ignore[import-untyped]
-
-from batid.models import Building
-from batid.services.closest_bdg import get_closest_from_point
-from batid.services.closest_bdg import get_closest_from_poly
-from batid.services.geocoders import BanBatchGeocoder
-from batid.services.geocoders import PhotonGeocoder
-from batid.utils.misc import max_by_group
 
 
 class Input(TypedDict):

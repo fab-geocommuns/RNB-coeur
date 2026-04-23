@@ -1,14 +1,11 @@
-from django.contrib.auth.models import User
-from django.contrib.gis.geos import GEOSGeometry
-from django.test import override_settings
-from django.test import TestCase
-
 from batid.models.building import Building
-from batid.models.others import Address
-from batid.models.others import UserProfile
+from batid.models.others import Address, UserProfile
 from batid.models.report import Report
 from batid.services.reports.missing_addresses import generate_missing_addresses_reports
 from batid.tests.helpers import create_cenac
+from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSGeometry
+from django.test import TestCase, override_settings
 
 
 class TestReportMissingAddress(TestCase):

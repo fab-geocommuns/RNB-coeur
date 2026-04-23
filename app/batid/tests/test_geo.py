@@ -1,21 +1,22 @@
 import json
 
-from django.contrib.gis.geos import GeometryCollection
-from django.contrib.gis.geos import GEOSGeometry
-from django.test import override_settings
-from django.test import TestCase
-
 from api_alpha.tests.utils import coordinates_almost_equal
-from batid.exceptions import BuildingTooLarge
-from batid.exceptions import BuildingTooSmall
-from batid.exceptions import ImpossibleShapeMerge
-from batid.exceptions import InvalidWGS84Geometry
-from batid.utils.geo import assert_shape_is_valid
-from batid.utils.geo import compute_shape_area
-from batid.utils.geo import convert_geometry_collection
-from batid.utils.geo import drop_z
-from batid.utils.geo import fix_nested_shells
-from batid.utils.geo import merge_contiguous_shapes
+from batid.exceptions import (
+    BuildingTooLarge,
+    BuildingTooSmall,
+    ImpossibleShapeMerge,
+    InvalidWGS84Geometry,
+)
+from batid.utils.geo import (
+    assert_shape_is_valid,
+    compute_shape_area,
+    convert_geometry_collection,
+    drop_z,
+    fix_nested_shells,
+    merge_contiguous_shapes,
+)
+from django.contrib.gis.geos import GeometryCollection, GEOSGeometry
+from django.test import TestCase, override_settings
 
 
 class TestGeo(TestCase):

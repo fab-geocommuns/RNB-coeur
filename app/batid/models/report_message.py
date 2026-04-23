@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
-from django.db.models import CheckConstraint
-from django.db.models import Q
+from django.db.models import CheckConstraint, Q
 
 from .report import Report
 

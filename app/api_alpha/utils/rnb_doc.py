@@ -1,14 +1,11 @@
 import inspect
 
+from batid.services.bdg_status import BuildingStatus
 from django.conf import settings
-from django.urls import get_resolver
-from django.urls import reverse
-from rest_framework.schemas.generators import BaseSchemaGenerator
-from rest_framework.schemas.generators import EndpointEnumerator
+from django.urls import get_resolver, reverse
+from rest_framework.schemas.generators import BaseSchemaGenerator, EndpointEnumerator
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSetMixin
-
-from batid.services.bdg_status import BuildingStatus
 
 COMMON_RESPONSES = {
     "400": {"description": "Requête invalide (données mal formatées ou incomplètes)."},

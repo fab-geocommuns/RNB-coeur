@@ -1,7 +1,5 @@
+from batid.models import Building, Plot
 from rest_framework.test import APITestCase
-
-from batid.models import Building
-from batid.models import Plot
 
 
 class BuildingPlotViewTest(APITestCase):

@@ -1,16 +1,12 @@
 import json
 
+from batid.list_bdg import list_bdgs
+from batid.models import Building, Plot
+from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
+from batid.tests.helpers import create_bdg, create_grenoble, create_paris
 from django.contrib.gis.geos import GEOSGeometry
 from django.http import Http404
 from django.test import TestCase
-
-from batid.list_bdg import list_bdgs
-from batid.models import Building
-from batid.models import Plot
-from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
-from batid.tests.helpers import create_bdg
-from batid.tests.helpers import create_grenoble
-from batid.tests.helpers import create_paris
 
 
 class SearchStatusTestCase(TestCase):

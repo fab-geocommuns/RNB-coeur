@@ -1,6 +1,5 @@
 from collections.abc import Iterable
-from typing import Any
-from typing import Callable
+from typing import Any, Callable
 
 
 def is_float(string: str) -> bool:

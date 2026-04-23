@@ -1,7 +1,6 @@
+from batid.services.user import get_staff_emails
 from django.contrib.auth.models import User
 from django.test import TestCase
-
-from batid.services.user import get_staff_emails
 
 
 class GetStaffEmailsTestCase(TestCase):

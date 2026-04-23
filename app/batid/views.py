@@ -2,24 +2,22 @@ import csv
 import os
 from io import StringIO
 
+from batid.forms import RollbackForm
+from batid.services.ads import export_format as ads_export_format
+from batid.services.contributions import export_format as contrib_export_format
+from batid.services.rollback import rollback as rollback_service
+from batid.services.rollback import rollback_dry_run
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
-from django.shortcuts import redirect
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import re_path
 from revproxy.views import ProxyView  # type: ignore[import-untyped]
 
 from app.celery import app as celery_app
-from batid.forms import RollbackForm
-from batid.services.ads import export_format as ads_export_format
-from batid.services.contributions import export_format as contrib_export_format
-from batid.services.rollback import rollback as rollback_service
-from batid.services.rollback import rollback_dry_run
 
 
 def worker(request):

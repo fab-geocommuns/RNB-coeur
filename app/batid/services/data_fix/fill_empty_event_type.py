@@ -1,7 +1,6 @@
+from batid.models import BuildingHistoryOnly
 from django.db import transaction
 from django.db.models import QuerySet
-
-from batid.models import BuildingHistoryOnly
 
 
 def _fetch(batch_size: int) -> QuerySet[BuildingHistoryOnly]:

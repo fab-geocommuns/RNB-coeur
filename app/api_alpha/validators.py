@@ -1,6 +1,5 @@
-from rest_framework import serializers
-
 from batid.models import Building
+from rest_framework import serializers
 
 
 def ads_validate_rnbid(rnb_id):

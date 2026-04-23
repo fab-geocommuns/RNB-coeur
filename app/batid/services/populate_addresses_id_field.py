@@ -1,5 +1,6 @@
 from django.db import connection
 
+
 # this procedure is used to populate the addresses_id field in the Building model
 # using the current MTM relationship with the Address model
 # it should be used only once and has been created as a task to avoid any client disconnection durinf the migration

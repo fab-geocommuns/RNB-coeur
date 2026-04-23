@@ -1,7 +1,9 @@
 # app/dbrouters.py
-from batid.models import BuildingAddressesReadOnly
-from batid.models import BuildingHistoryOnly
-from batid.models import BuildingWithHistory
+from batid.models import (
+    BuildingAddressesReadOnly,
+    BuildingHistoryOnly,
+    BuildingWithHistory,
+)
 
 
 class DBRouter(object):

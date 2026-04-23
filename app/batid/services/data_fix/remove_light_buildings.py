@@ -4,15 +4,12 @@ from concurrent.futures import ThreadPoolExecutor
 
 import geopandas as gpd
 import pandas as pd
-from django.contrib.auth.models import User
-from django.db import connection
-from django.db import transaction
-
-from batid.models import Building
-from batid.models import DataFix
+from batid.models import Building, DataFix
 from batid.services.administrative_areas import dpts_list
 from batid.services.imports.import_bdtopo import bdtopo_src_params
 from batid.services.source import Source
+from django.contrib.auth.models import User
+from django.db import connection, transaction
 
 
 def list_light_buildings_france(start_dpt=None, end_dpt=None):

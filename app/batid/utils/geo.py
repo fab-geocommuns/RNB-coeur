@@ -1,19 +1,22 @@
 from typing import List
 
+from batid.exceptions import (
+    BuildingCannotMove,
+    BuildingTooLarge,
+    BuildingTooSmall,
+    ImpossibleShapeMerge,
+    InvalidWGS84Geometry,
+)
 from django.conf import settings
-from django.contrib.gis.geos import GeometryCollection
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import MultiPolygon
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import (
+    GeometryCollection,
+    GEOSGeometry,
+    MultiPolygon,
+    Polygon,
+)
 from pyproj import Geod
 from shapely import wkt
 from shapely.ops import nearest_points
-
-from batid.exceptions import BuildingCannotMove
-from batid.exceptions import BuildingTooLarge
-from batid.exceptions import BuildingTooSmall
-from batid.exceptions import ImpossibleShapeMerge
-from batid.exceptions import InvalidWGS84Geometry
 
 
 def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:

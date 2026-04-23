@@ -1,8 +1,7 @@
 from datetime import datetime
 
-from django.db.models import QuerySet
-
 from batid.models import ADS
+from django.db.models import QuerySet
 
 
 class ADSSearch:

@@ -1,10 +1,7 @@
+from batid.models import Building, Report, ReportMessage
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
 from rest_framework.test import APITestCase
-
-from batid.models import Building
-from batid.models import Report
-from batid.models import ReportMessage
 
 
 class GetReportTest(APITestCase):

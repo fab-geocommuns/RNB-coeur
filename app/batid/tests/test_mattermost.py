@@ -1,8 +1,7 @@
 from unittest.mock import patch
 
-from django.test import TestCase
-
 from batid.services.mattermost import notify_if_error
+from django.test import TestCase
 
 
 class Decorator(TestCase):

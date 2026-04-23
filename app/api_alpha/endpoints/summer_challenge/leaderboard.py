@@ -1,11 +1,10 @@
+from api_alpha.endpoints.summer_challenge.common import summer_challenge_leaderboard
+from batid.models.feve import Feve
 from django.db.models import F
 from django.http import JsonResponse
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from api_alpha.endpoints.summer_challenge.common import summer_challenge_leaderboard
-from batid.models.feve import Feve
 
 
 class LeaderboardView(APIView):

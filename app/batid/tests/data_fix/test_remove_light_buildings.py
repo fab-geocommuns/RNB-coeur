@@ -2,15 +2,15 @@ import os
 import shutil
 
 import geopandas as gpd
+from batid.models import Building, DataFix
+from batid.services.data_fix.remove_light_buildings import (
+    buildings_to_remove,
+    remove_light_buildings,
+    save_results_as_file,
+)
+from batid.tests.factories.users import ContributorUserFactory
 from django.conf import settings
 from django.test import TransactionTestCase
-
-from batid.models import Building
-from batid.models import DataFix
-from batid.services.data_fix.remove_light_buildings import buildings_to_remove
-from batid.services.data_fix.remove_light_buildings import remove_light_buildings
-from batid.services.data_fix.remove_light_buildings import save_results_as_file
-from batid.tests.factories.users import ContributorUserFactory
 
 
 # we use TransactionTestCase beacause of the ThreadPoolExecutor use

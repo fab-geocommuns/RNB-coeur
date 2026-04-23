@@ -1,19 +1,12 @@
 import json
 from unittest.mock import patch
 
+from api_alpha.serializers.serializers import ListBuildingQuerySerializer
+from batid.models import Address, Building, Organization, Plot, User, UserProfile
+from batid.tests.helpers import create_bdg, create_grenoble
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
-
-from api_alpha.serializers.serializers import ListBuildingQuerySerializer
-from batid.models import Address
-from batid.models import Building
-from batid.models import Organization
-from batid.models import Plot
-from batid.models import User
-from batid.models import UserProfile
-from batid.tests.helpers import create_bdg
-from batid.tests.helpers import create_grenoble
 
 
 class BuildingsEndpointsTest(APITestCase):

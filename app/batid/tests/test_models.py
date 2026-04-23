@@ -2,21 +2,19 @@ import datetime
 import json
 import uuid
 
-from django.contrib.gis.geos import GEOSGeometry
-from django.db.utils import IntegrityError
-from django.test import override_settings
-from django.test import TestCase
-
-from batid.exceptions import BANBadResultType
-from batid.exceptions import BuildingCannotMove
-from batid.exceptions import NotEnoughBuildings
-from batid.exceptions import OperationOnInactiveBuilding
-from batid.models import Address
-from batid.models import Building
-from batid.models import Contribution
+from batid.exceptions import (
+    BANBadResultType,
+    BuildingCannotMove,
+    NotEnoughBuildings,
+    OperationOnInactiveBuilding,
+)
+from batid.models import Address, Building, Contribution
 from batid.tests.factories.users import ContributorUserFactory
 from batid.tests.helpers import coords_to_mp_geom
 from batid.utils.misc import ext_ids_equal
+from django.contrib.gis.geos import GEOSGeometry
+from django.db.utils import IntegrityError
+from django.test import TestCase, override_settings
 
 
 class TestBuilding(TestCase):

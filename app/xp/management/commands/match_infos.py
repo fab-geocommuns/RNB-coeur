@@ -1,8 +1,6 @@
-from django.db import connections
-
 from batid.utils.db import dictfetchall
+from django.db import connections
 from xp.management.commands.analyze_xp import Command as SuperCommand
-
 
 # This command analyze a city buildings stock and compare it to the RNB
 # The city stock must be in a geojson file made of multiploygons
