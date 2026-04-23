@@ -167,7 +167,10 @@ class CallbackTest(APITestCase):
 
         Group.objects.get_or_create(name="Contributors")
         existing_user = User.objects.create_user(
-            username="existing", email="agent@gouv.fr", password="testpass123", is_active=True
+            username="existing",
+            email="agent@gouv.fr",
+            password="testpass123",
+            is_active=True,
         )
 
         response = self._call_callback()
@@ -200,7 +203,10 @@ class CallbackTest(APITestCase):
 
         Group.objects.get_or_create(name="Contributors")
         existing_user = User.objects.create_user(
-            username="existing", email="agent@gouv.fr", password="testpass123", is_active=False
+            username="existing",
+            email="agent@gouv.fr",
+            password="testpass123",
+            is_active=False,
         )
 
         response = self._call_callback()
