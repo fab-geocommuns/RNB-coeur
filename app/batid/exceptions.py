@@ -106,6 +106,22 @@ class EventUnknown(Exception):
     """The given event_id is not in the RNB database"""
 
 
+class INSEESireneAPIDown(Exception):
+    """The INSEE SIRENE API returned an unexpected error"""
+
+
+class INSEESireneAPIForbiddenUnit(Exception):
+    """The INSEE SIRENE API denied access to this unit (403)"""
+
+
+class INSEESireneAPITooManyRequests(Exception):
+    """The INSEE SIRENE API rate limit was exceeded (429)"""
+
+
+class INSEESireneAPIUnknownCode(Exception):
+    """The INSEE SIRENE API returned an unhandled status code"""
+
+
 class BuildingOverlapError(InvalidOperation):
     """A building overlaps too much with existing buildings"""
 

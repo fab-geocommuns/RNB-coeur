@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 import requests
 from authlib.jose import jwt as jose_jwt
 from batid.models import ProConnectIdentity, UserProfile
+from batid.services.organization import link_user_to_organization
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import signing
@@ -334,6 +335,15 @@ class CallbackView(APIView):
                 # We block any user we disabled manually
                 error_params = urlencode({"error": "account_disabled"})
                 return HttpResponseRedirect(f"{redirect_uri}?{error_params}")
+
+            try:
+                link_user_to_organization(user)
+            except Exception:
+                # Linking might fail due to INSEE SIRENE API issues,
+                # we don't want that to block the login, but we log it for debugging and manual fixing if needed
+                logger.exception(
+                    "Failed to link user %s to organization (non-fatal)", user.pk
+                )
 
             user.last_login = timezone.now()
             user.save(update_fields=["last_login"])

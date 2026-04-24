@@ -55,7 +55,7 @@ class CreateUserView(APIView):
         validate_captcha(request_data.get("captcha_solution"))
         user_serializer = UserSerializer(data=request_data)
         user_serializer.is_valid(raise_exception=True)
-        user = user_serializer.save()
+        user_serializer.save()
 
         if settings.HAS_SANDBOX:
             create_user_in_sandbox(request_data)
