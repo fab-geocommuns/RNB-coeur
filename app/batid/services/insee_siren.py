@@ -30,8 +30,8 @@ def fetch_siren_data(siren: str) -> dict | None:
     raise INSEESireneAPIDown()
 
 
-def extract_org_name(unite_legale: dict) -> str:
-    periods = unite_legale.get("periodesUniteLegale", [])
+def extract_org_name(siren_org: dict) -> str:
+    periods = siren_org.get("periodesUniteLegale", [])
     current = next(
         (p for p in periods if p.get("dateFin") is None),
         {},
