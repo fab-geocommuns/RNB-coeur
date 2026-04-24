@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0126_diffusiondatabase_is_displayed_and_more"),
+        ("batid", "0127_proconnectidentity"),
     ]
 
     operations = [
