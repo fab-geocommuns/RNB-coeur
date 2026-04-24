@@ -92,6 +92,7 @@ def build_activate_account_email(
     token: str, user_id_b64: str, email: str
 ) -> EmailMultiAlternatives:
     url = activate_account_url(user_id_b64, token)
+    print(url)
     html_content = render_to_string("emails/activate_account.html", {"url": url})
     msg = EmailMultiAlternatives(
         subject="Activez votre compte RNB",
