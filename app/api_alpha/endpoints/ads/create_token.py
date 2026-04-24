@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from batid.models import Organization
+from batid.models import Organization, UserProfile
 from batid.utils.constants import ADS_GROUP_NAME
 from django.contrib.auth.models import Group, User
 from django.db import transaction
@@ -48,8 +48,9 @@ class CreateAdsTokenView(APIView):
                         },
                     )
 
-                    organization.users.add(user)
-                    organization.save()
+                    profile, _ = UserProfile.objects.get_or_create(user=user)
+                    profile.organization = organization
+                    profile.save(update_fields=["organization"])
 
                     token, created = Token.objects.get_or_create(user=user)
 
