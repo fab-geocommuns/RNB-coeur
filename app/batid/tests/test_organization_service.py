@@ -16,13 +16,20 @@ class LinkUserToOrganizationTest(TestCase):
 
     Priority: staff/superuser -> Equipe RNB; SIREN (authoritative, always replayed,
     auto-creates from INSEE); email domain fallback (only when user has no org yet).
-    Membership is tracked via Organization.users M2M.
+    Membership is tracked via UserProfile.organization FK.
     """
 
     def _make_user(self, email="user@example.com"):
         user = User.objects.create(username=email.split("@")[0], email=email)
         UserProfile.objects.create(user=user)
         return user
+
+    def _user_in_org(self, user, org):
+        return org.user_profiles.filter(user=user).exists()
+
+    def _set_user_org(self, user, org):
+        user.profile.organization = org
+        user.profile.save()
 
     # --- Staff / superuser ---
 
@@ -40,7 +47,7 @@ class LinkUserToOrganizationTest(TestCase):
 
         link_user_to_organization(user)
 
-        self.assertIn(user, rnb_org.users.all())
+        self.assertTrue(self._user_in_org(user, rnb_org))
 
     @override_settings(RNB_TEAM_ORG_NAME="Equipe RNB")
     def test_superuser_linked_to_rnb_team_org(self):
@@ -52,7 +59,7 @@ class LinkUserToOrganizationTest(TestCase):
 
         link_user_to_organization(user)
 
-        self.assertIn(user, rnb_org.users.all())
+        self.assertTrue(self._user_in_org(user, rnb_org))
 
     @override_settings(RNB_TEAM_ORG_NAME="Equipe RNB")
     def test_staff_not_linked_to_siren_org_when_rnb_org_missing(self):
@@ -65,8 +72,8 @@ class LinkUserToOrganizationTest(TestCase):
 
         link_user_to_organization(user)
 
-        self.assertNotIn(user, siren_org.users.all())
-        self.assertFalse(Organization.objects.filter(users=user).exists())
+        self.assertFalse(self._user_in_org(user, siren_org))
+        self.assertFalse(Organization.objects.filter(user_profiles__user=user).exists())
 
     # --- SIREN matching ---
 
@@ -80,7 +87,7 @@ class LinkUserToOrganizationTest(TestCase):
 
         link_user_to_organization(user)
 
-        self.assertIn(user, org.users.all())
+        self.assertTrue(self._user_in_org(user, org))
 
     @mock.patch("batid.services.organization.fetch_siren_data")
     def test_creates_org_from_insee_when_siren_not_in_db(self, mock_fetch):
@@ -102,7 +109,7 @@ class LinkUserToOrganizationTest(TestCase):
         org = Organization.objects.filter(siren="130025265").first()
         self.assertIsNotNone(org)
         self.assertEqual(org.name, "DINUM")
-        self.assertIn(user, org.users.all())
+        self.assertTrue(self._user_in_org(user, org))
 
     @mock.patch("batid.services.organization.fetch_siren_data", return_value=None)
     def test_no_link_when_siren_not_in_db_and_insee_returns_none(self, _mock_fetch):
@@ -114,7 +121,7 @@ class LinkUserToOrganizationTest(TestCase):
 
         link_user_to_organization(user)
 
-        self.assertFalse(Organization.objects.filter(users=user).exists())
+        self.assertFalse(Organization.objects.filter(user_profiles__user=user).exists())
 
     @mock.patch("batid.services.organization.fetch_siren_data")
     def test_no_link_when_insee_returns_empty_name(self, mock_fetch):
@@ -129,7 +136,7 @@ class LinkUserToOrganizationTest(TestCase):
 
         link_user_to_organization(user)
 
-        self.assertFalse(Organization.objects.filter(users=user).exists())
+        self.assertFalse(Organization.objects.filter(user_profiles__user=user).exists())
         self.assertFalse(Organization.objects.filter(siren="130025265").exists())
 
     def test_siren_links_user_even_when_already_in_another_org(self):
@@ -137,12 +144,12 @@ class LinkUserToOrganizationTest(TestCase):
         user = self._make_user()
         old_org = Organization.objects.create(name="Old", siren="999999999")
         new_org = Organization.objects.create(name="DINUM", siren="130025265")
-        old_org.users.add(user)
+        self._set_user_org(user, old_org)
         ProConnectIdentity.objects.create(user=user, sub="sub-5", siret="13002526500013")
 
         link_user_to_organization(user)
 
-        self.assertIn(user, new_org.users.all())
+        self.assertTrue(self._user_in_org(user, new_org))
 
     # --- Email domain fallback ---
 
@@ -153,7 +160,7 @@ class LinkUserToOrganizationTest(TestCase):
 
         link_user_to_organization(user)
 
-        self.assertIn(user, org.users.all())
+        self.assertTrue(self._user_in_org(user, org))
 
     def test_siren_takes_priority_over_email_domain(self):
         """SIREN match wins even when email domain also matches a different org."""
@@ -166,19 +173,19 @@ class LinkUserToOrganizationTest(TestCase):
 
         link_user_to_organization(user)
 
-        self.assertIn(user, org_siren.users.all())
-        self.assertNotIn(user, org_domain.users.all())
+        self.assertTrue(self._user_in_org(user, org_siren))
+        self.assertFalse(self._user_in_org(user, org_domain))
 
     def test_email_domain_not_applied_when_user_already_has_org(self):
         """Email domain fallback does not add user to another org if already linked."""
         user = self._make_user(email="agent@gouv.fr")
         existing_org = Organization.objects.create(name="Existing", siren="999999999")
         domain_org = Organization.objects.create(name="Etat", email_domain="gouv.fr")
-        existing_org.users.add(user)
+        self._set_user_org(user, existing_org)
 
         link_user_to_organization(user)
 
-        self.assertNotIn(user, domain_org.users.all())
+        self.assertFalse(self._user_in_org(user, domain_org))
 
     # --- Edge cases ---
 
@@ -193,7 +200,7 @@ class LinkUserToOrganizationTest(TestCase):
 
         link_user_to_organization(user)
 
-        self.assertFalse(Organization.objects.filter(users=user).exists())
+        self.assertFalse(Organization.objects.filter(user_profiles__user=user).exists())
 
     def test_short_siret_does_not_crash(self):
         """Malformed SIRET (< 9 chars) does not raise and produces no SIREN link."""
@@ -202,10 +209,10 @@ class LinkUserToOrganizationTest(TestCase):
 
         link_user_to_organization(user)  # must not raise
 
-        self.assertFalse(Organization.objects.filter(users=user).exists())
+        self.assertFalse(Organization.objects.filter(user_profiles__user=user).exists())
 
     def test_calling_twice_is_idempotent(self):
-        """Calling twice with the same SIREN adds the user once (M2M add is idempotent)."""
+        """Calling twice with the same SIREN sets the org FK once (idempotent)."""
         user = self._make_user()
         ProConnectIdentity.objects.create(
             user=user, sub="sub-9", siret="13002526500013"
@@ -215,8 +222,8 @@ class LinkUserToOrganizationTest(TestCase):
         link_user_to_organization(user)
         link_user_to_organization(user)
 
-        self.assertIn(user, org.users.all())
-        self.assertEqual(org.users.filter(pk=user.pk).count(), 1)
+        self.assertTrue(self._user_in_org(user, org))
+        self.assertEqual(org.user_profiles.filter(user=user).count(), 1)
 
     @mock.patch(
         "batid.services.organization.fetch_siren_data",

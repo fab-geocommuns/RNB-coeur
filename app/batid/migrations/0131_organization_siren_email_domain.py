@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0128_proconnectidentity_siret"),
+        ("batid", "0130_remove_organization_users"),
     ]
 
     operations = [

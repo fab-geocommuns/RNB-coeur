@@ -2,8 +2,16 @@ from django.conf import settings
 from django.contrib.auth.models import User
 
 from batid.models import Organization
+from batid.models import UserProfile
 from batid.services.insee_siren import extract_org_name
 from batid.services.insee_siren import fetch_siren_data
+
+
+def _set_user_org(user: User, org: Organization) -> None:
+    """Assign an organization to the user's profile (creating the profile if needed)."""
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    profile.organization = org
+    profile.save(update_fields=["organization"])
 
 
 def link_user_to_organization(user: User) -> None:
@@ -18,7 +26,7 @@ def link_user_to_organization(user: User) -> None:
     if user.is_staff or user.is_superuser:
         org = Organization.objects.filter(name=settings.RNB_TEAM_ORG_NAME).first()
         if org:
-            org.users.add(user)
+            _set_user_org(user, org)
         return
 
     # SIREN match — authoritative, always replayed
@@ -30,15 +38,19 @@ def link_user_to_organization(user: User) -> None:
         if org is None:
             org = _create_org_from_siren(siren)
         if org:
-            org.users.add(user)
+            _set_user_org(user, org)
             return
 
     # Email domain — fallback, only when user has no org yet
-    if user.email and "@" in user.email and not Organization.objects.filter(users=user).exists():
-        domain = user.email.split("@")[1]
-        org = Organization.objects.filter(email_domain=domain).first()
-        if org:
-            org.users.add(user)
+    if user.email and "@" in user.email:
+        has_org = UserProfile.objects.filter(
+            user=user, organization__isnull=False
+        ).exists()
+        if not has_org:
+            domain = user.email.split("@")[1]
+            org = Organization.objects.filter(email_domain=domain).first()
+            if org:
+                _set_user_org(user, org)
 
 
 def _create_org_from_siren(siren: str) -> Organization | None:

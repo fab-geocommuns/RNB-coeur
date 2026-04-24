@@ -18,7 +18,7 @@ def reverse_rnb_team_org(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0129_organization_siren_email_domain"),
+        ("batid", "0131_organization_siren_email_domain"),
     ]
 
     operations = [

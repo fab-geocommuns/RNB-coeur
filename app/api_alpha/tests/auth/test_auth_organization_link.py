@@ -59,7 +59,7 @@ class ProConnectOrgLinkTest(APITestCase):
 
         self.assertEqual(response.status_code, 302)
         user = User.objects.get(email=FAKE_USERINFO["email"])
-        self.assertIn(user, org.users.all())
+        self.assertTrue(org.user_profiles.filter(user=user).exists())
 
     def test_returning_user_org_updated_on_login(
         self, _mock_exchange, _mock_verify, _mock_userinfo, _mock_siren
@@ -83,7 +83,7 @@ class ProConnectOrgLinkTest(APITestCase):
         response = self._do_callback()
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn(user, org.users.all())
+        self.assertTrue(org.user_profiles.filter(user=user).exists())
 
     def test_inactive_user_is_not_linked_to_org(
         self, _mock_exchange, _mock_verify, _mock_userinfo, _mock_siren
@@ -107,7 +107,7 @@ class ProConnectOrgLinkTest(APITestCase):
         response = self._do_callback()
 
         self.assertIn("account_disabled", response["Location"])
-        self.assertNotIn(user, org.users.all())
+        self.assertFalse(org.user_profiles.filter(user=user).exists())
 
 
 @override_settings(FRONTEND_URL="http://localhost:3000")
@@ -131,4 +131,4 @@ class ActivateUserOrgLinkTest(APITestCase):
 
         user.refresh_from_db()
         self.assertTrue(user.is_active)
-        self.assertIn(user, org.users.all())
+        self.assertTrue(org.user_profiles.filter(user=user).exists())

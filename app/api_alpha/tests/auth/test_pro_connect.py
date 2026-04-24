@@ -198,7 +198,7 @@ class CallbackTest(APITestCase):
         return_value=("fake-access-token", "fake-id-token"),
     )
     def test_callback_links_inactive_account_activates_and_removes_password(
-        self, mock_exchange, mock_verify, mock_userinfo
+        self, mock_exchange, mock_verify, mock_userinfo, _mock_siren
     ):
         """Callback with unknown sub but known email matching an inactive account:
         links ProConnectIdentity, activates the account, and removes the password."""
