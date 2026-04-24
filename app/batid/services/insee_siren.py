@@ -3,6 +3,9 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 from batid.exceptions import INSEESireneAPIDown
+from batid.exceptions import INSEESireneAPIForbiddenUnit
+from batid.exceptions import INSEESireneAPITooManyRequests
+from batid.exceptions import INSEESireneAPIUnknownCode
 
 _BASE_URL = "https://api.insee.fr/api-sirene/3.11"
 
@@ -21,13 +24,22 @@ def fetch_siren_data(siren: str) -> dict | None:
         timeout=5,
     )
 
-    if response.status_code == 404:
+    if response.status_code in (301, 404):
         return None
 
     if response.status_code == 200:
         return response.json()
 
-    raise INSEESireneAPIDown()
+    if response.status_code == 403:
+        raise INSEESireneAPIForbiddenUnit()
+
+    if response.status_code == 429:
+        raise INSEESireneAPITooManyRequests()
+
+    if 500 <= response.status_code < 600:
+        raise INSEESireneAPIDown()
+
+    raise INSEESireneAPIUnknownCode()
 
 
 def extract_org_name(siren_org: dict) -> str:
