@@ -1,42 +1,41 @@
-from datetime import date
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
+from datetime import date, datetime, timedelta, timezone
 from unittest import mock
 
+from batid.models import (
+    KPI,
+    Address,
+    Building,
+    BuildingImport,
+    Contribution,
+    Department_subdivided,
+)
+from batid.models.report import Report
+from batid.services.kpi import (
+    KPI_API_REQUESTS_COUNT,
+    KPI_DATA_GOUV_DOWNLOADS,
+    KPI_DATA_GOUV_VIEWS,
+    backfill_api_requests_kpi,
+    compute_today_kpis,
+    count_active_buildings,
+    count_api_requests,
+    count_building_changes_daily,
+    count_editors,
+    count_edits,
+    count_edits_by_department,
+    count_fixed_reports,
+    count_pending_reports,
+    count_real_buildings,
+    count_real_buildings_wo_addresses,
+    count_refused_reports,
+    count_reports,
+    get_building_change_stats,
+    get_kpi,
+    get_kpi_most_recent,
+)
 from django.contrib.auth.models import User
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import GEOSGeometry, Point
 from django.test import TestCase
 from rest_framework_tracking.models import APIRequestLog
-
-from batid.models import Address
-from batid.models import Building
-from batid.models import BuildingImport
-from batid.models import Contribution
-from batid.models import Department_subdivided
-from batid.models import KPI
-from batid.models.report import Report
-from batid.services.kpi import backfill_api_requests_kpi
-from batid.services.kpi import compute_today_kpis
-from batid.services.kpi import count_active_buildings
-from batid.services.kpi import count_api_requests
-from batid.services.kpi import count_building_changes_daily
-from batid.services.kpi import count_editors
-from batid.services.kpi import count_edits
-from batid.services.kpi import count_edits_by_department
-from batid.services.kpi import count_fixed_reports
-from batid.services.kpi import count_pending_reports
-from batid.services.kpi import count_real_buildings
-from batid.services.kpi import count_real_buildings_wo_addresses
-from batid.services.kpi import count_refused_reports
-from batid.services.kpi import count_reports
-from batid.services.kpi import get_building_change_stats
-from batid.services.kpi import get_kpi
-from batid.services.kpi import get_kpi_most_recent
-from batid.services.kpi import KPI_API_REQUESTS_COUNT
-from batid.services.kpi import KPI_DATA_GOUV_DOWNLOADS
-from batid.services.kpi import KPI_DATA_GOUV_VIEWS
 
 
 def make_api_log(requested_at):

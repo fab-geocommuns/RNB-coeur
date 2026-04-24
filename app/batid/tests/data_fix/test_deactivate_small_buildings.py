@@ -1,14 +1,11 @@
-from django.test import TestCase
-
 from batid.models.building import Building
-from batid.models.others import DataFix
-from batid.models.others import SummerChallenge
+from batid.models.others import DataFix, SummerChallenge
 from batid.services.data_fix.deactivate_small_buildings import (
     deactivate_small_buildings,
 )
 from batid.tests.factories.users import ContributorUserFactory
-from batid.tests.helpers import coords_to_mp_geom
-from batid.tests.helpers import coords_to_point_geom
+from batid.tests.helpers import coords_to_mp_geom, coords_to_point_geom
+from django.test import TestCase
 
 
 class TestDeactivateSmallBuildings(TestCase):

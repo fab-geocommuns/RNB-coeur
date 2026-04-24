@@ -3,18 +3,19 @@
 from django.conf import settings
 
 if not settings.configured:
-    import unittest
     import os
+    import unittest
+
     from django import setup
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.settings")
     setup()
 
     from django.test.utils import (
-        setup_test_environment,
-        teardown_test_environment,
-        teardown_databases,
         setup_databases,
+        setup_test_environment,
+        teardown_databases,
+        teardown_test_environment,
     )
 
     VERBOSITY = 1

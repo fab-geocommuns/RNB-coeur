@@ -4,19 +4,18 @@ import os
 from io import StringIO
 from unittest.mock import patch
 
+from batid.models import Address, Building
+from batid.services.guess_bdg_new import (
+    ClosestFromPointHandler,
+    GeocodeAddressHandler,
+    GeocodeNameHandler,
+    Guesser,
+    PartialRoofHandler,
+)
+from batid.tests.helpers import create_default_bdg, create_from_geojson
 from django.contrib.gis.geos import Point
 from django.test import TransactionTestCase
 from requests import Response
-
-from batid.models import Address
-from batid.models import Building
-from batid.services.guess_bdg_new import ClosestFromPointHandler
-from batid.services.guess_bdg_new import GeocodeAddressHandler
-from batid.services.guess_bdg_new import GeocodeNameHandler
-from batid.services.guess_bdg_new import Guesser
-from batid.services.guess_bdg_new import PartialRoofHandler
-from batid.tests.helpers import create_default_bdg
-from batid.tests.helpers import create_from_geojson
 
 
 class TestGuesser(TransactionTestCase):

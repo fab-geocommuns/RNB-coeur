@@ -3,21 +3,19 @@ import logging
 import os
 import unicodedata
 import uuid
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 
+from batid.models import Address
+from batid.services.source import Source
 from django.contrib.gis.geos import Point
 from django.db import connection
 from pyproj import Geod
 from rapidfuzz.distance import Levenshtein
 
-from batid.models import Address
-from batid.services.source import Source
-
 logger = logging.getLogger(__name__)
 
 
-APOSTROPHES = ["'", "\u2018", "\u2019", "\u02BC", "\u02BB", "\u0060", "\u00B4"]
+APOSTROPHES = ["'", "\u2018", "\u2019", "\u02bc", "\u02bb", "\u0060", "\u00b4"]
 
 STREET_REP_ALIASES = {
     "b": "bis",

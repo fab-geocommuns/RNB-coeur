@@ -1,12 +1,10 @@
-from typing import Any
-from typing import Dict
-
-from django.conf import settings
-from django.contrib.gis.geos import GEOSGeometry
-from django.db import connection
+from typing import Any, Dict
 
 from batid.exceptions import BuildingOverlapError
 from batid.services.bdg_status import BuildingStatus
+from django.conf import settings
+from django.contrib.gis.geos import GEOSGeometry
+from django.db import connection
 
 
 def check_building_overlap(

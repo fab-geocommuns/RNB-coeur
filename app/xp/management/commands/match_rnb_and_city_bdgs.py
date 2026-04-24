@@ -2,12 +2,10 @@ import json
 from pprint import pprint
 
 import pandas as pd
-from django.db import connections
-
 from batid.services.source import Source
 from batid.utils.db import dictfetchall
+from django.db import connections
 from xp.management.commands.analyze_xp import Command as SuperCommand
-
 
 # This command analyze a city buildings stock and compare it to the RNB
 # The city stock must be in a geojson file made of multiploygons
@@ -134,12 +132,16 @@ class Command(SuperCommand):
                         "matches_len": len(res),
                         "area": feature["properties"]["area"],
                         "valid": feature["properties"]["BATIM_VALID"],
-                        "created_at": feature["properties"]["BATIM_DATECRE"]
-                        if feature["properties"]["BATIM_DATECRE"]
-                        else "VIDE",
-                        "removed_at": feature["properties"]["BATIM_DATESUPP"]
-                        if feature["properties"]["BATIM_DATESUPP"]
-                        else "VIDE",
+                        "created_at": (
+                            feature["properties"]["BATIM_DATECRE"]
+                            if feature["properties"]["BATIM_DATECRE"]
+                            else "VIDE"
+                        ),
+                        "removed_at": (
+                            feature["properties"]["BATIM_DATESUPP"]
+                            if feature["properties"]["BATIM_DATESUPP"]
+                            else "VIDE"
+                        ),
                     }
                 )
 

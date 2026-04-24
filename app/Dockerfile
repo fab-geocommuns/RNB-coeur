@@ -17,6 +17,10 @@ RUN pipx install --python=python3 poetry==${POETRY_VERSION}
 
 COPY pyproject.toml poetry.lock ./
 RUN poetry env use $(which python3)
+
+# Only needed to regenerate the poetry.lock file in case of conflicts.
+# RUN poetry lock
+
 # only install dev dependencies for testing and local development
 ARG WITH_DEV_DEPENDENCIES=false
 RUN poetry install $(test "$WITH_DEV_DEPENDENCIES" != true && echo "--only=main")

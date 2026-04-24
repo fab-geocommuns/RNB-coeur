@@ -1,13 +1,13 @@
-from datetime import date
-from datetime import timedelta
-
-from django.core.management.base import BaseCommand
+from datetime import date, timedelta
 
 from batid.models import KPI
-from batid.services.kpi import count_building_changes_daily
-from batid.services.kpi import KPI_BUILDING_CHANGES_CONTRIBUTIONS
-from batid.services.kpi import KPI_BUILDING_CHANGES_IMPORT_BAL
-from batid.services.kpi import KPI_BUILDING_CHANGES_IMPORT_BDTOPO
+from batid.services.kpi import (
+    KPI_BUILDING_CHANGES_CONTRIBUTIONS,
+    KPI_BUILDING_CHANGES_IMPORT_BAL,
+    KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
+    count_building_changes_daily,
+)
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):

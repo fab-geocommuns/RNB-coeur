@@ -104,3 +104,8 @@ venv/
 .devcontainer/
 
 /app/.Trash-*
+
+
+# Claude files
+.superpowers/
+specs/

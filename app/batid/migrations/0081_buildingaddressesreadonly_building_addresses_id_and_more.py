@@ -2,11 +2,8 @@
 import django.contrib.postgres.fields
 import django.contrib.postgres.indexes
 import django.db.models.deletion
-from django.db import migrations
-from django.db import models
-
 from batid.migrations.utils.create_view import sql_migration_building_with_history
-
+from django.db import migrations, models
 
 DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL = """
             CREATE OR REPLACE FUNCTION public.delete_address_id_from_building()

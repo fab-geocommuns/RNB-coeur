@@ -2,13 +2,10 @@ import datetime
 import json
 import os
 
-from django.test import TestCase
-
-from batid.models import Address
-from batid.models import Building
+from batid.models import Address, Building
 from batid.services.building import export_city
-from batid.tests.helpers import create_bdg
-from batid.tests.helpers import create_grenoble
+from batid.tests.helpers import create_bdg, create_grenoble
+from django.test import TestCase
 
 
 class TestCityExport(TestCase):

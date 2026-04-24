@@ -1,11 +1,12 @@
 from datetime import date
 
-from django.test import TransactionTestCase
-
 from batid.models import Building
-from batid.services.imports.import_bdtopo import _known_bdtopo_id
-from batid.services.imports.import_bdtopo import bdtopo_recente_release_date
+from batid.services.imports.import_bdtopo import (
+    _known_bdtopo_id,
+    bdtopo_recente_release_date,
+)
 from batid.tests.helpers import create_default_bdg
+from django.test import TransactionTestCase
 
 
 class ReleaseDate(TransactionTestCase):

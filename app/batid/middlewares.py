@@ -1,10 +1,9 @@
 # middlewares.py
 import logging
 
+from batid.services.request import get_client_ip
 from django.conf import settings
 from django.http import HttpResponseForbidden
-
-from batid.services.request import get_client_ip
 
 
 class SimpleRequestLoggerMiddleware:

@@ -2,13 +2,9 @@ import json
 from typing import Optional
 
 import pandas as pd
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import Point
+from batid.services.geocoders import BanGeocoder, NominatimGeocoder, PhotonGeocoder
+from django.contrib.gis.geos import GEOSGeometry, Point
 from django.core.management.base import BaseCommand
-
-from batid.services.geocoders import BanGeocoder
-from batid.services.geocoders import NominatimGeocoder
-from batid.services.geocoders import PhotonGeocoder
 
 
 class Command(BaseCommand):

@@ -1,11 +1,10 @@
 import json
 import time
 
-from django.contrib.gis.geos import Point
-from django.core.management.base import BaseCommand
-
 from batid.services.guess_bdg import BuildingGuess
 from batid.services.source import Source
+from django.contrib.gis.geos import Point
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):

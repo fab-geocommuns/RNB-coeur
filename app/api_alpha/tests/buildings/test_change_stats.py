@@ -1,9 +1,7 @@
-from datetime import date
-from datetime import timedelta
-
-from rest_framework.test import APITestCase
+from datetime import date, timedelta
 
 from batid.models import KPI
+from rest_framework.test import APITestCase
 
 
 class BuildingChangeStatsTest(APITestCase):

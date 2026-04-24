@@ -1,23 +1,17 @@
 import csv
 import json
 import os
-from datetime import date
-from datetime import datetime
-from datetime import timezone
+from datetime import date, datetime, timezone
 from io import StringIO
 from typing import Optional
 
 import ijson  # type: ignore[import-untyped]
-from celery import Signature
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import MultiPolygon
-from django.db import connection
-from django.db import transaction
-
 from batid.models import Plot
-from batid.services.administrative_areas import dpt_list_metropole
-from batid.services.administrative_areas import drom_list
+from batid.services.administrative_areas import dpt_list_metropole, drom_list
 from batid.services.source import Source
+from celery import Signature
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
+from django.db import connection, transaction
 
 
 def import_etalab_plots(dpt: str, release_date: str, batch_size: int = 100_000):

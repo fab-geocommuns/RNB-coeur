@@ -9,11 +9,11 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
+
 import os
 
 import sentry_sdk
-from kombu import Exchange
-from kombu import Queue
+from kombu import Exchange, Queue
 from sentry_sdk.integrations.django import DjangoIntegration
 
 from app.schedule import get_celery_beat_schedule
@@ -241,6 +241,24 @@ RNB_REPLY_TO_ADDRESS = os.environ.get("RNB_REPLY_TO_ADDRESS")
 # Biggest building in RNB is GB97B3AYBKRN and is roughly 487,000m²
 MAX_BUILDING_AREA = 500000
 MIN_BUILDING_AREA = 5
+
+# Pro Connect (OIDC)
+PRO_CONNECT_CLIENT_ID = os.environ.get("PRO_CONNECT_CLIENT_ID")
+PRO_CONNECT_CLIENT_SECRET = os.environ.get("PRO_CONNECT_CLIENT_SECRET")
+PRO_CONNECT_DISCOVERY_URL = os.environ.get(
+    "PRO_CONNECT_DISCOVERY_URL",
+    "https://fca.integ01.dev-agentconnect.fr/api/v2/.well-known/openid-configuration",
+)
+PRO_CONNECT_SCOPES = "openid email given_name usual_name"
+PRO_CONNECT_REDIRECT_URI = os.environ.get("PRO_CONNECT_REDIRECT_URI")
+PRO_CONNECT_POST_LOGOUT_REDIRECT_URI = os.environ.get(
+    "PRO_CONNECT_POST_LOGOUT_REDIRECT_URI"
+)
+PRO_CONNECT_ALLOWED_REDIRECT_URIS = [
+    u.strip()
+    for u in os.environ.get("PRO_CONNECT_ALLOWED_REDIRECT_URIS", "").split(",")
+    if u.strip()
+]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 

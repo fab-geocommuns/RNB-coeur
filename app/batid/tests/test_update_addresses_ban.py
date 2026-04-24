@@ -1,23 +1,19 @@
 from unittest.mock import patch
 from uuid import UUID
 
-from django.contrib.gis.geos import Point
-from django.test import TestCase
-from django.test import TransactionTestCase
-
 import batid.tests.helpers as helpers
 from batid.models import Address
-from batid.services.imports.update_addresses_ban import _expand_street_abbreviations
-from batid.services.imports.update_addresses_ban import _mark_existing_addresses
-from batid.services.imports.update_addresses_ban import _streets_match
 from batid.services.imports.update_addresses_ban import (
+    _expand_street_abbreviations,
+    _mark_existing_addresses,
+    _streets_match,
     delete_unlinked_obsolete_addresses,
-)
-from batid.services.imports.update_addresses_ban import flag_addresses_from_ban_file
-from batid.services.imports.update_addresses_ban import normalize_text
-from batid.services.imports.update_addresses_ban import (
+    flag_addresses_from_ban_file,
+    normalize_text,
     update_addresses_text_and_ban_id,
 )
+from django.contrib.gis.geos import Point
+from django.test import TestCase, TransactionTestCase
 
 
 class TestUpdateBatch(TestCase):

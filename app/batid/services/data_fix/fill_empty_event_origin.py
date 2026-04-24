@@ -1,10 +1,7 @@
-from django.db import connection
-from django.db import transaction
+from batid.models import Building, BuildingHistoryOnly
+from django.db import connection, transaction
 from django.forms.models import model_to_dict
 from psycopg2.extras import DateTimeTZRange
-
-from batid.models import Building
-from batid.models import BuildingHistoryOnly
 
 
 def fix(from_rnb_id, to_rnb_id, batch_size=10000):

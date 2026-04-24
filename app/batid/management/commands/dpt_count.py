@@ -1,8 +1,6 @@
-from django.core.management.base import BaseCommand
-
-from batid.models import Building
-from batid.models import Department
+from batid.models import Building, Department
 from batid.services.administrative_areas import dpts_list
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):

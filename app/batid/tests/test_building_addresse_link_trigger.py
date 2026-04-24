@@ -1,8 +1,5 @@
+from batid.models import Address, Building, BuildingAddressesReadOnly
 from django.test import TransactionTestCase
-
-from batid.models import Address
-from batid.models import Building
-from batid.models import BuildingAddressesReadOnly
 
 
 class BuildingAddressLinkCase(TransactionTestCase):

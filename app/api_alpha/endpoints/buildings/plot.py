@@ -1,12 +1,11 @@
-from rest_framework.exceptions import NotFound
-from rest_framework.views import APIView
-
 from api_alpha.pagination import BuildingCursorPagination
 from api_alpha.serializers.serializers import BuildingPlotSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import rnb_doc
 from batid.exceptions import PlotUnknown
 from batid.services.bdg_on_plot import get_buildings_on_plot
+from rest_framework.exceptions import NotFound
+from rest_framework.views import APIView
 
 
 class BuildingPlotView(RNBLoggingMixin, APIView):

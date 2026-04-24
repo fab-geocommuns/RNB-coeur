@@ -1,12 +1,9 @@
+from batid.models import ADS, BuildingADS, City
+from batid.utils.db import dictfetchall
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from psycopg2 import sql
-
-from batid.models import ADS
-from batid.models import BuildingADS
-from batid.models import City
-from batid.utils.db import dictfetchall
 
 
 def get_managed_insee_codes(user: User) -> list:
