@@ -1,7 +1,6 @@
 import private_captcha
 from api_alpha.exceptions import BadRequest
-from api_alpha.serializers.serializers import OrganizationSerializer, UserSerializer
-from batid.models import Organization
+from api_alpha.serializers.serializers import UserSerializer
 from batid.tasks import create_sandbox_user
 from django.conf import settings
 from django.db import transaction
@@ -9,10 +8,6 @@ from django.http import QueryDict
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from api_alpha.exceptions import BadRequest
-from api_alpha.serializers.serializers import UserSerializer
-from batid.tasks import create_sandbox_user
 
 
 def create_user_in_sandbox(user_data: dict) -> None:

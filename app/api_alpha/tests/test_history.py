@@ -1,19 +1,18 @@
 import json
 
-from batid.models import Address, Building, BuildingImport, DataFix, Organization
+from batid.models import (
+    Address,
+    Building,
+    BuildingImport,
+    DataFix,
+    Organization,
+    UserProfile,
+)
 from batid.tests.factories.users import ContributorUserFactory
 from django.test import override_settings
 from django.utils.timezone import now
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
-
-from batid.models import Address
-from batid.models import Building
-from batid.models import BuildingImport
-from batid.models import DataFix
-from batid.models import Organization
-from batid.models import UserProfile
-from batid.tests.factories.users import ContributorUserFactory
 
 
 class SingleBuildingHistoryTest(APITestCase):

@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from batid.models import Organization
+from batid.models import Organization, UserProfile
 from batid.utils.constants import ADS_GROUP_NAME
 from django.contrib.auth.models import Group, User
 from django.db import transaction
@@ -11,10 +11,6 @@ from rest_framework.authtoken.models import Token
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
-
-from batid.models import Organization
-from batid.models import UserProfile
-from batid.utils.constants import ADS_GROUP_NAME
 
 
 class IsSuperUser(BasePermission):

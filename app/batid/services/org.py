@@ -1,4 +1,3 @@
-
 # populate_organization_on_profiles was a one-time helper that populated
 # UserProfile.organization from the Organization.users M2M relation.
 # The M2M was removed when migrating from N:N to 1:N user-org membership
