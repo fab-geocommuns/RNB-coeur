@@ -1,14 +1,10 @@
 from unittest import mock
 
-from django.contrib.auth.models import User
-from django.test import override_settings
-from django.test import TestCase
-
 from batid.exceptions import INSEESireneAPIDown
-from batid.models import Organization
-from batid.models import ProConnectIdentity
-from batid.models import UserProfile
+from batid.models import Organization, ProConnectIdentity, UserProfile
 from batid.services.organization import link_user_to_organization
+from django.contrib.auth.models import User
+from django.test import TestCase, override_settings
 
 
 class LinkUserToOrganizationTest(TestCase):
@@ -68,7 +64,9 @@ class LinkUserToOrganizationTest(TestCase):
         user.is_staff = True
         user.save()
         siren_org = Organization.objects.create(name="Other", siren="130025265")
-        ProConnectIdentity.objects.create(user=user, sub="sub-s2", siret="13002526500013")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-s2", siret="13002526500013"
+        )
 
         link_user_to_organization(user)
 
@@ -145,7 +143,9 @@ class LinkUserToOrganizationTest(TestCase):
         old_org = Organization.objects.create(name="Old", siren="999999999")
         new_org = Organization.objects.create(name="DINUM", siren="130025265")
         self._set_user_org(user, old_org)
-        ProConnectIdentity.objects.create(user=user, sub="sub-5", siret="13002526500013")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-5", siret="13002526500013"
+        )
 
         link_user_to_organization(user)
 
