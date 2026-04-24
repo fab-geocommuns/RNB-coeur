@@ -60,7 +60,9 @@ class ReplyToReportTest(APITestCase):
             "Indeed",
         )
         self.assertEqual(response_data["messages"][1]["author"]["username"], "testuser")
-        self.assertEqual(response_data["messages"][1]["author"]["organization_name"], "IGN")
+        self.assertEqual(
+            response_data["messages"][1]["author"]["organization_name"], "IGN"
+        )
 
         self.report.refresh_from_db()
         self.assertEqual(self.report.status, "pending")
@@ -126,7 +128,9 @@ class ReplyToReportTest(APITestCase):
         self.assertEqual(len(response_data["messages"]), 2)
         self.assertEqual(response_data["messages"][1]["text"], "This has been fixed")
         self.assertEqual(response_data["messages"][1]["author"]["username"], "testuser")
-        self.assertEqual(response_data["messages"][1]["author"]["organization_name"], "IGN")
+        self.assertEqual(
+            response_data["messages"][1]["author"]["organization_name"], "IGN"
+        )
 
         self.report.refresh_from_db()
         self.assertEqual(self.report.status, "fixed")

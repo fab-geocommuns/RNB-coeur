@@ -7,7 +7,6 @@ from batid.models import (
     Organization,
     UserProfile,
 )
-from django.db.models import Count
 from batid.views import (
     export_ads,
     export_contributions,
@@ -20,6 +19,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.db.models import Count
 from django.db.models.fields.json import JSONField
 from django.urls import path
 from jsoneditor.forms import JSONEditor  # type: ignore[import-untyped]

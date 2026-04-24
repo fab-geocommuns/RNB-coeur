@@ -12,7 +12,9 @@ class GetReportTest(APITestCase):
             first_name="Test",
             last_name="User",
         )
-        self.org = Organization.objects.create(name="Mairie de Paris", siren="213500016")
+        self.org = Organization.objects.create(
+            name="Mairie de Paris", siren="213500016"
+        )
         UserProfile.objects.create(user=self.user, organization=self.org)
 
         self.building = Building.objects.create(
