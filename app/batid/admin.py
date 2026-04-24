@@ -7,6 +7,7 @@ from batid.models import (
     Organization,
     UserProfile,
 )
+from django.db.models import Count
 from batid.views import (
     export_ads,
     export_contributions,
@@ -25,7 +26,14 @@ from jsoneditor.forms import JSONEditor  # type: ignore[import-untyped]
 
 
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ("name", "managed_cities")
+    list_display = ("name", "siren", "email_domain", "get_user_count", "managed_cities")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(user_count=Count("user_profiles"))
+
+    @admin.display(description="Utilisateurs", ordering="user_count")
+    def get_user_count(self, obj):
+        return obj.user_count
 
 
 admin.site.register(Organization, OrganizationAdmin)
@@ -147,6 +155,14 @@ admin.site.register(UserProfile, UserProfileAdmin)
 
 class CustomUserAdmin(BaseUserAdmin):
     inlines = (UserProfileInline,)
+    list_display = BaseUserAdmin.list_display + ("get_organization_name",)
+
+    @admin.display(description="Organisation", ordering="profile__organization__name")
+    def get_organization_name(self, obj):
+        try:
+            return obj.profile.organization.name
+        except AttributeError:
+            return "-"
 
 
 # Unregister the default User admin and register the custom one

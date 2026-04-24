@@ -1,6 +1,6 @@
 import json
 
-from batid.models import Building, Report
+from batid.models import Building, Organization, Report, UserProfile
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
 from rest_framework.authtoken.models import Token
@@ -16,6 +16,8 @@ class ReplyToReportTest(APITestCase):
             last_name="User",
         )
         self.token = Token.objects.create(user=self.user)
+        self.org = Organization.objects.create(name="IGN", siren="180089013")
+        UserProfile.objects.create(user=self.user, organization=self.org)
 
         self.building = Building.objects.create(
             rnb_id="TEST00000001",
@@ -58,6 +60,7 @@ class ReplyToReportTest(APITestCase):
             "Indeed",
         )
         self.assertEqual(response_data["messages"][1]["author"]["username"], "testuser")
+        self.assertEqual(response_data["messages"][1]["author"]["organization_name"], "IGN")
 
         self.report.refresh_from_db()
         self.assertEqual(self.report.status, "pending")
@@ -123,6 +126,7 @@ class ReplyToReportTest(APITestCase):
         self.assertEqual(len(response_data["messages"]), 2)
         self.assertEqual(response_data["messages"][1]["text"], "This has been fixed")
         self.assertEqual(response_data["messages"][1]["author"]["username"], "testuser")
+        self.assertEqual(response_data["messages"][1]["author"]["organization_name"], "IGN")
 
         self.report.refresh_from_db()
         self.assertEqual(self.report.status, "fixed")
