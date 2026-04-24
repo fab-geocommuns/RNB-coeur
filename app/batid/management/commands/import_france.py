@@ -1,9 +1,6 @@
 # empty django command
 import uuid
 
-from celery import chain
-from django.core.management.base import BaseCommand
-
 from batid.management.commands.import_bdnb_dpt import (
     create_tasks_list as create_tasks_list_bdnb_dpt,
 )
@@ -13,11 +10,10 @@ from batid.management.commands.import_cities_dpt import (
 from batid.management.commands.import_plots_dpt import (
     create_tasks_list as create_tasks_list_plots_dpt,
 )
-from batid.services.administrative_areas import dpt_list_metropole
-from batid.services.administrative_areas import dpts_list
-from batid.services.imports.import_bdtopo import (
-    create_bdtopo_full_import_tasks,
-)
+from batid.services.administrative_areas import dpt_list_metropole, dpts_list
+from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
+from celery import chain
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):

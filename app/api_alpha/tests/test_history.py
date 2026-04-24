@@ -1,5 +1,7 @@
 import json
 
+from batid.models import Address, Building, BuildingImport, DataFix, Organization
+from batid.tests.factories.users import ContributorUserFactory
 from django.test import override_settings
 from django.utils.timezone import now
 from rest_framework.authtoken.models import Token

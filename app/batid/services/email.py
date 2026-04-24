@@ -55,8 +55,10 @@ def build_monthly_leaderboard_email(
     Returns: EmailMultiAlternatives with to=[] (no recipient set).
     Set msg.to = [email] before each msg.send() in the caller loop.
     """
-    from batid.services.leaderboard import get_monthly_edit_leaderboard
-    from batid.services.leaderboard import get_monthly_new_users
+    from batid.services.leaderboard import (
+        get_monthly_edit_leaderboard,
+        get_monthly_new_users,
+    )
     from batid.utils.date import french_month_year_label
 
     leaderboard = get_monthly_edit_leaderboard(year, month)

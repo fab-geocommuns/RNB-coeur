@@ -1,15 +1,16 @@
 import requests
+from batid.exceptions import (
+    BANAPIDown,
+    BANBadRequest,
+    BANBadResultType,
+    BANUnknownCleInterop,
+)
+from batid.validators import JSONSchemaValidator
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
-
-from batid.exceptions import BANAPIDown
-from batid.exceptions import BANBadRequest
-from batid.exceptions import BANBadResultType
-from batid.exceptions import BANUnknownCleInterop
-from batid.validators import JSONSchemaValidator
 
 
 class BuildingAddressesReadOnly(models.Model):
@@ -206,7 +207,7 @@ class UserProfile(models.Model):
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name="members",
+        related_name="user_profiles",
     )
     job_title = models.CharField(max_length=255, blank=True, null=True)
     max_allowed_contributions = models.IntegerField(null=False, default=500)
@@ -226,6 +227,25 @@ class UserProfile(models.Model):
 
         self.total_contributions += 1
         self.save(update_fields=["total_contributions"])
+
+
+class ProConnectIdentity(models.Model):
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="pro_connect"
+    )
+    # sub
+    # ID sent by the ID provider, unique for each user and stable over time. We use it to identify the user and link it to their account in the RNB.
+    # documentation: https://partenaires.proconnect.gouv.fr/docs/fournisseur-service/donnees_fournies
+    sub = models.CharField(max_length=255, unique=True, db_index=True)
+
+    # last_id_token
+    # Raw JWT id_token from the last login, kept to pass as id_token_hint during logout
+    last_id_token = models.TextField(blank=True)
+
+    # SIRET of the user's employer, provided by Pro Connect in the userinfo claims
+    siret = models.CharField(max_length=14, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class BuildingImport(models.Model):

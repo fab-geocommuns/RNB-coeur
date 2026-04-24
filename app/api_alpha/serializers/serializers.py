@@ -1,8 +1,29 @@
 import math
 
+from api_alpha.services import BuildingADS as BuildingADSLogic
+from api_alpha.services import can_manage_ads_in_request
+from api_alpha.validators import (
+    ADSValidator,
+    BdgInADSValidator,
+    ads_validate_rnbid,
+    bdg_is_active,
+)
+from batid.models import (
+    ADS,
+    Address,
+    Building,
+    BuildingADS,
+    Contribution,
+    DiffusionDatabase,
+    Organization,
+    UserProfile,
+)
+from batid.services.bdg_status import BuildingStatus
+from batid.services.email import build_activate_account_email
+from batid.services.rnb_id import clean_rnb_id
+from batid.services.user import get_user_id_b64
 from django.conf import settings
-from django.contrib.auth.models import Group
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.gis.geos import GEOSGeometry
@@ -12,25 +33,6 @@ from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
-
-from api_alpha.services import BuildingADS as BuildingADSLogic
-from api_alpha.services import can_manage_ads_in_request
-from api_alpha.validators import ads_validate_rnbid
-from api_alpha.validators import ADSValidator
-from api_alpha.validators import bdg_is_active
-from api_alpha.validators import BdgInADSValidator
-from batid.models import Address
-from batid.models import ADS
-from batid.models import Building
-from batid.models import BuildingADS
-from batid.models import Contribution
-from batid.models import DiffusionDatabase
-from batid.models import Organization
-from batid.models import UserProfile
-from batid.services.bdg_status import BuildingStatus
-from batid.services.email import build_activate_account_email
-from batid.services.rnb_id import clean_rnb_id
-from batid.services.user import get_user_id_b64
 
 
 class RNBIdField(serializers.CharField):

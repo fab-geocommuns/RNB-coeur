@@ -1,9 +1,8 @@
+from batid.models import Organization, UserProfile
+from batid.services.ads import get_managed_insee_codes
+from batid.services.org import populate_organization_on_profiles
 from django.contrib.auth.models import User
 from django.test import TestCase
-
-from batid.models import Organization
-from batid.models import UserProfile
-from batid.services.ads import get_managed_insee_codes
 
 
 class TestRNBUser(TestCase):

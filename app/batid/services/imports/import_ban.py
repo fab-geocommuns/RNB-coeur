@@ -2,12 +2,11 @@ import csv
 import uuid
 from typing import Optional
 
-from celery import Signature
-from django.contrib.gis.geos import Point
-
 from batid.models import Address
 from batid.services.imports import building_import_history
 from batid.services.source import Source
+from celery import Signature
+from django.contrib.gis.geos import Point
 
 
 def create_ban_full_import_tasks(dpt_list: list) -> list:

@@ -5,40 +5,33 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from django.contrib.auth.models import User
-from django.contrib.gis.db import models
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import DateTimeRangeField
-from django.contrib.postgres.indexes import GinIndex
-from django.contrib.postgres.indexes import GistIndex
-from django.db import connection
-from django.db import transaction
-from django.db.models import CheckConstraint
-from django.db.models import F
-from django.db.models import Func
-from django.db.models import Q
-from django.db.models import UniqueConstraint
-from django.db.models.functions import Lower
-from django.db.models.indexes import Index
-
-from .contribution import Contribution
-from .others import Address
-from .others import SummerChallenge
 from api_alpha.typeddict import SplitCreatedBuilding
-from batid.exceptions import DatabaseInconsistency
-from batid.exceptions import EventUnknown
-from batid.exceptions import NotEnoughBuildings
-from batid.exceptions import OperationOnInactiveBuilding
-from batid.exceptions import RevertNotAllowed
+from batid.exceptions import (
+    DatabaseInconsistency,
+    EventUnknown,
+    NotEnoughBuildings,
+    OperationOnInactiveBuilding,
+    RevertNotAllowed,
+)
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.building_overlap import check_building_overlap
 from batid.services.rnb_id import generate_rnb_id
 from batid.services.user import check_and_increment_contribution_count
 from batid.utils.db import from_now_to_infinity
-from batid.utils.geo import assert_new_shape_is_close_enough
-from batid.utils.geo import assert_shape_is_valid
+from batid.utils.geo import assert_new_shape_is_close_enough, assert_shape_is_valid
 from batid.validators import validate_one_ext_id
+from django.contrib.auth.models import User
+from django.contrib.gis.db import models
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.postgres.fields import ArrayField, DateTimeRangeField
+from django.contrib.postgres.indexes import GinIndex, GistIndex
+from django.db import connection, transaction
+from django.db.models import CheckConstraint, F, Func, Q, UniqueConstraint
+from django.db.models.functions import Lower
+from django.db.models.indexes import Index
+
+from .contribution import Contribution
+from .others import Address, SummerChallenge
 
 
 class EventType(str, Enum):

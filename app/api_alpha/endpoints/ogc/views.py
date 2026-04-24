@@ -1,18 +1,18 @@
+from api_alpha.pagination import OGCApiPagination
+from api_alpha.serializers.serializers import (
+    BuildingGeoJSONSerializer,
+    OgcBuildingQuerySerializer,
+)
+from api_alpha.utils.logging_mixin import RNBLoggingMixin
+from api_alpha.utils.rnb_doc import build_schema_ogc_endpoints, rnb_doc
+from batid.list_bdg import list_bdgs
+from batid.services.rnb_id import clean_rnb_id
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from rest_framework.renderers import JSONRenderer
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from api_alpha.pagination import OGCApiPagination
-from api_alpha.serializers.serializers import BuildingGeoJSONSerializer
-from api_alpha.serializers.serializers import OgcBuildingQuerySerializer
-from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.rnb_doc import build_schema_ogc_endpoints
-from api_alpha.utils.rnb_doc import rnb_doc
-from batid.list_bdg import list_bdgs
-from batid.services.rnb_id import clean_rnb_id
 
 
 class OpenAPIRenderer(JSONRenderer):

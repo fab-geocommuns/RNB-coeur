@@ -1,10 +1,8 @@
 import factory
-from django.contrib.auth.models import Group
-from django.contrib.auth.models import User
-from rest_framework.authtoken.models import Token
-
 from api_alpha.permissions import RNBContributorPermission
 from batid.models import UserProfile
+from django.contrib.auth.models import Group, User
+from rest_framework.authtoken.models import Token
 
 
 class UserProfileFactory(factory.django.DjangoModelFactory):

@@ -21,7 +21,7 @@ def reverse_populate(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0127_userprofile_organization"),
+        ("batid", "0128_userprofile_organization"),
     ]
 
     operations = [

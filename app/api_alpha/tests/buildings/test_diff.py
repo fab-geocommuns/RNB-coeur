@@ -4,17 +4,11 @@ import io
 import json
 import uuid
 
+from batid.models import Address, Building, City, Organization, UserProfile
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
-from django.test import override_settings
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 from django.utils.http import urlencode
-
-from batid.models import Address
-from batid.models import Building
-from batid.models import City
-from batid.models import Organization
-from batid.models import UserProfile
 
 
 def get_content_from_streaming_response(response):

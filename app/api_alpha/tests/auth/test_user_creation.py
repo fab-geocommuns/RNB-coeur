@@ -3,8 +3,7 @@ from unittest import mock
 from urllib.parse import urlparse
 
 from django.conf import settings
-from django.contrib.auth.models import Group
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core import mail
 from private_captcha.models import VerifyOutput
 from rest_framework.authtoken.models import Token

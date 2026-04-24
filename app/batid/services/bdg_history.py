@@ -1,6 +1,5 @@
-from django.db import connection
-
 from batid.utils.db import dictfetchall
+from django.db import connection
 
 
 def get_bdg_history(rnb_id: str) -> list[dict]:

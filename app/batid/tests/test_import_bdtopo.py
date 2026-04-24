@@ -1,20 +1,18 @@
 from datetime import datetime
 from unittest.mock import patch
 
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.geos import MultiPolygon
-from django.test import TestCase
-from django.test import TransactionTestCase
-
-from batid.models import Building
-from batid.models import Candidate
+from batid.models import Building, Candidate
 from batid.services.candidate import Inspector
-from batid.services.imports.import_bdtopo import bdtopo_dpts_list
-from batid.services.imports.import_bdtopo import bdtopo_src_params
-from batid.services.imports.import_bdtopo import create_bdtopo_full_import_tasks
-from batid.services.imports.import_bdtopo import create_candidate_from_bdtopo
+from batid.services.imports.import_bdtopo import (
+    bdtopo_dpts_list,
+    bdtopo_src_params,
+    create_bdtopo_full_import_tasks,
+    create_candidate_from_bdtopo,
+)
 from batid.tests import helpers
 from batid.tests.helpers import create_default_bdg
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
+from django.test import TestCase, TransactionTestCase
 
 
 class ImportBDTopoGeopackage(TransactionTestCase):

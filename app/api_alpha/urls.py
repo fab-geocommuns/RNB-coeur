@@ -1,53 +1,62 @@
-from django.conf import settings
-from django.urls import include
-from django.urls import path
-from django.urls import re_path
-from rest_framework import routers
-
 from api_alpha.endpoints.ads.create_token import CreateAdsTokenView
 from api_alpha.endpoints.auth.create_user import CreateUserView
+from api_alpha.endpoints.auth.pro_connect import (
+    AuthorizeView,
+    CallbackView,
+    LogoutCallbackView,
+    LogoutView,
+)
 from api_alpha.endpoints.buildings.change_stats import BuildingChangeStatsView
 from api_alpha.endpoints.buildings.get_diff import DiffView
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.plot import BuildingPlotView
-from api_alpha.endpoints.buildings.single_building import SingleBuilding
-from api_alpha.endpoints.buildings.single_building import SingleBuildingHistory
+from api_alpha.endpoints.buildings.single_building import (
+    SingleBuilding,
+    SingleBuildingHistory,
+)
 from api_alpha.endpoints.debug import RaiseExceptionView
-from api_alpha.endpoints.ogc.views import OGCBuildingItemsView
-from api_alpha.endpoints.ogc.views import OGCBuildingsCollectionView
-from api_alpha.endpoints.ogc.views import OGCCollectionsView
-from api_alpha.endpoints.ogc.views import OGCConformanceView
-from api_alpha.endpoints.ogc.views import OGCIndexView
-from api_alpha.endpoints.ogc.views import OGCOpenAPIDefinitionView
-from api_alpha.endpoints.ogc.views import OGCSingleBuildingItemView
+from api_alpha.endpoints.ogc.views import (
+    OGCBuildingItemsView,
+    OGCBuildingsCollectionView,
+    OGCCollectionsView,
+    OGCConformanceView,
+    OGCIndexView,
+    OGCOpenAPIDefinitionView,
+    OGCSingleBuildingItemView,
+)
 from api_alpha.endpoints.reports.create_report import CreateReportView
 from api_alpha.endpoints.reports.get_report import GetReport
 from api_alpha.endpoints.reports.reply_to_report import ReplyToReportView
 from api_alpha.endpoints.reports.stats import ReportStatsView
-from api_alpha.endpoints.summer_challenge.leaderboard import FevesView
-from api_alpha.endpoints.summer_challenge.leaderboard import LeaderboardView
+from api_alpha.endpoints.summer_challenge.leaderboard import FevesView, LeaderboardView
 from api_alpha.endpoints.summer_challenge.user_score import UserScoreView
 from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
-from api_alpha.endpoints.tiles.building_vector_tile import BuildingsShapeVectorTileView
-from api_alpha.endpoints.tiles.building_vector_tile import BuildingsVectorTileView
+from api_alpha.endpoints.tiles.building_vector_tile import (
+    BuildingsShapeVectorTileView,
+    BuildingsVectorTileView,
+)
 from api_alpha.endpoints.tiles.plots_vector_tile import PlotsVectorTileView
 from api_alpha.endpoints.tiles.report_vector_tile import ReportVectorTileView
-from api_alpha.views import ActivateUser
-from api_alpha.views import ADSViewSet
-from api_alpha.views import BuildingAddressView
-from api_alpha.views import BuildingClosestView
-from api_alpha.views import BuildingGuessView
-from api_alpha.views import ChangePassword
-from api_alpha.views import DiffusionDatabaseView
-from api_alpha.views import get_all_endpoints_schema
-from api_alpha.views import GetCurrentUserTokens
-from api_alpha.views import GetUserToken
-from api_alpha.views import MergeBuildings
-from api_alpha.views import OrganizationView
-from api_alpha.views import RequestPasswordReset
-from api_alpha.views import RNBAuthToken
-from api_alpha.views import SplitBuildings
-
+from api_alpha.views import (
+    ActivateUser,
+    ADSViewSet,
+    BuildingAddressView,
+    BuildingClosestView,
+    BuildingGuessView,
+    ChangePassword,
+    DiffusionDatabaseView,
+    GetCurrentUserTokens,
+    GetUserToken,
+    MergeBuildings,
+    OrganizationView,
+    RequestPasswordReset,
+    RNBAuthToken,
+    SplitBuildings,
+    get_all_endpoints_schema,
+)
+from django.conf import settings
+from django.urls import include, path, re_path
+from rest_framework import routers
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
@@ -123,6 +132,10 @@ urlpatterns = [
     path(
         "auth/change_password/<str:user_id_b64>/<str:token>", ChangePassword.as_view()
     ),
+    path("auth/pro_connect/authorize/", AuthorizeView.as_view()),
+    path("auth/pro_connect/callback/", CallbackView.as_view()),
+    path("auth/pro_connect/logout/callback/", LogoutCallbackView.as_view()),
+    path("auth/pro_connect/logout/", LogoutView.as_view()),
     path("editions/ranking/", LeaderboardView.as_view()),
     path("feves/", FevesView.as_view()),
     path("editions/ranking/<str:username>/", UserScoreView.as_view()),

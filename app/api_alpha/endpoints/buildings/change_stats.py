@@ -1,13 +1,12 @@
 from datetime import date
 
-from rest_framework.request import Request
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
 from api_alpha.exceptions import BadRequest
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import rnb_doc
 from batid.services.kpi import get_building_change_stats
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 MIN_SINCE_DATE = date(2024, 1, 1)
 

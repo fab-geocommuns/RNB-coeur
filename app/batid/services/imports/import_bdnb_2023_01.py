@@ -2,20 +2,15 @@ import csv
 import json
 import os
 import random
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 
 import psycopg2
-from django.contrib.gis.geos import GEOSGeometry
-from django.db import connection
-from django.db import transaction
-from psycopg2.extras import execute_values
-
-from batid.models import Address
-from batid.models import Candidate
+from batid.models import Address, Candidate
 from batid.services.imports import building_import_history
-from batid.services.source import BufferToCopy
-from batid.services.source import Source
+from batid.services.source import BufferToCopy, Source
+from django.contrib.gis.geos import GEOSGeometry
+from django.db import connection, transaction
+from psycopg2.extras import execute_values
 
 
 def import_bdnd_2023_01_bdgs(dpt, bulk_launch_uuid=None):

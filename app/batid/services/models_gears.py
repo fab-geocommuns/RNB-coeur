@@ -1,11 +1,9 @@
 # abstract class, which will be extend by a specific class foreach django model
 from abc import ABC
-from typing import List
-from typing import Type
-
-from django.db.models import Model
+from typing import List, Type
 
 from batid.models import ADS as ADSModel
+from django.db.models import Model
 
 
 class ModelGear(ABC):

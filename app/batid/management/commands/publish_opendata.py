@@ -1,8 +1,8 @@
 # empty django command
+from batid.services.administrative_areas import dpts_list
 from django.core.management.base import BaseCommand
 
 from app.celery import app
-from batid.services.administrative_areas import dpts_list
 
 
 class Command(BaseCommand):

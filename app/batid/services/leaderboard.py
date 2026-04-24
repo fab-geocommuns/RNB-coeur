@@ -1,11 +1,8 @@
+from batid.services.user import get_staff_emails
+from batid.utils.date import french_month_year_label, month_bounds, previous_month
+from batid.utils.db import dictfetchall
 from django.contrib.auth.models import User
 from django.db import connection
-
-from batid.services.user import get_staff_emails
-from batid.utils.date import french_month_year_label
-from batid.utils.date import month_bounds
-from batid.utils.date import previous_month
-from batid.utils.db import dictfetchall
 
 
 def get_monthly_edit_leaderboard(year: int, month: int) -> list[dict]:
