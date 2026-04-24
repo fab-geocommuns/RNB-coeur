@@ -1,9 +1,7 @@
-from urllib.parse import parse_qs
-from urllib.parse import urlparse
-
-from django.test import SimpleTestCase
+from urllib.parse import parse_qs, urlparse
 
 from batid.services.url import add_params_to_url
+from django.test import SimpleTestCase
 
 
 class AddParamsToUrlTest(SimpleTestCase):

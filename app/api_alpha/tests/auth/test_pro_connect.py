@@ -76,11 +76,14 @@ class AuthorizeTest(APITestCase):
         return_value=FAKE_OIDC_CONFIG,
     )
     @override_settings(
-        PRO_CONNECT_ALLOWED_REDIRECT_URIS=["http://localhost:3000/auth/proconnect/callback"]
+        PRO_CONNECT_ALLOWED_REDIRECT_URIS=[
+            "http://localhost:3000/auth/proconnect/callback"
+        ]
     )
     def test_authorize_accepts_redirect_uri_with_query_params(self, mock_config):
         """Input: redirect_uri with an embedded ?redirect= query param whose base path is in the allowlist.
-        Expected: 200 and the full redirect_uri (including the query param) is stored in the state."""
+        Expected: 200 and the full redirect_uri (including the query param) is stored in the state.
+        """
         full_redirect_uri = "http://localhost:3000/auth/proconnect/callback?redirect=http%3A%2F%2Flocalhost%3A3000%2Fcas"
         response = self.client.get(
             "/api/alpha/auth/pro_connect/authorize/",

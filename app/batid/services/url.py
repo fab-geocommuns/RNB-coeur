@@ -1,7 +1,4 @@
-from urllib.parse import parse_qsl
-from urllib.parse import urlencode
-from urllib.parse import urlparse
-from urllib.parse import urlunparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 
 def add_params_to_url(url, params) -> str:

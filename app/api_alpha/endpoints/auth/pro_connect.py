@@ -1,13 +1,11 @@
 import logging
 import secrets
-from urllib.parse import urlencode
-from urllib.parse import urlparse
-
-from batid.services.url import add_params_to_url
+from urllib.parse import urlencode, urlparse
 
 import requests
 from authlib.jose import jwt as jose_jwt
 from batid.models import ProConnectIdentity, UserProfile
+from batid.services.url import add_params_to_url
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import signing
