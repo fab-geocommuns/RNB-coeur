@@ -1,15 +1,12 @@
 from unittest import mock
-from urllib.parse import parse_qs
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
+from batid.models import ProConnectIdentity
+from batid.tests.factories.users import ContributorUserFactory
 from django.core import signing
 from django.test import override_settings
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
-
-from batid.models import ProConnectIdentity
-from batid.tests.factories.users import ContributorUserFactory
-
 
 FAKE_OIDC_CONFIG = {
     "authorization_endpoint": "https://proconnect.example/authorize",
