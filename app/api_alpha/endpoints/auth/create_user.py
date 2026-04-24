@@ -56,7 +56,7 @@ class CreateUserView(APIView):
         user_serializer = UserSerializer(data=request_data)
         user_serializer.is_valid(raise_exception=True)
 
-        user_serializer.save()  # TO CHECK: replug_ads dropped this call, kept from attach_organization
+        user_serializer.save()
 
         if settings.HAS_SANDBOX:
             create_user_in_sandbox(request_data)
