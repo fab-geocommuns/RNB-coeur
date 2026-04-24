@@ -158,7 +158,7 @@ class SingleBuildingHistoryTest(APITestCase):
                         "id": self.user_id,
                         "first_name": "Julie",
                         "last_name": "S.",
-                        "organizations_names": ["Mairie de Dreux"],
+                        "organization_name": "Mairie de Dreux",
                         "username": "ju_sig",
                     },
                     "origin": {
