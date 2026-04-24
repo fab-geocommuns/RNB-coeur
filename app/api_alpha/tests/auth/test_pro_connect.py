@@ -71,6 +71,32 @@ class AuthorizeTest(APITestCase):
         response = self.client.get("/api/alpha/auth/pro_connect/authorize/")
         self.assertEqual(response.status_code, 400)
 
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.get_oidc_config",
+        return_value=FAKE_OIDC_CONFIG,
+    )
+    @override_settings(
+        PRO_CONNECT_ALLOWED_REDIRECT_URIS=[
+            "http://localhost:3000/auth/proconnect/callback"
+        ]
+    )
+    def test_authorize_accepts_redirect_uri_with_query_params(self, mock_config):
+        """Input: redirect_uri with an embedded ?redirect= query param whose base path is in the allowlist.
+        Expected: 200 and the full redirect_uri (including the query param) is stored in the state.
+        """
+        full_redirect_uri = "http://localhost:3000/auth/proconnect/callback?redirect=http%3A%2F%2Flocalhost%3A3000%2Fcas"
+        response = self.client.get(
+            "/api/alpha/auth/pro_connect/authorize/",
+            {"redirect_uri": full_redirect_uri},
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        parsed = urlparse(data["authorization_url"])
+        params = parse_qs(parsed.query)
+        state = params["state"][0]
+        payload = signing.loads(state, salt="pro_connect", max_age=300)
+        self.assertEqual(payload["redirect_uri"], full_redirect_uri)
+
 
 FAKE_JWKS = {"keys": [{"kty": "RSA", "kid": "test-key", "n": "fake", "e": "AQAB"}]}
 
@@ -351,6 +377,41 @@ class CallbackTest(APITestCase):
 
         user = User.objects.get(email="agent@gouv.fr")
         self.assertEqual(user.pro_connect.siret, "")
+
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
+        return_value=FAKE_USERINFO,
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+        return_value={"nonce": "test-nonce"},
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+        return_value=("fake-access-token", "fake-id-token"),
+    )
+    def test_callback_preserves_redirect_param_in_final_url(
+        self, mock_exchange, mock_verify, mock_userinfo
+    ):
+        """Input: state contains a redirect_uri with an embedded ?redirect= query param.
+        Expected: final redirect URL contains both the original redirect param and the token params,
+        with exactly one '?' and no malformed URL."""
+        from django.contrib.auth.models import Group
+
+        Group.objects.get_or_create(name="Contributors")
+        redirect_uri_with_param = "http://localhost:3000/auth/proconnect/callback?redirect=http%3A%2F%2Flocalhost%3A3000%2Fcas"
+        state = _make_state(redirect_uri=redirect_uri_with_param)
+
+        response = self._call_callback(state=state)
+
+        self.assertEqual(response.status_code, 302)
+        final_url = response.url
+        self.assertEqual(final_url.count("?"), 1)
+        parsed = urlparse(final_url)
+        params = parse_qs(parsed.query)
+        self.assertIn("redirect", params)
+        self.assertIn("token", params)
+        self.assertIn("user_id", params)
 
 
 @override_settings(
