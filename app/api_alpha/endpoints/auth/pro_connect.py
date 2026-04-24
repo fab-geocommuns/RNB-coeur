@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 import requests
 from authlib.jose import jwt as jose_jwt
 from batid.models import ProConnectIdentity, UserProfile
+from batid.services.organization import link_user_to_organization
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import signing
@@ -18,8 +19,6 @@ from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from batid.services.organization import link_user_to_organization
 
 logger = logging.getLogger(__name__)
 

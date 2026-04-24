@@ -1,8 +1,7 @@
 import requests
+from batid.exceptions import INSEESireneAPIDown
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-
-from batid.exceptions import INSEESireneAPIDown
 
 _BASE_URL = "https://api.insee.fr/api-sirene/3.11"
 

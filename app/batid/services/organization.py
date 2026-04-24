@@ -1,10 +1,7 @@
+from batid.models import Organization, UserProfile
+from batid.services.insee_siren import extract_org_name, fetch_siren_data
 from django.conf import settings
 from django.contrib.auth.models import User
-
-from batid.models import Organization
-from batid.models import UserProfile
-from batid.services.insee_siren import extract_org_name
-from batid.services.insee_siren import fetch_siren_data
 
 
 def _set_user_org(user: User, org: Organization) -> None:
