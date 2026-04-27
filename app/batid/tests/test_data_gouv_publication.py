@@ -322,9 +322,7 @@ class TestDataGouvPublication(TestCase):
             # Finally, check the content of the rows
             self.assertListEqual(rows, expected_rows)
 
-        (archive_path, archive_size, archive_sha1) = create_archive(
-            directory_name, area
-        )
+        archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
 
         # check the archive exists
         self.assertTrue(os.path.exists(archive_path))
@@ -362,9 +360,7 @@ class TestDataGouvPublication(TestCase):
 
         create_csv(directory_name, area)
 
-        (archive_path, archive_size, archive_sha1) = create_archive(
-            directory_name, area
-        )
+        archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
 
         # create the mock s3 bucket
         conn = boto3.resource("s3")

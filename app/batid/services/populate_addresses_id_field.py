@@ -8,8 +8,7 @@ from django.db import connection
 # and to be able to test it as well
 def launch_procedure():
     with connection.cursor() as cursor:
-        cursor.execute(
-            """
+        cursor.execute("""
             DO LANGUAGE PLPGSQL $$
             DECLARE
                 min_id bigint; max_id bigint;
@@ -32,5 +31,4 @@ def launch_procedure():
                 ALTER TABLE public.batid_building ENABLE TRIGGER building_versioning_trigger;
             END;
             $$;
-        """
-        )
+        """)

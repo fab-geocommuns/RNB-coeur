@@ -13,7 +13,7 @@ from botocore.config import Config  # type: ignore[import-untyped]
 # main function to be called by the cron job
 def backup_to_s3(task_id=None):
     try:
-        (backup_id, backup_name) = create_scaleway_db_backup()
+        backup_id, backup_name = create_scaleway_db_backup()
         download_url = create_backup_download_url(backup_id)
         upload_to_s3(backup_name, download_url)
         remove_older_backups()
