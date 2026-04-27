@@ -10,21 +10,17 @@ class Migration(migrations.Migration):
 
     def add_unique_constraint(apps, schema_editor):
         with connection.cursor() as cursor:
-            cursor.execute(
-                """
+            cursor.execute("""
                 ALTER TABLE auth_user
                 ADD CONSTRAINT unique_user_email UNIQUE (email);
-            """
-            )
+            """)
 
     def remove_unique_constraint(apps, schema_editor):
         with connection.cursor() as cursor:
-            cursor.execute(
-                """
+            cursor.execute("""
                 ALTER TABLE auth_user
                 DROP CONSTRAINT IF EXISTS unique_user_email;
-            """
-            )
+            """)
 
     operations = [
         migrations.RunPython(add_unique_constraint, remove_unique_constraint),  # type: ignore[arg-type]
