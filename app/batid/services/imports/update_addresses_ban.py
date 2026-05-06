@@ -344,7 +344,7 @@ def _update_text_batch(batch: list) -> dict:
     return {"updated": updated, "mismatched": mismatched}
 
 
-def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
+def geocode_and_update_obsolete_addresses(batch_size: int = 1000) -> dict:
     """
     Géocode par batches toutes les adresses still_exists=False liées à un bâtiment.
     - Si score >= 0.9 et type == housenumber : MAJ cle interop + Building.addresses_id
@@ -354,6 +354,19 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
     geocoder = BanBatchGeocoder()
     total_updated = 0
     total_not_found = 0
+    batch_num = 0
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT COUNT(*) FROM batid_address
+            WHERE still_exists = False AND ban_update_flag IS NULL
+            """
+        )
+        total_to_process = cursor.fetchone()[0]
+    logger.info(
+        f"Starting geocoding of obsolete addresses: {total_to_process} to process (batch_size={batch_size})"
+    )
 
     while True:
         with connection.cursor() as cursor:
@@ -371,6 +384,12 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
 
         if not rows:
             break
+
+        batch_num += 1
+        logger.info(
+            f"Batch #{batch_num}: geocoding {len(rows)} addresses "
+            f"(processed so far: {total_updated + total_not_found}/{total_to_process})"
+        )
 
         csv_data = [
             {
@@ -447,8 +466,12 @@ def geocode_and_update_obsolete_addresses(batch_size: int = 8000) -> dict:
             _flag_failures(failures)
             total_not_found += len(failures)
 
+        processed = total_updated + total_not_found
+        pct = (processed / total_to_process * 100) if total_to_process else 0
         logger.info(
-            f"Geocoded batch: {len(successes)} updated, {len(failures)} not found"
+            f"Batch #{batch_num} done: {len(successes)} updated, {len(failures)} not found. "
+            f"Cumulative: {total_updated} updated, {total_not_found} failures "
+            f"({processed}/{total_to_process}, {pct:.1f}%)"
         )
 
     logger.info(f"Total: {total_updated} updated, {total_not_found} geocoding failures")
