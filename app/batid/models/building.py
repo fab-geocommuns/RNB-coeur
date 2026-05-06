@@ -120,6 +120,11 @@ class Building(BuildingAbstract):
         through="BuildingAddressesReadOnly",
     )
 
+    def delete(self, *args, **kwargs):
+        raise NotImplementedError(
+            "Deleting a building is forbidden. Deactivate it instead."
+        )
+
     def contains_ext_id(
         self, source: str, source_version: Optional[str], id: str
     ) -> bool:
@@ -1065,6 +1070,9 @@ class BuildingHistoryOnly(BuildingAbstract):
     # primary key coming from the Building table, but not unique here.
     id = models.BigIntegerField()
     rnb_id = models.CharField(max_length=12, null=False, unique=False, db_index=True)
+
+    def delete(self, *args, **kwargs):
+        raise NotImplementedError("Deleting a building history is forbidden.")
 
     class Meta:
         managed = True

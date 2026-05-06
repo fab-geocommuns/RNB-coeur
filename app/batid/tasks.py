@@ -8,8 +8,6 @@ logger = logging.getLogger(__name__)
 from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list, slice_dpts
 from batid.services.building import export_city as export_city_job
-from batid.services.building import remove_dpt_bdgs as remove_dpt_bdgs_job
-from batid.services.building import remove_light_bdgs as remove_light_bdgs_job
 from batid.services.candidate import Inspector
 from batid.services.data_fix.fill_empty_event_origin import (
     fix as fix_fill_empty_event_origin,
@@ -204,18 +202,6 @@ def inspect_candidates():
     i = Inspector()
     i.inspect()
 
-    return "done"
-
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def remove_dpt_bdgs(dpt):
-    remove_dpt_bdgs_job(dpt)
-    return "done"
-
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def remove_light_bdgs(dpt):
-    remove_light_bdgs_job(dpt)
     return "done"
 
 
