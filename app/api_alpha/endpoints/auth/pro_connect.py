@@ -2,6 +2,7 @@ import logging
 import secrets
 from urllib.parse import urlencode
 
+import sentry_sdk
 import requests
 from authlib.jose import jwt as jose_jwt
 from batid.models import ProConnectIdentity, UserProfile
@@ -344,6 +345,7 @@ class CallbackView(APIView):
                 logger.exception(
                     "Failed to link user %s to organization (non-fatal)", user.pk
                 )
+                sentry_sdk.capture_exception()
 
             user.last_login = timezone.now()
             user.save(update_fields=["last_login"])
