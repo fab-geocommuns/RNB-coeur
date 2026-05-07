@@ -21,7 +21,9 @@ from batid.services.data_fix.remove_light_buildings import (
     remove_light_buildings as remove_light_buildings_job,
 )
 from batid.services.data_gouv_publication import get_area_publish_task, publish
-from batid.services.imports.import_bal import create_all_bal_links_tasks
+from batid.services.imports.import_bal import (
+    create_all_bal_links_tasks,
+)
 from batid.services.imports.import_bal import (
     create_dpt_bal_rnb_links as create_dpt_bal_rnb_links_job,
 )
