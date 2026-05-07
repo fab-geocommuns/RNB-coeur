@@ -7,11 +7,10 @@ from psycopg2 import sql
 
 
 def get_managed_insee_codes(user: User) -> list:
-    codes = []  # type: ignore
-    for org in user.organizations.all():  # type: ignore[attr-defined]
-        codes += org.managed_cities  # type: ignore
-
-    return list(set(codes))
+    profile = getattr(user, "profile", None)
+    if not profile or not profile.organization_id:
+        return []
+    return list(profile.organization.managed_cities or [])
 
 
 def can_manage_ads_in_cities(user: User, cities: list) -> bool:
