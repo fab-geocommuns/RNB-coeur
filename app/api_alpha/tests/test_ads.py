@@ -1,6 +1,6 @@
 import json
 
-from batid.models import ADS, Building, BuildingADS, Organization
+from batid.models import ADS, Building, BuildingADS, Organization, UserProfile
 from batid.tests.helpers import (
     create_cenac,
     create_from_geojson_feature,
@@ -29,7 +29,7 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
         # Add permission
-        group, created = Group.objects.get_or_create(name=ADS_GROUP_NAME)
+        group, _ = Group.objects.get_or_create(name=ADS_GROUP_NAME)
         user.groups.add(group)
         content_type = ContentType.objects.get_for_model(ADS)
         permissions = Permission.objects.filter(content_type=content_type)
@@ -37,7 +37,9 @@ class ADSEnpointsWithBadAuthTest(APITestCase):
             group.permissions.add(permission)
 
         org = Organization.objects.create(name="Test Org", managed_cities=["38185"])
-        org.users.add(user)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.organization = org
+        profile.save(update_fields=["organization"])
 
         # Create an ADS set in Grenoble (managed)
         create_from_geojson_feature(
@@ -1290,7 +1292,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
             first_name="John", last_name="Doe", username="johndoe"
         )
         org = Organization.objects.create(name="Test Org", managed_cities=["38185"])
-        org.users.add(self.user)
+        profile, _ = UserProfile.objects.get_or_create(user=self.user)
+        profile.organization = org
+        profile.save(update_fields=["organization"])
         self.token = Token.objects.create(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
 
@@ -1312,7 +1316,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
             email="superuser@ilovepower.fr",
             is_superuser=True,
         )
-        org.users.add(self.superuser)
+        profile, _ = UserProfile.objects.get_or_create(user=self.superuser)
+        profile.organization = org
+        profile.save(update_fields=["organization"])
         self.token_superuser = Token.objects.create(user=self.superuser)
 
 

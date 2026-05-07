@@ -61,7 +61,6 @@ class Migration(migrations.Migration):
 
             -- Recreate the old trigger and function
 
-            """
-            + DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL,  # nosec
+            """ + DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL,  # nosec
         ),
     ]

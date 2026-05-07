@@ -568,7 +568,11 @@ class TestSaveNewAddress(TestCase):
         Address.save_new_address(data)
 
         address = Address.objects.get(id="01001_0001_00001")
-        self.assertEqual(str(address.ban_id), ban_id)
+
+        # We disabled BAN id import for now since it creates duplicates and should be treated globally, so we expect ban_id to be None for all addresses
+        # self.assertEqual(str(address.ban_id), ban_id)
+        self.assertIsNone(address.ban_id)
+
         self.assertEqual(address.source, "ban")
         self.assertEqual(address.street_number, "1")
         self.assertEqual(address.street_rep, "bis")
