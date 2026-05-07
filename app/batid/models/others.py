@@ -188,7 +188,9 @@ class Address(models.Model):
             city_name=data["commune"]["nom"],
             city_zipcode=data["codePostal"],
             city_insee_code=data["commune"]["code"],
-            ban_id=data.get("banId"),
+            # We don't import ban_id for now since it creates duplicates and should be treated globally
+            # ban_id=data.get("banId"),
+            ban_id=None,
         )
 
 
