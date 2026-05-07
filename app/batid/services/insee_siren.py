@@ -45,7 +45,7 @@ def fetch_siren_data(siren: str) -> dict | None:
 
 def extract_org_name(siren_org: dict) -> str:
     periods = siren_org.get("periodesUniteLegale", [])
-    current = next(
+    current: dict = next(
         (p for p in periods if p.get("dateFin") is None),
         {},
     )
