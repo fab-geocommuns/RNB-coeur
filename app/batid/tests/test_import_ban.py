@@ -36,7 +36,11 @@ class BANImportDB(TestCase):
         self.assertEqual(address.city_name, "Aiglun")
         self.assertEqual(address.city_zipcode, "04510")
         self.assertEqual(address.city_insee_code, "04001")
-        self.assertEqual(address.ban_id, UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890"))
+
+        # We disabled id_ban import for now, so we expect ban_id to be None for all addresses
+        # self.assertEqual(address.ban_id, UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890"))
+        self.assertEqual(address.ban_id, None)
+
         self.assertGreater(address.created_at, before_import)
         self.assertGreater(address.updated_at, before_import)
 
