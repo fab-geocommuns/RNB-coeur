@@ -25,9 +25,10 @@ class DiffTest(TransactionTestCase):
         user = User.objects.create_user(
             first_name="Marcella", last_name="Paviollon", username="marcella"
         )
-        UserProfile.objects.create(user=user)
+        profile = UserProfile.objects.create(user=user)
         org = Organization.objects.create(name="Mairie Marseille")
-        org.users.add(user)
+        profile.organization = org
+        profile.save(update_fields=["organization"])
 
         # We need some addresses
         Address.objects.create(id="ADDRESS_ID_1")
@@ -741,9 +742,10 @@ class DiffInseeCodeTest(TransactionTestCase):
         user = User.objects.create_user(
             first_name="Test", last_name="User", username="testuser"
         )
-        UserProfile.objects.create(user=user)
+        profile = UserProfile.objects.create(user=user)
         org = Organization.objects.create(name="Test Org")
-        org.users.add(user)
+        profile.organization = org
+        profile.save(update_fields=["organization"])
 
         # City with geometry (Paris area for testing)
         self.city_shape = GEOSGeometry(
