@@ -1,6 +1,5 @@
 from datetime import datetime
 from unittest.mock import patch
-from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import batid.tests.helpers as helpers
