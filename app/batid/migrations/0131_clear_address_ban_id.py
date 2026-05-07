@@ -9,7 +9,7 @@ def clear_ban_id(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0129_populate_userprofile_organization"),
+        ("batid", "0130_remove_organization_users"),
     ]
 
     operations = [
