@@ -1182,7 +1182,7 @@ class ActivateUser(APIView):
         try:
             uid = urlsafe_base64_decode(user_id_b64).decode()
             user = User.objects.get(pk=uid)
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
             user = None
 
         site_url = settings.FRONTEND_URL
