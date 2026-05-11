@@ -1,10 +1,11 @@
 import logging
 import secrets
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import requests
 from authlib.jose import jwt as jose_jwt
 from batid.models import ProConnectIdentity, UserProfile
+from batid.services.url import add_params_to_url
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import signing
@@ -270,9 +271,16 @@ class AuthorizeView(APIView):
 
     def get(self, request):
         redirect_uri = request.query_params.get("redirect_uri")
+        # Strip query string and fragment before the allowlist check so that
+        # embedded params like ?redirect=… are allowed when the base path is whitelisted.
+        redirect_uri_base = (
+            urlparse(redirect_uri)._replace(query="", fragment="").geturl()
+            if redirect_uri
+            else None
+        )
         if (
             not redirect_uri
-            or redirect_uri not in settings.PRO_CONNECT_ALLOWED_REDIRECT_URIS
+            or redirect_uri_base not in settings.PRO_CONNECT_ALLOWED_REDIRECT_URIS
         ):
             return Response(
                 {"error": "invalid_redirect_uri"},
@@ -332,30 +340,35 @@ class CallbackView(APIView):
 
             if not user.is_active:
                 # We block any user we disabled manually
-                error_params = urlencode({"error": "account_disabled"})
-                return HttpResponseRedirect(f"{redirect_uri}?{error_params}")
+                return HttpResponseRedirect(
+                    add_params_to_url(redirect_uri, {"error": "account_disabled"})
+                )
 
             user.last_login = timezone.now()
             user.save(update_fields=["last_login"])
 
         except Exception:
             logger.exception("Pro Connect callback failed")
-            error_params = urlencode(
-                {
-                    "error": "authentication_failed",
-                    "error_description": "An error occurred during authentication",
-                }
+            return HttpResponseRedirect(
+                add_params_to_url(
+                    redirect_uri,
+                    {
+                        "error": "authentication_failed",
+                        "error_description": "An error occurred during authentication",
+                    },
+                )
             )
-            return HttpResponseRedirect(f"{redirect_uri}?{error_params}")
 
-        params = urlencode(
-            {
-                "token": token.key,
-                "user_id": user.id,
-                "username": user.username,
-            }
+        return HttpResponseRedirect(
+            add_params_to_url(
+                redirect_uri,
+                {
+                    "token": token.key,
+                    "user_id": user.id,
+                    "username": user.username,
+                },
+            )
         )
-        return HttpResponseRedirect(f"{redirect_uri}?{params}")
 
 
 class LogoutView(APIView):

@@ -1,6 +1,13 @@
 import json
 
-from batid.models import Address, Building, BuildingImport, DataFix, Organization
+from batid.models import (
+    Address,
+    Building,
+    BuildingImport,
+    DataFix,
+    Organization,
+    UserProfile,
+)
 from batid.tests.factories.users import ContributorUserFactory
 from django.test import override_settings
 from django.utils.timezone import now
@@ -25,7 +32,9 @@ class SingleBuildingHistoryTest(APITestCase):
 
         # She is working in this org
         org = Organization.objects.create(name="Mairie de Dreux")
-        org.users.set([user])
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.organization = org
+        profile.save(update_fields=["organization"])
 
         token = Token.objects.get(user=user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
