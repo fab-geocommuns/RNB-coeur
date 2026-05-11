@@ -2,8 +2,8 @@ import logging
 import secrets
 from urllib.parse import urlencode, urlparse
 
-import sentry_sdk
 import requests
+import sentry_sdk
 from authlib.jose import jwt as jose_jwt
 from batid.models import ProConnectIdentity, UserProfile
 from batid.services.organization import link_user_to_organization
