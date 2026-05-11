@@ -2,7 +2,10 @@ from unittest import mock
 
 from batid.exceptions import INSEESireneAPIDown
 from batid.models import Organization, ProConnectIdentity, UserProfile
-from batid.services.organization import link_user_to_organization
+from batid.services.organization import (
+    link_organization_to_users,
+    link_user_to_organization,
+)
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 
@@ -237,3 +240,345 @@ class LinkUserToOrganizationTest(TestCase):
         )
         with self.assertRaises(INSEESireneAPIDown):
             link_user_to_organization(user)
+
+
+class LinkOrganizationToUsersTest(TestCase):
+    """Tests for link_organization_to_users(org).
+
+    Priority: SIREN (authoritative, overrides existing org); email domain fallback
+    (only when user has no org yet). Staff and superusers are skipped unless the org
+    is the RNB team.
+    """
+
+    def _make_user(self, email="user@example.com", is_staff=False, is_superuser=False):
+        user = User.objects.create(
+            username=email.split("@")[0],
+            email=email,
+            is_staff=is_staff,
+            is_superuser=is_superuser,
+        )
+        UserProfile.objects.create(user=user)
+        return user
+
+    def _user_in_org(self, user, org):
+        return org.user_profiles.filter(user=user).exists()
+
+    def _set_user_org(self, user, org):
+        user.profile.organization = org
+        user.profile.save()
+
+    # --- SIREN matching ---
+
+    def test_links_users_via_siren_match(self):
+        """Users whose ProConnect SIRET starts with org.siren are linked to the org."""
+        org = Organization.objects.create(name="DINUM", siren="130025265")
+        user = self._make_user()
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-1", siret="13002526500013"
+        )
+
+        link_organization_to_users(org)
+
+        self.assertTrue(self._user_in_org(user, org))
+
+    def test_siren_links_multiple_users(self):
+        """All users with a matching SIRET are linked, not just the first one."""
+        org = Organization.objects.create(name="DINUM", siren="130025265")
+        user_a = self._make_user("a@example.com")
+        user_b = self._make_user("b@example.com")
+        ProConnectIdentity.objects.create(
+            user=user_a, sub="sub-a", siret="13002526500013"
+        )
+        ProConnectIdentity.objects.create(
+            user=user_b, sub="sub-b", siret="13002526500099"
+        )
+
+        link_organization_to_users(org)
+
+        self.assertTrue(self._user_in_org(user_a, org))
+        self.assertTrue(self._user_in_org(user_b, org))
+
+    def test_siren_links_user_even_when_already_in_another_org(self):
+        """SIREN match reassigns user even when they already belong to another org."""
+        old_org = Organization.objects.create(name="Old", siren="999999999")
+        new_org = Organization.objects.create(name="DINUM", siren="130025265")
+        user = self._make_user()
+        self._set_user_org(user, old_org)
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-1", siret="13002526500013"
+        )
+
+        link_organization_to_users(new_org)
+
+        self.assertTrue(self._user_in_org(user, new_org))
+
+    def test_siren_does_not_link_unrelated_user(self):
+        """User with a SIRET from a different SIREN is not linked."""
+        org = Organization.objects.create(name="DINUM", siren="130025265")
+        user = self._make_user()
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-1", siret="99999999900000"
+        )
+
+        link_organization_to_users(org)
+
+        self.assertFalse(self._user_in_org(user, org))
+
+    def test_siren_skips_staff_users(self):
+        """Staff users with a matching SIRET are not linked."""
+        org = Organization.objects.create(name="DINUM", siren="130025265")
+        user = self._make_user(is_staff=True)
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-1", siret="13002526500013"
+        )
+
+        link_organization_to_users(org)
+
+        self.assertFalse(self._user_in_org(user, org))
+
+    def test_siren_skips_superusers(self):
+        """Superusers with a matching SIRET are not linked."""
+        org = Organization.objects.create(name="DINUM", siren="130025265")
+        user = self._make_user(is_superuser=True)
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-1", siret="13002526500013"
+        )
+
+        link_organization_to_users(org)
+
+        self.assertFalse(self._user_in_org(user, org))
+
+    def test_no_siren_on_org_skips_siren_step(self):
+        """Org with no SIREN: the SIREN step is a no-op, no user is linked by SIREN."""
+        org = Organization.objects.create(name="DINUM", email_domain="dinum.fr")
+        user = self._make_user()
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-1", siret="13002526500013"
+        )
+
+        link_organization_to_users(org)
+
+        self.assertFalse(self._user_in_org(user, org))
+
+    # --- Email domain fallback ---
+
+    def test_links_users_via_email_domain(self):
+        """Users whose email domain matches org.email_domain and have no org are linked."""
+        org = Organization.objects.create(name="Etat", email_domain="gouv.fr")
+        user = self._make_user(email="agent@gouv.fr")
+
+        link_organization_to_users(org)
+
+        self.assertTrue(self._user_in_org(user, org))
+
+    def test_email_domain_links_multiple_users(self):
+        """All matching users without an org are linked, not just the first one."""
+        org = Organization.objects.create(name="Etat", email_domain="gouv.fr")
+        user_a = self._make_user(email="alice@gouv.fr")
+        user_b = self._make_user(email="bob@gouv.fr")
+
+        link_organization_to_users(org)
+
+        self.assertTrue(self._user_in_org(user_a, org))
+        self.assertTrue(self._user_in_org(user_b, org))
+
+    def test_email_domain_skips_user_with_existing_org(self):
+        """User already linked to an org is not reassigned via email domain."""
+        existing_org = Organization.objects.create(name="Other", siren="999999999")
+        domain_org = Organization.objects.create(name="Etat", email_domain="gouv.fr")
+        user = self._make_user(email="agent@gouv.fr")
+        self._set_user_org(user, existing_org)
+
+        link_organization_to_users(domain_org)
+
+        self.assertFalse(self._user_in_org(user, domain_org))
+        self.assertTrue(self._user_in_org(user, existing_org))
+
+    def test_email_domain_links_user_without_profile(self):
+        """User with no UserProfile and a matching email is linked (profile is created)."""
+        org = Organization.objects.create(name="Etat", email_domain="gouv.fr")
+        user = User.objects.create(username="agent", email="agent@gouv.fr")
+
+        link_organization_to_users(org)
+
+        self.assertTrue(self._user_in_org(user, org))
+
+    def test_email_domain_skips_staff_users(self):
+        """Staff users with a matching email domain are not linked."""
+        org = Organization.objects.create(name="Etat", email_domain="gouv.fr")
+        user = self._make_user(email="agent@gouv.fr", is_staff=True)
+
+        link_organization_to_users(org)
+
+        self.assertFalse(self._user_in_org(user, org))
+
+    def test_no_email_domain_on_org_skips_email_step(self):
+        """Org with no email_domain: the email step is a no-op."""
+        org = Organization.objects.create(name="DINUM", siren="130025265")
+        user = self._make_user(email="agent@dinum.fr")
+
+        link_organization_to_users(org)
+
+        self.assertFalse(self._user_in_org(user, org))
+
+    # --- RNB team includes staff and superusers ---
+
+    @override_settings(RNB_TEAM_ORG_NAME="Equipe RNB")
+    def test_staff_user_linked_unconditionally_to_rnb_team(self):
+        """Staff user is linked to the RNB team even without a SIREN or email domain match."""
+        org = Organization.objects.create(name="Equipe RNB")
+        user = self._make_user(is_staff=True)
+
+        link_organization_to_users(org)
+
+        self.assertTrue(self._user_in_org(user, org))
+
+    @override_settings(RNB_TEAM_ORG_NAME="Equipe RNB")
+    def test_superuser_linked_unconditionally_to_rnb_team(self):
+        """Superuser is linked to the RNB team even without a SIREN or email domain match."""
+        org = Organization.objects.create(name="Equipe RNB")
+        user = self._make_user(is_superuser=True)
+
+        link_organization_to_users(org)
+
+        self.assertTrue(self._user_in_org(user, org))
+
+    # --- Idempotency ---
+
+    def test_calling_twice_is_idempotent(self):
+        """Calling twice with the same SIREN assigns the org once (idempotent)."""
+        org = Organization.objects.create(name="DINUM", siren="130025265")
+        user = self._make_user()
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-1", siret="13002526500013"
+        )
+
+        link_organization_to_users(org)
+        link_organization_to_users(org)
+
+        self.assertTrue(self._user_in_org(user, org))
+        self.assertEqual(org.user_profiles.filter(user=user).count(), 1)
+
+
+class LinkSymmetryTest(TestCase):
+    """Symmetry between link_user_to_organization and link_organization_to_users.
+
+    For every matching (user, org) pair, either function should produce the same
+    outcome. Intentional asymmetries (staff users) are documented explicitly.
+    """
+
+    def _make_user(self, email="user@example.com", is_staff=False, is_superuser=False):
+        user = User.objects.create(
+            username=email.split("@")[0],
+            email=email,
+            is_staff=is_staff,
+            is_superuser=is_superuser,
+        )
+        UserProfile.objects.create(user=user)
+        return user
+
+    def _user_in_org(self, user, org):
+        return org.user_profiles.filter(user=user).exists()
+
+    def _clear_user_org(self, user):
+        user.profile.organization = None
+        user.profile.save()
+
+    # --- Symmetry: SIREN match ---
+
+    def test_siren_match_is_symmetric(self):
+        """SIREN match: user ends up in org regardless of which function is called."""
+        org = Organization.objects.create(name="DINUM", siren="130025265")
+        user = self._make_user()
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-1", siret="13002526500013"
+        )
+
+        link_user_to_organization(user)
+        self.assertTrue(
+            self._user_in_org(user, org), "link_user_to_organization failed"
+        )
+
+        self._clear_user_org(user)
+
+        link_organization_to_users(org)
+        self.assertTrue(
+            self._user_in_org(user, org), "link_organization_to_users failed"
+        )
+
+    # --- Symmetry: email domain match ---
+
+    def test_email_domain_match_is_symmetric(self):
+        """Email domain match, user has no org: both functions link the user."""
+        org = Organization.objects.create(name="Etat", email_domain="gouv.fr")
+        user = self._make_user(email="agent@gouv.fr")
+
+        link_user_to_organization(user)
+        self.assertTrue(
+            self._user_in_org(user, org), "link_user_to_organization failed"
+        )
+
+        self._clear_user_org(user)
+
+        link_organization_to_users(org)
+        self.assertTrue(
+            self._user_in_org(user, org), "link_organization_to_users failed"
+        )
+
+    def test_email_domain_no_override_is_symmetric(self):
+        """Email domain, user already has an org: neither function reassigns via email."""
+        existing_org = Organization.objects.create(name="Other", siren="999999999")
+        domain_org = Organization.objects.create(name="Etat", email_domain="gouv.fr")
+        user = self._make_user(email="agent@gouv.fr")
+        user.profile.organization = existing_org
+        user.profile.save()
+
+        link_user_to_organization(user)
+        self.assertFalse(
+            self._user_in_org(user, domain_org),
+            "link_user_to_organization wrongly reassigned via email",
+        )
+
+        link_organization_to_users(domain_org)
+        self.assertFalse(
+            self._user_in_org(user, domain_org),
+            "link_organization_to_users wrongly reassigned via email",
+        )
+
+    # --- Staff: symmetric for RNB team, asymmetric for other orgs ---
+
+    @override_settings(RNB_TEAM_ORG_NAME="Equipe RNB")
+    def test_staff_user_and_rnb_team_is_symmetric(self):
+        """RNB team org: both functions link a staff user to it."""
+        rnb_org = Organization.objects.create(name="Equipe RNB")
+        user = self._make_user(is_staff=True)
+
+        link_user_to_organization(user)
+        self.assertTrue(
+            self._user_in_org(user, rnb_org), "link_user_to_organization failed"
+        )
+
+        self._clear_user_org(user)
+
+        link_organization_to_users(rnb_org)
+        self.assertTrue(
+            self._user_in_org(user, rnb_org), "link_organization_to_users failed"
+        )
+
+    @override_settings(RNB_TEAM_ORG_NAME="Equipe RNB")
+    def test_staff_user_and_non_rnb_org_is_asymmetric(self):
+        """Non-RNB org: link_user_to_organization sends staff to RNB team;
+        link_organization_to_users skips staff entirely."""
+        rnb_org = Organization.objects.create(name="Equipe RNB")
+        other_org = Organization.objects.create(name="Other", email_domain="gouv.fr")
+        user = self._make_user(email="agent@gouv.fr", is_staff=True)
+
+        link_user_to_organization(user)
+        self.assertTrue(self._user_in_org(user, rnb_org))
+        self.assertFalse(self._user_in_org(user, other_org))
+
+        self._clear_user_org(user)
+
+        link_organization_to_users(other_org)
+        self.assertFalse(self._user_in_org(user, other_org))
+        self.assertFalse(self._user_in_org(user, rnb_org))
