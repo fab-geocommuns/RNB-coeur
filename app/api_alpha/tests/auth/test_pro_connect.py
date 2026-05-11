@@ -397,7 +397,7 @@ class CallbackTest(APITestCase):
         return_value=("fake-access-token", "fake-id-token"),
     )
     def test_callback_preserves_redirect_param_in_final_url(
-        self, mock_exchange, mock_verify, mock_userinfo
+        self, mock_exchange, mock_verify, mock_userinfo, _mock_siren
     ):
         """Input: state contains a redirect_uri with an embedded ?redirect= query param.
         Expected: final redirect URL contains both the original redirect param and the token params,
