@@ -3,8 +3,10 @@ import secrets
 from urllib.parse import urlencode, urlparse
 
 import requests
+import sentry_sdk
 from authlib.jose import jwt as jose_jwt
 from batid.models import ProConnectIdentity, UserProfile
+from batid.services.organization import link_user_to_organization
 from batid.services.url import add_params_to_url
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -343,6 +345,16 @@ class CallbackView(APIView):
                 return HttpResponseRedirect(
                     add_params_to_url(redirect_uri, {"error": "account_disabled"})
                 )
+
+            try:
+                link_user_to_organization(user)
+            except Exception:
+                # Linking might fail due to INSEE SIRENE API issues,
+                # we don't want that to block the login, but we log it for debugging and manual fixing if needed
+                logger.exception(
+                    "Failed to link user %s to organization (non-fatal)", user.pk
+                )
+                sentry_sdk.capture_exception()
 
             user.last_login = timezone.now()
             user.save(update_fields=["last_login"])
