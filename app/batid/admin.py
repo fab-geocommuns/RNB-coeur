@@ -155,14 +155,15 @@ admin.site.register(UserProfile, UserProfileAdmin)
 
 class CustomUserAdmin(BaseUserAdmin):
     inlines = (UserProfileInline,)
-    list_display = BaseUserAdmin.list_display + ("get_organization_name",)
+    list_display = [*BaseUserAdmin.list_display, "get_organization_name"]  # type: ignore[misc]
 
     @admin.display(description="Organisation", ordering="profile__organization__name")
     def get_organization_name(self, obj):
-        try:
-            return obj.profile.organization.name
-        except AttributeError:
+
+        if obj is None or obj.profile is None or obj.profile.organization is None:
             return "-"
+
+        return obj.profile.organization.name
 
 
 # Unregister the default User admin and register the custom one

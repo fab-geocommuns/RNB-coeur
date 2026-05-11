@@ -12,12 +12,14 @@ class PublicUserSerializer(serializers.Serializer):
         }
 
     def _get_organization_name(self, instance: User | None) -> str | None:
-        if instance is None:
+        if (
+            instance is None
+            or instance.profile is None
+            or instance.profile.organization is None
+        ):
             return None
-        try:
-            return instance.profile.organization.name
-        except AttributeError:
-            return None
+
+        return instance.profile.organization.name
 
     def _get_display_name(self, instance: User | None) -> str:
         if instance is None:
