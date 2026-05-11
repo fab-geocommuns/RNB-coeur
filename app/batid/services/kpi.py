@@ -127,7 +127,7 @@ def compute_today_kpis(external_calls=True):
 
     # data.gouv stats
     if external_calls:
-        (views_count, downloads_count) = get_data_gouv_stats()
+        views_count, downloads_count = get_data_gouv_stats()
         if views_count is not None:
             KPI.objects.create(
                 name=KPI_DATA_GOUV_VIEWS, value=views_count, value_date=today

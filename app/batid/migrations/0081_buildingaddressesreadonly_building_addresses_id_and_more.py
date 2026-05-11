@@ -148,8 +148,7 @@ class Migration(migrations.Migration):
 
 
 
-            """
-            + DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL,  # nosec
+            """ + DELETE_ADDRESS_ID_FROM_BUILDING_TRIGGER_SQL,  # nosec
             reverse_sql="""
             DROP TRIGGER building_addresses_trigger ON batid_building;
             DROP FUNCTION keep_building_address_link_updated();
