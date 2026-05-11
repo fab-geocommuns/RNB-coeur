@@ -14,7 +14,7 @@ class PublicUserSerializer(serializers.Serializer):
     def _get_organization_name(self, instance: User | None) -> str | None:
         if (
             instance is None
-            or instance.profile is None
+            or not hasattr(instance, "profile")
             or instance.profile.organization is None
         ):
             return None
