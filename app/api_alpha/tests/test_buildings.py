@@ -391,10 +391,10 @@ class BuildingAddressViewTest(APITestCase):
         self.cle_interop_ban_3 = "33522_2620_00023"
         self.address_3 = Address.objects.create(id=self.cle_interop_ban_3)
 
-        user = ContributorUserFactory(username="user")
+        self.user = ContributorUserFactory(username="user")
 
         self.building_1 = Building.create_new(
-            user=user,
+            user=self.user,
             event_origin={"source": "test"},
             status="constructed",
             addresses_id=[self.cle_interop_ban_1, self.cle_interop_ban_2],
@@ -418,8 +418,11 @@ class BuildingAddressViewTest(APITestCase):
             ),
         )
 
+        self.building_1.marked_as_correct_by = [self.user.id]
+        self.building_1.save()
+
         self.building_2 = Building.create_new(
-            user=user,
+            user=self.user,
             event_origin={"source": "test"},
             status="constructed",
             addresses_id=[self.cle_interop_ban_1],
@@ -475,7 +478,7 @@ class BuildingAddressViewTest(APITestCase):
             [r["rnb_id"] for r in data["results"]],
             [self.building_1.rnb_id, self.building_2.rnb_id],
         )
-        self.assertNumQueries(3, buildings_by_address)
+        self.assertNumQueries(4, buildings_by_address)
 
         # 1 building
         r = self.client.get(
@@ -488,6 +491,16 @@ class BuildingAddressViewTest(APITestCase):
         self.assertEqual(data["score_ban"], None)
         self.assertEqual(
             [r["rnb_id"] for r in data["results"]], [self.building_1.rnb_id]
+        )
+        self.assertListEqual(
+            data["results"][0]["marked_as_correct_by"],
+            [
+                {
+                    "display_name": get_display_name(self.user),
+                    "id": self.user.id,
+                    "username": self.user.username,
+                }
+            ],
         )
 
         # 0 building
