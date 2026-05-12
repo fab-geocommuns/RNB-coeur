@@ -21,6 +21,15 @@ class BuildingAddressesReadOnly(models.Model):
         unique_together = ("building", "address")
 
 
+class BuildingMarkedAsCorrectByReadOnly(models.Model):
+    # buildings and users are never deleted
+    building = models.ForeignKey("Building", on_delete=models.PROTECT, db_index=True)
+    user = models.ForeignKey(User, on_delete=models.PROTECT, db_index=True)
+
+    class Meta:
+        unique_together = ("building", "user")
+
+
 class City(models.Model):
     id = models.AutoField(primary_key=True)
     code_insee = models.CharField(max_length=10, null=False, db_index=True, unique=True)

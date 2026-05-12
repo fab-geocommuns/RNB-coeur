@@ -121,6 +121,13 @@ class Building(BuildingAbstract):
         through="BuildingAddressesReadOnly",
     )
 
+    marked_as_correct_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
+        User,
+        blank=True,
+        related_name="buildings_marked_as_correct_read_only",
+        through="BuildingMarkedAsCorrectByReadOnly",
+    )
+
     def contains_ext_id(
         self, source: str, source_version: Optional[str], id: str
     ) -> bool:
