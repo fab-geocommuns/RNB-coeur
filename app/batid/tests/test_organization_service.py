@@ -598,7 +598,9 @@ class OrgSaveSignalTest(TestCase):
     def test_creating_org_with_siren_links_matching_users(self):
         """Creating an org with a siren immediately links users with a matching SIRET."""
         user = self._make_user()
-        ProConnectIdentity.objects.create(user=user, sub="sub-1", siret="13002526500013")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-1", siret="13002526500013"
+        )
 
         org = Organization.objects.create(name="DINUM", siren="130025265")
 
@@ -616,7 +618,9 @@ class OrgSaveSignalTest(TestCase):
         """Saving an org (e.g. after adding a siren) links users who now match."""
         org = Organization.objects.create(name="DINUM")
         user = self._make_user()
-        ProConnectIdentity.objects.create(user=user, sub="sub-1", siret="13002526500013")
+        ProConnectIdentity.objects.create(
+            user=user, sub="sub-1", siret="13002526500013"
+        )
 
         org.siren = "130025265"
         org.save()
