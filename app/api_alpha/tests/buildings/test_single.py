@@ -184,3 +184,14 @@ class SingleBuildingTest(APITestCase):
             r.data["properties"]["plots"],
             [{"id": "plot-1", "bdg_cover_ratio": 1}],
         )
+
+    def test_single_none_marked_as_correct_by(self):
+
+        b = Building.objects.get(rnb_id="1234ABCD5678")
+        b.marked_as_correct_by = None
+        b.save()
+
+        r = self.client.get("/api/alpha/buildings/1234ABCD5678/")
+        self.assertEqual(r.status_code, 200)
+
+        self.assertEqual(r.data["marked_as_correct_by"], [])
