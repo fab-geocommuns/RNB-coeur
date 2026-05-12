@@ -339,7 +339,7 @@ class Building(BuildingAbstract):
     @transaction.atomic
     def update(
         self,
-        user: User | None,
+        user: User,
         event_origin: dict | None,
         status: str | None,
         addresses_id: list | None,
@@ -365,18 +365,21 @@ class Building(BuildingAbstract):
 
         if not building_identical:
             # We changes the building, we consider previous "mark as correct" as wrong
-            self.marked_as_correct_by = []
+            marked_as_correct_by: list[int] = []
 
             if mark_as_correct:
-                self.marked_as_correct_by.append(user.id)
+                marked_as_correct_by.append(user.id)
+            self.marked_as_correct_by = marked_as_correct_by
         else:
+            marked_as_correct_by = self.marked_as_correct_by or []
             if mark_as_correct:
-                self.marked_as_correct_by.append(user.id)
-            elif user.id in self.marked_as_correct_by:
-                self.marked_as_correct_by.remove(user.id)
+                marked_as_correct_by.append(user.id)
+            elif user.id in marked_as_correct_by:
+                marked_as_correct_by.remove(user.id)
             else:
                 # mark_as_correct is False, but the building was not previously marked => no-op
                 return
+            self.marked_as_correct_by = marked_as_correct_by
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(
