@@ -549,6 +549,206 @@ class TestUpdateBuilding(TestCase):
             )
 
 
+class TestUpdateBuildingMarkedAsCorrect(TestCase):
+    """Tests for the marked_as_correct_by behavior in Building.update()."""
+
+    SHAPE_JSON = json.dumps(
+        {
+            "coordinates": [
+                [
+                    [-0.5629838649124963, 44.89830737784746],
+                    [-0.5627894800164768, 44.89622105788288],
+                    [-0.5603213808721534, 44.89635458462783],
+                    [-0.5605098753173934, 44.89844507230214],
+                    [-0.5629838649124963, 44.89830737784746],
+                ]
+            ],
+            "type": "Polygon",
+        }
+    )
+
+    def setUp(self):
+        Address.objects.create(id="addr1")
+        Address.objects.create(id="addr2")
+
+        self.user = ContributorUserFactory(username="solo_user")
+        self.other_user = ContributorUserFactory(username="other_user")
+
+    def _create_building(self, marked_as_correct_by):
+        b = Building.create_new(
+            user=self.user,
+            event_origin={"source": "test"},
+            status="constructed",
+            addresses_id=["addr1", "addr2"],
+            shape=GEOSGeometry(self.SHAPE_JSON),
+            ext_ids=[],
+        )
+        # Refresh so b.marked_as_correct_by is a fresh list from the DB rather
+        # than the shared field default, which would otherwise leak across tests.
+        b.refresh_from_db()
+        for user in marked_as_correct_by:
+            b.update(
+                user=user,
+                event_origin={"source": "test"},
+                status=None,
+                addresses_id=None,
+                mark_as_correct=True,
+            )
+        b.refresh_from_db()
+        return b
+
+    def test_update_changes_building_with_mark_as_correct_none_resets_list(self):
+        """
+        Input: an existing building has two users in marked_as_correct_by; update is
+        called with a real change (new status) and mark_as_correct=None.
+        Expected: marked_as_correct_by is reset to [] because the building content
+        changed, so any previous "this is correct" mark is no longer meaningful.
+        """
+        b = self._create_building(marked_as_correct_by=[self.user, self.other_user])
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status="demolished",
+            addresses_id=None,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.marked_as_correct_by, [])
+
+    def test_update_changes_building_with_mark_as_correct_true_resets_and_adds_user(
+        self,
+    ):
+        """
+        Input: an existing building has other_user in marked_as_correct_by; update is
+        called with a real change (new status) and mark_as_correct=True from self.user.
+        Expected: previous marks are cleared, then self.user.id is appended; the final
+        list contains only self.user.id.
+        """
+        b = self._create_building(marked_as_correct_by=[self.other_user])
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status="demolished",
+            addresses_id=None,
+            mark_as_correct=True,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.marked_as_correct_by, [self.user.id])
+
+    def test_update_changes_building_with_mark_as_correct_false_resets_list(self):
+        """
+        Input: an existing building has two users in marked_as_correct_by; update is
+        called with a real change (new status) and mark_as_correct=False.
+        Expected: marked_as_correct_by is reset to []; mark_as_correct=False is falsy,
+        so no user is appended after the reset.
+        """
+        b = self._create_building(marked_as_correct_by=[self.user, self.other_user])
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status="demolished",
+            addresses_id=None,
+            mark_as_correct=False,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.marked_as_correct_by, [])
+
+    def test_update_identical_with_mark_as_correct_true_appends_user(self):
+        """
+        Input: an existing building has other_user in marked_as_correct_by; update is
+        called with no real change and mark_as_correct=True from self.user.
+        Expected: self.user.id is appended to the existing list; the final list
+        contains both users.
+        """
+        b = self._create_building(marked_as_correct_by=[self.other_user])
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status=None,
+            addresses_id=None,
+            mark_as_correct=True,
+        )
+        b.refresh_from_db()
+        self.assertEqual(
+            sorted(b.marked_as_correct_by),
+            sorted([self.other_user.id, self.user.id]),
+        )
+
+    def test_update_identical_with_mark_as_correct_false_removes_user(self):
+        """
+        Input: an existing building has self.user and other_user in marked_as_correct_by;
+        update is called with no real change and mark_as_correct=False from self.user.
+        Expected: self.user.id is removed; only other_user.id remains.
+        """
+        b = self._create_building(marked_as_correct_by=[self.user, self.other_user])
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status=None,
+            addresses_id=None,
+            mark_as_correct=False,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.marked_as_correct_by, [self.other_user.id])
+
+    def test_update_identical_with_mark_as_correct_none_is_noop(self):
+        """
+        Input: an existing building has other_user in marked_as_correct_by; update is
+        called with no real change and mark_as_correct=None.
+        Expected: the call is a complete no-op — marked_as_correct_by is unchanged and
+        no new history row is written (sys_period stays the same).
+        """
+        b = self._create_building(marked_as_correct_by=[self.other_user])
+        # refresh to read the DB-side sys_period (the temporal trigger overrides
+        # the Python-side default at insert time)
+        b.refresh_from_db()
+        sys_period_before = b.sys_period
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status=None,
+            addresses_id=None,
+            mark_as_correct=None,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.marked_as_correct_by, [self.other_user.id])
+        self.assertEqual(b.sys_period, sys_period_before)
+
+    def test_update_identical_mark_as_correct_true_from_two_users_accumulates(self):
+        """
+        Input: a fresh building with empty marked_as_correct_by; two different users
+        successively call update with no real change and mark_as_correct=True.
+        Expected: both user ids end up in marked_as_correct_by, in the order they
+        were added.
+        """
+        b = self._create_building(marked_as_correct_by=[])
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status=None,
+            addresses_id=None,
+            mark_as_correct=True,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.marked_as_correct_by, [self.user.id])
+
+        b.update(
+            user=self.other_user,
+            event_origin={"source": "test"},
+            status=None,
+            addresses_id=None,
+            mark_as_correct=True,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.marked_as_correct_by, [self.user.id, self.other_user.id])
+
+
 class TestSaveNewAddress(TestCase):
     def test_save_new_address_stores_ban_id(self):
         ban_id = "b4f1d2a3-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
