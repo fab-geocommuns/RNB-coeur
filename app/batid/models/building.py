@@ -98,6 +98,7 @@ class BuildingAbstract(models.Model):
     # this field is the source of truth for the building <> address link
     # it contains BAN ids (clé d'interopérabilité)
     addresses_id = ArrayField(models.CharField(max_length=40), null=True)
+    marked_as_correct_by = ArrayField(models.IntegerField(), null=True, default=[])
 
     class Meta:
         abstract = True
