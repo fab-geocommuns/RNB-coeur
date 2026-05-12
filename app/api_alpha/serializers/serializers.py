@@ -264,6 +264,9 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
     addresses = AddressSerializer(
         many=True, read_only=True, source="addresses_read_only"
     )
+    marked_as_correct_by = PublicUserSerializer(
+        many=True, read_only=True, source="marked_as_correct_read_only"
+    )
 
     def get_distance(self, obj):
         return obj.distance.m
@@ -278,6 +281,7 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
             "addresses",
             "ext_ids",
             "shape",
+            "marked_as_correct_by",
         ]
 
 

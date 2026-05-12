@@ -8,12 +8,15 @@ from django.db import connection
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APITestCase
+from batid.services.user import get_display_name
 
 
 class BuildingClosestViewTest(APITestCase):
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_closest(self):
+
         user = ContributorUserFactory(username="user")
+
         # It should be first in the results
         closest_bdg = Building.create_new(
             user=user,
@@ -39,6 +42,9 @@ class BuildingClosestViewTest(APITestCase):
                 srid=4326,
             ),
         )
+
+        closest_bdg.marked_as_correct_by = [user.id]
+        closest_bdg.save()
 
         # It should appear second in the results
         further_bdg = Building.create_new(
@@ -193,6 +199,16 @@ class BuildingClosestViewTest(APITestCase):
         self.assertEqual(data["results"][0]["rnb_id"], closest_bdg.rnb_id)
         self.assertDictEqual(
             data["results"][0]["shape"], json.loads(closest_bdg.shape.geojson)
+        )
+        self.assertListEqual(
+            data["results"][0]["marked_as_correct_by"],
+            [
+                {
+                    "display_name": get_display_name(user),
+                    "id": user.id,
+                    "username": user.username,
+                }
+            ],
         )
 
         # Check that the further building is second
@@ -361,8 +377,8 @@ class BuildingClosestViewTest(APITestCase):
             closest()
             # ignore spatial_ref_sys query because it can be cached and make the number of queries vary
             actual = [q for q in queries if "spatial_ref_sys" not in q["sql"]]
-            # would be 4 if N+1 was there
-            self.assertEqual(len(actual), 3)
+            # would be 5 if N+1 was there
+            self.assertEqual(len(actual), 4)
 
 
 class BuildingAddressViewTest(APITestCase):
