@@ -33,6 +33,7 @@ from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
+from api_alpha.serializers.public_user import PublicUserSerializer
 
 
 class RNBIdField(serializers.CharField):
@@ -107,6 +108,11 @@ class BuildingSerializer(serializers.ModelSerializer):
     addresses = AddressSerializer(
         many=True, read_only=True, source="addresses_read_only"
     )
+
+    marked_as_correct_by = PublicUserSerializer(
+        many=True, read_only=True, source="marked_as_correct_read_only"
+    )
+
     ext_ids = ExtIdSerializer(many=True, read_only=True)
     plots = serializers.JSONField(read_only=True)
 
@@ -121,6 +127,7 @@ class BuildingSerializer(serializers.ModelSerializer):
             "ext_ids",
             "is_active",
             "plots",
+            "marked_as_correct_by",
         ]
 
 
@@ -216,7 +223,15 @@ class ListBuildingQuerySerializer(serializers.Serializer):
 class BuildingGeoJSONSerializer(BuildingSerializer, GeoFeatureModelSerializer):
     class Meta:
         model = Building
-        fields = ("rnb_id", "status", "ext_ids", "addresses", "is_active", "plots")
+        fields = (
+            "rnb_id",
+            "status",
+            "ext_ids",
+            "addresses",
+            "is_active",
+            "plots",
+            "marked_as_correct_by",
+        )
         geo_field = "shape"
         id_field = "rnb_id"
 
