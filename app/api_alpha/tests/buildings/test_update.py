@@ -884,3 +884,20 @@ class BuildingPatchMarkAsCorrectTest(APITestCase):
         self.building.refresh_from_db()
         self.assertTrue(self.building.is_active)
         self.assertEqual(self.building.marked_as_correct_by, [])
+
+    def test_mark_as_correct_null_rejected(self):
+        """
+        Input: PATCH with `mark_as_correct=None` (JSON null).
+        Expected: 400 — the serializer's BooleanField does not allow null
+        (no `allow_null=True`); building stays untouched.
+        """
+        data = {"mark_as_correct": None}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.building.refresh_from_db()
+        self.assertEqual(self.building.marked_as_correct_by, [])

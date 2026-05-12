@@ -129,8 +129,10 @@ Cet endpoint permet de :
   RNB. Par exemple un arbre qui aurait été par erreur répertorié comme un
   bâtiment du RNB.
 * réactiver un ID-RNB, si celui-ci a été désactivé par erreur.
+* marquer un bâtiment comme correct.
 
 Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver/réactiver.
+Il n'est pas possible de simultanément marquer un bâtiment comme correct et de le désactiver/réactiver.
 
 Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
 
@@ -203,11 +205,10 @@ Si ce paramêtre est :
                                         "type": "boolean",
                                         "description": LiteralStr(
                                             """\
-Permet à l'utilisateur de marquer que l'état actuel du bâtiment est correct (`True`) ou de retirer cette indication s'il l'avait précédemment marqué (`False`).
+Permet à l'utilisateur de marquer que l'état actuel du bâtiment est correct (`True`) ou de retirer cette indication s'il l'avait précédemment marquée (`False`).
 
 * Peut être envoyé seul ou en complément d'une modification (`status`, `addresses_cle_interop`, `shape`).
-* Incompatible avec `is_active`.
-* Si le bâtiment est modifié par la même requête, la liste des utilisateurs ayant marqué le bâtiment comme correct est réinitialisée avant l'éventuel ajout de l'utilisateur courant."""
+* Lorsqu'un bâtiment est modifié, la liste des utilisateurs l'ayant marqué comme correct est réinitialisée."""
                                         ),
                                     },
                                 },
