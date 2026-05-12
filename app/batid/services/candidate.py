@@ -6,6 +6,7 @@ from batid.exceptions import BuildingTooLarge, BuildingTooSmall, InvalidWGS84Geo
 from batid.models import Building, BuildingWithHistory, Candidate
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.services.data_fix.fill_empty_event_origin import building_identicals
+from batid.services.RNB_team_user import get_RNB_team_user
 from batid.utils.geo import assert_shape_is_valid
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
@@ -197,7 +198,7 @@ class Inspector:
 
         if changes:
             bdg.update(
-                user=None,
+                user=get_RNB_team_user(),
                 event_origin=changes.get("event_origin"),
                 status=None,
                 addresses_id=changes.get("addresses_id"),

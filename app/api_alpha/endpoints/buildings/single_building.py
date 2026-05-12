@@ -129,8 +129,10 @@ Cet endpoint permet de :
   RNB. Par exemple un arbre qui aurait été par erreur répertorié comme un
   bâtiment du RNB.
 * réactiver un ID-RNB, si celui-ci a été désactivé par erreur.
+* marquer un bâtiment comme correct.
 
 Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver/réactiver.
+Il n'est pas possible de simultanément marquer un bâtiment comme correct et de le désactiver/réactiver.
 
 Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
 
@@ -139,6 +141,7 @@ Exemples valides:
 * ```{"comment": "RNB ID désactivé par erreur, on le réactive", "is_active": True}```
 * ```{"comment": "bâtiment démoli", "status": "demolished"}```
 * ```{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}```
+* ```{"comment": "je marque que ce bâtiment est correct", "mark_as_correct": True}```
 """),
                 "operationId": "patchBuilding",
                 "parameters": [
@@ -197,6 +200,16 @@ Si ce paramêtre est :
                                     "shape": {
                                         "type": "string",
                                         "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
+                                    },
+                                    "mark_as_correct": {
+                                        "type": "boolean",
+                                        "description": LiteralStr(
+                                            """\
+Permet à l'utilisateur de marquer que l'état actuel du bâtiment est correct (`True`) ou de retirer cette indication s'il l'avait précédemment marquée (`False`).
+
+* Peut être envoyé seul ou en complément d'une modification (`status`, `addresses_cle_interop`, `shape`).
+* Lorsqu'un bâtiment est modifié, la liste des utilisateurs l'ayant marqué comme correct est réinitialisée."""
+                                        ),
                                     },
                                 },
                                 "required": [],
@@ -271,6 +284,7 @@ Si ce paramêtre est :
                         status,
                         addresses_id,
                         shape=shape,
+                        mark_as_correct=data.get("mark_as_correct"),
                     )
             except BANAPIDown:
                 raise ServiceUnavailable(detail="BAN API is currently down")
