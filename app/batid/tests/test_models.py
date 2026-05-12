@@ -695,6 +695,31 @@ class TestUpdateBuildingMarkedAsCorrect(TestCase):
         b.refresh_from_db()
         self.assertEqual(b.marked_as_correct_by, [self.other_user.id])
 
+    def test_update_identical_with_mark_as_correct_false_not_previously_marked_is_noop(
+        self,
+    ):
+        """
+        Input: an existing building has only other_user in marked_as_correct_by;
+        update is called with no real change and mark_as_correct=False from self.user
+        (who was never in marked_as_correct_by).
+        Expected: the call is a complete no-op — marked_as_correct_by is unchanged
+        and no new history row is written (sys_period stays the same).
+        """
+        b = self._create_building(marked_as_correct_by=[self.other_user])
+        b.refresh_from_db()
+        sys_period_before = b.sys_period
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status=None,
+            addresses_id=None,
+            mark_as_correct=False,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.marked_as_correct_by, [self.other_user.id])
+        self.assertEqual(b.sys_period, sys_period_before)
+
     def test_update_identical_with_mark_as_correct_none_is_noop(self):
         """
         Input: an existing building has other_user in marked_as_correct_by; update is

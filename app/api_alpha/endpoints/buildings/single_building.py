@@ -139,6 +139,7 @@ Exemples valides:
 * ```{"comment": "RNB ID désactivé par erreur, on le réactive", "is_active": True}```
 * ```{"comment": "bâtiment démoli", "status": "demolished"}```
 * ```{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}```
+* ```{"comment": "je marque que ce bâtiment est correct", "mark_as_correct": True}```
 """),
                 "operationId": "patchBuilding",
                 "parameters": [
@@ -197,6 +198,17 @@ Si ce paramêtre est :
                                     "shape": {
                                         "type": "string",
                                         "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
+                                    },
+                                    "mark_as_correct": {
+                                        "type": "boolean",
+                                        "description": LiteralStr(
+                                            """\
+Permet à l'utilisateur de marquer que l'état actuel du bâtiment est correct (`True`) ou de retirer cette indication s'il l'avait précédemment marqué (`False`).
+
+* Peut être envoyé seul ou en complément d'une modification (`status`, `addresses_cle_interop`, `shape`).
+* Incompatible avec `is_active`.
+* Si le bâtiment est modifié par la même requête, la liste des utilisateurs ayant marqué le bâtiment comme correct est réinitialisée avant l'éventuel ajout de l'utilisateur courant."""
+                                        ),
                                     },
                                 },
                                 "required": [],
@@ -271,6 +283,7 @@ Si ce paramêtre est :
                         status,
                         addresses_id,
                         shape=shape,
+                        mark_as_correct=data.get("mark_as_correct"),
                     )
             except BANAPIDown:
                 raise ServiceUnavailable(detail="BAN API is currently down")

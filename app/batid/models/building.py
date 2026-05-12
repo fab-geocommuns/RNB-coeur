@@ -372,8 +372,11 @@ class Building(BuildingAbstract):
         else:
             if mark_as_correct:
                 self.marked_as_correct_by.append(user.id)
-            else:
+            elif user.id in self.marked_as_correct_by:
                 self.marked_as_correct_by.remove(user.id)
+            else:
+                # mark_as_correct is False, but the building was not previously marked => no-op
+                return
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(
