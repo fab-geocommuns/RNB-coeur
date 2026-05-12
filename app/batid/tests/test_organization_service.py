@@ -582,3 +582,43 @@ class LinkSymmetryTest(TestCase):
         link_organization_to_users(other_org)
         self.assertFalse(self._user_in_org(user, other_org))
         self.assertFalse(self._user_in_org(user, rnb_org))
+
+
+class OrgSaveSignalTest(TestCase):
+    """Signal: link_organization_to_users fires on every Organization save."""
+
+    def _make_user(self, email="user@example.com"):
+        user = User.objects.create(username=email.split("@")[0], email=email)
+        UserProfile.objects.create(user=user)
+        return user
+
+    def _user_in_org(self, user, org):
+        return org.user_profiles.filter(user=user).exists()
+
+    def test_creating_org_with_siren_links_matching_users(self):
+        """Creating an org with a siren immediately links users with a matching SIRET."""
+        user = self._make_user()
+        ProConnectIdentity.objects.create(user=user, sub="sub-1", siret="13002526500013")
+
+        org = Organization.objects.create(name="DINUM", siren="130025265")
+
+        self.assertTrue(self._user_in_org(user, org))
+
+    def test_creating_org_with_email_domain_links_matching_users(self):
+        """Creating an org with email_domain immediately links users with a matching email."""
+        user = self._make_user(email="agent@gouv.fr")
+
+        org = Organization.objects.create(name="Etat", email_domain="gouv.fr")
+
+        self.assertTrue(self._user_in_org(user, org))
+
+    def test_saving_org_links_newly_matching_users(self):
+        """Saving an org (e.g. after adding a siren) links users who now match."""
+        org = Organization.objects.create(name="DINUM")
+        user = self._make_user()
+        ProConnectIdentity.objects.create(user=user, sub="sub-1", siret="13002526500013")
+
+        org.siren = "130025265"
+        org.save()
+
+        self.assertTrue(self._user_in_org(user, org))
