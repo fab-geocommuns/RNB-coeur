@@ -17,6 +17,7 @@ from batid.services.candidate import (
     _report_list_fake_updates,
 )
 from batid.services.rnb_id import generate_rnb_id
+from batid.tests.factories.users import UserFactory
 from batid.tests.helpers import (
     coords_to_mp_geom,
     coords_to_point_geom,
@@ -217,6 +218,9 @@ class TestInvalidGeom(TestCase):
 
 class TestInspectorBdgUpdate(TestCase):
     def setUp(self):
+        # RNB team user used by candidate.decide_update()
+        UserFactory(username="RNB")
+
         # Create the city
         create_paris()
 
@@ -523,6 +527,9 @@ class InspectTest(TestCase):
 
         # Install candidates
         data_to_candidate(self.candidates_data)
+
+        # RNB team user used by candidate.decide_update()
+        UserFactory(username="RNB")
 
 
 class TestHalvishCover(InspectTest):
@@ -1568,6 +1575,9 @@ class NonExistingAddress(TransactionTestCase):
             address_keys=["add_1"],
             is_light=False,
         )
+
+        # RNB team user used by candidate.decide_update()
+        UserFactory(username="RNB")
 
         i = Inspector()
         with self.assertRaises(BANUnknownCleInterop) as exinfo:

@@ -1,4 +1,4 @@
-from batid.models import Building, Report, ReportMessage
+from batid.models import Building, Organization, Report, ReportMessage, UserProfile
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
 from rest_framework.test import APITestCase
@@ -12,6 +12,10 @@ class GetReportTest(APITestCase):
             first_name="Test",
             last_name="User",
         )
+        self.org = Organization.objects.create(
+            name="Mairie de Paris", siren="213500016"
+        )
+        UserProfile.objects.create(user=self.user, organization=self.org)
 
         self.building = Building.objects.create(
             rnb_id="TEST00000001",
@@ -64,11 +68,13 @@ class GetReportTest(APITestCase):
         message = data["messages"][0]
         self.assertEqual(message["text"], "Ce bâtiment n'existe pas")
         self.assertEqual(message["author"]["username"], "testuser")
+        self.assertEqual(message["author"]["organization_name"], "Mairie de Paris")
 
         message = data["messages"][1]
         self.assertEqual(message["text"], "J'habite à côté je confirme")
         self.assertEqual(message["author"]["username"], None)
         self.assertEqual(message["author"]["display_name"], "Anonyme")
+        self.assertIsNone(message["author"]["organization_name"])
 
     def test_get_report_without_building(self):
         report_without_building = Report.objects.create(
