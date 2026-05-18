@@ -7,12 +7,13 @@ from freezegun import freeze_time
 from rest_framework.test import APITestCase
 from batid.tests.factories.users import ContributorUserFactory
 from batid.services.user import get_display_name
+from django.contrib.auth.models import User
 
 
 class OGCEndpointsTest(APITestCase):
     def setUp(self) -> None:
 
-        user = ContributorUserFactory(username="user")
+        self.user = ContributorUserFactory(username="user")
 
         coords = {
             "coordinates": [
@@ -36,7 +37,7 @@ class OGCEndpointsTest(APITestCase):
             point=geom.point_on_surface,
             status="constructed",
         )
-        b.marked_as_correct_by = [user.id]
+        b.marked_as_correct_by = [self.user.id]
         b.save()
 
         coords = {
@@ -258,6 +259,13 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
+                        "marked_as_correct_by": [
+                            {
+                                "display_name": get_display_name(self.user),
+                                "id": self.user.id,
+                                "username": "user",
+                            }
+                        ],
                     },
                 },
                 {
@@ -284,6 +292,7 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
+                        "marked_as_correct_by": [],
                     },
                 },
             ],
@@ -345,6 +354,13 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
+                        "marked_as_correct_by": [
+                            {
+                                "display_name": get_display_name(self.user),
+                                "id": self.user.id,
+                                "username": "user",
+                            }
+                        ],
                     },
                 },
             ],
@@ -413,6 +429,7 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
+                        "marked_as_correct_by": [],
                     },
                 },
             ],
@@ -469,6 +486,7 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
+                        "marked_as_correct_by": [],
                     },
                 },
             ],
@@ -517,6 +535,7 @@ class OGCEndpointsTest(APITestCase):
                     "ext_ids": None,
                     "addresses": [],
                     "is_active": True,
+                    "marked_as_correct_by": [],
                 },
             },
         )
