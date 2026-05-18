@@ -22,7 +22,7 @@ jobs:
       - name: Run static typing checks
         run: docker compose -f docker-compose.test.yml exec -T web mypy .
       - name: Check for missing migrations
-        run: docker compose -f docker-compose.test.yml exec -T web python manage.py makemigrations --check --dry-run
+        run: docker compose -f docker-compose.test.yml exec -T web python manage.py makemigrations --check --dry-run api_alpha batid
       - name: Run tests with coverage
         run: docker compose -f docker-compose.test.yml exec -T web coverage run --data-file=/tmp/.coverage manage.py test
       - name: Generate coverage report
