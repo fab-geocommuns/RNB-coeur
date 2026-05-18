@@ -428,6 +428,7 @@ class BuildingCreateSerializerCore(serializers.Serializer):
 
 class BuildingCreateSerializer(BuildingCreateSerializerCore):
     comment = serializers.CharField(required=False, allow_blank=True)
+    mark_as_correct = serializers.BooleanField(required=False, default=False)
 
 
 class BuildingMergeSerializer(serializers.Serializer):
