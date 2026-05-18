@@ -13,6 +13,7 @@ from batid.exceptions import (
 from batid.models import Building, BuildingImport
 from batid.services.bdg_status import BuildingStatus
 from batid.services.imports import building_import_history
+from batid.services.RNB_team_user import get_RNB_team_user
 from batid.services.source import Source
 from batid.utils.db import dictfetchall
 from celery import Signature
@@ -282,7 +283,7 @@ def find_and_update_bdg(  # type: ignore[return]
         bdg_addresses.append(cle_interop)
 
         bdg_to_link.update(
-            user=None,
+            user=get_RNB_team_user(),
             event_origin={"source": "import", "id": bdg_import_id},
             addresses_id=bdg_addresses,
             status=None,

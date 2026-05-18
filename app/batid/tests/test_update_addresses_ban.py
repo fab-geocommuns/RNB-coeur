@@ -12,6 +12,7 @@ from batid.services.imports.update_addresses_ban import (
     normalize_text,
     update_addresses_text_and_ban_id,
 )
+from batid.tests.factories.users import UserFactory
 from django.contrib.gis.geos import Point
 from django.test import TestCase, TransactionTestCase
 
@@ -549,7 +550,7 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         # Update building with empty addresses — the trigger saves the old
         # version (with the address) to batid_building_history
         bdg.update(
-            user=None,
+            user=UserFactory(username="test_user"),
             event_origin={"source": "test"},
             status=None,
             addresses_id=[],
