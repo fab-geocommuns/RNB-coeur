@@ -32,6 +32,32 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
         WHERE adr.id = ANY(bdg.addresses_id)
     ) as addresses,
 
+    -- The marked_as_correct_by part
+    -- Resolves each user id stored in bdg.marked_as_correct_by to {id, username, display_name, organization_name}
+    (
+        SELECT COALESCE(json_agg(
+            json_build_object(
+                'id', mu.id,
+                'username', mu.username,
+                'display_name',
+                case
+                    when mu.last_name is not null and mu.last_name <> ''
+                    then mu.first_name || ' ' || substring(mu.last_name, 1, 1) || '.'
+                    else mu.first_name
+                end,
+                'organization_name', (
+                    SELECT org.name
+                    FROM batid_userprofile AS up
+                    JOIN batid_organization AS org ON up.organization_id = org.id
+                    WHERE up.user_id = mu.id
+                    LIMIT 1
+                )
+            )
+        ), '[]'::json)
+        FROM auth_user AS mu
+        WHERE mu.id = ANY(bdg.marked_as_correct_by)
+    ) as marked_as_correct_by,
+
     -----------------------
     -----------------------
     -- The big hairy 'event' part
@@ -128,13 +154,15 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    			'status', prev_data.status,
 	    			'shape', prev_data.shape,
 	    			'ext_ids', prev_data.ext_ids,
-	    			'addresses_id', prev_data.addresses_id
+	    			'addresses_id', prev_data.addresses_id,
+	    			'marked_as_correct_by', prev_data.marked_as_correct_by
 	    		),
                 'current_version', json_build_object(
 	    			'status', bdg.status,
 	    			'shape', bdg.shape,
 	    			'ext_ids', bdg.ext_ids,
-	    			'addresses_id', bdg.addresses_id
+	    			'addresses_id', bdg.addresses_id,
+	    			'marked_as_correct_by', bdg.marked_as_correct_by
                 )
 	    	)
 
@@ -189,7 +217,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
     left join auth_user as u on bdg.event_user_id  = u.id
     LEFT JOIN LATERAL (
 		SELECT
-			prev.rnb_id, prev.status, prev.shape, prev.ext_ids, prev.addresses_id
+			prev.rnb_id, prev.status, prev.shape, prev.ext_ids, prev.addresses_id, prev.marked_as_correct_by
 		FROM batid_building_with_history AS prev
 		WHERE prev.rnb_id = bdg.rnb_id
 		AND lower(prev.sys_period) < lower(bdg.sys_period)
