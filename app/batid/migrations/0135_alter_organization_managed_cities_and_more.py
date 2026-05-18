@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0132_create_rnb_team_organization"),
+        ("batid", "0134_alter_building_marked_as_correct_by_and_more"),
     ]
 
     operations = [
