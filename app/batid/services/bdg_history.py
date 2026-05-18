@@ -56,11 +56,12 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    			when u.last_name is not null and u.last_name <> ''
 	    			then substring(u.last_name, 1, 1) || '.' else null
 	    		end,
-	    		'organizations_names', (
-                    SELECT json_agg(org.name)
+	    		'organization_name', (
+                    SELECT org.name
                     FROM batid_userprofile AS up
                     JOIN batid_organization AS org ON up.organization_id = org.id
                     WHERE up.user_id = u.id
+                    LIMIT 1
                 )
 	    	) else null
 	    end,
