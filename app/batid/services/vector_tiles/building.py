@@ -43,9 +43,10 @@ def envelope_to_buildings_sql(
         ),
         mvtgeom AS (
             SELECT ST_AsMVTGeom(ST_Transform(t.{geomColumn}, 3857), bounds.b2d) AS geom,
-                   {attrColumns}, (select count(*) from batid_contribution c where c.rnb_id = t.rnb_id and c.status = 'pending') as contributions,
+                   {attrColumns},
                    t.is_active AS is_active,
-                   t.status AS status
+                   t.status AS status,
+                   COALESCE(array_length(t.marked_as_correct_by, 1), 0) > 0 AS is_marked_as_correct
             FROM {table} t, bounds
             WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
             {active_clause}
