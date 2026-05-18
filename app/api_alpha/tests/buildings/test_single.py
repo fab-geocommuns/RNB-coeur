@@ -107,8 +107,16 @@ class SingleBuildingTest(APITestCase):
             ],
             "is_active": True,
             "marked_as_correct_by": [
-                {"display_name": "u1", "id": 1, "username": "u1"},
-                {"display_name": "u2", "id": 2, "username": "u2"},
+                {
+                    "display_name": "u1",
+                    "id": User.objects.get(username="u1").id,
+                    "username": "u1",
+                },
+                {
+                    "display_name": "u2",
+                    "id": User.objects.get(username="u2").id,
+                    "username": "u2",
+                },
             ],
         }
 
