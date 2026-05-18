@@ -1,9 +1,9 @@
 import json
 
 from batid.models import Address, Building, Plot
+from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from rest_framework.test import APITestCase
-from django.contrib.auth.models import User
 
 
 class SingleBuildingTest(APITestCase):

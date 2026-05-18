@@ -1,7 +1,7 @@
 from batid.models import Building, Plot
-from rest_framework.test import APITestCase
-from batid.tests.factories.users import ContributorUserFactory
 from batid.services.user import get_display_name
+from batid.tests.factories.users import ContributorUserFactory
+from rest_framework.test import APITestCase
 
 
 class BuildingPlotViewTest(APITestCase):

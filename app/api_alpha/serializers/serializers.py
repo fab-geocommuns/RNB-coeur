@@ -1,5 +1,6 @@
 import math
 
+from api_alpha.serializers.public_user import PublicUserSerializer
 from api_alpha.services import BuildingADS as BuildingADSLogic
 from api_alpha.services import can_manage_ads_in_request
 from api_alpha.validators import (
@@ -33,7 +34,6 @@ from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
-from api_alpha.serializers.public_user import PublicUserSerializer
 
 
 class RNBIdField(serializers.CharField):

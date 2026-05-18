@@ -1,6 +1,6 @@
+from batid.services.user import get_display_name
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from batid.services.user import get_display_name
 
 
 class PublicUserSerializer(serializers.Serializer):
