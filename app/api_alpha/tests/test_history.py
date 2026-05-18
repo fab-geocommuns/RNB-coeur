@@ -9,6 +9,7 @@ from batid.models import (
     UserProfile,
 )
 from batid.tests.factories.users import ContributorUserFactory
+from django.contrib.auth.models import User
 from django.test import override_settings
 from django.utils.timezone import now
 from rest_framework.authtoken.models import Token
@@ -158,7 +159,7 @@ class SingleBuildingHistoryTest(APITestCase):
                         "id": self.user_id,
                         "first_name": "Julie",
                         "last_name": "S.",
-                        "organizations_names": ["Mairie de Dreux"],
+                        "organization_name": "Mairie de Dreux",
                         "username": "ju_sig",
                     },
                     "origin": {
@@ -295,7 +296,7 @@ class SingleBuildingHistoryTest(APITestCase):
             created_at=str(now()),
         )
         bdg.update(
-            user=None,
+            user=User.objects.get(id=self.user_id),
             event_origin=None,
             status=None,
             addresses_id=None,
@@ -528,7 +529,7 @@ class SingleBuildingHistoryTest(APITestCase):
         bdg = Building.objects.get(rnb_id=self.rnb_id)
         bdg.update(
             event_origin={"source": "import", "id": bdg_import.id},
-            user=None,
+            user=User.objects.get(id=self.user_id),
             status="demolished",
             shape=None,
             addresses_id=None,
@@ -557,7 +558,7 @@ class SingleBuildingHistoryTest(APITestCase):
         bdg = Building.objects.get(rnb_id=self.rnb_id)
         bdg.update(
             event_origin={"source": "data_fix", "id": df.id},
-            user=None,
+            user=User.objects.get(id=self.user_id),
             status="demolished",
             shape=None,
             addresses_id=None,

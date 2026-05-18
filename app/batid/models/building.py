@@ -98,7 +98,7 @@ class BuildingAbstract(models.Model):
     # this field is the source of truth for the building <> address link
     # it contains BAN ids (clé d'interopérabilité)
     addresses_id = ArrayField(models.CharField(max_length=40), null=True)
-    marked_as_correct_by = ArrayField(models.IntegerField(), null=True, default=[])
+    marked_as_correct_by = ArrayField(models.IntegerField(), null=True, default=list)
 
     class Meta:
         abstract = True
@@ -339,16 +339,17 @@ class Building(BuildingAbstract):
     @transaction.atomic
     def update(
         self,
-        user: User | None,
+        user: User,
         event_origin: dict | None,
         status: str | None,
         addresses_id: list | None,
         ext_ids: list | None = None,
         shape: GEOSGeometry | None = None,
+        mark_as_correct: bool | None = None,
     ):
         check_and_increment_contribution_count(user)
 
-        if (
+        building_identical = (
             (status is None or status == self.status)
             and (
                 addresses_id is None
@@ -356,9 +357,29 @@ class Building(BuildingAbstract):
             )
             and (ext_ids is None or ext_ids == self.ext_ids)
             and (shape is None or shape == self.shape)
-        ):
-            # let's do nothing
+        )
+
+        if building_identical and mark_as_correct is None:
+            # Nothing happens at all
             return
+
+        if not building_identical:
+            # We changes the building, we consider previous "mark as correct" as wrong
+            marked_as_correct_by: list[int] = []
+
+            if mark_as_correct:
+                marked_as_correct_by.append(user.id)
+            self.marked_as_correct_by = marked_as_correct_by
+        else:
+            marked_as_correct_by = self.marked_as_correct_by or []
+            if mark_as_correct:
+                marked_as_correct_by.append(user.id)
+            elif user.id in marked_as_correct_by:
+                marked_as_correct_by.remove(user.id)
+            else:
+                # mark_as_correct is False, but the building was not previously marked => no-op
+                return
+            self.marked_as_correct_by = marked_as_correct_by
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(

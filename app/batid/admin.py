@@ -19,13 +19,22 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.db.models import Count
 from django.db.models.fields.json import JSONField
 from django.urls import path
 from jsoneditor.forms import JSONEditor  # type: ignore[import-untyped]
 
 
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ("name", "managed_cities")
+    list_display = ("name", "siren", "email_domain", "get_user_count", "managed_cities")
+    search_fields = ("name", "siren", "email_domain")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(user_count=Count("user_profiles"))
+
+    @admin.display(description="Utilisateurs", ordering="user_count")
+    def get_user_count(self, obj):
+        return obj.user_count
 
 
 admin.site.register(Organization, OrganizationAdmin)
@@ -121,8 +130,14 @@ class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
     verbose_name_plural = "Profile"
-    fields = ("job_title", "max_allowed_contributions", "total_contributions")
+    fields = (
+        "organization",
+        "job_title",
+        "max_allowed_contributions",
+        "total_contributions",
+    )
     readonly_fields = ("total_contributions",)
+    autocomplete_fields = ("organization",)
 
 
 class UserProfileAdmin(admin.ModelAdmin):
@@ -147,6 +162,15 @@ admin.site.register(UserProfile, UserProfileAdmin)
 
 class CustomUserAdmin(BaseUserAdmin):
     inlines = (UserProfileInline,)
+    list_display = [*BaseUserAdmin.list_display, "get_organization_name"]  # type: ignore[misc]
+
+    @admin.display(description="Organisation", ordering="profile__organization__name")
+    def get_organization_name(self, obj):
+
+        if obj is None or obj.profile is None or obj.profile.organization is None:
+            return "-"
+
+        return obj.profile.organization.name
 
 
 # Unregister the default User admin and register the custom one

@@ -9,4 +9,27 @@ class PublicUserSerializer(serializers.Serializer):
             "display_name": get_display_name(instance),
             "id": instance.pk if instance is not None else None,
             "username": instance.username if instance is not None else None,
+            "organization_name": self._get_organization_name(instance),
         }
+
+    def _get_organization_name(self, instance: User | None) -> str | None:
+        if (
+            instance is None
+            or not hasattr(instance, "profile")
+            or instance.profile.organization is None
+        ):
+            return None
+
+        return instance.profile.organization.name
+
+    def _get_display_name(self, instance: User | None) -> str:
+        if instance is None:
+            return "Anonyme"
+
+        if not instance.first_name and not instance.last_name:
+            return instance.username
+
+        if instance.last_name is None or len(instance.last_name) == 0:
+            return instance.first_name
+
+        return f"{instance.first_name} {instance.last_name[0]}."

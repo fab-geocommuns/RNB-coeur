@@ -8,6 +8,7 @@ import batid.services.imports.import_bdnb7 as import_bdnb7
 import batid.tests.helpers as helpers
 from batid.models import Address, Building, BuildingImport, Candidate
 from batid.services.candidate import Inspector
+from batid.tests.factories.users import UserFactory
 from django.contrib.gis.geos import Point
 from django.test import TransactionTestCase
 
@@ -128,6 +129,9 @@ class ImportBDNB7TestCase(TransactionTestCase):
         Address.objects.create(id="01300_0013_00145")
         Address.objects.create(id="3000000C051200101")
         Address.objects.create(id="3000000C051200201")
+
+        # RNB team user used by candidate.decide_update()
+        UserFactory(username="RNB")
 
         # launch the inspector
         i = Inspector()
