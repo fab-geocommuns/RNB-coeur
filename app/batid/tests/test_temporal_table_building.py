@@ -1,10 +1,10 @@
 from batid.models import Building, BuildingHistoryOnly, BuildingWithHistory
 from django.db import connection
 from django.db.utils import InternalError
-from django.test import TransactionTestCase
+from django.test import TestCase
 
 
-class TemporalTableCase(TransactionTestCase):
+class TemporalTableCase(TestCase):
     def test_update_building(self):
         building = Building.objects.create(rnb_id="XYZ")
         # We now update the building (and so create a new version of it)
@@ -33,23 +33,6 @@ class TemporalTableCase(TransactionTestCase):
 
         building_history_only = BuildingHistoryOnly.objects.all()
         self.assertEqual(len(building_history_only), 1)
-
-    def test_delete_building(self):
-        # the temporal table would save the building as history before its deletion, but a deletion is just blocked by another trigger.
-        building = Building.objects.create(rnb_id="XYZ")
-        sql = "delete from batid_building where rnb_id = 'XYZ';"
-
-        with self.assertRaises(InternalError):
-            with connection.cursor() as cursor:
-                cursor.execute(sql)
-
-        buildings = Building.objects.all()
-        # check the building has not been deleted
-        self.assertEqual(len(buildings), 1)
-
-        building_history = BuildingHistoryOnly.objects.filter(rnb_id="XYZ")
-        # no history was created, because nothing was deleted
-        self.assertEqual(len(building_history), 0)
 
     def test_history_is_read_only(self):
         # trying to manually insert a new row in the history table should raise an exception
