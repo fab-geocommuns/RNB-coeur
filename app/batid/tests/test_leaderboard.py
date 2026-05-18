@@ -1,5 +1,6 @@
 import datetime
 import json
+import uuid
 
 from batid.models.building import Building
 from batid.services.email import build_monthly_leaderboard_email
@@ -129,16 +130,23 @@ class LeaderboardQueryTestCase(TestCase):
 
     def test_leaderboard_excludes_null_event_user(self):
         """
-        Input: 1 building created without a user (import source).
-        Expected: leaderboard is empty.
+        Input: 1 building whose event_user is null (e.g. an automated edit), with a
+        'contribution' event_origin so only the missing event_user can exclude it.
+        Expected: leaderboard is empty (rows without event_user are excluded by the
+        INNER JOIN on auth_user).
         """
         now = timezone.now()
-        Building.create_new(
-            user=None,
-            event_origin={"source": "import"},
-            status="constructed",
-            addresses_id=[],
+        Building.objects.create(
+            rnb_id="BDGNOUSER001",
             shape=SIMPLE_POLYGON,
+            point=SIMPLE_POLYGON.point_on_surface,
+            status="constructed",
+            event_type="creation",
+            event_id=uuid.uuid4(),
+            event_origin={"source": "contribution"},
+            event_user=None,
+            is_active=True,
+            addresses_id=[],
             ext_ids=[],
         )
 

@@ -10,6 +10,7 @@ from batid.services.imports.import_bdtopo import (
     create_candidate_from_bdtopo,
 )
 from batid.tests import helpers
+from batid.tests.factories.users import UserFactory
 from batid.tests.helpers import create_default_bdg
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 from django.test import TestCase, TransactionTestCase
@@ -17,6 +18,9 @@ from django.test import TestCase, TransactionTestCase
 
 class ImportBDTopoGeopackage(TransactionTestCase):
     def setUp(self):
+
+        # RNB team user used by candidate.create_building_from_candidate()
+        UserFactory(username="RNB")
 
         # Create a bdg with a bdtopo ID also present in the file. It should be skipped
         bdg = create_default_bdg("RNB_ID")
