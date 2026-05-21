@@ -2,12 +2,8 @@ import csv
 import os
 import shutil
 
-from django.test import override_settings
-from django.test import SimpleTestCase
-
-from batid.services.source import BufferToCopy
-from batid.services.source import Source
-from batid.services.source import source_data_directory
+from batid.services.source import BufferToCopy, Source, source_data_directory
+from django.test import SimpleTestCase, override_settings
 
 
 class TestSourceDataDirectory(SimpleTestCase):
