@@ -1,5 +1,10 @@
 name: rnb-coeur
 
+x-proxy: &proxy-env
+  HTTP_PROXY: ${PROXY_URL:-}
+  HTTPS_PROXY: ${PROXY_URL:-}
+  NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1}
+
 services:
   # Uncomment this to use Nginx locally
   #   nginx-proxy:
@@ -26,11 +31,15 @@ services:
     build:
       args:
         - WITH_DEV_DEPENDENCIES=true
+        - HTTP_PROXY=${PROXY_URL:-}
+        - HTTPS_PROXY=${PROXY_URL:-}
+        - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1}
     depends_on:
       db:
         condition: service_healthy
     environment:
-      - URL=http://localhost:8000
+      URL: http://localhost:8000
+      <<: *proxy-env      
       # This is to test Nginx proxy locally, but it's not required if you are targeting
       # the Django application directly.
       # If you want to test something on Nginx, you will have to add the following to
@@ -80,6 +89,11 @@ services:
     build:
       args:
         - WITH_DEV_DEPENDENCIES=true
+        - HTTP_PROXY=${PROXY_URL:-}
+        - HTTPS_PROXY=${PROXY_URL:-}
+        - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1}
+    environment:
+      <<: *proxy-env
     depends_on:
       db:
         condition: service_healthy
@@ -89,6 +103,13 @@ services:
     extends:
       file: docker-compose.common.yml
       service: celery_beat
+    build:
+      args:
+        - HTTP_PROXY=${PROXY_URL:-}
+        - HTTPS_PROXY=${PROXY_URL:-}
+        - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1}
+    environment:
+      <<: *proxy-env
     env_file:
       - ./.env.db_auth.dev
       - ./.env.app.dev

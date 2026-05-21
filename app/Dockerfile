@@ -2,6 +2,15 @@ FROM python:3.13.4 as base
 
 WORKDIR /app
 
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+
+# uniquement si défini
+ENV http_proxy=${HTTP_PROXY} \
+    https_proxy=${HTTPS_PROXY} \
+    no_proxy=${NO_PROXY}
+
 RUN apt-get update && \
     apt-get install --yes libgdal-dev && \
     apt-get install --no-install-suggests --no-install-recommends --yes pipx
