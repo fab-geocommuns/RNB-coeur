@@ -11,6 +11,7 @@ from batid.services.imports.import_bal import (
     find_bdg_to_link,
 )
 from batid.services.rnb_id import generate_rnb_id
+from batid.tests.factories.users import UserFactory
 from django.contrib.gis.geos import GEOSGeometry, Point
 from django.test import TestCase, TransactionTestCase
 from nanoid import generate
@@ -18,6 +19,8 @@ from nanoid import generate
 
 class BALImport(TransactionTestCase):
     def setUp(self):
+
+        UserFactory(username="RNB")
 
         # Building ONE
 
@@ -206,6 +209,9 @@ class BALImport(TransactionTestCase):
 
 
 class BALImportWithUnknownCleInterop(TestCase):
+    def setUp(self):
+        UserFactory(username="RNB")
+
     @patch("batid.models.Address.add_new_address_from_ban_api")
     @patch("batid.services.imports.import_bal.Source.find")
     def test_bal_import(self, source_mock, new_address_mock):

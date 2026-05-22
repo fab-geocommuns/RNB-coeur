@@ -27,6 +27,7 @@ from jsoneditor.forms import JSONEditor  # type: ignore[import-untyped]
 
 class OrganizationAdmin(admin.ModelAdmin):
     list_display = ("name", "siren", "email_domain", "get_user_count", "managed_cities")
+    search_fields = ("name", "siren", "email_domain")
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(user_count=Count("user_profiles"))
@@ -129,8 +130,14 @@ class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
     verbose_name_plural = "Profile"
-    fields = ("job_title", "max_allowed_contributions", "total_contributions")
+    fields = (
+        "organization",
+        "job_title",
+        "max_allowed_contributions",
+        "total_contributions",
+    )
     readonly_fields = ("total_contributions",)
+    autocomplete_fields = ("organization",)
 
 
 class UserProfileAdmin(admin.ModelAdmin):
