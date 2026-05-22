@@ -2,10 +2,10 @@ from batid.models import Building, BuildingHistoryOnly, BuildingWithHistory
 from django.contrib.auth.models import User
 from django.db import connection
 from django.db.utils import InternalError
-from django.test import TestCase
+from django.test import TransactionTestCase
 
 
-class TemporalTableCase(TestCase):
+class TemporalTableCase(TransactionTestCase):
     def test_update_building(self):
         user = User.objects.create_user("alice", email="alice@example.com")
         building = Building.objects.create(rnb_id="XYZ")
