@@ -207,6 +207,7 @@ class BuildingClosestViewTest(APITestCase):
                     "display_name": get_display_name(user),
                     "id": user.id,
                     "username": user.username,
+                    "organization_name": None,
                 }
             ],
         )
@@ -478,7 +479,7 @@ class BuildingAddressViewTest(APITestCase):
             [r["rnb_id"] for r in data["results"]],
             [self.building_1.rnb_id, self.building_2.rnb_id],
         )
-        self.assertNumQueries(4, buildings_by_address)
+        self.assertNumQueries(5, buildings_by_address)
 
         # 1 building
         r = self.client.get(
