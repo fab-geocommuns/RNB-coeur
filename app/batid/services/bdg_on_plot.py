@@ -11,7 +11,7 @@ def get_buildings_on_plot(plot_id: str):
     except Plot.DoesNotExist:
         raise PlotUnknown(f"plot id {plot_id} is unknown to the RNB")
 
-    bdg_qs = (
+    qs = (
         Building.objects.filter(is_active=True)
         .filter(shape__intersects=plot.shape)
         .annotate(
@@ -28,4 +28,8 @@ def get_buildings_on_plot(plot_id: str):
         )
         .order_by("-bdg_cover_ratio", "rnb_id")
     )
-    return bdg_qs
+
+    qs = qs.prefetch_related("addresses_read_only")
+    qs = qs.prefetch_related("marked_as_correct_read_only")
+
+    return qs

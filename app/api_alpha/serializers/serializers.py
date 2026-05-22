@@ -1,5 +1,6 @@
 import math
 
+from api_alpha.serializers.public_user import PublicUserSerializer
 from api_alpha.services import BuildingADS as BuildingADSLogic
 from api_alpha.services import can_manage_ads_in_request
 from api_alpha.validators import (
@@ -107,6 +108,11 @@ class BuildingSerializer(serializers.ModelSerializer):
     addresses = AddressSerializer(
         many=True, read_only=True, source="addresses_read_only"
     )
+
+    marked_as_correct_by = PublicUserSerializer(
+        many=True, read_only=True, source="marked_as_correct_read_only"
+    )
+
     ext_ids = ExtIdSerializer(many=True, read_only=True)
     plots = serializers.JSONField(read_only=True)
 
@@ -121,6 +127,7 @@ class BuildingSerializer(serializers.ModelSerializer):
             "ext_ids",
             "is_active",
             "plots",
+            "marked_as_correct_by",
         ]
 
 
@@ -216,7 +223,15 @@ class ListBuildingQuerySerializer(serializers.Serializer):
 class BuildingGeoJSONSerializer(BuildingSerializer, GeoFeatureModelSerializer):
     class Meta:
         model = Building
-        fields = ("rnb_id", "status", "ext_ids", "addresses", "is_active", "plots")
+        fields = (
+            "rnb_id",
+            "status",
+            "ext_ids",
+            "addresses",
+            "is_active",
+            "plots",
+            "marked_as_correct_by",
+        )
         geo_field = "shape"
         id_field = "rnb_id"
 
@@ -249,6 +264,9 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
     addresses = AddressSerializer(
         many=True, read_only=True, source="addresses_read_only"
     )
+    marked_as_correct_by = PublicUserSerializer(
+        many=True, read_only=True, source="marked_as_correct_read_only"
+    )
 
     def get_distance(self, obj):
         return obj.distance.m
@@ -263,6 +281,7 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
             "addresses",
             "ext_ids",
             "shape",
+            "marked_as_correct_by",
         ]
 
 

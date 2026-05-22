@@ -1,6 +1,8 @@
 import json
 
 from batid.models import Building
+from batid.services.user import get_display_name
+from batid.tests.factories.users import ContributorUserFactory
 from batid.tests.helpers import create_bdg, create_grenoble
 from django.contrib.gis.geos import GEOSGeometry
 from freezegun import freeze_time
@@ -9,6 +11,9 @@ from rest_framework.test import APITestCase
 
 class OGCEndpointsTest(APITestCase):
     def setUp(self) -> None:
+
+        self.user = ContributorUserFactory(username="user")
+
         coords = {
             "coordinates": [
                 [
@@ -31,6 +36,8 @@ class OGCEndpointsTest(APITestCase):
             point=geom.point_on_surface,
             status="constructed",
         )
+        b.marked_as_correct_by = [self.user.id]
+        b.save()
 
         coords = {
             "coordinates": [
@@ -251,6 +258,14 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
+                        "marked_as_correct_by": [
+                            {
+                                "display_name": get_display_name(self.user),
+                                "id": self.user.id,
+                                "username": "user",
+                                "organization_name": None,
+                            }
+                        ],
                     },
                 },
                 {
@@ -277,6 +292,7 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
+                        "marked_as_correct_by": [],
                     },
                 },
             ],
@@ -338,6 +354,14 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
+                        "marked_as_correct_by": [
+                            {
+                                "display_name": get_display_name(self.user),
+                                "id": self.user.id,
+                                "username": "user",
+                                "organization_name": None,
+                            }
+                        ],
                     },
                 },
             ],
@@ -406,6 +430,7 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
+                        "marked_as_correct_by": [],
                     },
                 },
             ],
@@ -462,6 +487,7 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
+                        "marked_as_correct_by": [],
                     },
                 },
             ],
@@ -510,6 +536,7 @@ class OGCEndpointsTest(APITestCase):
                     "ext_ids": None,
                     "addresses": [],
                     "is_active": True,
+                    "marked_as_correct_by": [],
                 },
             },
         )

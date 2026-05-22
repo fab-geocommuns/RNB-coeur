@@ -396,6 +396,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                 Building.objects.filter(is_active=True)
                 .filter(addresses_read_only__id=cle_interop_ban)
                 .prefetch_related("addresses_read_only")
+                .prefetch_related("marked_as_correct_read_only")
             )
             paginated_bdgs = paginator.paginate_queryset(buildings, request)
             serialized_buildings = BuildingSerializer(paginated_bdgs, many=True)
