@@ -111,11 +111,13 @@ class SingleBuildingTest(APITestCase):
                     "display_name": "u1",
                     "id": User.objects.get(username="u1").id,
                     "username": "u1",
+                    "organization_name": None,
                 },
                 {
                     "display_name": "u2",
                     "id": User.objects.get(username="u2").id,
                     "username": "u2",
+                    "organization_name": None,
                 },
             ],
         }
@@ -135,7 +137,7 @@ class SingleBuildingTest(APITestCase):
 
         self.assertListEqual(
             list(r.data["properties"]["marked_as_correct_by"][0].keys()),
-            ["display_name", "id", "username"],
+            ["display_name", "id", "username", "organization_name"],
         )
         self.assertEqual(
             r.data["properties"]["marked_as_correct_by"][0]["display_name"], "u1"

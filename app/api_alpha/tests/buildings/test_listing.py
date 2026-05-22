@@ -116,7 +116,12 @@ class BuildingsEndpointsTest(APITestCase):
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
                     "marked_as_correct_by": [
-                        {"display_name": "user", "id": self.user.id, "username": "user"}
+                        {
+                            "display_name": "user",
+                            "id": self.user.id,
+                            "username": "user",
+                            "organization_name": None,
+                        }
                     ],
                 }
             ],
@@ -190,7 +195,12 @@ class BuildingsEndpointsTest(APITestCase):
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
                     "marked_as_correct_by": [
-                        {"display_name": "user", "id": self.user.id, "username": "user"}
+                        {
+                            "display_name": "user",
+                            "id": self.user.id,
+                            "username": "user",
+                            "organization_name": None,
+                        }
                     ],
                 }
             ],
@@ -264,7 +274,12 @@ class BuildingsEndpointsTest(APITestCase):
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
                     "marked_as_correct_by": [
-                        {"display_name": "user", "id": self.user.id, "username": "user"}
+                        {
+                            "display_name": "user",
+                            "id": self.user.id,
+                            "username": "user",
+                            "organization_name": None,
+                        }
                     ],
                 }
             ],
@@ -408,7 +423,12 @@ class BuildingsEndpointsTest(APITestCase):
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
                     "marked_as_correct_by": [
-                        {"display_name": "user", "id": self.user.id, "username": "user"}
+                        {
+                            "display_name": "user",
+                            "id": self.user.id,
+                            "username": "user",
+                            "organization_name": None,
+                        }
                     ],
                 },
             ],
@@ -486,6 +506,7 @@ class BuildingsEndpointsTest(APITestCase):
                                 "display_name": "user",
                                 "id": self.user.id,
                                 "username": "user",
+                                "organization_name": None,
                             }
                         ],
                     },
@@ -676,7 +697,12 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
                     "marked_as_correct_by": [
-                        {"display_name": "user", "id": self.user.id, "username": "user"}
+                        {
+                            "display_name": "user",
+                            "id": self.user.id,
+                            "username": "user",
+                            "organization_name": None,
+                        }
                     ],
                 },
             ],

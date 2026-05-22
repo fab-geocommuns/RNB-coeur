@@ -500,6 +500,7 @@ class BuildingAddressViewTest(APITestCase):
                     "display_name": get_display_name(self.user),
                     "id": self.user.id,
                     "username": self.user.username,
+                    "organization_name": None,
                 }
             ],
         )

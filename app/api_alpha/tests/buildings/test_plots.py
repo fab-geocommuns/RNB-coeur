@@ -76,6 +76,7 @@ class BuildingPlotViewTest(APITestCase):
                     "display_name": get_display_name(user),
                     "id": user.id,
                     "username": user.username,
+                    "organization_name": None,
                 }
             ],
         )

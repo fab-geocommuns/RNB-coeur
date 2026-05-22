@@ -263,6 +263,7 @@ class OGCEndpointsTest(APITestCase):
                                 "display_name": get_display_name(self.user),
                                 "id": self.user.id,
                                 "username": "user",
+                                "organization_name": None,
                             }
                         ],
                     },
@@ -358,6 +359,7 @@ class OGCEndpointsTest(APITestCase):
                                 "display_name": get_display_name(self.user),
                                 "id": self.user.id,
                                 "username": "user",
+                                "organization_name": None,
                             }
                         ],
                     },
