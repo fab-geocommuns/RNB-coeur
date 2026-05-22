@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0129_populate_userprofile_organization"),
+        ("batid", "0135_alter_organization_managed_cities_and_more"),
     ]
 
     operations = [
