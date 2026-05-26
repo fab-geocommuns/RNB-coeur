@@ -20,6 +20,19 @@ class PlainAddressSerializer(serializers.Serializer):
     city_insee_code = serializers.CharField()
 
 
+class PlainPublicUserSerializer(serializers.Serializer):
+    """
+    Serializer for an entry of the marked_as_correct_by list returned by the history endpoint.
+    Each entry describes a user who has marked the building version as correct.
+    The fields must be a copy of the PublicUserSerializer fields.
+    """
+
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    display_name = serializers.CharField()
+    organization_name = serializers.CharField()
+
+
 class BuildingEventSerializer(serializers.Serializer):
     def to_representation(self, instance):
 
@@ -59,6 +72,12 @@ class BuildingEventSerializer(serializers.Serializer):
             if set(prev_addresses) != set(curr_addresses):
                 updated_fields.append("addresses")
 
+            prev_marked = previous.get("marked_as_correct_by") or []
+            curr_marked = current.get("marked_as_correct_by") or []
+
+            if set(prev_marked) != set(curr_marked):
+                updated_fields.append("marked_as_correct_by")
+
             instance_copy["details"]["updated_fields"] = updated_fields
 
             # remove the previous_version and current_version fields
@@ -93,3 +112,4 @@ class BuildingHistorySerializer(serializers.Serializer):
     ext_ids = ExtIdSerializer(many=True)
     updated_at = serializers.DateTimeField()
     addresses = PlainAddressSerializer(many=True, read_only=True)
+    marked_as_correct_by = PlainPublicUserSerializer(many=True, read_only=True)
