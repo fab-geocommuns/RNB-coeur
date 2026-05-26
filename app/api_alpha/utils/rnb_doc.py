@@ -255,6 +255,18 @@ def _get_components() -> dict:
                     },
                 },
             },
+            "PublicUser": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer", "example": 1},
+                    "username": {"type": "string", "example": "n.martin"},
+                    "display_name": {
+                        "type": "string",
+                        "description": "Nom à afficher pour l'utilisateur. Il peut s'agir du nom d'utilisateur ou d'un nom plus complet si celui-ci a été renseigné par l'utilisateur.",
+                        "example": "Nicolas Martin",
+                    },
+                },
+            },
             "BuildingAddress": {
                 "type": "object",
                 "properties": {
@@ -336,6 +348,11 @@ def _get_components() -> dict:
                         "type": "array",
                         "description": "Liste des adresses du bâtiment",
                         "items": {"$ref": "#/components/schemas/BuildingAddress"},
+                    },
+                    "marked_as_correct_by": {
+                        "type": "array",
+                        "description": "Liste des utilisateurs ayant marqué ce bâtiment comme correct. Un bâtiment marqué comme correct par un utilisateur est un bâtiment que cet utilisateur considère comme correspondant à la définition d'un bâtiment et dont il pense que les attributs statut, géométrie et adresses sont corrects.",
+                        "items": {"$ref": "#/components/schemas/PublicUser"},
                     },
                     "ext_ids": {
                         "type": "array",

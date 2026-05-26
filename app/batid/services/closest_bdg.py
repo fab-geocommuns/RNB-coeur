@@ -53,6 +53,7 @@ def __get_qs(lat, lng, radius):
     )
 
     qs = qs.prefetch_related("addresses_read_only")
+    qs = qs.prefetch_related("marked_as_correct_read_only")
     return qs
 
 

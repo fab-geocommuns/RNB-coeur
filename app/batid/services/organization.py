@@ -2,6 +2,7 @@ from batid.models import Organization, UserProfile
 from batid.services.insee_siren import extract_org_name, fetch_siren_data
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.db.models import Q
 
 
 def _set_user_org(user: User, org: Organization) -> None:
@@ -48,6 +49,35 @@ def link_user_to_organization(user: User) -> None:
             org = Organization.objects.filter(email_domain=domain).first()
             if org:
                 _set_user_org(user, org)
+
+
+def link_organization_to_users(org: Organization) -> None:
+    """
+    Attach users to the given organization based on:
+    1. SIREN match — users whose Pro Connect SIRET starts with the org's SIREN (authoritative, overrides existing org)
+    2. Email domain — users whose email domain matches the org's email_domain (fallback, only for users without an org)
+    Staff and superusers are skipped unless the org is the RNB team.
+    """
+    simple_users_qs = User.objects.filter(is_staff=False, is_superuser=False)
+
+    # RNB team — unconditionally assign all staff and superusers
+    if org.name == settings.RNB_TEAM_ORG_NAME:
+        for user in User.objects.filter(Q(is_staff=True) | Q(is_superuser=True)):
+            _set_user_org(user, org)
+
+    # SIREN match — authoritative, always replayed
+    if org.siren:
+        for user in simple_users_qs.filter(pro_connect__siret__startswith=org.siren):
+            _set_user_org(user, org)
+
+    # Email domain — fallback, only for users without an org
+    if org.email_domain:
+        without_org = simple_users_qs.filter(
+            email__endswith=f"@{org.email_domain}",
+            profile__organization__isnull=True,
+        )
+        for user in without_org:
+            _set_user_org(user, org)
 
 
 def _create_org_from_siren(siren: str) -> Organization | None:
