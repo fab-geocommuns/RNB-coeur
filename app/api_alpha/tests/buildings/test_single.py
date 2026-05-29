@@ -139,19 +139,11 @@ class SingleBuildingTest(APITestCase):
             list(r.data["properties"]["validated_by"][0].keys()),
             ["display_name", "id", "username", "organization_name"],
         )
-        self.assertEqual(
-            r.data["properties"]["validated_by"][0]["display_name"], "u1"
-        )
-        self.assertEqual(
-            r.data["properties"]["validated_by"][0]["username"], "u1"
-        )
+        self.assertEqual(r.data["properties"]["validated_by"][0]["display_name"], "u1")
+        self.assertEqual(r.data["properties"]["validated_by"][0]["username"], "u1")
 
-        self.assertEqual(
-            r.data["properties"]["validated_by"][1]["display_name"], "u2"
-        )
-        self.assertEqual(
-            r.data["properties"]["validated_by"][1]["username"], "u2"
-        )
+        self.assertEqual(r.data["properties"]["validated_by"][1]["display_name"], "u2")
+        self.assertEqual(r.data["properties"]["validated_by"][1]["username"], "u2")
 
         self.assertListEqual(
             r.data["properties"]["ext_ids"],

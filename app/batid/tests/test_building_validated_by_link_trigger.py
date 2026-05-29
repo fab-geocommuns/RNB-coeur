@@ -185,9 +185,7 @@ class BuildingValidatedByLinkCase(TransactionTestCase):
         b.validated_by = [u1.id]
         b.save()
 
-        link = BuildingValidatedByReadOnly.objects.get(
-            building_id=b.id, user_id=u1.id
-        )
+        link = BuildingValidatedByReadOnly.objects.get(building_id=b.id, user_id=u1.id)
         self.assertEqual(link.id, original_link_id)
 
 

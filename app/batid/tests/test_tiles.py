@@ -77,10 +77,6 @@ class TestVectorTiles(TestCase):
 
         features = self._features_by_rnb_id(response.content)
         self.assertEqual(set(features.keys()), {"BDG-MARKED", "BDG-EMPTY", "BDG-NULL"})
-        self.assertIs(
-            features["BDG-MARKED"]["properties"]["is_validated"], True
-        )
-        self.assertIs(
-            features["BDG-EMPTY"]["properties"]["is_validated"], False
-        )
+        self.assertIs(features["BDG-MARKED"]["properties"]["is_validated"], True)
+        self.assertIs(features["BDG-EMPTY"]["properties"]["is_validated"], False)
         self.assertIs(features["BDG-NULL"]["properties"]["is_validated"], False)

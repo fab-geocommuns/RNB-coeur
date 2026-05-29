@@ -1,7 +1,6 @@
+from batid.migrations.utils.create_view import sql_migration_building_with_history
 from django.conf import settings
 from django.db import migrations, models
-
-from batid.migrations.utils.create_view import sql_migration_building_with_history
 
 
 class Migration(migrations.Migration):
