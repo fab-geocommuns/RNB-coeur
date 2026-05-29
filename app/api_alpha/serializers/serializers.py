@@ -406,7 +406,7 @@ class BuildingUpdateSerializer(serializers.Serializer):
         required=False,
     )
     shape = serializers.CharField(required=False, validators=[shape_is_valid])
-    is_valid = serializers.BooleanField(required=False)
+    is_valid = serializers.BooleanField(required=False)  # type: ignore[assignment]
     comment = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, data):
