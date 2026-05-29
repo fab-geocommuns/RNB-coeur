@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import migrations, models
 
+from batid.migrations.utils.create_view import sql_migration_building_with_history
+
 
 class Migration(migrations.Migration):
 
@@ -111,4 +113,5 @@ class Migration(migrations.Migration):
                 "CREATE TRIGGER building_marked_as_correct_by_trigger AFTER INSERT OR UPDATE ON public.batid_building FOR EACH ROW EXECUTE FUNCTION keep_building_marked_as_correct_by_updated();",
             ],
         ),
+        sql_migration_building_with_history(),
     ]

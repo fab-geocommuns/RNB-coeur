@@ -284,7 +284,7 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                         status,
                         addresses_id,
                         shape=shape,
-                        validate=data.get("validate"),
+                        validate=data.get("is_valid"),
                     )
             except BANAPIDown:
                 raise ServiceUnavailable(detail="BAN API is currently down")

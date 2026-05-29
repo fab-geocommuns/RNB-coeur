@@ -406,7 +406,7 @@ class BuildingUpdateSerializer(serializers.Serializer):
         required=False,
     )
     shape = serializers.CharField(required=False, validators=[shape_is_valid])
-    validate = serializers.BooleanField(required=False)
+    is_valid = serializers.BooleanField(required=False)
     comment = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, data):
@@ -414,17 +414,17 @@ class BuildingUpdateSerializer(serializers.Serializer):
             data.get("status") is not None
             or data.get("addresses_cle_interop") is not None
             or data.get("shape") is not None
-            or data.get("validate") is not None
+            or data.get("is_valid") is not None
         ):
             raise serializers.ValidationError(
-                "Vous devez définir soit 'is_active' soit 'status'/'addresses_cle_interop'/'shape'/'validate', pas les deux en même temps"
+                "Vous devez définir soit 'is_active' soit 'status'/'addresses_cle_interop'/'shape'/'is_valid', pas les deux en même temps"
             )
         if (
             data.get("is_active") is None
             and data.get("status") is None
             and data.get("addresses_cle_interop") is None
             and data.get("shape") is None
-            and data.get("validate") is None
+            and data.get("is_valid") is None
         ):
             raise serializers.ValidationError(
                 "Arguments vides dans le corps de la requête"
