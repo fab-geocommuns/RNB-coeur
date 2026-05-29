@@ -36,7 +36,7 @@ class OGCEndpointsTest(APITestCase):
             point=geom.point_on_surface,
             status="constructed",
         )
-        b.marked_as_correct_by = [self.user.id]
+        b.validated_by = [self.user.id]
         b.save()
 
         coords = {
@@ -258,7 +258,7 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
-                        "marked_as_correct_by": [
+                        "validated_by": [
                             {
                                 "display_name": get_display_name(self.user),
                                 "id": self.user.id,
@@ -292,7 +292,7 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
-                        "marked_as_correct_by": [],
+                        "validated_by": [],
                     },
                 },
             ],
@@ -354,7 +354,7 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
-                        "marked_as_correct_by": [
+                        "validated_by": [
                             {
                                 "display_name": get_display_name(self.user),
                                 "id": self.user.id,
@@ -430,7 +430,7 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
-                        "marked_as_correct_by": [],
+                        "validated_by": [],
                     },
                 },
             ],
@@ -487,7 +487,7 @@ class OGCEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
-                        "marked_as_correct_by": [],
+                        "validated_by": [],
                     },
                 },
             ],
@@ -536,7 +536,7 @@ class OGCEndpointsTest(APITestCase):
                     "ext_ids": None,
                     "addresses": [],
                     "is_active": True,
-                    "marked_as_correct_by": [],
+                    "validated_by": [],
                 },
             },
         )

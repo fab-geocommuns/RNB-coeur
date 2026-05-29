@@ -53,7 +53,7 @@ class SingleBuildingTest(APITestCase):
                     "source_version": "25",
                 }
             ],
-            marked_as_correct_by=[u1.id, u2.id],
+            validated_by=[u1.id, u2.id],
         )
 
         Plot.objects.create(id="plot-1", shape=geom)
@@ -106,7 +106,7 @@ class SingleBuildingTest(APITestCase):
                 }
             ],
             "is_active": True,
-            "marked_as_correct_by": [
+            "validated_by": [
                 {
                     "display_name": "u1",
                     "id": User.objects.get(username="u1").id,
@@ -136,21 +136,21 @@ class SingleBuildingTest(APITestCase):
         self.assertEqual(r.data["properties"]["is_active"], True)
 
         self.assertListEqual(
-            list(r.data["properties"]["marked_as_correct_by"][0].keys()),
+            list(r.data["properties"]["validated_by"][0].keys()),
             ["display_name", "id", "username", "organization_name"],
         )
         self.assertEqual(
-            r.data["properties"]["marked_as_correct_by"][0]["display_name"], "u1"
+            r.data["properties"]["validated_by"][0]["display_name"], "u1"
         )
         self.assertEqual(
-            r.data["properties"]["marked_as_correct_by"][0]["username"], "u1"
+            r.data["properties"]["validated_by"][0]["username"], "u1"
         )
 
         self.assertEqual(
-            r.data["properties"]["marked_as_correct_by"][1]["display_name"], "u2"
+            r.data["properties"]["validated_by"][1]["display_name"], "u2"
         )
         self.assertEqual(
-            r.data["properties"]["marked_as_correct_by"][1]["username"], "u2"
+            r.data["properties"]["validated_by"][1]["username"], "u2"
         )
 
         self.assertListEqual(
@@ -195,13 +195,13 @@ class SingleBuildingTest(APITestCase):
             [{"id": "plot-1", "bdg_cover_ratio": 1}],
         )
 
-    def test_single_none_marked_as_correct_by(self):
+    def test_single_none_validated_by(self):
 
         b = Building.objects.get(rnb_id="1234ABCD5678")
-        b.marked_as_correct_by = None
+        b.validated_by = None
         b.save()
 
         r = self.client.get("/api/alpha/buildings/1234ABCD5678/")
         self.assertEqual(r.status_code, 200)
 
-        self.assertEqual(r.data["marked_as_correct_by"], [])
+        self.assertEqual(r.data["validated_by"], [])

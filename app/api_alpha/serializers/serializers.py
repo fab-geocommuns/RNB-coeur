@@ -109,8 +109,8 @@ class BuildingSerializer(serializers.ModelSerializer):
         many=True, read_only=True, source="addresses_read_only"
     )
 
-    marked_as_correct_by = PublicUserSerializer(
-        many=True, read_only=True, source="marked_as_correct_read_only"
+    validated_by = PublicUserSerializer(
+        many=True, read_only=True, source="validated_by_read_only"
     )
 
     ext_ids = ExtIdSerializer(many=True, read_only=True)
@@ -127,7 +127,7 @@ class BuildingSerializer(serializers.ModelSerializer):
             "ext_ids",
             "is_active",
             "plots",
-            "marked_as_correct_by",
+            "validated_by",
         ]
 
 
@@ -230,7 +230,7 @@ class BuildingGeoJSONSerializer(BuildingSerializer, GeoFeatureModelSerializer):
             "addresses",
             "is_active",
             "plots",
-            "marked_as_correct_by",
+            "validated_by",
         )
         geo_field = "shape"
         id_field = "rnb_id"
@@ -264,8 +264,8 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
     addresses = AddressSerializer(
         many=True, read_only=True, source="addresses_read_only"
     )
-    marked_as_correct_by = PublicUserSerializer(
-        many=True, read_only=True, source="marked_as_correct_read_only"
+    validated_by = PublicUserSerializer(
+        many=True, read_only=True, source="validated_by_read_only"
     )
 
     def get_distance(self, obj):
@@ -281,7 +281,7 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
             "addresses",
             "ext_ids",
             "shape",
-            "marked_as_correct_by",
+            "validated_by",
         ]
 
 
@@ -406,7 +406,7 @@ class BuildingUpdateSerializer(serializers.Serializer):
         required=False,
     )
     shape = serializers.CharField(required=False, validators=[shape_is_valid])
-    mark_as_correct = serializers.BooleanField(required=False)
+    validate = serializers.BooleanField(required=False)
     comment = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, data):
@@ -414,17 +414,17 @@ class BuildingUpdateSerializer(serializers.Serializer):
             data.get("status") is not None
             or data.get("addresses_cle_interop") is not None
             or data.get("shape") is not None
-            or data.get("mark_as_correct") is not None
+            or data.get("validate") is not None
         ):
             raise serializers.ValidationError(
-                "Vous devez définir soit 'is_active' soit 'status'/'addresses_cle_interop'/'shape'/'mark_as_correct', pas les deux en même temps"
+                "Vous devez définir soit 'is_active' soit 'status'/'addresses_cle_interop'/'shape'/'validate', pas les deux en même temps"
             )
         if (
             data.get("is_active") is None
             and data.get("status") is None
             and data.get("addresses_cle_interop") is None
             and data.get("shape") is None
-            and data.get("mark_as_correct") is None
+            and data.get("validate") is None
         ):
             raise serializers.ValidationError(
                 "Arguments vides dans le corps de la requête"

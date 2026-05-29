@@ -14,21 +14,21 @@ class TestVectorTiles(TestCase):
             status="constructed",
             point="POINT (2.6000591402070654 48.814763140563656)",
             is_active=True,
-            marked_as_correct_by=[user.pk],
+            validated_by=[user.pk],
         )
         Building.objects.create(
             rnb_id="BDG-EMPTY",
             status="constructed",
             point="POINT (2.6001591402070654 48.814863140563656)",
             is_active=True,
-            marked_as_correct_by=[],
+            validated_by=[],
         )
         Building.objects.create(
             rnb_id="BDG-NULL",
             status="constructed",
             point="POINT (2.6002591402070654 48.814963140563656)",
             is_active=True,
-            marked_as_correct_by=None,
+            validated_by=None,
         )
 
     def _features_by_rnb_id(self, tile_bytes):
@@ -64,12 +64,12 @@ class TestVectorTiles(TestCase):
         )
         self.assertEqual(zoomed_in_response.status_code, 200)
 
-    def test_tile_is_marked_as_correct_property(self):
+    def test_tile_is_validated_property(self):
         """
         Input: three active constructed buildings (set up in setUp) in tile
-        33241/22557/16, one with marked_as_correct_by populated with a real
+        33241/22557/16, one with validated_by populated with a real
         user id, one with an empty list, one with NULL.
-        Expected: the decoded MVT exposes is_marked_as_correct True only for
+        Expected: the decoded MVT exposes is_validated True only for
         the populated one; empty list and NULL both yield False.
         """
         response = self.client.get("/api/alpha/tiles/33241/22557/16.pbf")
@@ -78,9 +78,9 @@ class TestVectorTiles(TestCase):
         features = self._features_by_rnb_id(response.content)
         self.assertEqual(set(features.keys()), {"BDG-MARKED", "BDG-EMPTY", "BDG-NULL"})
         self.assertIs(
-            features["BDG-MARKED"]["properties"]["is_marked_as_correct"], True
+            features["BDG-MARKED"]["properties"]["is_validated"], True
         )
         self.assertIs(
-            features["BDG-EMPTY"]["properties"]["is_marked_as_correct"], False
+            features["BDG-EMPTY"]["properties"]["is_validated"], False
         )
-        self.assertIs(features["BDG-NULL"]["properties"]["is_marked_as_correct"], False)
+        self.assertIs(features["BDG-NULL"]["properties"]["is_validated"], False)
