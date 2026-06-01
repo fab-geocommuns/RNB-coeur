@@ -175,7 +175,7 @@ class SingleBuildingHistoryTest(APITestCase):
                 },
                 "ext_ids": [],
                 "updated_at": updated_at.isoformat().replace("+00:00", "Z"),
-                "marked_as_correct_by": [],
+                "validated_by": [],
             },
         )
 
@@ -630,10 +630,10 @@ class SingleBuildingHistoryTest(APITestCase):
         r = self.client.get(f"/api/alpha/buildings/1234ABCD1234/history/")
         self.assertEqual(r.status_code, 404)
 
-    def test_mark_as_correct(self):
+    def test_validate(self):
 
         data = {
-            "mark_as_correct": True,
+            "is_valid": True,
         }
         self.client.patch(
             f"/api/alpha/buildings/{self.rnb_id}/",
@@ -654,11 +654,11 @@ class SingleBuildingHistoryTest(APITestCase):
 
         self.assertEqual(
             data[0]["event"]["details"]["updated_fields"],
-            ["marked_as_correct_by"],
+            ["validated_by"],
         )
 
         self.assertListEqual(
-            data[0]["marked_as_correct_by"],
+            data[0]["validated_by"],
             [
                 {
                     "display_name": "Julie S.",
