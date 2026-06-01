@@ -217,7 +217,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
     left join auth_user as u on bdg.event_user_id  = u.id
     LEFT JOIN LATERAL (
 		SELECT
-			prev.rnb_id, prev.status, prev.shape, prev.ext_ids, prev.addresses_id, prev.marked_as_correct_by
+			prev.rnb_id, prev.status, prev.shape, prev.ext_ids, prev.addresses_id, prev.validated_by
 		FROM batid_building_with_history AS prev
 		WHERE prev.rnb_id = bdg.rnb_id
 		AND lower(prev.sys_period) < lower(bdg.sys_period)
