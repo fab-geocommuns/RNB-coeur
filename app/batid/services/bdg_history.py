@@ -32,8 +32,8 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
         WHERE adr.id = ANY(bdg.addresses_id)
     ) as addresses,
 
-    -- The marked_as_correct_by part
-    -- Resolves each user id stored in bdg.marked_as_correct_by to {id, username, display_name, organization_name}
+    -- The validated_by part
+    -- Resolves each user id stored in bdg.validated_by to {id, username, display_name, organization_name}
     (
         SELECT COALESCE(json_agg(
             json_build_object(
@@ -55,8 +55,8 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
             )
         ), '[]'::json)
         FROM auth_user AS mu
-        WHERE mu.id = ANY(bdg.marked_as_correct_by)
-    ) as marked_as_correct_by,
+        WHERE mu.id = ANY(bdg.validated_by)
+    ) as validated_by,
 
     -----------------------
     -----------------------
@@ -155,14 +155,14 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    			'shape', prev_data.shape,
 	    			'ext_ids', prev_data.ext_ids,
 	    			'addresses_id', prev_data.addresses_id,
-	    			'marked_as_correct_by', prev_data.marked_as_correct_by
+	    			'validated_by', prev_data.validated_by
 	    		),
                 'current_version', json_build_object(
 	    			'status', bdg.status,
 	    			'shape', bdg.shape,
 	    			'ext_ids', bdg.ext_ids,
 	    			'addresses_id', bdg.addresses_id,
-	    			'marked_as_correct_by', bdg.marked_as_correct_by
+	    			'validated_by', bdg.validated_by
                 )
 	    	)
 
