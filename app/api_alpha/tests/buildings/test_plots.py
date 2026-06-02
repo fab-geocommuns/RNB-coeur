@@ -1,9 +1,14 @@
 from batid.models import Building, Plot
+from batid.services.user import get_display_name
+from batid.tests.factories.users import ContributorUserFactory
 from rest_framework.test import APITestCase
 
 
 class BuildingPlotViewTest(APITestCase):
     def test_buildings_on_plot(self):
+
+        user = ContributorUserFactory(username="user")
+
         Plot.objects.create(
             id="plot_1", shape="MULTIPOLYGON(((0 0, 0 1, 1 1, 1 0, 0 0)))"
         )
@@ -18,6 +23,7 @@ class BuildingPlotViewTest(APITestCase):
             status="demolished",
         )
         building_1.point = building_1.shape.point_on_surface
+        building_1.marked_as_correct_by = [user.id]
         building_1.save()
         # inside plot 1 but inactive
         building_2 = Building.objects.create(
@@ -63,6 +69,17 @@ class BuildingPlotViewTest(APITestCase):
 
         [r1, r2, r3, r4] = data["results"]
         self.assertEqual(r1["rnb_id"], building_1.rnb_id)
+        self.assertListEqual(
+            r1["marked_as_correct_by"],
+            [
+                {
+                    "display_name": get_display_name(user),
+                    "id": user.id,
+                    "username": user.username,
+                    "organization_name": None,
+                }
+            ],
+        )
         # building_1 is 100% included in the plot
         self.assertEqual(r1["bdg_cover_ratio"], 1.0)
         self.assertEqual(r1["shape"]["type"], "Polygon")

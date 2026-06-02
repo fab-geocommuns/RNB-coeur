@@ -120,13 +120,17 @@ class Building(BuildingAbstract):
         related_name="buildings_read_only",
         through="BuildingAddressesReadOnly",
     )
-
     marked_as_correct_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
         User,
         blank=True,
         related_name="buildings_marked_as_correct_read_only",
         through="BuildingMarkedAsCorrectByReadOnly",
     )
+
+    def delete(self, *args, **kwargs):
+        raise NotImplementedError(
+            "Deleting a building is forbidden. Deactivate it instead."
+        )
 
     def contains_ext_id(
         self, source: str, source_version: Optional[str], id: str
@@ -1096,6 +1100,9 @@ class BuildingHistoryOnly(BuildingAbstract):
     # primary key coming from the Building table, but not unique here.
     id = models.BigIntegerField()
     rnb_id = models.CharField(max_length=12, null=False, unique=False, db_index=True)
+
+    def delete(self, *args, **kwargs):
+        raise NotImplementedError("Deleting a building history is forbidden.")
 
     class Meta:
         managed = True

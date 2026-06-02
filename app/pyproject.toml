@@ -59,6 +59,7 @@ pyproj = "^3.7.2"
 types-shapely = "^2.1.0.20250917"
 factory_boy = "^3.3.3"
 coverage = "^7.13"
+mapbox-vector-tile = "^2.2.0"
 
 
 [build-system]

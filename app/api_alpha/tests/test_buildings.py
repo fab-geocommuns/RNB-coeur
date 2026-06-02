@@ -2,6 +2,7 @@ import json
 from unittest import mock
 
 from batid.models import Address, Building
+from batid.services.user import get_display_name
 from batid.tests.factories.users import ContributorUserFactory
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
@@ -13,7 +14,9 @@ from rest_framework.test import APITestCase
 class BuildingClosestViewTest(APITestCase):
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_closest(self):
+
         user = ContributorUserFactory(username="user")
+
         # It should be first in the results
         closest_bdg = Building.create_new(
             user=user,
@@ -39,6 +42,9 @@ class BuildingClosestViewTest(APITestCase):
                 srid=4326,
             ),
         )
+
+        closest_bdg.marked_as_correct_by = [user.id]
+        closest_bdg.save()
 
         # It should appear second in the results
         further_bdg = Building.create_new(
@@ -193,6 +199,17 @@ class BuildingClosestViewTest(APITestCase):
         self.assertEqual(data["results"][0]["rnb_id"], closest_bdg.rnb_id)
         self.assertDictEqual(
             data["results"][0]["shape"], json.loads(closest_bdg.shape.geojson)
+        )
+        self.assertListEqual(
+            data["results"][0]["marked_as_correct_by"],
+            [
+                {
+                    "display_name": get_display_name(user),
+                    "id": user.id,
+                    "username": user.username,
+                    "organization_name": None,
+                }
+            ],
         )
 
         # Check that the further building is second
@@ -361,8 +378,8 @@ class BuildingClosestViewTest(APITestCase):
             closest()
             # ignore spatial_ref_sys query because it can be cached and make the number of queries vary
             actual = [q for q in queries if "spatial_ref_sys" not in q["sql"]]
-            # would be 4 if N+1 was there
-            self.assertEqual(len(actual), 3)
+            # would be 5 if N+1 was there
+            self.assertEqual(len(actual), 4)
 
 
 class BuildingAddressViewTest(APITestCase):
@@ -375,10 +392,10 @@ class BuildingAddressViewTest(APITestCase):
         self.cle_interop_ban_3 = "33522_2620_00023"
         self.address_3 = Address.objects.create(id=self.cle_interop_ban_3)
 
-        user = ContributorUserFactory(username="user")
+        self.user = ContributorUserFactory(username="user")
 
         self.building_1 = Building.create_new(
-            user=user,
+            user=self.user,
             event_origin={"source": "test"},
             status="constructed",
             addresses_id=[self.cle_interop_ban_1, self.cle_interop_ban_2],
@@ -402,8 +419,11 @@ class BuildingAddressViewTest(APITestCase):
             ),
         )
 
+        self.building_1.marked_as_correct_by = [self.user.id]
+        self.building_1.save()
+
         self.building_2 = Building.create_new(
-            user=user,
+            user=self.user,
             event_origin={"source": "test"},
             status="constructed",
             addresses_id=[self.cle_interop_ban_1],
@@ -459,7 +479,7 @@ class BuildingAddressViewTest(APITestCase):
             [r["rnb_id"] for r in data["results"]],
             [self.building_1.rnb_id, self.building_2.rnb_id],
         )
-        self.assertNumQueries(3, buildings_by_address)
+        self.assertNumQueries(5, buildings_by_address)
 
         # 1 building
         r = self.client.get(
@@ -472,6 +492,17 @@ class BuildingAddressViewTest(APITestCase):
         self.assertEqual(data["score_ban"], None)
         self.assertEqual(
             [r["rnb_id"] for r in data["results"]], [self.building_1.rnb_id]
+        )
+        self.assertListEqual(
+            data["results"][0]["marked_as_correct_by"],
+            [
+                {
+                    "display_name": get_display_name(self.user),
+                    "id": self.user.id,
+                    "username": self.user.username,
+                    "organization_name": None,
+                }
+            ],
         )
 
         # 0 building

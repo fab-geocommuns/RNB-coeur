@@ -1,3 +1,4 @@
+from batid.services.user import get_display_name
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
@@ -5,10 +6,21 @@ from rest_framework import serializers
 class PublicUserSerializer(serializers.Serializer):
     def to_representation(self, instance: User | None) -> dict:
         return {
-            "display_name": self._get_display_name(instance),
+            "display_name": get_display_name(instance),
             "id": instance.pk if instance is not None else None,
             "username": instance.username if instance is not None else None,
+            "organization_name": self._get_organization_name(instance),
         }
+
+    def _get_organization_name(self, instance: User | None) -> str | None:
+        if (
+            instance is None
+            or not hasattr(instance, "profile")
+            or instance.profile.organization is None
+        ):
+            return None
+
+        return instance.profile.organization.name
 
     def _get_display_name(self, instance: User | None) -> str:
         if instance is None:

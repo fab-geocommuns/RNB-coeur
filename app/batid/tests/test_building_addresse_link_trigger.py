@@ -1,4 +1,6 @@
 from batid.models import Address, Building, BuildingAddressesReadOnly
+from django.db import connection
+from django.db.utils import InternalError
 from django.test import TransactionTestCase
 
 
@@ -49,6 +51,10 @@ class BuildingAddressLinkCase(TransactionTestCase):
         self.assertEqual(links[1].address_id, a2.id)
 
     def test_delete_building(self):
+        """A building cannot be deleted, neither through the ORM (NotImplementedError)
+        nor through raw SQL (postgres trigger raises InternalError). The building and
+        its address links must remain intact after the failed deletion attempts."""
+
         # create addresses
         a1 = Address.objects.create(id="address_1")
         a2 = Address.objects.create(id="address_2")
@@ -59,11 +65,20 @@ class BuildingAddressLinkCase(TransactionTestCase):
         links_n = BuildingAddressesReadOnly.objects.count()
         self.assertEqual(links_n, 2)
 
-        b.delete()
+        # you cannot delete a building through the ORM
+        with self.assertRaises(NotImplementedError):
+            b.delete()
 
-        # deletion of the building triggers the deletion of the links
-        links_n = BuildingAddressesReadOnly.objects.count()
-        self.assertEqual(links_n, 0)
+        # you cannot delete a building through raw SQL either: the postgres
+        # trigger blocks it
+        sql = "delete from batid_building where rnb_id='1';"
+        with self.assertRaises(InternalError):
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+
+        # the building and its links still exist
+        self.assertTrue(Building.objects.filter(rnb_id="1").exists())
+        self.assertEqual(BuildingAddressesReadOnly.objects.count(), 2)
 
     def test_create_building_with_non_existing_address(self):
         from django.db.utils import IntegrityError

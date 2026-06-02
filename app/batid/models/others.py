@@ -205,11 +205,20 @@ class Address(models.Model):
 
 class Organization(models.Model):
     name = models.CharField(max_length=100, null=False)
-    managed_cities = ArrayField(models.CharField(max_length=6), null=True)
+    managed_cities = ArrayField(models.CharField(max_length=6), null=True, blank=True)
     siren = models.CharField(max_length=9, blank=True, null=True, unique=True)
     email_domain = models.CharField(max_length=255, blank=True, null=True, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        from batid.services.organization import link_organization_to_users
+
+        link_organization_to_users(self)
 
 
 class UserProfile(models.Model):

@@ -1,9 +1,11 @@
 from batid.models import Building, BuildingHistoryOnly, BuildingWithHistory
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.db import connection
+from django.db.utils import InternalError
+from django.test import TransactionTestCase
 
 
-class TemporalTableCase(TestCase):
+class TemporalTableCase(TransactionTestCase):
     def test_update_building(self):
         user = User.objects.create_user("alice", email="alice@example.com")
         building = Building.objects.create(rnb_id="XYZ")
@@ -67,21 +69,36 @@ class TemporalTableCase(TestCase):
         )
         self.assertEqual(current.marked_as_correct_by, [user.id, other_user.id])
 
-    def test_delete_building(self):
-        # we check that the temporal table works properly, even if deleting a building like that is NEVER expected.
-        building = Building.objects.create(rnb_id="XYZ")
-        building.delete()
-
-        buildings = Building.objects.all()
-        # check the building has been deleted
-        self.assertEqual(len(buildings), 0)
-
-        building_history = BuildingWithHistory.objects.filter(rnb_id="XYZ")
-        # yala, the building is still accessible in the history table
-        self.assertEqual(len(building_history), 1)
-
     def test_history_is_read_only(self):
         # trying to manually insert a new row in the history table should raise an exception
         # this table is not supposed to be written only with triggers
         self.assertRaises(Exception, BuildingWithHistory.objects.create, rnb_id="XYZ")
         self.assertRaises(Exception, BuildingHistoryOnly.objects.create, rnb_id="XYZ")
+
+    def test_delete_building_history_is_forbidden(self):
+        """
+        Input: a building is created and then updated, which produces a row in
+        the batid_building_history table.
+        Expected: deleting that history row is forbidden both via the Django
+        ORM (raises NotImplementedError on the model's delete method) and via
+        a raw SQL DELETE (blocked by the prevent_delete_building_history_trigger
+        Postgres trigger), and the history row remains in the table.
+        """
+        building = Building.objects.create(rnb_id="XYZ")
+        building.parent_buildings = [1]
+        building.save()
+
+        history_row = BuildingHistoryOnly.objects.get(rnb_id="XYZ")
+
+        # ORM side: the model's delete() method must raise NotImplementedError
+        with self.assertRaises(NotImplementedError):
+            history_row.delete()
+
+        # SQL side: the Postgres trigger must block the DELETE
+        sql = "delete from batid_building_history where rnb_id = 'XYZ';"
+        with self.assertRaises(InternalError):
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+
+        # the history row is still there
+        self.assertEqual(BuildingHistoryOnly.objects.filter(rnb_id="XYZ").count(), 1)

@@ -173,8 +173,9 @@ def list_bdgs(params, only_active=True) -> QuerySet:
         )
         qs = qs.annotate(plots=PlotsAggSubquery(subquery))
 
-    # to prevent an ugly N+1 problem on the addresses
+    # to prevent an ugly N+1 problem on the addresses and the marked_as_correct_by fields
     qs = qs.prefetch_related("addresses_read_only")
+    qs = qs.prefetch_related("marked_as_correct_read_only")
 
     return qs
 
