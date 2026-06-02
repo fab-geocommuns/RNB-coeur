@@ -131,7 +131,7 @@ class LeaderboardQueryTestCase(TestCase):
     def test_leaderboard_excludes_null_event_user(self):
         """
         Input: 1 building whose event_user is null (e.g. an automated edit), with a
-        'contribution' event_origin so only the missing event_user can exclude it.
+        'import' event_origin.
         Expected: leaderboard is empty (rows without event_user are excluded by the
         INNER JOIN on auth_user).
         """
@@ -143,7 +143,7 @@ class LeaderboardQueryTestCase(TestCase):
             status="constructed",
             event_type="creation",
             event_id=uuid.uuid4(),
-            event_origin={"source": "contribution"},
+            event_origin={"source": "import"},
             event_user=None,
             is_active=True,
             addresses_id=[],
