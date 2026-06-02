@@ -175,6 +175,7 @@ class SingleBuildingHistoryTest(APITestCase):
                 },
                 "ext_ids": [],
                 "updated_at": updated_at.isoformat().replace("+00:00", "Z"),
+                "marked_as_correct_by": [],
             },
         )
 
@@ -628,3 +629,42 @@ class SingleBuildingHistoryTest(APITestCase):
         """
         r = self.client.get(f"/api/alpha/buildings/1234ABCD1234/history/")
         self.assertEqual(r.status_code, 404)
+
+    def test_mark_as_correct(self):
+
+        data = {
+            "mark_as_correct": True,
+        }
+        self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        # We now verify the history endpoint
+        r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
+
+        data = r.json()
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(data), 2)
+
+        # Verify the order of the history (most recent first)
+        self.assertEqual(data[0]["event"]["type"], "update")
+        self.assertEqual(data[1]["event"]["type"], "creation")
+
+        self.assertEqual(
+            data[0]["event"]["details"]["updated_fields"],
+            ["marked_as_correct_by"],
+        )
+
+        self.assertListEqual(
+            data[0]["marked_as_correct_by"],
+            [
+                {
+                    "display_name": "Julie S.",
+                    "id": self.user_id,
+                    "organization_name": "Mairie de Dreux",
+                    "username": "ju_sig",
+                }
+            ],
+        )
