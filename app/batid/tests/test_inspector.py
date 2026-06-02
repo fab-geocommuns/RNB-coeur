@@ -31,6 +31,9 @@ from django.test import TestCase, TransactionTestCase, override_settings
 
 class TestInspectorBdgCreate(TestCase):
     def setUp(self) -> None:
+        # RNB team user used by candidate.create_building_from_candidate()
+        UserFactory(username="RNB")
+
         # The city
         create_paris()
 
@@ -375,7 +378,7 @@ class InspectorMergeBuilding(TestCase):
         )
 
         b = Building.create_new(
-            user=None,
+            user=UserFactory(),
             event_origin={"source": "import"},
             status="constructed",
             addresses_id=["add_1"],
@@ -475,7 +478,7 @@ class InspectorMergeBuilding(TestCase):
         )
 
         b = Building.create_new(
-            user=None,
+            user=UserFactory(),
             event_origin={"source": "import"},
             status="constructed",
             addresses_id=["add_1", "add_2", "add_3"],
@@ -1530,6 +1533,9 @@ class NonExistingAddress(TransactionTestCase):
             is_light=False,
             created_by={"id": 1, "source": "import"},
         )
+
+        # RNB team user used by candidate.create_building_from_candidate()
+        UserFactory(username="RNB")
 
         i = Inspector()
         with self.assertRaises(BANUnknownCleInterop):

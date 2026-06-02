@@ -533,12 +533,13 @@ class Building(BuildingAbstract):
     @staticmethod
     @transaction.atomic
     def create_new(
-        user: User | None,
+        user: User,
         event_origin: dict | None,
         status: str,
         addresses_id: list,
         shape: GEOSGeometry,
         ext_ids: list,
+        mark_as_correct: bool = False,
     ):
         check_and_increment_contribution_count(user)
 
@@ -579,6 +580,7 @@ class Building(BuildingAbstract):
             event_user=user,
             is_active=True,
             addresses_id=addresses_id,
+            marked_as_correct_by=[user.id] if mark_as_correct else [],
         )
 
     @staticmethod

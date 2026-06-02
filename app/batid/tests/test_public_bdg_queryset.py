@@ -3,6 +3,7 @@ import json
 from batid.list_bdg import list_bdgs
 from batid.models import Building, Plot
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
+from batid.tests.factories.users import UserFactory
 from batid.tests.helpers import create_bdg, create_grenoble, create_paris
 from django.contrib.gis.geos import GEOSGeometry
 from django.http import Http404
@@ -216,6 +217,8 @@ class SearchWithPlots(TestCase):
 
     def setUp(self):
 
+        self.user = UserFactory()
+
         # The two plots are side by side
 
         Plot.objects.create(
@@ -268,7 +271,7 @@ class SearchWithPlots(TestCase):
         )
 
         self.bdg_on_both_plots = Building.create_new(
-            user=None,
+            user=self.user,
             event_origin={"dummy": "dummy"},
             status="constructed",
             addresses_id=[],
@@ -293,7 +296,7 @@ class SearchWithPlots(TestCase):
         )
 
         self.bdg_minuscule_corner = Building.create_new(
-            user=None,
+            user=self.user,
             event_origin={"dummy": "dummy"},
             status="constructed",
             addresses_id=[],
@@ -317,7 +320,7 @@ class SearchWithPlots(TestCase):
         )
 
         self.bdg_point = Building.create_new(
-            user=None,
+            user=self.user,
             event_origin={"dummy": "dummy"},
             status="constructed",
             addresses_id=[],
@@ -334,7 +337,7 @@ class SearchWithPlots(TestCase):
 
         # This building is on the exact corner of one of the plot
         self.bdg_point_on_exact_corner = Building.create_new(
-            user=None,
+            user=self.user,
             event_origin={"dummy": "dummy"},
             status="constructed",
             addresses_id=[],

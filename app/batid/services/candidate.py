@@ -346,8 +346,7 @@ def shape_family(shape: GEOSGeometry):
 
 def create_building_from_candidate(c: Candidate) -> Building:
     b = Building.create_new(
-        # should we add a user here?
-        user=None,
+        user=get_RNB_team_user(),
         event_origin=c.created_by,
         status="constructed",
         addresses_id=c.address_keys or [],
