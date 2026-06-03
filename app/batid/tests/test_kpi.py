@@ -132,9 +132,9 @@ class CountContributions(TestCase):
         Report.objects.create(status="rejected", point=Point(0, 0))
 
         # Edits
-        Contribution.objects.create(review_user=self.u1)
-        Contribution.objects.create(review_user=self.u1)
-        Contribution.objects.create(review_user=self.u2)
+        Contribution.objects.create(user=self.u1)
+        Contribution.objects.create(user=self.u1)
+        Contribution.objects.create(user=self.u2)
         # count_edits() utilise batid_building_with_history : 3 bâtiments contribution
         for i in range(3):
             Building.objects.create(

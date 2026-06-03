@@ -294,7 +294,7 @@ def count_building_address_links():
 
 
 def count_editors():
-    return Contribution.objects.distinct("review_user_id").count()
+    return Contribution.objects.distinct("user_id").count()
 
 
 def count_edits():

@@ -80,7 +80,7 @@ class ContributionAdmin(admin.ModelAdmin):
         "rnb_id",
         "text",
         "created_at",
-        "review_user",
+        "user",
     )
 
 

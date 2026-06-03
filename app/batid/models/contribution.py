@@ -10,6 +10,6 @@ class Contribution(models.Model):
     text = models.TextField(null=True)  # type: ignore[var-annotated]
     created_at = models.DateTimeField(auto_now_add=True, null=True)  # type: ignore[var-annotated]
     updated_at = models.DateTimeField(auto_now=True)  # type: ignore[var-annotated]
-    review_user = models.ForeignKey(  # type: ignore[var-annotated]
+    user = models.ForeignKey(  # type: ignore[var-annotated]
         User, on_delete=models.PROTECT, null=True, blank=True
     )

@@ -244,7 +244,7 @@ Permet à l'utilisateur de marquer que l'état actuel du bâtiment est correct (
             contribution = Contribution(
                 rnb_id=rnb_id,
                 text=data.get("comment"),
-                review_user=user,
+                user=user,
             )
             contribution.save()
 

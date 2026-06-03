@@ -299,7 +299,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             # create a contribution
             contribution = Contribution(
                 text=data.get("comment"),
-                review_user=user,
+                user=user,
             )
             contribution.save()
 

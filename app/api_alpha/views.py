@@ -497,7 +497,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         with transaction.atomic():
             contribution = Contribution(
                 text=data.get("comment"),
-                review_user=user,
+                user=user,
             )
             contribution.save()
 
@@ -659,7 +659,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
 
             contribution = Contribution(
                 text=comment,
-                review_user=user,
+                user=user,
                 rnb_id=rnb_id,
             )
             contribution.save()

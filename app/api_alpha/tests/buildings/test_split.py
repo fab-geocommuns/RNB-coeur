@@ -159,7 +159,7 @@ class BuildingSplitTest(APITestCase):
 
         contribution = Contribution.objects.get(id=contribution_id)
 
-        self.assertEqual(contribution.review_user.id, self.building_1.event_user.id)
+        self.assertEqual(contribution.user.id, self.building_1.event_user.id)
         self.assertEqual(contribution.text, data["comment"])
 
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)

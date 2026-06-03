@@ -219,7 +219,7 @@ class BuildingPatchTest(APITestCase):
             {"source": "contribution", "contribution_id": contribution.id},
         )
         self.assertEqual(contribution.text, comment)
-        self.assertEqual(contribution.review_user, self.user)
+        self.assertEqual(contribution.user, self.user)
 
     def test_cannot_reactivate_everything(self):
         with self.assertRaises(Exception) as e:
@@ -267,7 +267,7 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(self.building.shape.wkt, g.wkt)
         self.assertTrue(g.contains(self.building.point))
         self.assertEqual(contribution.text, comment)
-        self.assertEqual(contribution.review_user, self.user)
+        self.assertEqual(contribution.user, self.user)
 
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_update_building_duplicate_address(self):
@@ -301,7 +301,7 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(self.building.shape.wkt, g.wkt)
         self.assertTrue(g.contains(self.building.point))
         self.assertEqual(contribution.text, comment)
-        self.assertEqual(contribution.review_user, self.user)
+        self.assertEqual(contribution.user, self.user)
 
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_update_with_empty_addresses(self):
@@ -687,7 +687,7 @@ class BuildingPatchMarkAsCorrectTest(APITestCase):
         self.assertEqual(self.building.marked_as_correct_by, [self.user.id])
 
         contribution = Contribution.objects.get(rnb_id=self.rnb_id)
-        self.assertEqual(contribution.review_user, self.user)
+        self.assertEqual(contribution.user, self.user)
         self.assertEqual(contribution.text, "ce bâtiment est correct")
 
     def test_mark_as_correct_false_removes_user(self):
