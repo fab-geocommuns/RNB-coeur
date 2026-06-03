@@ -19,7 +19,6 @@ from api_alpha.serializers.serializers import (
     BuildingMergeSerializer,
     BuildingSerializer,
     BuildingSplitSerializer,
-    ContributionSerializer,
     DiffusionDatabaseSerializer,
     GuessBuildingSerializer,
 )
@@ -54,7 +53,6 @@ from django.utils.http import urlsafe_base64_decode
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample, OpenApiParameter
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import mixins
 from rest_framework import status
 from rest_framework import status as http_status
 from rest_framework import viewsets
@@ -1032,21 +1030,6 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     )
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
-
-
-@extend_schema(exclude=True)
-class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
-    queryset = Contribution.objects.all()  # type: ignore[assignment]
-    serializer_class = ContributionSerializer  # type: ignore[assignment]
-
-    def create(self, request, *args, **kwargs):
-        serializer = ContributionSerializer(data=request.data)
-
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        else:
-            return Response(serializer.errors, status=400)
 
 
 class RNBAuthToken(ObtainAuthToken):
