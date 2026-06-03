@@ -132,9 +132,9 @@ class CountContributions(TestCase):
         Report.objects.create(status="rejected", point=Point(0, 0))
 
         # Edits
-        Contribution.objects.create(report=False, status="fixed", review_user=self.u1)
-        Contribution.objects.create(report=False, status="fixed", review_user=self.u1)
-        Contribution.objects.create(report=False, status="fixed", review_user=self.u2)
+        Contribution.objects.create(review_user=self.u1)
+        Contribution.objects.create(review_user=self.u1)
+        Contribution.objects.create(review_user=self.u2)
         # count_edits() utilise batid_building_with_history : 3 bâtiments contribution
         for i in range(3):
             Building.objects.create(
@@ -264,7 +264,7 @@ class CountEditsByDepartment(TestCase):
     def setUp(self):
         """
         Dept 75 split into 2 subdivided polygons, 2 contributions in the first subdivision,
-        1 in the second. 1 contribution in dept 69. 1 report (excluded).
+        1 in the second. 1 contribution in dept 69.
         Expected: {75: 3, 69: 1}.
         """
         dept_75_polygon = GEOSGeometry(
@@ -301,12 +301,10 @@ class CountEditsByDepartment(TestCase):
             rnb_id="BDG69A", point=Point(4.5, 45.5, srid=4326), is_active=True
         )
 
-        Contribution.objects.create(rnb_id="BDG75A", report=False)
-        Contribution.objects.create(rnb_id="BDG75B", report=False)
-        Contribution.objects.create(rnb_id="BDG75C", report=False)
-        Contribution.objects.create(rnb_id="BDG69A", report=False)
-        # report=True should be excluded
-        Contribution.objects.create(rnb_id="BDG75A", report=True)
+        Contribution.objects.create(rnb_id="BDG75A")
+        Contribution.objects.create(rnb_id="BDG75B")
+        Contribution.objects.create(rnb_id="BDG75C")
+        Contribution.objects.create(rnb_id="BDG69A")
 
     def test(self):
         result = count_edits_by_department()

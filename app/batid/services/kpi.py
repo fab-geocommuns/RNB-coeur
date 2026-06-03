@@ -294,7 +294,7 @@ def count_building_address_links():
 
 
 def count_editors():
-    return Contribution.objects.filter(report=False).distinct("review_user_id").count()
+    return Contribution.objects.distinct("review_user_id").count()
 
 
 def count_edits():
@@ -373,7 +373,7 @@ def backfill_api_requests_kpi():
 
 def count_edits_by_department():
     """
-    Count contributions (edits, not reports) per department using a spatial join.
+    Count contributions (edits) per department using a spatial join.
     Returns a dict {dept_code: count}.
     """
     sql = """
@@ -381,7 +381,6 @@ def count_edits_by_department():
         FROM batid_contribution c
             INNER JOIN batid_building b ON c.rnb_id = b.rnb_id
             LEFT JOIN batid_department_subdivided d ON ST_Contains(d.shape, b.point)
-        WHERE c.report = false
         GROUP BY d.code
     """
     with connection.cursor() as cursor:
