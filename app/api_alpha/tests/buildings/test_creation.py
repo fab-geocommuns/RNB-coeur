@@ -262,3 +262,63 @@ class BuildingPostTest(APITestCase):
             # Verify user contribution count did not increase
             self.user.profile.refresh_from_db()
             self.assertEqual(self.user.profile.total_contributions, 501)
+
+
+@override_settings(MAX_BUILDING_AREA=float("inf"))
+class BuildingPostMarkAsCorrectTest(APITestCase):
+    """Tests for the `mark_as_correct` parameter on POST /api/alpha/buildings/."""
+
+    def setUp(self):
+        self.user = ContributorUserFactory(
+            first_name="Robert", last_name="Dylan", username="bob"
+        )
+        token = Token.objects.get(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+
+        self.data = {
+            "status": "constructed",
+            "addresses_cle_interop": [],
+            "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
+            "comment": "nouveau bâtiment",
+        }
+
+    def _post(self, data):
+        return self.client.post(
+            "/api/alpha/buildings/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+    def test_create_with_mark_as_correct_true(self):
+        """
+        Input: POST creating a building with `mark_as_correct=True`.
+        Expected: 201; the created building has the requesting user's id in
+        marked_as_correct_by.
+        """
+        r = self._post({**self.data, "mark_as_correct": True})
+
+        self.assertEqual(r.status_code, 201)
+        building = Building.objects.get(rnb_id=r.json()["rnb_id"])
+        self.assertEqual(building.marked_as_correct_by, [self.user.id])
+
+    def test_create_with_mark_as_correct_false(self):
+        """
+        Input: POST creating a building with `mark_as_correct=False`.
+        Expected: 201; the created building has an empty marked_as_correct_by.
+        """
+        r = self._post({**self.data, "mark_as_correct": False})
+
+        self.assertEqual(r.status_code, 201)
+        building = Building.objects.get(rnb_id=r.json()["rnb_id"])
+        self.assertEqual(building.marked_as_correct_by, [])
+
+    def test_create_without_mark_as_correct(self):
+        """
+        Input: POST creating a building without the `mark_as_correct` field.
+        Expected: 201; marked_as_correct_by defaults to an empty list.
+        """
+        r = self._post(self.data)
+
+        self.assertEqual(r.status_code, 201)
+        building = Building.objects.get(rnb_id=r.json()["rnb_id"])
+        self.assertEqual(building.marked_as_correct_by, [])

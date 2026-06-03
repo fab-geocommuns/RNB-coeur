@@ -730,6 +730,69 @@ class TestUpdateBuildingMarkedAsCorrect(TestCase):
         self.assertEqual(b.marked_as_correct_by, [self.user.id, self.other_user.id])
 
 
+class TestCreateNewBuildingMarkedAsCorrect(TestCase):
+    """Tests for the marked_as_correct_by behavior in Building.create_new()."""
+
+    SHAPE = GEOSGeometry(
+        json.dumps(
+            {
+                "coordinates": [
+                    [
+                        [-0.5629838649124963, 44.89830737784746],
+                        [-0.5627894800164768, 44.89622105788288],
+                        [-0.5603213808721534, 44.89635458462783],
+                        [-0.5605098753173934, 44.89844507230214],
+                        [-0.5629838649124963, 44.89830737784746],
+                    ]
+                ],
+                "type": "Polygon",
+            }
+        )
+    )
+
+    def setUp(self):
+        self.user = ContributorUserFactory(username="solo_user")
+
+    def _create(self, **kwargs):
+        return Building.create_new(
+            user=self.user,
+            event_origin={"source": "test"},
+            status="constructed",
+            addresses_id=[],
+            shape=self.SHAPE,
+            ext_ids=[],
+            **kwargs,
+        )
+
+    def test_create_new_with_mark_as_correct_true(self):
+        """
+        Input: create_new called with mark_as_correct=True.
+        Expected: the created building has the creating user's id in
+        marked_as_correct_by.
+        """
+        b = self._create(mark_as_correct=True)
+        b.refresh_from_db()
+        self.assertEqual(b.marked_as_correct_by, [self.user.id])
+
+    def test_create_new_with_mark_as_correct_false(self):
+        """
+        Input: create_new called with mark_as_correct=False.
+        Expected: the created building has an empty marked_as_correct_by.
+        """
+        b = self._create(mark_as_correct=False)
+        b.refresh_from_db()
+        self.assertEqual(b.marked_as_correct_by, [])
+
+    def test_create_new_defaults_to_not_marked(self):
+        """
+        Input: create_new called without the mark_as_correct argument.
+        Expected: marked_as_correct_by defaults to an empty list.
+        """
+        b = self._create()
+        b.refresh_from_db()
+        self.assertEqual(b.marked_as_correct_by, [])
+
+
 class TestSaveNewAddress(TestCase):
     def test_save_new_address_stores_ban_id(self):
         ban_id = "b4f1d2a3-5e6f-7a8b-9c0d-1e2f3a4b5c6d"

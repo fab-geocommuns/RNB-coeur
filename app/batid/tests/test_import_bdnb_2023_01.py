@@ -5,6 +5,7 @@ import batid.services.imports.import_bdnb_2023_01 as import_bdnb_2023_01
 from batid.models import Address, Building, Candidate
 from batid.services.candidate import Inspector
 from batid.tests import helpers
+from batid.tests.factories.users import UserFactory
 from django.contrib.gis.geos import MultiPolygon, Point
 from django.test import TransactionTestCase
 
@@ -79,6 +80,9 @@ class ImportBDNB202301TestCase(TransactionTestCase):
         # ############
 
         self.assertEqual(Building.objects.count(), 0)
+
+        # RNB team user used by candidate.create_building_from_candidate()
+        UserFactory(username="RNB")
 
         i = Inspector()
         i.inspect()
