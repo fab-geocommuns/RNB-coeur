@@ -218,10 +218,8 @@ class BuildingPatchTest(APITestCase):
             self.building.event_origin,
             {"source": "contribution", "contribution_id": contribution.id},
         )
-        self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
-        self.assertFalse(contribution.report)
 
     def test_cannot_reactivate_everything(self):
         with self.assertRaises(Exception) as e:
@@ -268,7 +266,6 @@ class BuildingPatchTest(APITestCase):
         g = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
         self.assertEqual(self.building.shape.wkt, g.wkt)
         self.assertTrue(g.contains(self.building.point))
-        self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
 
@@ -303,7 +300,6 @@ class BuildingPatchTest(APITestCase):
         g = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
         self.assertEqual(self.building.shape.wkt, g.wkt)
         self.assertTrue(g.contains(self.building.point))
-        self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
         self.assertEqual(contribution.review_user, self.user)
 
@@ -677,7 +673,7 @@ class BuildingPatchMarkAsCorrectTest(APITestCase):
         """
         Input: PATCH with only `mark_as_correct=True`, building's marked_as_correct_by is empty.
         Expected: 204; the requesting user's id is appended to marked_as_correct_by;
-        a Contribution with status='fixed' is created and linked to the user.
+        a Contribution is created and linked to the user.
         """
         data = {"mark_as_correct": True, "comment": "ce bâtiment est correct"}
         r = self.client.patch(
@@ -691,7 +687,6 @@ class BuildingPatchMarkAsCorrectTest(APITestCase):
         self.assertEqual(self.building.marked_as_correct_by, [self.user.id])
 
         contribution = Contribution.objects.get(rnb_id=self.rnb_id)
-        self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.review_user, self.user)
         self.assertEqual(contribution.text, "ce bâtiment est correct")
 

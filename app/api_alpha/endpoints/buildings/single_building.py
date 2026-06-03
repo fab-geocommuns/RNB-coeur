@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.permissions import ReadOnly, RNBContributorPermission
@@ -246,10 +244,7 @@ Permet à l'utilisateur de marquer que l'état actuel du bâtiment est correct (
             contribution = Contribution(
                 rnb_id=rnb_id,
                 text=data.get("comment"),
-                status="fixed",
-                status_changed_at=datetime.now(),
                 review_user=user,
-                report=False,
             )
             contribution.save()
 

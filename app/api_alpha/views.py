@@ -1,6 +1,6 @@
 import binascii
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 import yaml
@@ -499,9 +499,6 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         with transaction.atomic():
             contribution = Contribution(
                 text=data.get("comment"),
-                status="fixed",
-                status_changed_at=datetime.now(timezone.utc),
-                report=False,
                 review_user=user,
             )
             contribution.save()
@@ -664,9 +661,6 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
 
             contribution = Contribution(
                 text=comment,
-                status="fixed",
-                status_changed_at=datetime.now(timezone.utc),
-                report=False,
                 review_user=user,
                 rnb_id=rnb_id,
             )

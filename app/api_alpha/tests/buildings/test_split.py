@@ -159,8 +159,6 @@ class BuildingSplitTest(APITestCase):
 
         contribution = Contribution.objects.get(id=contribution_id)
 
-        self.assertEqual(contribution.status, "fixed")
-        self.assertFalse(contribution.report, False)
         self.assertEqual(contribution.review_user.id, self.building_1.event_user.id)
         self.assertEqual(contribution.text, data["comment"])
 

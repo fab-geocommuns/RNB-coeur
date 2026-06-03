@@ -102,8 +102,6 @@ class BuildingPostTest(APITestCase):
 
         contribution = Contribution.objects.get(id=contribution_id)
 
-        self.assertEqual(contribution.status, "fixed")
-        self.assertFalse(contribution.report, False)
         self.assertEqual(contribution.review_user.id, building.event_user.id)
         self.assertEqual(contribution.text, data["comment"])
 
