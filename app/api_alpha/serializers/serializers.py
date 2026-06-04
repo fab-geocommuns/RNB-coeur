@@ -455,7 +455,15 @@ class BuildingCreateSerializerCore(serializers.Serializer):
 
 class BuildingCreateSerializer(BuildingCreateSerializerCore):
     comment = serializers.CharField(required=False, allow_blank=True)
-    is_valid = serializers.BooleanField(required=False, default=False)
+
+    def get_fields(self):
+        fields = super().get_fields()
+        # Champ exposé sous "is_valid" côté API, mappé sur "validation" en interne
+        # (évite le clash avec la méthode Serializer.is_valid()).
+        fields["is_valid"] = serializers.BooleanField(
+            required=False, default=False, source="validation"
+        )
+        return fields
 
 
 class BuildingMergeSerializer(serializers.Serializer):
