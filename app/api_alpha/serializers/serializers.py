@@ -406,15 +406,23 @@ class BuildingUpdateSerializer(serializers.Serializer):
         required=False,
     )
     shape = serializers.CharField(required=False, validators=[shape_is_valid])
-    is_valid = serializers.BooleanField(required=False)  # type: ignore[assignment]
     comment = serializers.CharField(required=False, allow_blank=True)
+
+    def get_fields(self):
+        fields = super().get_fields()
+        # Public API field "is_valid" is mapped to "validation" internally
+        # to avoid naming collision with DRF internals
+        fields["is_valid"] = serializers.BooleanField(
+            required=False, source="validation"
+        )
+        return fields
 
     def validate(self, data):
         if data.get("is_active") is not None and (
             data.get("status") is not None
             or data.get("addresses_cle_interop") is not None
             or data.get("shape") is not None
-            or data.get("is_valid") is not None
+            or data.get("validation") is not None
         ):
             raise serializers.ValidationError(
                 "Vous devez définir soit 'is_active' soit 'status'/'addresses_cle_interop'/'shape'/'is_valid', pas les deux en même temps"
@@ -424,7 +432,7 @@ class BuildingUpdateSerializer(serializers.Serializer):
             and data.get("status") is None
             and data.get("addresses_cle_interop") is None
             and data.get("shape") is None
-            and data.get("is_valid") is None
+            and data.get("validation") is None
         ):
             raise serializers.ValidationError(
                 "Arguments vides dans le corps de la requête"
