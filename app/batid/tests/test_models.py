@@ -808,33 +808,33 @@ class TestCreateNewBuildingMarkedAsCorrect(TestCase):
             **kwargs,
         )
 
-    def test_create_new_with_mark_as_correct_true(self):
+    def test_create_new_with_is_valid_true(self):
         """
-        Input: create_new called with mark_as_correct=True.
+        Input: create_new called with is_valid=True.
         Expected: the created building has the creating user's id in
-        marked_as_correct_by.
+        validated_by.
         """
-        b = self._create(mark_as_correct=True)
+        b = self._create(is_valid=True)
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [self.user.id])
+        self.assertEqual(b.validated_by, [self.user.id])
 
-    def test_create_new_with_mark_as_correct_false(self):
+    def test_create_new_with_is_valid_false(self):
         """
-        Input: create_new called with mark_as_correct=False.
-        Expected: the created building has an empty marked_as_correct_by.
+        Input: create_new called with is_valid=False.
+        Expected: the created building has an empty validated_by.
         """
-        b = self._create(mark_as_correct=False)
+        b = self._create(is_valid=False)
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [])
+        self.assertEqual(b.validated_by, [])
 
     def test_create_new_defaults_to_not_marked(self):
         """
-        Input: create_new called without the mark_as_correct argument.
-        Expected: marked_as_correct_by defaults to an empty list.
+        Input: create_new called without the is_valid argument.
+        Expected: validated_by defaults to an empty list.
         """
         b = self._create()
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [])
+        self.assertEqual(b.validated_by, [])
 
 
 class TestSaveNewAddress(TestCase):
