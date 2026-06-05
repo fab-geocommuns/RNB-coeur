@@ -700,8 +700,8 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
 
 
 class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
-    queryset = ADS.objects.all()  # type: ignore[assignment]
-    serializer_class = ADSSerializer  # type: ignore[assignment]
+    queryset = ADS.objects.all()
+    serializer_class = ADSSerializer
     lookup_field = "file_number"
     pagination_class = PageNumberPagination
     permission_classes = [ADSPermission]
@@ -749,8 +749,8 @@ class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
 
 class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
-    queryset = ADS.objects.all()  # type: ignore[assignment]
-    serializer_class = ADSSerializer  # type: ignore[assignment]
+    queryset = ADS.objects.all()
+    serializer_class = ADSSerializer
     lookup_field = "file_number"
     pagination_class = PageNumberPagination
     permission_classes = [ADSPermission]
@@ -1042,8 +1042,8 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
 @extend_schema(exclude=True)
 class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
-    queryset = Contribution.objects.all()  # type: ignore[assignment]
-    serializer_class = ContributionSerializer  # type: ignore[assignment]
+    queryset = Contribution.objects.all()
+    serializer_class = ContributionSerializer
 
     def create(self, request, *args, **kwargs):
         serializer = ContributionSerializer(data=request.data)

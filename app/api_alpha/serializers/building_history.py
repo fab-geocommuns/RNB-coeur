@@ -11,7 +11,7 @@ class PlainAddressSerializer(serializers.Serializer):
     """
 
     id = serializers.CharField()
-    source = serializers.CharField()
+    source = serializers.CharField()  # type: ignore[assignment]
     street_number = serializers.CharField()
     street_rep = serializers.CharField()
     street = serializers.CharField()

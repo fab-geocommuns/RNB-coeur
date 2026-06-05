@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Any
 
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.pagination import BuildingListingCursorPagination, OGCApiPagination
@@ -181,7 +182,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             # Invalid data, return validation errors
             return Response(query_serializer.errors, status=400)
 
-        query_params = request.query_params.dict()
+        query_params: dict[str, Any] = request.query_params.dict()
 
         # check if we need to include plots
         with_plots_param = request.query_params.get("withPlots", None)
