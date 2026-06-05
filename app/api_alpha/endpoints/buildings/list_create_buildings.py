@@ -21,6 +21,7 @@ from batid.exceptions import (
 from batid.list_bdg import list_bdgs
 from batid.models import Building, Contribution
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
 from rest_framework import status as http_status
@@ -301,7 +302,9 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         input_serializer.is_valid(raise_exception=True)
 
         data = input_serializer.data
+        # POST requires RNBContributorPermission, so the user is always authenticated
         user = request.user
+        assert isinstance(user, User)
 
         with transaction.atomic():
             # create a contribution
@@ -319,8 +322,9 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 "contribution_id": contribution.id,
             }
 
-            status = data.get("status")
-            addresses_cle_interop = data.get("addresses_cle_interop")
+            # status and addresses_cle_interop are required fields (validated above)
+            status = data["status"]
+            addresses_cle_interop = data["addresses_cle_interop"]
             shape = GEOSGeometry(data.get("shape"))
 
             addresses_id = list(set(addresses_cle_interop))
