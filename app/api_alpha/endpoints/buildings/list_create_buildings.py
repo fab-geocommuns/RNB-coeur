@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.pagination import BuildingListingCursorPagination, OGCApiPagination
@@ -303,8 +303,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
 
         data = input_serializer.data
         # POST requires RNBContributorPermission, so the user is always authenticated
-        user = request.user
-        assert isinstance(user, User)
+        user = cast(User, request.user)
 
         with transaction.atomic():
             # create a contribution

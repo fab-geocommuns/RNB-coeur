@@ -3,7 +3,7 @@ import uuid
 from copy import deepcopy
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, cast
 
 from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import (
@@ -305,8 +305,7 @@ class Building(BuildingAbstract):
         current_building.reactivate(user, event_origin)
 
         # reactivate() always assigns a new event_id (or raises), so it is never None here
-        assert current_building.event_id is not None
-        return current_building.event_id
+        return cast(uuid.UUID, current_building.event_id)
 
     @transaction.atomic
     @staticmethod
@@ -339,8 +338,8 @@ class Building(BuildingAbstract):
             user, event_origin, revert_event_id=event_id_to_revert
         )
         current_building.refresh_from_db()
-        assert current_building.event_id is not None
-        return current_building.event_id
+        # deactivate() always assigns a new event_id (or raises), so it is never None here
+        return cast(uuid.UUID, current_building.event_id)
 
     @transaction.atomic
     def update(
@@ -557,8 +556,10 @@ class Building(BuildingAbstract):
         assert_shape_is_valid(shape)
         check_building_overlap(shape)
 
-        point = shape if shape.geom_type == "Point" else shape.point_on_surface
-        assert isinstance(point, Point)
+        # the Point branch and point_on_surface both always yield a Point
+        point = cast(
+            Point, shape if shape.geom_type == "Point" else shape.point_on_surface
+        )
         rnb_id = generate_rnb_id()
         event_id = uuid.uuid4()
 
