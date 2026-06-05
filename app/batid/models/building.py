@@ -22,7 +22,7 @@ from batid.utils.geo import assert_new_shape_is_close_enough, assert_shape_is_va
 from batid.validators import validate_one_ext_id
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
-from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry, Point
 from django.contrib.postgres.fields import ArrayField, DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex, GistIndex
 from django.db import connection, transaction
@@ -304,7 +304,9 @@ class Building(BuildingAbstract):
         current_building = Building.objects.get(rnb_id=building_to_revert.rnb_id)
         current_building.reactivate(user, event_origin)
 
-        return current_building.event_id  # type: ignore
+        # reactivate() always assigns a new event_id (or raises), so it is never None here
+        assert current_building.event_id is not None
+        return current_building.event_id
 
     @transaction.atomic
     @staticmethod
@@ -337,8 +339,8 @@ class Building(BuildingAbstract):
             user, event_origin, revert_event_id=event_id_to_revert
         )
         current_building.refresh_from_db()
-
-        return current_building.event_id  # type: ignore
+        assert current_building.event_id is not None
+        return current_building.event_id
 
     @transaction.atomic
     def update(
@@ -556,6 +558,7 @@ class Building(BuildingAbstract):
         check_building_overlap(shape)
 
         point = shape if shape.geom_type == "Point" else shape.point_on_surface
+        assert isinstance(point, Point)
         rnb_id = generate_rnb_id()
         event_id = uuid.uuid4()
 
@@ -570,7 +573,7 @@ class Building(BuildingAbstract):
 
         return Building.objects.create(
             rnb_id=rnb_id,
-            point=point,  # type: ignore
+            point=point,
             shape=shape,
             ext_ids=ext_ids,
             event_origin=event_origin,
