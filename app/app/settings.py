@@ -252,7 +252,7 @@ PRO_CONNECT_DISCOVERY_URL = os.environ.get(
     "PRO_CONNECT_DISCOVERY_URL",
     "https://fca.integ01.dev-agentconnect.fr/api/v2/.well-known/openid-configuration",
 )
-PRO_CONNECT_SCOPES = "openid email given_name usual_name"
+PRO_CONNECT_SCOPES = "openid email given_name usual_name siret"
 PRO_CONNECT_REDIRECT_URI = os.environ.get("PRO_CONNECT_REDIRECT_URI")
 PRO_CONNECT_POST_LOGOUT_REDIRECT_URI = os.environ.get(
     "PRO_CONNECT_POST_LOGOUT_REDIRECT_URI"
