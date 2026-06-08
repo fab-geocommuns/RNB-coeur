@@ -21,8 +21,7 @@ class BuildingAddressesReadOnly(models.Model):
         unique_together = ("building", "address")
 
 
-class BuildingMarkedAsCorrectByReadOnly(models.Model):
-    # buildings and users are never deleted
+class BuildingValidatedByReadOnly(models.Model):
     building = models.ForeignKey("Building", on_delete=models.PROTECT, db_index=True)
     user = models.ForeignKey(User, on_delete=models.PROTECT, db_index=True)
 

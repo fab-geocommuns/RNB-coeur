@@ -46,7 +46,7 @@ def envelope_to_buildings_sql(
                    {attrColumns},
                    t.is_active AS is_active,
                    t.status AS status,
-                   COALESCE(array_length(t.marked_as_correct_by, 1), 0) > 0 AS is_marked_as_correct
+                   COALESCE(array_length(t.validated_by, 1), 0) > 0 AS is_validated
             FROM {table} t, bounds
             WHERE ST_Intersects(t.{geomColumn}, ST_Transform(bounds.geom, {srid}))
             {active_clause}

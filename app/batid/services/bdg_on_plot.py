@@ -30,6 +30,6 @@ def get_buildings_on_plot(plot_id: str):
     )
 
     qs = qs.prefetch_related("addresses_read_only")
-    qs = qs.prefetch_related("marked_as_correct_read_only")
+    qs = qs.prefetch_related("validated_by_read_only")
 
     return qs

@@ -255,6 +255,11 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                         "description": "Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.",
                                         "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
                                     },
+                                    "is_valid": {
+                                        "type": "boolean",
+                                        "default": False,
+                                        "description": "Optionnel. Si `True`, le bâtiment est marqué comme correct dès sa création. L'utilisateur déclare ainsi que l'ensemble des informations liées aux bâtiments (statut, adresse, géométrie) sont correctes. Vaut 'False' par défaut, ce qui revient à simplement créer le bâtiment sans le marquer comme correct.",
+                                    },
                                 },
                                 "required": [
                                     "status",
@@ -327,6 +332,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                     addresses_id=addresses_id,
                     shape=shape,
                     ext_ids=[],
+                    is_valid=data.get("is_valid", False),
                 )
             except BANAPIDown:
                 raise ServiceUnavailable(detail="BAN API is currently down")
