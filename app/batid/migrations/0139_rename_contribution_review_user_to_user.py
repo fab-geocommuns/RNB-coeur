@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0137_clean_contribution_model"),
+        ("batid", "0138_clean_contribution_model"),
     ]
 
     operations = [
