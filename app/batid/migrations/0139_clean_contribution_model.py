@@ -30,7 +30,7 @@ def delete_orphaned_reports(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0136_prevent_building_deletion"),
+        ("batid", "0138_rename_contribution_review_user_to_user"),
     ]
 
     operations = [
