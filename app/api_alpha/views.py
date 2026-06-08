@@ -394,7 +394,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                 Building.objects.filter(is_active=True)
                 .filter(addresses_read_only__id=cle_interop_ban)
                 .prefetch_related("addresses_read_only")
-                .prefetch_related("marked_as_correct_read_only")
+                .prefetch_related("validated_by_read_only")
             )
             paginated_bdgs = paginator.paginate_queryset(buildings, request)
             serialized_buildings = BuildingSerializer(paginated_bdgs, many=True)
@@ -689,55 +689,6 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
 
         serializer = BuildingSerializer(new_buildings, with_plots=False, many=True)
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
-
-
-class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
-    queryset = ADS.objects.all()  # type: ignore[assignment]
-    serializer_class = ADSSerializer  # type: ignore[assignment]
-    lookup_field = "file_number"
-    pagination_class = PageNumberPagination
-    permission_classes = [ADSPermission]
-    http_method_names = ["post"]
-
-    max_batch_size = 30
-
-    def create(self, request, *args, **kwargs):
-        to_save = []
-        errors = {}
-
-        self.validate_length(request.data)
-
-        for ads in request.data:
-            try:
-                instance = ADS.objects.get(file_number=ads["file_number"])
-                serializer = self.get_serializer(instance, data=ads)
-            except ADS.DoesNotExist:
-                serializer = self.get_serializer(data=ads)
-
-            if serializer.is_valid():
-                to_save.append({"serializer": serializer})
-
-            else:
-                errors[ads["file_number"]] = serializer.errors
-
-        if len(errors) > 0:
-            return Response(errors, status=400)
-        else:
-            to_show = []
-            for item in to_save:
-                item["serializer"].save()
-                to_show.append(item["serializer"].data)
-
-            return Response(to_show, status=201)
-
-    def validate_length(self, data):
-        if len(data) > self.max_batch_size:
-            raise ParseError(
-                {"errors": f"Too many items in the request. Max: {self.max_batch_size}"}
-            )
-
-        if len(data) == 0:
-            raise ParseError({"errors": "No data in the request."})
 
 
 class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):

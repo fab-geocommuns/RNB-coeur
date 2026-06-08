@@ -650,8 +650,8 @@ class BuildingPatchTest(APITestCase):
             self.assertEqual(self.user.profile.total_contributions, 501)
 
 
-class BuildingPatchMarkAsCorrectTest(APITestCase):
-    """Tests for the `mark_as_correct` parameter on PATCH /api/alpha/buildings/<rnb_id>/."""
+class BuildingPatchValidateTest(APITestCase):
+    """Tests for the `validate` parameter on PATCH /api/alpha/buildings/<rnb_id>/."""
 
     def setUp(self) -> None:
         self.user = ContributorUserFactory(
@@ -666,16 +666,16 @@ class BuildingPatchMarkAsCorrectTest(APITestCase):
             rnb_id=self.rnb_id,
             status="constructed",
             shape=GEOSGeometry("POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))"),
-            marked_as_correct_by=[],
+            validated_by=[],
         )
 
-    def test_mark_as_correct_true_alone(self):
+    def test_is_valid_true_alone(self):
         """
-        Input: PATCH with only `mark_as_correct=True`, building's marked_as_correct_by is empty.
-        Expected: 204; the requesting user's id is appended to marked_as_correct_by;
-        a Contribution is created and linked to the user.
+        Input: PATCH with only `is_valid=True`, building's validated_by is empty.
+        Expected: 204; the requesting user's id is appended to validated_by;
+        a Contribution with status='fixed' is created and linked to the user.
         """
-        data = {"mark_as_correct": True, "comment": "ce bâtiment est correct"}
+        data = {"is_valid": True, "comment": "ce bâtiment est correct"}
         r = self.client.patch(
             f"/api/alpha/buildings/{self.rnb_id}/",
             data=json.dumps(data),
@@ -684,22 +684,22 @@ class BuildingPatchMarkAsCorrectTest(APITestCase):
 
         self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
-        self.assertEqual(self.building.marked_as_correct_by, [self.user.id])
+        self.assertEqual(self.building.validated_by, [self.user.id])
 
         contribution = Contribution.objects.get(rnb_id=self.rnb_id)
         self.assertEqual(contribution.user, self.user)
         self.assertEqual(contribution.text, "ce bâtiment est correct")
 
-    def test_mark_as_correct_false_removes_user(self):
+    def test_is_valid_false_removes_user(self):
         """
-        Input: building has the requesting user already in marked_as_correct_by; PATCH
-        with only `mark_as_correct=False`.
-        Expected: 204; user.id is removed from marked_as_correct_by.
+        Input: building has the requesting user already in validated_by; PATCH
+        with only `is_valid=False`.
+        Expected: 204; user.id is removed from validated_by.
         """
-        self.building.marked_as_correct_by = [self.user.id, self.other_user.id]
+        self.building.validated_by = [self.user.id, self.other_user.id]
         self.building.save()
 
-        data = {"mark_as_correct": False}
+        data = {"is_valid": False}
         r = self.client.patch(
             f"/api/alpha/buildings/{self.rnb_id}/",
             data=json.dumps(data),
@@ -708,18 +708,18 @@ class BuildingPatchMarkAsCorrectTest(APITestCase):
 
         self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
-        self.assertEqual(self.building.marked_as_correct_by, [self.other_user.id])
+        self.assertEqual(self.building.validated_by, [self.other_user.id])
 
-    def test_mark_as_correct_false_idempotent_when_user_absent(self):
+    def test_validate_false_idempotent_when_user_absent(self):
         """
-        Input: building's marked_as_correct_by does not contain the requesting user;
-        PATCH with only `mark_as_correct=False`.
-        Expected: 204 (no ValueError); marked_as_correct_by stays unchanged.
+        Input: building's validated_by does not contain the requesting user;
+        PATCH with only `is_valid=False`.
+        Expected: 204 (no ValueError); validated_by stays unchanged.
         """
-        self.building.marked_as_correct_by = [self.other_user.id]
+        self.building.validated_by = [self.other_user.id]
         self.building.save()
 
-        data = {"mark_as_correct": False}
+        data = {"is_valid": False}
         r = self.client.patch(
             f"/api/alpha/buildings/{self.rnb_id}/",
             data=json.dumps(data),
@@ -728,21 +728,21 @@ class BuildingPatchMarkAsCorrectTest(APITestCase):
 
         self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
-        self.assertEqual(self.building.marked_as_correct_by, [self.other_user.id])
+        self.assertEqual(self.building.validated_by, [self.other_user.id])
 
-    def test_mark_as_correct_true_with_status_change_resets_list_and_adds_user(self):
+    def test_is_valid_true_with_status_change_resets_list_and_adds_user(self):
         """
-        Input: building already has another user in marked_as_correct_by; PATCH with
-        `mark_as_correct=True` AND a new `status`.
+        Input: building already has another user in validated_by; PATCH with
+        `is_valid=True` AND a new `status`.
         Expected: 204; previous marks are cleared because the building changed, then
         the requesting user is appended — final list is [self.user.id]; status updated.
         """
-        self.building.marked_as_correct_by = [self.other_user.id]
+        self.building.validated_by = [self.other_user.id]
         self.building.save()
 
         data = {
             "status": "demolished",
-            "mark_as_correct": True,
+            "is_valid": True,
             "comment": "démoli et je confirme",
         }
         r = self.client.patch(
@@ -754,17 +754,17 @@ class BuildingPatchMarkAsCorrectTest(APITestCase):
         self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
         self.assertEqual(self.building.status, "demolished")
-        self.assertEqual(self.building.marked_as_correct_by, [self.user.id])
+        self.assertEqual(self.building.validated_by, [self.user.id])
 
-    def test_mark_as_correct_with_is_active_rejected(self):
+    def test_is_valid_with_is_active_rejected(self):
         """
-        Input: PATCH combining `mark_as_correct=True` with `is_active=False`.
+        Input: PATCH combining `is_valid=True` with `is_active=False`.
         Expected: 400 (validation error) — both fields are mutually exclusive; the
         building stays untouched.
         """
         data = {
             "is_active": False,
-            "mark_as_correct": True,
+            "is_valid": True,
             "comment": "incompatible",
         }
         r = self.client.patch(
@@ -776,15 +776,15 @@ class BuildingPatchMarkAsCorrectTest(APITestCase):
         self.assertEqual(r.status_code, 400)
         self.building.refresh_from_db()
         self.assertTrue(self.building.is_active)
-        self.assertEqual(self.building.marked_as_correct_by, [])
+        self.assertEqual(self.building.validated_by, [])
 
-    def test_mark_as_correct_null_rejected(self):
+    def test_is_valid_null_rejected(self):
         """
-        Input: PATCH with `mark_as_correct=None` (JSON null).
+        Input: PATCH with `is_valid=None` (JSON null).
         Expected: 400 — the serializer's BooleanField does not allow null
         (no `allow_null=True`); building stays untouched.
         """
-        data = {"mark_as_correct": None}
+        data = {"is_valid": None}
         r = self.client.patch(
             f"/api/alpha/buildings/{self.rnb_id}/",
             data=json.dumps(data),
@@ -793,4 +793,4 @@ class BuildingPatchMarkAsCorrectTest(APITestCase):
 
         self.assertEqual(r.status_code, 400)
         self.building.refresh_from_db()
-        self.assertEqual(self.building.marked_as_correct_by, [])
+        self.assertEqual(self.building.validated_by, [])

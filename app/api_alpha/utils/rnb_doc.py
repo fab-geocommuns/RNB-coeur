@@ -349,9 +349,9 @@ def _get_components() -> dict:
                         "description": "Liste des adresses du bâtiment",
                         "items": {"$ref": "#/components/schemas/BuildingAddress"},
                     },
-                    "marked_as_correct_by": {
+                    "validated_by": {
                         "type": "array",
-                        "description": "Liste des utilisateurs ayant marqué ce bâtiment comme correct. Un bâtiment marqué comme correct par un utilisateur est un bâtiment que cet utilisateur considère comme correspondant à la définition d'un bâtiment et dont il pense que les attributs statut, géométrie et adresses sont corrects.",
+                        "description": "Liste des utilisateurs ayant validé ce bâtiment. Un bâtiment validé par un utilisateur est un bâtiment que cet utilisateur considère comme correspondant à la définition d'un bâtiment et dont il pense que les attributs statut, géométrie et adresses sont corrects.",
                         "items": {"$ref": "#/components/schemas/PublicUser"},
                     },
                     "ext_ids": {

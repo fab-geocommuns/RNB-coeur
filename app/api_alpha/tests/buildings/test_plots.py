@@ -23,7 +23,7 @@ class BuildingPlotViewTest(APITestCase):
             status="demolished",
         )
         building_1.point = building_1.shape.point_on_surface
-        building_1.marked_as_correct_by = [user.id]
+        building_1.validated_by = [user.id]
         building_1.save()
         # inside plot 1 but inactive
         building_2 = Building.objects.create(
@@ -70,7 +70,7 @@ class BuildingPlotViewTest(APITestCase):
         [r1, r2, r3, r4] = data["results"]
         self.assertEqual(r1["rnb_id"], building_1.rnb_id)
         self.assertListEqual(
-            r1["marked_as_correct_by"],
+            r1["validated_by"],
             [
                 {
                     "display_name": get_display_name(user),

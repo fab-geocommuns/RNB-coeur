@@ -97,7 +97,7 @@ class BuildingAbstract(models.Model):
     # this field is the source of truth for the building <> address link
     # it contains BAN ids (clé d'interopérabilité)
     addresses_id = ArrayField(models.CharField(max_length=40), null=True)
-    marked_as_correct_by = ArrayField(models.IntegerField(), null=True, default=list)
+    validated_by = ArrayField(models.IntegerField(), null=True, default=list)
 
     class Meta:
         abstract = True
@@ -119,11 +119,11 @@ class Building(BuildingAbstract):
         related_name="buildings_read_only",
         through="BuildingAddressesReadOnly",
     )
-    marked_as_correct_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
+    validated_by_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
         User,
         blank=True,
-        related_name="buildings_marked_as_correct_read_only",
-        through="BuildingMarkedAsCorrectByReadOnly",
+        related_name="buildings_validated_by_read_only",
+        through="BuildingValidatedByReadOnly",
     )
 
     def delete(self, *args, **kwargs):
@@ -336,7 +336,7 @@ class Building(BuildingAbstract):
         addresses_id: list | None,
         ext_ids: list | None = None,
         shape: GEOSGeometry | None = None,
-        mark_as_correct: bool | None = None,
+        validate: bool | None = None,
     ):
         check_and_increment_contribution_count(user)
 
@@ -350,27 +350,25 @@ class Building(BuildingAbstract):
             and (shape is None or shape == self.shape)
         )
 
-        if building_identical and mark_as_correct is None:
+        if building_identical and validate is None:
             # Nothing happens at all
             return
 
         if not building_identical:
-            # We changes the building, we consider previous "mark as correct" as wrong
-            marked_as_correct_by: list[int] = []
+            validated_by: list[int] = []
 
-            if mark_as_correct:
-                marked_as_correct_by.append(user.id)
-            self.marked_as_correct_by = marked_as_correct_by
+            if validate:
+                validated_by.append(user.id)
+            self.validated_by = validated_by
         else:
-            marked_as_correct_by = self.marked_as_correct_by or []
-            if mark_as_correct:
-                marked_as_correct_by.append(user.id)
-            elif user.id in marked_as_correct_by:
-                marked_as_correct_by.remove(user.id)
+            validated_by = self.validated_by or []
+            if validate:
+                validated_by.append(user.id)
+            elif user.id in validated_by:
+                validated_by.remove(user.id)
             else:
-                # mark_as_correct is False, but the building was not previously marked => no-op
                 return
-            self.marked_as_correct_by = marked_as_correct_by
+            self.validated_by = validated_by
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(
@@ -505,7 +503,7 @@ class Building(BuildingAbstract):
         addresses_id: list,
         shape: GEOSGeometry,
         ext_ids: list,
-        mark_as_correct: bool = False,
+        is_valid: bool = False,
     ):
         check_and_increment_contribution_count(user)
 
@@ -546,7 +544,7 @@ class Building(BuildingAbstract):
             event_user=user,
             is_active=True,
             addresses_id=addresses_id,
-            marked_as_correct_by=[user.id] if mark_as_correct else [],
+            validated_by=[user.id] if is_valid else [],
         )
 
     @staticmethod
