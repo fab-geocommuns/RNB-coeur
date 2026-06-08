@@ -19,7 +19,6 @@ from api_alpha.serializers.serializers import (
     BuildingMergeSerializer,
     BuildingSerializer,
     BuildingSplitSerializer,
-    ContributionSerializer,
     DiffusionDatabaseSerializer,
     GuessBuildingSerializer,
 )
@@ -54,7 +53,6 @@ from django.utils.http import urlsafe_base64_decode
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample, OpenApiParameter
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import mixins
 from rest_framework import status
 from rest_framework import status as http_status
 from rest_framework import viewsets
@@ -699,55 +697,6 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
 
 
-class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
-    queryset = ADS.objects.all()  # type: ignore[assignment]
-    serializer_class = ADSSerializer  # type: ignore[assignment]
-    lookup_field = "file_number"
-    pagination_class = PageNumberPagination
-    permission_classes = [ADSPermission]
-    http_method_names = ["post"]
-
-    max_batch_size = 30
-
-    def create(self, request, *args, **kwargs):
-        to_save = []
-        errors = {}
-
-        self.validate_length(request.data)
-
-        for ads in request.data:
-            try:
-                instance = ADS.objects.get(file_number=ads["file_number"])
-                serializer = self.get_serializer(instance, data=ads)
-            except ADS.DoesNotExist:
-                serializer = self.get_serializer(data=ads)
-
-            if serializer.is_valid():
-                to_save.append({"serializer": serializer})
-
-            else:
-                errors[ads["file_number"]] = serializer.errors
-
-        if len(errors) > 0:
-            return Response(errors, status=400)
-        else:
-            to_show = []
-            for item in to_save:
-                item["serializer"].save()
-                to_show.append(item["serializer"].data)
-
-            return Response(to_show, status=201)
-
-    def validate_length(self, data):
-        if len(data) > self.max_batch_size:
-            raise ParseError(
-                {"errors": f"Too many items in the request. Max: {self.max_batch_size}"}
-            )
-
-        if len(data) == 0:
-            raise ParseError({"errors": "No data in the request."})
-
-
 class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     queryset = ADS.objects.all()  # type: ignore[assignment]
     serializer_class = ADSSerializer  # type: ignore[assignment]
@@ -1038,21 +987,6 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     )
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
-
-
-@extend_schema(exclude=True)
-class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
-    queryset = Contribution.objects.all()  # type: ignore[assignment]
-    serializer_class = ContributionSerializer  # type: ignore[assignment]
-
-    def create(self, request, *args, **kwargs):
-        serializer = ContributionSerializer(data=request.data)
-
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        else:
-            return Response(serializer.errors, status=400)
 
 
 class RNBAuthToken(ObtainAuthToken):
