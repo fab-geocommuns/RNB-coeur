@@ -75,8 +75,8 @@ class BuildingsEndpointsTest(APITestCase):
                 [5.721187072129851, 45.18439363812283],
             ],
         )
-        bdg.marked_as_correct_by = [self.user.id]
-        bdg.save(update_fields=["marked_as_correct_by"])
+        bdg.validated_by = [self.user.id]
+        bdg.save(update_fields=["validated_by"])
 
     def test_bdg_in_bbox(self):
 
@@ -115,7 +115,7 @@ class BuildingsEndpointsTest(APITestCase):
                     },
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
-                    "marked_as_correct_by": [
+                    "validated_by": [
                         {
                             "display_name": "user",
                             "id": self.user.id,
@@ -194,7 +194,7 @@ class BuildingsEndpointsTest(APITestCase):
                     },
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
-                    "marked_as_correct_by": [
+                    "validated_by": [
                         {
                             "display_name": "user",
                             "id": self.user.id,
@@ -273,7 +273,7 @@ class BuildingsEndpointsTest(APITestCase):
                     },
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
-                    "marked_as_correct_by": [
+                    "validated_by": [
                         {
                             "display_name": "user",
                             "id": self.user.id,
@@ -344,7 +344,7 @@ class BuildingsEndpointsTest(APITestCase):
                     "shape": None,
                     "rnb_id": "XXX",
                     "is_active": True,
-                    "marked_as_correct_by": [],
+                    "validated_by": [],
                 }
             ],
         }
@@ -394,7 +394,7 @@ class BuildingsEndpointsTest(APITestCase):
                     },
                     "addresses": [],
                     "is_active": True,
-                    "marked_as_correct_by": [],
+                    "validated_by": [],
                 },
                 {
                     "addresses": [],
@@ -422,7 +422,7 @@ class BuildingsEndpointsTest(APITestCase):
                     },
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
-                    "marked_as_correct_by": [
+                    "validated_by": [
                         {
                             "display_name": "user",
                             "id": self.user.id,
@@ -474,7 +474,7 @@ class BuildingsEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
-                        "marked_as_correct_by": [],
+                        "validated_by": [],
                     },
                 },
                 {
@@ -501,7 +501,7 @@ class BuildingsEndpointsTest(APITestCase):
                         "ext_ids": None,
                         "addresses": [],
                         "is_active": True,
-                        "marked_as_correct_by": [
+                        "validated_by": [
                             {
                                 "display_name": "user",
                                 "id": self.user.id,
@@ -555,7 +555,7 @@ class BuildingsEndpointsTest(APITestCase):
             },
             "addresses": [],
             "is_active": True,
-            "marked_as_correct_by": [],
+            "validated_by": [],
         }
 
         self.assertEqual(r.json(), expected)
@@ -642,7 +642,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                     },
                     "addresses": [],
                     "is_active": True,
-                    "marked_as_correct_by": [],
+                    "validated_by": [],
                 },
                 {
                     "ext_ids": None,
@@ -668,7 +668,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                     },
                     "addresses": [],
                     "is_active": True,
-                    "marked_as_correct_by": [],
+                    "validated_by": [],
                 },
                 {
                     "addresses": [],
@@ -696,7 +696,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                     },
                     "rnb_id": "INGRENOBLEGO",
                     "is_active": True,
-                    "marked_as_correct_by": [
+                    "validated_by": [
                         {
                             "display_name": "user",
                             "id": self.user.id,
@@ -855,7 +855,7 @@ class BuildingsWithPlots(APITestCase):
                         {"id": "one", "bdg_cover_ratio": 0.529665644404105},
                         {"id": "two", "bdg_cover_ratio": 0.4490196151882506},
                     ],
-                    "marked_as_correct_by": [],
+                    "validated_by": [],
                 },
                 {
                     "rnb_id": self.bdg_two.rnb_id,
@@ -880,7 +880,7 @@ class BuildingsWithPlots(APITestCase):
                     "ext_ids": [],
                     "is_active": True,
                     "plots": [{"id": "two", "bdg_cover_ratio": 0.0016624281607746448}],
-                    "marked_as_correct_by": [],
+                    "validated_by": [],
                 },
             ],
         }
@@ -922,7 +922,7 @@ class BuildingsWithPlots(APITestCase):
         def list_buildings():
             self.client.get("/api/alpha/buildings/")
 
-        # 1 for the buildings, 1 for the related addresses, 1 for the marked_as_correct_by fields, 1 to log the call in rest_framework_tracking_apirequestlog
+        # 1 for the buildings, 1 for the related addresses, 1 for the validated_by fields, 1 to log the call in rest_framework_tracking_apirequestlog
         self.assertNumQueries(4, list_buildings)
 
     def test_single_bdg(self):
@@ -953,7 +953,7 @@ class BuildingsWithPlots(APITestCase):
                 {"id": "one", "bdg_cover_ratio": 0.529665644404105},
                 {"id": "two", "bdg_cover_ratio": 0.4490196151882506},
             ],
-            "marked_as_correct_by": [],
+            "validated_by": [],
         }
 
         # First we test with "withPlots" parameter = 1

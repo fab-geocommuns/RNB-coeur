@@ -43,7 +43,7 @@ class BuildingClosestViewTest(APITestCase):
             ),
         )
 
-        closest_bdg.marked_as_correct_by = [user.id]
+        closest_bdg.validated_by = [user.id]
         closest_bdg.save()
 
         # It should appear second in the results
@@ -201,7 +201,7 @@ class BuildingClosestViewTest(APITestCase):
             data["results"][0]["shape"], json.loads(closest_bdg.shape.geojson)
         )
         self.assertListEqual(
-            data["results"][0]["marked_as_correct_by"],
+            data["results"][0]["validated_by"],
             [
                 {
                     "display_name": get_display_name(user),
@@ -419,7 +419,7 @@ class BuildingAddressViewTest(APITestCase):
             ),
         )
 
-        self.building_1.marked_as_correct_by = [self.user.id]
+        self.building_1.validated_by = [self.user.id]
         self.building_1.save()
 
         self.building_2 = Building.create_new(
@@ -494,7 +494,7 @@ class BuildingAddressViewTest(APITestCase):
             [r["rnb_id"] for r in data["results"]], [self.building_1.rnb_id]
         )
         self.assertListEqual(
-            data["results"][0]["marked_as_correct_by"],
+            data["results"][0]["validated_by"],
             [
                 {
                     "display_name": get_display_name(self.user),
