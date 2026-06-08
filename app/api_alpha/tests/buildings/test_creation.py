@@ -267,8 +267,8 @@ class BuildingPostTest(APITestCase):
 
 
 @override_settings(MAX_BUILDING_AREA=float("inf"))
-class BuildingPostMarkAsCorrectTest(APITestCase):
-    """Tests for the `mark_as_correct` parameter on POST /api/alpha/buildings/."""
+class BuildingPostIsValidTest(APITestCase):
+    """Tests for the `is_valid` parameter on POST /api/alpha/buildings/."""
 
     def setUp(self):
         self.user = ContributorUserFactory(
@@ -291,36 +291,36 @@ class BuildingPostMarkAsCorrectTest(APITestCase):
             content_type="application/json",
         )
 
-    def test_create_with_mark_as_correct_true(self):
+    def test_create_with_is_valid_true(self):
         """
-        Input: POST creating a building with `mark_as_correct=True`.
+        Input: POST creating a building with `is_valid=True`.
         Expected: 201; the created building has the requesting user's id in
-        marked_as_correct_by.
+        validated_by.
         """
-        r = self._post({**self.data, "mark_as_correct": True})
+        r = self._post({**self.data, "is_valid": True})
 
         self.assertEqual(r.status_code, 201)
         building = Building.objects.get(rnb_id=r.json()["rnb_id"])
-        self.assertEqual(building.marked_as_correct_by, [self.user.id])
+        self.assertEqual(building.validated_by, [self.user.id])
 
-    def test_create_with_mark_as_correct_false(self):
+    def test_create_with_is_valid_false(self):
         """
-        Input: POST creating a building with `mark_as_correct=False`.
-        Expected: 201; the created building has an empty marked_as_correct_by.
+        Input: POST creating a building with `is_valid=False`.
+        Expected: 201; the created building has an empty validated_by.
         """
-        r = self._post({**self.data, "mark_as_correct": False})
+        r = self._post({**self.data, "is_valid": False})
 
         self.assertEqual(r.status_code, 201)
         building = Building.objects.get(rnb_id=r.json()["rnb_id"])
-        self.assertEqual(building.marked_as_correct_by, [])
+        self.assertEqual(building.validated_by, [])
 
-    def test_create_without_mark_as_correct(self):
+    def test_create_without_is_valid(self):
         """
-        Input: POST creating a building without the `mark_as_correct` field.
-        Expected: 201; marked_as_correct_by defaults to an empty list.
+        Input: POST creating a building without the `is_valid` field.
+        Expected: 201; validated_by defaults to an empty list.
         """
         r = self._post(self.data)
 
         self.assertEqual(r.status_code, 201)
         building = Building.objects.get(rnb_id=r.json()["rnb_id"])
-        self.assertEqual(building.marked_as_correct_by, [])
+        self.assertEqual(building.validated_by, [])
