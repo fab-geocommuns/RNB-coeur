@@ -338,6 +338,16 @@ class CallbackView(APIView):
             access_token, id_token = exchange_code_for_tokens(code)
             verify_id_token(id_token, nonce)
             userinfo = fetch_userinfo(access_token)
+            # TEMP DEBUG: vérifier ce que ProConnect transmet réellement.
+            # Ne loggue que les NOMS de claims + présence/longueur du siret
+            # (pas l'email ni les noms = pas de données personnelles).
+            # À retirer une fois le diagnostic siret terminé.
+            logger.info(
+                "ProConnect userinfo: claims=%s siret_present=%s siret_len=%s",
+                sorted(userinfo.keys()),
+                "siret" in userinfo,
+                len(userinfo.get("siret") or ""),
+            )
             user, token = get_or_create_user_from_pro_connect(userinfo, id_token)
 
             if not user.is_active:
