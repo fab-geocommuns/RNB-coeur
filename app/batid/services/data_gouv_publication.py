@@ -92,14 +92,34 @@ def sql_query(code_area):
            ))
            FROM batid_plot p
            WHERE ST_Intersects(p.shape, bdg.shape)
-       ) AS plots
+       ) AS plots,
+        (
+           SELECT coalesce(json_agg(
+               json_build_object(
+                   'display_name',
+                   case
+                       when u.last_name is not null and u.last_name <> ''
+                       then u.first_name || ' ' || substring(u.last_name, 1, 1) || '.'
+                       else u.first_name
+                   end,
+                   'id', u.id,
+                   'organization_name', org.name,
+                   'username', u.username
+               ) ORDER BY u.id
+           ), '[]'::json)
+           FROM batid_buildingvalidatedbyreadonly v
+           JOIN auth_user u ON u.id = v.user_id
+           LEFT JOIN batid_userprofile up ON up.user_id = u.id
+           LEFT JOIN batid_organization org ON org.id = up.organization_id
+           WHERE v.building_id = bdg.id
+       ) AS validated_by
         FROM batid_building bdg
         LEFT JOIN batid_buildingaddressesreadonly bdg_addr ON bdg_addr.building_id = bdg.id
         LEFT JOIN batid_address addr ON addr.id = bdg_addr.address_id
         {dpt_join}
         WHERE is_active
         {dpt_where}
-        GROUP BY bdg.rnb_id, bdg.point, bdg.shape, bdg.status, bdg.ext_ids
+        GROUP BY bdg.rnb_id, bdg.point, bdg.shape, bdg.status, bdg.ext_ids, bdg.id
     )  TO STDOUT WITH CSV HEADER DELIMITER ';'
     """
 

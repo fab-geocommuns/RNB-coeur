@@ -137,6 +137,14 @@ class TestDataGouvPublication(TestCase):
         )
 
     def test_archive_creation_deletion(self):
+        """
+        Entrée : plusieurs bâtiments parisiens (actifs/inactif, 0/1/plusieurs
+        adresses, validés par 0, 1 ou 2 utilisateurs), des parcelles et les
+        départements 75 et 93 ; on génère l'export CSV de l'aire "75".
+
+        Attendu : le CSV ne contient que les 3 bâtiments actifs du 75.
+        L'archive zip est ensuite créée puis le répertoire nettoyé.
+        """
 
         self.maxDiff = None
 
@@ -368,6 +376,7 @@ class TestDataGouvPublication(TestCase):
             for row in rows:
                 row["addresses"] = json.loads(row["addresses"])
                 row["ext_ids"] = json.loads(row["ext_ids"])
+                row["validated_by"] = json.loads(row["validated_by"])
 
             # First, check all keys
             self.assertListEqual(list(reader.fieldnames), expected_keys)
