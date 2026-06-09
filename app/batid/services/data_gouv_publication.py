@@ -98,6 +98,7 @@ def sql_query(code_area):
                json_build_object(
                    'display_name',
                    case
+                       when coalesce(u.first_name, '') = '' and coalesce(u.last_name, '') = '' then u.username
                        when u.last_name is not null and u.last_name <> ''
                        then u.first_name || ' ' || substring(u.last_name, 1, 1) || '.'
                        else u.first_name
