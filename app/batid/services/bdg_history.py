@@ -41,6 +41,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
                 'username', mu.username,
                 'display_name',
                 case
+                    when coalesce(mu.first_name, '') = '' and coalesce(mu.last_name, '') = '' then mu.username
                     when mu.last_name is not null and mu.last_name <> ''
                     then mu.first_name || ' ' || substring(mu.last_name, 1, 1) || '.'
                     else mu.first_name

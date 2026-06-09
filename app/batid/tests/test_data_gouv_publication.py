@@ -5,7 +5,14 @@ from datetime import datetime
 from unittest import mock
 
 import boto3
-from batid.models import Address, Building, Department_subdivided, Plot
+from batid.models import (
+    Address,
+    Building,
+    Department_subdivided,
+    Organization,
+    Plot,
+    UserProfile,
+)
 from batid.services.data_gouv_publication import (
     cleanup_directory,
     create_archive,
@@ -17,6 +24,7 @@ from batid.services.data_gouv_publication import (
     update_resource_metadata,
     upload_to_s3,
 )
+from batid.tests.factories.users import ContributorUserFactory
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
 from freezegun import freeze_time
@@ -106,7 +114,37 @@ def get_resources():
 
 
 class TestDataGouvPublication(TestCase):
+
+    def setUp(self):
+
+        # Create a user with an organization
+        self.user_1 = ContributorUserFactory(
+            first_name="El",
+            last_name="Validator",
+            username="el_validator",
+        )
+
+        self.org = Organization.objects.create(name="Comité de validation")
+        profile, _ = UserProfile.objects.get_or_create(user=self.user_1)
+        profile.organization = self.org
+        profile.save(update_fields=["organization"])
+
+        # Create a user without organization
+        self.user_2 = ContributorUserFactory(
+            first_name="Jean",
+            last_name="Doux",
+            username="jean_doux",
+        )
+
     def test_archive_creation_deletion(self):
+        """
+        Entrée : plusieurs bâtiments parisiens (actifs/inactif, 0/1/plusieurs
+        adresses, validés par 0, 1 ou 2 utilisateurs), des parcelles et les
+        départements 75 et 93 ; on génère l'export CSV de l'aire "75".
+
+        Attendu : le CSV ne contient que les 3 bâtiments actifs du 75.
+        L'archive zip est ensuite créée puis le répertoire nettoyé.
+        """
 
         self.maxDiff = None
 
@@ -155,6 +193,7 @@ class TestDataGouvPublication(TestCase):
             ext_ids={"some_source": "1234"},
             addresses_id=[address_paris_1.id],
             is_active=True,
+            validated_by=[self.user_1.id],
         )
 
         # Building 2: is inactive, should not be in the csv
@@ -175,6 +214,7 @@ class TestDataGouvPublication(TestCase):
             point=geom_bdg_paris.point_on_surface,
             status="constructed",
             ext_ids={"some_source": "5678"},
+            validated_by=[self.user_1.id, self.user_2.id],
         )
 
         # Building 4: many addresses
@@ -239,6 +279,7 @@ class TestDataGouvPublication(TestCase):
             "ext_ids",
             "addresses",
             "plots",
+            "validated_by",
         ]
         expected_len = 3
         expected_rows = [
@@ -260,6 +301,14 @@ class TestDataGouvPublication(TestCase):
                 ],
                 # the building sits on two plots
                 "plots": """[{"id" : "plot_1", "bdg_cover_ratio" : 0.4513785723301588}, {"id" : "plot_2", "bdg_cover_ratio" : 0.5510222422494555}]""",
+                "validated_by": [
+                    {
+                        "display_name": "El V.",
+                        "id": self.user_1.id,
+                        "organization_name": "Comité de validation",
+                        "username": "el_validator",
+                    },
+                ],
             },
             {
                 "rnb_id": "BDG2-PARIS",
@@ -269,6 +318,20 @@ class TestDataGouvPublication(TestCase):
                 "ext_ids": {"some_source": "5678"},
                 "addresses": [],
                 "plots": """[{"id" : "plot_1", "bdg_cover_ratio" : 0.4513785723301588}, {"id" : "plot_2", "bdg_cover_ratio" : 0.5510222422494555}]""",
+                "validated_by": [
+                    {
+                        "display_name": "El V.",
+                        "id": self.user_1.id,
+                        "organization_name": "Comité de validation",
+                        "username": "el_validator",
+                    },
+                    {
+                        "display_name": "Jean D.",
+                        "id": self.user_2.id,
+                        "organization_name": None,
+                        "username": "jean_doux",
+                    },
+                ],
             },
             {
                 "rnb_id": "BDG-MANY-ADD",
@@ -296,6 +359,7 @@ class TestDataGouvPublication(TestCase):
                 ],
                 # we check the cover ratio for points is 1
                 "plots": """[{"id" : "plot_2", "bdg_cover_ratio" : 1}]""",
+                "validated_by": [],
             },
         ]
         expected_rows = sorted(expected_rows, key=lambda x: x["rnb_id"])
@@ -312,6 +376,7 @@ class TestDataGouvPublication(TestCase):
             for row in rows:
                 row["addresses"] = json.loads(row["addresses"])
                 row["ext_ids"] = json.loads(row["ext_ids"])
+                row["validated_by"] = json.loads(row["validated_by"])
 
             # First, check all keys
             self.assertListEqual(list(reader.fieldnames), expected_keys)
