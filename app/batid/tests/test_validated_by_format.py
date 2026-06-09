@@ -1,6 +1,7 @@
 import csv
+import io
 import json
-import os
+from datetime import timedelta
 
 from api_alpha.serializers.public_user import PublicUserSerializer
 from batid.models import Building, Organization, UserProfile
@@ -13,7 +14,14 @@ from batid.services.data_gouv_publication import (
 from batid.tests.factories.users import ContributorUserFactory
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
-from django.test import TestCase
+from django.test import TransactionTestCase
+from django.utils.http import urlencode
+
+
+def get_content_from_streaming_response(response):
+    # streaming response content is a generator stored in streaming_content
+    content = list(response.streaming_content)
+    return "".join([b.decode("utf-8") for b in content])
 
 
 def get_geom_paris():
@@ -32,13 +40,14 @@ def get_geom_paris():
     return GEOSGeometry(json.dumps(coords), srid=4326)
 
 
-class ValidatedByFormatContractTest(TestCase):
+class ValidatedByFormatContractTest(TransactionTestCase):
     """
     Contrat de format du champ `validated_by`.
 
-    On vérifie que les deux producteurs SQL (l'export data.gouv et le endpoint
-    d'historique) sortent le même format d'objet utilisateur que la référence
-    canonique, `PublicUserSerializer`, utilisée par l'API REST.
+    On vérifie que les trois producteurs SQL (l'export data.gouv, le endpoint
+    d'historique et le endpoint de diff) sortent le même format d'objet
+    utilisateur que la référence canonique, `PublicUserSerializer`, utilisée par
+    l'API REST.
 
     Entrée : un bâtiment validé par 3 utilisateurs aux profils variés :
       - un avec organisation (prénom + nom),
@@ -50,8 +59,12 @@ class ValidatedByFormatContractTest(TestCase):
       - valeurs strictes : chaque objet est identique à celui du serializer.
 
     Si nous faisons évoluer `PublicUserSerializer`, ces tests nous rappelerons
-    d'également mettre à jour les requêtes SQL de l'export et du endpoint d'historique.
+    d'également mettre à jour les requêtes SQL de l'export, du endpoint
+    d'historique et du endpoint de diff.
 
+    NB : `TransactionTestCase` est nécessaire car le endpoint de diff fork un
+    processus enfant qui lit les données via une connexion DB distincte ; elles
+    doivent donc être committées.
     """
 
     def setUp(self):
@@ -120,6 +133,17 @@ class ValidatedByFormatContractTest(TestCase):
             validated_by = json.loads(validated_by)
         return sorted(validated_by, key=lambda o: o["id"])
 
+    def _diff_validated_by(self):
+        # On demande le diff depuis juste avant la création du bâtiment.
+        since = Building.objects.get(rnb_id="BDG-CONTRACT").sys_period.lower
+        params = urlencode({"since": (since - timedelta(seconds=1)).isoformat()})
+        r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
+        self.assertEqual(r.status_code, 200)
+        diff_text = get_content_from_streaming_response(r)
+        reader = csv.DictReader(io.StringIO(diff_text))
+        row = next(r for r in reader if r["rnb_id"] == "BDG-CONTRACT")
+        return sorted(json.loads(row["validated_by"]), key=lambda o: o["id"])
+
     # --- Niveau clés -------------------------------------------------------
 
     def test_export_keys_match_serializer(self):
@@ -136,6 +160,13 @@ class ValidatedByFormatContractTest(TestCase):
         expected_keys = [set(o.keys()) for o in reference]
         self.assertEqual([set(o.keys()) for o in produced], expected_keys)
 
+    def test_diff_keys_match_serializer(self):
+        reference = self._reference()
+        produced = self._diff_validated_by()
+
+        expected_keys = [set(o.keys()) for o in reference]
+        self.assertEqual([set(o.keys()) for o in produced], expected_keys)
+
     # --- Niveau valeurs strictes ------------------------------------------
 
     def test_export_values_match_serializer(self):
@@ -143,3 +174,6 @@ class ValidatedByFormatContractTest(TestCase):
 
     def test_history_values_match_serializer(self):
         self.assertEqual(self._history_validated_by(), self._reference())
+
+    def test_diff_values_match_serializer(self):
+        self.assertEqual(self._diff_validated_by(), self._reference())
