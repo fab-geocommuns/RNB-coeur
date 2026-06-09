@@ -9,8 +9,8 @@ from batid.models import (
     Address,
     Building,
     Department_subdivided,
-    Plot,
     Organization,
+    Plot,
     UserProfile,
 )
 from batid.services.data_gouv_publication import (
@@ -24,11 +24,11 @@ from batid.services.data_gouv_publication import (
     update_resource_metadata,
     upload_to_s3,
 )
+from batid.tests.factories.users import ContributorUserFactory
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
 from freezegun import freeze_time
 from moto import mock_aws
-from batid.tests.factories.users import ContributorUserFactory
 
 
 # Polygone dans Paris
