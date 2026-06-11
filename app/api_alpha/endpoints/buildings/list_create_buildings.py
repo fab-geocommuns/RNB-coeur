@@ -69,7 +69,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                     {
                         "name": "withPlots",
                         "in": "query",
-                        "description": "Inclure les parcelles intersectant le bâtiment. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment par cette parcelle.",
+                        "description": """Liste les parcelles cadastrales intersectant le bâtiment. Pour chaque parcelle, il est donné la proportion de la surface du bâtiment située sur celle-ci. La valeur attendue pour ce paramêtre est `"1"`. """,
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "1",
