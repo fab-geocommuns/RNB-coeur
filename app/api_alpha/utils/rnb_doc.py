@@ -391,7 +391,7 @@ def _get_components() -> dict:
                             "is_active": {
                                 "$ref": "#/components/schemas/BuildingIsActive"
                             },
-                            "plots": {"$href": "#/components/schemas/BuildingPlots"},
+                            "plots": {"$ref": "#/components/schemas/BuildingPlots"},
                         },
                     },
                 },
