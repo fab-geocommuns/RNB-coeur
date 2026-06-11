@@ -1,4 +1,3 @@
-import datetime
 import json
 import uuid
 
@@ -8,7 +7,7 @@ from batid.exceptions import (
     NotEnoughBuildings,
     OperationOnInactiveBuilding,
 )
-from batid.models import Address, Building, Contribution
+from batid.models import Address, Building
 from batid.tests.factories.users import ContributorUserFactory
 from batid.tests.helpers import coords_to_mp_geom
 from batid.utils.misc import ext_ids_equal
@@ -150,49 +149,6 @@ class TestBuilding(TestCase):
         self.assertIsNone(bdg.event_type)
         self.assertIsNone(bdg.event_origin)
         self.assertIsNone(bdg.event_id)
-
-    def test_deactivate_with_contributions(self):
-        """
-        Test some scenario with contributions linked (or not) to deactivated building.
-        """
-        bdg = Building.objects.create(rnb_id="AAA", shape="POINT(0 0)")
-
-        user = ContributorUserFactory(username="dummy")
-
-        # This is pending, it must be refused after deactivation
-        contrib_pending = Contribution.objects.create(
-            rnb_id="AAA", status="pending", text="dummy"
-        )
-
-        # This is already fixed. It must keep its status
-        contrib_fixed = Contribution.objects.create(
-            rnb_id="AAA", status="fixed", text="fixed dummy"
-        )
-
-        # This is pending but on another building. It must keep its status
-        contrib_other_bdg = Contribution.objects.create(
-            rnb_id="BBB", status="pending", text="dummy"
-        )
-
-        bdg.deactivate(user, {"k": "v"})
-
-        # Check the first contrib has changed after the deactivation
-        contrib_pending.refresh_from_db()
-        self.assertEqual(contrib_pending.status, "refused")
-        self.assertEqual(contrib_pending.review_user, user)
-        self.assertEqual(
-            contrib_pending.review_comment,
-            "Ce signalement a été refusé suite à la désactivation du bâtiment AAA.",
-        )
-        self.assertIsInstance(contrib_pending.status_changed_at, datetime.datetime)
-
-        # Check the fixed contributions is still fixed
-        contrib_fixed.refresh_from_db()
-        self.assertEqual(contrib_fixed.status, "fixed")
-
-        # Check the other building contribution is still pending
-        contrib_other_bdg.refresh_from_db()
-        self.assertEqual(contrib_other_bdg.status, "pending")
 
     def test_building_event_types(self):
         # you can't save whatever imaginary event type in the DB

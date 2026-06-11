@@ -76,15 +76,11 @@ admin.site.register(Address, AddressAdmin)
 
 
 class ContributionAdmin(admin.ModelAdmin):
-    list_filter = ["status"]
     list_display = (
         "rnb_id",
         "text",
-        "email",
         "created_at",
-        "status",
-        "review_user",
-        "review_comment",
+        "user",
     )
 
 
