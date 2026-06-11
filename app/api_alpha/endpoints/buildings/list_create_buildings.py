@@ -115,7 +115,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         ),
                         "required": False,
                         "schema": {"type": "string"},
-                        "example": "48.845782,2.424525,48.839201,2.434158",
+                        "example": "2.424525,48.839201,2.434158,48.845782",
                     },
                     {
                         "name": "bb",
