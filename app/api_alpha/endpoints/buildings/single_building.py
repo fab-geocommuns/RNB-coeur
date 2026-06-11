@@ -201,7 +201,7 @@ Si ce paramêtre est :
                                         "type": "string",
                                         "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
                                     },
-                                    "validate": {
+                                    "is_valid": {
                                         "type": "boolean",
                                         "description": LiteralStr(
                                             """\
