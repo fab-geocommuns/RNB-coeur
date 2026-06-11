@@ -164,7 +164,7 @@ Exemples valides:
                                     "comment": {
                                         "type": "string",
                                         "description": "Texte associé à la modification et la justifiant.",
-                                        "exemple": "Ce n'est pas un bâtiment mais un arbre.",
+                                        "example": "Ce n'est pas un bâtiment mais un arbre.",
                                     },
                                     "is_active": {
                                         "type": "boolean",
@@ -178,7 +178,7 @@ Exemples valides:
                                         "type": "string",
                                         "enum": get_status_list(),
                                         "description": f"Statut du bâtiment.",
-                                        "exemple": "demolished",
+                                        "example": "demolished",
                                     },
                                     "addresses_cle_interop": {
                                         "type": "array",
@@ -192,7 +192,7 @@ Si ce paramêtre est :
 * absent, alors les clés ne sont pas modifiées.
 * présent et que sa valeur est une liste vide (`[]`), alors le bâtiment ne sera plus lié à aucune adresse."""
                                         ),
-                                        "exemple": [
+                                        "example": [
                                             "75105_8884_00004",
                                             "75105_8884_00006",
                                         ],
