@@ -258,7 +258,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                     "is_valid": {
                                         "type": "boolean",
                                         "default": False,
-                                        "description": "Optionnel. Si `True`, le bâtiment est marqué comme correct dès sa création. L'utilisateur déclare ainsi que l'ensemble des informations liées aux bâtiments (statut, adresse, géométrie) sont correctes. Vaut 'False' par défaut, ce qui revient à simplement créer le bâtiment sans le marquer comme correct.",
+                                        "description": "Optionnel. Si `True`, le bâtiment est marqué comme valide dès sa création. L'utilisateur déclare ainsi que l'ensemble des informations liées aux bâtiments (statut, adresse, géométrie) sont valides. Vaut 'False' par défaut, ce qui revient à simplement créer le bâtiment sans le valider.",
                                     },
                                 },
                                 "required": [

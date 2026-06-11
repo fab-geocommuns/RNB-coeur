@@ -265,6 +265,11 @@ def _get_components() -> dict:
                         "description": "Nom à afficher pour l'utilisateur. Il peut s'agir du nom d'utilisateur ou d'un nom plus complet si celui-ci a été renseigné par l'utilisateur.",
                         "example": "Nicolas Martin",
                     },
+                    "organization_name": {
+                        "type": "string",
+                        "description": "Nom de l'organisation à laquelle appartient l'utilisateur. Cette information est gérée et vérifiée par l'équipe du RNB.",
+                        "example": "Mairie de Dreux",
+                    },
                 },
             },
             "BuildingAddress": {
