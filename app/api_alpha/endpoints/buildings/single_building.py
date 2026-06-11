@@ -225,7 +225,7 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                         "description": "Requête invalide (données mal formatées ou incomplètes)."
                     },
                     "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour modifier un bâtiment."
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
