@@ -71,14 +71,10 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                     {
                         "name": "withPlots",
                         "in": "query",
-                        "description": "Inclure les parcelles intersectant les bâtiments de la réponse. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment.",
+                        "description": "Inclure les parcelles intersectant le bâtiment. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment par cette parcelle.",
                         "required": False,
-                        "schema": {
-                            "type": "integer",
-                            "default": 0,
-                            "enum": [0, 1],
-                        },
-                        "example": 1,
+                        "schema": {"type": "string"},
+                        "example": "1",
                     },
                     {
                         "name": "format",
