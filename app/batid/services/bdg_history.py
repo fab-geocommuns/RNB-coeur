@@ -128,9 +128,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    		then (
 	    			select json_build_object
 	    			(
-	    				'is_report', con.report,
 	    				'report_text', con.text,
-	    				'review_comment', con.review_comment,
 	    				'posted_on', con.rnb_id
 	    			) from batid_contribution as con where con.id = (bdg.event_origin ->> 'contribution_id')::bigint
 	    		)
