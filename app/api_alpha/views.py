@@ -207,14 +207,12 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                                     "type": "object",
                                     "properties": {
                                         "next": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats suivante",
-                                            "nullable": True,
                                         },
                                         "previous": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats précédente",
-                                            "nullable": True,
                                         },
                                         "results": {
                                             "type": "array",
@@ -313,33 +311,27 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                                     "type": "object",
                                     "properties": {
                                         "next": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats suivante",
-                                            "nullable": True,
                                         },
                                         "previous": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats précédente",
-                                            "nullable": True,
                                         },
                                         "cle_interop_ban": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "Clé d'interopérabilité BAN utilisée pour lister les bâtiments",
-                                            "nullable": True,
                                         },
                                         "status": {
                                             "type": "string",
                                             "description": "'geocoding_score_is_too_low' si le géocodage BAN renvoie un score inférieur à 'min_score'. 'geocoding_no_result' si le géocodage ne renvoie pas de résultats. 'ok' sinon",
-                                            "nullable": False,
                                         },
                                         "score_ban": {
-                                            "type": "number",
+                                            "type": ["number", "null"],
                                             "description": "Si un géocodage a lieu, renvoie le score du meilleur résultat, celui utilisé pour lister les bâtiments. Ce score doit être supérieur à 'min_score' pour que des bâtiments soient renvoyés.",
-                                            "nullable": True,
                                         },
                                         "results": {
-                                            "type": "array",
-                                            "nullable": True,
+                                            "type": ["array", "null"],
                                             "items": {
                                                 "$ref": "#/components/schemas/Building"
                                             },

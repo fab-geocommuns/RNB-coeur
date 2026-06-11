@@ -243,10 +243,9 @@ def _get_components() -> dict:
                         "example": "bdnb",
                     },
                     "source_version": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "description": "Version de la base de donnée contenant l'identifiant",
                         "example": "2023_01",
-                        "nullable": True,
                     },
                     "created_at": {
                         "type": "string",
@@ -281,11 +280,10 @@ def _get_components() -> dict:
                         "example": "02191_0020_00003",
                     },
                     "ban_id": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "format": "uuid",
                         "description": "Identifiant UUID de l'adresse au sein de la Base Adresse Nationale (BAN)",
                         "example": "a2ef3456-7890-1234-abcd-ef1234567890",
-                        "nullable": True,
                     },
                     "source": {
                         "type": "string",
@@ -293,22 +291,19 @@ def _get_components() -> dict:
                         "example": "bdnb",
                     },
                     "street_number": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "description": "Numéro de la voie",
                         "example": "3",
-                        "nullable": True,
                     },
                     "street_rep": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "description": "Indice de répétition du numéro de la voie",
                         "example": "bis",
-                        "nullable": True,
                     },
                     "street": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "description": "Nom de la voie",
                         "example": "rue de l'église",
-                        "nullable": True,
                     },
                     "city_name": {
                         "type": "string",

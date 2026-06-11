@@ -137,15 +137,13 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                     "type": "object",
                                     "properties": {
                                         "next": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "<br />URL de la page de résultats suivante<br />",
-                                            "nullable": True,
                                             "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1",
                                         },
                                         "previous": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "<br />URL de la page de résultats précédente<br />",
-                                            "nullable": True,
                                             "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR",
                                         },
                                         "results": {

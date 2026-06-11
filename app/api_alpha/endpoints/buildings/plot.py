@@ -34,14 +34,12 @@ class BuildingPlotView(RNBLoggingMixin, APIView):
                                     "type": "object",
                                     "properties": {
                                         "next": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats suivante",
-                                            "nullable": True,
                                         },
                                         "previous": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats précédente",
-                                            "nullable": True,
                                         },
                                         "results": {
                                             "type": "array",
