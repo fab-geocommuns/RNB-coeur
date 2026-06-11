@@ -11,9 +11,7 @@ class PublicUserSerializerTest(TestCase):
         Expected: the representation contains organization_name and organization_shortname.
         """
         user = User.objects.create_user(username="julie")
-        org = Organization.objects.create(
-            name="Mairie de Dreux", short_name="Dreux"
-        )
+        org = Organization.objects.create(name="Mairie de Dreux", short_name="Dreux")
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.organization = org
         profile.save(update_fields=["organization"])
