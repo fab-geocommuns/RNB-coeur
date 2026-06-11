@@ -433,7 +433,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                     "rnb_ids": {
                                         "type": "array",
                                         "description": "Liste des ID-RNB des bâtiments à fusionner",
-                                        "exemple": ["XXXXYYYYZZZZ", "AAAABBBBCCCC"],
+                                        "example": ["XXXXYYYYZZZZ", "AAAABBBBCCCC"],
                                     },
                                     "merge_existing_addresses": {
                                         "type": "boolean",
@@ -446,7 +446,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                     "addresses_cle_interop": {
                                         "type": "array",
                                         "description": "Liste des clés d'interopérabilité BAN liées au nouveau bâtiment créé. Si une liste vide est passée, le bâtiment ne sera lié à aucune adresse.",
-                                        "exemple": [
+                                        "example": [
                                             "75105_8884_00004",
                                             "75105_8884_00006",
                                         ],
