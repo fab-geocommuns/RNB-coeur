@@ -621,7 +621,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                         },
                                     },
                                 },
-                                "required": ["rnb_id", "created_buildings"],
+                                "required": ["created_buildings"],
                             },
                         }
                     },
