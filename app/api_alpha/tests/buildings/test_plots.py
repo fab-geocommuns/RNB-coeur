@@ -77,6 +77,7 @@ class BuildingPlotViewTest(APITestCase):
                     "id": user.id,
                     "username": user.username,
                     "organization_name": None,
+                    "organization_shortname": None,
                 }
             ],
         )

@@ -32,7 +32,7 @@ class SingleBuildingHistoryTest(APITestCase):
         self.user_id = user.id
 
         # She is working in this org
-        org = Organization.objects.create(name="Mairie de Dreux")
+        org = Organization.objects.create(name="Mairie de Dreux", short_name="Dreux")
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.organization = org
         profile.save(update_fields=["organization"])
@@ -160,6 +160,7 @@ class SingleBuildingHistoryTest(APITestCase):
                         "first_name": "Julie",
                         "last_name": "S.",
                         "organization_name": "Mairie de Dreux",
+                        "organization_shortname": "Dreux",
                         "username": "ju_sig",
                     },
                     "origin": {
@@ -660,6 +661,7 @@ class SingleBuildingHistoryTest(APITestCase):
                     "display_name": "Julie S.",
                     "id": self.user_id,
                     "organization_name": "Mairie de Dreux",
+                    "organization_shortname": "Dreux",
                     "username": "ju_sig",
                 }
             ],

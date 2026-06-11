@@ -33,7 +33,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
     ) as addresses,
 
     -- The validated_by part
-    -- Resolves each user id stored in bdg.validated_by to {id, username, display_name, organization_name}
+    -- Resolves each user id stored in bdg.validated_by to {id, username, display_name, organization_name, organization_shortname}
     (
         SELECT COALESCE(json_agg(
             json_build_object(
@@ -47,6 +47,13 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
                 end,
                 'organization_name', (
                     SELECT org.name
+                    FROM batid_userprofile AS up
+                    JOIN batid_organization AS org ON up.organization_id = org.id
+                    WHERE up.user_id = mu.id
+                    LIMIT 1
+                ),
+                'organization_shortname', (
+                    SELECT org.short_name
                     FROM batid_userprofile AS up
                     JOIN batid_organization AS org ON up.organization_id = org.id
                     WHERE up.user_id = mu.id
@@ -84,6 +91,13 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    		end,
 	    		'organization_name', (
                     SELECT org.name
+                    FROM batid_userprofile AS up
+                    JOIN batid_organization AS org ON up.organization_id = org.id
+                    WHERE up.user_id = u.id
+                    LIMIT 1
+                ),
+	    		'organization_shortname', (
+                    SELECT org.short_name
                     FROM batid_userprofile AS up
                     JOIN batid_organization AS org ON up.organization_id = org.id
                     WHERE up.user_id = u.id
