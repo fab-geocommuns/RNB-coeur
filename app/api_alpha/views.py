@@ -335,7 +335,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                                         "score_ban": {
                                             "type": "number",
                                             "description": "Si un géocodage a lieu, renvoie le score du meilleur résultat, celui utilisé pour lister les bâtiments. Ce score doit être supérieur à 'min_score' pour que des bâtiments soient renvoyés.",
-                                            "nullable": False,
+                                            "nullable": True,
                                         },
                                         "results": {
                                             "type": "array",
@@ -477,7 +477,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                         },
                     },
                     "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour fusionner des bâtiments."
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
@@ -639,7 +639,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                         },
                     },
                     "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour scinder un bâtiment."
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {

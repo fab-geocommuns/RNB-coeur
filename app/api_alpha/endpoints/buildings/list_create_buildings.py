@@ -105,7 +105,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "name": "bbox",
                         "in": "query",
                         "description": (
-                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box."
+                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box. "
                             "Le format est `min_lon,min_lat,max_lon,max_lat`"
                             "La taille de la bbox est limitée par la contrainte (max_lon - min_lon) * (max_lat - min_lat) < 4. Cela correspond à la surface d'environ deux départements français."
                         ),
