@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.pagination import BuildingListingCursorPagination, OGCApiPagination
 from api_alpha.permissions import ReadOnly, RNBContributorPermission
@@ -300,10 +298,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             # create a contribution
             contribution = Contribution(
                 text=data.get("comment"),
-                status="fixed",
-                status_changed_at=datetime.now(timezone.utc),
-                report=False,
-                review_user=user,
+                user=user,
             )
             contribution.save()
 

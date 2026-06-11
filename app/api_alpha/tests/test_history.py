@@ -165,10 +165,8 @@ class SingleBuildingHistoryTest(APITestCase):
                     "origin": {
                         "type": "contribution",
                         "details": {
-                            "is_report": False,
                             "posted_on": self.rnb_id,
                             "report_text": "nouveau bâtiment",
-                            "review_comment": None,
                         },
                         "id": contrib_id,
                     },
@@ -497,7 +495,7 @@ class SingleBuildingHistoryTest(APITestCase):
         """
         Contribution specifics to test:
         - event type is 'contribution'
-        - event.details contains is_report (boolean), 'report_text', 'review_comment' and 'posted_on' (rnb_id)
+        - event.details contains 'report_text' and 'posted_on' (rnb_id)
         NB: right now, our edit API does not permit to attach a report to a building version. We always attach a new contribution.
         """
 
@@ -512,14 +510,12 @@ class SingleBuildingHistoryTest(APITestCase):
 
         # Verify the contribution specifics
         self.assertEqual(data[0]["event"]["origin"]["type"], "contribution")
-        self.assertFalse(data[0]["event"]["origin"]["details"]["is_report"])
         self.assertEqual(
             data[0]["event"]["origin"]["details"]["report_text"], "nouveau bâtiment"
         )
         self.assertEqual(
             data[0]["event"]["origin"]["details"]["posted_on"], self.rnb_id
         )
-        self.assertIsNone(data[0]["event"]["origin"]["details"]["review_comment"])
 
     def test_import(self):
 
