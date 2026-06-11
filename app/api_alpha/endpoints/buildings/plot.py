@@ -51,10 +51,14 @@ class BuildingPlotView(RNBLoggingMixin, APIView):
                                                         "$ref": "#/components/schemas/Building"
                                                     },
                                                     {
-                                                        "type": "number",
-                                                        "name": "bdg_cover_ratio",
-                                                        "description": "Taux d'intersection entre le bâtiment et la parcelle. Ce taux est compris entre 0 et 1. Un taux de 1 signifie que la parcelle couvre entièrement le bâtiment.",
-                                                        "example": 0.65,
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "bdg_cover_ratio": {
+                                                                "type": "number",
+                                                                "description": "Taux d'intersection entre le bâtiment et la parcelle. Ce taux est compris entre 0 et 1. Un taux de 1 signifie que la parcelle couvre entièrement le bâtiment.",
+                                                                "example": 0.65,
+                                                            }
+                                                        },
                                                     },
                                                 ]
                                             },
