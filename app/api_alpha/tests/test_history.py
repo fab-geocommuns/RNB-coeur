@@ -160,7 +160,7 @@ class SingleBuildingHistoryTest(APITestCase):
                         "first_name": "Julie",
                         "last_name": "S.",
                         "organization_name": "Mairie de Dreux",
-                        "organization_shortname": "Dreux",
+                        "organization_short_name": "Dreux",
                         "username": "ju_sig",
                     },
                     "origin": {
@@ -661,7 +661,7 @@ class SingleBuildingHistoryTest(APITestCase):
                     "display_name": "Julie S.",
                     "id": self.user_id,
                     "organization_name": "Mairie de Dreux",
-                    "organization_shortname": "Dreux",
+                    "organization_short_name": "Dreux",
                     "username": "ju_sig",
                 }
             ],
