@@ -179,6 +179,35 @@ class ImportOrganizationsTest(TestCase):
         self.assertEqual(org.name, "Métropole de Lyon")
         self.assertEqual(Organization.objects.count(), self.initial_org_count + 1)
 
+    def test_rejects_row_matching_two_different_orgs(self):
+        """A row whose name matches one org and whose email domain matches
+        another raises CommandError: the match is ambiguous."""
+        Organization.objects.create(name="Métropole de Lyon")
+        Organization.objects.create(name="Lyon", email_domain="grandlyon.com")
+        content = self._csv(["grandlyon.com,Métropole de Lyon,,"])
+
+        with self.assertRaises(CommandError):
+            self._call(content)
+
+    def test_import_is_atomic(self):
+        """When a row fails mid-import (ambiguous match), the rows already
+        imported are rolled back: the import is all-or-nothing."""
+        Organization.objects.create(name="Métropole de Lyon")
+        Organization.objects.create(name="Lyon", email_domain="grandlyon.com")
+        content = self._csv(
+            [
+                "brest-metropole.fr,Brest métropole,,",
+                "grandlyon.com,Métropole de Lyon,,",
+            ]
+        )
+
+        with self.assertRaises(CommandError):
+            self._call(content)
+
+        self.assertFalse(
+            Organization.objects.filter(name="Brest métropole").exists()
+        )
+
     def test_unchanged_org_is_not_saved(self):
         """An org already identical to its CSV row is not saved again:
         updated_at (auto_now) stays unchanged."""

@@ -5,6 +5,7 @@ from collections import Counter
 import requests
 from batid.models import Organization
 from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 from django.db.models import Q
 
 EXPECTED_COLUMNS = ["email_domain", "org_name", "org_short_name", "comments"]
@@ -97,6 +98,7 @@ class Command(BaseCommand):
         if duplicates:
             raise CommandError(f"Duplicate {label} in CSV: {duplicates}")
 
+    @transaction.atomic
     def _import(self, rows):
         created = updated = unchanged = 0
 
@@ -110,7 +112,15 @@ class Command(BaseCommand):
             lookup = Q(name=name)
             if email_domain:
                 lookup |= Q(email_domain=email_domain)
-            org = Organization.objects.filter(lookup).first()
+            matches = list(Organization.objects.filter(lookup))
+
+            if len(matches) > 1:
+                raise CommandError(
+                    f"Row (name: '{name}', email domain: '{email_domain}') "
+                    f"matches several organizations: "
+                    f"{[(o.pk, o.name, o.email_domain) for o in matches]}"
+                )
+            org = matches[0] if matches else None
 
             if org is None:
                 Organization.objects.create(
