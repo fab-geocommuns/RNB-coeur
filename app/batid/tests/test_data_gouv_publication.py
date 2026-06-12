@@ -6,6 +6,7 @@ from unittest import mock
 
 import boto3
 from batid.models import Address, Building, Department_subdivided, Plot
+from batid.models.others import UserProfile
 from batid.services.data_gouv_publication import (
     cleanup_directory,
     create_archive,
@@ -17,8 +18,9 @@ from batid.services.data_gouv_publication import (
     update_resource_metadata,
     upload_to_s3,
 )
+from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from freezegun import freeze_time
 from moto import mock_aws
 
@@ -100,6 +102,11 @@ def get_resources():
             {"id": "2", "title": "Export Départemental 33", "format": "zip"},
             {"id": "3", "title": "Export Départemental 75", "format": "zip"},
             {"id": "4", "title": "Export National", "format": "zip"},
+            {
+                "id": "5",
+                "title": "Export National (avec historique)",
+                "format": "zip",
+            },
         ]
     }
     return json
@@ -219,9 +226,9 @@ class TestDataGouvPublication(TestCase):
         )
 
         area = "75"
-        directory_name = create_directory(area)
+        directory_name = create_directory(area, True)
 
-        create_csv(directory_name, area)
+        create_csv(directory_name, area, True)
 
         # Check if the directory exists
         self.assertTrue(os.path.exists(directory_name))
@@ -322,7 +329,9 @@ class TestDataGouvPublication(TestCase):
             # Finally, check the content of the rows
             self.assertListEqual(rows, expected_rows)
 
-        archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
+        archive_path, archive_size, archive_sha1 = create_archive(
+            directory_name, area, True
+        )
 
         # check the archive exists
         self.assertTrue(os.path.exists(archive_path))
@@ -356,11 +365,13 @@ class TestDataGouvPublication(TestCase):
             ext_ids={"some_source": "1234"},
         )
         area = "nat"
-        directory_name = create_directory(area)
+        directory_name = create_directory(area, True)
 
-        create_csv(directory_name, area)
+        create_csv(directory_name, area, True)
 
-        archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
+        archive_path, archive_size, archive_sha1 = create_archive(
+            directory_name, area, True
+        )
 
         # create the mock s3 bucket
         conn = boto3.resource("s3")
@@ -383,16 +394,26 @@ class TestDataGouvPublication(TestCase):
         get_mock.return_value.status_code = 200
         get_mock.return_value.json.return_value = get_resources()
 
-        resource_id = data_gouv_resource_id("some-dataset-id", "33")
+        resource_id = data_gouv_resource_id("some-dataset-id", "33", True)
         self.assertEqual(resource_id, "2")
 
-        resource_id = data_gouv_resource_id("some-dataset-id", "75")
+        resource_id = data_gouv_resource_id("some-dataset-id", "75", True)
         self.assertEqual(resource_id, "3")
 
-        resource_id = data_gouv_resource_id("some-dataset-id", "nat")
+        resource_id = data_gouv_resource_id("some-dataset-id", "nat", True)
         self.assertEqual(resource_id, "4")
 
-        resource_id = data_gouv_resource_id("some-dataset-id", "123")
+        resource_id = data_gouv_resource_id("some-dataset-id", "123", True)
+        self.assertIsNone(resource_id)
+
+        # the "with history" (full) export must match the historical resource,
+        # not the active one with the same base title
+        resource_id = data_gouv_resource_id("some-dataset-id", "nat", False)
+        self.assertEqual(resource_id, "5")
+
+        # no historical resource exists for dept 75, so the full export must not
+        # fall back on the active resource (id "3")
+        resource_id = data_gouv_resource_id("some-dataset-id", "75", False)
         self.assertIsNone(resource_id)
 
     @freeze_time("2021-02-23")
@@ -510,7 +531,9 @@ class TestDataGouvPublication(TestCase):
         archive_size = 1234
         archive_sha1 = "some-sha1"
         format = "csv"
-        publish_on_data_gouv(department, public_url, archive_size, archive_sha1, format)
+        publish_on_data_gouv(
+            department, True, public_url, archive_size, archive_sha1, format
+        )
 
         put_mock.assert_called_with(
             f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/2/",
@@ -557,7 +580,9 @@ class TestDataGouvPublication(TestCase):
         archive_size = 1234
         archive_sha1 = "some-sha1"
         format = "csv"
-        publish_on_data_gouv("nat", public_url, archive_size, archive_sha1, format)
+        publish_on_data_gouv(
+            "nat", True, public_url, archive_size, archive_sha1, format
+        )
 
         put_mock.assert_called_with(
             f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/4/",
@@ -604,7 +629,9 @@ class TestDataGouvPublication(TestCase):
         archive_size = 1234
         archive_sha1 = "some-sha1"
         format = "csv"
-        publish_on_data_gouv(department, public_url, archive_size, archive_sha1, format)
+        publish_on_data_gouv(
+            department, True, public_url, archive_size, archive_sha1, format
+        )
 
         post_mock.assert_called_with(
             f"{os.environ.get('DATA_GOUV_BASE_URL')}/api/1/datasets/some-dataset-id/resources/",
@@ -624,3 +651,97 @@ class TestDataGouvPublication(TestCase):
                 "created_at": str(datetime.now()),
             },
         )
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"))
+    def test_full_export_with_history(self):
+        """
+        Input: one building created with address A (and validated by a user),
+        then updated to address B with a new status. This produces one
+        historical version (address A) and one current version (address B) in
+        the batid_building_with_history view.
+
+        Expected: the "full" export (only_active=False) contains two rows for
+        the same rnb_id; each row carries the textual address it had at the
+        time (A for the historical row, B for the current one) next to its
+        interop key; internal user ids are resolved to usernames (event_user
+        and validated_by); and the history-only columns (is_active, sys_period,
+        event_type) are present.
+        """
+        user = User.objects.create_user(
+            username="contributor", email="contributor@example.test"
+        )
+        UserProfile.objects.create(user=user)
+
+        geom = get_geom_paris()
+
+        address_a = Address.objects.create(
+            id="ADDR_A",
+            source="BAN",
+            street_number="4",
+            street="rue scipion",
+            city_name="Paris",
+            city_zipcode="75005",
+        )
+        address_b = Address.objects.create(
+            id="ADDR_B",
+            source="BAN",
+            street_number="6",
+            street="rue hello",
+            city_name="Paris",
+            city_zipcode="75020",
+        )
+
+        building = Building.create_new(
+            user=user,
+            event_origin={"source": "contribution"},
+            status="constructed",
+            addresses_id=[address_a.id],
+            shape=geom,
+            ext_ids=[],
+            is_valid=True,
+        )
+        # generates a historical version (address A) and a new current version
+        building.update(
+            user=user,
+            event_origin={"source": "contribution"},
+            status="demolished",
+            addresses_id=[address_b.id],
+        )
+
+        area = "nat"
+        directory_name = create_directory(area, False)
+        create_csv(directory_name, area, False)
+
+        with open(f"{directory_name}/RNB_{area}_full.csv", "r") as f:
+            reader = csv.DictReader(f, delimiter=";")
+            fieldnames = reader.fieldnames
+            rows = list(reader)
+
+        cleanup_directory(directory_name)
+
+        # both versions of the same building are exported
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(row["rnb_id"] == building.rnb_id for row in rows))
+
+        # history-only columns are part of the full export
+        for column in ["is_active", "sys_period", "event_type", "event_user"]:
+            self.assertIn(column, fieldnames)
+
+        # both versions are still active (an update does not deactivate); they
+        # are told apart by their event_type
+        current = next(row for row in rows if row["event_type"] == "update")
+        historical = next(row for row in rows if row["event_type"] == "creation")
+
+        # each version carries the textual address it had at the time,
+        # rebuilt from the historized addresses_id (not the readonly table)
+        current_addresses = json.loads(current["addresses"])
+        historical_addresses = json.loads(historical["addresses"])
+        self.assertEqual(current_addresses[0]["cle_interop_ban"], "ADDR_B")
+        self.assertEqual(current_addresses[0]["street"], "rue hello")
+        self.assertEqual(historical_addresses[0]["cle_interop_ban"], "ADDR_A")
+        self.assertEqual(historical_addresses[0]["street"], "rue scipion")
+
+        # internal user ids are resolved to usernames
+        self.assertEqual(current["event_user"], "contributor")
+        # the building was validated at creation, before the update reset it
+        self.assertEqual(historical["validated_by"], "{contributor}")
