@@ -128,14 +128,14 @@ class ImportOrganizationsTest(TestCase):
         """A row with a name creates an org with stripped name, short_name
         and email_domain."""
         content = self._csv(
-            ["dgfip.finances.gouv.fr,Direction générale des Finances publiques , DGFiP,"]
+            [
+                "dgfip.finances.gouv.fr,Direction générale des Finances publiques , DGFiP,"
+            ]
         )
 
         self._call(content)
 
-        org = Organization.objects.get(
-            name="Direction générale des Finances publiques"
-        )
+        org = Organization.objects.get(name="Direction générale des Finances publiques")
         self.assertEqual(org.short_name, "DGFiP")
         self.assertEqual(org.email_domain, "dgfip.finances.gouv.fr")
 
@@ -168,9 +168,7 @@ class ImportOrganizationsTest(TestCase):
     def test_updates_org_matched_by_email_domain(self):
         """An existing org with the same email_domain but a different name
         gets its name updated, no new org is created."""
-        org = Organization.objects.create(
-            name="Lyon", email_domain="grandlyon.com"
-        )
+        org = Organization.objects.create(name="Lyon", email_domain="grandlyon.com")
         content = self._csv(["grandlyon.com,Métropole de Lyon,,"])
 
         self._call(content)
@@ -204,9 +202,7 @@ class ImportOrganizationsTest(TestCase):
         with self.assertRaises(CommandError):
             self._call(content)
 
-        self.assertFalse(
-            Organization.objects.filter(name="Brest métropole").exists()
-        )
+        self.assertFalse(Organization.objects.filter(name="Brest métropole").exists())
 
     def test_unchanged_org_is_not_saved(self):
         """An org already identical to its CSV row is not saved again:
@@ -264,9 +260,7 @@ class ImportOrganizationsTest(TestCase):
 
         self._call(content)
 
-        self.assertEqual(
-            Organization.objects.count(), self.initial_org_count + 2
-        )
+        self.assertEqual(Organization.objects.count(), self.initial_org_count + 2)
         org_b = Organization.objects.get(name="Org Sans Domaine B")
         self.assertIsNone(org_b.email_domain)
 
@@ -282,9 +276,7 @@ class ImportOrganizationsTest(TestCase):
     def test_import_links_users_by_email_domain(self):
         """Importing an org links existing users whose email domain matches
         (save() triggers link_organization_to_users)."""
-        user = User.objects.create(
-            username="agent", email="agent@brest-metropole.fr"
-        )
+        user = User.objects.create(username="agent", email="agent@brest-metropole.fr")
         UserProfile.objects.create(user=user)
         content = self._csv(["brest-metropole.fr,Brest métropole,,"])
 
@@ -295,9 +287,7 @@ class ImportOrganizationsTest(TestCase):
 
     def test_output_reports_counts(self):
         """The command output reports created, updated and unchanged counts."""
-        Organization.objects.create(
-            name="Région Grand Est", email_domain="grandest.fr"
-        )
+        Organization.objects.create(name="Région Grand Est", email_domain="grandest.fr")
         Organization.objects.create(name="Bordeaux Métropole")
         content = self._csv(
             [
