@@ -33,7 +33,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
     ) as addresses,
 
     -- The validated_by part
-    -- Resolves each user id stored in bdg.validated_by to {id, username, display_name, organization_name, organization_shortname}
+    -- Resolves each user id stored in bdg.validated_by to {id, username, display_name, organization_name, organization_short_name}
     (
         SELECT COALESCE(json_agg(
             json_build_object(
@@ -45,23 +45,18 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
                     then mu.first_name || ' ' || substring(mu.last_name, 1, 1) || '.'
                     else mu.first_name
                 end,
-                'organization_name', (
-                    SELECT org.name
-                    FROM batid_userprofile AS up
-                    JOIN batid_organization AS org ON up.organization_id = org.id
-                    WHERE up.user_id = mu.id
-                    LIMIT 1
-                ),
-                'organization_shortname', (
-                    SELECT org.short_name
-                    FROM batid_userprofile AS up
-                    JOIN batid_organization AS org ON up.organization_id = org.id
-                    WHERE up.user_id = mu.id
-                    LIMIT 1
-                )
+                'organization_name', mu_org.name,
+                'organization_short_name', mu_org.short_name
             )
         ), '[]'::json)
         FROM auth_user AS mu
+        LEFT JOIN LATERAL (
+            SELECT o.name, o.short_name
+            FROM batid_userprofile AS up
+            JOIN batid_organization AS o ON up.organization_id = o.id
+            WHERE up.user_id = mu.id
+            LIMIT 1
+        ) AS mu_org ON TRUE
         WHERE mu.id = ANY(bdg.validated_by)
     ) as validated_by,
 
@@ -89,20 +84,8 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    			when u.last_name is not null and u.last_name <> ''
 	    			then substring(u.last_name, 1, 1) || '.' else null
 	    		end,
-	    		'organization_name', (
-                    SELECT org.name
-                    FROM batid_userprofile AS up
-                    JOIN batid_organization AS org ON up.organization_id = org.id
-                    WHERE up.user_id = u.id
-                    LIMIT 1
-                ),
-	    		'organization_shortname', (
-                    SELECT org.short_name
-                    FROM batid_userprofile AS up
-                    JOIN batid_organization AS org ON up.organization_id = org.id
-                    WHERE up.user_id = u.id
-                    LIMIT 1
-                )
+	    		'organization_name', author_org.name,
+	    		'organization_short_name', author_org.short_name
 	    	) else null
 	    end,
 
@@ -227,6 +210,13 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
     ) as event
     FROM batid_building_with_history as bdg
     left join auth_user as u on bdg.event_user_id  = u.id
+    LEFT JOIN LATERAL (
+        SELECT o.name, o.short_name
+        FROM batid_userprofile AS up
+        JOIN batid_organization AS o ON up.organization_id = o.id
+        WHERE up.user_id = u.id
+        LIMIT 1
+    ) AS author_org ON TRUE
     LEFT JOIN LATERAL (
 		SELECT
 			prev.rnb_id, prev.status, prev.shape, prev.ext_ids, prev.addresses_id, prev.validated_by

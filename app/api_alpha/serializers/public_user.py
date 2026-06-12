@@ -11,7 +11,7 @@ class PublicUserSerializer(serializers.Serializer):
             "id": instance.pk if instance is not None else None,
             "username": instance.username if instance is not None else None,
             "organization_name": organization.name if organization else None,
-            "organization_shortname": (
+            "organization_short_name": (
                 organization.short_name if organization else None
             ),
         }
