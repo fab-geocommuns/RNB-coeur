@@ -33,7 +33,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
     ) as addresses,
 
     -- The validated_by part
-    -- Resolves each user id stored in bdg.validated_by to {id, username, display_name, organization_name, organization_shortname}
+    -- Resolves each user id stored in bdg.validated_by to {id, username, display_name, organization_name, organization_short_name}
     (
         SELECT COALESCE(json_agg(
             json_build_object(
@@ -46,7 +46,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
                     else mu.first_name
                 end,
                 'organization_name', mu_org.name,
-                'organization_shortname', mu_org.short_name
+                'organization_short_name', mu_org.short_name
             )
         ), '[]'::json)
         FROM auth_user AS mu
@@ -85,7 +85,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    			then substring(u.last_name, 1, 1) || '.' else null
 	    		end,
 	    		'organization_name', author_org.name,
-	    		'organization_shortname', author_org.short_name
+	    		'organization_short_name', author_org.short_name
 	    	) else null
 	    end,
 

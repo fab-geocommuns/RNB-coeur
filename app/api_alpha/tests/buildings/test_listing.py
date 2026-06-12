@@ -121,7 +121,7 @@ class BuildingsEndpointsTest(APITestCase):
                             "id": self.user.id,
                             "username": "user",
                             "organization_name": None,
-                            "organization_shortname": None,
+                            "organization_short_name": None,
                         }
                     ],
                 }
@@ -201,7 +201,7 @@ class BuildingsEndpointsTest(APITestCase):
                             "id": self.user.id,
                             "username": "user",
                             "organization_name": None,
-                            "organization_shortname": None,
+                            "organization_short_name": None,
                         }
                     ],
                 }
@@ -281,7 +281,7 @@ class BuildingsEndpointsTest(APITestCase):
                             "id": self.user.id,
                             "username": "user",
                             "organization_name": None,
-                            "organization_shortname": None,
+                            "organization_short_name": None,
                         }
                     ],
                 }
@@ -431,7 +431,7 @@ class BuildingsEndpointsTest(APITestCase):
                             "id": self.user.id,
                             "username": "user",
                             "organization_name": None,
-                            "organization_shortname": None,
+                            "organization_short_name": None,
                         }
                     ],
                 },
@@ -511,7 +511,7 @@ class BuildingsEndpointsTest(APITestCase):
                                 "id": self.user.id,
                                 "username": "user",
                                 "organization_name": None,
-                                "organization_shortname": None,
+                                "organization_short_name": None,
                             }
                         ],
                     },
@@ -707,7 +707,7 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                             "id": self.user.id,
                             "username": "user",
                             "organization_name": None,
-                            "organization_shortname": None,
+                            "organization_short_name": None,
                         }
                     ],
                 },
