@@ -1,25 +1,26 @@
-import os
-import tempfile
 from io import StringIO
+from unittest import mock
 
 from batid.models import Organization, UserProfile
 from django.contrib.auth.models import User
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase
 
-CSV_HEADER = (
-    "A,B,C,D,F,E\n"
-    "editions,utilisateurs,email domain,nom orga,Acronyme,Commentaires\n"
-)
+CSV_HEADER = "email_domain,org_name,org_short_name,comments\n"
+
+CSV_URL = "https://example.com/rnb_organisations.csv"
 
 
 class ImportOrganizationsTest(TestCase):
     """Tests for the import_organizations management command.
 
-    The command reads a CSV (2 header lines, columns: editions, utilisateurs,
-    email domain, nom orga, Acronyme, Commentaires), imports rows with a
-    non-empty org name, matches existing orgs by name or email_domain to
-    update them, and saves each org individually to trigger user linking.
+    The command downloads a CSV from a mandatory URL (columns: email_domain,
+    org_name, org_short_name, comments), rejects the whole file if the header
+    does not match, displays the rows to import and asks for confirmation.
+    It then imports rows with a non-empty org name, matching existing orgs by
+    name or email_domain to update them, and saves each org individually to
+    trigger user linking.
     """
 
     def setUp(self):
@@ -27,30 +28,110 @@ class ImportOrganizationsTest(TestCase):
         # org, so org counts are asserted relative to this baseline.
         self.initial_org_count = Organization.objects.count()
 
-    def _write_csv(self, rows):
-        """Write a CSV file with the standard 2 header lines plus the given
-        data rows, return its path."""
-        fd, path = tempfile.mkstemp(suffix=".csv")
-        with os.fdopen(fd, "w") as f:
-            f.write(CSV_HEADER)
-            for row in rows:
-                f.write(row + "\n")
-        self.addCleanup(os.remove, path)
-        return path
+    def _csv(self, rows):
+        return CSV_HEADER + "".join(row + "\n" for row in rows)
 
-    def _call(self, csv_path):
+    def _call(self, csv_content, confirm="y"):
+        """Run the command against a mocked download of csv_content,
+        answering the confirmation prompt with `confirm`.
+
+        The mocked response mimics a server that does not declare a charset:
+        `.content` holds the UTF-8 bytes while `.text` is the mojibake
+        Latin-1 guess of requests — the command must decode from content.
+        """
         out = StringIO()
-        call_command("import_organizations", csv_path, stdout=out)
+        raw = csv_content.encode("utf-8")
+        with mock.patch(
+            "batid.management.commands.import_organizations.requests.get"
+        ) as mock_get, mock.patch("builtins.input", return_value=confirm):
+            mock_get.return_value = mock.Mock(
+                content=raw, text=raw.decode("latin-1"), status_code=200
+            )
+            call_command("import_organizations", CSV_URL, stdout=out)
         return out.getvalue()
+
+    # --- CSV structure validation ---
+
+    def test_rejects_wrong_column_names(self):
+        """A header with an unexpected column name raises CommandError and
+        nothing is imported, even if data rows are valid."""
+        content = "domain,org_name,org_short_name,comments\n" + (
+            "bordeaux-metropole.fr,Bordeaux Métropole,,\n"
+        )
+
+        with self.assertRaises(CommandError):
+            self._call(content)
+
+        self.assertEqual(Organization.objects.count(), self.initial_org_count)
+
+    def test_rejects_wrong_column_count(self):
+        """A header with a missing column raises CommandError and nothing
+        is imported."""
+        content = "email_domain,org_name,org_short_name\n" + (
+            "bordeaux-metropole.fr,Bordeaux Métropole,\n"
+        )
+
+        with self.assertRaises(CommandError):
+            self._call(content)
+
+        self.assertEqual(Organization.objects.count(), self.initial_org_count)
+
+    def test_rejects_malformed_data_row(self):
+        """A data row whose column count differs from the header (e.g. an
+        unquoted comma) raises CommandError and nothing is imported."""
+        content = self._csv(
+            [
+                "bordeaux-metropole.fr,Bordeaux Métropole,,",
+                "grandlyon.com,Métropole de Lyon, fondée en 1969,ML,",
+            ]
+        )
+
+        with self.assertRaises(CommandError):
+            self._call(content)
+
+        self.assertEqual(Organization.objects.count(), self.initial_org_count)
+
+    def test_rejects_non_csv_content(self):
+        """Non-CSV content (e.g. an HTML error page) raises CommandError
+        and nothing is imported."""
+        content = "<!DOCTYPE html>\n<html><body>Not found</body></html>\n"
+
+        with self.assertRaises(CommandError):
+            self._call(content)
+
+        self.assertEqual(Organization.objects.count(), self.initial_org_count)
+
+    # --- Confirmation ---
+
+    def test_displays_rows_before_import(self):
+        """The command output lists the organizations to import (name and
+        email domain) before asking for confirmation."""
+        content = self._csv(["bordeaux-metropole.fr,Bordeaux Métropole,BM,"])
+
+        output = self._call(content)
+
+        self.assertIn("Bordeaux Métropole", output)
+        self.assertIn("bordeaux-metropole.fr", output)
+
+    def test_aborts_when_not_confirmed(self):
+        """Answering 'n' at the confirmation prompt imports nothing."""
+        content = self._csv(["bordeaux-metropole.fr,Bordeaux Métropole,,"])
+
+        output = self._call(content, confirm="n")
+
+        self.assertEqual(Organization.objects.count(), self.initial_org_count)
+        self.assertNotIn("created", output)
+
+    # --- Import logic ---
 
     def test_creates_organization_from_row(self):
         """A row with a name creates an org with stripped name, short_name
         and email_domain."""
-        path = self._write_csv(
-            ["676,2,dgfip.finances.gouv.fr,Direction générale des Finances publiques , DGFiP,"]
+        content = self._csv(
+            ["dgfip.finances.gouv.fr,Direction générale des Finances publiques , DGFiP,"]
         )
 
-        self._call(path)
+        self._call(content)
 
         org = Organization.objects.get(
             name="Direction générale des Finances publiques"
@@ -60,14 +141,14 @@ class ImportOrganizationsTest(TestCase):
 
     def test_skips_rows_without_name(self):
         """Rows with an empty org name are ignored: no org is created."""
-        path = self._write_csv(
+        content = self._csv(
             [
-                "357581,65,gmail.com,,,ex : pas d'organisation correspondante",
-                "4587,6,free.fr,,,",
+                "gmail.com,,,ex : pas d'organisation correspondante",
+                "free.fr,,,",
             ]
         )
 
-        self._call(path)
+        self._call(content)
 
         self.assertEqual(Organization.objects.count(), self.initial_org_count)
 
@@ -75,11 +156,9 @@ class ImportOrganizationsTest(TestCase):
         """An existing org with the same name but different short_name and
         email_domain gets both fields updated."""
         org = Organization.objects.create(name="Bordeaux Métropole")
-        path = self._write_csv(
-            ["55541,2,bordeaux-metropole.fr,Bordeaux Métropole,BM,"]
-        )
+        content = self._csv(["bordeaux-metropole.fr,Bordeaux Métropole,BM,"])
 
-        self._call(path)
+        self._call(content)
 
         org.refresh_from_db()
         self.assertEqual(org.email_domain, "bordeaux-metropole.fr")
@@ -92,9 +171,9 @@ class ImportOrganizationsTest(TestCase):
         org = Organization.objects.create(
             name="Lyon", email_domain="grandlyon.com"
         )
-        path = self._write_csv(["19041,1,grandlyon.com,Métropole de Lyon,,"])
+        content = self._csv(["grandlyon.com,Métropole de Lyon,,"])
 
-        self._call(path)
+        self._call(content)
 
         org.refresh_from_db()
         self.assertEqual(org.name, "Métropole de Lyon")
@@ -107,34 +186,66 @@ class ImportOrganizationsTest(TestCase):
             name="Région Grand Est", email_domain="grandest.fr"
         )
         before = Organization.objects.get(pk=org.pk).updated_at
-        path = self._write_csv(["1483,2,grandest.fr,Région Grand Est,,"])
+        content = self._csv(["grandest.fr,Région Grand Est,,"])
 
-        self._call(path)
+        self._call(content)
 
         org.refresh_from_db()
         self.assertEqual(org.updated_at, before)
 
-    def test_duplicate_name_in_csv_first_row_wins(self):
-        """Two CSV rows with the same org name and different domains: the
-        first row creates the org, the second is skipped with a warning."""
-        path = self._write_csv(
+    def test_rejects_duplicate_org_name(self):
+        """Two rows with the same org name (and different domains) raise
+        CommandError and nothing is imported."""
+        content = self._csv(
             [
-                "40,1,pepcbfc.org,Pôle Énergie BFC,,",
-                "2,1,pole-energie-bfc.fr,Pôle Énergie BFC,,",
+                "pepcbfc.org,Pôle Énergie BFC,,",
+                "pole-energie-bfc.fr,Pôle Énergie BFC,,",
             ]
         )
 
-        output = self._call(path)
+        with self.assertRaises(CommandError):
+            self._call(content)
 
-        org = Organization.objects.get(name="Pôle Énergie BFC")
-        self.assertEqual(org.email_domain, "pepcbfc.org")
-        self.assertIn("pole-energie-bfc.fr", output)
+        self.assertEqual(Organization.objects.count(), self.initial_org_count)
+
+    def test_rejects_duplicate_email_domain(self):
+        """Two named rows with the same email domain raise CommandError and
+        nothing is imported."""
+        content = self._csv(
+            [
+                "grandlyon.com,Métropole de Lyon,,",
+                "grandlyon.com,Ville de Lyon,,",
+            ]
+        )
+
+        with self.assertRaises(CommandError):
+            self._call(content)
+
+        self.assertEqual(Organization.objects.count(), self.initial_org_count)
+
+    def test_repeated_empty_domains_are_not_duplicates(self):
+        """Two named rows without email domain are not duplicates: both
+        orgs are created, each with email_domain None."""
+        content = self._csv(
+            [
+                ",Org Sans Domaine A,,",
+                ",Org Sans Domaine B,,",
+            ]
+        )
+
+        self._call(content)
+
+        self.assertEqual(
+            Organization.objects.count(), self.initial_org_count + 2
+        )
+        org_b = Organization.objects.get(name="Org Sans Domaine B")
+        self.assertIsNone(org_b.email_domain)
 
     def test_empty_csv_fields_stored_as_none(self):
         """A row without acronym stores short_name as None, not empty string."""
-        path = self._write_csv(["713,3,brest-metropole.fr,Brest métropole,,"])
+        content = self._csv(["brest-metropole.fr,Brest métropole,,"])
 
-        self._call(path)
+        self._call(content)
 
         org = Organization.objects.get(name="Brest métropole")
         self.assertIsNone(org.short_name)
@@ -146,9 +257,9 @@ class ImportOrganizationsTest(TestCase):
             username="agent", email="agent@brest-metropole.fr"
         )
         UserProfile.objects.create(user=user)
-        path = self._write_csv(["713,3,brest-metropole.fr,Brest métropole,,"])
+        content = self._csv(["brest-metropole.fr,Brest métropole,,"])
 
-        self._call(path)
+        self._call(content)
 
         org = Organization.objects.get(name="Brest métropole")
         self.assertTrue(org.user_profiles.filter(user=user).exists())
@@ -159,16 +270,16 @@ class ImportOrganizationsTest(TestCase):
             name="Région Grand Est", email_domain="grandest.fr"
         )
         Organization.objects.create(name="Bordeaux Métropole")
-        path = self._write_csv(
+        content = self._csv(
             [
-                "1483,2,grandest.fr,Région Grand Est,,",
-                "55541,2,bordeaux-metropole.fr,Bordeaux Métropole,,",
-                "19041,1,grandlyon.com,Métropole de Lyon,,",
-                "357581,65,gmail.com,,,",
+                "grandest.fr,Région Grand Est,,",
+                "bordeaux-metropole.fr,Bordeaux Métropole,,",
+                "grandlyon.com,Métropole de Lyon,,",
+                "gmail.com,,,",
             ]
         )
 
-        output = self._call(path)
+        output = self._call(content)
 
         self.assertIn("created: 1", output)
         self.assertIn("updated: 1", output)
