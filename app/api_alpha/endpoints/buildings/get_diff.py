@@ -42,8 +42,8 @@ class DiffView(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": (
                             "Date et heure à partir de laquelle les modifications sont retournées. Le format est ISO 8601. <br />"
-                            "Seules les dates après le 1er avril 2024 sont acceptées.<br/>"
-                            "Une date antérieure reviendrait à télécharger l'intégralité de la base de données (l'ensemble de la base est <a href='https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/'>disponible ici</a>). "
+                            "La période maximale proposée est de 6 mois.<br/>"
+                            "Pour récupérer le RNB dans son intégralité, téléchargez la base de données (l'ensemble de la base est <a href='https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/'>disponible ici</a>). "
                         ),
                         "required": True,
                         "schema": {"type": "string"},

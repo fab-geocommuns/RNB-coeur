@@ -159,9 +159,7 @@ class BuildingSplitTest(APITestCase):
 
         contribution = Contribution.objects.get(id=contribution_id)
 
-        self.assertEqual(contribution.status, "fixed")
-        self.assertFalse(contribution.report, False)
-        self.assertEqual(contribution.review_user.id, self.building_1.event_user.id)
+        self.assertEqual(contribution.user.id, self.building_1.event_user.id)
         self.assertEqual(contribution.text, data["comment"])
 
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
@@ -264,8 +262,8 @@ class BuildingSplitTest(APITestCase):
 
         self.assertEqual(r.status_code, 400)
         self.assertEqual(
-            r.content,
-            b'{"created_buildings":["Ensure this field has at least 2 elements."]}',
+            r.json(),
+            {"created_buildings": ["Assurez-vous que ce champ a au moins 2 éléments."]},
         )
 
         # missing status in child building

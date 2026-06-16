@@ -72,6 +72,12 @@ if DEBUG:
 
 # Application definition
 
+# Django 6.0 changed the implicit default to BigAutoField. Our apps pin
+# BigAutoField in their AppConfig; this keeps third-party apps without their
+# own pin (rest_framework_tracking) on AutoField, matching their shipped
+# migrations and the existing database schema.
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
 INSTALLED_APPS = [
     "debug_toolbar",
     "jsoneditor",
@@ -252,7 +258,7 @@ PRO_CONNECT_DISCOVERY_URL = os.environ.get(
     "PRO_CONNECT_DISCOVERY_URL",
     "https://fca.integ01.dev-agentconnect.fr/api/v2/.well-known/openid-configuration",
 )
-PRO_CONNECT_SCOPES = "openid email given_name usual_name"
+PRO_CONNECT_SCOPES = "openid email given_name usual_name siret"
 PRO_CONNECT_REDIRECT_URI = os.environ.get("PRO_CONNECT_REDIRECT_URI")
 PRO_CONNECT_POST_LOGOUT_REDIRECT_URI = os.environ.get(
     "PRO_CONNECT_POST_LOGOUT_REDIRECT_URI"

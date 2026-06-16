@@ -1,6 +1,6 @@
 import binascii
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 import yaml
@@ -19,7 +19,6 @@ from api_alpha.serializers.serializers import (
     BuildingMergeSerializer,
     BuildingSerializer,
     BuildingSplitSerializer,
-    ContributionSerializer,
     DiffusionDatabaseSerializer,
     GuessBuildingSerializer,
 )
@@ -54,7 +53,6 @@ from django.utils.http import urlsafe_base64_decode
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import OpenApiExample, OpenApiParameter
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import mixins
 from rest_framework import status
 from rest_framework import status as http_status
 from rest_framework import viewsets
@@ -209,14 +207,12 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                                     "type": "object",
                                     "properties": {
                                         "next": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats suivante",
-                                            "nullable": True,
                                         },
                                         "previous": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats précédente",
-                                            "nullable": True,
                                         },
                                         "results": {
                                             "type": "array",
@@ -315,33 +311,27 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                                     "type": "object",
                                     "properties": {
                                         "next": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats suivante",
-                                            "nullable": True,
                                         },
                                         "previous": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats précédente",
-                                            "nullable": True,
                                         },
                                         "cle_interop_ban": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "Clé d'interopérabilité BAN utilisée pour lister les bâtiments",
-                                            "nullable": True,
                                         },
                                         "status": {
                                             "type": "string",
                                             "description": "'geocoding_score_is_too_low' si le géocodage BAN renvoie un score inférieur à 'min_score'. 'geocoding_no_result' si le géocodage ne renvoie pas de résultats. 'ok' sinon",
-                                            "nullable": False,
                                         },
                                         "score_ban": {
-                                            "type": "number",
+                                            "type": ["number", "null"],
                                             "description": "Si un géocodage a lieu, renvoie le score du meilleur résultat, celui utilisé pour lister les bâtiments. Ce score doit être supérieur à 'min_score' pour que des bâtiments soient renvoyés.",
-                                            "nullable": False,
                                         },
                                         "results": {
-                                            "type": "array",
-                                            "nullable": True,
+                                            "type": ["array", "null"],
                                             "items": {
                                                 "$ref": "#/components/schemas/Building"
                                             },
@@ -396,7 +386,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                 Building.objects.filter(is_active=True)
                 .filter(addresses_read_only__id=cle_interop_ban)
                 .prefetch_related("addresses_read_only")
-                .prefetch_related("marked_as_correct_read_only")
+                .prefetch_related("validated_by_read_only")
             )
             paginated_bdgs = paginator.paginate_queryset(buildings, request)
             serialized_buildings = BuildingSerializer(paginated_bdgs, many=True)
@@ -435,7 +425,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                     "rnb_ids": {
                                         "type": "array",
                                         "description": "Liste des ID-RNB des bâtiments à fusionner",
-                                        "exemple": ["XXXXYYYYZZZZ", "AAAABBBBCCCC"],
+                                        "example": ["XXXXYYYYZZZZ", "AAAABBBBCCCC"],
                                     },
                                     "merge_existing_addresses": {
                                         "type": "boolean",
@@ -448,7 +438,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                     "addresses_cle_interop": {
                                         "type": "array",
                                         "description": "Liste des clés d'interopérabilité BAN liées au nouveau bâtiment créé. Si une liste vide est passée, le bâtiment ne sera lié à aucune adresse.",
-                                        "exemple": [
+                                        "example": [
                                             "75105_8884_00004",
                                             "75105_8884_00006",
                                         ],
@@ -479,7 +469,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                         },
                     },
                     "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour fusionner des bâtiments."
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
@@ -499,10 +489,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         with transaction.atomic():
             contribution = Contribution(
                 text=data.get("comment"),
-                status="fixed",
-                status_changed_at=datetime.now(timezone.utc),
-                report=False,
-                review_user=user,
+                user=user,
             )
             contribution.save()
 
@@ -623,7 +610,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                         },
                                     },
                                 },
-                                "required": ["rnb_id", "created_buildings"],
+                                "required": ["created_buildings"],
                             },
                         }
                     },
@@ -641,7 +628,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                         },
                     },
                     "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour scinder un bâtiment."
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
@@ -664,10 +651,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
 
             contribution = Contribution(
                 text=comment,
-                status="fixed",
-                status_changed_at=datetime.now(timezone.utc),
-                report=False,
-                review_user=user,
+                user=user,
                 rnb_id=rnb_id,
             )
             contribution.save()
@@ -697,55 +681,6 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
 
         serializer = BuildingSerializer(new_buildings, with_plots=False, many=True)
         return Response(serializer.data, status=http_status.HTTP_201_CREATED)
-
-
-class ADSBatchViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
-    queryset = ADS.objects.all()
-    serializer_class = ADSSerializer
-    lookup_field = "file_number"
-    pagination_class = PageNumberPagination
-    permission_classes = [ADSPermission]
-    http_method_names = ["post"]
-
-    max_batch_size = 30
-
-    def create(self, request, *args, **kwargs):
-        to_save = []
-        errors = {}
-
-        self.validate_length(request.data)
-
-        for ads in request.data:
-            try:
-                instance = ADS.objects.get(file_number=ads["file_number"])
-                serializer = self.get_serializer(instance, data=ads)
-            except ADS.DoesNotExist:
-                serializer = self.get_serializer(data=ads)
-
-            if serializer.is_valid():
-                to_save.append({"serializer": serializer})
-
-            else:
-                errors[ads["file_number"]] = serializer.errors
-
-        if len(errors) > 0:
-            return Response(errors, status=400)
-        else:
-            to_show = []
-            for item in to_save:
-                item["serializer"].save()
-                to_show.append(item["serializer"].data)
-
-            return Response(to_show, status=201)
-
-    def validate_length(self, data):
-        if len(data) > self.max_batch_size:
-            raise ParseError(
-                {"errors": f"Too many items in the request. Max: {self.max_batch_size}"}
-            )
-
-        if len(data) == 0:
-            raise ParseError({"errors": "No data in the request."})
 
 
 class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
@@ -1038,21 +973,6 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
     )
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
-
-
-@extend_schema(exclude=True)
-class ContributionsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
-    queryset = Contribution.objects.all()
-    serializer_class = ContributionSerializer
-
-    def create(self, request, *args, **kwargs):
-        serializer = ContributionSerializer(data=request.data)
-
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        else:
-            return Response(serializer.errors, status=400)
 
 
 class RNBAuthToken(ObtainAuthToken):

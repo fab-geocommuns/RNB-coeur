@@ -1,4 +1,3 @@
-import datetime
 import json
 import uuid
 
@@ -8,7 +7,7 @@ from batid.exceptions import (
     NotEnoughBuildings,
     OperationOnInactiveBuilding,
 )
-from batid.models import Address, Building, Contribution
+from batid.models import Address, Building
 from batid.tests.factories.users import ContributorUserFactory
 from batid.tests.helpers import coords_to_mp_geom
 from batid.utils.misc import ext_ids_equal
@@ -150,49 +149,6 @@ class TestBuilding(TestCase):
         self.assertIsNone(bdg.event_type)
         self.assertIsNone(bdg.event_origin)
         self.assertIsNone(bdg.event_id)
-
-    def test_deactivate_with_contributions(self):
-        """
-        Test some scenario with contributions linked (or not) to deactivated building.
-        """
-        bdg = Building.objects.create(rnb_id="AAA", shape="POINT(0 0)")
-
-        user = ContributorUserFactory(username="dummy")
-
-        # This is pending, it must be refused after deactivation
-        contrib_pending = Contribution.objects.create(
-            rnb_id="AAA", status="pending", text="dummy"
-        )
-
-        # This is already fixed. It must keep its status
-        contrib_fixed = Contribution.objects.create(
-            rnb_id="AAA", status="fixed", text="fixed dummy"
-        )
-
-        # This is pending but on another building. It must keep its status
-        contrib_other_bdg = Contribution.objects.create(
-            rnb_id="BBB", status="pending", text="dummy"
-        )
-
-        bdg.deactivate(user, {"k": "v"})
-
-        # Check the first contrib has changed after the deactivation
-        contrib_pending.refresh_from_db()
-        self.assertEqual(contrib_pending.status, "refused")
-        self.assertEqual(contrib_pending.review_user, user)
-        self.assertEqual(
-            contrib_pending.review_comment,
-            "Ce signalement a été refusé suite à la désactivation du bâtiment AAA.",
-        )
-        self.assertIsInstance(contrib_pending.status_changed_at, datetime.datetime)
-
-        # Check the fixed contributions is still fixed
-        contrib_fixed.refresh_from_db()
-        self.assertEqual(contrib_fixed.status, "fixed")
-
-        # Check the other building contribution is still pending
-        contrib_other_bdg.refresh_from_db()
-        self.assertEqual(contrib_other_bdg.status, "pending")
 
     def test_building_event_types(self):
         # you can't save whatever imaginary event type in the DB
@@ -549,8 +505,8 @@ class TestUpdateBuilding(TestCase):
             )
 
 
-class TestUpdateBuildingMarkedAsCorrect(TestCase):
-    """Tests for the marked_as_correct_by behavior in Building.update()."""
+class TestUpdateBuildingValidatedBy(TestCase):
+    """Tests for the validated_by behavior in Building.update()."""
 
     SHAPE_JSON = json.dumps(
         {
@@ -574,7 +530,7 @@ class TestUpdateBuildingMarkedAsCorrect(TestCase):
         self.user = ContributorUserFactory(username="solo_user")
         self.other_user = ContributorUserFactory(username="other_user")
 
-    def _create_building(self, marked_as_correct_by):
+    def _create_building(self, validated_by):
         b = Building.create_new(
             user=self.user,
             event_origin={"source": "test"},
@@ -583,28 +539,28 @@ class TestUpdateBuildingMarkedAsCorrect(TestCase):
             shape=GEOSGeometry(self.SHAPE_JSON),
             ext_ids=[],
         )
-        # Refresh so b.marked_as_correct_by is a fresh list from the DB rather
+        # Refresh so b.validated_by is a fresh list from the DB rather
         # than the shared field default, which would otherwise leak across tests.
         b.refresh_from_db()
-        for user in marked_as_correct_by:
+        for user in validated_by:
             b.update(
                 user=user,
                 event_origin={"source": "test"},
                 status=None,
                 addresses_id=None,
-                mark_as_correct=True,
+                validate=True,
             )
         b.refresh_from_db()
         return b
 
-    def test_update_changes_building_with_mark_as_correct_none_resets_list(self):
+    def test_update_changes_building_with_validate_none_resets_list(self):
         """
-        Input: an existing building has two users in marked_as_correct_by; update is
-        called with a real change (new status) and mark_as_correct=None.
-        Expected: marked_as_correct_by is reset to [] because the building content
+        Input: an existing building has two users in validated_by; update is
+        called with a real change (new status) and validate=None.
+        Expected: validated_by is reset to [] because the building content
         changed, so any previous "this is correct" mark is no longer meaningful.
         """
-        b = self._create_building(marked_as_correct_by=[self.user, self.other_user])
+        b = self._create_building(validated_by=[self.user, self.other_user])
 
         b.update(
             user=self.user,
@@ -613,99 +569,99 @@ class TestUpdateBuildingMarkedAsCorrect(TestCase):
             addresses_id=None,
         )
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [])
+        self.assertEqual(b.validated_by, [])
 
-    def test_update_changes_building_with_mark_as_correct_true_resets_and_adds_user(
+    def test_update_changes_building_with_validate_true_resets_and_adds_user(
         self,
     ):
         """
-        Input: an existing building has other_user in marked_as_correct_by; update is
-        called with a real change (new status) and mark_as_correct=True from self.user.
+        Input: an existing building has other_user in validated_by; update is
+        called with a real change (new status) and validate=True from self.user.
         Expected: previous marks are cleared, then self.user.id is appended; the final
         list contains only self.user.id.
         """
-        b = self._create_building(marked_as_correct_by=[self.other_user])
+        b = self._create_building(validated_by=[self.other_user])
 
         b.update(
             user=self.user,
             event_origin={"source": "test"},
             status="demolished",
             addresses_id=None,
-            mark_as_correct=True,
+            validate=True,
         )
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [self.user.id])
+        self.assertEqual(b.validated_by, [self.user.id])
 
-    def test_update_changes_building_with_mark_as_correct_false_resets_list(self):
+    def test_update_changes_building_with_validate_false_resets_list(self):
         """
-        Input: an existing building has two users in marked_as_correct_by; update is
-        called with a real change (new status) and mark_as_correct=False.
-        Expected: marked_as_correct_by is reset to []; mark_as_correct=False is falsy,
+        Input: an existing building has two users in validated_by; update is
+        called with a real change (new status) and validate=False.
+        Expected: validated_by is reset to []; validate=False is falsy,
         so no user is appended after the reset.
         """
-        b = self._create_building(marked_as_correct_by=[self.user, self.other_user])
+        b = self._create_building(validated_by=[self.user, self.other_user])
 
         b.update(
             user=self.user,
             event_origin={"source": "test"},
             status="demolished",
             addresses_id=None,
-            mark_as_correct=False,
+            validate=False,
         )
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [])
+        self.assertEqual(b.validated_by, [])
 
-    def test_update_identical_with_mark_as_correct_true_appends_user(self):
+    def test_update_identical_with_validate_true_appends_user(self):
         """
-        Input: an existing building has other_user in marked_as_correct_by; update is
-        called with no real change and mark_as_correct=True from self.user.
+        Input: an existing building has other_user in validated_by; update is
+        called with no real change and validate=True from self.user.
         Expected: self.user.id is appended to the existing list; the final list
         contains both users.
         """
-        b = self._create_building(marked_as_correct_by=[self.other_user])
+        b = self._create_building(validated_by=[self.other_user])
 
         b.update(
             user=self.user,
             event_origin={"source": "test"},
             status=None,
             addresses_id=None,
-            mark_as_correct=True,
+            validate=True,
         )
         b.refresh_from_db()
         self.assertEqual(
-            sorted(b.marked_as_correct_by),
+            sorted(b.validated_by),
             sorted([self.other_user.id, self.user.id]),
         )
 
-    def test_update_identical_with_mark_as_correct_false_removes_user(self):
+    def test_update_identical_with_validate_false_removes_user(self):
         """
-        Input: an existing building has self.user and other_user in marked_as_correct_by;
-        update is called with no real change and mark_as_correct=False from self.user.
+        Input: an existing building has self.user and other_user in validated_by;
+        update is called with no real change and validate=False from self.user.
         Expected: self.user.id is removed; only other_user.id remains.
         """
-        b = self._create_building(marked_as_correct_by=[self.user, self.other_user])
+        b = self._create_building(validated_by=[self.user, self.other_user])
 
         b.update(
             user=self.user,
             event_origin={"source": "test"},
             status=None,
             addresses_id=None,
-            mark_as_correct=False,
+            validate=False,
         )
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [self.other_user.id])
+        self.assertEqual(b.validated_by, [self.other_user.id])
 
-    def test_update_identical_with_mark_as_correct_false_not_previously_marked_is_noop(
+    def test_update_identical_with_validate_false_not_previously_marked_is_noop(
         self,
     ):
         """
-        Input: an existing building has only other_user in marked_as_correct_by;
-        update is called with no real change and mark_as_correct=False from self.user
-        (who was never in marked_as_correct_by).
-        Expected: the call is a complete no-op — marked_as_correct_by is unchanged
+        Input: an existing building has only other_user in validated_by;
+        update is called with no real change and validate=False from self.user
+        (who was never in validated_by).
+        Expected: the call is a complete no-op — validated_by is unchanged
         and no new history row is written (sys_period stays the same).
         """
-        b = self._create_building(marked_as_correct_by=[self.other_user])
+        b = self._create_building(validated_by=[self.other_user])
         b.refresh_from_db()
         sys_period_before = b.sys_period
 
@@ -714,20 +670,20 @@ class TestUpdateBuildingMarkedAsCorrect(TestCase):
             event_origin={"source": "test"},
             status=None,
             addresses_id=None,
-            mark_as_correct=False,
+            validate=False,
         )
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [self.other_user.id])
+        self.assertEqual(b.validated_by, [self.other_user.id])
         self.assertEqual(b.sys_period, sys_period_before)
 
-    def test_update_identical_with_mark_as_correct_none_is_noop(self):
+    def test_update_identical_with_validate_none_is_noop(self):
         """
-        Input: an existing building has other_user in marked_as_correct_by; update is
-        called with no real change and mark_as_correct=None.
-        Expected: the call is a complete no-op — marked_as_correct_by is unchanged and
+        Input: an existing building has other_user in validated_by; update is
+        called with no real change and validate=None.
+        Expected: the call is a complete no-op — validated_by is unchanged and
         no new history row is written (sys_period stays the same).
         """
-        b = self._create_building(marked_as_correct_by=[self.other_user])
+        b = self._create_building(validated_by=[self.other_user])
         # refresh to read the DB-side sys_period (the temporal trigger overrides
         # the Python-side default at insert time)
         b.refresh_from_db()
@@ -738,40 +694,40 @@ class TestUpdateBuildingMarkedAsCorrect(TestCase):
             event_origin={"source": "test"},
             status=None,
             addresses_id=None,
-            mark_as_correct=None,
+            validate=None,
         )
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [self.other_user.id])
+        self.assertEqual(b.validated_by, [self.other_user.id])
         self.assertEqual(b.sys_period, sys_period_before)
 
-    def test_update_identical_mark_as_correct_true_from_two_users_accumulates(self):
+    def test_update_identical_validate_true_from_two_users_accumulates(self):
         """
-        Input: a fresh building with empty marked_as_correct_by; two different users
-        successively call update with no real change and mark_as_correct=True.
-        Expected: both user ids end up in marked_as_correct_by, in the order they
+        Input: a fresh building with empty validated_by; two different users
+        successively call update with no real change and validate=True.
+        Expected: both user ids end up in validated_by, in the order they
         were added.
         """
-        b = self._create_building(marked_as_correct_by=[])
+        b = self._create_building(validated_by=[])
 
         b.update(
             user=self.user,
             event_origin={"source": "test"},
             status=None,
             addresses_id=None,
-            mark_as_correct=True,
+            validate=True,
         )
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [self.user.id])
+        self.assertEqual(b.validated_by, [self.user.id])
 
         b.update(
             user=self.other_user,
             event_origin={"source": "test"},
             status=None,
             addresses_id=None,
-            mark_as_correct=True,
+            validate=True,
         )
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [self.user.id, self.other_user.id])
+        self.assertEqual(b.validated_by, [self.user.id, self.other_user.id])
 
 
 class TestCreateNewBuildingMarkedAsCorrect(TestCase):
@@ -808,33 +764,33 @@ class TestCreateNewBuildingMarkedAsCorrect(TestCase):
             **kwargs,
         )
 
-    def test_create_new_with_mark_as_correct_true(self):
+    def test_create_new_with_is_valid_true(self):
         """
-        Input: create_new called with mark_as_correct=True.
+        Input: create_new called with is_valid=True.
         Expected: the created building has the creating user's id in
-        marked_as_correct_by.
+        validated_by.
         """
-        b = self._create(mark_as_correct=True)
+        b = self._create(is_valid=True)
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [self.user.id])
+        self.assertEqual(b.validated_by, [self.user.id])
 
-    def test_create_new_with_mark_as_correct_false(self):
+    def test_create_new_with_is_valid_false(self):
         """
-        Input: create_new called with mark_as_correct=False.
-        Expected: the created building has an empty marked_as_correct_by.
+        Input: create_new called with is_valid=False.
+        Expected: the created building has an empty validated_by.
         """
-        b = self._create(mark_as_correct=False)
+        b = self._create(is_valid=False)
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [])
+        self.assertEqual(b.validated_by, [])
 
     def test_create_new_defaults_to_not_marked(self):
         """
-        Input: create_new called without the mark_as_correct argument.
-        Expected: marked_as_correct_by defaults to an empty list.
+        Input: create_new called without the is_valid argument.
+        Expected: validated_by defaults to an empty list.
         """
         b = self._create()
         b.refresh_from_db()
-        self.assertEqual(b.marked_as_correct_by, [])
+        self.assertEqual(b.validated_by, [])
 
 
 class TestSaveNewAddress(TestCase):

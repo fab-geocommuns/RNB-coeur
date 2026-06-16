@@ -30,7 +30,6 @@ from django.db.models import CheckConstraint, F, Func, Q, UniqueConstraint
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
-from .contribution import Contribution
 from .others import Address, SummerChallenge
 
 
@@ -98,7 +97,7 @@ class BuildingAbstract(models.Model):
     # this field is the source of truth for the building <> address link
     # it contains BAN ids (clé d'interopérabilité)
     addresses_id = ArrayField(models.CharField(max_length=40), null=True)
-    marked_as_correct_by = ArrayField(models.IntegerField(), null=True, default=list)
+    validated_by = ArrayField(models.IntegerField(), null=True, default=list)
 
     class Meta:
         abstract = True
@@ -120,11 +119,11 @@ class Building(BuildingAbstract):
         related_name="buildings_read_only",
         through="BuildingAddressesReadOnly",
     )
-    marked_as_correct_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
+    validated_by_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
         User,
         blank=True,
-        related_name="buildings_marked_as_correct_read_only",
-        through="BuildingMarkedAsCorrectByReadOnly",
+        related_name="buildings_validated_by_read_only",
+        through="BuildingValidatedByReadOnly",
     )
 
     def delete(self, *args, **kwargs):
@@ -199,14 +198,6 @@ class Building(BuildingAbstract):
                     SummerChallenge.score_deactivation(
                         user, self.point, self.rnb_id, self.event_id
                     )
-
-            except_for_this_contribution = get_contribution_id_from_event_origin(
-                event_origin
-            )
-
-            self._refuse_pending_contributions(
-                user, new_event_id, except_for_this_contribution
-            )
         else:
             raise OperationOnInactiveBuilding(
                 f"Impossible de désactiver un identifiant déjà inactif : {self.rnb_id}"
@@ -260,8 +251,6 @@ class Building(BuildingAbstract):
         check_and_increment_contribution_count(user)
 
         if self.is_active == False and self.event_type == EventType.DEACTIVATION.value:
-            previous_event_id = self.event_id
-
             self.event_type = EventType.REACTIVATION.value
             self.is_active = True
             self.revert_event_id = revert_event_id if revert_event_id else self.event_id
@@ -269,8 +258,6 @@ class Building(BuildingAbstract):
             self.event_user = user
             self.event_origin = event_origin
             self.save()
-
-            self._reset_linked_contributions(user, previous_event_id)
         else:
             raise RevertNotAllowed()
 
@@ -350,7 +337,7 @@ class Building(BuildingAbstract):
         addresses_id: list | None,
         ext_ids: list | None = None,
         shape: GEOSGeometry | None = None,
-        mark_as_correct: bool | None = None,
+        validate: bool | None = None,
     ):
         check_and_increment_contribution_count(user)
 
@@ -364,27 +351,25 @@ class Building(BuildingAbstract):
             and (shape is None or shape == self.shape)
         )
 
-        if building_identical and mark_as_correct is None:
+        if building_identical and validate is None:
             # Nothing happens at all
             return
 
         if not building_identical:
-            # We changes the building, we consider previous "mark as correct" as wrong
-            marked_as_correct_by: list[int] = []
+            validated_by: list[int] = []
 
-            if mark_as_correct:
-                marked_as_correct_by.append(user.id)
-            self.marked_as_correct_by = marked_as_correct_by
+            if validate:
+                validated_by.append(user.id)
+            self.validated_by = validated_by
         else:
-            marked_as_correct_by = self.marked_as_correct_by or []
-            if mark_as_correct:
-                marked_as_correct_by.append(user.id)
-            elif user.id in marked_as_correct_by:
-                marked_as_correct_by.remove(user.id)
+            validated_by = self.validated_by or []
+            if validate:
+                validated_by.append(user.id)
+            elif user.id in validated_by:
+                validated_by.remove(user.id)
             else:
-                # mark_as_correct is False, but the building was not previously marked => no-op
                 return
-            self.marked_as_correct_by = marked_as_correct_by
+            self.validated_by = validated_by
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(
@@ -482,27 +467,6 @@ class Building(BuildingAbstract):
 
         return new_event_id
 
-    def _refuse_pending_contributions(
-        self, user: User, event_id, except_for_this_contribution_id=None
-    ):
-
-        msg = f"Ce signalement a été refusé suite à la désactivation du bâtiment {self.rnb_id}."
-        contributions = Contribution.objects.filter(
-            rnb_id=self.rnb_id, status="pending", report=True
-        )
-
-        if except_for_this_contribution_id:
-            # you may want to refuse all contributions, except for the one being currently treated
-            contributions = contributions.exclude(id=except_for_this_contribution_id)
-
-        for c in contributions:
-            c.refuse(user, msg, status_updated_by_event_id=event_id)
-
-    def _reset_linked_contributions(self, user: User, event_id):
-        contributions = Contribution.objects.filter(status_updated_by_event_id=event_id)
-        for c in contributions:
-            c.reset_pending()
-
     @staticmethod
     def add_ext_id(
         existing_ext_ids: list | None,
@@ -540,7 +504,7 @@ class Building(BuildingAbstract):
         addresses_id: list,
         shape: GEOSGeometry,
         ext_ids: list,
-        mark_as_correct: bool = False,
+        is_valid: bool = False,
     ):
         check_and_increment_contribution_count(user)
 
@@ -584,7 +548,7 @@ class Building(BuildingAbstract):
             event_user=user,
             is_active=True,
             addresses_id=addresses_id,
-            marked_as_correct_by=[user.id] if mark_as_correct else [],
+            validated_by=[user.id] if is_valid else [],
         )
 
     @staticmethod
@@ -620,10 +584,6 @@ class Building(BuildingAbstract):
         if addresses_id is not None:
             Address.add_addresses_to_db_if_needed(addresses_id)
 
-        except_for_this_contribution = get_contribution_id_from_event_origin(
-            event_origin
-        )
-
         def remove_existing_builing(building):
             building.is_active = False
             building.event_type = EventType.MERGE.value
@@ -632,9 +592,6 @@ class Building(BuildingAbstract):
             building.event_user = user
             building.event_origin = event_origin
             building.save()
-            building._refuse_pending_contributions(
-                user, event_id, except_for_this_contribution
-            )
 
         for building in buildings:
             remove_existing_builing(building)
@@ -879,15 +836,6 @@ class Building(BuildingAbstract):
                 name="valid_event_type_check",
             ),
         ]
-
-
-def get_contribution_id_from_event_origin(event_origin):
-    return (
-        event_origin.get("contribution_id")
-        if isinstance(event_origin, dict)
-        and event_origin.get("source") == "contribution"
-        else None
-    )
 
 
 class BuildingWithHistory(BuildingAbstract):

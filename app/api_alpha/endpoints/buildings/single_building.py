@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.permissions import ReadOnly, RNBContributorPermission
@@ -129,10 +127,10 @@ Cet endpoint permet de :
   RNB. Par exemple un arbre qui aurait été par erreur répertorié comme un
   bâtiment du RNB.
 * réactiver un ID-RNB, si celui-ci a été désactivé par erreur.
-* marquer un bâtiment comme correct.
+* valider un bâtiment.
 
 Il n'est pas possible de simultanément mettre à jour un bâtiment et de le désactiver/réactiver.
-Il n'est pas possible de simultanément marquer un bâtiment comme correct et de le désactiver/réactiver.
+Il n'est pas possible de simultanément valider un bâtiment et de le désactiver/réactiver.
 
 Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
 
@@ -141,7 +139,7 @@ Exemples valides:
 * ```{"comment": "RNB ID désactivé par erreur, on le réactive", "is_active": True}```
 * ```{"comment": "bâtiment démoli", "status": "demolished"}```
 * ```{"comment": "bâtiment en ruine", "status": "notUsable", "addresses_cle_interop": ["75105_8884_00004"]}```
-* ```{"comment": "je marque que ce bâtiment est correct", "mark_as_correct": True}```
+* ```{"comment": "je valide ce bâtiment", "validate": True}```
 """),
                 "operationId": "patchBuilding",
                 "parameters": [
@@ -164,7 +162,7 @@ Exemples valides:
                                     "comment": {
                                         "type": "string",
                                         "description": "Texte associé à la modification et la justifiant.",
-                                        "exemple": "Ce n'est pas un bâtiment mais un arbre.",
+                                        "example": "Ce n'est pas un bâtiment mais un arbre.",
                                     },
                                     "is_active": {
                                         "type": "boolean",
@@ -178,7 +176,7 @@ Exemples valides:
                                         "type": "string",
                                         "enum": get_status_list(),
                                         "description": f"Statut du bâtiment.",
-                                        "exemple": "demolished",
+                                        "example": "demolished",
                                     },
                                     "addresses_cle_interop": {
                                         "type": "array",
@@ -192,7 +190,7 @@ Si ce paramêtre est :
 * absent, alors les clés ne sont pas modifiées.
 * présent et que sa valeur est une liste vide (`[]`), alors le bâtiment ne sera plus lié à aucune adresse."""
                                         ),
-                                        "exemple": [
+                                        "example": [
                                             "75105_8884_00004",
                                             "75105_8884_00006",
                                         ],
@@ -201,14 +199,14 @@ Si ce paramêtre est :
                                         "type": "string",
                                         "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
                                     },
-                                    "mark_as_correct": {
+                                    "is_valid": {
                                         "type": "boolean",
                                         "description": LiteralStr(
                                             """\
-Permet à l'utilisateur de marquer que l'état actuel du bâtiment est correct (`True`) ou de retirer cette indication s'il l'avait précédemment marquée (`False`).
+Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de retirer cette validation s'il l'avait précédemment posée (`False`).
 
 * Peut être envoyé seul ou en complément d'une modification (`status`, `addresses_cle_interop`, `shape`).
-* Lorsqu'un bâtiment est modifié, la liste des utilisateurs l'ayant marqué comme correct est réinitialisée."""
+* Lorsqu'un bâtiment est modifié, la liste des utilisateurs l'ayant validé est réinitialisée."""
                                         ),
                                     },
                                 },
@@ -225,7 +223,7 @@ Permet à l'utilisateur de marquer que l'état actuel du bâtiment est correct (
                         "description": "Requête invalide (données mal formatées ou incomplètes)."
                     },
                     "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour modifier un bâtiment."
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
@@ -246,10 +244,7 @@ Permet à l'utilisateur de marquer que l'état actuel du bâtiment est correct (
             contribution = Contribution(
                 rnb_id=rnb_id,
                 text=data.get("comment"),
-                status="fixed",
-                status_changed_at=datetime.now(),
-                review_user=user,
-                report=False,
+                user=user,
             )
             contribution.save()
 
@@ -284,7 +279,7 @@ Permet à l'utilisateur de marquer que l'état actuel du bâtiment est correct (
                         status,
                         addresses_id,
                         shape=shape,
-                        mark_as_correct=data.get("mark_as_correct"),
+                        validate=data.get("is_valid"),
                     )
             except BANAPIDown:
                 raise ServiceUnavailable(detail="BAN API is currently down")

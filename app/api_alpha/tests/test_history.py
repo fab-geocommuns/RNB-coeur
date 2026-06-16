@@ -32,7 +32,7 @@ class SingleBuildingHistoryTest(APITestCase):
         self.user_id = user.id
 
         # She is working in this org
-        org = Organization.objects.create(name="Mairie de Dreux")
+        org = Organization.objects.create(name="Mairie de Dreux", short_name="Dreux")
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.organization = org
         profile.save(update_fields=["organization"])
@@ -157,25 +157,23 @@ class SingleBuildingHistoryTest(APITestCase):
                     "details": None,
                     "author": {
                         "id": self.user_id,
-                        "first_name": "Julie",
-                        "last_name": "S.",
+                        "display_name": "ju_sig",
                         "organization_name": "Mairie de Dreux",
+                        "organization_short_name": "Dreux",
                         "username": "ju_sig",
                     },
                     "origin": {
                         "type": "contribution",
                         "details": {
-                            "is_report": False,
                             "posted_on": self.rnb_id,
                             "report_text": "nouveau bâtiment",
-                            "review_comment": None,
                         },
                         "id": contrib_id,
                     },
                 },
                 "ext_ids": [],
                 "updated_at": updated_at.isoformat().replace("+00:00", "Z"),
-                "marked_as_correct_by": [],
+                "validated_by": [],
             },
         )
 
@@ -497,7 +495,7 @@ class SingleBuildingHistoryTest(APITestCase):
         """
         Contribution specifics to test:
         - event type is 'contribution'
-        - event.details contains is_report (boolean), 'report_text', 'review_comment' and 'posted_on' (rnb_id)
+        - event.details contains 'report_text' and 'posted_on' (rnb_id)
         NB: right now, our edit API does not permit to attach a report to a building version. We always attach a new contribution.
         """
 
@@ -512,14 +510,12 @@ class SingleBuildingHistoryTest(APITestCase):
 
         # Verify the contribution specifics
         self.assertEqual(data[0]["event"]["origin"]["type"], "contribution")
-        self.assertFalse(data[0]["event"]["origin"]["details"]["is_report"])
         self.assertEqual(
             data[0]["event"]["origin"]["details"]["report_text"], "nouveau bâtiment"
         )
         self.assertEqual(
             data[0]["event"]["origin"]["details"]["posted_on"], self.rnb_id
         )
-        self.assertIsNone(data[0]["event"]["origin"]["details"]["review_comment"])
 
     def test_import(self):
 
@@ -630,10 +626,10 @@ class SingleBuildingHistoryTest(APITestCase):
         r = self.client.get(f"/api/alpha/buildings/1234ABCD1234/history/")
         self.assertEqual(r.status_code, 404)
 
-    def test_mark_as_correct(self):
+    def test_validate(self):
 
         data = {
-            "mark_as_correct": True,
+            "is_valid": True,
         }
         self.client.patch(
             f"/api/alpha/buildings/{self.rnb_id}/",
@@ -654,16 +650,17 @@ class SingleBuildingHistoryTest(APITestCase):
 
         self.assertEqual(
             data[0]["event"]["details"]["updated_fields"],
-            ["marked_as_correct_by"],
+            ["validated_by"],
         )
 
         self.assertListEqual(
-            data[0]["marked_as_correct_by"],
+            data[0]["validated_by"],
             [
                 {
-                    "display_name": "Julie S.",
+                    "display_name": "ju_sig",
                     "id": self.user_id,
                     "organization_name": "Mairie de Dreux",
+                    "organization_short_name": "Dreux",
                     "username": "ju_sig",
                 }
             ],

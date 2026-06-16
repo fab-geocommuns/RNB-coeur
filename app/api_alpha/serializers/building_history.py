@@ -22,8 +22,8 @@ class PlainAddressSerializer(serializers.Serializer):
 
 class PlainPublicUserSerializer(serializers.Serializer):
     """
-    Serializer for an entry of the marked_as_correct_by list returned by the history endpoint.
-    Each entry describes a user who has marked the building version as correct.
+    Serializer for an entry of the validated_by list returned by the history endpoint.
+    Each entry describes a user who has validated the building version.
     The fields must be a copy of the PublicUserSerializer fields.
     """
 
@@ -31,6 +31,7 @@ class PlainPublicUserSerializer(serializers.Serializer):
     username = serializers.CharField()
     display_name = serializers.CharField()
     organization_name = serializers.CharField()
+    organization_short_name = serializers.CharField()
 
 
 class BuildingEventSerializer(serializers.Serializer):
@@ -72,11 +73,11 @@ class BuildingEventSerializer(serializers.Serializer):
             if set(prev_addresses) != set(curr_addresses):
                 updated_fields.append("addresses")
 
-            prev_marked = previous.get("marked_as_correct_by") or []
-            curr_marked = current.get("marked_as_correct_by") or []
+            prev_validated = previous.get("validated_by") or []
+            curr_validated = current.get("validated_by") or []
 
-            if set(prev_marked) != set(curr_marked):
-                updated_fields.append("marked_as_correct_by")
+            if set(prev_validated) != set(curr_validated):
+                updated_fields.append("validated_by")
 
             instance_copy["details"]["updated_fields"] = updated_fields
 
@@ -112,4 +113,4 @@ class BuildingHistorySerializer(serializers.Serializer):
     ext_ids = ExtIdSerializer(many=True)
     updated_at = serializers.DateTimeField()
     addresses = PlainAddressSerializer(many=True, read_only=True)
-    marked_as_correct_by = PlainPublicUserSerializer(many=True, read_only=True)
+    validated_by = PlainPublicUserSerializer(many=True, read_only=True)

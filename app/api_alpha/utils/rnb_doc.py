@@ -243,10 +243,9 @@ def _get_components() -> dict:
                         "example": "bdnb",
                     },
                     "source_version": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "description": "Version de la base de donnée contenant l'identifiant",
                         "example": "2023_01",
-                        "nullable": True,
                     },
                     "created_at": {
                         "type": "string",
@@ -262,8 +261,13 @@ def _get_components() -> dict:
                     "username": {"type": "string", "example": "n.martin"},
                     "display_name": {
                         "type": "string",
-                        "description": "Nom à afficher pour l'utilisateur. Il peut s'agir du nom d'utilisateur ou d'un nom plus complet si celui-ci a été renseigné par l'utilisateur.",
-                        "example": "Nicolas Martin",
+                        "description": "Nom à afficher pour l'utilisateur. Il s'agit de son nom d'utilisateur.",
+                        "example": "n.martin",
+                    },
+                    "organization_name": {
+                        "type": "string",
+                        "description": "Nom de l'organisation à laquelle appartient l'utilisateur. Cette information est gérée et vérifiée par l'équipe du RNB.",
+                        "example": "Mairie de Dreux",
                     },
                 },
             },
@@ -276,11 +280,10 @@ def _get_components() -> dict:
                         "example": "02191_0020_00003",
                     },
                     "ban_id": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "format": "uuid",
                         "description": "Identifiant UUID de l'adresse au sein de la Base Adresse Nationale (BAN)",
                         "example": "a2ef3456-7890-1234-abcd-ef1234567890",
-                        "nullable": True,
                     },
                     "source": {
                         "type": "string",
@@ -288,22 +291,19 @@ def _get_components() -> dict:
                         "example": "bdnb",
                     },
                     "street_number": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "description": "Numéro de la voie",
                         "example": "3",
-                        "nullable": True,
                     },
                     "street_rep": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "description": "Indice de répétition du numéro de la voie",
                         "example": "bis",
-                        "nullable": True,
                     },
                     "street": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "description": "Nom de la voie",
                         "example": "rue de l'église",
-                        "nullable": True,
                     },
                     "city_name": {
                         "type": "string",
@@ -349,9 +349,9 @@ def _get_components() -> dict:
                         "description": "Liste des adresses du bâtiment",
                         "items": {"$ref": "#/components/schemas/BuildingAddress"},
                     },
-                    "marked_as_correct_by": {
+                    "validated_by": {
                         "type": "array",
-                        "description": "Liste des utilisateurs ayant marqué ce bâtiment comme correct. Un bâtiment marqué comme correct par un utilisateur est un bâtiment que cet utilisateur considère comme correspondant à la définition d'un bâtiment et dont il pense que les attributs statut, géométrie et adresses sont corrects.",
+                        "description": "Liste des utilisateurs ayant validé ce bâtiment. Un bâtiment validé par un utilisateur est un bâtiment que cet utilisateur considère comme correspondant à la définition d'un bâtiment et dont il pense que les attributs statut, géométrie et adresses sont corrects.",
                         "items": {"$ref": "#/components/schemas/PublicUser"},
                     },
                     "ext_ids": {
@@ -386,7 +386,7 @@ def _get_components() -> dict:
                             "is_active": {
                                 "$ref": "#/components/schemas/BuildingIsActive"
                             },
-                            "plots": {"$href": "#/components/schemas/BuildingPlots"},
+                            "plots": {"$ref": "#/components/schemas/BuildingPlots"},
                         },
                     },
                 },
