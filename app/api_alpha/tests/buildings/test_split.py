@@ -262,8 +262,8 @@ class BuildingSplitTest(APITestCase):
 
         self.assertEqual(r.status_code, 400)
         self.assertEqual(
-            r.content,
-            b'{"created_buildings":["Ensure this field has at least 2 elements."]}',
+            r.json(),
+            {"created_buildings": ["Assurez-vous que ce champ a au moins 2 éléments."]},
         )
 
         # missing status in child building
