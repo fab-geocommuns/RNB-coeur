@@ -1,3 +1,5 @@
+from typing import Any, cast
+
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.pagination import BuildingListingCursorPagination, OGCApiPagination
 from api_alpha.permissions import ReadOnly, RNBContributorPermission
@@ -18,6 +20,7 @@ from batid.exceptions import (
 from batid.list_bdg import list_bdgs
 from batid.models import Building, Contribution
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
 from rest_framework import status as http_status
@@ -173,7 +176,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             # Invalid data, return validation errors
             return Response(query_serializer.errors, status=400)
 
-        query_params = request.query_params.dict()
+        query_params: dict[str, Any] = request.query_params.dict()
 
         # check if we need to include plots
         with_plots_param = request.query_params.get("withPlots", None)
@@ -292,7 +295,8 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         input_serializer.is_valid(raise_exception=True)
 
         data = input_serializer.data
-        user = request.user
+        # POST requires RNBContributorPermission, so the user is always authenticated
+        user = cast(User, request.user)
 
         with transaction.atomic():
             # create a contribution
@@ -307,8 +311,9 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 "contribution_id": contribution.id,
             }
 
-            status = data.get("status")
-            addresses_cle_interop = data.get("addresses_cle_interop")
+            # status and addresses_cle_interop are required fields (validated above)
+            status = data["status"]
+            addresses_cle_interop = data["addresses_cle_interop"]
             shape = GEOSGeometry(data.get("shape"))
 
             addresses_id = list(set(addresses_cle_interop))

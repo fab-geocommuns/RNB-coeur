@@ -55,7 +55,7 @@ from api_alpha.views import (
     get_all_endpoints_schema,
 )
 from django.conf import settings
-from django.urls import include, path, re_path
+from django.urls import URLPattern, URLResolver, include, path, re_path
 from rest_framework import routers
 
 # Routers provide an easy way of automatically determining the URL conf.
@@ -65,7 +65,7 @@ router.register(r"ads", ADSViewSet)
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
-urlpatterns = [
+urlpatterns: list[URLPattern | URLResolver] = [
     path("schema/", get_all_endpoints_schema, name="schema"),
     # OGC API Features minimal endpoints
     path("ogc/", OGCIndexView.as_view(), name="ogc_root"),
