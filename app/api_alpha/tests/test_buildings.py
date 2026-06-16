@@ -208,6 +208,7 @@ class BuildingClosestViewTest(APITestCase):
                     "id": user.id,
                     "username": user.username,
                     "organization_name": None,
+                    "organization_short_name": None,
                 }
             ],
         )
@@ -501,6 +502,7 @@ class BuildingAddressViewTest(APITestCase):
                     "id": self.user.id,
                     "username": self.user.username,
                     "organization_name": None,
+                    "organization_short_name": None,
                 }
             ],
         )

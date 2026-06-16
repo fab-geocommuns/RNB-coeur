@@ -31,6 +31,7 @@ class PlainPublicUserSerializer(serializers.Serializer):
     username = serializers.CharField()
     display_name = serializers.CharField()
     organization_name = serializers.CharField()
+    organization_short_name = serializers.CharField()
 
 
 class BuildingEventSerializer(serializers.Serializer):
