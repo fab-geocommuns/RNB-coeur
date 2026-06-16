@@ -39,12 +39,8 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
             json_build_object(
                 'id', mu.id,
                 'username', mu.username,
-                'display_name',
-                case
-                    when mu.last_name is not null and mu.last_name <> ''
-                    then mu.first_name || ' ' || substring(mu.last_name, 1, 1) || '.'
-                    else mu.first_name
-                end,
+                -- We deliberately no longer expose first/last name: display_name is the username
+                'display_name', mu.username,
                 'organization_name', mu_org.name,
                 'organization_short_name', mu_org.short_name
             )
@@ -78,12 +74,8 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    	then json_build_object(
     			'id', u.id,
                 'username', u.username,
-    			'first_name', u.first_name,
-    			'last_name',
-	    		case
-	    			when u.last_name is not null and u.last_name <> ''
-	    			then substring(u.last_name, 1, 1) || '.' else null
-	    		end,
+                -- We deliberately no longer expose first/last name: display_name is the username
+    			'display_name', u.username,
 	    		'organization_name', author_org.name,
 	    		'organization_short_name', author_org.short_name
 	    	) else null
