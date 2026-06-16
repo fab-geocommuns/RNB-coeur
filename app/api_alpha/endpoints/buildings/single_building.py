@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.permissions import ReadOnly, RNBContributorPermission
@@ -164,7 +162,7 @@ Exemples valides:
                                     "comment": {
                                         "type": "string",
                                         "description": "Texte associé à la modification et la justifiant.",
-                                        "exemple": "Ce n'est pas un bâtiment mais un arbre.",
+                                        "example": "Ce n'est pas un bâtiment mais un arbre.",
                                     },
                                     "is_active": {
                                         "type": "boolean",
@@ -178,7 +176,7 @@ Exemples valides:
                                         "type": "string",
                                         "enum": get_status_list(),
                                         "description": f"Statut du bâtiment.",
-                                        "exemple": "demolished",
+                                        "example": "demolished",
                                     },
                                     "addresses_cle_interop": {
                                         "type": "array",
@@ -192,7 +190,7 @@ Si ce paramêtre est :
 * absent, alors les clés ne sont pas modifiées.
 * présent et que sa valeur est une liste vide (`[]`), alors le bâtiment ne sera plus lié à aucune adresse."""
                                         ),
-                                        "exemple": [
+                                        "example": [
                                             "75105_8884_00004",
                                             "75105_8884_00006",
                                         ],
@@ -201,7 +199,7 @@ Si ce paramêtre est :
                                         "type": "string",
                                         "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
                                     },
-                                    "validate": {
+                                    "is_valid": {
                                         "type": "boolean",
                                         "description": LiteralStr(
                                             """\
@@ -225,7 +223,7 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                         "description": "Requête invalide (données mal formatées ou incomplètes)."
                     },
                     "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour modifier un bâtiment."
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
@@ -246,10 +244,7 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
             contribution = Contribution(
                 rnb_id=rnb_id,
                 text=data.get("comment"),
-                status="fixed",
-                status_changed_at=datetime.now(),
-                review_user=user,
-                report=False,
+                user=user,
             )
             contribution.save()
 

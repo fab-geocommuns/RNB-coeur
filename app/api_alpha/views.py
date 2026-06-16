@@ -1,6 +1,6 @@
 import binascii
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 import yaml
@@ -207,14 +207,12 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                                     "type": "object",
                                     "properties": {
                                         "next": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats suivante",
-                                            "nullable": True,
                                         },
                                         "previous": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats précédente",
-                                            "nullable": True,
                                         },
                                         "results": {
                                             "type": "array",
@@ -313,33 +311,27 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                                     "type": "object",
                                     "properties": {
                                         "next": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats suivante",
-                                            "nullable": True,
                                         },
                                         "previous": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "URL de la page de résultats précédente",
-                                            "nullable": True,
                                         },
                                         "cle_interop_ban": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "Clé d'interopérabilité BAN utilisée pour lister les bâtiments",
-                                            "nullable": True,
                                         },
                                         "status": {
                                             "type": "string",
                                             "description": "'geocoding_score_is_too_low' si le géocodage BAN renvoie un score inférieur à 'min_score'. 'geocoding_no_result' si le géocodage ne renvoie pas de résultats. 'ok' sinon",
-                                            "nullable": False,
                                         },
                                         "score_ban": {
-                                            "type": "number",
+                                            "type": ["number", "null"],
                                             "description": "Si un géocodage a lieu, renvoie le score du meilleur résultat, celui utilisé pour lister les bâtiments. Ce score doit être supérieur à 'min_score' pour que des bâtiments soient renvoyés.",
-                                            "nullable": False,
                                         },
                                         "results": {
-                                            "type": "array",
-                                            "nullable": True,
+                                            "type": ["array", "null"],
                                             "items": {
                                                 "$ref": "#/components/schemas/Building"
                                             },
@@ -433,7 +425,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                     "rnb_ids": {
                                         "type": "array",
                                         "description": "Liste des ID-RNB des bâtiments à fusionner",
-                                        "exemple": ["XXXXYYYYZZZZ", "AAAABBBBCCCC"],
+                                        "example": ["XXXXYYYYZZZZ", "AAAABBBBCCCC"],
                                     },
                                     "merge_existing_addresses": {
                                         "type": "boolean",
@@ -446,7 +438,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                     "addresses_cle_interop": {
                                         "type": "array",
                                         "description": "Liste des clés d'interopérabilité BAN liées au nouveau bâtiment créé. Si une liste vide est passée, le bâtiment ne sera lié à aucune adresse.",
-                                        "exemple": [
+                                        "example": [
                                             "75105_8884_00004",
                                             "75105_8884_00006",
                                         ],
@@ -477,7 +469,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                         },
                     },
                     "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour fusionner des bâtiments."
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
@@ -497,10 +489,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
         with transaction.atomic():
             contribution = Contribution(
                 text=data.get("comment"),
-                status="fixed",
-                status_changed_at=datetime.now(timezone.utc),
-                report=False,
-                review_user=user,
+                user=user,
             )
             contribution.save()
 
@@ -621,7 +610,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                         },
                                     },
                                 },
-                                "required": ["rnb_id", "created_buildings"],
+                                "required": ["created_buildings"],
                             },
                         }
                     },
@@ -639,7 +628,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                         },
                     },
                     "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour scinder un bâtiment."
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
@@ -662,10 +651,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
 
             contribution = Contribution(
                 text=comment,
-                status="fixed",
-                status_changed_at=datetime.now(timezone.utc),
-                report=False,
-                review_user=user,
+                user=user,
                 rnb_id=rnb_id,
             )
             contribution.save()

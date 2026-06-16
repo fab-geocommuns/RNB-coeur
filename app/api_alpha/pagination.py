@@ -28,12 +28,10 @@ class BuildingCursorPagination(BasePagination):
             "type": "object",
             "properties": {
                 "next": {
-                    "type": "string",
-                    "nullable": True,
+                    "type": ["string", "null"],
                 },
                 "previous": {
-                    "type": "string",
-                    "nullable": True,
+                    "type": ["string", "null"],
                 },
                 "results": schema,
             },
