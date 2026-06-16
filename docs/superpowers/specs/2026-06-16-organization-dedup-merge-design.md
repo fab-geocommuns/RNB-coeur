@@ -50,21 +50,19 @@ On calcule :
 - `siren = user.pro_connect.siret[:9]` (toujours non vide dans cette branche).
 - `domain = user.email.split("@")[1]` si l'email contient un `@`, sinon `None`.
 
-On cherche les organisations **candidates** :
-- `siren_org` = orga dont `siren == siren` (champ unique → au plus une).
-- `domain_org` = orga dont `email_domain == domain` (champ unique → au plus une), si
-  `domain` non `None`.
+On cherche les organisations **candidates** en **une seule requête** avec une
+condition `OR` (`Q(siren=siren) | Q(email_domain=domain)`). Comme `siren` et
+`email_domain` sont uniques, le résultat contient au plus 2 lignes, déjà dédoublonnées
+(une orga qui matche les deux critères n'apparaît qu'une fois). Le `Q(email_domain=...)`
+n'est ajouté que si `domain` est non `None`.
 
-Si `siren_org` et `domain_org` désignent la même ligne (même `pk`), on ne compte qu'un
-seul candidat.
-
-Décision selon le nombre de candidats distincts :
+Décision selon le nombre de candidats :
 
 | Candidats | Action |
 |-----------|--------|
 | **0** | Création de l'orga depuis l'INSEE (`_create_org_from_siren`, comportement actuel inchangé). |
 | **1** | Rattachement de l'utilisateur à ce candidat. **Enrichissement** : si `org.siren` est vide → on met `siren` ; si `org.email_domain` est vide → on met `domain`. Le `name` n'est **jamais** modifié. Si au moins un champ change, `org.save()` (ce qui re-déclenche `link_organization_to_users` et rattache les autres utilisateurs concernés). |
-| **≥ 2** | On privilégie l'orga ayant le **même SIREN** (`siren_org`). Rattachement de l'utilisateur. **Pas d'enrichissement** (poser l'`email_domain` de l'autre orga violerait la contrainte d'unicité). La réconciliation des deux orgas se fera via l'outil de fusion admin. |
+| **2** | On privilégie l'orga ayant le **même SIREN** (celle dont `org.siren == siren`). Rattachement de l'utilisateur. **Pas d'enrichissement** (poser l'`email_domain` de l'autre orga violerait la contrainte d'unicité). La réconciliation des deux orgas se fera via l'outil de fusion admin. |
 
 Dans tous les cas où une orga est obtenue, on appelle `_set_user_org(user, org)` puis on
 `return` (comme aujourd'hui).
@@ -88,16 +86,12 @@ if hasattr(user, "pro_connect") and len(user.pro_connect.siret) >= 9:
     siren = user.pro_connect.siret[:9]
     domain = user.email.split("@")[1] if user.email and "@" in user.email else None
 
-    siren_org = Organization.objects.filter(siren=siren).first()
-    domain_org = (
-        Organization.objects.filter(email_domain=domain).first() if domain else None
-    )
-
-    # dédoublonnage si les deux pointent la même orga
-    candidates = []
-    for o in (siren_org, domain_org):
-        if o is not None and all(o.pk != c.pk for c in candidates):
-            candidates.append(o)
+    # une seule requête : siren et email_domain étant uniques, on récupère 0, 1 ou 2
+    # orgas déjà dédoublonnées
+    org_filter = Q(siren=siren)
+    if domain:
+        org_filter |= Q(email_domain=domain)
+    candidates = list(Organization.objects.filter(org_filter))
 
     if len(candidates) == 0:
         org = _create_org_from_siren(siren)
@@ -113,7 +107,8 @@ if hasattr(user, "pro_connect") and len(user.pro_connect.siret) >= 9:
         if changed:
             org.save()  # re-déclenche link_organization_to_users
     else:
-        org = siren_org  # priorité au même SIREN
+        # 2 candidats distincts → priorité à celui qui porte le même SIREN
+        org = next(o for o in candidates if o.siren == siren)
 
     if org:
         _set_user_org(user, org)
