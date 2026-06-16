@@ -42,13 +42,8 @@ def _b64_to_int(b64: str) -> int:
 
 
 def get_display_name(user: User | None) -> str:
+
     if user is None:
         return "Anonyme"
 
-    if not user.first_name and not user.last_name:
-        return user.username
-
-    if user.last_name is None or len(user.last_name) == 0:
-        return user.first_name
-
-    return f"{user.first_name} {user.last_name[0]}."
+    return user.username
