@@ -261,8 +261,8 @@ def _get_components() -> dict:
                     "username": {"type": "string", "example": "n.martin"},
                     "display_name": {
                         "type": "string",
-                        "description": "Nom à afficher pour l'utilisateur. Il peut s'agir du nom d'utilisateur ou d'un nom plus complet si celui-ci a été renseigné par l'utilisateur.",
-                        "example": "Nicolas Martin",
+                        "description": "Nom à afficher pour l'utilisateur. Il s'agit de son nom d'utilisateur.",
+                        "example": "n.martin",
                     },
                     "organization_name": {
                         "type": "string",

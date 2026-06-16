@@ -21,15 +21,3 @@ class PublicUserSerializer(serializers.Serializer):
             return None
 
         return instance.profile.organization
-
-    def _get_display_name(self, instance: User | None) -> str:
-        if instance is None:
-            return "Anonyme"
-
-        if not instance.first_name and not instance.last_name:
-            return instance.username
-
-        if instance.last_name is None or len(instance.last_name) == 0:
-            return instance.first_name
-
-        return f"{instance.first_name} {instance.last_name[0]}."

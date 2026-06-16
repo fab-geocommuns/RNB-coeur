@@ -157,8 +157,7 @@ class SingleBuildingHistoryTest(APITestCase):
                     "details": None,
                     "author": {
                         "id": self.user_id,
-                        "first_name": "Julie",
-                        "last_name": "S.",
+                        "display_name": "ju_sig",
                         "organization_name": "Mairie de Dreux",
                         "organization_short_name": "Dreux",
                         "username": "ju_sig",
@@ -658,7 +657,7 @@ class SingleBuildingHistoryTest(APITestCase):
             data[0]["validated_by"],
             [
                 {
-                    "display_name": "Julie S.",
+                    "display_name": "ju_sig",
                     "id": self.user_id,
                     "organization_name": "Mairie de Dreux",
                     "organization_short_name": "Dreux",
