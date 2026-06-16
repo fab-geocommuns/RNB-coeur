@@ -96,12 +96,8 @@ def sql_query(code_area):
         (
            SELECT coalesce(json_agg(
                json_build_object(
-                   'display_name',
-                   case
-                       when u.last_name is not null and u.last_name <> ''
-                       then u.first_name || ' ' || substring(u.last_name, 1, 1) || '.'
-                       else u.first_name
-                   end,
+                   -- We deliberately no longer expose first/last name: display_name is the username
+                   'display_name', u.username,
                    'id', u.id,
                    'organization_name', org.name,
                    'username', u.username
