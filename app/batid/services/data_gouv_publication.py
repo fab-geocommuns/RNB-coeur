@@ -15,17 +15,21 @@ from django.db import connection, transaction
 from app.settings import WRITABLE_DATA_DIR
 
 
-def publish(area: str):
+def publish(area: str, only_active=True):
     print(f"Processing area: {area}")
 
     try:
-        directory_name = create_directory(area)
-        create_csv(directory_name, area)
-        archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
+        directory_name = create_directory(area, only_active)
+        create_csv(directory_name, area, only_active)
+        archive_path, archive_size, archive_sha1 = create_archive(
+            directory_name, area, only_active
+        )
 
         if os.environ.get("ENABLE_DATAGOUV_PUBLICATION") == "true":
             public_url = upload_to_s3(archive_path)
-            publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
+            publish_on_data_gouv(
+                area, only_active, public_url, archive_size, archive_sha1
+            )
     except Exception as e:
         logging.error(
             f"Error while publishing the RNB for area {area} on data.gouv.fr: {e}"
@@ -37,27 +41,72 @@ def publish(area: str):
     return True
 
 
-def create_directory(area):
-    directory_name = (
-        f'datagouvfr_publication_{area}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
-    )
+def create_directory(area: str, only_active: bool):
+    directory_name = f'datagouvfr_publication_{area}{'' if only_active else '_full'}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
     directory_path = os.path.join(WRITABLE_DATA_DIR, directory_name)
     os.makedirs(directory_path, exist_ok=True)
     return directory_path
 
 
+# Return the base file name (WITHOUT directory and extension)
+def file_name(code_area, only_active: bool):
+    return f"RNB_{code_area}{'' if only_active else '_full'}"
+
+
 # Return the global path of a file WITHOUT the extension
-def file_path(directory_name, code_area):
-    return directory_name + "/RNB_" + str(code_area)
+def file_path(directory_name, code_area, only_active: bool):
+    return directory_name + "/" + file_name(code_area, only_active)
 
 
-def sql_query(code_area):
+def dpt_clauses(code_area: str):
+    """Return the (join, where) SQL fragments restricting an export to a department.
+
+    For the national export ("nat") both fragments are empty.
+    """
     if code_area == "nat":
-        dpt_where = ""
-        dpt_join = ""
-    else:
-        dpt_where = f" AND dpt.code = '{code_area}'"
-        dpt_join = " LEFT JOIN batid_department_subdivided AS dpt ON ST_Intersects(dpt.shape, bdg.point)"
+        return "", ""
+
+    dpt_join = " LEFT JOIN batid_department_subdivided AS dpt ON ST_Intersects(dpt.shape, bdg.point)"
+    dpt_where = f" AND dpt.code = '{code_area}'"
+    return dpt_join, dpt_where
+
+
+# Scalar subquery computing the cadastral plots covered by the building shape.
+# Correlated on bdg.shape, so it must be embedded in the main query.
+PLOTS_SUBQUERY = """
+        (
+           SELECT json_agg(json_build_object('id', p.id, 'bdg_cover_ratio',
+               CASE
+                   WHEN ST_GeometryType(bdg.shape) = 'ST_Point' THEN 1.0
+                   WHEN ST_GeometryType(bdg.shape) IN ('ST_Polygon', 'ST_MultiPolygon') THEN
+                       CASE
+                           WHEN ST_Area(bdg.shape) > 0 THEN
+                               ST_Area(ST_Intersection(bdg.shape, p.shape)) / ST_Area(bdg.shape)
+                           ELSE 0.0
+                       END
+                   ELSE 0.0
+               END
+           ))
+           FROM batid_plot p
+           WHERE ST_Intersects(p.shape, bdg.shape)
+       )
+"""
+
+
+def sql_query(code_area: str, only_active: bool):
+    if only_active:
+        return sql_query_active(code_area)
+    return sql_query_full(code_area)
+
+
+def sql_query_active(code_area: str):
+    """Export of the currently active buildings only.
+
+    Addresses come from the batid_buildingaddressesreadonly link table, which
+    only reflects the current version of each building (enough here, since we
+    only export active/current buildings).
+    """
+    dpt_join, dpt_where = dpt_clauses(code_area)
 
     sql = f"""
     COPY (
@@ -77,22 +126,7 @@ def sql_query(code_area):
                 )
 
         ) FILTER (WHERE addr.id IS NOT NULL), '[]'::json) AS addresses,
-        (
-           SELECT json_agg(json_build_object('id', p.id, 'bdg_cover_ratio',
-               CASE
-                   WHEN ST_GeometryType(bdg.shape) = 'ST_Point' THEN 1.0
-                   WHEN ST_GeometryType(bdg.shape) IN ('ST_Polygon', 'ST_MultiPolygon') THEN
-                       CASE
-                           WHEN ST_Area(bdg.shape) > 0 THEN
-                               ST_Area(ST_Intersection(bdg.shape, p.shape)) / ST_Area(bdg.shape)
-                           ELSE 0.0
-                       END
-                   ELSE 0.0
-               END
-           ))
-           FROM batid_plot p
-           WHERE ST_Intersects(p.shape, bdg.shape)
-       ) AS plots
+        {PLOTS_SUBQUERY} AS plots
         FROM batid_building bdg
         LEFT JOIN batid_buildingaddressesreadonly bdg_addr ON bdg_addr.building_id = bdg.id
         LEFT JOIN batid_address addr ON addr.id = bdg_addr.address_id
@@ -106,10 +140,69 @@ def sql_query(code_area):
     return sql
 
 
-def create_csv(directory_name, code_area):
-    sql = sql_query(code_area)
+def sql_query_full(code_area: str):
+    """Full export of every building version, current AND historical.
+
+    Sourced from the batid_building_with_history view. Addresses are rebuilt
+    from the bdg.addresses_id array (the historized source of truth for the
+    building <> address link) instead of the readonly link table, so each
+    historical version carries the addresses it actually had at the time.
+    Internal user ids (event_user_id, validated_by) are resolved to usernames.
+    """
+    dpt_join, dpt_where = dpt_clauses(code_area)
+
+    sql = f"""
+    COPY (
+        select bdg.rnb_id as rnb_id,
+        ST_AsEWKT(bdg.point) as point,
+        ST_AsEWKT(bdg.shape) as shape,
+        bdg.status as status,
+        bdg.ext_ids as ext_ids,
+        bdg.is_active as is_active,
+        bdg.sys_period as sys_period,
+        bdg.event_type as event_type,
+        bdg.event_id as event_id,
+        bdg.revert_event_id as revert_event_id,
+        bdg.event_origin as event_origin,
+        bdg.parent_buildings as parent_buildings,
+        bdg.created_at as created_at,
+        bdg.updated_at as updated_at,
+        eu.username as event_user,
+        (
+            SELECT array_agg(u.username)
+            FROM auth_user u
+            WHERE u.id = ANY(bdg.validated_by)
+        ) as validated_by,
+        (
+            SELECT coalesce(json_agg(
+                json_build_object(
+                    'cle_interop_ban', a.cle,
+                    'street_number', addr.street_number,
+                    'street_rep', addr.street_rep,
+                    'street', addr.street,
+                    'city_zipcode', addr.city_zipcode,
+                    'city_name', addr.city_name
+                ) ORDER BY a.ord
+            ), '[]'::json)
+            FROM unnest(bdg.addresses_id) WITH ORDINALITY AS a(cle, ord)
+            LEFT JOIN batid_address addr ON addr.id = a.cle
+        ) AS addresses,
+        {PLOTS_SUBQUERY} AS plots
+        FROM batid_building_with_history bdg
+        LEFT JOIN auth_user eu ON eu.id = bdg.event_user_id
+        {dpt_join}
+        WHERE TRUE
+        {dpt_where}
+    )  TO STDOUT WITH CSV HEADER DELIMITER ';'
+    """
+
+    return sql
+
+
+def create_csv(directory_name: str, code_area: str, only_active: bool):
+    sql = sql_query(code_area, only_active)
     local_statement_timeout = settings.DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT
-    with open(f"{file_path(directory_name, code_area)}.csv", "w") as fp:
+    with open(f"{file_path(directory_name, code_area, only_active)}.csv", "w") as fp:
         with transaction.atomic():
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -129,12 +222,15 @@ def sha1sum(filename):
     return h.hexdigest()
 
 
-def create_archive(directory_name, code_area):
+def create_archive(directory_name, code_area, only_active: bool):
     files = os.listdir(directory_name)
-    archive_path = f"{file_path(directory_name, code_area)}.csv.zip"
+    archive_path = f"{file_path(directory_name, code_area, only_active)}.csv.zip"
 
     with ZipFile(archive_path, "w", ZIP_DEFLATED) as zip:
-        zip.write(f"{file_path(directory_name, code_area)}.csv", f"RNB_{code_area}.csv")
+        zip.write(
+            f"{file_path(directory_name, code_area, only_active)}.csv",
+            f"{file_name(code_area, only_active)}.csv",
+        )
 
     archive_size = os.path.getsize(archive_path)
 
@@ -189,19 +285,36 @@ def upload_to_s3(archive_path):
     return public_url
 
 
-def publish_on_data_gouv(area, public_url, archive_size, archive_sha1, format="zip"):
-    # publish the archive on data.gouv.fr
-    dataset_id = os.environ.get("DATA_GOUV_DATASET_ID")
-    resource_id = data_gouv_resource_id(dataset_id, area)
-
+def resource_title(area, only_active: bool):
     if area == "nat":
         title = "Export National"
+    else:
+        title = f"Export Départemental {area}"
+
+    if not only_active:
+        title += " (avec historique)"
+
+    return title
+
+
+def publish_on_data_gouv(
+    area, only_active: bool, public_url, archive_size, archive_sha1, format="zip"
+):
+    # publish the archive on data.gouv.fr
+    dataset_id = os.environ.get("DATA_GOUV_DATASET_ID")
+    resource_id = data_gouv_resource_id(dataset_id, area, only_active)
+
+    title = resource_title(area, only_active)
+
+    if area == "nat":
         description = (
             "Export du RNB au format csv pour l’ensemble du territoire français."
         )
     else:
-        title = f"Export Départemental {area}"
         description = f"Export du RNB au format csv pour le département {area}."
+
+    if not only_active:
+        description += " Cet export contient les ID-RNB actuellement actifs du RNB, mais également tous ceux désactivés."
 
     # ressource already exists
     if resource_id is not None:
@@ -262,7 +375,7 @@ def data_gouv_create_resource(
     return True
 
 
-def data_gouv_resource_id(dataset_id, area):
+def data_gouv_resource_id(dataset_id, area, only_active: bool):
     # get the resource id from data.gouv.fr
     DATA_GOUV_BASE_URL = os.environ.get("DATA_GOUV_BASE_URL")
     dataset_url = f"{DATA_GOUV_BASE_URL}/api/1/datasets/{dataset_id}/"
@@ -274,14 +387,9 @@ def data_gouv_resource_id(dataset_id, area):
     else:
         res = response.json()
         resources = res["resources"]
+        title = resource_title(area, only_active)
         for resource in resources:
-            if resource["format"] == "zip" and (
-                (area == "nat" and resource["title"] == "Export National")
-                or (
-                    area != "nat"
-                    and resource["title"] == f"Export Départemental {area}"
-                )
-            ):
+            if resource["format"] == "zip" and resource["title"] == title:
                 return resource["id"]
         return None
 
