@@ -67,7 +67,7 @@ class AddressSerializer(serializers.ModelSerializer):
 
 class ExtIdSerializer(serializers.Serializer):
     id = serializers.CharField(help_text="bdnb-bc-3B85-TYM9-FDSX")
-    source = serializers.CharField(help_text="bdnb")
+    source = serializers.CharField(help_text="bdnb")  # type: ignore[assignment]
     created_at = serializers.DateTimeField(help_text="2023-12-07T13:20:58.310444+00:00")
     source_version = serializers.CharField(help_text="2023_01")
 
