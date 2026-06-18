@@ -242,6 +242,123 @@ class LinkUserToOrganizationTest(TestCase):
             link_user_to_organization(user)
 
 
+class LinkUserOrgEnrichmentTest(TestCase):
+    """Tests for the candidate-matching & enrichment logic of the SIREN branch of
+    link_user_to_organization(user).
+
+    A single OR query (Q(siren) | Q(email_domain)) yields 0, 1 or 2 already-deduplicated
+    candidate orgs. 0 -> create from INSEE; 1 -> link + fill empty siren/email_domain
+    (never the name); 2 -> link to the SIREN one, no enrichment. Goal: stop creating
+    duplicate orgs when one already exists under the user's email domain.
+    """
+
+    def _make_user(self, email="agent@dinum.fr"):
+        user = User.objects.create(username=email.split("@")[0], email=email)
+        UserProfile.objects.create(user=user)
+        ProConnectIdentity.objects.create(
+            user=user, sub=f"sub-{email}", siret="13002526500013"
+        )
+        return user
+
+    def _user_in_org(self, user, org):
+        return org.user_profiles.filter(user=user).exists()
+
+    def test_email_domain_org_adopts_siren(self):
+        """Single candidate matched by email_domain, with no siren: user ProConnect with
+        that domain is linked, the org receives the SIREN, its name is untouched, and no
+        new org is created."""
+        org = Organization.objects.create(name="DINUM manuelle", email_domain="dinum.fr")
+        count_before = Organization.objects.count()
+
+        user = self._make_user(email="agent@dinum.fr")
+        link_user_to_organization(user)
+
+        org.refresh_from_db()
+        self.assertTrue(self._user_in_org(user, org))
+        self.assertEqual(org.siren, "130025265")
+        self.assertEqual(org.name, "DINUM manuelle")
+        self.assertEqual(Organization.objects.count(), count_before)
+
+    def test_siren_org_adopts_email_domain(self):
+        """Single candidate matched by siren, with no email_domain: the org receives the
+        user's email domain."""
+        org = Organization.objects.create(name="DINUM", siren="130025265")
+
+        user = self._make_user(email="agent@dinum.fr")
+        link_user_to_organization(user)
+
+        org.refresh_from_db()
+        self.assertTrue(self._user_in_org(user, org))
+        self.assertEqual(org.email_domain, "dinum.fr")
+
+    def test_single_complete_candidate_unchanged(self):
+        """Single candidate already carrying both the right siren and email_domain: user
+        is linked and nothing on the org changes."""
+        org = Organization.objects.create(
+            name="DINUM", siren="130025265", email_domain="dinum.fr"
+        )
+
+        user = self._make_user(email="agent@dinum.fr")
+        link_user_to_organization(user)
+
+        org.refresh_from_db()
+        self.assertTrue(self._user_in_org(user, org))
+        self.assertEqual(org.siren, "130025265")
+        self.assertEqual(org.email_domain, "dinum.fr")
+
+    def test_two_distinct_candidates_links_to_siren_one(self):
+        """Two distinct candidates (one by siren, one by email_domain): user is linked to
+        the SIREN org, neither org is modified, no org is created."""
+        org_siren = Organization.objects.create(name="DINUM siren", siren="130025265")
+        org_domain = Organization.objects.create(
+            name="DINUM domaine", email_domain="dinum.fr"
+        )
+        count_before = Organization.objects.count()
+
+        user = self._make_user(email="agent@dinum.fr")
+        link_user_to_organization(user)
+
+        org_siren.refresh_from_db()
+        org_domain.refresh_from_db()
+        self.assertTrue(self._user_in_org(user, org_siren))
+        self.assertFalse(self._user_in_org(user, org_domain))
+        self.assertIsNone(org_siren.email_domain)
+        self.assertIsNone(org_domain.siren)
+        self.assertEqual(Organization.objects.count(), count_before)
+
+    @mock.patch("batid.services.organization.fetch_siren_data")
+    def test_zero_candidate_creates_from_insee(self, mock_fetch):
+        """No candidate matches siren nor email domain: org is created from INSEE."""
+        mock_fetch.return_value = {
+            "uniteLegale": {
+                "periodesUniteLegale": [
+                    {"dateFin": None, "denominationUniteLegale": "DINUM"}
+                ]
+            }
+        }
+        user = self._make_user(email="agent@nomatch.fr")
+        link_user_to_organization(user)
+
+        org = Organization.objects.filter(siren="130025265").first()
+        self.assertIsNotNone(org)
+        self.assertEqual(org.name, "DINUM")
+        self.assertTrue(self._user_in_org(user, org))
+
+    def test_existing_email_domain_not_overwritten(self):
+        """Single candidate (by siren) already carrying a different email_domain: the
+        user's domain does not overwrite it."""
+        org = Organization.objects.create(
+            name="DINUM", siren="130025265", email_domain="other.fr"
+        )
+
+        user = self._make_user(email="agent@dinum.fr")
+        link_user_to_organization(user)
+
+        org.refresh_from_db()
+        self.assertTrue(self._user_in_org(user, org))
+        self.assertEqual(org.email_domain, "other.fr")
+
+
 class LinkOrganizationToUsersTest(TestCase):
     """Tests for link_organization_to_users(org).
 

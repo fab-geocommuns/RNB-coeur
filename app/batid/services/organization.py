@@ -32,9 +32,37 @@ def link_user_to_organization(user: User) -> None:
 
         # SIREN number is the first 9 digits of the SIRET
         siren = user.pro_connect.siret[:9]
-        org = Organization.objects.filter(siren=siren).first()
-        if org is None:
+        domain = user.email.split("@")[1] if user.email and "@" in user.email else None
+
+        # Single query: siren and email_domain are both unique, so the OR filter yields
+        # at most 2 already-deduplicated candidate orgs.
+        org_filter = Q(siren=siren)
+        if domain:
+            org_filter |= Q(email_domain=domain)
+        candidates = list(Organization.objects.filter(org_filter))
+
+        if len(candidates) == 0:
+            # No existing org: create one from INSEE (unchanged behavior).
             org = _create_org_from_siren(siren)
+        elif len(candidates) == 1:
+            # One candidate (matched by siren or domain): link and enrich its empty
+            # fields. The name is never touched. Since it is the only candidate, no
+            # other org carries this siren/domain, so filling them is unique-safe.
+            org = candidates[0]
+            changed = []
+            if not org.siren:
+                org.siren = siren
+                changed.append("siren")
+            if domain and not org.email_domain:
+                org.email_domain = domain
+                changed.append("email_domain")
+            if changed:
+                org.save()  # replays link_organization_to_users
+        else:
+            # Two distinct candidates (one by siren, one by domain): prefer the one
+            # carrying the same siren. No enrichment — reconcile via the admin merge tool.
+            org = next(o for o in candidates if o.siren == siren)
+
         if org:
             _set_user_org(user, org)
             return
