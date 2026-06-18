@@ -40,10 +40,3 @@ def _b64_to_int(b64: str) -> int:
     decoded_bytes = base64.b64decode(b64)
     return int(decoded_bytes.decode("utf-8"))
 
-
-def get_display_name(user: User | None) -> str:
-
-    if user is None:
-        return "Anonyme"
-
-    return user.username

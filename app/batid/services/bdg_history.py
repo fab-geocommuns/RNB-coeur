@@ -72,8 +72,6 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    	then json_build_object(
     			'id', u.id,
                 'username', u.username,
-                -- We deliberately no longer expose first/last name: display_name is the username
-    			'display_name', u.username,
 	    		'organization_name', author_org.name,
 	    		'organization_short_name', author_org.short_name
 	    	) else null
