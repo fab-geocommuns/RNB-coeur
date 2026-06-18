@@ -324,6 +324,214 @@ class TestSummerChallenge(TestCase):
         self.assertEqual(score.event_id, building.event_id)
 
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
+    def test_score_validation_on_creation(self):
+        """
+        Input: a building is created with is_valid=True.
+        Expected: exactly one SummerChallenge row with action="validation"
+        is created for the building, attributed to the creating user, with the
+        right city/department/event_id.
+        """
+        building = Building.create_new(
+            user=self.user,
+            event_origin={"source": "xxx"},
+            status="constructed",
+            addresses_id=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [0, 0],
+                                [0, 0.1],
+                                [0.1, 0.1],
+                                [0.1, 0],
+                                [0, 0],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+            ext_ids=[],
+            is_valid=True,
+        )
+
+        scores = SummerChallenge.objects.filter(
+            rnb_id=building.rnb_id, action="validation"
+        ).all()
+        self.assertEqual(len(scores), 1)
+        score = scores[0]
+        self.assertEqual(score.user, self.user)
+        self.assertEqual(score.rnb_id, building.rnb_id)
+        self.assertEqual(score.action, "validation")
+        self.assertEqual(score.city, self.city_1)
+        self.assertEqual(score.department, self.dpt_1)
+        self.assertEqual(score.event_id, building.event_id)
+
+    def test_no_score_validation_on_creation_without_is_valid(self):
+        """
+        Input: a building is created without is_valid (default False).
+        Expected: no SummerChallenge row with action="validation".
+        """
+        scores = SummerChallenge.objects.filter(
+            rnb_id=self.building_1.rnb_id, action="validation"
+        ).all()
+        self.assertEqual(len(scores), 0)
+
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
+    def test_score_validation_on_update(self):
+        """
+        Input: an existing building is updated with validate=True.
+        Expected: exactly one SummerChallenge row with action="validation"
+        is created for the building, attributed to the validating user, with
+        the right city/department/event_id.
+        """
+        building = Building.create_new(
+            user=self.user,
+            event_origin={"source": "xxx"},
+            status="constructed",
+            addresses_id=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [0, 0],
+                                [0, 0.1],
+                                [0.1, 0.1],
+                                [0.1, 0],
+                                [0, 0],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+            ext_ids=[],
+        )
+
+        building.update(
+            self.user,
+            event_origin={"source": "contribution"},
+            status="demolished",
+            addresses_id=None,
+            validate=True,
+        )
+        building.refresh_from_db()
+
+        scores = SummerChallenge.objects.filter(
+            rnb_id=building.rnb_id, action="validation"
+        ).all()
+        self.assertEqual(len(scores), 1)
+        score = scores[0]
+        self.assertEqual(score.user, self.user)
+        self.assertEqual(score.rnb_id, building.rnb_id)
+        self.assertEqual(score.action, "validation")
+        self.assertEqual(score.city, self.city_1)
+        self.assertEqual(score.department, self.dpt_1)
+        self.assertEqual(score.event_id, building.event_id)
+
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
+    def test_no_extra_score_on_revalidation_by_same_user(self):
+        """
+        Input: an identical building is validated twice in a row by the same
+        user (validate=True, no other change), the second call being a no-op.
+        Expected: only one SummerChallenge row with action="validation" exists,
+        and validated_by holds the user id once (no duplicate).
+        """
+        building = Building.create_new(
+            user=self.user,
+            event_origin={"source": "xxx"},
+            status="constructed",
+            addresses_id=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [0, 0],
+                                [0, 0.1],
+                                [0.1, 0.1],
+                                [0.1, 0],
+                                [0, 0],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+            ext_ids=[],
+        )
+
+        # First validation (building stays identical): scores once.
+        building.update(
+            self.user,
+            event_origin={"source": "contribution"},
+            status=None,
+            addresses_id=None,
+            validate=True,
+        )
+        # Second validation by the same user: no-op, must not score again.
+        building.update(
+            self.user,
+            event_origin={"source": "contribution"},
+            status=None,
+            addresses_id=None,
+            validate=True,
+        )
+
+        scores = SummerChallenge.objects.filter(
+            rnb_id=building.rnb_id, action="validation"
+        ).all()
+        self.assertEqual(len(scores), 1)
+
+        building.refresh_from_db()
+        self.assertEqual(building.validated_by, [self.user.id])
+
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
+    def test_no_score_validation_on_update_without_validate(self):
+        """
+        Input: an existing building is updated with status change but
+        validate=None.
+        Expected: no SummerChallenge row with action="validation".
+        """
+        building = Building.create_new(
+            user=self.user,
+            event_origin={"source": "xxx"},
+            status="constructed",
+            addresses_id=[],
+            shape=GEOSGeometry(
+                json.dumps(
+                    {
+                        "coordinates": [
+                            [
+                                [0, 0],
+                                [0, 0.1],
+                                [0.1, 0.1],
+                                [0.1, 0],
+                                [0, 0],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    }
+                )
+            ),
+            ext_ids=[],
+        )
+
+        building.update(
+            self.user,
+            event_origin={"source": "contribution"},
+            status="demolished",
+            addresses_id=None,
+        )
+
+        scores = SummerChallenge.objects.filter(
+            rnb_id=building.rnb_id, action="validation"
+        ).all()
+        self.assertEqual(len(scores), 0)
+
+    @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_score_building_merge(self):
         shape = GEOSGeometry(
             json.dumps(

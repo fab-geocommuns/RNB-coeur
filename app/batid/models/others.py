@@ -504,3 +504,17 @@ class SummerChallenge(models.Model):
                 event_id=event_id,
             )
             sc.save()
+
+    @staticmethod
+    def score_validation(user, point, rnb_id, event_id):
+        if user:
+            city, dpt = SummerChallenge.get_areas(point)
+            sc = SummerChallenge(
+                user=user,
+                action="validation",
+                city=city,
+                department=dpt,
+                rnb_id=rnb_id,
+                event_id=event_id,
+            )
+            sc.save()
