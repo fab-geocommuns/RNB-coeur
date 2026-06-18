@@ -96,8 +96,6 @@ def sql_query(code_area):
         (
            SELECT coalesce(json_agg(
                json_build_object(
-                   -- We deliberately no longer expose first/last name: display_name is the username
-                   'display_name', u.username,
                    'id', u.id,
                    'organization_name', org.name,
                    'username', u.username

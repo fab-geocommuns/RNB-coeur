@@ -303,7 +303,6 @@ class TestDataGouvPublication(TestCase):
                 "plots": """[{"id" : "plot_1", "bdg_cover_ratio" : 0.4513785723301588}, {"id" : "plot_2", "bdg_cover_ratio" : 0.5510222422494555}]""",
                 "validated_by": [
                     {
-                        "display_name": "el_validator",
                         "id": self.user_1.id,
                         "organization_name": "Comité de validation",
                         "username": "el_validator",
@@ -320,13 +319,11 @@ class TestDataGouvPublication(TestCase):
                 "plots": """[{"id" : "plot_1", "bdg_cover_ratio" : 0.4513785723301588}, {"id" : "plot_2", "bdg_cover_ratio" : 0.5510222422494555}]""",
                 "validated_by": [
                     {
-                        "display_name": "el_validator",
                         "id": self.user_1.id,
                         "organization_name": "Comité de validation",
                         "username": "el_validator",
                     },
                     {
-                        "display_name": "jean_doux",
                         "id": self.user_2.id,
                         "organization_name": None,
                         "username": "jean_doux",
