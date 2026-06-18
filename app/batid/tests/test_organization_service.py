@@ -267,7 +267,9 @@ class LinkUserOrgEnrichmentTest(TestCase):
         """Single candidate matched by email_domain, with no siren: user ProConnect with
         that domain is linked, the org receives the SIREN, its name is untouched, and no
         new org is created."""
-        org = Organization.objects.create(name="DINUM manuelle", email_domain="dinum.fr")
+        org = Organization.objects.create(
+            name="DINUM manuelle", email_domain="dinum.fr"
+        )
         count_before = Organization.objects.count()
 
         user = self._make_user(email="agent@dinum.fr")
