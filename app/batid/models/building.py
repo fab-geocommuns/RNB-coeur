@@ -355,16 +355,23 @@ class Building(BuildingAbstract):
             # Nothing happens at all
             return
 
+        # whether this update is a genuinely new validation by this user
+        # (used to avoid scoring a no-op re-validation in the Summer Challenge)
+        newly_validated = False
+
         if not building_identical:
             validated_by: list[int] = []
 
             if validate:
                 validated_by.append(user.id)
+                newly_validated = True
             self.validated_by = validated_by
         else:
             validated_by = self.validated_by or []
             if validate:
-                validated_by.append(user.id)
+                if user.id not in validated_by:
+                    validated_by.append(user.id)
+                    newly_validated = True
             elif user.id in validated_by:
                 validated_by.remove(user.id)
             else:
@@ -411,6 +418,12 @@ class Building(BuildingAbstract):
                 )
 
             self.addresses_id = addresses_id
+
+        # Summer Challenge!
+        if newly_validated:
+            SummerChallenge.score_validation(
+                user, self.point, self.rnb_id, self.event_id
+            )
 
         self.save()
 
@@ -529,6 +542,10 @@ class Building(BuildingAbstract):
 
         # Summer Challenge!
         SummerChallenge.score_creation(user, point, rnb_id, event_id)
+
+        # Summer Challenge!
+        if is_valid:
+            SummerChallenge.score_validation(user, point, rnb_id, event_id)
 
         if addresses_id is not None and len(addresses_id) > 0:
             Address.add_addresses_to_db_if_needed(addresses_id)
