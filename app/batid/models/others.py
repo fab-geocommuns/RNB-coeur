@@ -367,7 +367,6 @@ class KPI(models.Model):
 
 
 class SummerChallenge(models.Model):
-    score = models.IntegerField(null=False)
     user = models.ForeignKey(User, on_delete=models.PROTECT, null=False, db_index=True)
     rnb_id = models.CharField(max_length=12, null=False, db_index=True)
 
