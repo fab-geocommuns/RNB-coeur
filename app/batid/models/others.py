@@ -412,7 +412,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=3,
                 user=user,
                 action="set_address",
                 city=city,
@@ -427,7 +426,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=2,
                 user=user,
                 action="creation",
                 city=city,
@@ -442,7 +440,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=1,
                 user=user,
                 action="update_shape",
                 city=city,
@@ -457,7 +454,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=1,
                 user=user,
                 action="update_status",
                 city=city,
@@ -472,7 +468,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=2,
                 user=user,
                 action="deactivation",
                 city=city,
@@ -487,7 +482,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=1,
                 user=user,
                 action="split",
                 city=city,
@@ -502,7 +496,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=1,
                 user=user,
                 action="merge",
                 city=city,

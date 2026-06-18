@@ -84,7 +84,6 @@ class TestSummerChallenge(TestCase):
         score = scores[0]
         self.assertEqual(score.user, self.user)
         self.assertEqual(score.rnb_id, self.building_1.rnb_id)
-        self.assertEqual(score.score, 3)
         self.assertEqual(score.action, "set_address")
         self.assertEqual(score.city, self.city_1)
         self.assertEqual(score.department, self.dpt_1)
@@ -100,7 +99,6 @@ class TestSummerChallenge(TestCase):
         score = scores[0]
         self.assertEqual(score.user, self.user)
         self.assertEqual(score.rnb_id, self.building_1.rnb_id)
-        self.assertEqual(score.score, 2)
         self.assertEqual(score.action, "creation")
         self.assertEqual(score.city, self.city_1)
         self.assertEqual(score.department, self.dpt_1)
@@ -140,7 +138,6 @@ class TestSummerChallenge(TestCase):
         score = scores[0]
         self.assertEqual(score.user, self.user)
         self.assertEqual(score.rnb_id, building.rnb_id)
-        self.assertEqual(score.score, 2)
         self.assertEqual(score.action, "creation")
         self.assertIsNone(score.city)
         self.assertIsNone(score.department)
@@ -205,7 +202,6 @@ class TestSummerChallenge(TestCase):
         score = scores[0]
         self.assertEqual(score.user, self.user)
         self.assertEqual(score.rnb_id, building.rnb_id)
-        self.assertEqual(score.score, 3)
         self.assertEqual(score.action, "set_address")
         self.assertEqual(score.city, self.city_1)
         self.assertEqual(score.department, self.dpt_1)
@@ -220,7 +216,6 @@ class TestSummerChallenge(TestCase):
         score = scores[0]
         self.assertEqual(score.user, self.user)
         self.assertEqual(score.rnb_id, building.rnb_id)
-        self.assertEqual(score.score, 1)
         self.assertEqual(score.action, "update_shape")
         self.assertEqual(score.city, self.city_1)
         self.assertEqual(score.department, self.dpt_1)
@@ -235,7 +230,6 @@ class TestSummerChallenge(TestCase):
         score = scores[0]
         self.assertEqual(score.user, self.user)
         self.assertEqual(score.rnb_id, building.rnb_id)
-        self.assertEqual(score.score, 1)
         self.assertEqual(score.action, "update_status")
         self.assertEqual(score.city, self.city_1)
         self.assertEqual(score.department, self.dpt_1)
@@ -279,7 +273,6 @@ class TestSummerChallenge(TestCase):
         score = scores[0]
         self.assertEqual(score.user, self.user)
         self.assertEqual(score.rnb_id, building.rnb_id)
-        self.assertEqual(score.score, 2)
         self.assertEqual(score.action, "deactivation")
         self.assertEqual(score.city, self.city_1)
         self.assertEqual(score.department, self.dpt_1)
@@ -325,7 +318,6 @@ class TestSummerChallenge(TestCase):
         score = scores[0]
         self.assertEqual(score.user, self.user)
         self.assertEqual(score.rnb_id, building.rnb_id)
-        self.assertEqual(score.score, 1)
         self.assertEqual(score.action, "split")
         self.assertEqual(score.city, self.city_1)
         self.assertEqual(score.department, self.dpt_1)
@@ -383,7 +375,6 @@ class TestSummerChallenge(TestCase):
         score = scores[0]
         self.assertEqual(score.user, self.user)
         self.assertEqual(score.rnb_id, merged_building.rnb_id)
-        self.assertEqual(score.score, 1)
         self.assertEqual(score.action, "merge")
         self.assertEqual(score.city, self.city_1)
         self.assertEqual(score.department, self.dpt_1)
