@@ -1,3 +1,5 @@
+from typing import Any
+
 from api_alpha.pagination import OGCApiPagination
 from api_alpha.serializers.serializers import (
     BuildingGeoJSONSerializer,
@@ -333,7 +335,7 @@ class OGCBuildingItemsView(OGCAPIBaseView):
             # Invalid data, return validation errors
             return Response(query_serializer.errors, status=400)
 
-        query_params = request.query_params.dict()
+        query_params: dict[str, Any] = request.query_params.dict()
 
         with_plots_param = request.query_params.get("withPlots", None)
         with_plots = True if with_plots_param == "1" else False

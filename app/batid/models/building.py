@@ -3,7 +3,7 @@ import uuid
 from copy import deepcopy
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, cast
 
 from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import (
@@ -22,7 +22,7 @@ from batid.utils.geo import assert_new_shape_is_close_enough, assert_shape_is_va
 from batid.validators import validate_one_ext_id
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
-from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry, Point
 from django.contrib.postgres.fields import ArrayField, DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex, GistIndex
 from django.db import connection, transaction
@@ -291,7 +291,8 @@ class Building(BuildingAbstract):
         current_building = Building.objects.get(rnb_id=building_to_revert.rnb_id)
         current_building.reactivate(user, event_origin)
 
-        return current_building.event_id  # type: ignore
+        # reactivate() always assigns a new event_id (or raises), so it is never None here
+        return cast(uuid.UUID, current_building.event_id)
 
     @transaction.atomic
     @staticmethod
@@ -324,8 +325,8 @@ class Building(BuildingAbstract):
             user, event_origin, revert_event_id=event_id_to_revert
         )
         current_building.refresh_from_db()
-
-        return current_building.event_id  # type: ignore
+        # deactivate() always assigns a new event_id (or raises), so it is never None here
+        return cast(uuid.UUID, current_building.event_id)
 
     @transaction.atomic
     def update(
@@ -354,16 +355,23 @@ class Building(BuildingAbstract):
             # Nothing happens at all
             return
 
+        # whether this update is a genuinely new validation by this user
+        # (used to avoid scoring a no-op re-validation in the Summer Challenge)
+        newly_validated = False
+
         if not building_identical:
             validated_by: list[int] = []
 
             if validate:
                 validated_by.append(user.id)
+                newly_validated = True
             self.validated_by = validated_by
         else:
             validated_by = self.validated_by or []
             if validate:
-                validated_by.append(user.id)
+                if user.id not in validated_by:
+                    validated_by.append(user.id)
+                    newly_validated = True
             elif user.id in validated_by:
                 validated_by.remove(user.id)
             else:
@@ -410,6 +418,12 @@ class Building(BuildingAbstract):
                 )
 
             self.addresses_id = addresses_id
+
+        # Summer Challenge!
+        if newly_validated:
+            SummerChallenge.score_validation(
+                user, self.point, self.rnb_id, self.event_id
+            )
 
         self.save()
 
@@ -519,12 +533,19 @@ class Building(BuildingAbstract):
         assert_shape_is_valid(shape)
         check_building_overlap(shape)
 
-        point = shape if shape.geom_type == "Point" else shape.point_on_surface
+        # the Point branch and point_on_surface both always yield a Point
+        point = cast(
+            Point, shape if shape.geom_type == "Point" else shape.point_on_surface
+        )
         rnb_id = generate_rnb_id()
         event_id = uuid.uuid4()
 
         # Summer Challenge!
         SummerChallenge.score_creation(user, point, rnb_id, event_id)
+
+        # Summer Challenge!
+        if is_valid:
+            SummerChallenge.score_validation(user, point, rnb_id, event_id)
 
         if addresses_id is not None and len(addresses_id) > 0:
             Address.add_addresses_to_db_if_needed(addresses_id)
@@ -534,7 +555,7 @@ class Building(BuildingAbstract):
 
         return Building.objects.create(
             rnb_id=rnb_id,
-            point=point,  # type: ignore
+            point=point,
             shape=shape,
             ext_ids=ext_ids,
             event_origin=event_origin,
