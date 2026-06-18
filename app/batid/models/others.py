@@ -378,6 +378,7 @@ class SummerChallenge(models.Model):
         "merge",
         "split",
         "deactivation",
+        "validation",
     ]
     action = models.CharField(
         choices=[(e, e) for e in ACTIONS], max_length=14, null=False, db_index=True
