@@ -1,6 +1,5 @@
 import csv
 import json
-import os
 
 from api_alpha.serializers.public_user import PublicUserSerializer
 from batid.models import Building, Organization, UserProfile
