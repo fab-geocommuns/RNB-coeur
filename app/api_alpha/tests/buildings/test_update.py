@@ -1,7 +1,8 @@
 import json
+import uuid
 from unittest import mock
 
-from batid.models import Address, Building, Contribution
+from batid.models import Address, Building, Contribution, SummerChallenge
 from batid.tests.factories.users import ContributorUserFactory
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
@@ -794,3 +795,41 @@ class BuildingPatchValidateTest(APITestCase):
         self.assertEqual(r.status_code, 400)
         self.building.refresh_from_db()
         self.assertEqual(self.building.validated_by, [])
+
+    def test_validation_unlocks_trophy(self):
+        """
+        Input: user already has 9 validations; PATCH with `is_valid=True`
+        (the 10th validation).
+        Expected: 200 with body {"trophy": {"label": "validateur", "level": 1}}.
+        """
+        for _ in range(9):
+            SummerChallenge.objects.create(
+                user=self.user,
+                action="validation",
+                rnb_id="RNBTESTID000",
+                event_id=uuid.uuid4(),
+            )
+
+        data = {"is_valid": True, "comment": "ok"}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {"trophy": {"label": "validateur", "level": 1}})
+
+    def test_validation_below_threshold_returns_204(self):
+        """
+        Input: PATCH with `is_valid=True` (1st validation, below the 10 threshold).
+        Expected: 204 with no body.
+        """
+        data = {"is_valid": True, "comment": "ok"}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)

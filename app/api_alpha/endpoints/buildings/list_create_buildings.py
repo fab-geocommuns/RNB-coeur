@@ -18,7 +18,7 @@ from batid.exceptions import (
     InvalidOperation,
 )
 from batid.list_bdg import list_bdgs
-from batid.models import Building, Contribution
+from batid.models import Building, Contribution, Trophy
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
@@ -344,4 +344,9 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             contribution.save()
 
         output_serializer = BuildingSerializer(created_building, with_plots=True)
-        return Response(output_serializer.data, status=http_status.HTTP_201_CREATED)
+        response_data = dict(output_serializer.data)
+        if data.get("is_valid"):
+            trophy = Trophy.check_and_award_validateur(user)
+            if trophy:
+                response_data["trophy"] = trophy
+        return Response(response_data, status=http_status.HTTP_201_CREATED)

@@ -16,7 +16,7 @@ from batid.exceptions import (
     InvalidOperation,
 )
 from batid.list_bdg import list_bdgs
-from batid.models import Building, Contribution
+from batid.models import Building, Contribution, Trophy
 from batid.services.bdg_history import get_bdg_history
 from batid.services.rnb_id import clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry
@@ -291,6 +291,13 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                 )
             except InvalidOperation as e:
                 raise BadRequest(detail=e.api_message_with_details())
+
+        # a validation may have unlocked a new trophy level
+        trophy = None
+        if data.get("is_valid"):
+            trophy = Trophy.check_and_award_validateur(user)
+        if trophy:
+            return Response({"trophy": trophy}, status=http_status.HTTP_200_OK)
 
         # request is successful, no content to send back
         return Response(status=http_status.HTTP_204_NO_CONTENT)

@@ -518,3 +518,57 @@ class SummerChallenge(models.Model):
                 event_id=event_id,
             )
             sc.save()
+
+
+class Trophy(models.Model):
+    label = models.CharField(max_length=50, null=False, db_index=True)
+    user = models.ForeignKey(User, on_delete=models.PROTECT, null=False, db_index=True)
+    level = models.PositiveIntegerField(null=False)
+    level_unlocked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "label", "level"], name="unique_user_label_level"
+            )
+        ]
+
+    # config of the "validateur" trophy: (number of validations, unlocked level)
+    VALIDATEUR_LABEL = "validateur"
+    VALIDATEUR_THRESHOLDS = [(10, 1), (100, 2), (500, 3)]
+
+    @staticmethod
+    def check_and_award_validateur(user):
+        """Count the user's validations and create the not-yet-unlocked levels of the
+        'validateur' trophy. Idempotent: relies only on persisted state.
+
+        Returns the highest newly unlocked level as {"label": ..., "level": ...},
+        or None when nothing new is unlocked.
+        """
+        if not user or not user.is_authenticated:
+            return None
+
+        count = SummerChallenge.objects.filter(user=user, action="validation").count()
+
+        target_level = 0
+        for threshold, level in Trophy.VALIDATEUR_THRESHOLDS:
+            if count >= threshold:
+                target_level = level
+        if target_level == 0:
+            return None
+
+        current_max = (
+            Trophy.objects.filter(user=user, label=Trophy.VALIDATEUR_LABEL).aggregate(
+                m=models.Max("level")
+            )["m"]
+            or 0
+        )
+        if target_level <= current_max:
+            return None
+
+        newly = None
+        for lvl in range(current_max + 1, target_level + 1):
+            Trophy.objects.create(user=user, label=Trophy.VALIDATEUR_LABEL, level=lvl)
+            newly = lvl
+
+        return {"label": Trophy.VALIDATEUR_LABEL, "level": newly}
