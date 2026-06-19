@@ -25,7 +25,7 @@ class SandboxClient:
         return None
 
     def _request(self, method: str, path: str, **kwargs) -> requests.Response:
-        url = f"{self.base_url}/api/alpha/{path}"
+        url = f"{self.base_url.rstrip('/')}/api/alpha/{path}"
         print("Sandbox client request: ", method, url)
         response = requests.request(
             method,

@@ -50,6 +50,7 @@ openpyxl = "^3.1.5"
 tqdm = "^4.67.3"
 mypy = "==1.19.1"
 django-stubs = {extras = ["compatible-mypy"], version = "^6.0.1"}
+djangorestframework-stubs = {extras = ["compatible-mypy"], version = "^3.17.0"}
 types-psycopg2 = "^2.9.21.20260223"
 types-nanoid = "^2.0.0.20240601"
 celery-types = "^0.26.0"
@@ -88,7 +89,7 @@ exclude = [
   "manage.py",
 ]
 disallow_untyped_defs = false
-plugins = ["mypy_django_plugin.main"]
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 mypy_path = "stubs"
 
 [[tool.mypy.overrides]]

@@ -684,8 +684,8 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
 
 
 class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
-    queryset = ADS.objects.all()  # type: ignore[assignment]
-    serializer_class = ADSSerializer  # type: ignore[assignment]
+    queryset = ADS.objects.all()
+    serializer_class = ADSSerializer
     lookup_field = "file_number"
     pagination_class = PageNumberPagination
     permission_classes = [ADSPermission]
