@@ -92,8 +92,8 @@ def link_user_to_organization(user: User) -> None:
 def link_organization_to_users(org: Organization) -> None:
     """
     Attach users to the given organization based on:
-    1. SIREN match — users whose Pro Connect SIRET starts with the org's SIREN (authoritative, overrides existing org)
-    2. Email domain — users whose email domain matches the org's email_domain (fallback, only for users without an org)
+    1. SIREN match — users whose Pro Connect SIRET starts with the org's SIREN
+    2. Email domain — users whose email domain matches the org's email_domain if they are not already attached by SIREN
     Staff and superusers are skipped unless the org is the RNB team.
     """
     simple_users_qs = User.objects.filter(is_staff=False, is_superuser=False)
@@ -109,8 +109,6 @@ def link_organization_to_users(org: Organization) -> None:
             _set_user_org(user, org)
 
     # Email domain — reassigns any matching user, except one already anchored by SIREN
-    # (their current org carries their ProConnect SIREN): SIREN placement is authoritative
-    # and must not be overridden by a weaker email-domain signal.
     if org.email_domain:
         for user in simple_users_qs.filter(email__endswith=f"@{org.email_domain}"):
             if not _is_siren_anchored(user):

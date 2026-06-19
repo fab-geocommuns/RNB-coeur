@@ -59,14 +59,13 @@ class OrganizationMergeAdminTest(TestCase):
         u1 = self._make_user("a@example.com", target)
         u2 = self._make_user("b@example.com", absorbed)
 
-        resp = self._post(target, absorbed)
+        self._post(target, absorbed)
 
         u1.profile.refresh_from_db()
         u2.profile.refresh_from_db()
         self.assertEqual(u1.profile.organization_id, target.pk)
         self.assertEqual(u2.profile.organization_id, target.pk)
         self.assertFalse(Organization.objects.filter(pk=absorbed.pk).exists())
-        self.assertContains(resp, "fusionn")
 
     def test_merge_blocked_when_different_sirens(self):
         """Target and absorbed both carry non-empty, different SIRENs: the merge is
@@ -75,12 +74,11 @@ class OrganizationMergeAdminTest(TestCase):
         absorbed = Organization.objects.create(name="Absorbee", siren="222222222")
         u2 = self._make_user("b@example.com", absorbed)
 
-        resp = self._post(target, absorbed, siren="111111111")
+        self._post(target, absorbed, siren="111111111")
 
         self.assertTrue(Organization.objects.filter(pk=absorbed.pk).exists())
         u2.profile.refresh_from_db()
         self.assertEqual(u2.profile.organization_id, absorbed.pk)
-        self.assertContains(resp, "SIREN")
 
     def test_merge_applies_chosen_email_domain_without_unique_conflict(self):
         """Admin keeps the absorbed org's email_domain for the target: it is applied

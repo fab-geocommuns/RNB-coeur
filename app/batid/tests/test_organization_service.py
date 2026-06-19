@@ -262,8 +262,7 @@ class LinkUserToOrganizationTest(TestCase):
 
 
 class LinkUserOrgEnrichmentTest(TestCase):
-    """Tests for the candidate-matching & enrichment logic of the SIREN branch of
-    link_user_to_organization(user).
+    """Tests for the orga-matching & enrichment logic of link_user_to_organization(user).
 
     A single OR query (Q(siren) | Q(email_domain)) yields 0, 1 or 2 already-deduplicated
     candidate orgs. 0 -> create from INSEE; 1 -> link + fill empty siren/email_domain
@@ -283,7 +282,7 @@ class LinkUserOrgEnrichmentTest(TestCase):
         return org.user_profiles.filter(user=user).exists()
 
     def test_email_domain_org_adopts_siren(self):
-        """Single candidate matched by email_domain, with no siren: user ProConnect with
+        """Single orga matched by email_domain, with no siren: user ProConnect with
         that domain is linked, the org receives the SIREN, its name is untouched, and no
         new org is created."""
         org = Organization.objects.create(
@@ -328,7 +327,7 @@ class LinkUserOrgEnrichmentTest(TestCase):
         self.assertEqual(org.email_domain, "dinum.fr")
 
     def test_two_distinct_candidates_links_to_siren_one(self):
-        """Two distinct candidates (one by siren, one by email_domain): user is linked to
+        """Two distinct orga candidates for matching (one by siren, one by email_domain): user is linked to
         the SIREN org, neither org is modified, no org is created."""
         org_siren = Organization.objects.create(name="DINUM siren", siren="130025265")
         org_domain = Organization.objects.create(
