@@ -188,9 +188,6 @@ class Trophy(models.Model):
             return None
 
         codes = Trophy.TOUR_DE_FRANCE_2026_INSEE_CODES
-        if not codes:
-            # not configured yet: never award (avoids awarding level 3 with threshold 0)
-            return None
 
         distinct_cities = (
             SummerChallenge.objects.filter(

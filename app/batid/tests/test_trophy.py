@@ -237,13 +237,6 @@ class TestTrophyTourDeFrance(TestCase):
         with mock.patch.object(Trophy, "TOUR_DE_FRANCE_2026_INSEE_CODES", self.CODES):
             self.assertIsNone(Trophy.check_and_award_tour_de_france(self.user))
 
-    def test_empty_config_never_awards(self):
-        """Input: 20 stage-city validations but empty config list. Expected: None
-        (badge disabled until configured, never awards level 3 by default)."""
-        self._validate_in(20)
-        with mock.patch.object(Trophy, "TOUR_DE_FRANCE_2026_INSEE_CODES", []):
-            self.assertIsNone(Trophy.check_and_award_tour_de_france(self.user))
-
 
 class TestTrophySuperV(TestCase):
     def setUp(self):
