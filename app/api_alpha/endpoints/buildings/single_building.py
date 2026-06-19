@@ -216,8 +216,21 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                     },
                 },
                 "responses": {
-                    "204": {
-                        "description": "Pas de contenu attendu dans la réponse en cas de succès",
+                    "200": {
+                        "description": "Mise à jour effectuée avec succès. La réponse contient la liste des trophées éventuellement débloqués (liste vide si aucun).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "trophies": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                        }
+                                    },
+                                }
+                            }
+                        },
                     },
                     "400": {
                         "description": "Requête invalide (données mal formatées ou incomplètes)."
@@ -296,8 +309,5 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
         trophies = []
         if data.get("is_valid"):
             trophies = Trophy.check_and_award_all(user)
-        if trophies:
-            return Response({"trophies": trophies}, status=http_status.HTTP_200_OK)
 
-        # request is successful, no content to send back
-        return Response(status=http_status.HTTP_204_NO_CONTENT)
+        return Response({"trophies": trophies}, status=http_status.HTTP_200_OK)
