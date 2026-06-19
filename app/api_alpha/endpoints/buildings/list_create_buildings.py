@@ -346,7 +346,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         output_serializer = BuildingSerializer(created_building, with_plots=True)
         response_data = dict(output_serializer.data)
         if data.get("is_valid"):
-            trophy = Trophy.check_and_award_validateur(user)
-            if trophy:
-                response_data["trophy"] = trophy
+            trophies = Trophy.check_and_award_all(user)
+            if trophies:
+                response_data["trophies"] = trophies
         return Response(response_data, status=http_status.HTTP_201_CREATED)

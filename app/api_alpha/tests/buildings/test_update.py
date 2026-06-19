@@ -670,6 +670,17 @@ class BuildingPatchValidateTest(APITestCase):
             validated_by=[],
         )
 
+        # Make `other_user` the clear validation leader so that a single validation
+        # by `self.user` never awards the transferable SuperV badge in these tests
+        # (which would turn an expected 204 into a 200 + trophies).
+        for _ in range(30):
+            SummerChallenge.objects.create(
+                user=self.other_user,
+                action="validation",
+                rnb_id="RNBTESTID000",
+                event_id=uuid.uuid4(),
+            )
+
     def test_is_valid_true_alone(self):
         """
         Input: PATCH with only `is_valid=True`, building's validated_by is empty.
@@ -800,7 +811,8 @@ class BuildingPatchValidateTest(APITestCase):
         """
         Input: user already has 9 validations; PATCH with `is_valid=True`
         (the 10th validation).
-        Expected: 200 with body {"trophy": {"label": "validateur", "level": 1}}.
+        Expected: 200; the `trophies` list contains {"label": "validateur",
+        "level": 1}.
         """
         for _ in range(9):
             SummerChallenge.objects.create(
@@ -818,11 +830,12 @@ class BuildingPatchValidateTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json(), {"trophy": {"label": "validateur", "level": 1}})
+        self.assertIn({"label": "validateur", "level": 1}, r.json()["trophies"])
 
     def test_validation_below_threshold_returns_204(self):
         """
-        Input: PATCH with `is_valid=True` (1st validation, below the 10 threshold).
+        Input: the requesting user PATCHes with `is_valid=True` (1st validation, below
+        every threshold; `other_user` is the validation leader, see setUp).
         Expected: 204 with no body.
         """
         data = {"is_valid": True, "comment": "ok"}

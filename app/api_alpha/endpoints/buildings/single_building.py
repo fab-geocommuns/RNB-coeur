@@ -292,12 +292,12 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
             except InvalidOperation as e:
                 raise BadRequest(detail=e.api_message_with_details())
 
-        # a validation may have unlocked a new trophy level
-        trophy = None
+        # a validation may have unlocked one or more new trophies
+        trophies = []
         if data.get("is_valid"):
-            trophy = Trophy.check_and_award_validateur(user)
-        if trophy:
-            return Response({"trophy": trophy}, status=http_status.HTTP_200_OK)
+            trophies = Trophy.check_and_award_all(user)
+        if trophies:
+            return Response({"trophies": trophies}, status=http_status.HTTP_200_OK)
 
         # request is successful, no content to send back
         return Response(status=http_status.HTTP_204_NO_CONTENT)

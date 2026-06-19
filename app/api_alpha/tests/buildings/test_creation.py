@@ -328,7 +328,8 @@ class BuildingPostIsValidTest(APITestCase):
         """
         Input: user already has 9 validations, POST a building with `is_valid=True`
         (the 10th validation).
-        Expected: 201 with a `trophy` field {"label": "validateur", "level": 1}.
+        Expected: 201; the `trophies` list contains {"label": "validateur",
+        "level": 1}.
         """
         for _ in range(9):
             SummerChallenge.objects.create(
@@ -341,14 +342,25 @@ class BuildingPostIsValidTest(APITestCase):
         r = self._post({**self.data, "is_valid": True})
 
         self.assertEqual(r.status_code, 201)
-        self.assertEqual(r.json()["trophy"], {"label": "validateur", "level": 1})
+        self.assertIn({"label": "validateur", "level": 1}, r.json()["trophies"])
 
     def test_create_validation_below_threshold_no_trophy(self):
         """
-        Input: POST a single building with `is_valid=True` (1st validation only).
-        Expected: 201 with no `trophy` field in the response.
+        Input: another user already leads with 5 validations; the requesting user
+        POSTs a single building with `is_valid=True` (1st validation, below every
+        threshold and not the validation leader).
+        Expected: 201 with no `trophies` field in the response.
         """
+        leader = ContributorUserFactory(username="leader")
+        for _ in range(5):
+            SummerChallenge.objects.create(
+                user=leader,
+                action="validation",
+                rnb_id="RNBTESTID000",
+                event_id=uuid.uuid4(),
+            )
+
         r = self._post({**self.data, "is_valid": True})
 
         self.assertEqual(r.status_code, 201)
-        self.assertNotIn("trophy", r.json())
+        self.assertNotIn("trophies", r.json())
