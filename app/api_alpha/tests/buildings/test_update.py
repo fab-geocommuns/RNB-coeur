@@ -2,7 +2,7 @@ import json
 import uuid
 from unittest import mock
 
-from batid.models import Address, Building, Contribution, SummerChallenge
+from batid.models import Address, Building, Contribution, SummerChallenge, Trophy
 from batid.tests.factories.users import ContributorUserFactory
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
@@ -71,7 +71,7 @@ class BuildingPatchTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
 
     def test_update_empty_shape(self):
         data = {
@@ -126,7 +126,7 @@ class BuildingPatchTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
 
         # not a building
         data = {"is_active": False, "comment": "not a building"}
@@ -136,7 +136,7 @@ class BuildingPatchTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
 
     def test_update_a_building_parameters_2(self):
         # update status : unauthorized status
@@ -161,7 +161,7 @@ class BuildingPatchTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
 
         # comment is not mandatory
         data = {
@@ -174,7 +174,7 @@ class BuildingPatchTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
 
         data = {
             "status": "constructed",
@@ -185,7 +185,7 @@ class BuildingPatchTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
 
         # can either deactivate or update
         data = {
@@ -209,7 +209,7 @@ class BuildingPatchTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
         contributions = Contribution.objects.all()
         contribution = contributions[0]
@@ -252,7 +252,7 @@ class BuildingPatchTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
         contributions = Contribution.objects.all()
         contribution = contributions[0]
@@ -286,7 +286,7 @@ class BuildingPatchTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
         contributions = Contribution.objects.all()
         contribution = contributions[0]
@@ -318,7 +318,7 @@ class BuildingPatchTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
 
         self.building.refresh_from_db()
 
@@ -342,7 +342,7 @@ class BuildingPatchTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
 
         self.assertListEqual(self.building.addresses_id, [])
@@ -363,7 +363,7 @@ class BuildingPatchTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
 
         self.assertEqual(self.building.shape.wkt, wkt)
@@ -385,7 +385,7 @@ class BuildingPatchTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
 
         self.assertEqual(self.building.shape.wkt, wkt)
@@ -424,7 +424,7 @@ class BuildingPatchTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
 
         get_mock.assert_called_with(
             f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
@@ -583,7 +583,7 @@ class BuildingPatchTest(APITestCase):
                 content_type="application/json",
             )
 
-            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.status_code, 204)
 
             # Verify the building was updated
             self.building.refresh_from_db()
@@ -639,7 +639,7 @@ class BuildingPatchTest(APITestCase):
                 content_type="application/json",
             )
 
-            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.status_code, 204)
 
             # Verify the building was deactivated
             self.building.refresh_from_db()
@@ -671,8 +671,7 @@ class BuildingPatchValidateTest(APITestCase):
         )
 
         # Make `other_user` the clear validation leader so that a single validation
-        # by `self.user` never awards the transferable SuperV badge in these tests
-        # (which would populate the otherwise empty `trophies` list).
+        # by `self.user` never awards the transferable SuperV badge in these tests.
         for _ in range(30):
             SummerChallenge.objects.create(
                 user=self.other_user,
@@ -684,7 +683,7 @@ class BuildingPatchValidateTest(APITestCase):
     def test_is_valid_true_alone(self):
         """
         Input: PATCH with only `is_valid=True`, building's validated_by is empty.
-        Expected: 200; the requesting user's id is appended to validated_by;
+        Expected: 204; the requesting user's id is appended to validated_by;
         a Contribution with status='fixed' is created and linked to the user.
         """
         data = {"is_valid": True, "comment": "ce bâtiment est correct"}
@@ -694,7 +693,7 @@ class BuildingPatchValidateTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
         self.assertEqual(self.building.validated_by, [self.user.id])
 
@@ -706,7 +705,7 @@ class BuildingPatchValidateTest(APITestCase):
         """
         Input: building has the requesting user already in validated_by; PATCH
         with only `is_valid=False`.
-        Expected: 200; user.id is removed from validated_by.
+        Expected: 204; user.id is removed from validated_by.
         """
         self.building.validated_by = [self.user.id, self.other_user.id]
         self.building.save()
@@ -718,7 +717,7 @@ class BuildingPatchValidateTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
         self.assertEqual(self.building.validated_by, [self.other_user.id])
 
@@ -726,7 +725,7 @@ class BuildingPatchValidateTest(APITestCase):
         """
         Input: building's validated_by does not contain the requesting user;
         PATCH with only `is_valid=False`.
-        Expected: 200 (no ValueError); validated_by stays unchanged.
+        Expected: 204 (no ValueError); validated_by stays unchanged.
         """
         self.building.validated_by = [self.other_user.id]
         self.building.save()
@@ -738,7 +737,7 @@ class BuildingPatchValidateTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
         self.assertEqual(self.building.validated_by, [self.other_user.id])
 
@@ -746,7 +745,7 @@ class BuildingPatchValidateTest(APITestCase):
         """
         Input: building already has another user in validated_by; PATCH with
         `is_valid=True` AND a new `status`.
-        Expected: 200; previous marks are cleared because the building changed, then
+        Expected: 204; previous marks are cleared because the building changed, then
         the requesting user is appended — final list is [self.user.id]; status updated.
         """
         self.building.validated_by = [self.other_user.id]
@@ -763,7 +762,7 @@ class BuildingPatchValidateTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
         self.assertEqual(self.building.status, "demolished")
         self.assertEqual(self.building.validated_by, [self.user.id])
@@ -811,8 +810,8 @@ class BuildingPatchValidateTest(APITestCase):
         """
         Input: user already has 9 validations; PATCH with `is_valid=True`
         (the 10th validation).
-        Expected: 200; the `trophies` list contains {"label": "validateur",
-        "level": 1}.
+        Expected: 204 (trophies are no longer returned in the response); the
+        'validateur' level 1 Trophy is awarded in the database.
         """
         for _ in range(9):
             SummerChallenge.objects.create(
@@ -829,14 +828,16 @@ class BuildingPatchValidateTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
-        self.assertIn({"label": "validateur", "level": 1}, r.json()["trophies"])
+        self.assertEqual(r.status_code, 204)
+        self.assertTrue(
+            Trophy.objects.filter(user=self.user, label="validateur", level=1).exists()
+        )
 
-    def test_validation_below_threshold_returns_empty_trophies(self):
+    def test_validation_below_threshold_returns_204(self):
         """
         Input: the requesting user PATCHes with `is_valid=True` (1st validation, below
         every threshold; `other_user` is the validation leader, see setUp).
-        Expected: 200 with an empty `trophies` list.
+        Expected: 204 with no body; no Trophy awarded to the user.
         """
         data = {"is_valid": True, "comment": "ok"}
         r = self.client.patch(
@@ -845,5 +846,5 @@ class BuildingPatchValidateTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json()["trophies"], [])
+        self.assertEqual(r.status_code, 204)
+        self.assertFalse(Trophy.objects.filter(user=self.user).exists())

@@ -199,7 +199,7 @@ class SingleBuildingHistoryTest(APITestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
 
         # We now verify the history endpoint
         r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
@@ -222,7 +222,7 @@ class SingleBuildingHistoryTest(APITestCase):
             data=json.dumps(data),
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 204)
 
         # We now verify the history endpoint
         r = self.client.get(f"/api/alpha/buildings/{self.rnb_id}/history/")
