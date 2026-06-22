@@ -75,6 +75,48 @@ class Trophy(models.Model):
     # "superv": single transferable badge held by the user with the most validations
     SUPERV_LABEL = "superv"
 
+    # Human-readable name of each trophy, exposed by the trophies endpoint as
+    # `trophy_label`. Single source of truth for the trophy display names.
+    TROPHY_LABELS = {
+        VALIDATEUR_LABEL: "validateur",
+        COURSE_DE_FOND_LABEL: "course de fond",
+        TOUR_DE_FRANCE_LABEL: "tour de france",
+        SUPERV_LABEL: "superV",
+    }
+
+    # Human-readable name of each (label, level) pair, exposed by the trophies endpoint
+    # as `level_label`. The thresholds above stay numeric; this mapping is the single
+    # source of truth for the per-level display names.
+    # "superv" has a single level, so it has no per-level name (and is absent here).
+    LEVEL_LABELS = {
+        VALIDATEUR_LABEL: {
+            1: "apprenti",
+            2: "maçon",
+            3: "entreprise du bâtiment",
+        },
+        COURSE_DE_FOND_LABEL: {
+            1: "coureur du dimanche",
+            2: "semi-marathonien",
+            3: "marathonien",
+        },
+        TOUR_DE_FRANCE_LABEL: {
+            1: "vainqueur d'étape",
+            2: "maillot jaune",
+            3: "vainqueur du tour",
+        },
+    }
+
+    @classmethod
+    def trophy_label(cls, label):
+        """Return the human-readable name of a trophy, or None when undefined."""
+        return cls.TROPHY_LABELS.get(label)
+
+    @classmethod
+    def level_label(cls, label, level):
+        """Return the human-readable name of a (label, level) pair, or None when no
+        name is defined."""
+        return cls.LEVEL_LABELS.get(label, {}).get(level)
+
     @staticmethod
     def check_and_award_all(user):
         """Run every badge check for the user and return the list of newly unlocked
