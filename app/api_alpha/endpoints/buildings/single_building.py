@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.permissions import ReadOnly, RNBContributorPermission
@@ -16,7 +18,7 @@ from batid.exceptions import (
     InvalidOperation,
 )
 from batid.list_bdg import list_bdgs
-from batid.models import Building, Contribution
+from batid.models import Building, Contribution, EditionAnnotation
 from batid.services.bdg_history import get_bdg_history
 from batid.services.rnb_id import clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry
@@ -36,9 +38,36 @@ class SingleBuildingHistory(RNBLoggingMixin, APIView):
 
         rows = get_bdg_history(rnb_id=rnb_id)
 
-        serializer = BuildingHistorySerializer(rows, many=True)
+        annotations_by_event_id = self._get_annotations_by_event_id(rows)
+
+        serializer = BuildingHistorySerializer(
+            rows,
+            many=True,
+            context={"annotations_by_event_id": annotations_by_event_id},
+        )
 
         return Response(serializer.data)
+
+    def _get_annotations_by_event_id(self, rows: list[dict]) -> dict[str, list]:
+        """Preload all annotations of the history events grouped by event_id.
+
+        A single query collects the annotations of every event_id present in the
+        history, avoiding a N+1 query when serializing each event.
+        """
+        event_ids = {
+            row["event"]["id"]
+            for row in rows
+            if row.get("event") and row["event"].get("id")
+        }
+
+        annotations_by_event_id: dict[str, list] = defaultdict(list)
+        annotations = EditionAnnotation.objects.filter(
+            event_id__in=event_ids
+        ).select_related("reviewer__profile__organization")
+        for annotation in annotations:
+            annotations_by_event_id[str(annotation.event_id)].append(annotation)
+
+        return annotations_by_event_id
 
 
 class SingleBuilding(RNBLoggingMixin, APIView):
