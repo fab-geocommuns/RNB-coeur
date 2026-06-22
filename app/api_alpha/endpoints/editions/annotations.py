@@ -1,3 +1,5 @@
+from typing import cast
+
 from api_alpha.permissions import RNBReviewerPermission
 from api_alpha.serializers.edition_annotation import (
     EditionAnnotationSerializer,
@@ -5,6 +7,7 @@ from api_alpha.serializers.edition_annotation import (
 )
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from batid.models import BuildingWithHistory, EditionAnnotation
+from django.contrib.auth.models import User
 from rest_framework import status as http_status
 from rest_framework.exceptions import NotFound
 from rest_framework.request import Request
@@ -39,9 +42,11 @@ class EditionAnnotationView(RNBLoggingMixin, APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        # request.user is a real User here (RNBReviewerPermission requires it).
+        reviewer = cast(User, request.user)
         annotation, created = EditionAnnotation.objects.update_or_create(
             event_id=event_id,
-            reviewer=request.user,
+            reviewer=reviewer,
             defaults={"status": data["status"], "comment": data.get("comment")},
         )
 
@@ -55,8 +60,9 @@ class EditionAnnotationView(RNBLoggingMixin, APIView):
     def delete(self, request: Request, event_id: str) -> Response:
         self._check_edition_exists(event_id)
 
+        reviewer = cast(User, request.user)
         deleted, _ = EditionAnnotation.objects.filter(
-            event_id=event_id, reviewer=request.user
+            event_id=event_id, reviewer=reviewer
         ).delete()
         if not deleted:
             raise NotFound(detail="No annotation to delete for the current reviewer")
