@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 from batid.models import Building, Organization, Report, UserProfile
 from django.contrib.auth.models import User
@@ -72,6 +73,34 @@ class ReplyToReportTest(APITestCase):
         self.assertEqual(self.report.messages.last().text, "Indeed")
         self.assertEqual(self.report.messages.last().created_by_user, self.user)
         self.assertIsNone(self.report.messages.last().created_by_email)
+
+    def test_reply_enqueues_notification_with_right_args(self):
+        """
+        Input: authenticated user replies "fix" to a report authored by someone else.
+        Expected: send_report_activity_notification.delay is enqueued on commit with
+                  (report.id, "fix", actor_user_id, actor_email=None, created message id);
+                  the response returns the newly created message.
+        """
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+        data = {"message": "This has been fixed", "action": "fix"}
+
+        with patch(
+            "api_alpha.endpoints.reports.reply_to_report.send_report_activity_notification.delay"
+        ) as mock_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(
+                    f"/api/alpha/reports/{self.report.id}/reply/",
+                    data=json.dumps(data),
+                    content_type="application/json",
+                )
+
+        self.assertEqual(response.status_code, 200)
+        new_message = self.report.messages.last()
+        self.assertEqual(response.json()["messages"][-1]["text"], "This has been fixed")
+
+        mock_delay.assert_called_once_with(
+            self.report.id, "fix", self.user.id, None, new_message.id
+        )
 
     def test_reply_logged_out_user_without_changing_status(self):
         data = {

@@ -4,6 +4,8 @@ from api_alpha.serializers.report import ReportSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from batid.models import Report
 from batid.models.others import Department
+from batid.tasks import send_report_activity_notification
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
 from rest_framework.request import Request
@@ -39,6 +41,7 @@ class ReplyToReportSerializer(serializers.Serializer):
             "text": attrs["message"],
             "email": attrs.get("email"),
             "status": self.get_status_from_action(attrs["action"]),
+            "action": attrs["action"],
         }
 
         return validated_data
@@ -69,14 +72,24 @@ class ReplyToReportView(RNBLoggingMixin, APIView):
         data = input_serializer.validated_data
         text = data["text"]
         new_status = data["status"]
+        action = data["action"]
         email = data.get("email")
         authenticated_user = request.user if request.user.is_authenticated else None
 
-        feve_found = report.add_message_and_update_status(
+        message, feve_found = report.add_message_and_update_status(
             text=text,
             created_by_user=authenticated_user,
             created_by_email=email,
             status=new_status,
+        )
+
+        actor_user_id = authenticated_user.id if authenticated_user else None
+        # Enqueue after commit so the task only runs once the message is persisted
+        # (robust even when ATOMIC_REQUESTS is active).
+        transaction.on_commit(
+            lambda: send_report_activity_notification.delay(
+                report.id, action, actor_user_id, email, message.id
+            )
         )
 
         serializer = ReportSerializer(report)
