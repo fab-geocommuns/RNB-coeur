@@ -23,7 +23,7 @@ class EditionAnnotation(models.Model):
     reviewee = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
-        null=False,
+        null=True,
         related_name="editions_annotated_by_reviewer",
     )
     reviewer = models.ForeignKey(
