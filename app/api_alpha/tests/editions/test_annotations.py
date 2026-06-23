@@ -10,7 +10,8 @@ from rest_framework.test import APITestCase
 class EditionAnnotationViewTest(APITestCase):
     def setUp(self):
         self.reviewer = ReviewerUserFactory(username="reviewer_1")
-        self.event_id = self._create_edition("AAAA1111BBBB")
+        self.reviewee = ContributorUserFactory(username="reviewee_1")
+        self.event_id = self._create_edition("AAAA1111BBBB", self.reviewee)
 
     # ----- helpers -----
 
@@ -77,6 +78,7 @@ class EditionAnnotationViewTest(APITestCase):
         self.assertEqual(annotations.count(), 1)
         self.assertEqual(annotations.first().status, "incorrect")
         self.assertEqual(annotations.first().comment, "wrong shape")
+        self.assertEqual(annotations.first().reviewee, self.reviewee)
 
     def test_two_reviewers_distinct_annotations(self):
         """

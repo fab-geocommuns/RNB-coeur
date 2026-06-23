@@ -1,7 +1,7 @@
 import uuid
 
 from batid.models import Building, EditionAnnotation
-from batid.tests.factories.users import ReviewerUserFactory
+from batid.tests.factories.users import ContributorUserFactory, ReviewerUserFactory
 from batid.tests.helpers import coords_to_mp_geom
 from rest_framework.test import APITestCase
 
@@ -41,9 +41,11 @@ class BuildingHistoryAnnotationsTest(APITestCase):
         create_bdg_with_event_id(rnb_id, event_id)
 
         reviewer = ReviewerUserFactory(username="reviewer_1")
+        reviewee = ContributorUserFactory(username="reviewee_1")
         annotation = EditionAnnotation.objects.create(
             event_id=event_id,
             reviewer=reviewer,
+            reviewee=reviewee,
             status="incorrect",
             comment="not a building",
         )
@@ -60,6 +62,8 @@ class BuildingHistoryAnnotationsTest(APITestCase):
         self.assertEqual(annotations[0]["status"], "incorrect")
         self.assertEqual(annotations[0]["comment"], "not a building")
         self.assertEqual(annotations[0]["reviewer"]["id"], reviewer.id)
+        # check the reviewee is not serialized, as it is intended for internal use
+        self.assertIsNone(annotations[0].get("reviewee"))
 
     def test_history_without_annotation_returns_empty_list(self):
         """

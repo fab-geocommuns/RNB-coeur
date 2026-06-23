@@ -20,8 +20,17 @@ class EditionAnnotation(models.Model):
 
     id = models.AutoField(primary_key=True)
     event_id = models.UUIDField(null=False, db_index=True)
+    reviewee = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=False,
+        related_name="editions_annotated_by_reviewer",
+    )
     reviewer = models.ForeignKey(
-        User, on_delete=models.PROTECT, null=False, related_name="edition_annotations"
+        User,
+        on_delete=models.PROTECT,
+        null=False,
+        related_name="editions_annotated_by_me",
     )
     status = models.CharField(
         choices=[(s, s) for s in STATUSES], max_length=10, null=False

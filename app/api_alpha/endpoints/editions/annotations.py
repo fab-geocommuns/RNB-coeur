@@ -1,3 +1,4 @@
+import uuid
 from typing import cast
 
 from api_alpha.permissions import RNBReviewerPermission
@@ -6,7 +7,7 @@ from api_alpha.serializers.edition_annotation import (
     EditionAnnotationWriteSerializer,
 )
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from batid.models import BuildingWithHistory, EditionAnnotation
+from batid.models import BuildingWithHistory, EditionAnnotation, Event
 from django.contrib.auth.models import User
 from rest_framework import status as http_status
 from rest_framework.exceptions import NotFound
@@ -44,9 +45,11 @@ class EditionAnnotationView(RNBLoggingMixin, APIView):
 
         # request.user is a real User here (RNBReviewerPermission requires it).
         reviewer = cast(User, request.user)
+        reviewee = cast(User, Event.get_event_user(uuid.UUID(event_id)))
         annotation, created = EditionAnnotation.objects.update_or_create(
             event_id=event_id,
             reviewer=reviewer,
+            reviewee=reviewee,
             defaults={"status": data["status"], "comment": data.get("comment")},
         )
 
