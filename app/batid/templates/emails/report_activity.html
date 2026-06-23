@@ -1,0 +1,19 @@
+{% extends "emails/base_email.html" %}
+{% block content %}
+<p style="margin-top:0;">Bonjour,</p>
+
+<p>Votre signalement a été {{ activity_label }}.</p>
+
+<blockquote style="margin:16px 0;padding:12px 16px;border-left:4px solid #2c50a0;color:#3a3a3a;background-color:#f5f5fe;">
+  « {{ message_text }} »
+</blockquote>
+
+<p><a href="{{ report_url }}" style="color:#2c50a0;">Voir le signalement</a></p>
+
+<hr style="border:none;border-top:1px solid #e0e0e0;margin:28px 0;">
+
+<p style="font-size:12px;color:#666666;">
+  Vous ne désirez plus recevoir d'emails de notifications concernant vos signalements RNB ?
+  <a href="{{ unsubscribe_url }}" style="color:#2c50a0;">Se désinscrire</a>.
+</p>
+{% endblock %}
