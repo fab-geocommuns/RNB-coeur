@@ -80,6 +80,38 @@ class KPIDailyRun(TestCase):
             self.assertEqual(kpi.value_date, date.today())
 
 
+class KPIDailyRunIdempotent(TestCase):
+    """
+    Input: compute_today_kpis(external_calls=False) appelée deux fois le même jour,
+    avec un bâtiment actif ajouté entre les deux appels (simule un retry Celery de
+    renew_kpis après un premier passage partiel).
+    Expected: aucune IntegrityError, le nombre de lignes KPI reste identique et la
+    valeur de active_buildings_count est mise à jour avec le nouveau compte.
+    """
+
+    def test_second_run_updates_without_duplicate(self):
+        Building.objects.create(rnb_id="idem1", status="constructed", is_active=True)
+
+        compute_today_kpis(external_calls=False)
+        first_count = KPI.objects.count()
+        first_active = KPI.objects.get(
+            name="active_buildings_count", value_date=date.today()
+        ).value
+        self.assertEqual(first_active, 1)
+
+        # New active building before the (re)run
+        Building.objects.create(rnb_id="idem2", status="constructed", is_active=True)
+
+        # Should not raise IntegrityError on the duplicate (name, value_date)
+        compute_today_kpis(external_calls=False)
+
+        self.assertEqual(KPI.objects.count(), first_count)
+        updated_active = KPI.objects.get(
+            name="active_buildings_count", value_date=date.today()
+        ).value
+        self.assertEqual(updated_active, 2)
+
+
 class CountActiveBuildings(TestCase):
     def setUp(self):
 
