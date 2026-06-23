@@ -455,6 +455,16 @@ def close_irrelevant_reports():
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def send_report_activity_notification(
+    report_id, action, actor_user_id, actor_email, message_id
+):
+    from batid.services.reports.notifications import notify_report_author
+
+    notify_report_author(report_id, action, actor_user_id, actor_email, message_id)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def flag_addresses_from_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
     from batid.services.imports.update_addresses_ban import flag_addresses_from_ban_file
 
