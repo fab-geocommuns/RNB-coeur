@@ -18,6 +18,8 @@ from api_alpha.endpoints.buildings.single_building import (
 from api_alpha.endpoints.debug import RaiseExceptionView
 from api_alpha.endpoints.editions.annotations import EventAnnotationView
 from api_alpha.endpoints.editions.rollback import RollbackEventView
+from api_alpha.endpoints.notifications.preferences import NotificationPreferencesView
+from api_alpha.endpoints.notifications.unsubscribe import UnsubscribeView
 from api_alpha.endpoints.ogc.views import (
     OGCBuildingItemsView,
     OGCBuildingsCollectionView,
@@ -167,6 +169,9 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("reports/stats/", ReportStatsView.as_view()),
     path("reports/<int:report_id>/", GetReport.as_view()),
     path("reports/<int:report_id>/reply/", ReplyToReportView.as_view()),
+    # Notifications
+    path("notifications/unsubscribe", UnsubscribeView.as_view()),
+    path("notifications/preferences", NotificationPreferencesView.as_view()),
 ]
 
 
