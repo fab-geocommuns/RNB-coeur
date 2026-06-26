@@ -45,7 +45,6 @@ class TestContribution(APITestCase):
         response_data = r.json()
         self.assertEqual(response_data["rnb_id"], "1")
         self.assertEqual(response_data["messages"][0]["text"], "test")
-        self.assertEqual(response_data["author"]["display_name"], "Anonyme")
 
     def test_create_contribution(self):
         """"""

@@ -97,8 +97,9 @@ def sql_query(code_area):
            SELECT coalesce(json_agg(
                json_build_object(
                    'id', u.id,
+                   'username', u.username,
                    'organization_name', org.name,
-                   'username', u.username
+                   'organization_short_name', org.short_name
                ) ORDER BY u.id
            ), '[]'::json)
            FROM batid_buildingvalidatedbyreadonly v
