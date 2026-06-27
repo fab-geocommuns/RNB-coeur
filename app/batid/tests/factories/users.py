@@ -1,5 +1,5 @@
 import factory
-from api_alpha.permissions import RNBContributorPermission
+from api_alpha.permissions import RNBContributorPermission, RNBReviewerPermission
 from batid.models import UserProfile
 from django.contrib.auth.models import Group, User
 from rest_framework.authtoken.models import Token
@@ -35,6 +35,17 @@ class ContributorUserFactory(UserFactory):
         if create:
             group, created = Group.objects.get_or_create(
                 name=RNBContributorPermission.group_name
+            )
+            self.groups.add(group)
+            self.save()
+
+
+class ReviewerUserFactory(UserFactory):
+    @factory.post_generation
+    def add_to_reviewers_group(self, create, extracted, **kwargs):
+        if create:
+            group, created = Group.objects.get_or_create(
+                name=RNBReviewerPermission.group_name
             )
             self.groups.add(group)
             self.save()

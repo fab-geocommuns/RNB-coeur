@@ -1,3 +1,4 @@
+from api_alpha.serializers.edition_annotation import EditionAnnotationSerializer
 from api_alpha.serializers.serializers import ExtIdSerializer, RNBIdField
 from batid.utils.misc import ext_ids_equal
 from rest_framework import serializers
@@ -98,6 +99,15 @@ class BuildingEventSerializer(serializers.Serializer):
             instance_copy["details"] = {"updated_fields": ["is_active"]}
         elif instance_copy["type"] == "reactivation":
             instance_copy["details"] = {"updated_fields": ["is_active"]}
+
+        # Reviewer annotations attached to this edition (event_id).
+        # The annotations are preloaded by the view and grouped by event_id in the
+        # context to avoid a N+1 query.
+        annotations_by_event_id = self.context.get("annotations_by_event_id", {})
+        event_annotations = annotations_by_event_id.get(str(instance_copy["id"]), [])
+        instance_copy["annotations"] = EditionAnnotationSerializer(
+            event_annotations, many=True
+        ).data
 
         return instance_copy
 
