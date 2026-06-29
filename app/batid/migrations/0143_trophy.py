@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0141_remove_summerchallenge_score_and_more"),
+        ("batid", "0142_alter_organization_short_name"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
