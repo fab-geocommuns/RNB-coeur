@@ -14,6 +14,7 @@ from api_alpha.endpoints.buildings.single_building import (
     SingleBuilding,
     SingleBuildingHistory,
 )
+from api_alpha.endpoints.buildings.get_buildings_matching_geometry import BuildingsMatchingGeometryView
 from api_alpha.endpoints.debug import RaiseExceptionView
 from api_alpha.endpoints.ogc.views import (
     OGCBuildingItemsView,
@@ -92,6 +93,7 @@ urlpatterns = [
     path("organization_names", OrganizationView.as_view()),
     # Buildings
     path("buildings/", ListCreateBuildings.as_view()),
+    path("buildings/fromgeometry/", BuildingsMatchingGeometryView.as_view()),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
     path("buildings/address/", BuildingAddressView.as_view()),

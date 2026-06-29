@@ -16,6 +16,7 @@ from django.db.models import (
 )
 from django.db.models.lookups import Exact, In
 from django.shortcuts import get_object_or_404
+from django.contrib.gis.geos import GEOSGeometry
 
 
 def list_bdgs(params, only_active=True) -> QuerySet:
@@ -105,6 +106,15 @@ def list_bdgs(params, only_active=True) -> QuerySet:
         qs = qs.filter(addresses_read_only__id=cle_interop_ban)
         qs = qs.order_by("created_at")
 
+    # #######################
+    # Polygonal geometry filter
+    input_geometry = params.get("geom", None)
+    if input_geometry:
+        poly = GEOSGeometry(input_geometry, srid=4326)
+        qs = qs.filter(shape__intersects=poly)
+        # We have to order by created_at to avoid pagination issues on geographic queries
+        qs = qs.order_by("created_at")
+        
     # #######################
     # With plots (adding plots ids to the buildings
     with_plots = params.get("with_plots", False)

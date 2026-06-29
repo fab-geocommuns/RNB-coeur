@@ -109,7 +109,8 @@ class BuildingSerializer(serializers.ModelSerializer):
     )
     ext_ids = ExtIdSerializer(many=True, read_only=True)
     plots = serializers.JSONField(read_only=True)
-
+    iou = serializers.FloatField(read_only=True)
+    
     class Meta:
         model = Building
         fields = [
@@ -121,6 +122,7 @@ class BuildingSerializer(serializers.ModelSerializer):
             "ext_ids",
             "is_active",
             "plots",
+            "iou",
         ]
 
 
@@ -413,6 +415,9 @@ class BuildingUpdateSerializer(serializers.Serializer):
 
         return data
 
+
+class BuildingsMatchingGeometryQuerySerializer(serializers.Serializer):
+    geom = serializers.CharField(required=True, validators=[shape_is_valid])
 
 class BuildingCreateSerializerCore(serializers.Serializer):
     status = serializers.ChoiceField(
