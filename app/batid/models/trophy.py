@@ -84,6 +84,26 @@ class Trophy(models.Model):
         SUPERV_LABEL: "superV",
     }
 
+    # Human-readable explanation of how to earn each trophy, exposed by the trophies
+    # endpoint as `description`. Single source of truth for the trophy descriptions.
+    TROPHY_DESCRIPTIONS = {
+        VALIDATEUR_LABEL: (
+            "Gagnez ce trophée en validant des bâtiments dans le RNB. Plus vous "
+            "validez, plus votre niveau augmente."
+        ),
+        COURSE_DE_FOND_LABEL: (
+            "Gagnez ce trophée en validant des bâtiments pendant plusieurs jours consécutifs."
+        ),
+        TOUR_DE_FRANCE_LABEL: (
+            "Gagnez ce trophée en validant des bâtiments dans les villes-étapes du "
+            "Tour de France 2026."
+        ),
+        SUPERV_LABEL: (
+            "Gagnez ce trophée en étant la personne qui a fait le plus de validation "
+            "dans le RNB."
+        ),
+    }
+
     # Human-readable name of each (label, level) pair, exposed by the trophies endpoint
     # as `level_label`. The thresholds above stay numeric; this mapping is the single
     # source of truth for the per-level display names.
@@ -112,10 +132,22 @@ class Trophy(models.Model):
         return cls.TROPHY_LABELS.get(label)
 
     @classmethod
+    def trophy_description(cls, label):
+        """Return the explanation of how to earn a trophy, or None when undefined."""
+        return cls.TROPHY_DESCRIPTIONS.get(label)
+
+    @classmethod
     def level_label(cls, label, level):
         """Return the human-readable name of a (label, level) pair, or None when no
         name is defined."""
         return cls.LEVEL_LABELS.get(label, {}).get(level)
+
+    @classmethod
+    def levels(cls, label):
+        """Return the ordered list of levels a trophy can reach. Multi-level trophies
+        expose their levels through LEVEL_LABELS; single-level trophies (e.g. 'superv')
+        default to [1]."""
+        return sorted(cls.LEVEL_LABELS.get(label, {}).keys()) or [1]
 
     @staticmethod
     def check_and_award_all(user):

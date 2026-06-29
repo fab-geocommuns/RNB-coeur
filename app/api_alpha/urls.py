@@ -37,6 +37,7 @@ from api_alpha.endpoints.tiles.building_vector_tile import (
 )
 from api_alpha.endpoints.tiles.plots_vector_tile import PlotsVectorTileView
 from api_alpha.endpoints.tiles.report_vector_tile import ReportVectorTileView
+from api_alpha.endpoints.trophies import TrophiesView
 from api_alpha.endpoints.user.trophies import UserTrophiesView
 from api_alpha.views import (
     ActivateUser,
@@ -140,6 +141,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("editions/ranking/", LeaderboardView.as_view()),
     path("feves/", FevesView.as_view()),
     path("editions/ranking/<str:username>/", UserScoreView.as_view()),
+    path("trophies/", TrophiesView.as_view()),
     path("user/<str:username>/trophies/", UserTrophiesView.as_view()),
     # Reports
     path("reports/", CreateReportView.as_view()),
