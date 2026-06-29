@@ -259,11 +259,6 @@ def _get_components() -> dict:
                 "properties": {
                     "id": {"type": "integer", "example": 1},
                     "username": {"type": "string", "example": "n.martin"},
-                    "display_name": {
-                        "type": "string",
-                        "description": "Nom à afficher pour l'utilisateur. Il s'agit de son nom d'utilisateur.",
-                        "example": "n.martin",
-                    },
                     "organization_name": {
                         "type": "string",
                         "description": "Nom de l'organisation à laquelle appartient l'utilisateur. Cette information est gérée et vérifiée par l'équipe du RNB.",

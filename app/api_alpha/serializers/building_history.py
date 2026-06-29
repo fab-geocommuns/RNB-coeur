@@ -29,7 +29,6 @@ class PlainPublicUserSerializer(serializers.Serializer):
 
     id = serializers.IntegerField()
     username = serializers.CharField()
-    display_name = serializers.CharField()
     organization_name = serializers.CharField()
     organization_short_name = serializers.CharField()
 
