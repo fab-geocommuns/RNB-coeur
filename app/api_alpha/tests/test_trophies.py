@@ -12,7 +12,8 @@ class TrophiesViewTest(APITestCase):
         Input: no trophy has been awarded to anyone.
         Expected: 200; the 4 earnable trophies are listed in order, each with its
         trophy_label, a description, a total count of 0 and every level (with
-        level_label) at count 0. 'superv' has a single, unnamed level.
+        level_label and unlock condition) at count 0. 'superv' has a single,
+        unnamed level.
         """
         r = self.client.get("/api/alpha/trophies/")
 
@@ -29,9 +30,24 @@ class TrophiesViewTest(APITestCase):
         self.assertEqual(
             validateur["levels"],
             [
-                {"level": 1, "level_label": "apprenti", "count": 0},
-                {"level": 2, "level_label": "maçon", "count": 0},
-                {"level": 3, "level_label": "entreprise du bâtiment", "count": 0},
+                {
+                    "level": 1,
+                    "level_label": "apprenti",
+                    "condition": "Valider 10 bâtiments.",
+                    "count": 0,
+                },
+                {
+                    "level": 2,
+                    "level_label": "maçon",
+                    "condition": "Valider 100 bâtiments.",
+                    "count": 0,
+                },
+                {
+                    "level": 3,
+                    "level_label": "entreprise du bâtiment",
+                    "condition": "Valider 500 bâtiments.",
+                    "count": 0,
+                },
             ],
         )
 
@@ -43,7 +59,15 @@ class TrophiesViewTest(APITestCase):
             "dans le RNB.",
         )
         self.assertEqual(
-            superv["levels"], [{"level": 1, "level_label": None, "count": 0}]
+            superv["levels"],
+            [
+                {
+                    "level": 1,
+                    "level_label": None,
+                    "condition": "Être la personne ayant réalisé le plus de validations dans le RNB.",
+                    "count": 0,
+                }
+            ],
         )
 
     def test_counts_distinct_users_per_trophy_and_level(self):

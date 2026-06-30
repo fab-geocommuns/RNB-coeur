@@ -34,6 +34,7 @@ class TrophiesView(APIView):
                     {
                         "level": level,
                         "level_label": Trophy.level_label(label, level),
+                        "condition": Trophy.level_condition(label, level),
                         "count": level_counts.get((label, level), 0),
                     }
                     for level in Trophy.levels(label)

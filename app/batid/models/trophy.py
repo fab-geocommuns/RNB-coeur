@@ -126,6 +126,30 @@ class Trophy(models.Model):
         },
     }
 
+    # Human-readable condition to unlock each (label, level) pair, exposed by the
+    # trophies endpoint as `condition`. Mirrors the numeric *_THRESHOLDS above; kept
+    # as explicit text so the French phrasing reads naturally for each trophy.
+    LEVEL_CONDITIONS = {
+        VALIDATEUR_LABEL: {
+            1: "Valider 10 bâtiments.",
+            2: "Valider 100 bâtiments.",
+            3: "Valider 500 bâtiments.",
+        },
+        COURSE_DE_FOND_LABEL: {
+            1: "Valider des bâtiments 7 jours d'affilée.",
+            2: "Valider des bâtiments 21 jours d'affilée.",
+            3: "Valider des bâtiments 42 jours d'affilée.",
+        },
+        TOUR_DE_FRANCE_LABEL: {
+            1: "Valider des bâtiments dans 5 villes-étapes du Tour de France 2026.",
+            2: "Valider des bâtiments dans 15 villes-étapes du Tour de France 2026.",
+            3: "Valider des bâtiments dans toutes les villes-étapes du Tour de France 2026.",
+        },
+        SUPERV_LABEL: {
+            1: "Être la personne ayant réalisé le plus de validations dans le RNB.",
+        },
+    }
+
     @classmethod
     def trophy_label(cls, label):
         """Return the human-readable name of a trophy, or None when undefined."""
@@ -141,6 +165,12 @@ class Trophy(models.Model):
         """Return the human-readable name of a (label, level) pair, or None when no
         name is defined."""
         return cls.LEVEL_LABELS.get(label, {}).get(level)
+
+    @classmethod
+    def level_condition(cls, label, level):
+        """Return the human-readable condition to unlock a (label, level) pair, or
+        None when no condition is defined."""
+        return cls.LEVEL_CONDITIONS.get(label, {}).get(level)
 
     @classmethod
     def levels(cls, label):
