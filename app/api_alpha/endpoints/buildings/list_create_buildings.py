@@ -345,8 +345,8 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
 
         output_serializer = BuildingSerializer(created_building, with_plots=True)
         response_data = dict(output_serializer.data)
+        # a validation may unlock new trophies; they are awarded in the database but
+        # not returned here. The user retrieves them via the user trophies endpoint.
         if data.get("is_valid"):
-            trophies = Trophy.check_and_award_all(user)
-            if trophies:
-                response_data["trophies"] = trophies
+            Trophy.check_and_award_all(user)
         return Response(response_data, status=http_status.HTTP_201_CREATED)
