@@ -1,7 +1,8 @@
 import json
+import uuid
 from unittest import mock
 
-from batid.models import Address, Building, Contribution
+from batid.models import Address, Building, Contribution, SummerChallenge, Trophy
 from batid.tests.factories.users import ContributorUserFactory
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
@@ -669,6 +670,16 @@ class BuildingPatchValidateTest(APITestCase):
             validated_by=[],
         )
 
+        # Make `other_user` the clear validation leader so that a single validation
+        # by `self.user` never awards the transferable SuperV badge in these tests.
+        for _ in range(30):
+            SummerChallenge.objects.create(
+                user=self.other_user,
+                action="validation",
+                rnb_id="RNBTESTID000",
+                event_id=uuid.uuid4(),
+            )
+
     def test_is_valid_true_alone(self):
         """
         Input: PATCH with only `is_valid=True`, building's validated_by is empty.
@@ -794,3 +805,48 @@ class BuildingPatchValidateTest(APITestCase):
         self.assertEqual(r.status_code, 400)
         self.building.refresh_from_db()
         self.assertEqual(self.building.validated_by, [])
+
+    def test_validation_unlocks_trophy(self):
+        """
+        Input: user already has 9 validations; PATCH with `is_valid=True`
+        (the 10th validation).
+        Expected: 204 (trophies are no longer returned in the response); the
+        'validateur' level 1 Trophy is awarded in the database.
+        """
+        for _ in range(9):
+            SummerChallenge.objects.create(
+                user=self.user,
+                action="validation",
+                rnb_id="RNBTESTID000",
+                event_id=uuid.uuid4(),
+            )
+
+        data = {"is_valid": True, "comment": "ok"}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.assertTrue(
+            Trophy.objects.filter(
+                user=self.user, trophy_type="validateur", level=1
+            ).exists()
+        )
+
+    def test_validation_below_threshold_returns_204(self):
+        """
+        Input: the requesting user PATCHes with `is_valid=True` (1st validation, below
+        every threshold; `other_user` is the validation leader, see setUp).
+        Expected: 204 with no body; no Trophy awarded to the user.
+        """
+        data = {"is_valid": True, "comment": "ok"}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.assertFalse(Trophy.objects.filter(user=self.user).exists())
