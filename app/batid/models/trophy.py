@@ -131,22 +131,22 @@ class Trophy(models.Model):
     # as explicit text so the French phrasing reads naturally for each trophy.
     LEVEL_CONDITIONS = {
         VALIDATEUR_LABEL: {
-            1: "Valider 10 bâtiments.",
-            2: "Valider 100 bâtiments.",
-            3: "Valider 500 bâtiments.",
+            1: "Valider 10 bâtiments",
+            2: "Valider 100 bâtiments",
+            3: "Valider 500 bâtiments",
         },
         COURSE_DE_FOND_LABEL: {
-            1: "Valider des bâtiments 7 jours d'affilée.",
-            2: "Valider des bâtiments 21 jours d'affilée.",
-            3: "Valider des bâtiments 42 jours d'affilée.",
+            1: "Valider des bâtiments 7 jours d'affilée",
+            2: "Valider des bâtiments 21 jours d'affilée",
+            3: "Valider des bâtiments 42 jours d'affilée",
         },
         TOUR_DE_FRANCE_LABEL: {
-            1: "Valider des bâtiments dans 5 villes-étapes du Tour de France 2026.",
-            2: "Valider des bâtiments dans 15 villes-étapes du Tour de France 2026.",
-            3: "Valider des bâtiments dans toutes les villes-étapes du Tour de France 2026.",
+            1: "Valider des bâtiments dans 5 villes-étapes du Tour de France 2026",
+            2: "Valider des bâtiments dans 15 villes-étapes du Tour de France 2026",
+            3: "Valider des bâtiments dans toutes les villes-étapes du Tour de France 2026",
         },
         SUPERV_LABEL: {
-            1: "Être la personne ayant réalisé le plus de validations dans le RNB.",
+            1: "Trophé unique : être la personne ayant réalisé le plus de validations dans le RNB... et le rester",
         },
     }
 

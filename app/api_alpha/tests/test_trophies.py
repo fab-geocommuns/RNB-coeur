@@ -33,19 +33,19 @@ class TrophiesViewTest(APITestCase):
                 {
                     "level": 1,
                     "level_label": "apprenti",
-                    "condition": "Valider 10 bâtiments.",
+                    "condition": "Valider 10 bâtiments",
                     "count": 0,
                 },
                 {
                     "level": 2,
                     "level_label": "maçon",
-                    "condition": "Valider 100 bâtiments.",
+                    "condition": "Valider 100 bâtiments",
                     "count": 0,
                 },
                 {
                     "level": 3,
                     "level_label": "entreprise du bâtiment",
-                    "condition": "Valider 500 bâtiments.",
+                    "condition": "Valider 500 bâtiments",
                     "count": 0,
                 },
             ],
@@ -64,7 +64,7 @@ class TrophiesViewTest(APITestCase):
                 {
                     "level": 1,
                     "level_label": None,
-                    "condition": "Être la personne ayant réalisé le plus de validations dans le RNB.",
+                    "condition": "Être la personne ayant réalisé le plus de validations dans le RNB",
                     "count": 0,
                 }
             ],
