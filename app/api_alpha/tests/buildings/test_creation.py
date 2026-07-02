@@ -1,7 +1,8 @@
 import json
+import uuid
 from unittest import mock
 
-from batid.models import Address, Building, Contribution
+from batid.models import Address, Building, Contribution, SummerChallenge, Trophy
 from batid.tests.factories.users import ContributorUserFactory
 from django.test import override_settings
 from rest_framework.authtoken.models import Token
@@ -322,3 +323,51 @@ class BuildingPostIsValidTest(APITestCase):
         self.assertEqual(r.status_code, 201)
         building = Building.objects.get(rnb_id=r.json()["rnb_id"])
         self.assertEqual(building.validated_by, [])
+
+    def test_create_validation_unlocks_trophy(self):
+        """
+        Input: user already has 9 validations, POST a building with `is_valid=True`
+        (the 10th validation).
+        Expected: 201 (trophies are no longer returned in the response); the
+        'validateur' level 1 Trophy is awarded in the database.
+        """
+        for _ in range(9):
+            SummerChallenge.objects.create(
+                user=self.user,
+                action="validation",
+                rnb_id="RNBTESTID000",
+                event_id=uuid.uuid4(),
+            )
+
+        r = self._post({**self.data, "is_valid": True})
+
+        self.assertEqual(r.status_code, 201)
+        self.assertNotIn("trophies", r.json())
+        self.assertTrue(
+            Trophy.objects.filter(
+                user=self.user, trophy_type="validateur", level=1
+            ).exists()
+        )
+
+    def test_create_validation_below_threshold_no_trophy(self):
+        """
+        Input: another user already leads with 5 validations; the requesting user
+        POSTs a single building with `is_valid=True` (1st validation, below every
+        threshold and not the validation leader).
+        Expected: 201 with no `trophies` field in the response; no Trophy awarded
+        to the user.
+        """
+        leader = ContributorUserFactory(username="leader")
+        for _ in range(5):
+            SummerChallenge.objects.create(
+                user=leader,
+                action="validation",
+                rnb_id="RNBTESTID000",
+                event_id=uuid.uuid4(),
+            )
+
+        r = self._post({**self.data, "is_valid": True})
+
+        self.assertEqual(r.status_code, 201)
+        self.assertNotIn("trophies", r.json())
+        self.assertFalse(Trophy.objects.filter(user=self.user).exists())

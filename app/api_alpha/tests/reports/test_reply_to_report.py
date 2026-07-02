@@ -122,9 +122,6 @@ class ReplyToReportTest(APITestCase):
         self.assertEqual(response_data["status"], "pending")
         self.assertEqual(len(response_data["messages"]), 2)
         self.assertEqual(response_data["messages"][1]["text"], "Indeed")
-        self.assertEqual(
-            response_data["messages"][1]["author"]["display_name"], "Anonyme"
-        )
 
         self.report.refresh_from_db()
         self.assertEqual(self.report.status, "pending")

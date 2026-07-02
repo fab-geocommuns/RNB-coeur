@@ -32,6 +32,9 @@ from api_alpha.endpoints.reports.reply_to_report import ReplyToReportView
 from api_alpha.endpoints.reports.stats import ReportStatsView
 from api_alpha.endpoints.summer_challenge.leaderboard import FevesView, LeaderboardView
 from api_alpha.endpoints.summer_challenge.user_score import UserScoreView
+from api_alpha.endpoints.summer_challenge.validation_ranking import (
+    ValidationRankingView,
+)
 from api_alpha.endpoints.tiles.ads_vector_tile import ADSVectorTileView
 from api_alpha.endpoints.tiles.building_vector_tile import (
     BuildingsShapeVectorTileView,
@@ -39,6 +42,8 @@ from api_alpha.endpoints.tiles.building_vector_tile import (
 )
 from api_alpha.endpoints.tiles.plots_vector_tile import PlotsVectorTileView
 from api_alpha.endpoints.tiles.report_vector_tile import ReportVectorTileView
+from api_alpha.endpoints.trophies import TrophiesView
+from api_alpha.endpoints.user.trophies import UserTrophiesView
 from api_alpha.views import (
     ActivateUser,
     ADSViewSet,
@@ -139,8 +144,11 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("auth/pro_connect/logout/callback/", LogoutCallbackView.as_view()),
     path("auth/pro_connect/logout/", LogoutView.as_view()),
     path("editions/ranking/", LeaderboardView.as_view()),
+    path("validation/ranking/", ValidationRankingView.as_view()),
     path("feves/", FevesView.as_view()),
     path("editions/ranking/<str:username>/", UserScoreView.as_view()),
+    path("trophies/", TrophiesView.as_view()),
+    path("user/<str:username>/trophies/", UserTrophiesView.as_view()),
     # Reports
     path("reports/", CreateReportView.as_view()),
     path(
