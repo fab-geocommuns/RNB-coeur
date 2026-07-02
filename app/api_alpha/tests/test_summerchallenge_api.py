@@ -168,11 +168,12 @@ class TestSummerChallengeRanking(APITestCase):
             - user_3: 1 creation (ignored)
         Expected: global=6 and rankings (capped by max_rank) by user,
         department and organization, ordered by descending score. The
-        organization ranking only counts users having an organization, and the
-        department ranking only counts rows with a department.
+        organization ranking only counts users having an organization and
+        includes the organization short_name, and the department ranking only
+        counts rows with a department.
         """
-        org_a = Organization.objects.create(name="org_a")
-        org_b = Organization.objects.create(name="org_b")
+        org_a = Organization.objects.create(name="org_a", short_name="a")
+        org_b = Organization.objects.create(name="org_b", short_name="b")
 
         user_1 = ContributorUserFactory(username="user_1")
         user_2 = ContributorUserFactory(username="user_2")
@@ -212,9 +213,19 @@ class TestSummerChallengeRanking(APITestCase):
             r.json(),
             {
                 "global": 6,
-                "individual": [["user_1", 3], ["user_2", 2], ["user_3", 1]],
-                "departement": [["01", "Ain", 3], ["02", "Deux", 2]],
-                "organization": [["org_a", 3], ["org_b", 2]],
+                "individual": [
+                    {"username": "user_1", "rank": 3},
+                    {"username": "user_2", "rank": 2},
+                    {"username": "user_3", "rank": 1},
+                ],
+                "departement": [
+                    {"code": "01", "name": "Ain", "rank": 3},
+                    {"code": "02", "name": "Deux", "rank": 2},
+                ],
+                "organization": [
+                    {"name": "org_a", "short_name": "a", "rank": 3},
+                    {"name": "org_b", "short_name": "b", "rank": 2},
+                ],
             },
         )
 
@@ -224,8 +235,8 @@ class TestSummerChallengeRanking(APITestCase):
             r.json(),
             {
                 "global": 6,
-                "individual": [["user_1", 3]],
-                "departement": [["01", "Ain", 3]],
-                "organization": [["org_a", 3]],
+                "individual": [{"username": "user_1", "rank": 3}],
+                "departement": [{"code": "01", "name": "Ain", "rank": 3}],
+                "organization": [{"name": "org_a", "short_name": "a", "rank": 3}],
             },
         )
