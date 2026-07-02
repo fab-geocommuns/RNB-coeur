@@ -7,6 +7,11 @@ from django.db.models.functions import TruncDate
 
 
 class Trophy(models.Model):
+    """
+    Each row represents of trophy won by a user, with the corresponding timestamp and the
+    trophy level.
+    """
+
     label = models.CharField(max_length=50, null=False, db_index=True)
     user = models.ForeignKey(User, on_delete=models.PROTECT, null=False, db_index=True)
     level = models.PositiveIntegerField(null=False)
