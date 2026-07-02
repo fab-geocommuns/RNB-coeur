@@ -453,6 +453,23 @@ def close_irrelevant_reports():
     reject_irrelevant_arcep_reports()
 
 
+# shared_task is the outermost decorator so the module attribute is a real Celery
+# task exposing .delay() (called from the reply view). notify_if_error wraps the
+# body to report failures, after the retries are exhausted.
+@shared_task(
+    name="batid.tasks.send_report_activity_notification",
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 3},
+)
+@notify_if_error
+def send_report_activity_notification(
+    report_id, action, actor_user_id, actor_email, message_id
+):
+    from batid.services.reports.notifications import notify_report_author
+
+    notify_report_author(report_id, action, actor_user_id, actor_email, message_id)
+
+
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def flag_addresses_from_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
