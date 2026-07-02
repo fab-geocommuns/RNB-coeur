@@ -54,71 +54,93 @@ def compute_today_kpis(external_calls=True):
 
     # Active buildings
     active_bdgs_count = count_active_buildings()
-    KPI.objects.create(
-        name=KPI_ACTIVE_BUILDINGS_COUNT, value=active_bdgs_count, value_date=today
+    KPI.objects.update_or_create(
+        name=KPI_ACTIVE_BUILDINGS_COUNT,
+        value_date=today,
+        defaults={"value": active_bdgs_count},
     )
 
     # Real buildings
     real_bdgs_count = count_real_buildings()
-    KPI.objects.create(
-        name=KPI_REAL_BUILDINGS_COUNT, value=real_bdgs_count, value_date=today
+    KPI.objects.update_or_create(
+        name=KPI_REAL_BUILDINGS_COUNT,
+        value_date=today,
+        defaults={"value": real_bdgs_count},
     )
 
     # Real buildings without addresses
     real_bdgs_wo_addresses_count = count_real_buildings_wo_addresses()
-    KPI.objects.create(
+    KPI.objects.update_or_create(
         name=KPI_REAL_BUILDINGS_WO_ADDRESSES_COUNT,
-        value=real_bdgs_wo_addresses_count,
         value_date=today,
+        defaults={"value": real_bdgs_wo_addresses_count},
     )
 
     # Building - address links
     building_address_links_count = count_building_address_links()
-    KPI.objects.create(
+    KPI.objects.update_or_create(
         name=KPI_BUILDING_ADDRESS_COUNT,
-        value=building_address_links_count,
         value_date=today,
+        defaults={"value": building_address_links_count},
     )
 
     # Editors
     editors_count = count_editors()
-    KPI.objects.create(name=KPI_EDITORS_COUNT, value=editors_count, value_date=today)
+    KPI.objects.update_or_create(
+        name=KPI_EDITORS_COUNT,
+        value_date=today,
+        defaults={"value": editors_count},
+    )
 
     # Edits
     edits_count = count_edits()
-    KPI.objects.create(name=KPI_EDITS_COUNT, value=edits_count, value_date=today)
+    KPI.objects.update_or_create(
+        name=KPI_EDITS_COUNT,
+        value_date=today,
+        defaults={"value": edits_count},
+    )
 
     # Reports
     reports_count = count_reports()
-    KPI.objects.create(name=KPI_REPORTS_COUNT, value=reports_count, value_date=today)
+    KPI.objects.update_or_create(
+        name=KPI_REPORTS_COUNT,
+        value_date=today,
+        defaults={"value": reports_count},
+    )
 
     # Pending reports
     pending_reports_count = count_pending_reports()
-    KPI.objects.create(
+    KPI.objects.update_or_create(
         name=KPI_PENDING_REPORTS_COUNT,
-        value=pending_reports_count,
         value_date=today,
+        defaults={"value": pending_reports_count},
     )
 
     # Fixed reports
     fixed_reports_count = count_fixed_reports()
-    KPI.objects.create(
-        name=KPI_FIXED_REPORTS_COUNT, value=fixed_reports_count, value_date=today
+    KPI.objects.update_or_create(
+        name=KPI_FIXED_REPORTS_COUNT,
+        value_date=today,
+        defaults={"value": fixed_reports_count},
     )
 
     # Refused reports
     refused_reports_count = count_refused_reports()
-    KPI.objects.create(
-        name=KPI_REFUSED_REPORTS_COUNT, value=refused_reports_count, value_date=today
+    KPI.objects.update_or_create(
+        name=KPI_REFUSED_REPORTS_COUNT,
+        value_date=today,
+        defaults={"value": refused_reports_count},
     )
 
     # API requests
     api_requests_count = count_api_requests()
-    KPI.objects.create(
-        name=KPI_API_REQUESTS_COUNT, value=api_requests_count, value_date=today
+    KPI.objects.update_or_create(
+        name=KPI_API_REQUESTS_COUNT,
+        value_date=today,
+        defaults={"value": api_requests_count},
     )
 
-    # Edits by department
+    # Edits by department (no history: one row per dept, overwritten each run)
     for dept_code, count in count_edits_by_department().items():
         KPI.objects.update_or_create(
             name=KPI_EDITS_COUNT_BY_DEPT.format(dept_code),
@@ -129,31 +151,37 @@ def compute_today_kpis(external_calls=True):
     if external_calls:
         views_count, downloads_count = get_data_gouv_stats()
         if views_count is not None:
-            KPI.objects.create(
-                name=KPI_DATA_GOUV_VIEWS, value=views_count, value_date=today
+            KPI.objects.update_or_create(
+                name=KPI_DATA_GOUV_VIEWS,
+                value_date=today,
+                defaults={"value": views_count},
             )
         if downloads_count is not None:
-            KPI.objects.create(
+            KPI.objects.update_or_create(
                 name=KPI_DATA_GOUV_DOWNLOADS,
-                value=downloads_count,
                 value_date=today,
+                defaults={"value": downloads_count},
             )
 
     # Building change stats (import_bdtopo, import_bal, contributions)
     daily_changes = count_building_changes_daily(today)
     bdtopo_count = daily_changes["import_bdtopo"]
-    KPI.objects.create(
-        name=KPI_BUILDING_CHANGES_IMPORT_BDTOPO, value=bdtopo_count, value_date=today
+    KPI.objects.update_or_create(
+        name=KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
+        value_date=today,
+        defaults={"value": bdtopo_count},
     )
     bal_count = daily_changes["import_bal"]
-    KPI.objects.create(
-        name=KPI_BUILDING_CHANGES_IMPORT_BAL, value=bal_count, value_date=today
+    KPI.objects.update_or_create(
+        name=KPI_BUILDING_CHANGES_IMPORT_BAL,
+        value_date=today,
+        defaults={"value": bal_count},
     )
     contributions_count = daily_changes["contributions"]
-    KPI.objects.create(
+    KPI.objects.update_or_create(
         name=KPI_BUILDING_CHANGES_CONTRIBUTIONS,
-        value=contributions_count,
         value_date=today,
+        defaults={"value": contributions_count},
     )
 
 
