@@ -59,9 +59,11 @@ class TestTrophyValidateur(TestCase):
         """Input: 10 validations. Expected: trophy validateur level 1 + 1 Trophy row."""
         _add_validations(self.user, 10)
         trophy = Trophy.check_and_award_validateur(self.user)
-        self.assertEqual(trophy, {"label": "validateur", "level": 1})
+        self.assertEqual(trophy, {"trophy_type": "validateur", "level": 1})
         self.assertEqual(
-            Trophy.objects.filter(user=self.user, label="validateur", level=1).count(),
+            Trophy.objects.filter(
+                user=self.user, trophy_type="validateur", level=1
+            ).count(),
             1,
         )
 
@@ -69,7 +71,7 @@ class TestTrophyValidateur(TestCase):
         """Input: 100 validations. Expected: trophy level 2, levels 1 and 2 both stored."""
         _add_validations(self.user, 100)
         trophy = Trophy.check_and_award_validateur(self.user)
-        self.assertEqual(trophy, {"label": "validateur", "level": 2})
+        self.assertEqual(trophy, {"trophy_type": "validateur", "level": 2})
         self.assertEqual(
             sorted(
                 Trophy.objects.filter(user=self.user).values_list("level", flat=True)
@@ -81,7 +83,7 @@ class TestTrophyValidateur(TestCase):
         """Input: 500 validations. Expected: trophy level 3, levels 1, 2, 3 stored."""
         _add_validations(self.user, 500)
         trophy = Trophy.check_and_award_validateur(self.user)
-        self.assertEqual(trophy, {"label": "validateur", "level": 3})
+        self.assertEqual(trophy, {"trophy_type": "validateur", "level": 3})
         self.assertEqual(
             sorted(
                 Trophy.objects.filter(user=self.user).values_list("level", flat=True)
@@ -134,7 +136,7 @@ class TestTrophyCourseDeFond(TestCase):
         _add_consecutive_days(self.user, NOON_UTC, 7)
         self.assertEqual(
             Trophy.check_and_award_course_de_fond(self.user),
-            {"label": "course_de_fond", "level": 1},
+            {"trophy_type": "course_de_fond", "level": 1},
         )
 
     def test_twenty_one_consecutive_days_awards_level_2(self):
@@ -142,7 +144,7 @@ class TestTrophyCourseDeFond(TestCase):
         _add_consecutive_days(self.user, NOON_UTC, 21)
         self.assertEqual(
             Trophy.check_and_award_course_de_fond(self.user),
-            {"label": "course_de_fond", "level": 2},
+            {"trophy_type": "course_de_fond", "level": 2},
         )
 
     def test_forty_two_consecutive_days_awards_level_3(self):
@@ -150,7 +152,7 @@ class TestTrophyCourseDeFond(TestCase):
         _add_consecutive_days(self.user, NOON_UTC, 42)
         self.assertEqual(
             Trophy.check_and_award_course_de_fond(self.user),
-            {"label": "course_de_fond", "level": 3},
+            {"trophy_type": "course_de_fond", "level": 3},
         )
 
     def test_gap_breaks_streak(self):
@@ -160,7 +162,7 @@ class TestTrophyCourseDeFond(TestCase):
         _add_consecutive_days(self.user, NOON_UTC + datetime.timedelta(days=6), 7)
         self.assertEqual(
             Trophy.check_and_award_course_de_fond(self.user),
-            {"label": "course_de_fond", "level": 1},
+            {"trophy_type": "course_de_fond", "level": 1},
         )
 
     def test_multiple_validations_same_day_count_once(self):
@@ -197,7 +199,7 @@ class TestTrophyTourDeFrance(TestCase):
         with mock.patch.object(Trophy, "TOUR_DE_FRANCE_2026_INSEE_CODES", self.CODES):
             self.assertEqual(
                 Trophy.check_and_award_tour_de_france(self.user),
-                {"label": "tour_de_france", "level": 1},
+                {"trophy_type": "tour_de_france", "level": 1},
             )
 
     def test_fifteen_cities_awards_level_2(self):
@@ -206,7 +208,7 @@ class TestTrophyTourDeFrance(TestCase):
         with mock.patch.object(Trophy, "TOUR_DE_FRANCE_2026_INSEE_CODES", self.CODES):
             self.assertEqual(
                 Trophy.check_and_award_tour_de_france(self.user),
-                {"label": "tour_de_france", "level": 2},
+                {"trophy_type": "tour_de_france", "level": 2},
             )
 
     def test_all_cities_awards_level_3(self):
@@ -215,7 +217,7 @@ class TestTrophyTourDeFrance(TestCase):
         with mock.patch.object(Trophy, "TOUR_DE_FRANCE_2026_INSEE_CODES", self.CODES):
             self.assertEqual(
                 Trophy.check_and_award_tour_de_france(self.user),
-                {"label": "tour_de_france", "level": 3},
+                {"trophy_type": "tour_de_france", "level": 3},
             )
 
     def test_same_city_counted_once(self):
@@ -251,10 +253,10 @@ class TestTrophySuperV(TestCase):
 
         self.assertEqual(
             Trophy.check_and_award_superv(self.user_a),
-            {"label": "superv", "level": 1},
+            {"trophy_type": "superv", "level": 1},
         )
         self.assertIsNone(Trophy.check_and_award_superv(self.user_b))
-        self.assertEqual(Trophy.objects.filter(label="superv").count(), 1)
+        self.assertEqual(Trophy.objects.filter(trophy_type="superv").count(), 1)
 
     def test_badge_transfers_to_new_leader(self):
         """Input: A leads (5) and holds superv, then B overtakes with 7. Expected:
@@ -266,10 +268,12 @@ class TestTrophySuperV(TestCase):
         _add_validations(self.user_b, 4)  # B now has 7
         self.assertEqual(
             Trophy.check_and_award_superv(self.user_b),
-            {"label": "superv", "level": 1},
+            {"trophy_type": "superv", "level": 1},
         )
-        self.assertEqual(Trophy.objects.filter(label="superv").count(), 1)
-        self.assertEqual(Trophy.objects.get(label="superv").user_id, self.user_b.id)
+        self.assertEqual(Trophy.objects.filter(trophy_type="superv").count(), 1)
+        self.assertEqual(
+            Trophy.objects.get(trophy_type="superv").user_id, self.user_b.id
+        )
 
     def test_current_holder_gets_nothing(self):
         """Input: A is the leader and already holds superv; called again. Expected:
@@ -277,12 +281,12 @@ class TestTrophySuperV(TestCase):
         _add_validations(self.user_a, 5)
         Trophy.check_and_award_superv(self.user_a)
         self.assertIsNone(Trophy.check_and_award_superv(self.user_a))
-        self.assertEqual(Trophy.objects.filter(label="superv").count(), 1)
+        self.assertEqual(Trophy.objects.filter(trophy_type="superv").count(), 1)
 
     def test_no_validations_awards_nothing(self):
         """Input: no validations at all. Expected: None, no superv row."""
         self.assertIsNone(Trophy.check_and_award_superv(self.user_a))
-        self.assertEqual(Trophy.objects.filter(label="superv").count(), 0)
+        self.assertEqual(Trophy.objects.filter(trophy_type="superv").count(), 0)
 
 
 class TestTrophyCheckAndAwardAll(TestCase):
@@ -294,8 +298,8 @@ class TestTrophyCheckAndAwardAll(TestCase):
         Expected: list contains both 'validateur' level 1 and 'superv' level 1."""
         _add_validations(self.user, 10)
         results = Trophy.check_and_award_all(self.user)
-        self.assertIn({"label": "validateur", "level": 1}, results)
-        self.assertIn({"label": "superv", "level": 1}, results)
+        self.assertIn({"trophy_type": "validateur", "level": 1}, results)
+        self.assertIn({"trophy_type": "superv", "level": 1}, results)
 
     def test_returns_empty_when_nothing_unlocked(self):
         """Input: another user leads with more validations; this user has 1 validation.

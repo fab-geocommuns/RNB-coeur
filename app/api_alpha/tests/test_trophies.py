@@ -64,7 +64,7 @@ class TrophiesViewTest(APITestCase):
                 {
                     "level": 1,
                     "level_label": None,
-                    "condition": "Être la personne ayant réalisé le plus de validations dans le RNB",
+                    "condition": "Trophée unique : être la personne ayant réalisé le plus de validations dans le RNB... et le rester",
                     "count": 0,
                 }
             ],
@@ -79,11 +79,11 @@ class TrophiesViewTest(APITestCase):
         """
         user_a = ContributorUserFactory(username="a")
         user_b = ContributorUserFactory(username="b")
-        Trophy.objects.create(user=user_a, label="validateur", level=1)
-        Trophy.objects.create(user=user_a, label="validateur", level=2)
-        Trophy.objects.create(user=user_a, label="course_de_fond", level=1)
-        Trophy.objects.create(user=user_b, label="validateur", level=1)
-        Trophy.objects.create(user=user_b, label="superv", level=1)
+        Trophy.objects.create(user=user_a, trophy_type="validateur", level=1)
+        Trophy.objects.create(user=user_a, trophy_type="validateur", level=2)
+        Trophy.objects.create(user=user_a, trophy_type="course_de_fond", level=1)
+        Trophy.objects.create(user=user_b, trophy_type="validateur", level=1)
+        Trophy.objects.create(user=user_b, trophy_type="superv", level=1)
 
         r = self.client.get("/api/alpha/trophies/")
 

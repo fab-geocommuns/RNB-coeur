@@ -10,36 +10,36 @@ class TrophiesView(APIView):
     earned it (all levels combined) and the breakdown per level."""
 
     def get(self, request: Request) -> Response:
-        # distinct user counts, in two grouped queries (per label and per level)
+        # distinct user counts, in two grouped queries (per trophy_type and per level)
         trophy_counts = {
-            row["label"]: row["count"]
-            for row in Trophy.objects.values("label").annotate(
+            row["trophy_type"]: row["count"]
+            for row in Trophy.objects.values("trophy_type").annotate(
                 count=Count("user", distinct=True)
             )
         }
         level_counts = {
-            (row["label"], row["level"]): row["count"]
-            for row in Trophy.objects.values("label", "level").annotate(
+            (row["trophy_type"], row["level"]): row["count"]
+            for row in Trophy.objects.values("trophy_type", "level").annotate(
                 count=Count("user", distinct=True)
             )
         }
 
         data = [
             {
-                "trophy": label,
-                "trophy_label": Trophy.trophy_label(label),
-                "description": Trophy.trophy_description(label),
-                "count": trophy_counts.get(label, 0),
+                "trophy": t.trophy_type,
+                "trophy_label": t.label,
+                "description": t.description,
+                "count": trophy_counts.get(t.trophy_type, 0),
                 "levels": [
                     {
-                        "level": level,
-                        "level_label": Trophy.level_label(label, level),
-                        "condition": Trophy.level_condition(label, level),
-                        "count": level_counts.get((label, level), 0),
+                        "level": lvl.level,
+                        "level_label": lvl.label,
+                        "condition": lvl.condition,
+                        "count": level_counts.get((t.trophy_type, lvl.level), 0),
                     }
-                    for level in Trophy.levels(label)
+                    for lvl in t.levels
                 ],
             }
-            for label in Trophy.TROPHY_LABELS
+            for t in Trophy.TROPHY_DEFS
         ]
         return Response(data)

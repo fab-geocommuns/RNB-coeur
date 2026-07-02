@@ -6,10 +6,10 @@ from batid.tests.factories.users import ContributorUserFactory
 from rest_framework.test import APITestCase
 
 
-def _award(user, label, level, unlocked_at=None):
+def _award(user, trophy_type, level, unlocked_at=None):
     """Create a Trophy for `user`; force level_unlocked_at to `unlocked_at` when given
     (the field is auto_now_add, hence the post-create UPDATE)."""
-    trophy = Trophy.objects.create(user=user, label=label, level=level)
+    trophy = Trophy.objects.create(user=user, trophy_type=trophy_type, level=level)
     if unlocked_at is not None:
         Trophy.objects.filter(id=trophy.id).update(level_unlocked_at=unlocked_at)
     return trophy

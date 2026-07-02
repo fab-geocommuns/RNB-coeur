@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from zoneinfo import ZoneInfo
 
 from batid.models.others import SummerChallenge
@@ -6,13 +7,56 @@ from django.contrib.gis.db import models
 from django.db.models.functions import TruncDate
 
 
+@dataclass(frozen=True)
+class LevelDef:
+    """One level of a trophy.
+
+    `threshold` is the minimum measure to unlock the level (None for a single-level
+    badge such as 'superv'); `label` is the human-readable level name (None when the
+    trophy has a single, unnamed level); `condition` is the human-readable unlock
+    condition. `label` and `condition` are exposed by the trophies endpoint.
+    """
+
+    level: int
+    threshold: int | None
+    label: str | None
+    condition: str
+
+
+@dataclass(frozen=True)
+class TrophyDef:
+    """Full definition of a trophy: `trophy_type` is the identifier stored in the
+    ``Trophy.trophy_type`` column, `label` is the display name, plus its `description`
+    and its ordered `levels`. Single source of truth for everything the trophies
+    endpoints expose and for the award thresholds."""
+
+    trophy_type: str
+    label: str
+    description: str
+    levels: list[LevelDef]
+
+    def get_level(self, level: int) -> LevelDef | None:
+        """Return the LevelDef for `level`, or None when the trophy has no such level."""
+        return next((lvl for lvl in self.levels if lvl.level == level), None)
+
+    @property
+    def thresholds(self) -> list[tuple[int, int]]:
+        """The ``(min_measure, level)`` pairs consumed by the threshold-based award
+        logic, in ascending order. Levels without a numeric threshold are excluded."""
+        return [
+            (lvl.threshold, lvl.level)
+            for lvl in self.levels
+            if lvl.threshold is not None
+        ]
+
+
 class Trophy(models.Model):
     """
     Each row represents of trophy won by a user, with the corresponding timestamp and the
     trophy level.
     """
 
-    label = models.CharField(max_length=50, null=False, db_index=True)
+    trophy_type = models.CharField(max_length=50, null=False, db_index=True)
     user = models.ForeignKey(User, on_delete=models.PROTECT, null=False, db_index=True)
     level = models.PositiveIntegerField(null=False)
     level_unlocked_at = models.DateTimeField(auto_now_add=True)
@@ -20,26 +64,29 @@ class Trophy(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["user", "label", "level"], name="unique_user_label_level"
+                fields=["user", "trophy_type", "level"],
+                name="unique_user_trophy_type_level",
             )
         ]
 
-    # config of the "validateur" trophy: (number of validations, unlocked level)
-    VALIDATEUR_LABEL = "validateur"
-    VALIDATEUR_THRESHOLDS = [(10, 1), (100, 2), (500, 3)]
-
-    # "course de fond": consecutive calendar days (Europe/Paris) with at least one
-    # validation: (number of consecutive days, unlocked level)
-    COURSE_DE_FOND_LABEL = "course_de_fond"
-    COURSE_DE_FOND_THRESHOLDS = [(7, 1), (21, 2), (42, 3)]
     PARIS_TZ = ZoneInfo("Europe/Paris")
 
-    # "tour de france": validations in distinct stage cities of the Tour de France
-    # 2026. Level 3 requires every stage city, hence the threshold is len(codes).
+    # Values stored in the `trophy_type` column, one per trophy.
+    VALIDATEUR = "validateur"
+    # "course de fond" counts consecutive calendar days (Europe/Paris) with at least
+    # one validation.
+    COURSE_DE_FOND = "course_de_fond"
+    # "tour de france" counts validations in distinct stage cities of the Tour de
+    # France 2026.
+    TOUR_DE_FRANCE = "tour_de_france"
+    # "superv": single transferable badge held by the user with the most validations.
+    SUPERV = "superv"
+
+    # Stage cities of the Tour de France 2026. The last "tour de france" level requires
+    # every stage city, hence its threshold tracks the length of this list.
     # French stage cities only (stages 1-2 and the start of stage 3 are in Spain).
     # Resort finishes are mapped to their host commune (e.g. Le Lioran -> Laveissière,
     # Alpe d'Huez -> Huez). INSEE codes verified via geo.api.gouv.fr.
-    TOUR_DE_FRANCE_LABEL = "tour_de_france"
     TOUR_DE_FRANCE_2026_INSEE_CODES: list[str] = [
         "66004",  # Les Angles
         "11069",  # Carcassonne
@@ -77,117 +124,136 @@ class Trophy(models.Model):
         "75056",  # Paris
     ]
 
-    # "superv": single transferable badge held by the user with the most validations
-    SUPERV_LABEL = "superv"
-
-    # Human-readable name of each trophy, exposed by the trophies endpoint as
-    # `trophy_label`. Single source of truth for the trophy display names.
-    TROPHY_LABELS = {
-        VALIDATEUR_LABEL: "validateur",
-        COURSE_DE_FOND_LABEL: "course de fond",
-        TOUR_DE_FRANCE_LABEL: "tour de france",
-        SUPERV_LABEL: "superV",
-    }
-
-    # Human-readable explanation of how to earn each trophy, exposed by the trophies
-    # endpoint as `description`. Single source of truth for the trophy descriptions.
-    TROPHY_DESCRIPTIONS = {
-        VALIDATEUR_LABEL: (
-            "Gagnez ce trophée en validant des bâtiments dans le RNB. Plus vous "
-            "validez, plus votre niveau augmente."
+    # The registry: one TrophyDef per trophy, each carrying every piece of information
+    # the trophies endpoints expose (name, description, per-level names and conditions)
+    # and the numeric thresholds used to award it. Single source of truth — adding a
+    # trophy or a level means editing one place. Order is the display order.
+    TROPHY_DEFS = [
+        TrophyDef(
+            trophy_type=VALIDATEUR,
+            label="validateur",
+            description=(
+                "Gagnez ce trophée en validant des bâtiments dans le RNB. Plus vous "
+                "validez, plus votre niveau augmente."
+            ),
+            levels=[
+                LevelDef(
+                    level=1,
+                    threshold=10,
+                    label="apprenti",
+                    condition="Valider 10 bâtiments",
+                ),
+                LevelDef(
+                    level=2,
+                    threshold=100,
+                    label="maçon",
+                    condition="Valider 100 bâtiments",
+                ),
+                LevelDef(
+                    level=3,
+                    threshold=500,
+                    label="entreprise du bâtiment",
+                    condition="Valider 500 bâtiments",
+                ),
+            ],
         ),
-        COURSE_DE_FOND_LABEL: (
-            "Gagnez ce trophée en validant des bâtiments pendant plusieurs jours consécutifs."
+        TrophyDef(
+            trophy_type=COURSE_DE_FOND,
+            label="course de fond",
+            description=(
+                "Gagnez ce trophée en validant des bâtiments pendant plusieurs jours consécutifs."
+            ),
+            levels=[
+                LevelDef(
+                    level=1,
+                    threshold=7,
+                    label="coureur du dimanche",
+                    condition="Valider des bâtiments 7 jours d'affilée",
+                ),
+                LevelDef(
+                    level=2,
+                    threshold=21,
+                    label="semi-marathonien",
+                    condition="Valider des bâtiments 21 jours d'affilée",
+                ),
+                LevelDef(
+                    level=3,
+                    threshold=42,
+                    label="marathonien",
+                    condition="Valider des bâtiments 42 jours d'affilée",
+                ),
+            ],
         ),
-        TOUR_DE_FRANCE_LABEL: (
-            "Gagnez ce trophée en validant des bâtiments dans les villes-étapes du "
-            "Tour de France 2026."
+        TrophyDef(
+            trophy_type=TOUR_DE_FRANCE,
+            label="tour de france",
+            description=(
+                "Gagnez ce trophée en validant des bâtiments dans les villes-étapes du "
+                "Tour de France 2026."
+            ),
+            # The last level's threshold is recomputed at award time from the code list
+            # (see check_and_award_tour_de_france); the value below matches len(codes).
+            levels=[
+                LevelDef(
+                    level=1,
+                    threshold=5,
+                    label="vainqueur d'étape",
+                    condition="Valider des bâtiments dans 5 villes-étapes du Tour de France 2026",
+                ),
+                LevelDef(
+                    level=2,
+                    threshold=15,
+                    label="maillot jaune",
+                    condition="Valider des bâtiments dans 15 villes-étapes du Tour de France 2026",
+                ),
+                LevelDef(
+                    level=3,
+                    threshold=len(TOUR_DE_FRANCE_2026_INSEE_CODES),
+                    label="vainqueur du tour",
+                    condition="Valider des bâtiments dans toutes les villes-étapes du Tour de France 2026",
+                ),
+            ],
         ),
-        SUPERV_LABEL: (
-            "Gagnez ce trophée en étant la personne qui a fait le plus de validation "
-            "dans le RNB."
+        TrophyDef(
+            trophy_type=SUPERV,
+            label="superV",
+            description=(
+                "Gagnez ce trophée en étant la personne qui a fait le plus de validation "
+                "dans le RNB."
+            ),
+            levels=[
+                LevelDef(
+                    level=1,
+                    threshold=None,
+                    label=None,
+                    condition="Trophée unique : être la personne ayant réalisé le plus de validations dans le RNB... et le rester",
+                ),
+            ],
         ),
-    }
+    ]
 
-    # Human-readable name of each (label, level) pair, exposed by the trophies endpoint
-    # as `level_label`. The thresholds above stay numeric; this mapping is the single
-    # source of truth for the per-level display names.
-    # "superv" has a single level, so it has no per-level name (and is absent here).
-    LEVEL_LABELS = {
-        VALIDATEUR_LABEL: {
-            1: "apprenti",
-            2: "maçon",
-            3: "entreprise du bâtiment",
-        },
-        COURSE_DE_FOND_LABEL: {
-            1: "coureur du dimanche",
-            2: "semi-marathonien",
-            3: "marathonien",
-        },
-        TOUR_DE_FRANCE_LABEL: {
-            1: "vainqueur d'étape",
-            2: "maillot jaune",
-            3: "vainqueur du tour",
-        },
-    }
-
-    # Human-readable condition to unlock each (label, level) pair, exposed by the
-    # trophies endpoint as `condition`. Mirrors the numeric *_THRESHOLDS above; kept
-    # as explicit text so the French phrasing reads naturally for each trophy.
-    LEVEL_CONDITIONS = {
-        VALIDATEUR_LABEL: {
-            1: "Valider 10 bâtiments",
-            2: "Valider 100 bâtiments",
-            3: "Valider 500 bâtiments",
-        },
-        COURSE_DE_FOND_LABEL: {
-            1: "Valider des bâtiments 7 jours d'affilée",
-            2: "Valider des bâtiments 21 jours d'affilée",
-            3: "Valider des bâtiments 42 jours d'affilée",
-        },
-        TOUR_DE_FRANCE_LABEL: {
-            1: "Valider des bâtiments dans 5 villes-étapes du Tour de France 2026",
-            2: "Valider des bâtiments dans 15 villes-étapes du Tour de France 2026",
-            3: "Valider des bâtiments dans toutes les villes-étapes du Tour de France 2026",
-        },
-        SUPERV_LABEL: {
-            1: "Trophé unique : être la personne ayant réalisé le plus de validations dans le RNB... et le rester",
-        },
-    }
+    # Lookup by stored trophy_type, e.g. Trophy.TROPHIES["validateur"].
+    TROPHIES = {t.trophy_type: t for t in TROPHY_DEFS}
 
     @classmethod
-    def trophy_label(cls, label):
+    def trophy_label(cls, trophy_type):
         """Return the human-readable name of a trophy, or None when undefined."""
-        return cls.TROPHY_LABELS.get(label)
+        trophy = cls.TROPHIES.get(trophy_type)
+        return trophy.label if trophy else None
 
     @classmethod
-    def trophy_description(cls, label):
-        """Return the explanation of how to earn a trophy, or None when undefined."""
-        return cls.TROPHY_DESCRIPTIONS.get(label)
-
-    @classmethod
-    def level_label(cls, label, level):
-        """Return the human-readable name of a (label, level) pair, or None when no
-        name is defined."""
-        return cls.LEVEL_LABELS.get(label, {}).get(level)
-
-    @classmethod
-    def level_condition(cls, label, level):
-        """Return the human-readable condition to unlock a (label, level) pair, or
-        None when no condition is defined."""
-        return cls.LEVEL_CONDITIONS.get(label, {}).get(level)
-
-    @classmethod
-    def levels(cls, label):
-        """Return the ordered list of levels a trophy can reach. Multi-level trophies
-        expose their levels through LEVEL_LABELS; single-level trophies (e.g. 'superv')
-        default to [1]."""
-        return sorted(cls.LEVEL_LABELS.get(label, {}).keys()) or [1]
+    def level_label(cls, trophy_type, level):
+        """Return the human-readable name of a (trophy_type, level) pair, or None when
+        no name is defined."""
+        trophy = cls.TROPHIES.get(trophy_type)
+        lvl = trophy.get_level(level) if trophy else None
+        return lvl.label if lvl else None
 
     @staticmethod
     def check_and_award_all(user):
         """Run every badge check for the user and return the list of newly unlocked
-        trophies, each as {"label": ..., "level": ...}. Empty list when nothing new."""
+        trophies, each as {"trophy_type": ..., "level": ...}. Empty list when nothing
+        new."""
         results = []
         for check in (
             Trophy.check_and_award_validateur,
@@ -201,12 +267,12 @@ class Trophy(models.Model):
         return results
 
     @staticmethod
-    def _award_threshold_badge(user, label, thresholds, measure):
+    def _award_threshold_badge(user, trophy_type, thresholds, measure):
         """Award the cumulative levels of a threshold-based badge. `thresholds` is a
         list of (min_measure, level) in ascending order. Creates the not-yet-unlocked
         levels up to the one matching `measure`. Idempotent.
 
-        Returns the highest newly unlocked level as {"label": ..., "level": ...},
+        Returns the highest newly unlocked level as {"trophy_type": ..., "level": ...},
         or None when nothing new is unlocked.
         """
         target_level = 0
@@ -217,7 +283,7 @@ class Trophy(models.Model):
             return None
 
         current_max = (
-            Trophy.objects.filter(user=user, label=label).aggregate(
+            Trophy.objects.filter(user=user, trophy_type=trophy_type).aggregate(
                 m=models.Max("level")
             )["m"]
             or 0
@@ -227,10 +293,10 @@ class Trophy(models.Model):
 
         newly = None
         for lvl in range(current_max + 1, target_level + 1):
-            Trophy.objects.create(user=user, label=label, level=lvl)
+            Trophy.objects.create(user=user, trophy_type=trophy_type, level=lvl)
             newly = lvl
 
-        return {"label": label, "level": newly}
+        return {"trophy_type": trophy_type, "level": newly}
 
     @staticmethod
     def check_and_award_validateur(user):
@@ -243,8 +309,9 @@ class Trophy(models.Model):
             return None
 
         count = SummerChallenge.objects.filter(user=user, action="validation").count()
+        validateur = Trophy.TROPHIES[Trophy.VALIDATEUR]
         return Trophy._award_threshold_badge(
-            user, Trophy.VALIDATEUR_LABEL, Trophy.VALIDATEUR_THRESHOLDS, count
+            user, validateur.trophy_type, validateur.thresholds, count
         )
 
     @staticmethod
@@ -265,8 +332,9 @@ class Trophy(models.Model):
             .distinct()
         )
         streak = Trophy._longest_consecutive_day_streak(days)
+        course_de_fond = Trophy.TROPHIES[Trophy.COURSE_DE_FOND]
         return Trophy._award_threshold_badge(
-            user, Trophy.COURSE_DE_FOND_LABEL, Trophy.COURSE_DE_FOND_THRESHOLDS, streak
+            user, course_de_fond.trophy_type, course_de_fond.thresholds, streak
         )
 
     @staticmethod
@@ -306,9 +374,12 @@ class Trophy(models.Model):
             .distinct()
             .count()
         )
-        thresholds = [(5, 1), (15, 2), (len(codes), 3)]
+        # The last level requires every stage city, so read its threshold from the code
+        # list at call time (tests patch it); lower levels keep the definition's values.
+        tdf = Trophy.TROPHIES[Trophy.TOUR_DE_FRANCE]
+        thresholds = tdf.thresholds[:-1] + [(len(codes), tdf.levels[-1].level)]
         return Trophy._award_threshold_badge(
-            user, Trophy.TOUR_DE_FRANCE_LABEL, thresholds, distinct_cities
+            user, tdf.trophy_type, thresholds, distinct_cities
         )
 
     @staticmethod
@@ -316,8 +387,8 @@ class Trophy(models.Model):
         """Single, transferable badge held by the user with the most validations. When
         `user` becomes the (sole) leader, the unique 'superv' row is reassigned to them.
 
-        Returns {"label": "superv", "level": 1} when `user` newly takes the lead, else
-        None (including when they already held it).
+        Returns {"trophy_type": "superv", "level": 1} when `user` newly takes the lead,
+        else None (including when they already held it).
         """
         if not user or not user.is_authenticated:
             return None
@@ -332,11 +403,11 @@ class Trophy(models.Model):
         if not top or top["user"] != user.id:
             return None
 
-        holder = Trophy.objects.filter(label=Trophy.SUPERV_LABEL).first()
+        holder = Trophy.objects.filter(trophy_type=Trophy.SUPERV).first()
         if holder and holder.user_id == user.id:
             return None
 
         # transfer the unique badge to the new leader (keep a single row)
-        Trophy.objects.filter(label=Trophy.SUPERV_LABEL).delete()
-        Trophy.objects.create(user=user, label=Trophy.SUPERV_LABEL, level=1)
-        return {"label": Trophy.SUPERV_LABEL, "level": 1}
+        Trophy.objects.filter(trophy_type=Trophy.SUPERV).delete()
+        Trophy.objects.create(user=user, trophy_type=Trophy.SUPERV, level=1)
+        return {"trophy_type": Trophy.SUPERV, "level": 1}

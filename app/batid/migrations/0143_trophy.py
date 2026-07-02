@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
-                ("label", models.CharField(db_index=True, max_length=50)),
+                ("trophy_type", models.CharField(db_index=True, max_length=50)),
                 ("level", models.PositiveIntegerField()),
                 ("level_unlocked_at", models.DateTimeField(auto_now_add=True)),
                 (
@@ -39,8 +39,8 @@ class Migration(migrations.Migration):
             options={
                 "constraints": [
                     models.UniqueConstraint(
-                        fields=("user", "label", "level"),
-                        name="unique_user_label_level",
+                        fields=("user", "trophy_type", "level"),
+                        name="unique_user_trophy_type_level",
                     )
                 ],
             },

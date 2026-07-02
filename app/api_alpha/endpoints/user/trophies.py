@@ -14,15 +14,15 @@ class UserTrophiesView(APIView):
         trophies = (
             Trophy.objects.filter(user=user)
             .order_by("-level_unlocked_at")
-            .values("label", "level", "level_unlocked_at")
+            .values("trophy_type", "level", "level_unlocked_at")
         )
 
         data = [
             {
-                "trophy": t["label"],
-                "trophy_label": Trophy.trophy_label(t["label"]),
+                "trophy": t["trophy_type"],
+                "trophy_label": Trophy.trophy_label(t["trophy_type"]),
                 "level": t["level"],
-                "level_label": Trophy.level_label(t["label"], t["level"]),
+                "level_label": Trophy.level_label(t["trophy_type"], t["level"]),
                 "unlocked_at": t["level_unlocked_at"],
             }
             for t in trophies

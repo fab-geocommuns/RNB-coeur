@@ -344,7 +344,9 @@ class BuildingPostIsValidTest(APITestCase):
         self.assertEqual(r.status_code, 201)
         self.assertNotIn("trophies", r.json())
         self.assertTrue(
-            Trophy.objects.filter(user=self.user, label="validateur", level=1).exists()
+            Trophy.objects.filter(
+                user=self.user, trophy_type="validateur", level=1
+            ).exists()
         )
 
     def test_create_validation_below_threshold_no_trophy(self):

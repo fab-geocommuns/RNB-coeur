@@ -830,7 +830,9 @@ class BuildingPatchValidateTest(APITestCase):
 
         self.assertEqual(r.status_code, 204)
         self.assertTrue(
-            Trophy.objects.filter(user=self.user, label="validateur", level=1).exists()
+            Trophy.objects.filter(
+                user=self.user, trophy_type="validateur", level=1
+            ).exists()
         )
 
     def test_validation_below_threshold_returns_204(self):
