@@ -151,9 +151,9 @@ class Trophy(models.Model):
                 ),
                 LevelDef(
                     level=3,
-                    threshold=500,
+                    threshold=250,
                     label="entreprise du bâtiment",
-                    condition="Valider 500 bâtiments",
+                    condition="Valider 250 bâtiments",
                 ),
             ],
         ),
