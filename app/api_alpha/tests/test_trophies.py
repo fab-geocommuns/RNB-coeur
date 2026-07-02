@@ -45,7 +45,7 @@ class TrophiesViewTest(APITestCase):
                 {
                     "level": 3,
                     "level_label": "entreprise du bâtiment",
-                    "condition": "Valider 500 bâtiments",
+                    "condition": "Valider 250 bâtiments",
                     "count": 0,
                 },
             ],
