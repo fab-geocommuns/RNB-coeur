@@ -47,7 +47,7 @@ class UserTrophiesViewTest(APITestCase):
         """
         Input: user has the 'course_de_fond' level 1 trophy.
         Expected: 200; the trophy carries trophy='course_de_fond',
-        trophy_label='course de fond', level=1, level_label='bronze'.
+        trophy_label='Course de fond', level=1, level_label='bronze'.
         """
 
         _award(self.user, "course_de_fond", 1)
@@ -59,7 +59,7 @@ class UserTrophiesViewTest(APITestCase):
             r.json()[0],
             {
                 "trophy": "course_de_fond",
-                "trophy_label": "course de fond",
+                "trophy_label": "Course de fond",
                 "level": 1,
                 "level_label": "bronze",
                 "unlocked_at": mock.ANY,

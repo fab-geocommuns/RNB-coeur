@@ -25,7 +25,7 @@ class TrophiesViewTest(APITestCase):
         )
 
         validateur = self._by_trophy(body)["validateur"]
-        self.assertEqual(validateur["trophy_label"], "validateur")
+        self.assertEqual(validateur["trophy_label"], "Validateur")
         self.assertEqual(validateur["count"], 0)
         self.assertEqual(
             validateur["levels"],
@@ -52,7 +52,7 @@ class TrophiesViewTest(APITestCase):
         )
 
         superv = self._by_trophy(body)["superv"]
-        self.assertEqual(superv["trophy_label"], "superV")
+        self.assertEqual(superv["trophy_label"], "Super V")
         self.assertEqual(
             superv["description"],
             "Gagnez ce trophée en étant la personne qui a fait le plus de validation "
