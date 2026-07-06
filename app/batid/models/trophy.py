@@ -131,7 +131,7 @@ class Trophy(models.Model):
     TROPHY_DEFS = [
         TrophyDef(
             trophy_type=VALIDATEUR,
-            label="validateur",
+            label="Validateur",
             description=(
                 "Gagnez ce trophée en validant des bâtiments dans le RNB. Plus vous "
                 "validez, plus votre niveau augmente."
@@ -159,7 +159,7 @@ class Trophy(models.Model):
         ),
         TrophyDef(
             trophy_type=COURSE_DE_FOND,
-            label="course de fond",
+            label="Course de fond",
             description=(
                 "Gagnez ce trophée en validant des bâtiments pendant plusieurs jours consécutifs."
             ),
@@ -186,7 +186,7 @@ class Trophy(models.Model):
         ),
         TrophyDef(
             trophy_type=TOUR_DE_FRANCE,
-            label="tour de france",
+            label="Tour de France",
             description=(
                 "Gagnez ce trophée en validant des bâtiments dans les villes-étapes du "
                 "Tour de France 2026."
@@ -216,7 +216,7 @@ class Trophy(models.Model):
         ),
         TrophyDef(
             trophy_type=SUPERV,
-            label="superV",
+            label="Super V",
             description=(
                 "Gagnez ce trophée en étant la personne qui a fait le plus de validation "
                 "dans le RNB."
