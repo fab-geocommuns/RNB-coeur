@@ -131,7 +131,7 @@ class Trophy(models.Model):
     TROPHY_DEFS = [
         TrophyDef(
             trophy_type=VALIDATEUR,
-            label="validateur",
+            label="Validateur",
             description=(
                 "Gagnez ce trophée en validant des bâtiments dans le RNB. Plus vous "
                 "validez, plus votre niveau augmente."
@@ -140,26 +140,26 @@ class Trophy(models.Model):
                 LevelDef(
                     level=1,
                     threshold=10,
-                    label="apprenti",
+                    label="bronze",
                     condition="Valider 10 bâtiments",
                 ),
                 LevelDef(
                     level=2,
                     threshold=100,
-                    label="maçon",
+                    label="argent",
                     condition="Valider 100 bâtiments",
                 ),
                 LevelDef(
                     level=3,
                     threshold=250,
-                    label="entreprise du bâtiment",
+                    label="or",
                     condition="Valider 250 bâtiments",
                 ),
             ],
         ),
         TrophyDef(
             trophy_type=COURSE_DE_FOND,
-            label="course de fond",
+            label="Course de fond",
             description=(
                 "Gagnez ce trophée en validant des bâtiments pendant plusieurs jours consécutifs."
             ),
@@ -167,26 +167,26 @@ class Trophy(models.Model):
                 LevelDef(
                     level=1,
                     threshold=7,
-                    label="coureur du dimanche",
+                    label="bronze",
                     condition="Valider des bâtiments 7 jours d'affilée",
                 ),
                 LevelDef(
                     level=2,
                     threshold=21,
-                    label="semi-marathonien",
+                    label="argent",
                     condition="Valider des bâtiments 21 jours d'affilée",
                 ),
                 LevelDef(
                     level=3,
                     threshold=42,
-                    label="marathonien",
+                    label="or",
                     condition="Valider des bâtiments 42 jours d'affilée",
                 ),
             ],
         ),
         TrophyDef(
             trophy_type=TOUR_DE_FRANCE,
-            label="tour de france",
+            label="Tour de France",
             description=(
                 "Gagnez ce trophée en validant des bâtiments dans les villes-étapes du "
                 "Tour de France 2026."
@@ -197,26 +197,26 @@ class Trophy(models.Model):
                 LevelDef(
                     level=1,
                     threshold=5,
-                    label="vainqueur d'étape",
+                    label="bronze",
                     condition="Valider des bâtiments dans 5 villes-étapes du Tour de France 2026",
                 ),
                 LevelDef(
                     level=2,
                     threshold=15,
-                    label="maillot jaune",
+                    label="argent",
                     condition="Valider des bâtiments dans 15 villes-étapes du Tour de France 2026",
                 ),
                 LevelDef(
                     level=3,
                     threshold=len(TOUR_DE_FRANCE_2026_INSEE_CODES),
-                    label="vainqueur du tour",
+                    label="or",
                     condition="Valider des bâtiments dans toutes les villes-étapes du Tour de France 2026",
                 ),
             ],
         ),
         TrophyDef(
             trophy_type=SUPERV,
-            label="superV",
+            label="Super V",
             description=(
                 "Gagnez ce trophée en étant la personne qui a fait le plus de validation "
                 "dans le RNB."
