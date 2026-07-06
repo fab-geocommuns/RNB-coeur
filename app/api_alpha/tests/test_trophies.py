@@ -32,19 +32,19 @@ class TrophiesViewTest(APITestCase):
             [
                 {
                     "level": 1,
-                    "level_label": "apprenti",
+                    "level_label": "bronze",
                     "condition": "Valider 10 bâtiments",
                     "count": 0,
                 },
                 {
                     "level": 2,
-                    "level_label": "maçon",
+                    "level_label": "argent",
                     "condition": "Valider 100 bâtiments",
                     "count": 0,
                 },
                 {
                     "level": 3,
-                    "level_label": "entreprise du bâtiment",
+                    "level_label": "or",
                     "condition": "Valider 250 bâtiments",
                     "count": 0,
                 },
