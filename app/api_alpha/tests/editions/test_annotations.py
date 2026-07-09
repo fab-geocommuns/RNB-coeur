@@ -1,13 +1,13 @@
 import uuid
 
-from batid.models import EditionAnnotation
+from batid.models import EventAnnotation
 from batid.tests.factories.users import ContributorUserFactory, ReviewerUserFactory
 from batid.tests.helpers import create_default_bdg
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 
-class EditionAnnotationViewTest(APITestCase):
+class EventAnnotationViewTest(APITestCase):
     def setUp(self):
         self.reviewer = ReviewerUserFactory(username="reviewer_1")
         self.reviewee = ContributorUserFactory(username="reviewee_1")
@@ -72,7 +72,7 @@ class EditionAnnotationViewTest(APITestCase):
         )
         self.assertEqual(r.status_code, 200)
 
-        annotations = EditionAnnotation.objects.filter(
+        annotations = EventAnnotation.objects.filter(
             event_id=self.event_id, reviewer=self.reviewer
         )
         self.assertEqual(annotations.count(), 1)
@@ -154,7 +154,7 @@ class EditionAnnotationViewTest(APITestCase):
         r = self.client.delete(self._url(self.event_id))
         self.assertEqual(r.status_code, 204)
 
-        remaining = EditionAnnotation.objects.filter(event_id=self.event_id)
+        remaining = EventAnnotation.objects.filter(event_id=self.event_id)
         self.assertEqual(remaining.count(), 1)
         self.assertEqual(remaining.first().reviewer_id, reviewer_2.id)
 

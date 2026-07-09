@@ -1,6 +1,6 @@
 import uuid
 
-from batid.models import Building, EditionAnnotation
+from batid.models import Building, EventAnnotation
 from batid.tests.factories.users import ContributorUserFactory, ReviewerUserFactory
 from batid.tests.helpers import coords_to_mp_geom
 from rest_framework.test import APITestCase
@@ -42,7 +42,7 @@ class BuildingHistoryAnnotationsTest(APITestCase):
 
         reviewer = ReviewerUserFactory(username="reviewer_1")
         reviewee = ContributorUserFactory(username="reviewee_1")
-        annotation = EditionAnnotation.objects.create(
+        annotation = EventAnnotation.objects.create(
             event_id=event_id,
             reviewer=reviewer,
             reviewee=reviewee,

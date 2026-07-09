@@ -31,7 +31,7 @@ class UserFactory(factory.django.DjangoModelFactory):
 
 class ContributorUserFactory(UserFactory):
     @factory.post_generation
-    def add_to_contributors_group(self, create, extracted, **kwargs):
+    def add_to_contributors_group(self, create, _extracted, **kwargs):
         if create:
             group, created = Group.objects.get_or_create(
                 name=RNBContributorPermission.group_name
@@ -42,7 +42,7 @@ class ContributorUserFactory(UserFactory):
 
 class ReviewerUserFactory(UserFactory):
     @factory.post_generation
-    def add_to_reviewers_group(self, create, extracted, **kwargs):
+    def add_to_reviewers_group(self, create, _extracted, **kwargs):
         if create:
             group, created = Group.objects.get_or_create(
                 name=RNBReviewerPermission.group_name

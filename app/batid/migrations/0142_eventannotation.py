@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="EditionAnnotation",
+            name="EventAnnotation",
             fields=[
                 ("id", models.AutoField(primary_key=True, serialize=False)),
                 ("event_id", models.UUIDField(db_index=True)),
@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         null=True,
                         on_delete=django.db.models.deletion.PROTECT,
-                        related_name="editions_annotated_by_reviewer",
+                        related_name="events_annotated_by_reviewer",
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
@@ -45,7 +45,7 @@ class Migration(migrations.Migration):
                     "reviewer",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.PROTECT,
-                        related_name="editions_annotated_by_me",
+                        related_name="events_annotated_by_me",
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
@@ -54,7 +54,7 @@ class Migration(migrations.Migration):
                 "constraints": [
                     models.UniqueConstraint(
                         fields=("event_id", "reviewer"),
-                        name="unique_annotation_per_reviewer_per_edition",
+                        name="unique_annotation_per_reviewer_per_event",
                     )
                 ],
             },

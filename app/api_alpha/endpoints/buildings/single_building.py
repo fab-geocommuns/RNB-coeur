@@ -18,7 +18,7 @@ from batid.exceptions import (
     InvalidOperation,
 )
 from batid.list_bdg import list_bdgs
-from batid.models import Building, Contribution, EditionAnnotation
+from batid.models import Building, Contribution, EventAnnotation
 from batid.services.bdg_history import get_bdg_history
 from batid.services.rnb_id import clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry
@@ -61,7 +61,7 @@ class SingleBuildingHistory(RNBLoggingMixin, APIView):
         }
 
         annotations_by_event_id: dict[str, list] = defaultdict(list)
-        annotations = EditionAnnotation.objects.filter(
+        annotations = EventAnnotation.objects.filter(
             event_id__in=event_ids
         ).select_related("reviewer__profile__organization")
         for annotation in annotations:

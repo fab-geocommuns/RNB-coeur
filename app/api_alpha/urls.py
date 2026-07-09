@@ -15,7 +15,7 @@ from api_alpha.endpoints.buildings.single_building import (
     SingleBuildingHistory,
 )
 from api_alpha.endpoints.debug import RaiseExceptionView
-from api_alpha.endpoints.editions.annotations import EditionAnnotationView
+from api_alpha.endpoints.editions.annotations import EventAnnotationView
 from api_alpha.endpoints.ogc.views import (
     OGCBuildingItemsView,
     OGCBuildingsCollectionView,
@@ -142,7 +142,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("editions/ranking/<str:username>/", UserScoreView.as_view()),
     re_path(
         r"editions/(?P<event_id>[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/annotations/",
-        EditionAnnotationView.as_view(),
+        EventAnnotationView.as_view(),
     ),
     # Reports
     path("reports/", CreateReportView.as_view()),
