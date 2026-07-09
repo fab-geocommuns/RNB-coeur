@@ -304,8 +304,9 @@ class TestDataGouvPublication(TestCase):
                 "validated_by": [
                     {
                         "id": self.user_1.id,
-                        "organization_name": "Comité de validation",
                         "username": "el_validator",
+                        "organization_name": "Comité de validation",
+                        "organization_short_name": None,
                     },
                 ],
             },
@@ -320,13 +321,15 @@ class TestDataGouvPublication(TestCase):
                 "validated_by": [
                     {
                         "id": self.user_1.id,
-                        "organization_name": "Comité de validation",
                         "username": "el_validator",
+                        "organization_name": "Comité de validation",
+                        "organization_short_name": None,
                     },
                     {
                         "id": self.user_2.id,
-                        "organization_name": None,
                         "username": "jean_doux",
+                        "organization_name": None,
+                        "organization_short_name": None,
                     },
                 ],
             },
