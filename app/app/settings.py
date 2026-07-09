@@ -178,6 +178,9 @@ if POSTGRES_STATEMENT_TIMEOUT:
 # any active user part of this group can edit the RNB
 CONTRIBUTORS_GROUP_NAME = "Contributors"
 
+# any user part of this group can annotate (review) RNB events
+REVIEWERS_GROUP_NAME = "Reviewers"
+
 AUTHENTICATION_BACKENDS = [
     "app.authentication.UsernameOrEmailBackend",
 ]

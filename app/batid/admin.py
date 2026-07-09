@@ -4,6 +4,7 @@ from batid.models import (
     BuildingImport,
     Contribution,
     DiffusionDatabase,
+    EventAnnotation,
     Organization,
     UserProfile,
 )
@@ -205,6 +206,19 @@ class ContributionAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Contribution, ContributionAdmin)
+
+
+class EventAnnotationAdmin(admin.ModelAdmin):
+    list_display = (
+        "event_id",
+        "reviewer",
+        "status",
+        "created_at",
+    )
+    list_filter = ("status",)
+
+
+admin.site.register(EventAnnotation, EventAnnotationAdmin)
 
 
 class ADSAdmin(admin.ModelAdmin):
