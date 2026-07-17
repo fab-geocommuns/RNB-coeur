@@ -59,8 +59,6 @@ class GetReportTest(APITestCase):
         self.assertEqual(data["point"]["type"], "Point")
         self.assertEqual(data["point"]["coordinates"], [2.3522, 48.8566])
 
-        author = data["author"]
-        self.assertEqual(author["display_name"], "Test U.")
         self.assertCountEqual(data["tags"], ["tag1", "tag2"])
 
         self.assertEqual(len(data["messages"]), 2)
@@ -73,7 +71,6 @@ class GetReportTest(APITestCase):
         message = data["messages"][1]
         self.assertEqual(message["text"], "J'habite à côté je confirme")
         self.assertEqual(message["author"]["username"], None)
-        self.assertEqual(message["author"]["display_name"], "Anonyme")
         self.assertIsNone(message["author"]["organization_name"])
 
     def test_get_report_without_building(self):

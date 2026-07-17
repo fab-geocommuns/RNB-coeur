@@ -7,14 +7,12 @@ from api_alpha.validators import (
     ADSValidator,
     BdgInADSValidator,
     ads_validate_rnbid,
-    bdg_is_active,
 )
 from batid.models import (
     ADS,
     Address,
     Building,
     BuildingADS,
-    Contribution,
     DiffusionDatabase,
     Organization,
     UserProfile,
@@ -39,16 +37,6 @@ from rest_framework_gis.serializers import GeoFeatureModelSerializer
 class RNBIdField(serializers.CharField):
     def to_internal_value(self, data):
         return clean_rnb_id(data)
-
-
-class ContributionSerializer(serializers.ModelSerializer):
-
-    # Add a validator to check if the building is active
-    rnb_id = serializers.CharField(validators=[bdg_is_active])
-
-    class Meta:
-        model = Contribution
-        fields = ["rnb_id", "text", "email"]
 
 
 class AddressSerializer(serializers.ModelSerializer):
@@ -79,7 +67,7 @@ class AddressSerializer(serializers.ModelSerializer):
 
 class ExtIdSerializer(serializers.Serializer):
     id = serializers.CharField(help_text="bdnb-bc-3B85-TYM9-FDSX")
-    source = serializers.CharField(help_text="bdnb")
+    source = serializers.CharField(help_text="bdnb")  # type: ignore[assignment]
     created_at = serializers.DateTimeField(help_text="2023-12-07T13:20:58.310444+00:00")
     source_version = serializers.CharField(help_text="2023_01")
 

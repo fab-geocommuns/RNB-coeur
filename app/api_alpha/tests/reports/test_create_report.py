@@ -42,7 +42,6 @@ class CreateReportTest(APITestCase):
         response_data = response.json()
         self.assertEqual(response_data["rnb_id"], "TEST00000001")
         self.assertEqual(response_data["status"], "pending")
-        self.assertEqual(response_data["author"]["display_name"], "Anonyme")
         self.assertEqual(response_data["tags"], ["Signalement utilisateur"])
 
         report = Report.objects.get(id=response_data["id"])
@@ -72,7 +71,6 @@ class CreateReportTest(APITestCase):
         response_data = response.json()
         self.assertEqual(response_data["rnb_id"], "TEST00000001")
         self.assertEqual(response_data["status"], "pending")
-        self.assertEqual(response_data["author"]["display_name"], "Test U.")
         self.assertEqual(response_data["author"]["username"], "testuser")
 
         # Verify the report was created with the authenticated user

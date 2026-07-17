@@ -3,7 +3,7 @@ import uuid
 from copy import deepcopy
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, cast
 
 from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import (
@@ -22,7 +22,7 @@ from batid.utils.geo import assert_new_shape_is_close_enough, assert_shape_is_va
 from batid.validators import validate_one_ext_id
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
-from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry, Point
 from django.contrib.postgres.fields import ArrayField, DateTimeRangeField
 from django.contrib.postgres.indexes import GinIndex, GistIndex
 from django.db import connection, transaction
@@ -30,7 +30,6 @@ from django.db.models import CheckConstraint, F, Func, Q, UniqueConstraint
 from django.db.models.functions import Lower
 from django.db.models.indexes import Index
 
-from .contribution import Contribution
 from .others import Address, SummerChallenge
 
 
@@ -199,14 +198,6 @@ class Building(BuildingAbstract):
                     SummerChallenge.score_deactivation(
                         user, self.point, self.rnb_id, self.event_id
                     )
-
-            except_for_this_contribution = get_contribution_id_from_event_origin(
-                event_origin
-            )
-
-            self._refuse_pending_contributions(
-                user, new_event_id, except_for_this_contribution
-            )
         else:
             raise OperationOnInactiveBuilding(
                 f"Impossible de désactiver un identifiant déjà inactif : {self.rnb_id}"
@@ -260,8 +251,6 @@ class Building(BuildingAbstract):
         check_and_increment_contribution_count(user)
 
         if self.is_active == False and self.event_type == EventType.DEACTIVATION.value:
-            previous_event_id = self.event_id
-
             self.event_type = EventType.REACTIVATION.value
             self.is_active = True
             self.revert_event_id = revert_event_id if revert_event_id else self.event_id
@@ -269,8 +258,6 @@ class Building(BuildingAbstract):
             self.event_user = user
             self.event_origin = event_origin
             self.save()
-
-            self._reset_linked_contributions(user, previous_event_id)
         else:
             raise RevertNotAllowed()
 
@@ -304,7 +291,8 @@ class Building(BuildingAbstract):
         current_building = Building.objects.get(rnb_id=building_to_revert.rnb_id)
         current_building.reactivate(user, event_origin)
 
-        return current_building.event_id  # type: ignore
+        # reactivate() always assigns a new event_id (or raises), so it is never None here
+        return cast(uuid.UUID, current_building.event_id)
 
     @transaction.atomic
     @staticmethod
@@ -337,8 +325,8 @@ class Building(BuildingAbstract):
             user, event_origin, revert_event_id=event_id_to_revert
         )
         current_building.refresh_from_db()
-
-        return current_building.event_id  # type: ignore
+        # deactivate() always assigns a new event_id (or raises), so it is never None here
+        return cast(uuid.UUID, current_building.event_id)
 
     @transaction.atomic
     def update(
@@ -367,16 +355,23 @@ class Building(BuildingAbstract):
             # Nothing happens at all
             return
 
+        # whether this update is a genuinely new validation by this user
+        # (used to avoid scoring a no-op re-validation in the Summer Challenge)
+        newly_validated = False
+
         if not building_identical:
             validated_by: list[int] = []
 
             if validate:
                 validated_by.append(user.id)
+                newly_validated = True
             self.validated_by = validated_by
         else:
             validated_by = self.validated_by or []
             if validate:
-                validated_by.append(user.id)
+                if user.id not in validated_by:
+                    validated_by.append(user.id)
+                    newly_validated = True
             elif user.id in validated_by:
                 validated_by.remove(user.id)
             else:
@@ -423,6 +418,12 @@ class Building(BuildingAbstract):
                 )
 
             self.addresses_id = addresses_id
+
+        # Summer Challenge!
+        if newly_validated:
+            SummerChallenge.score_validation(
+                user, self.point, self.rnb_id, self.event_id
+            )
 
         self.save()
 
@@ -479,27 +480,6 @@ class Building(BuildingAbstract):
 
         return new_event_id
 
-    def _refuse_pending_contributions(
-        self, user: User, event_id, except_for_this_contribution_id=None
-    ):
-
-        msg = f"Ce signalement a été refusé suite à la désactivation du bâtiment {self.rnb_id}."
-        contributions = Contribution.objects.filter(
-            rnb_id=self.rnb_id, status="pending", report=True
-        )
-
-        if except_for_this_contribution_id:
-            # you may want to refuse all contributions, except for the one being currently treated
-            contributions = contributions.exclude(id=except_for_this_contribution_id)
-
-        for c in contributions:
-            c.refuse(user, msg, status_updated_by_event_id=event_id)
-
-    def _reset_linked_contributions(self, user: User, event_id):
-        contributions = Contribution.objects.filter(status_updated_by_event_id=event_id)
-        for c in contributions:
-            c.reset_pending()
-
     @staticmethod
     def add_ext_id(
         existing_ext_ids: list | None,
@@ -553,12 +533,19 @@ class Building(BuildingAbstract):
         assert_shape_is_valid(shape)
         check_building_overlap(shape)
 
-        point = shape if shape.geom_type == "Point" else shape.point_on_surface
+        # the Point branch and point_on_surface both always yield a Point
+        point = cast(
+            Point, shape if shape.geom_type == "Point" else shape.point_on_surface
+        )
         rnb_id = generate_rnb_id()
         event_id = uuid.uuid4()
 
         # Summer Challenge!
         SummerChallenge.score_creation(user, point, rnb_id, event_id)
+
+        # Summer Challenge!
+        if is_valid:
+            SummerChallenge.score_validation(user, point, rnb_id, event_id)
 
         if addresses_id is not None and len(addresses_id) > 0:
             Address.add_addresses_to_db_if_needed(addresses_id)
@@ -568,7 +555,7 @@ class Building(BuildingAbstract):
 
         return Building.objects.create(
             rnb_id=rnb_id,
-            point=point,  # type: ignore
+            point=point,
             shape=shape,
             ext_ids=ext_ids,
             event_origin=event_origin,
@@ -614,10 +601,6 @@ class Building(BuildingAbstract):
         if addresses_id is not None:
             Address.add_addresses_to_db_if_needed(addresses_id)
 
-        except_for_this_contribution = get_contribution_id_from_event_origin(
-            event_origin
-        )
-
         def remove_existing_builing(building):
             building.is_active = False
             building.event_type = EventType.MERGE.value
@@ -626,9 +609,6 @@ class Building(BuildingAbstract):
             building.event_user = user
             building.event_origin = event_origin
             building.save()
-            building._refuse_pending_contributions(
-                user, event_id, except_for_this_contribution
-            )
 
         for building in buildings:
             remove_existing_builing(building)
@@ -873,15 +853,6 @@ class Building(BuildingAbstract):
                 name="valid_event_type_check",
             ),
         ]
-
-
-def get_contribution_id_from_event_origin(event_origin):
-    return (
-        event_origin.get("contribution_id")
-        if isinstance(event_origin, dict)
-        and event_origin.get("source") == "contribution"
-        else None
-    )
 
 
 class BuildingWithHistory(BuildingAbstract):

@@ -42,8 +42,8 @@ class DiffView(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": (
                             "Date et heure à partir de laquelle les modifications sont retournées. Le format est ISO 8601. <br />"
-                            "Seules les dates après le 1er avril 2024 sont acceptées.<br/>"
-                            "Une date antérieure reviendrait à télécharger l'intégralité de la base de données (l'ensemble de la base est <a href='https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/'>disponible ici</a>). "
+                            "La période maximale proposée est de 6 mois.<br/>"
+                            "Pour récupérer le RNB dans son intégralité, téléchargez la base de données (l'ensemble de la base est <a href='https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/'>disponible ici</a>). "
                         ),
                         "required": True,
                         "schema": {"type": "string"},
@@ -224,23 +224,18 @@ class DiffView(RNBLoggingMixin, APIView):
                                     json_build_object(
                                         'id', mu.id,
                                         'username', mu.username,
-                                        'display_name',
-                                        case
-                                            when coalesce(mu.first_name, '') = '' and coalesce(mu.last_name, '') = '' then mu.username
-                                            when mu.last_name is not null and mu.last_name <> ''
-                                            then mu.first_name || ' ' || substring(mu.last_name, 1, 1) || '.'
-                                            else mu.first_name
-                                        end,
-                                        'organization_name', (
-                                            SELECT org.name
-                                            FROM batid_userprofile up
-                                            JOIN batid_organization org ON up.organization_id = org.id
-                                            WHERE up.user_id = mu.id
-                                            LIMIT 1
-                                        )
+                                        'organization_name', mu_org.name,
+                                        'organization_short_name', mu_org.short_name
                                     ) ORDER BY mu.id
                                 ), '[]'::json)
                                 FROM auth_user mu
+                                LEFT JOIN LATERAL (
+                                    SELECT org.name, org.short_name
+                                    FROM batid_userprofile up
+                                    JOIN batid_organization org ON up.organization_id = org.id
+                                    WHERE up.user_id = mu.id
+                                    LIMIT 1
+                                ) AS mu_org ON TRUE
                                 WHERE mu.id = ANY(bb.validated_by)
                             ) as validated_by
                             FROM batid_building_with_history bb

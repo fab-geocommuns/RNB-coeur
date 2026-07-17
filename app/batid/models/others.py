@@ -204,6 +204,7 @@ class Address(models.Model):
 
 class Organization(models.Model):
     name = models.CharField(max_length=100, null=False)
+    short_name = models.CharField(max_length=30, null=True, blank=True)
     managed_cities = ArrayField(models.CharField(max_length=6), null=True, blank=True)
     siren = models.CharField(max_length=9, blank=True, null=True, unique=True)
     email_domain = models.CharField(max_length=255, blank=True, null=True, unique=True)
@@ -366,7 +367,6 @@ class KPI(models.Model):
 
 
 class SummerChallenge(models.Model):
-    score = models.IntegerField(null=False)
     user = models.ForeignKey(User, on_delete=models.PROTECT, null=False, db_index=True)
     rnb_id = models.CharField(max_length=12, null=False, db_index=True)
 
@@ -378,6 +378,7 @@ class SummerChallenge(models.Model):
         "merge",
         "split",
         "deactivation",
+        "validation",
     ]
     action = models.CharField(
         choices=[(e, e) for e in ACTIONS], max_length=14, null=False, db_index=True
@@ -411,7 +412,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=3,
                 user=user,
                 action="set_address",
                 city=city,
@@ -426,7 +426,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=2,
                 user=user,
                 action="creation",
                 city=city,
@@ -441,7 +440,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=1,
                 user=user,
                 action="update_shape",
                 city=city,
@@ -456,7 +454,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=1,
                 user=user,
                 action="update_status",
                 city=city,
@@ -471,7 +468,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=2,
                 user=user,
                 action="deactivation",
                 city=city,
@@ -486,7 +482,6 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=1,
                 user=user,
                 action="split",
                 city=city,
@@ -501,9 +496,22 @@ class SummerChallenge(models.Model):
         if user:
             city, dpt = SummerChallenge.get_areas(point)
             sc = SummerChallenge(
-                score=1,
                 user=user,
                 action="merge",
+                city=city,
+                department=dpt,
+                rnb_id=rnb_id,
+                event_id=event_id,
+            )
+            sc.save()
+
+    @staticmethod
+    def score_validation(user, point, rnb_id, event_id):
+        if user:
+            city, dpt = SummerChallenge.get_areas(point)
+            sc = SummerChallenge(
+                user=user,
+                action="validation",
                 city=city,
                 department=dpt,
                 rnb_id=rnb_id,

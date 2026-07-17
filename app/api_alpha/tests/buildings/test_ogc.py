@@ -1,7 +1,6 @@
 import json
 
 from batid.models import Building
-from batid.services.user import get_display_name
 from batid.tests.factories.users import ContributorUserFactory
 from batid.tests.helpers import create_bdg, create_grenoble
 from django.contrib.gis.geos import GEOSGeometry
@@ -260,10 +259,10 @@ class OGCEndpointsTest(APITestCase):
                         "is_active": True,
                         "validated_by": [
                             {
-                                "display_name": get_display_name(self.user),
                                 "id": self.user.id,
                                 "username": "user",
                                 "organization_name": None,
+                                "organization_short_name": None,
                             }
                         ],
                     },
@@ -356,10 +355,10 @@ class OGCEndpointsTest(APITestCase):
                         "is_active": True,
                         "validated_by": [
                             {
-                                "display_name": get_display_name(self.user),
                                 "id": self.user.id,
                                 "username": "user",
                                 "organization_name": None,
+                                "organization_short_name": None,
                             }
                         ],
                     },

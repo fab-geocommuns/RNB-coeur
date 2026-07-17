@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from typing import Any, cast
 
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.pagination import BuildingListingCursorPagination, OGCApiPagination
@@ -18,8 +18,9 @@ from batid.exceptions import (
     InvalidOperation,
 )
 from batid.list_bdg import list_bdgs
-from batid.models import Building, Contribution
+from batid.models import Building, Contribution, Trophy
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
 from rest_framework import status as http_status
@@ -71,14 +72,10 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                     {
                         "name": "withPlots",
                         "in": "query",
-                        "description": "Inclure les parcelles intersectant les bâtiments de la réponse. Valeur attendue : 1. Chaque parcelle associée intersecte le bâtiment correspondant. Elle contient son identifiant ainsi que le taux de couverture du bâtiment.",
+                        "description": """Liste les parcelles cadastrales intersectant le bâtiment. Pour chaque parcelle, il est donné la proportion de la surface du bâtiment située sur celle-ci. La valeur attendue pour ce paramêtre est `"1"`. """,
                         "required": False,
-                        "schema": {
-                            "type": "integer",
-                            "default": 0,
-                            "enum": [0, 1],
-                        },
-                        "example": 1,
+                        "schema": {"type": "string"},
+                        "example": "1",
                     },
                     {
                         "name": "format",
@@ -109,13 +106,13 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "name": "bbox",
                         "in": "query",
                         "description": (
-                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box."
+                            "Filtre les bâtiments dont l'emprise au sol est située dans la bounding box. "
                             "Le format est `min_lon,min_lat,max_lon,max_lat`"
                             "La taille de la bbox est limitée par la contrainte (max_lon - min_lon) * (max_lat - min_lat) < 4. Cela correspond à la surface d'environ deux départements français."
                         ),
                         "required": False,
                         "schema": {"type": "string"},
-                        "example": "48.845782,2.424525,48.839201,2.434158",
+                        "example": "2.424525,48.839201,2.434158,48.845782",
                     },
                     {
                         "name": "bb",
@@ -141,15 +138,13 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                     "type": "object",
                                     "properties": {
                                         "next": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "<br />URL de la page de résultats suivante<br />",
-                                            "nullable": True,
                                             "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1",
                                         },
                                         "previous": {
-                                            "type": "string",
+                                            "type": ["string", "null"],
                                             "description": "<br />URL de la page de résultats précédente<br />",
-                                            "nullable": True,
                                             "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR",
                                         },
                                         "results": {
@@ -181,7 +176,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             # Invalid data, return validation errors
             return Response(query_serializer.errors, status=400)
 
-        query_params = request.query_params.dict()
+        query_params: dict[str, Any] = request.query_params.dict()
 
         # check if we need to include plots
         with_plots_param = request.query_params.get("withPlots", None)
@@ -258,7 +253,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                     "is_valid": {
                                         "type": "boolean",
                                         "default": False,
-                                        "description": "Optionnel. Si `True`, le bâtiment est marqué comme correct dès sa création. L'utilisateur déclare ainsi que l'ensemble des informations liées aux bâtiments (statut, adresse, géométrie) sont correctes. Vaut 'False' par défaut, ce qui revient à simplement créer le bâtiment sans le marquer comme correct.",
+                                        "description": "Optionnel. Si `True`, le bâtiment est marqué comme valide dès sa création. L'utilisateur déclare ainsi que l'ensemble des informations liées aux bâtiments (statut, adresse, géométrie) sont valides. Vaut 'False' par défaut, ce qui revient à simplement créer le bâtiment sans le valider.",
                                     },
                                 },
                                 "required": [
@@ -300,16 +295,14 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         input_serializer.is_valid(raise_exception=True)
 
         data = input_serializer.data
-        user = request.user
+        # POST requires RNBContributorPermission, so the user is always authenticated
+        user = cast(User, request.user)
 
         with transaction.atomic():
             # create a contribution
             contribution = Contribution(
                 text=data.get("comment"),
-                status="fixed",
-                status_changed_at=datetime.now(timezone.utc),
-                report=False,
-                review_user=user,
+                user=user,
             )
             contribution.save()
 
@@ -318,8 +311,9 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                 "contribution_id": contribution.id,
             }
 
-            status = data.get("status")
-            addresses_cle_interop = data.get("addresses_cle_interop")
+            # status and addresses_cle_interop are required fields (validated above)
+            status = data["status"]
+            addresses_cle_interop = data["addresses_cle_interop"]
             shape = GEOSGeometry(data.get("shape"))
 
             addresses_id = list(set(addresses_cle_interop))
@@ -350,4 +344,9 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             contribution.save()
 
         output_serializer = BuildingSerializer(created_building, with_plots=True)
-        return Response(output_serializer.data, status=http_status.HTTP_201_CREATED)
+        response_data = dict(output_serializer.data)
+        # a validation may unlock new trophies; they are awarded in the database but
+        # not returned here. The user retrieves them via the user trophies endpoint.
+        if data.get("is_valid"):
+            Trophy.check_and_award_all(user)
+        return Response(response_data, status=http_status.HTTP_201_CREATED)

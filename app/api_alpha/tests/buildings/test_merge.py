@@ -151,9 +151,7 @@ class BuildingMergeTest(APITestCase):
 
         contribution = Contribution.objects.get(id=contribution_id)
 
-        self.assertEqual(contribution.status, "fixed")
-        self.assertFalse(contribution.report, False)
-        self.assertEqual(contribution.review_user.id, building.event_user.id)
+        self.assertEqual(contribution.user.id, building.event_user.id)
         self.assertEqual(contribution.text, data["comment"])
 
     def test_merge_buildings_explicit_addresses(self):
@@ -207,9 +205,7 @@ class BuildingMergeTest(APITestCase):
 
         contribution = Contribution.objects.get(id=contribution_id)
 
-        self.assertEqual(contribution.status, "fixed")
-        self.assertFalse(contribution.report, False)
-        self.assertEqual(contribution.review_user.id, building.event_user.id)
+        self.assertEqual(contribution.user.id, building.event_user.id)
         self.assertEqual(contribution.text, data["comment"])
 
     def test_merge_buildings_bad_requests(self):
@@ -310,7 +306,8 @@ class BuildingMergeTest(APITestCase):
 
         self.assertEqual(r.status_code, 400)
         self.assertEqual(
-            r.json(), {"rnb_ids": ["Ensure this field has at least 2 elements."]}
+            r.json(),
+            {"rnb_ids": ["Assurez-vous que ce champ a au moins 2 éléments."]},
         )
 
         # cannot merge inactive buildings

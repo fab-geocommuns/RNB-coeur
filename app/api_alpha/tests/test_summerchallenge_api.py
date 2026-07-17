@@ -1,7 +1,8 @@
 import json
+import uuid
 from urllib.parse import quote
 
-from batid.models import Address, Building
+from batid.models import Address, Building, Organization, SummerChallenge, UserProfile
 from batid.tests.factories.users import ContributorUserFactory
 from batid.tests.test_summerchallenge import create_city_dpt
 from django.contrib.gis.geos import GEOSGeometry
@@ -153,5 +154,89 @@ class TestSummerChallengeRanking(APITestCase):
                 "global": 4,
                 "user_score": 0,
                 "user_rank": None,
+            },
+        )
+
+    def test_validation_ranking(self):
+        """
+        Input: 6 validation SummerChallenge rows spread over 3 users belonging
+        to 2 organizations and located in 2 departments, plus 1 non-validation
+        row (a creation) that must be ignored.
+            - user_1 (org_a, dpt 01): 3 validations
+            - user_2 (org_a, dpt 02): 2 validations
+            - user_3 (no org, no dpt): 1 validation
+            - user_3: 1 creation (ignored)
+        Expected: global=6 and rankings (capped by max_rank) by user,
+        department and organization, ordered by descending score. The
+        organization ranking only counts users having an organization and
+        includes the organization short_name, and the department ranking only
+        counts rows with a department.
+        """
+        org_a = Organization.objects.create(name="org_a", short_name="a")
+        org_b = Organization.objects.create(name="org_b", short_name="b")
+
+        user_1 = ContributorUserFactory(username="user_1")
+        user_2 = ContributorUserFactory(username="user_2")
+        user_3 = ContributorUserFactory(username="user_3")
+
+        UserProfile.objects.filter(user=user_1).update(organization=org_a)
+        UserProfile.objects.filter(user=user_2).update(organization=org_b)
+        # user_3 has no organization
+
+        create_city_dpt(self)
+
+        def add_validations(user, n, department=None):
+            for _ in range(n):
+                SummerChallenge.objects.create(
+                    user=user,
+                    action="validation",
+                    rnb_id="RNBTESTID000",
+                    event_id=uuid.uuid4(),
+                    department=department,
+                )
+
+        add_validations(user_1, 3, department=self.dpt_1)  # org_a, dpt 01
+        add_validations(user_2, 2, department=self.dpt_2)  # org_b, dpt 02
+        add_validations(user_3, 1)  # no org, no department
+
+        # a non-validation row that must not be counted
+        SummerChallenge.objects.create(
+            user=user_3,
+            action="creation",
+            rnb_id="RNBTESTID000",
+            event_id=uuid.uuid4(),
+        )
+
+        r = self.client.get("/api/alpha/validation/ranking/?max_rank=5")
+        self.assertEqual(r.status_code, 200)
+        self.assertDictEqual(
+            r.json(),
+            {
+                "global": 6,
+                "individual": [
+                    {"username": "user_1", "rank": 3},
+                    {"username": "user_2", "rank": 2},
+                    {"username": "user_3", "rank": 1},
+                ],
+                "departement": [
+                    {"code": "01", "name": "Ain", "rank": 3},
+                    {"code": "02", "name": "Deux", "rank": 2},
+                ],
+                "organization": [
+                    {"name": "org_a", "short_name": "a", "rank": 3},
+                    {"name": "org_b", "short_name": "b", "rank": 2},
+                ],
+            },
+        )
+
+        # max_rank caps the length of every ranking
+        r = self.client.get("/api/alpha/validation/ranking/?max_rank=1")
+        self.assertDictEqual(
+            r.json(),
+            {
+                "global": 6,
+                "individual": [{"username": "user_1", "rank": 3}],
+                "departement": [{"code": "01", "name": "Ain", "rank": 3}],
+                "organization": [{"name": "org_a", "short_name": "a", "rank": 3}],
             },
         )

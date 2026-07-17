@@ -96,16 +96,10 @@ def sql_query(code_area):
         (
            SELECT coalesce(json_agg(
                json_build_object(
-                   'display_name',
-                   case
-                       when coalesce(u.first_name, '') = '' and coalesce(u.last_name, '') = '' then u.username
-                       when u.last_name is not null and u.last_name <> ''
-                       then u.first_name || ' ' || substring(u.last_name, 1, 1) || '.'
-                       else u.first_name
-                   end,
                    'id', u.id,
+                   'username', u.username,
                    'organization_name', org.name,
-                   'username', u.username
+                   'organization_short_name', org.short_name
                ) ORDER BY u.id
            ), '[]'::json)
            FROM batid_buildingvalidatedbyreadonly v

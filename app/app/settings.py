@@ -72,6 +72,12 @@ if DEBUG:
 
 # Application definition
 
+# Django 6.0 changed the implicit default to BigAutoField. Our apps pin
+# BigAutoField in their AppConfig; this keeps third-party apps without their
+# own pin (rest_framework_tracking) on AutoField, matching their shipped
+# migrations and the existing database schema.
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
 INSTALLED_APPS = [
     "debug_toolbar",
     "jsoneditor",
@@ -171,6 +177,9 @@ if POSTGRES_STATEMENT_TIMEOUT:
 
 # any active user part of this group can edit the RNB
 CONTRIBUTORS_GROUP_NAME = "Contributors"
+
+# any user part of this group can annotate (review) RNB events
+REVIEWERS_GROUP_NAME = "Reviewers"
 
 AUTHENTICATION_BACKENDS = [
     "app.authentication.UsernameOrEmailBackend",

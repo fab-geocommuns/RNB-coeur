@@ -1,7 +1,8 @@
 import json
+import uuid
 from unittest import mock
 
-from batid.models import Address, Building, Contribution
+from batid.models import Address, Building, Contribution, SummerChallenge, Trophy
 from batid.tests.factories.users import ContributorUserFactory
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import override_settings
@@ -218,112 +219,8 @@ class BuildingPatchTest(APITestCase):
             self.building.event_origin,
             {"source": "contribution", "contribution_id": contribution.id},
         )
-        self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
-        self.assertEqual(contribution.review_user, self.user)
-        self.assertFalse(contribution.report)
-
-    def test_reactivate(self):
-        self.assertTrue(self.building.is_active)
-        c1 = Contribution.objects.create(
-            rnb_id=self.building.rnb_id,
-            text="ruine",
-            report=True,
-            status="pending",
-        )
-        c2 = Contribution.objects.create(
-            rnb_id=self.building.rnb_id,
-            text="l'adresse est fausse",
-            report=True,
-            status="fixed",
-        )
-        c3 = Contribution.objects.create(
-            rnb_id=self.building.rnb_id,
-            text="modif",
-            report=False,
-            status="fixed",
-        )
-
-        other_building = Building.create_new(
-            user=self.user,
-            status="constructed",
-            event_origin="test",
-            addresses_id=[],
-            ext_ids=[],
-            shape=GEOSGeometry(
-                json.dumps(
-                    {
-                        "coordinates": [
-                            [
-                                [-0.5690889303904783, 44.83086359181351],
-                                [-0.5692329185634151, 44.83090842282704],
-                                [-0.5693593472030045, 44.83084615752156],
-                                [-0.5691767280571298, 44.83073407980169],
-                                [-0.5690889303904783, 44.83086359181351],
-                            ]
-                        ],
-                        "type": "Polygon",
-                    }
-                ),
-                srid=4326,
-            ),
-        )
-
-        c4 = Contribution.objects.create(
-            rnb_id=other_building.rnb_id,
-            text="l'adresse est fausse",
-            report=True,
-            status="pending",
-        )
-
-        # start with a deactivation
-        self.building.deactivate(
-            self.user, event_origin={"source": "contribution", "id": 1}
-        )
-        self.building.refresh_from_db()
-
-        self.assertFalse(self.building.is_active)
-        event_id_1 = self.building.event_id
-        self.assertTrue(event_id_1 is not None)
-        self.assertEqual(self.building.event_type, "deactivation")
-        c1.refresh_from_db()
-        c2.refresh_from_db()
-        c3.refresh_from_db()
-        c4.refresh_from_db()
-        # updated contribution
-        self.assertEqual(c1.status, "refused")
-        # this is how the link is done
-        self.assertEqual(c1.status_updated_by_event_id, self.building.event_id)
-        # untouched contributions
-        self.assertEqual(c2.status, "fixed")
-        self.assertEqual(c3.status, "fixed")
-        self.assertEqual(c4.status, "pending")
-
-        # then reactivate
-        self.building.reactivate(self.user, {"source": "contribution", "id": 2})
-        self.building.refresh_from_db()
-
-        self.assertTrue(self.building.is_active)
-        event_id_2 = self.building.event_id
-        self.assertTrue(event_id_2 is not None)
-        self.assertNotEqual(event_id_1, event_id_2)
-        self.assertEqual(self.building.event_type, "reactivation")
-        # signalements (reports) closed by deactivation are reset to "pending"
-        c1.refresh_from_db()
-        c2.refresh_from_db()
-        c3.refresh_from_db()
-        c4.refresh_from_db()
-
-        # reset contribution status
-        self.assertEqual(c1.status, "pending")
-        self.assertIsNone(c1.status_changed_at)
-        self.assertIsNone(c1.status_updated_by_event_id)
-        self.assertIsNone(c1.review_user)
-        self.assertIsNone(c1.review_comment)
-        # untouched contributions
-        self.assertEqual(c2.status, "fixed")
-        self.assertEqual(c3.status, "fixed")
-        self.assertEqual(c4.status, "pending")
+        self.assertEqual(contribution.user, self.user)
 
     def test_cannot_reactivate_everything(self):
         with self.assertRaises(Exception) as e:
@@ -370,9 +267,8 @@ class BuildingPatchTest(APITestCase):
         g = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
         self.assertEqual(self.building.shape.wkt, g.wkt)
         self.assertTrue(g.contains(self.building.point))
-        self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
-        self.assertEqual(contribution.review_user, self.user)
+        self.assertEqual(contribution.user, self.user)
 
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_update_building_duplicate_address(self):
@@ -405,9 +301,8 @@ class BuildingPatchTest(APITestCase):
         g = GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))")
         self.assertEqual(self.building.shape.wkt, g.wkt)
         self.assertTrue(g.contains(self.building.point))
-        self.assertEqual(contribution.status, "fixed")
         self.assertEqual(contribution.text, comment)
-        self.assertEqual(contribution.review_user, self.user)
+        self.assertEqual(contribution.user, self.user)
 
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_update_with_empty_addresses(self):
@@ -775,6 +670,16 @@ class BuildingPatchValidateTest(APITestCase):
             validated_by=[],
         )
 
+        # Make `other_user` the clear validation leader so that a single validation
+        # by `self.user` never awards the transferable SuperV badge in these tests.
+        for _ in range(30):
+            SummerChallenge.objects.create(
+                user=self.other_user,
+                action="validation",
+                rnb_id="RNBTESTID000",
+                event_id=uuid.uuid4(),
+            )
+
     def test_is_valid_true_alone(self):
         """
         Input: PATCH with only `is_valid=True`, building's validated_by is empty.
@@ -793,8 +698,7 @@ class BuildingPatchValidateTest(APITestCase):
         self.assertEqual(self.building.validated_by, [self.user.id])
 
         contribution = Contribution.objects.get(rnb_id=self.rnb_id)
-        self.assertEqual(contribution.status, "fixed")
-        self.assertEqual(contribution.review_user, self.user)
+        self.assertEqual(contribution.user, self.user)
         self.assertEqual(contribution.text, "ce bâtiment est correct")
 
     def test_is_valid_false_removes_user(self):
@@ -901,3 +805,48 @@ class BuildingPatchValidateTest(APITestCase):
         self.assertEqual(r.status_code, 400)
         self.building.refresh_from_db()
         self.assertEqual(self.building.validated_by, [])
+
+    def test_validation_unlocks_trophy(self):
+        """
+        Input: user already has 9 validations; PATCH with `is_valid=True`
+        (the 10th validation).
+        Expected: 204 (trophies are no longer returned in the response); the
+        'validateur' level 1 Trophy is awarded in the database.
+        """
+        for _ in range(9):
+            SummerChallenge.objects.create(
+                user=self.user,
+                action="validation",
+                rnb_id="RNBTESTID000",
+                event_id=uuid.uuid4(),
+            )
+
+        data = {"is_valid": True, "comment": "ok"}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.assertTrue(
+            Trophy.objects.filter(
+                user=self.user, trophy_type="validateur", level=1
+            ).exists()
+        )
+
+    def test_validation_below_threshold_returns_204(self):
+        """
+        Input: the requesting user PATCHes with `is_valid=True` (1st validation, below
+        every threshold; `other_user` is the validation leader, see setUp).
+        Expected: 204 with no body; no Trophy awarded to the user.
+        """
+        data = {"is_valid": True, "comment": "ok"}
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 204)
+        self.assertFalse(Trophy.objects.filter(user=self.user).exists())

@@ -1,4 +1,4 @@
-from datetime import datetime
+from collections import defaultdict
 
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
@@ -18,7 +18,7 @@ from batid.exceptions import (
     InvalidOperation,
 )
 from batid.list_bdg import list_bdgs
-from batid.models import Building, Contribution
+from batid.models import Building, Contribution, EventAnnotation, Trophy
 from batid.services.bdg_history import get_bdg_history
 from batid.services.rnb_id import clean_rnb_id
 from django.contrib.gis.geos import GEOSGeometry
@@ -38,9 +38,36 @@ class SingleBuildingHistory(RNBLoggingMixin, APIView):
 
         rows = get_bdg_history(rnb_id=rnb_id)
 
-        serializer = BuildingHistorySerializer(rows, many=True)
+        annotations_by_event_id = self._get_annotations_by_event_id(rows)
+
+        serializer = BuildingHistorySerializer(
+            rows,
+            many=True,
+            context={"annotations_by_event_id": annotations_by_event_id},
+        )
 
         return Response(serializer.data)
+
+    def _get_annotations_by_event_id(self, rows: list[dict]) -> dict[str, list]:
+        """Preload all annotations of the history events grouped by event_id.
+
+        A single query collects the annotations of every event_id present in the
+        history, avoiding a N+1 query when serializing each event.
+        """
+        event_ids = {
+            row["event"]["id"]
+            for row in rows
+            if row.get("event") and row["event"].get("id")
+        }
+
+        annotations_by_event_id: dict[str, list] = defaultdict(list)
+        annotations = EventAnnotation.objects.filter(
+            event_id__in=event_ids
+        ).select_related("reviewer__profile__organization")
+        for annotation in annotations:
+            annotations_by_event_id[str(annotation.event_id)].append(annotation)
+
+        return annotations_by_event_id
 
 
 class SingleBuilding(RNBLoggingMixin, APIView):
@@ -164,7 +191,7 @@ Exemples valides:
                                     "comment": {
                                         "type": "string",
                                         "description": "Texte associé à la modification et la justifiant.",
-                                        "exemple": "Ce n'est pas un bâtiment mais un arbre.",
+                                        "example": "Ce n'est pas un bâtiment mais un arbre.",
                                     },
                                     "is_active": {
                                         "type": "boolean",
@@ -178,7 +205,7 @@ Exemples valides:
                                         "type": "string",
                                         "enum": get_status_list(),
                                         "description": f"Statut du bâtiment.",
-                                        "exemple": "demolished",
+                                        "example": "demolished",
                                     },
                                     "addresses_cle_interop": {
                                         "type": "array",
@@ -192,7 +219,7 @@ Si ce paramêtre est :
 * absent, alors les clés ne sont pas modifiées.
 * présent et que sa valeur est une liste vide (`[]`), alors le bâtiment ne sera plus lié à aucune adresse."""
                                         ),
-                                        "exemple": [
+                                        "example": [
                                             "75105_8884_00004",
                                             "75105_8884_00006",
                                         ],
@@ -201,7 +228,7 @@ Si ce paramêtre est :
                                         "type": "string",
                                         "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
                                     },
-                                    "validate": {
+                                    "is_valid": {
                                         "type": "boolean",
                                         "description": LiteralStr(
                                             """\
@@ -219,13 +246,13 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                 },
                 "responses": {
                     "204": {
-                        "description": "Pas de contenu attendu dans la réponse en cas de succès",
+                        "description": "Pas de contenu attendu dans la réponse en cas de succès"
                     },
                     "400": {
                         "description": "Requête invalide (données mal formatées ou incomplètes)."
                     },
                     "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                        "description": "L'utilisateur n'a pas les droits nécessaires pour modifier un bâtiment."
                     },
                     "503": {"description": "Service temporairement indisponible"},
                     "404": {
@@ -246,10 +273,7 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
             contribution = Contribution(
                 rnb_id=rnb_id,
                 text=data.get("comment"),
-                status="fixed",
-                status_changed_at=datetime.now(),
-                review_user=user,
-                report=False,
+                user=user,
             )
             contribution.save()
 
@@ -296,6 +320,11 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                 )
             except InvalidOperation as e:
                 raise BadRequest(detail=e.api_message_with_details())
+
+        # a validation may unlock new trophies; they are awarded in the database but
+        # not returned here. The user retrieves them via the user trophies endpoint.
+        if data.get("is_valid"):
+            Trophy.check_and_award_all(user)
 
         # request is successful, no content to send back
         return Response(status=http_status.HTTP_204_NO_CONTENT)

@@ -1,5 +1,4 @@
 from batid.models import Building, Plot
-from batid.services.user import get_display_name
 from batid.tests.factories.users import ContributorUserFactory
 from rest_framework.test import APITestCase
 
@@ -73,10 +72,10 @@ class BuildingPlotViewTest(APITestCase):
             r1["validated_by"],
             [
                 {
-                    "display_name": get_display_name(user),
                     "id": user.id,
                     "username": user.username,
                     "organization_name": None,
+                    "organization_short_name": None,
                 }
             ],
         )

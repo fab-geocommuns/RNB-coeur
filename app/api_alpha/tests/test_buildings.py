@@ -2,7 +2,6 @@ import json
 from unittest import mock
 
 from batid.models import Address, Building
-from batid.services.user import get_display_name
 from batid.tests.factories.users import ContributorUserFactory
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
@@ -204,10 +203,10 @@ class BuildingClosestViewTest(APITestCase):
             data["results"][0]["validated_by"],
             [
                 {
-                    "display_name": get_display_name(user),
                     "id": user.id,
                     "username": user.username,
                     "organization_name": None,
+                    "organization_short_name": None,
                 }
             ],
         )
@@ -497,10 +496,10 @@ class BuildingAddressViewTest(APITestCase):
             data["results"][0]["validated_by"],
             [
                 {
-                    "display_name": get_display_name(self.user),
                     "id": self.user.id,
                     "username": self.user.username,
                     "organization_name": None,
+                    "organization_short_name": None,
                 }
             ],
         )
