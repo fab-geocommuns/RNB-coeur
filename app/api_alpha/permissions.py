@@ -89,6 +89,13 @@ class RNBContributorPermission(permissions.BasePermission):
         return is_in_group(request.user, self.group_name)
 
 
+class RNBReviewerPermission(permissions.BasePermission):
+    group_name = settings.REVIEWERS_GROUP_NAME
+
+    def has_permission(self, request, view):
+        return is_in_group(request.user, self.group_name)
+
+
 class ReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.method in SAFE_METHODS

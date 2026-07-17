@@ -169,6 +169,7 @@ class SingleBuildingHistoryTest(APITestCase):
                         },
                         "id": contrib_id,
                     },
+                    "annotations": [],
                 },
                 "ext_ids": [],
                 "updated_at": updated_at.isoformat().replace("+00:00", "Z"),
