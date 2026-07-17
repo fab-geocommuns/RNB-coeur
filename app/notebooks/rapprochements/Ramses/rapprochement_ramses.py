@@ -91,6 +91,7 @@ print("Colonnes disponibles :", list(df.columns))
 # 2. Transformation des lignes en entrées pour le moteur de rapprochement
 # ---------------------------------------------------------------------------
 
+
 def row_to_input(df_row_raw):
     """Convertit une ligne du fichier RAMSES en entrée pour le `Guesser`.
 
@@ -136,9 +137,9 @@ print("Exemple d'entrée :", inputs[0])
 # ---------------------------------------------------------------------------
 
 from batid.services.guess_bdg_new import (  # noqa: E402  (import après bootstrap Django)
-    Guesser,
     GeocodeAddressHandler,
     GeocodeNameHandler,
+    Guesser,
 )
 
 # Le moteur traite les entrées par lots (`batch_size`) et sauvegarde l'état
