@@ -69,7 +69,7 @@ class DiffView(RNBLoggingMixin, APIView):
                             "text/csv": {
                                 "schema": {"type": "string"},
                                 "example": (
-                                    "action,rnb_id,status,is_active,sys_period,point,shape,addresses_id,ext_ids,parent_buildings,event_id,event_type,username"
+                                    "action,rnb_id,status,is_active,sys_period,point,shape,addresses_id,ext_ids,parent_buildings,event_id,event_type,username,validated_by"
                                 ),
                             }
                         },
@@ -218,7 +218,26 @@ class DiffView(RNBLoggingMixin, APIView):
                             parent_buildings,
                             event_id,
                             event_type,
-                            COALESCE(u.username, 'RNB') as username
+                            COALESCE(u.username, 'RNB') as username,
+                            (
+                                SELECT COALESCE(json_agg(
+                                    json_build_object(
+                                        'id', mu.id,
+                                        'username', mu.username,
+                                        'organization_name', mu_org.name,
+                                        'organization_short_name', mu_org.short_name
+                                    ) ORDER BY mu.id
+                                ), '[]'::json)
+                                FROM auth_user mu
+                                LEFT JOIN LATERAL (
+                                    SELECT org.name, org.short_name
+                                    FROM batid_userprofile up
+                                    JOIN batid_organization org ON up.organization_id = org.id
+                                    WHERE up.user_id = mu.id
+                                    LIMIT 1
+                                ) AS mu_org ON TRUE
+                                WHERE mu.id = ANY(bb.validated_by)
+                            ) as validated_by
                             FROM batid_building_with_history bb
                             LEFT JOIN auth_user u on u.id = bb.event_user_id
                             where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone"""

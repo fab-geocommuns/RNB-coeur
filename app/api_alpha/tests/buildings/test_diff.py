@@ -132,6 +132,7 @@ class DiffTest(TransactionTestCase):
                 "event_id",
                 "event_type",
                 "username",
+                "validated_by",
             ],
         )
 
@@ -166,6 +167,7 @@ class DiffTest(TransactionTestCase):
         self.assertRegex(rows[1]["point"], r"SRID=4326;POINT\(\d+\.\d+ \d+\.\d+\)")
         self.assertRegex(rows[1]["shape"], r"SRID=4326;MULTIPOLYGON\(.+\)")
         self.assertEqual(rows[1]["username"], "RNB")
+        self.assertEqual(json.loads(rows[1]["validated_by"]), [])
 
         self.assertEqual(rows[2]["action"], "create")
         self.assertEqual(rows[2]["rnb_id"], b3.rnb_id)
