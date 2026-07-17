@@ -1,0 +1,70 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<p>
+  Organisation <strong>cible</strong> (conservée) :
+  « {{ target.name }} » — {{ target.user_profiles.count }} utilisateur(s).
+</p>
+
+{% if siren_conflict %}
+<p class="errornote">
+  Fusion refusée : les deux organisations portent des SIREN différents
+  ({{ target.siren }} vs {{ absorbed.siren }}). Entités légales distinctes.
+</p>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+
+  <fieldset class="module aligned">
+    <h2>Organisation à absorber (supprimée après fusion)</h2>
+    <div class="form-row">
+      <label for="id_absorbed">Organisation absorbée :</label>
+      <select name="absorbed" id="id_absorbed">
+        <option value="">---------</option>
+        {% for org in candidates %}
+        <option value="{{ org.pk }}"{% if absorbed and org.pk == absorbed.pk %} selected{% endif %}>
+          {{ org.name }}{% if org.siren %} — SIREN {{ org.siren }}{% endif %}{% if org.email_domain %} — @{{ org.email_domain }}{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="submit-row">
+      <input type="submit" name="select" value="Comparer">
+    </div>
+  </fieldset>
+
+  {% if absorbed and not siren_conflict %}
+  <fieldset class="module aligned">
+    <h2>Réconciliation des champs</h2>
+    <p class="help">
+      Les valeurs de la cible sont pré-remplies et modifiables. Le nombre
+      d'utilisateurs de l'absorbée ({{ absorbed.user_profiles.count }}) sera ajouté à la cible.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Champ</th><th>Valeur retenue (cible)</th><th>Valeur de l'absorbée</th></tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <th>{{ row.name }}</th>
+          <td><input type="text" name="{{ row.name }}" value="{{ row.target|default_if_none:'' }}"></td>
+          <td>{{ row.absorbed|default_if_none:'—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="submit-row">
+      <input type="submit" name="confirm" value="Fusionner" class="default">
+    </div>
+  </fieldset>
+  {% endif %}
+</form>
+{% endblock %}

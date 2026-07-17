@@ -117,7 +117,6 @@ class BuildingsEndpointsTest(APITestCase):
                     "is_active": True,
                     "validated_by": [
                         {
-                            "display_name": "user",
                             "id": self.user.id,
                             "username": "user",
                             "organization_name": None,
@@ -197,7 +196,6 @@ class BuildingsEndpointsTest(APITestCase):
                     "is_active": True,
                     "validated_by": [
                         {
-                            "display_name": "user",
                             "id": self.user.id,
                             "username": "user",
                             "organization_name": None,
@@ -277,7 +275,6 @@ class BuildingsEndpointsTest(APITestCase):
                     "is_active": True,
                     "validated_by": [
                         {
-                            "display_name": "user",
                             "id": self.user.id,
                             "username": "user",
                             "organization_name": None,
@@ -427,7 +424,6 @@ class BuildingsEndpointsTest(APITestCase):
                     "is_active": True,
                     "validated_by": [
                         {
-                            "display_name": "user",
                             "id": self.user.id,
                             "username": "user",
                             "organization_name": None,
@@ -507,7 +503,6 @@ class BuildingsEndpointsTest(APITestCase):
                         "is_active": True,
                         "validated_by": [
                             {
-                                "display_name": "user",
                                 "id": self.user.id,
                                 "username": "user",
                                 "organization_name": None,
@@ -703,7 +698,6 @@ class BuildingsEndpointsWithAuthTest(BuildingsEndpointsTest):
                     "is_active": True,
                     "validated_by": [
                         {
-                            "display_name": "user",
                             "id": self.user.id,
                             "username": "user",
                             "organization_name": None,
