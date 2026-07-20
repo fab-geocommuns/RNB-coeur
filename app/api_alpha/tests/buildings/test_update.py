@@ -3,6 +3,7 @@ import threading
 import uuid
 from unittest import mock
 
+from api_alpha.endpoints.buildings import single_building
 from batid.models import (
     Address,
     Building,
@@ -11,7 +12,6 @@ from batid.models import (
     SummerChallenge,
     Trophy,
 )
-from api_alpha.endpoints.buildings import single_building
 from batid.tests.factories.users import ContributorUserFactory
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connections
@@ -902,9 +902,7 @@ class ConcurrentDeactivationTest(APITransactionTestCase):
                 client.credentials(HTTP_AUTHORIZATION="Token " + self.token)
                 r = client.patch(
                     f"/api/alpha/buildings/{self.rnb_id}/",
-                    data=json.dumps(
-                        {"is_active": False, "comment": "not a building"}
-                    ),
+                    data=json.dumps({"is_active": False, "comment": "not a building"}),
                     content_type="application/json",
                 )
                 status_codes.append(r.status_code)
