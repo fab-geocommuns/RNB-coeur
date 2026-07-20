@@ -327,6 +327,45 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
         return value
 
 
+# 1 km², dans l'esprit du rayon maximal de 1000 m de buildings/closest/
+INTERSECT_MAX_POLYGON_AREA_M2 = 1_000_000
+
+
+class BuildingIntersectQuerySerializer(serializers.Serializer):
+    shape = serializers.CharField(required=True)
+
+    def validate_shape(self, value):
+        try:
+            geom = GEOSGeometry(value)
+        except Exception:
+            raise serializers.ValidationError(
+                "La forme fournie n'a pas pu être analysée"
+            )
+
+        if geom.geom_type != "Polygon":
+            raise serializers.ValidationError(
+                "La forme fournie doit être un polygone (Polygon)"
+            )
+
+        if geom.empty or not geom.valid:
+            raise serializers.ValidationError("Le polygone fourni n'est pas valide")
+
+        if geom.srid is not None and geom.srid != 4326:
+            raise serializers.ValidationError(
+                "Le polygone doit être exprimé en WGS84 (SRID 4326)"
+            )
+        geom.srid = 4326
+
+        # EPSG:6933 : projection équivalente (aires exactes) mondiale, en mètres
+        area_m2 = geom.transform(6933, clone=True).area
+        if area_m2 > INTERSECT_MAX_POLYGON_AREA_M2:
+            raise serializers.ValidationError(
+                "Le polygone fourni est trop grand (aire maximale : 1 km²)"
+            )
+
+        return geom
+
+
 class BuildingAddressQuerySerializer(serializers.Serializer):
     q = serializers.CharField(required=False)
     min_score = serializers.FloatField(required=False)
@@ -362,6 +401,31 @@ class BuildingPlotSerializer(BuildingSerializer):
 
     class Meta(BuildingSerializer.Meta):
         fields = BuildingSerializer.Meta.fields + ["bdg_cover_ratio"]
+
+
+class BuildingIntersectSerializer(BuildingSerializer):
+    iou = serializers.SerializerMethodField()
+    input_covered_by_rnb = serializers.SerializerMethodField()
+    rnb_covered_by_input = serializers.SerializerMethodField()
+
+    def _rounded(self, value):
+        return None if value is None else round(value, 3)
+
+    def get_iou(self, obj):
+        return self._rounded(obj.iou)
+
+    def get_input_covered_by_rnb(self, obj):
+        return self._rounded(obj.input_covered_by_rnb)
+
+    def get_rnb_covered_by_input(self, obj):
+        return self._rounded(obj.rnb_covered_by_input)
+
+    class Meta(BuildingSerializer.Meta):
+        fields = BuildingSerializer.Meta.fields + [
+            "iou",
+            "input_covered_by_rnb",
+            "rnb_covered_by_input",
+        ]
 
 
 def shape_is_valid(shape):
