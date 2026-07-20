@@ -79,6 +79,8 @@ skips = [
 ]
 
 [tool.mypy]
+# /app is not writable by the container user; mypy >= 2.0 crashes if it cannot create its cache
+cache_dir = "/tmp/.mypy_cache"
 exclude = [
   "batid/tests/",
   "api_alpha/tests/",
