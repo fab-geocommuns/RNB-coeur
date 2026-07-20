@@ -1,13 +1,23 @@
 import json
+import threading
 import uuid
 from unittest import mock
 
-from batid.models import Address, Building, Contribution, SummerChallenge, Trophy
+from batid.models import (
+    Address,
+    Building,
+    BuildingHistoryOnly,
+    Contribution,
+    SummerChallenge,
+    Trophy,
+)
+from api_alpha.endpoints.buildings import single_building
 from batid.tests.factories.users import ContributorUserFactory
 from django.contrib.gis.geos import GEOSGeometry
+from django.db import connections
 from django.test import override_settings
 from rest_framework.authtoken.models import Token
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase, APITransactionTestCase
 
 
 class BuildingPatchTest(APITestCase):
@@ -850,3 +860,72 @@ class BuildingPatchValidateTest(APITestCase):
 
         self.assertEqual(r.status_code, 204)
         self.assertFalse(Trophy.objects.filter(user=self.user).exists())
+
+
+class ConcurrentDeactivationTest(APITransactionTestCase):
+    def setUp(self) -> None:
+        self.user = ContributorUserFactory(
+            first_name="Robert", last_name="Dylan", username="bob"
+        )
+        self.token = Token.objects.get(user=self.user).key
+
+        self.rnb_id = "XXXXYYYYZZZZ"
+        self.building = Building.objects.create(
+            rnb_id=self.rnb_id, shape=GEOSGeometry("POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))")
+        )
+
+    def test_concurrent_deactivations_only_one_succeeds(self):
+        """
+        Input: two concurrent PATCH requests with `is_active=False` on the same
+        active building; both requests reach the building fetch at the same
+        time (synchronized with a barrier, reproducing the race observed on
+        DZRKX9D93CAK, issue #955).
+        Expected: exactly one request succeeds (204), the other gets a 400, and
+        the history contains a single "deactivation" event.
+        """
+        barrier = threading.Barrier(2)
+        original_get_object_or_404 = single_building.get_object_or_404
+
+        def fetch_after_barrier(*args, **kwargs):
+            # both requests reach the fetch together, then race for the lock
+            try:
+                barrier.wait(timeout=10)
+            except threading.BrokenBarrierError:
+                pass
+            return original_get_object_or_404(*args, **kwargs)
+
+        status_codes = []
+
+        def send_patch():
+            try:
+                client = APIClient()
+                client.credentials(HTTP_AUTHORIZATION="Token " + self.token)
+                r = client.patch(
+                    f"/api/alpha/buildings/{self.rnb_id}/",
+                    data=json.dumps(
+                        {"is_active": False, "comment": "not a building"}
+                    ),
+                    content_type="application/json",
+                )
+                status_codes.append(r.status_code)
+            finally:
+                for conn in connections.all():
+                    conn.close()
+
+        with mock.patch.object(
+            single_building, "get_object_or_404", fetch_after_barrier
+        ):
+            threads = [threading.Thread(target=send_patch) for _ in range(2)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+        self.assertCountEqual(status_codes, [204, 400])
+        deactivation_events = BuildingHistoryOnly.objects.filter(
+            rnb_id=self.rnb_id, event_type="deactivation"
+        ).count()
+        self.building.refresh_from_db()
+        self.assertFalse(self.building.is_active)
+        self.assertEqual(deactivation_events, 0)
+        self.assertEqual(self.building.event_type, "deactivation")
