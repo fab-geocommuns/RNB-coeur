@@ -863,6 +863,19 @@ class BuildingPatchValidateTest(APITestCase):
 
 
 class ConcurrentDeactivationTest(APITransactionTestCase):
+    """
+    Reproduces the race condition of issue #955: a building deactivated
+    several times in a row by concurrent API requests.
+
+    Why APITransactionTestCase and not APITestCase: the regular test case
+    wraps the whole test in a single transaction that is rolled back at the
+    end, and that transaction lives on ONE database connection. Here we need
+    two threads, each with its OWN database connection, whose commits are
+    visible to each other — i.e. real transactions actually committed to the
+    test database. APITransactionTestCase provides that (and cleans the
+    tables afterwards with TRUNCATE instead of a rollback).
+    """
+
     def setUp(self) -> None:
         self.user = ContributorUserFactory(
             first_name="Robert", last_name="Dylan", username="bob"
@@ -883,14 +896,32 @@ class ConcurrentDeactivationTest(APITransactionTestCase):
         Expected: exactly one request succeeds (204), the other gets a 400, and
         the history contains a single "deactivation" event.
         """
+        # A Barrier is a thread synchronization point. Barrier(2) means: every
+        # thread that calls barrier.wait() is put on hold until 2 threads are
+        # waiting; at that moment they are ALL released simultaneously.
+        # This is what makes the race deterministic: without it, the two
+        # requests could be processed one after the other (the second would
+        # then read is_active=False and legitimately get a 400), and the test
+        # would pass or fail depending on scheduling luck.
         barrier = threading.Barrier(2)
         original_get_object_or_404 = single_building.get_object_or_404
 
         def fetch_after_barrier(*args, **kwargs):
-            # both requests reach the fetch together, then race for the lock
+            # This wrapper replaces get_object_or_404 in the view (see
+            # mock.patch.object below). Each request stops here, right before
+            # loading the building, until BOTH requests have reached this
+            # point. They are then released together and race for the row:
+            # - buggy code (no lock): both read is_active=True -> both 204
+            # - fixed code (select_for_update): the first one to get the row
+            #   lock wins, the other waits for its commit, re-reads
+            #   is_active=False and gets a 400.
             try:
                 barrier.wait(timeout=10)
             except threading.BrokenBarrierError:
+                # The barrier "breaks" if the 2nd thread does not show up
+                # within 10s (it may be blocked earlier by the row lock,
+                # depending on where the fix takes it). In that case, do not
+                # deadlock the test: let the request continue alone.
                 pass
             return original_get_object_or_404(*args, **kwargs)
 
@@ -907,19 +938,37 @@ class ConcurrentDeactivationTest(APITransactionTestCase):
                 )
                 status_codes.append(r.status_code)
             finally:
+                # Django opens one database connection per thread and only
+                # closes the main thread's one automatically: close this
+                # thread's connections ourselves to avoid leaking them.
                 for conn in connections.all():
                     conn.close()
 
+        # mock.patch.object(module, "name", replacement) temporarily rebinds
+        # the `get_object_or_404` name *as seen from the single_building
+        # module* to our wrapper, for the duration of the `with` block only
+        # (the original function is restored on exit, even on error). The
+        # view code is untouched: when it calls get_object_or_404(...), it
+        # now goes through fetch_after_barrier, which synchronizes the two
+        # threads and then delegates to the real function.
         with mock.patch.object(
             single_building, "get_object_or_404", fetch_after_barrier
         ):
             threads = [threading.Thread(target=send_patch) for _ in range(2)]
             for t in threads:
                 t.start()
+            # join() blocks until both requests are fully processed
             for t in threads:
                 t.join()
 
+        # assertCountEqual ignores ordering: we don't know which thread won
+        # the race, only that exactly one 204 and one 400 must come out.
         self.assertCountEqual(status_codes, [204, 400])
+        # The current version of a building lives in Building;
+        # BuildingHistoryOnly holds its PAST versions. After a single
+        # successful deactivation, the "deactivation" row is the current one,
+        # so the history must contain zero deactivation rows. The bug used to
+        # produce a second deactivation, pushing the first one into history.
         deactivation_events = BuildingHistoryOnly.objects.filter(
             rnb_id=self.rnb_id, event_type="deactivation"
         ).count()
