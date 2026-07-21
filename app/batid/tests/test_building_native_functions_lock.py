@@ -105,9 +105,7 @@ class BusinessFunctionsStillWorkTestCase(TestCase):
                 shape=coords_to_mp_geom(PARIS_COORDS),
                 ext_ids=[],
             )
-            self.assertTrue(
-                Building.objects.filter(rnb_id=building.rnb_id).exists()
-            )
+            self.assertTrue(Building.objects.filter(rnb_id=building.rnb_id).exists())
 
             building.update(
                 user=self.user,
