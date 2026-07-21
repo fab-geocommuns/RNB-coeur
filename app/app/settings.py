@@ -54,6 +54,9 @@ LOGIN_URL = "/admin/login/"
 
 DATABASE_ROUTERS = ("app.dbrouters.DBRouter",)
 
+# Tests are allowed to use the Django native functions locked on the Building model
+TEST_RUNNER = "app.test_runner.RNBTestRunner"
+
 if DEBUG:
     import socket  # only if you haven't already imported this
 

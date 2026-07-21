@@ -1,3 +1,7 @@
+# Ne plus utiliser ce script : il a servi à réparer des données historiques et
+# écrit des bâtiments sans passer par les fonctions métier du RNB. S'il est relancé,
+# il échouera avec une erreur ForbiddenDjangoNativeFunction.
+# (Seule la fonction building_identicals, purement en lecture, reste utilisée ailleurs.)
 from batid.models import Building, BuildingHistoryOnly
 from django.db import connection, transaction
 from django.forms.models import model_to_dict
