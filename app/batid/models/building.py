@@ -320,7 +320,11 @@ class Building(BuildingAbstract):
                 "The event_id does not correspond to a reactivation."
             )
 
-        current_building = Building.objects.get(rnb_id=building_to_revert.rnb_id)
+        # locked fetch: deactivate() checks is_active on this instance, so it
+        # must not be stale (issue #955)
+        current_building = Building.objects.select_for_update().get(
+            rnb_id=building_to_revert.rnb_id
+        )
         current_building.deactivate(
             user, event_origin, revert_event_id=event_id_to_revert
         )
