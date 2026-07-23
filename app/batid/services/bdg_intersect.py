@@ -7,7 +7,7 @@ from django.db.models.lookups import Exact
 
 
 def get_buildings_intersecting_polygon(poly: Polygon):
-    def surface_metric(default):
+    def surface_metric(formula):
         # Buildings whose shape is a mere point have no known footprint:
         # surface metrics are unknown (null), not 0.
         return Case(
@@ -15,7 +15,7 @@ def get_buildings_intersecting_polygon(poly: Polygon):
                 Exact(Func(F("shape"), function="ST_AREA"), 0),
                 then=Value(None),
             ),
-            default=default,
+            default=formula,
             output_field=FloatField(),
         )
 

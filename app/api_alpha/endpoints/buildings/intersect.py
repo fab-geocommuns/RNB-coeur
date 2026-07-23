@@ -14,7 +14,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Bâtiments intersectant un polygone",
-                "description": "Cet endpoint permet d'obtenir une liste paginée des bâtiments réels et actifs dont l'emprise intersecte le polygone fourni. Les bâtiments sont triés par IoU (Intersection over Union) décroissant entre leur emprise et le polygone. Les bâtiments dont le RNB ne connaît pas l'emprise (géométrie réduite à un point) sont inclus si leur point est dans le polygone : leurs métriques valent alors null et ils sont placés en fin de liste. La méthode est purement géométrique : la décision de rapprochement appartient au réutilisateur. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet d'obtenir une liste paginée des bâtiments dont l'emprise intersecte le polygone fourni. Les bâtiments sont triés par IoU (Intersection over Union) décroissant entre leur emprise et le polygone. Les bâtiments dont le RNB ne connaît pas l'emprise (géométrie réduite à un point) sont inclus si leur point est dans le polygone; ils sont placés en fin de liste. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "intersectBuildings",
                 "parameters": [
                     {
@@ -57,7 +57,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                                                                     "number",
                                                                     "null",
                                                                 ],
-                                                                "description": "Intersection over Union entre l'emprise du bâtiment et le polygone fourni : aire de l'intersection divisée par l'aire de l'union, entre 0 et 1. Vaut null si l'emprise du bâtiment est inconnue.",
+                                                                "description": "Intersection over Union entre l'emprise du bâtiment RNB et le polygone fourni : aire de l'intersection divisée par l'aire de l'union, entre 0 et 1. Vaut null si l'emprise du bâtiment RNB est inconnue.",
                                                                 "example": 0.82,
                                                             },
                                                             "input_covered_by_rnb": {
@@ -65,7 +65,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                                                                     "number",
                                                                     "null",
                                                                 ],
-                                                                "description": "Part du polygone fourni couverte par l'emprise du bâtiment, entre 0 et 1. Vaut null si l'emprise du bâtiment est inconnue.",
+                                                                "description": "Part du polygone fourni couverte par l'emprise du bâtiment RNB, entre 0 et 1. Vaut null si l'emprise du bâtiment RNB est inconnue.",
                                                                 "example": 0.9,
                                                             },
                                                             "rnb_covered_by_input": {
@@ -73,7 +73,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                                                                     "number",
                                                                     "null",
                                                                 ],
-                                                                "description": "Part de l'emprise du bâtiment couverte par le polygone fourni, entre 0 et 1. Vaut null si l'emprise du bâtiment est inconnue.",
+                                                                "description": "Part de l'emprise du bâtiment RNB couverte par le polygone fourni, entre 0 et 1. Vaut null si l'emprise du bâtiment RNB est inconnue.",
                                                                 "example": 0.88,
                                                             },
                                                         },

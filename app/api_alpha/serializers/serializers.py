@@ -21,6 +21,7 @@ from batid.services.bdg_status import BuildingStatus
 from batid.services.email import build_activate_account_email
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.user import get_user_id_b64
+from batid.utils.geo import compute_shape_area
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.password_validation import validate_password
@@ -354,10 +355,11 @@ class BuildingIntersectQuerySerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Le polygone doit être exprimé en WGS84 (SRID 4326)"
             )
+        # Un WKT sans préfixe SRID= donne un srid None : on fixe alors WGS84,
+        # attendu en aval par la comparaison avec les emprises des bâtiments.
         geom.srid = 4326
 
-        # EPSG:6933 : projection équivalente (aires exactes) mondiale, en mètres
-        area_m2 = geom.transform(6933, clone=True).area
+        area_m2 = compute_shape_area(geom)
         if area_m2 > INTERSECT_MAX_POLYGON_AREA_M2:
             raise serializers.ValidationError(
                 "Le polygone fourni est trop grand (aire maximale : 1 km²)"

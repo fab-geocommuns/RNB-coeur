@@ -71,11 +71,11 @@ class BuildingIntersectViewTest(APITestCase):
         self.assertEqual(r2["input_covered_by_rnb"], 0.25)
         self.assertEqual(r2["rnb_covered_by_input"], 0.25)
 
-    def test_only_real_and_active_buildings(self):
+    def test_only_real_buildings(self):
         """
         Input: un carré de côté H ; trois bâtiments entièrement inclus dedans,
-        l'un démoli, l'autre inactif, le dernier réel et actif.
-        Attendu: 200 ; seul le bâtiment réel et actif est renvoyé.
+        l'un démoli, l'autre inactif, le dernier réel
+        Attendu: 200 ; seul le bâtiment réel est renvoyé.
         """
         demolished = Building.objects.create(
             rnb_id="bdg_demol",
@@ -151,6 +151,112 @@ class BuildingIntersectViewTest(APITestCase):
         self.assertIsNone(r2["iou"])
         self.assertIsNone(r2["input_covered_by_rnb"])
         self.assertIsNone(r2["rnb_covered_by_input"])
+
+    def test_3d_polygon_is_treated_as_its_2d_projection(self):
+        """
+        Input: un carré 3D (POLYGON Z, z=10) de côté H ; un bâtiment de côté H/2
+        entièrement inclus dans la projection 2D de l'input.
+        Attendu: 200 ; la coordonnée z est ignorée, le bâtiment est renvoyé avec
+        les mêmes métriques que pour l'input 2D équivalent (iou 0.25).
+        """
+        inside = Building.objects.create(
+            rnb_id="bdg_inside",
+            shape=square(0, 0, H_HALF, H_HALF),
+        )
+        inside.point = inside.shape.point_on_surface
+        inside.save()
+
+        input_square_3d = (
+            f"POLYGON Z((0 0 10, 0 {H} 10, {H} {H} 10, {H} 0 10, 0 0 10))"
+        )
+        r = self.client.get(
+            "/api/alpha/buildings/intersect/",
+            {"shape": input_square_3d},
+        )
+
+        self.assertEqual(r.status_code, 200)
+        [r1] = r.json()["results"]
+        self.assertEqual(r1["rnb_id"], "bdg_inside")
+        self.assertEqual(r1["iou"], 0.25)
+        self.assertEqual(r1["input_covered_by_rnb"], 0.25)
+        self.assertEqual(r1["rnb_covered_by_input"], 1.0)
+
+    def test_adjoining_building_is_listed_with_zero_metrics(self):
+        """
+        Input: la copie exacte de l'emprise du premier de deux bâtiments
+        rectangulaires mitoyens (ils partagent une arête, donc deux coins).
+        Attendu: 200 ; les deux bâtiments sont listés, le bâtiment copié en
+        premier avec des métriques à 1, le mitoyen ensuite avec iou,
+        input_covered_by_rnb et rnb_covered_by_input à 0.
+        """
+        target = Building.objects.create(
+            rnb_id="bdg_target",
+            shape=square(0, 0, H_HALF, H_HALF),
+        )
+        target.point = target.shape.point_on_surface
+        target.save()
+
+        adjoining = Building.objects.create(
+            rnb_id="bdg_adjoin",
+            shape=square(H_HALF, 0, H, H_HALF),
+        )
+        adjoining.point = adjoining.shape.point_on_surface
+        adjoining.save()
+
+        r = self.client.get(
+            "/api/alpha/buildings/intersect/",
+            {"shape": square(0, 0, H_HALF, H_HALF)},
+        )
+
+        self.assertEqual(r.status_code, 200)
+        [r1, r2] = r.json()["results"]
+
+        self.assertEqual(r1["rnb_id"], "bdg_target")
+        self.assertEqual(r1["iou"], 1.0)
+        self.assertEqual(r1["input_covered_by_rnb"], 1.0)
+        self.assertEqual(r1["rnb_covered_by_input"], 1.0)
+
+        self.assertEqual(r2["rnb_id"], "bdg_adjoin")
+        self.assertEqual(r2["iou"], 0.0)
+        self.assertEqual(r2["input_covered_by_rnb"], 0.0)
+        self.assertEqual(r2["rnb_covered_by_input"], 0.0)
+
+    def test_result_contains_all_expected_building_fields(self):
+        """
+        Input: un carré de côté H ; un bâtiment entièrement inclus dedans.
+        Attendu: 200 ; le résultat expose exactement les champs standard d'un
+        bâtiment (comme sur buildings/) plus les trois métriques d'intersection.
+        """
+        inside = Building.objects.create(
+            rnb_id="bdg_inside",
+            shape=square(0, 0, H_HALF, H_HALF),
+        )
+        inside.point = inside.shape.point_on_surface
+        inside.save()
+
+        r = self.client.get(
+            "/api/alpha/buildings/intersect/",
+            {"shape": INPUT_SQUARE},
+        )
+
+        self.assertEqual(r.status_code, 200)
+        [r1] = r.json()["results"]
+        self.assertCountEqual(
+            r1.keys(),
+            [
+                "rnb_id",
+                "point",
+                "shape",
+                "status",
+                "is_active",
+                "addresses",
+                "ext_ids",
+                "validated_by",
+                "iou",
+                "input_covered_by_rnb",
+                "rnb_covered_by_input",
+            ],
+        )
 
     def test_shape_param_is_required(self):
         """
