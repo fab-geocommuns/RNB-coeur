@@ -166,9 +166,7 @@ class BuildingIntersectViewTest(APITestCase):
         inside.point = inside.shape.point_on_surface
         inside.save()
 
-        input_square_3d = (
-            f"POLYGON Z((0 0 10, 0 {H} 10, {H} {H} 10, {H} 0 10, 0 0 10))"
-        )
+        input_square_3d = f"POLYGON Z((0 0 10, 0 {H} 10, {H} {H} 10, {H} 0 10, 0 0 10))"
         r = self.client.get(
             "/api/alpha/buildings/intersect/",
             {"shape": input_square_3d},
