@@ -1,3 +1,6 @@
+# Ne plus utiliser ce script : il a servi à réparer des données historiques et
+# écrit des bâtiments sans passer par les fonctions métier du RNB. S'il est relancé,
+# il échouera avec une erreur ForbiddenDjangoNativeFunction.
 import uuid
 
 from batid.models import Building, BuildingHistoryOnly

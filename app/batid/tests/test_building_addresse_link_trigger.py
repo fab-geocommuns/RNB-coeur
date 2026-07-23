@@ -51,9 +51,11 @@ class BuildingAddressLinkCase(TransactionTestCase):
         self.assertEqual(links[1].address_id, a2.id)
 
     def test_delete_building(self):
-        """A building cannot be deleted, neither through the ORM (NotImplementedError)
-        nor through raw SQL (postgres trigger raises InternalError). The building and
-        its address links must remain intact after the failed deletion attempts."""
+        """A building row cannot be deleted, neither through the ORM nor through raw
+        SQL: the postgres trigger raises InternalError in both cases (in tests, the
+        Django-level lock on delete() is lifted, so the trigger is what blocks the
+        ORM path too). The building and its address links must remain intact after
+        the failed deletion attempts."""
 
         # create addresses
         a1 = Address.objects.create(id="address_1")
@@ -65,8 +67,8 @@ class BuildingAddressLinkCase(TransactionTestCase):
         links_n = BuildingAddressesReadOnly.objects.count()
         self.assertEqual(links_n, 2)
 
-        # you cannot delete a building through the ORM
-        with self.assertRaises(NotImplementedError):
+        # you cannot delete a building through the ORM: the postgres trigger blocks it
+        with self.assertRaises(InternalError):
             b.delete()
 
         # you cannot delete a building through raw SQL either: the postgres
