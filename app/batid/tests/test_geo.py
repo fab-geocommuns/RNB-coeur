@@ -224,6 +224,32 @@ class TestShapeVerification(TestCase):
         )
         self.assertTrue(assert_shape_is_valid(shape))
 
+    def test_3d_polygon_is_rejected(self):
+        """A polygon with Z coordinates is refused with an explicit 3D message
+        (the RNB only stores 2D shapes), instead of crashing."""
+        shape = GEOSGeometry(
+            "POLYGON Z ((-0.5951753764650443 44.8 10, -0.5951753764650443 44.80001 10, -0.5951 44.80001 10, -0.5951 44.8 10, -0.5951753764650443 44.8 10))"
+        )
+
+        with self.assertRaises(InvalidWGS84Geometry) as ctx:
+            assert_shape_is_valid(shape)
+
+        self.assertIn("3D", str(ctx.exception))
+
+    def test_3d_point_is_rejected(self):
+        """A point with a Z coordinate is refused with an InvalidWGS84Geometry error."""
+        shape = GEOSGeometry("POINT Z (25 12 3)")
+
+        with self.assertRaises(InvalidWGS84Geometry):
+            assert_shape_is_valid(shape)
+
+    def test_3d_multipolygon_is_rejected(self):
+        """A multipolygon with Z coordinates is refused with an InvalidWGS84Geometry error."""
+        shape = GEOSGeometry("MULTIPOLYGON Z (((0 0 1, 0 1 1, 1 1 1, 1 0 1, 0 0 1)))")
+
+        with self.assertRaises(InvalidWGS84Geometry):
+            assert_shape_is_valid(shape)
+
     def test_invalid_geometry(self):
         # a butterfly shape (self intersection)
         shape = GEOSGeometry("POLYGON ((0 0, 1 0, 0 1 , 1 1, 0 0))")
