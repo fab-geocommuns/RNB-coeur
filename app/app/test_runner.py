@@ -7,6 +7,7 @@ class RNBTestRunner(DiscoverRunner):
     to use Django's native write functions (save, delete, bulk operations)
     on the Building model, which are locked everywhere else.
     See ForbiddenDjangoNativeFunction.
+    Details: https://github.com/fab-geocommuns/RNB-coeur/pull/976
     """
 
     def setup_test_environment(self, **kwargs):

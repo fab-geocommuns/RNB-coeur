@@ -142,14 +142,16 @@ class BuildingQuerySet(models.QuerySet):
 
 class Building(BuildingAbstract):
     # Django's native write functions are locked on this model: creating, updating
-    # or deleting a building must go through the RNB business functions
+    # or deleting a building must go through the RNB dedicated functions
     # (create_new, update, deactivate, ...) which guarantee the correct filling
     # of the database (event_id, event_type, event_user, history).
     # Tests are allowed to use the native functions: the test runner
     # (app.test_runner.RNBTestRunner) sets this flag to True.
     _native_functions_allowed = False
 
+    # We define a custom object manager to lock bulk_create, bulk_update functions
     objects = BuildingQuerySet.as_manager()
+
     # this only exists to make it possible for the Django ORM to access the associated addresses
     # but this field is read-only : you should not attempt to save a building/address association through this field
     # use addresses_id instead.
@@ -170,7 +172,7 @@ class Building(BuildingAbstract):
         if not Building._native_functions_allowed:
             raise ForbiddenDjangoNativeFunction(
                 "save() is forbidden on Building. Create or update buildings with the "
-                "RNB business functions: Building.create_new(), building.update(), ..."
+                "RNB dedicated functions: Building.create_new(), building.update(), ..."
             )
         super().save(*args, **kwargs)
 
@@ -184,7 +186,7 @@ class Building(BuildingAbstract):
 
     def _dangerously_save_forever(self, *args, **kwargs):
         """
-        The only sanctioned way to persist a building, reserved to the RNB business
+        The only authorized way to persist a building, reserved to the RNB business
         functions of this class. "Forever" is literal: any write enters the RNB
         history permanently, nothing is ever erased.
         """
