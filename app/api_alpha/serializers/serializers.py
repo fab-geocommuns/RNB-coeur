@@ -328,7 +328,7 @@ class BuildingClosestQuerySerializer(serializers.Serializer):
         return value
 
 
-# 1 km², dans l'esprit du rayon maximal de 1000 m de buildings/closest/
+# 1 km², in the spirit of the 1000 m maximum radius of buildings/closest/
 INTERSECT_MAX_POLYGON_AREA_M2 = 1_000_000
 
 
@@ -348,6 +348,13 @@ class BuildingIntersectQuerySerializer(serializers.Serializer):
                 "La forme fournie doit être un polygone (Polygon)"
             )
 
+        # Same policy as the other endpoints handling an input geometry: 3D
+        # geometries are refused rather than silently projected on the 2D plane.
+        if geom.hasz:
+            raise serializers.ValidationError(
+                "Les géométries 3D ne sont pas supportées, veuillez fournir une géométrie 2D"
+            )
+
         if geom.empty or not geom.valid:
             raise serializers.ValidationError("Le polygone fourni n'est pas valide")
 
@@ -355,8 +362,8 @@ class BuildingIntersectQuerySerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Le polygone doit être exprimé en WGS84 (SRID 4326)"
             )
-        # Un WKT sans préfixe SRID= donne un srid None : on fixe alors WGS84,
-        # attendu en aval par la comparaison avec les emprises des bâtiments.
+        # A WKT without a SRID= prefix yields a None srid: we then set WGS84,
+        # expected downstream by the comparison with the buildings footprints.
         geom.srid = 4326
 
         area_m2 = compute_shape_area(geom)

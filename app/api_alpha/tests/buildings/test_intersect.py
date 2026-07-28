@@ -1,8 +1,8 @@
 from batid.models import Building
 from rest_framework.test import APITestCase
 
-# Côté du carré d'input : 2^-8 degré (~434 m), exact en binaire pour que les
-# ratios d'aires calculés en SQL tombent juste.
+# Side of the input square: 2^-8 degree (~434 m), exact in binary so that the
+# area ratios computed in SQL come out to round values.
 H = 0.00390625
 H_HALF = H / 2
 H_1_5 = 3 * H / 2
@@ -20,12 +20,12 @@ def square(x_min, y_min, x_max, y_max):
 class BuildingIntersectViewTest(APITestCase):
     def test_buildings_intersecting_polygon_sorted_by_iou(self):
         """
-        Input: un carré de côté H (~434 m) en WKT ; un bâtiment de côté H/2
-        entièrement inclus dans l'input, un bâtiment de côté H chevauchant l'input
-        sur un carré H/2, et un bâtiment hors de l'input.
-        Attendu: 200 ; seuls les deux bâtiments intersectants, triés par IoU
-        décroissant, chacun avec iou, input_covered_by_rnb et rnb_covered_by_input
-        arrondis à 3 décimales, et les champs standard d'un bâtiment (rnb_id, shape).
+        Input: a WKT square of side H (~434 m); a building of side H/2 entirely
+        inside the input, a building of side H overlapping the input on a H/2
+        square, and a building outside the input.
+        Expected: 200; only the two intersecting buildings, sorted by decreasing
+        IoU, each with iou, input_covered_by_rnb and rnb_covered_by_input rounded
+        to 3 decimals, plus the standard building fields (rnb_id, shape).
         """
         inside = Building.objects.create(
             rnb_id="bdg_inside",
@@ -73,9 +73,9 @@ class BuildingIntersectViewTest(APITestCase):
 
     def test_only_real_buildings(self):
         """
-        Input: un carré de côté H ; trois bâtiments entièrement inclus dedans,
-        l'un démoli, l'autre inactif, le dernier réel
-        Attendu: 200 ; seul le bâtiment réel est renvoyé.
+        Input: a square of side H; three buildings entirely inside it, one
+        demolished, one inactive, the last one real.
+        Expected: 200; only the real building is returned.
         """
         demolished = Building.objects.create(
             rnb_id="bdg_demol",
@@ -111,12 +111,12 @@ class BuildingIntersectViewTest(APITestCase):
 
     def test_point_only_building_has_null_metrics_and_comes_last(self):
         """
-        Input: un carré de côté H ; un bâtiment surfacique inclus dans l'input,
-        un bâtiment dont la géométrie est un simple point situé dans l'input,
-        et un bâtiment "point seul" situé hors de l'input.
-        Attendu: 200 ; le bâtiment surfacique d'abord, puis le point-dans-l'input
-        avec iou, input_covered_by_rnb et rnb_covered_by_input à null ;
-        le point hors input est absent.
+        Input: a square of side H; a surface building inside the input, a
+        building whose geometry is a mere point located inside the input, and a
+        "point only" building located outside the input.
+        Expected: 200; the surface building first, then the point-inside-the-input
+        one with iou, input_covered_by_rnb and rnb_covered_by_input set to null;
+        the point outside the input is absent.
         """
         surfacic = Building.objects.create(
             rnb_id="bdg_surfacic",
@@ -152,40 +152,28 @@ class BuildingIntersectViewTest(APITestCase):
         self.assertIsNone(r2["input_covered_by_rnb"])
         self.assertIsNone(r2["rnb_covered_by_input"])
 
-    def test_3d_polygon_is_treated_as_its_2d_projection(self):
+    def test_3d_polygon_is_rejected(self):
         """
-        Input: un carré 3D (POLYGON Z, z=10) de côté H ; un bâtiment de côté H/2
-        entièrement inclus dans la projection 2D de l'input.
-        Attendu: 200 ; la coordonnée z est ignorée, le bâtiment est renvoyé avec
-        les mêmes métriques que pour l'input 2D équivalent (iou 0.25).
+        Input: a 3D square (POLYGON Z, z=10) of side H, as exported by some GIS.
+        Expected: 400 with an explicit 3D message, consistently with the other
+        endpoints taking a geometry as input, which refuse 3D geometries.
         """
-        inside = Building.objects.create(
-            rnb_id="bdg_inside",
-            shape=square(0, 0, H_HALF, H_HALF),
-        )
-        inside.point = inside.shape.point_on_surface
-        inside.save()
-
         input_square_3d = f"POLYGON Z((0 0 10, 0 {H} 10, {H} {H} 10, {H} 0 10, 0 0 10))"
         r = self.client.get(
             "/api/alpha/buildings/intersect/",
             {"shape": input_square_3d},
         )
 
-        self.assertEqual(r.status_code, 200)
-        [r1] = r.json()["results"]
-        self.assertEqual(r1["rnb_id"], "bdg_inside")
-        self.assertEqual(r1["iou"], 0.25)
-        self.assertEqual(r1["input_covered_by_rnb"], 0.25)
-        self.assertEqual(r1["rnb_covered_by_input"], 1.0)
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("3D", str(r.json()))
 
     def test_adjoining_building_is_listed_with_zero_metrics(self):
         """
-        Input: la copie exacte de l'emprise du premier de deux bâtiments
-        rectangulaires mitoyens (ils partagent une arête, donc deux coins).
-        Attendu: 200 ; les deux bâtiments sont listés, le bâtiment copié en
-        premier avec des métriques à 1, le mitoyen ensuite avec iou,
-        input_covered_by_rnb et rnb_covered_by_input à 0.
+        Input: the exact copy of the footprint of the first of two adjoining
+        rectangular buildings (they share an edge, hence two corners).
+        Expected: 200; both buildings are listed, the copied one first with
+        metrics at 1, the adjoining one next with iou, input_covered_by_rnb and
+        rnb_covered_by_input at 0.
         """
         target = Building.objects.create(
             rnb_id="bdg_target",
@@ -221,9 +209,9 @@ class BuildingIntersectViewTest(APITestCase):
 
     def test_result_contains_all_expected_building_fields(self):
         """
-        Input: un carré de côté H ; un bâtiment entièrement inclus dedans.
-        Attendu: 200 ; le résultat expose exactement les champs standard d'un
-        bâtiment (comme sur buildings/) plus les trois métriques d'intersection.
+        Input: a square of side H; a building entirely inside it.
+        Expected: 200; the result exposes exactly the standard building fields
+        (as on buildings/) plus the three intersection metrics.
         """
         inside = Building.objects.create(
             rnb_id="bdg_inside",
@@ -258,24 +246,24 @@ class BuildingIntersectViewTest(APITestCase):
 
     def test_shape_param_is_required(self):
         """
-        Input: requête sans paramètre shape.
-        Attendu: 400.
+        Input: request without the shape parameter.
+        Expected: 400.
         """
         r = self.client.get("/api/alpha/buildings/intersect/")
         self.assertEqual(r.status_code, 400)
 
     def test_unparseable_wkt_is_rejected(self):
         """
-        Input: shape="coucou", qui n'est pas du WKT.
-        Attendu: 400.
+        Input: shape="coucou", which is not WKT.
+        Expected: 400.
         """
         r = self.client.get("/api/alpha/buildings/intersect/", {"shape": "coucou"})
         self.assertEqual(r.status_code, 400)
 
     def test_non_polygon_geometries_are_rejected(self):
         """
-        Input: shape en WKT valide mais de type Point puis MultiPolygon.
-        Attendu: 400 pour chacun, seul le type Polygon est accepté.
+        Input: valid WKT shape, of type Point then MultiPolygon.
+        Expected: 400 for each, only the Polygon type is accepted.
         """
         r = self.client.get("/api/alpha/buildings/intersect/", {"shape": "POINT(0 0)"})
         self.assertEqual(r.status_code, 400)
@@ -288,8 +276,8 @@ class BuildingIntersectViewTest(APITestCase):
 
     def test_invalid_polygon_is_rejected(self):
         """
-        Input: shape en WKT de type Polygon mais auto-intersectant (papillon).
-        Attendu: 400.
+        Input: WKT shape of type Polygon but self-intersecting (butterfly).
+        Expected: 400.
         """
         r = self.client.get(
             "/api/alpha/buildings/intersect/",
@@ -299,9 +287,9 @@ class BuildingIntersectViewTest(APITestCase):
 
     def test_non_wgs84_srid_is_rejected(self):
         """
-        Input: shape en EWKT déclarant explicitement un SRID autre que 4326
+        Input: EWKT shape explicitly declaring a SRID other than 4326
         (SRID=3857).
-        Attendu: 400, le polygone doit être exprimé en WGS84.
+        Expected: 400, the polygon must be expressed in WGS84.
         """
         r = self.client.get(
             "/api/alpha/buildings/intersect/",
@@ -311,8 +299,8 @@ class BuildingIntersectViewTest(APITestCase):
 
     def test_too_large_polygon_is_rejected(self):
         """
-        Input: un carré de 1x1 degré (~12 000 km²), très au-delà du 1 km² maximal.
-        Attendu: 400.
+        Input: a 1x1 degree square (~12,000 km²), far beyond the 1 km² maximum.
+        Expected: 400.
         """
         r = self.client.get(
             "/api/alpha/buildings/intersect/",
@@ -322,9 +310,9 @@ class BuildingIntersectViewTest(APITestCase):
 
     def test_results_are_paginated(self):
         """
-        Input: un carré de côté H contenant deux bâtiments, requête avec limit=1.
-        Attendu: 200 ; enveloppe {next, previous, results} avec un seul résultat
-        et un lien next ; la page 2 contient le second bâtiment.
+        Input: a square of side H containing two buildings, request with limit=1.
+        Expected: 200; {next, previous, results} envelope with a single result
+        and a next link; page 2 contains the second building.
         """
         first = Building.objects.create(
             rnb_id="bdg_first",

@@ -5,6 +5,6 @@
 - when working on a feature, execute only tests concerning this feature during developpemnt phase
 - write an explicit (concise input description, expected results) docstring when you create or update a test
 
-# Lexique
+# Glossary
 
-- un bâtiment réel est un bâtiment ayant une présence physique sur le terrain (champ status, voir lcass BuildingStatus) et correspondant à la définition du bâtiment (champ is_active)
+- a "bâtiment réel" (real building) is a building with a physical presence on the ground (status field, see the BuildingStatus class) and matching the definition of a building (is_active field)

@@ -20,7 +20,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                     {
                         "name": "shape",
                         "in": "query",
-                        "description": "Polygone au format WKT (WGS84). Seul le type Polygon est accepté (pas de MultiPolygon) et son aire doit être inférieure à 1 km².",
+                        "description": "Polygone au format WKT (WGS84). Seul le type Polygon est accepté (pas de MultiPolygon), la géométrie doit être en 2D (les géométries 3D, avec une coordonnée Z, sont refusées) et son aire doit être inférieure à 1 km².",
                         "required": True,
                         "schema": {"type": "string"},
                         "example": "POLYGON((5.7213 45.1848, 5.7213 45.1854, 5.7222 45.1854, 5.7222 45.1848, 5.7213 45.1848))",
@@ -87,7 +87,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                         },
                     },
                     "400": {
-                        "description": "Requête invalide : paramètre shape manquant, WKT non analysable, géométrie qui n'est pas un Polygon, polygone invalide ou aire supérieure à 1 km²",
+                        "description": "Requête invalide : paramètre shape manquant, WKT non analysable, géométrie qui n'est pas un Polygon, géométrie 3D, polygone invalide ou aire supérieure à 1 km²",
                     },
                 },
             }
