@@ -265,6 +265,7 @@ class UserProfileInline(admin.StackedInline):
         "job_title",
         "max_allowed_contributions",
         "total_contributions",
+        "comment_from_reviewer",
     )
     readonly_fields = ("total_contributions",)
     autocomplete_fields = ("organization",)
