@@ -128,8 +128,12 @@ class BuildingQuerySet(models.QuerySet):
         return super().update(**kwargs)
 
     def delete(self):
-        self._check_native_functions_allowed("QuerySet.delete()")
-        return super().delete()
+        # No test bypass here: deleting a building row is impossible in any
+        # environment, the prevent_building_deletion() Postgres trigger blocks it.
+        raise ForbiddenDjangoNativeFunction(
+            "QuerySet.delete() is forbidden on Building. A building is never "
+            "deleted from the RNB: deactivate it with building.deactivate() instead."
+        )
 
     def bulk_create(self, *args, **kwargs):
         self._check_native_functions_allowed("QuerySet.bulk_create()")
@@ -146,7 +150,8 @@ class Building(BuildingAbstract):
     # (create_new, update, deactivate, ...) which guarantee the correct filling
     # of the database (event_id, event_type, event_user, history).
     # Tests are allowed to use the native functions: the test runner
-    # (app.test_runner.RNBTestRunner) sets this flag to True.
+    # (app.test_runner.RNBTestRunner) sets this flag to True. The only exception
+    # is delete(), forbidden everywhere including in tests.
     _native_functions_allowed = False
 
     # We define a custom object manager to lock bulk_create, bulk_update functions
@@ -177,12 +182,12 @@ class Building(BuildingAbstract):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if not Building._native_functions_allowed:
-            raise ForbiddenDjangoNativeFunction(
-                "delete() is forbidden on Building. A building is never deleted from "
-                "the RNB: deactivate it with building.deactivate() instead."
-            )
-        return super().delete(*args, **kwargs)
+        # No test bypass here: deleting a building row is impossible in any
+        # environment, the prevent_building_deletion() Postgres trigger blocks it.
+        raise ForbiddenDjangoNativeFunction(
+            "delete() is forbidden on Building. A building is never deleted from "
+            "the RNB: deactivate it with building.deactivate() instead."
+        )
 
     def _dangerously_save_forever(self, *args, **kwargs):
         """
@@ -628,7 +633,7 @@ class Building(BuildingAbstract):
             addresses_id=addresses_id,
             validated_by=[user.id] if is_valid else [],
         )
-        building._dangerously_save_forever(force_insert=True)
+        building._dangerously_save_forever()
         return building
 
     @staticmethod

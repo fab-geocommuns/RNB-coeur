@@ -4,7 +4,6 @@ from batid.exceptions import ForbiddenDjangoNativeFunction
 from batid.models import Building
 from batid.tests.factories.users import ContributorUserFactory
 from batid.tests.helpers import coords_to_mp_geom, create_default_bdg
-from django.db import InternalError
 from django.test import TestCase, override_settings
 
 
@@ -122,7 +121,7 @@ class BusinessFunctionsStillWorkTestCase(TestCase):
 
 
 class NativeFunctionsAllowedInTestsTestCase(TestCase):
-    """The test runner lifts the lock: tests can freely use save() and delete()."""
+    """The test runner lifts the lock: tests can freely use save(), except delete()."""
 
     def test_save_works_in_tests(self):
         """save() on a building in the default test environment: succeeds and persists."""
@@ -132,13 +131,22 @@ class NativeFunctionsAllowedInTestsTestCase(TestCase):
         building.refresh_from_db()
         self.assertEqual(building.status, "demolished")
 
-    def test_delete_passes_the_django_lock_in_tests(self):
+    def test_delete_is_forbidden_even_in_tests(self):
         """
-        delete() on a building in the default test environment: the Django-level
-        lock is lifted (no ForbiddenDjangoNativeFunction), but the pre-existing
-        Postgres trigger prevent_building_deletion() still blocks the deletion.
-        Deleting a building row is impossible in any environment, tests included.
+        delete() on a building in the default test environment (native functions
+        allowed): still raises ForbiddenDjangoNativeFunction. delete() has no test
+        bypass, because the pre-existing Postgres trigger prevent_building_deletion()
+        makes deleting a building row impossible in any environment anyway.
         """
         building = create_default_bdg()
-        with self.assertRaises(InternalError):
+        with self.assertRaises(ForbiddenDjangoNativeFunction):
             building.delete()
+
+    def test_queryset_delete_is_forbidden_even_in_tests(self):
+        """
+        QuerySet.delete() on buildings in the default test environment (native
+        functions allowed): still raises ForbiddenDjangoNativeFunction.
+        """
+        create_default_bdg()
+        with self.assertRaises(ForbiddenDjangoNativeFunction):
+            Building.objects.all().delete()

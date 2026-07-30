@@ -1,3 +1,4 @@
+from batid.exceptions import ForbiddenDjangoNativeFunction
 from batid.models import Address, Building, BuildingAddressesReadOnly
 from django.db import connection
 from django.db.utils import InternalError
@@ -67,8 +68,8 @@ class BuildingAddressLinkCase(TransactionTestCase):
         links_n = BuildingAddressesReadOnly.objects.count()
         self.assertEqual(links_n, 2)
 
-        # you cannot delete a building through the ORM: the postgres trigger blocks it
-        with self.assertRaises(InternalError):
+        # you cannot delete a building through the ORM: the model blocks it
+        with self.assertRaises(ForbiddenDjangoNativeFunction):
             b.delete()
 
         # you cannot delete a building through raw SQL either: the postgres

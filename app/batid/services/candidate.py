@@ -266,9 +266,9 @@ class Inspector:
         return changes
 
 
-# Ne plus utiliser cette fonction : elle modifie un bâtiment sans passer par les
-# fonctions métier du RNB (create_new, update, deactivate...). Tout appel échouera
-# avec une erreur ForbiddenDjangoNativeFunction.
+# Do not use this function anymore: it modifies a building without going through
+# the RNB business functions (create_new, update, deactivate...). Any call will
+# fail with a ForbiddenDjangoNativeFunction error.
 def add_addresses_to_building(bdg: Building, add_keys):
     bdg.addresses_id = add_keys
     bdg.save()
