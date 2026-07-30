@@ -1,14 +1,12 @@
 import logging
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
-from django.test import SimpleTestCase
-from django.test import TransactionTestCase
-
-from batid.services.candidate import _maintenance_timestamps_are_stale
-from batid.services.candidate import vacuum_analyze_candidates_if_needed
+from batid.services.candidate import (
+    _maintenance_timestamps_are_stale,
+    vacuum_analyze_candidates_if_needed,
+)
+from django.test import SimpleTestCase, TransactionTestCase
 
 NOW = datetime(2026, 7, 30, tzinfo=timezone.utc)
 FRESH = NOW - timedelta(days=1)

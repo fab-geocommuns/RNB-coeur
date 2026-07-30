@@ -8,8 +8,7 @@ logger = logging.getLogger(__name__)
 from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list, slice_dpts
 from batid.services.building import export_city as export_city_job
-from batid.services.candidate import Inspector
-from batid.services.candidate import vacuum_analyze_candidates_if_needed
+from batid.services.candidate import Inspector, vacuum_analyze_candidates_if_needed
 from batid.services.data_fix.fill_empty_event_origin import (
     fix as fix_fill_empty_event_origin,
 )
