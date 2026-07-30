@@ -69,7 +69,7 @@ class DiffView(RNBLoggingMixin, APIView):
                             "text/csv": {
                                 "schema": {"type": "string"},
                                 "example": (
-                                    "action,rnb_id,status,is_active,sys_period,point,shape,addresses_id,ext_ids,parent_buildings,event_id,event_type,username,validated_by"
+                                    "action,rnb_id,status,is_active,sys_period,point,shape,addresses_id,ext_ids,parent_buildings,event_id,event_type,username,user_organization_name,user_organization_id,validated_by"
                                 ),
                             }
                         },
@@ -219,6 +219,8 @@ class DiffView(RNBLoggingMixin, APIView):
                             event_id,
                             event_type,
                             COALESCE(u.username, 'RNB') as username,
+                            org.name as user_organization_name,
+                            org.id as user_organization_id,
                             (
                                 SELECT COALESCE(json_agg(
                                     json_build_object(
@@ -240,6 +242,8 @@ class DiffView(RNBLoggingMixin, APIView):
                             ) as validated_by
                             FROM batid_building_with_history bb
                             LEFT JOIN auth_user u on u.id = bb.event_user_id
+                            LEFT JOIN batid_userprofile up ON up.user_id = u.id
+                            LEFT JOIN batid_organization org ON org.id = up.organization_id
                             where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone"""
                         + spatial_filter  # nosec B608: spatial_filter comes from database (City.shape.wkt), not user input, and is escaped via sql.Literal() below
                         + """
