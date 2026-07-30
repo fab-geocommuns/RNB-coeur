@@ -7,9 +7,9 @@ from django.db.models.lookups import Exact
 
 
 def get_buildings_intersecting_polygon(poly: Polygon):
-    def surface_metric(formula):
-        # Buildings whose shape is a mere point have no known footprint:
-        # surface metrics are unknown (null), not 0.
+    def ratio_or_null(formula):
+        # Buildings whose shape is a mere point have a zero area: the coverage
+        # ratios are unknown (null), not 0.
         return Case(
             When(
                 Exact(Func(F("shape"), function="ST_AREA"), 0),
@@ -26,11 +26,11 @@ def get_buildings_intersecting_polygon(poly: Polygon):
         .filter(status__in=BuildingStatus.REAL_BUILDINGS_STATUS)
         .filter(shape__intersects=poly)
         .annotate(
-            iou=surface_metric(
+            iou=ratio_or_null(
                 intersection_area / Func(Union("shape", poly), function="ST_AREA")
             ),
-            input_covered_by_rnb=surface_metric(intersection_area / Value(poly.area)),
-            rnb_covered_by_input=surface_metric(
+            input_covered_by_rnb=ratio_or_null(intersection_area / Value(poly.area)),
+            rnb_covered_by_input=ratio_or_null(
                 intersection_area / Func(F("shape"), function="ST_AREA")
             ),
         )
