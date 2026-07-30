@@ -8,6 +8,7 @@ from api_alpha.endpoints.auth.pro_connect import (
 )
 from api_alpha.endpoints.buildings.change_stats import BuildingChangeStatsView
 from api_alpha.endpoints.buildings.get_diff import DiffView
+from api_alpha.endpoints.buildings.intersect import BuildingIntersectView
 from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildings
 from api_alpha.endpoints.buildings.plot import BuildingPlotView
 from api_alpha.endpoints.buildings.single_building import (
@@ -100,6 +101,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("buildings/", ListCreateBuildings.as_view()),
     path("buildings/guess/", BuildingGuessView.as_view()),
     path("buildings/closest/", BuildingClosestView.as_view()),
+    path("buildings/intersect/", BuildingIntersectView.as_view()),
     path("buildings/address/", BuildingAddressView.as_view()),
     path("buildings/plot/<str:plot_id>/", BuildingPlotView.as_view()),
     path("buildings/diff/", DiffView.as_view()),

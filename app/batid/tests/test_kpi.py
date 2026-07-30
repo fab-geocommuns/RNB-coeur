@@ -15,7 +15,7 @@ from batid.services.kpi import (
     KPI_DATA_GOUV_DOWNLOADS,
     KPI_DATA_GOUV_VIEWS,
     backfill_api_requests_kpi,
-    compute_today_kpis,
+    compute_daily_kpis,
     count_active_buildings,
     count_api_requests,
     count_building_changes_daily,
@@ -51,11 +51,18 @@ def make_api_log(requested_at):
 
 class KPIDailyRun(TestCase):
     def setUp(self):
-        compute_today_kpis(external_calls=False)
+        compute_daily_kpis(external_calls=False)
 
     def test_all_are_done(self):
+        """
+        Input: compute_daily_kpis(external_calls=False) sur une base vide.
+        Expected: tous les KPI attendus sont créés. Les stocks et cumuls sont datés
+        d'aujourd'hui (instantané), les trois compteurs journaliers
+        building_changes_* sont datés de la veille (seule journée complète au
+        moment du calcul).
+        """
 
-        daily_kpis = [
+        snapshot_kpis = [
             "active_buildings_count",
             "real_buildings_count",
             "real_buildings_wo_addresses_count",
@@ -67,24 +74,30 @@ class KPIDailyRun(TestCase):
             "fixed_reports_count",
             "refused_reports_count",
             "api_requests_count",
+        ]
+        previous_day_kpis = [
             "building_changes_import_bdtopo",
             "building_changes_import_bal",
             "building_changes_contributions",
         ]
+        yesterday = date.today() - timedelta(days=1)
 
         kpis = KPI.objects.all()
-        self.assertEqual(len(kpis), len(daily_kpis))
+        self.assertEqual(len(kpis), len(snapshot_kpis) + len(previous_day_kpis))
 
         for kpi in kpis:
-            self.assertIn(kpi.name, daily_kpis)
-            self.assertEqual(kpi.value_date, date.today())
+            self.assertIn(kpi.name, snapshot_kpis + previous_day_kpis)
+            if kpi.name in previous_day_kpis:
+                self.assertEqual(kpi.value_date, yesterday)
+            else:
+                self.assertEqual(kpi.value_date, date.today())
 
 
 class KPIDailyRunIdempotent(TestCase):
     """
-    Input: compute_today_kpis(external_calls=False) appelée deux fois le même jour,
+    Input: compute_daily_kpis(external_calls=False) appelée deux fois le même jour,
     avec un bâtiment actif ajouté entre les deux appels (simule un retry Celery de
-    renew_kpis après un premier passage partiel).
+    compute_daily_kpis après un premier passage partiel).
     Expected: aucune IntegrityError, le nombre de lignes KPI reste identique et la
     valeur de active_buildings_count est mise à jour avec le nouveau compte.
     """
@@ -92,7 +105,7 @@ class KPIDailyRunIdempotent(TestCase):
     def test_second_run_updates_without_duplicate(self):
         Building.objects.create(rnb_id="idem1", status="constructed", is_active=True)
 
-        compute_today_kpis(external_calls=False)
+        compute_daily_kpis(external_calls=False)
         first_count = KPI.objects.count()
         first_active = KPI.objects.get(
             name="active_buildings_count", value_date=date.today()
@@ -103,7 +116,7 @@ class KPIDailyRunIdempotent(TestCase):
         Building.objects.create(rnb_id="idem2", status="constructed", is_active=True)
 
         # Should not raise IntegrityError on the duplicate (name, value_date)
-        compute_today_kpis(external_calls=False)
+        compute_daily_kpis(external_calls=False)
 
         self.assertEqual(KPI.objects.count(), first_count)
         updated_active = KPI.objects.get(
@@ -357,8 +370,8 @@ class CountApiRequests(TestCase):
         self.assertEqual(count_api_requests(), 3)
 
     def test_kpi_created_by_compute(self):
-        """compute_today_kpis creates an api_requests_count KPI with the total count."""
-        compute_today_kpis(external_calls=False)
+        """compute_daily_kpis creates an api_requests_count KPI with the total count."""
+        compute_daily_kpis(external_calls=False)
         kpi = KPI.objects.get(name=KPI_API_REQUESTS_COUNT, value_date=date.today())
         self.assertEqual(kpi.value, 3)
 
@@ -418,7 +431,7 @@ class DataGouvMetrics(TestCase):
         }
         today = date.today()
 
-        compute_today_kpis(external_calls=True)
+        compute_daily_kpis(external_calls=True)
 
         kpi_views = get_kpi_most_recent(KPI_DATA_GOUV_VIEWS)
         self.assertIsNotNone(kpi_views)

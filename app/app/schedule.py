@@ -2,7 +2,7 @@ from celery.schedules import crontab
 
 common_schedule = {
     "compute_kpis": {
-        "task": "batid.tasks.renew_kpis",
+        "task": "batid.tasks.compute_daily_kpis",
         # everyday at 3am
         "schedule": crontab(hour=3, minute=0),
     },

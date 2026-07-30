@@ -9,6 +9,7 @@ from api_alpha.typeddict import SplitCreatedBuilding
 from batid.exceptions import (
     DatabaseInconsistency,
     EventUnknown,
+    ForbiddenDjangoNativeFunction,
     NotEnoughBuildings,
     OperationOnInactiveBuilding,
     RevertNotAllowed,
@@ -109,7 +110,53 @@ class PGPoint(Func):
     output_field = models.Field()
 
 
+class BuildingQuerySet(models.QuerySet):
+    # Locks Django's native queryset write operations on Building.
+    # All building writes must go through the RNB business functions:
+    # Building.create_new(), building.update(), building.deactivate(), ...
+
+    def _check_native_functions_allowed(self, function_name: str):
+        if not getattr(self.model, "_native_functions_allowed", False):
+            raise ForbiddenDjangoNativeFunction(
+                f"{function_name} is forbidden on Building. "
+                "Buildings must be written through the RNB business functions: "
+                "Building.create_new(), building.update(), building.deactivate(), ..."
+            )
+
+    def update(self, **kwargs):
+        self._check_native_functions_allowed("QuerySet.update()")
+        return super().update(**kwargs)
+
+    def delete(self):
+        # No test bypass here: deleting a building row is impossible in any
+        # environment, the prevent_building_deletion() Postgres trigger blocks it.
+        raise ForbiddenDjangoNativeFunction(
+            "QuerySet.delete() is forbidden on Building. A building is never "
+            "deleted from the RNB: deactivate it with building.deactivate() instead."
+        )
+
+    def bulk_create(self, *args, **kwargs):
+        self._check_native_functions_allowed("QuerySet.bulk_create()")
+        return super().bulk_create(*args, **kwargs)
+
+    def bulk_update(self, *args, **kwargs):
+        self._check_native_functions_allowed("QuerySet.bulk_update()")
+        return super().bulk_update(*args, **kwargs)
+
+
 class Building(BuildingAbstract):
+    # Django's native write functions are locked on this model: creating, updating
+    # or deleting a building must go through the RNB dedicated functions
+    # (create_new, update, deactivate, ...) which guarantee the correct filling
+    # of the database (event_id, event_type, event_user, history).
+    # Tests are allowed to use the native functions: the test runner
+    # (app.test_runner.RNBTestRunner) sets this flag to True. The only exception
+    # is delete(), forbidden everywhere including in tests.
+    _native_functions_allowed = False
+
+    # We define a custom object manager to lock bulk_create, bulk_update functions
+    objects = BuildingQuerySet.as_manager()
+
     # this only exists to make it possible for the Django ORM to access the associated addresses
     # but this field is read-only : you should not attempt to save a building/address association through this field
     # use addresses_id instead.
@@ -126,10 +173,29 @@ class Building(BuildingAbstract):
         through="BuildingValidatedByReadOnly",
     )
 
+    def save(self, *args, **kwargs):
+        if not Building._native_functions_allowed:
+            raise ForbiddenDjangoNativeFunction(
+                "save() is forbidden on Building. Create or update buildings with the "
+                "RNB dedicated functions: Building.create_new(), building.update(), ..."
+            )
+        super().save(*args, **kwargs)
+
     def delete(self, *args, **kwargs):
-        raise NotImplementedError(
-            "Deleting a building is forbidden. Deactivate it instead."
+        # No test bypass here: deleting a building row is impossible in any
+        # environment, the prevent_building_deletion() Postgres trigger blocks it.
+        raise ForbiddenDjangoNativeFunction(
+            "delete() is forbidden on Building. A building is never deleted from "
+            "the RNB: deactivate it with building.deactivate() instead."
         )
+
+    def _dangerously_save_forever(self, *args, **kwargs):
+        """
+        The only authorized way to persist a building, reserved to the RNB business
+        functions of this class. "Forever" is literal: any write enters the RNB
+        history permanently, nothing is ever erased.
+        """
+        super().save(*args, **kwargs)
 
     def contains_ext_id(
         self, source: str, source_version: Optional[str], id: str
@@ -190,7 +256,7 @@ class Building(BuildingAbstract):
             self.event_id = new_event_id
             self.event_user = user
             self.event_origin = event_origin
-            self.save()
+            self._dangerously_save_forever()
 
             if isinstance(event_origin, dict):
                 source = event_origin.get("source")
@@ -238,7 +304,7 @@ class Building(BuildingAbstract):
         building.is_active = False
         building.event_user = user
         building.event_origin = event_origin
-        building.save()
+        building._dangerously_save_forever()
 
         return new_event_id
 
@@ -257,7 +323,7 @@ class Building(BuildingAbstract):
             self.event_id = uuid.uuid4()
             self.event_user = user
             self.event_origin = event_origin
-            self.save()
+            self._dangerously_save_forever()
         else:
             raise RevertNotAllowed()
 
@@ -429,7 +495,7 @@ class Building(BuildingAbstract):
                 user, self.point, self.rnb_id, self.event_id
             )
 
-        self.save()
+        self._dangerously_save_forever()
 
     @staticmethod
     def revert_update(
@@ -480,7 +546,7 @@ class Building(BuildingAbstract):
             building_prior_version.is_active
         )  # expected to be True anyway
         building_to_revert.addresses_id = building_prior_version.addresses_id
-        building_to_revert.save()
+        building_to_revert._dangerously_save_forever()
 
         return new_event_id
 
@@ -557,7 +623,7 @@ class Building(BuildingAbstract):
             # Summer Challenge!
             SummerChallenge.score_address(user, point, rnb_id, event_id)
 
-        return Building.objects.create(
+        building = Building(
             rnb_id=rnb_id,
             point=point,
             shape=shape,
@@ -571,6 +637,8 @@ class Building(BuildingAbstract):
             addresses_id=addresses_id,
             validated_by=[user.id] if is_valid else [],
         )
+        building._dangerously_save_forever()
+        return building
 
     @staticmethod
     @transaction.atomic
@@ -612,7 +680,7 @@ class Building(BuildingAbstract):
             building.revert_event_id = None
             building.event_user = user
             building.event_origin = event_origin
-            building.save()
+            building._dangerously_save_forever()
 
         for building in buildings:
             remove_existing_builing(building)
@@ -631,7 +699,7 @@ class Building(BuildingAbstract):
         building.shape = merged_shape
         building.point = merged_shape.point_on_surface
         building.ext_ids = merged_ext_ids
-        building.save()
+        building._dangerously_save_forever()
 
         SummerChallenge.score_merge(user, building.point, building.rnb_id, event_id)
 
@@ -679,7 +747,7 @@ class Building(BuildingAbstract):
             building.event_user = user
             building.event_origin = event_origin
             building.revert_event_id = event_id_to_revert
-            building.save()
+            building._dangerously_save_forever()
 
         created_building = Building.objects.get(rnb_id=created_building_rnb_id)
         created_building.is_active = False
@@ -688,7 +756,7 @@ class Building(BuildingAbstract):
         created_building.event_user = user
         created_building.event_origin = event_origin
         created_building.revert_event_id = event_id_to_revert
-        created_building.save()
+        created_building._dangerously_save_forever()
 
         return new_event_id
 
@@ -721,7 +789,7 @@ class Building(BuildingAbstract):
         self.revert_event_id = None
         self.event_user = user
         self.event_origin = event_origin
-        self.save()
+        self._dangerously_save_forever()
 
         def create_child_building(
             status: str, addresses_cle_interop: list[str], shape: str
@@ -749,7 +817,7 @@ class Building(BuildingAbstract):
             child_building.shape = geos_shape
             child_building.point = geos_shape.point_on_surface
             child_building.ext_ids = self.ext_ids
-            child_building.save()
+            child_building._dangerously_save_forever()
 
             return child_building
 
@@ -805,7 +873,7 @@ class Building(BuildingAbstract):
             current_building.event_user = user
             current_building.event_origin = event_origin
             current_building.revert_event_id = event_id_to_revert
-            current_building.save()
+            current_building._dangerously_save_forever()
 
         current_split_parent = Building.objects.get(rnb_id=split_parent.rnb_id)
         current_split_parent.is_active = True
@@ -814,7 +882,7 @@ class Building(BuildingAbstract):
         current_split_parent.event_user = user
         current_split_parent.event_origin = event_origin
         current_split_parent.revert_event_id = event_id_to_revert
-        current_split_parent.save()
+        current_split_parent._dangerously_save_forever()
 
         return new_event_id
 

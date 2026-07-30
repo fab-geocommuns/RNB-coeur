@@ -285,28 +285,15 @@ def deactivate_small_buildings(fix_id: int, batch_size: int = 1000) -> int:
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def renew_stats():
-    """
-    This task is in charge of calculating some stats displayed on https://rnb.beta.gouv.fr/stats
-    It is too expensive to calculate them on the fly, so we calculate them once a day and store them in a file
-    """
-
-    from batid.services.stats import compute_stats  # type: ignore[import-not-found]
-
-    compute_stats()
-    return "done"
-
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def renew_kpis():
+def compute_daily_kpis():
     """
     This task is in charge of calculating some KPIs displayed on https://rnb.beta.gouv.fr/stats
     It is too expensive to calculate them on the fly, so we calculate them once a day and store them in a file
     """
 
-    from batid.services.kpi import compute_today_kpis
+    from batid.services.kpi import compute_daily_kpis as compute_daily_kpis_service
 
-    compute_today_kpis()
+    compute_daily_kpis_service()
     return "done"
 
 
