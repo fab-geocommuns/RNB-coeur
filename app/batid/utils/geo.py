@@ -128,6 +128,13 @@ def assert_shape_is_valid(geom: GEOSGeometry):
     if not geom.valid:
         raise InvalidWGS84Geometry()
 
+    # The RNB only stores 2D shapes: the geometry columns reject a Z dimension.
+    # We refuse 3D geometries explicitly rather than letting them fail later on.
+    if geom.hasz:
+        raise InvalidWGS84Geometry(
+            "Les géométries 3D ne sont pas supportées, veuillez fournir une géométrie 2D"
+        )
+
     def check_simple_tuple(t):
         lon, lat = t
         if not (-180 <= lon <= 180):

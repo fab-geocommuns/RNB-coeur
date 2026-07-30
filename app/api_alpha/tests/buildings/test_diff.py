@@ -36,6 +36,13 @@ class DiffTest(TransactionTestCase):
         Address.objects.create(id="ADDRESS_ID_3")
 
     def test_diff_create_update_deactivate(self):
+        """
+        Input: three buildings, some created/deactivated by 'marcella' (who belongs to
+        the 'Mairie Marseille' organization), some created without any author.
+        Expected: the diff CSV exposes the full column list; rows authored by marcella
+        carry her organization name and id, rows without an author (username='RNB')
+        leave both organization columns empty.
+        """
 
         # Get the user
         user = User.objects.get(username="marcella")
@@ -132,6 +139,8 @@ class DiffTest(TransactionTestCase):
                 "event_id",
                 "event_type",
                 "username",
+                "user_organization_name",
+                "user_organization_id",
                 "validated_by",
             ],
         )
@@ -160,6 +169,9 @@ class DiffTest(TransactionTestCase):
             json.loads(rows[0]["addresses_id"]), ["ADDRESS_ID_2", "ADDRESS_ID_3"]
         )
         self.assertEqual(rows[0]["username"], "marcella")
+        org = Organization.objects.get(name="Mairie Marseille")
+        self.assertEqual(rows[0]["user_organization_name"], "Mairie Marseille")
+        self.assertEqual(rows[0]["user_organization_id"], str(org.id))
 
         self.assertEqual(rows[1]["action"], "create")
         self.assertEqual(rows[1]["rnb_id"], b2.rnb_id)
@@ -167,6 +179,9 @@ class DiffTest(TransactionTestCase):
         self.assertRegex(rows[1]["point"], r"SRID=4326;POINT\(\d+\.\d+ \d+\.\d+\)")
         self.assertRegex(rows[1]["shape"], r"SRID=4326;MULTIPOLYGON\(.+\)")
         self.assertEqual(rows[1]["username"], "RNB")
+        # automatic modification: no author, hence no organization
+        self.assertEqual(rows[1]["user_organization_name"], "")
+        self.assertEqual(rows[1]["user_organization_id"], "")
         self.assertEqual(json.loads(rows[1]["validated_by"]), [])
 
         self.assertEqual(rows[2]["action"], "create")
@@ -178,6 +193,8 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[3]["rnb_id"], b3.rnb_id)
         self.assertEqual(rows[3]["status"], "constructed")
         self.assertEqual(rows[3]["username"], "marcella")
+        self.assertEqual(rows[3]["user_organization_name"], "Mairie Marseille")
+        self.assertEqual(rows[3]["user_organization_id"], str(org.id))
 
         # check the CSV file name
         b3 = Building.objects.get(rnb_id="3")
@@ -188,6 +205,52 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(
             r["Content-Disposition"], f'attachment; filename="{expected_name}"'
         )
+
+    def test_diff_user_without_organization(self):
+        """
+        Input: two buildings created by users with no organization — one whose
+        UserProfile has a null organization, one with no UserProfile at all.
+        Expected: both rows report the username but leave the two organization
+        columns empty.
+        """
+        no_profile_user = User.objects.create_user(
+            username="jeanne", email="jeanne@example.com"
+        )
+        no_org_user = User.objects.create_user(
+            username="ahmed", email="ahmed@example.com"
+        )
+        UserProfile.objects.create(user=no_org_user)
+
+        Building.objects.create(rnb_id="t", event_type="creation")
+        threshold = Building.objects.get(rnb_id="t").sys_period.lower
+
+        Building.objects.create(
+            rnb_id="1",
+            status="constructed",
+            event_type="creation",
+            event_user=no_profile_user,
+        )
+        Building.objects.create(
+            rnb_id="2",
+            status="constructed",
+            event_type="creation",
+            event_user=no_org_user,
+        )
+
+        params = urlencode({"since": threshold.isoformat()})
+        r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
+
+        self.assertEqual(r.status_code, 200)
+
+        diff_text = get_content_from_streaming_response(r)
+        rows = list(csv.DictReader(io.StringIO(diff_text)))
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["username"], "jeanne")
+        self.assertEqual(rows[1]["username"], "ahmed")
+        for row in rows:
+            self.assertEqual(row["user_organization_name"], "")
+            self.assertEqual(row["user_organization_id"], "")
 
     def test_diff_merge(self):
 
