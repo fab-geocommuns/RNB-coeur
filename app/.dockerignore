@@ -24,6 +24,9 @@
 venv/
 .env
 
+# mypy cache
+.mypy_cache/
+
 # IDE settings
 .idea/
 .vscode/

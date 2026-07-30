@@ -16,6 +16,41 @@ class UserCreationForm(TestCase):
         self.assertContains(response, "email")
 
 
+class UserProfileInlineAdminTest(TestCase):
+    """Tests that the reviewer comment on a UserProfile is editable from the
+    admin change page of the related user, through the profile inline."""
+
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username="admin", email="admin@rnb.fr", password="pw"
+        )
+        self.client.force_login(self.admin)
+        self.user = User.objects.create(username="jean", email="jean@example.com")
+        self.profile = UserProfile.objects.create(
+            user=self.user, comment_from_reviewer="quota relevé le 12/03"
+        )
+
+    def test_comment_from_reviewer_displayed_in_inline(self):
+        """GET on the admin user change page: the inline exposes an editable
+        comment_from_reviewer widget, prefilled with the stored comment."""
+        url = reverse("admin:auth_user_change", args=[self.user.pk])
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="profile-0-comment_from_reviewer"')
+        self.assertContains(response, "quota relevé le 12/03")
+
+        inline_fields = response.context["inline_admin_formsets"][0].fieldsets[0][1][
+            "fields"
+        ]
+        self.assertIn("comment_from_reviewer", inline_fields)
+        self.assertNotIn(
+            "comment_from_reviewer",
+            response.context["inline_admin_formsets"][0].opts.readonly_fields,
+        )
+
+
 class OrganizationMergeAdminTest(TestCase):
     """Tests for the admin organization merge tool.
 

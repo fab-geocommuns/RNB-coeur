@@ -226,7 +226,7 @@ Si ce paramêtre est :
                                     },
                                     "shape": {
                                         "type": "string",
-                                        "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.""",
+                                        "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point. La géométrie doit être en 2D : les géométries 3D (avec une coordonnée Z) sont refusées.""",
                                     },
                                     "is_valid": {
                                         "type": "boolean",

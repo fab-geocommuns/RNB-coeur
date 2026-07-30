@@ -117,6 +117,22 @@ class BuildingPatchTest(APITestCase):
             r.json()["detail"],
         )
 
+    def test_update_a_building_3d_shape(self):
+        """PATCH with a 3D shape (WKT with Z coordinates, as exported by some GIS)
+        answers 400 with an explicit message, instead of crashing with a 500."""
+        data = {
+            "shape": "POLYGON Z ((0 0 10, 0 1 10, 1 1 10, 1 0 10, 0 0 10))",
+        }
+
+        r = self.client.patch(
+            f"/api/alpha/buildings/{self.rnb_id}/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("3D", r.json()["detail"])
+
     def test_update_a_building_parameters(self):
         # empty data
         data = {}
