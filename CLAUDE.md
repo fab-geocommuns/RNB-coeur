@@ -1,3 +1,7 @@
+# Code style
+
+- write all code comments and docstrings in English
+
 # Tests
 
 - run tests using the command: docker exec web python manage.py test

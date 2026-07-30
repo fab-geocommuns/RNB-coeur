@@ -25,6 +25,15 @@ class PlotUnknown(Exception):
     """The given plot id is not in the RNB database"""
 
 
+class ForbiddenDjangoNativeFunction(Exception):
+    """
+    Django's native write functions (save(), delete(), queryset write operations)
+    are forbidden on the Building model: they bypass the RNB business functions
+    (create_new(), update(), deactivate(), ...) and would compromise the correct
+    filling of the database. This is a programming error, not an API-facing one.
+    """
+
+
 class InvalidOperation(Exception):
     """The operation is not valid"""
 
