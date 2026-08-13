@@ -1,5 +1,6 @@
 import os
 import re
+import traceback
 from datetime import datetime, timedelta, timezone
 
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
@@ -136,38 +137,103 @@ class DiffView(RNBLoggingMixin, APIView):
             cursor.execute(most_recent_modification_query)
             most_recent_modification = cursor.fetchone()[0]
 
+        # The export can take a long time, and we want the client to start
+        # receiving data right away instead of waiting for the whole file. So a
+        # separate process runs the export and writes into a pipe, while the web
+        # server reads from that pipe and sends the result to the client.
+        # Could we keep this streaming without a separate process?
+        # https://stackoverflow.com/questions/78998534/stream-data-from-postgres-to-http-request-using-django-streaminghttpresponse?noredirect=1#comment139290268_78998534
+        #
         # file descriptors r, w for reading and writing
         rfd, wfd = os.pipe()
-        # the process is forked
-        # would it be possible to avoid creating a new process
-        # and keep the streaming feature?
-        # https://stackoverflow.com/questions/78998534/stream-data-from-postgres-to-http-request-using-django-streaminghttpresponse?noredirect=1#comment139290268_78998534
-        processid = os.fork()
 
-        if processid:
-            # This is the parent process
-            # the parent will only read data coming from the child process, we can close w
+        # We create that separate process in two steps, and this needs an
+        # explanation.
+        #
+        # The problem: a process that has finished does not disappear by itself.
+        # Its parent has to collect its exit code, otherwise the finished process
+        # stays in the system's list and keeps using one of the limited number of
+        # process slots. The web server (gunicorn) never collects the exit code
+        # of processes we create ourselves, so a single process per request would
+        # mean one leftover process per download, forever. Once the slots run
+        # out, creating any process fails and this endpoint stays broken until
+        # the container is restarted.
+        #
+        # The solution: create a short-lived middle process whose only job is to
+        # create the process doing the real work, then stop immediately. We
+        # collect the exit code of that middle process straight away, which costs
+        # us nothing since it stops at once. The export process is then left with
+        # no parent, and the system automatically hands it over to the very first
+        # process of the container, which does collect exit codes. So nothing
+        # piles up.
+        try:
+            middle_pid = os.fork()
+        except OSError:
+            # Close both ends of the pipe, otherwise the file descriptors stay
+            # open for the lifetime of the web server and leak on every failure.
+            os.close(rfd)
             os.close(wfd)
-            # data coming from the child process arrives here
-            r = os.fdopen(rfd)
-            if insee_code:
-                filename = f"diff_{insee_code}_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"
-            else:
-                filename = f"diff_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"
+            raise
+
+        if middle_pid:
+            # This is the web server process.
+            # It will only read the exported data, we can close w
+            os.close(wfd)
+            # The middle process stops as soon as it has created the export
+            # process, so this wait is very short.
+            _, status = os.waitpid(middle_pid, 0)
+            if status != 0:
+                # The middle process could not create the export process, so
+                # nobody will ever write into the pipe.
+                os.close(rfd)
+                return HttpResponse(
+                    "The server is temporarily out of resources, please try again later.",
+                    status=503,
+                )
+            try:
+                if insee_code:
+                    filename = f"diff_{insee_code}_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"
+                else:
+                    filename = f"diff_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"
+                # data coming from the export process arrives here
+                r = os.fdopen(rfd)
+            except BaseException:
+                # We failed to build the response, so nobody will read the pipe.
+                # Closing our end makes the export process stop instead of
+                # waiting forever for someone to read what it writes.
+                os.close(rfd)
+                raise
             return StreamingHttpResponse(
                 r,
                 content_type="text/csv",
                 headers={"Content-Disposition": f'attachment; filename="{filename}"'},
             )
-        else:
-            # This is the child process
-            # the child will only write data, we can close r
-            os.close(rfd)
-            w = os.fdopen(wfd, "w")
 
+        # This is the middle process. It creates the export process and stops
+        # right away so the web server process does not have to wait for it.
+        try:
+            if os.fork():
+                os._exit(0)
+        except OSError:
+            # Tell the web server process we could not create the export process.
+            os._exit(1)
+
+        # This is the export process.
+        # It will only write data, we can close r
+        os.close(rfd)
+        w = os.fdopen(wfd, "w")
+
+        # Everything below is wrapped, and this process always ends by calling
+        # os._exit(). That is not optional: this process is a copy of the web
+        # server and it inherited the network socket the server listens on. If an
+        # error escaped from here, the copy would go back into the web server
+        # code and start answering requests in parallel with the real server,
+        # while never stopping. This happens as soon as a client cancels a
+        # download, which is a perfectly normal thing for a client to do.
+        try:
             # Abandon the inherited database connection without closing it
-            # (the parent process still needs it). Setting connection to None
-            # forces Django to create a new connection for this child process.
+            # (the web server process still needs it). Setting connection to None
+            # forces Django to create a new connection for this process.
             connection.connection = None
 
             with connection.cursor() as cursor:
@@ -272,6 +338,27 @@ class DiffView(RNBLoggingMixin, APIView):
                     cursor.copy_expert(sql_query, w)
                     start_ts = end_ts
             connection.close()
+            # Closing w sends the data still held in memory, so the client gets
+            # the end of the file.
             w.close()
-            # the child process is terminated
+        except BrokenPipeError:
+            # The client closed the connection before the end of the download,
+            # for instance because they cancelled it. Nothing went wrong on our
+            # side, there is simply nobody left to send the data to.
+            pass
+        except BaseException:
+            # We report the problem by writing on the error output, which the
+            # container collects in its logs. We do not use the usual error
+            # reporting tools here: this process is a copy taken while the web
+            # server was running several threads at once, and those tools can
+            # wait forever for a lock held by a thread that does not exist in the
+            # copy. A process stuck forever is exactly what we must avoid.
+            os.write(
+                2,
+                f"Diff export process failed:\n{traceback.format_exc()}".encode(),
+            )
+        finally:
+            # Always stop here, and always with the code 0. The first process of
+            # the container reads this code, and gunicorn shuts the whole server
+            # down when it reads a 3 or a 4.
             os._exit(0)

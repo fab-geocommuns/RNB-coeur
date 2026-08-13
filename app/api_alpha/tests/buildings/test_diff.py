@@ -2,6 +2,7 @@ import csv
 import datetime
 import io
 import json
+import os
 import uuid
 
 from batid.models import Address, Building, City, Organization, UserProfile
@@ -799,6 +800,33 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[1]["event_type"], "reactivation")
         self.assertListEqual(json.loads(rows[1]["addresses_id"]), ["ADDRESS_ID_1"])
         self.assertEqual(rows[1]["username"], "marcella")
+
+    def test_diff_leaves_no_leftover_process(self):
+        """
+        Input: a building created after the 'since' threshold, and a diff request
+        whose streaming response is read until the end.
+        Expected: the CSV contains the building, and once the download is over the
+        calling process has no child process left at all, so os.waitpid reports
+        that there is nothing to wait for. The export process must have been
+        handed over to the first process of the container instead of staying
+        attached here, otherwise finished processes pile up and eventually make
+        the endpoint unable to start any new process.
+        """
+        Building.objects.create(rnb_id="B1", event_type="creation")
+        threshold = Building.objects.get(rnb_id="B1").sys_period.lower
+        Building.objects.create(rnb_id="B2", event_type="creation")
+
+        params = urlencode({"since": threshold.isoformat()})
+        r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
+
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("B2", get_content_from_streaming_response(r))
+
+        # os.waitpid only raises ChildProcessError when the calling process has
+        # no child left. If the export process were still attached to us, it
+        # would be reported here instead (either as running or as finished).
+        with self.assertRaises(ChildProcessError):
+            os.waitpid(-1, os.WNOHANG)
 
 
 class DiffInseeCodeTest(TransactionTestCase):
