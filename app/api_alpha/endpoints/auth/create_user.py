@@ -1,6 +1,7 @@
 import private_captcha
 from api_alpha.exceptions import BadRequest
 from api_alpha.serializers.serializers import UserSerializer
+from api_alpha.utils.sandbox_client import has_sandbox_secret
 from batid.services.sandbox import mirror_user_to_sandbox
 from django.conf import settings
 from django.db import transaction
@@ -35,6 +36,15 @@ def validate_captcha(captcha_solution: str) -> None:
 
 class CreateUserView(APIView):
     throttle_scope = "create_user"
+
+    def get_throttles(self):
+        # The production instance mirrors every new account here. That is trusted
+        # server-to-server traffic, not the public signups the throttle protects
+        # against, and it shares a single IP: leaving it throttled silently drops
+        # accounts as soon as signups outpace the limit.
+        if settings.ENVIRONMENT == "sandbox" and has_sandbox_secret(self.request):
+            return []
+        return super().get_throttles()
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):

@@ -25,7 +25,11 @@ from api_alpha.serializers.serializers import (
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import build_schema_all_endpoints, get_status_list, rnb_doc
-from api_alpha.utils.sandbox_client import SandboxClient, SandboxClientError
+from api_alpha.utils.sandbox_client import (
+    SandboxClient,
+    SandboxClientError,
+    has_sandbox_secret,
+)
 from batid.exceptions import (
     BANAPIDown,
     BANBadResultType,
@@ -1000,9 +1004,7 @@ def sandbox_only(func):
             print("Sandbox only endpoint called in non-sandbox environment")
             raise NotFound()
 
-        auth_header = request.headers.get("Authorization")
-        expected_auth_header = f"Bearer {settings.SANDBOX_SECRET_TOKEN}"
-        if not settings.SANDBOX_SECRET_TOKEN or auth_header != expected_auth_header:
+        if not has_sandbox_secret(request):
             raise SandboxAuthenticationError()
         return func(self, request, *args, **kwargs)
 
