@@ -1,8 +1,10 @@
 import binascii
+import logging
 import urllib.parse
 from datetime import datetime
 from typing import Any
 
+import sentry_sdk
 import yaml
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
@@ -25,7 +27,11 @@ from api_alpha.serializers.serializers import (
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import build_schema_all_endpoints, get_status_list, rnb_doc
-from api_alpha.utils.sandbox_client import SandboxClient, SandboxClientError
+from api_alpha.utils.sandbox_client import (
+    SandboxClient,
+    SandboxClientError,
+    has_sandbox_secret,
+)
 from batid.exceptions import (
     BANAPIDown,
     BANBadResultType,
@@ -62,6 +68,8 @@ from rest_framework.exceptions import AuthenticationFailed, NotFound, ParseError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+logger = logging.getLogger(__name__)
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
@@ -1000,9 +1008,7 @@ def sandbox_only(func):
             print("Sandbox only endpoint called in non-sandbox environment")
             raise NotFound()
 
-        auth_header = request.headers.get("Authorization")
-        expected_auth_header = f"Bearer {settings.SANDBOX_SECRET_TOKEN}"
-        if not settings.SANDBOX_SECRET_TOKEN or auth_header != expected_auth_header:
+        if not has_sandbox_secret(request):
             raise SandboxAuthenticationError()
         return func(self, request, *args, **kwargs)
 
@@ -1013,7 +1019,9 @@ class GetUserToken(APIView):
     @sandbox_only
     def get(self, request, user_email_b64):
         user_email = urlsafe_base64_decode(user_email_b64).decode()
-        user = User.objects.get(email=user_email)
+        # A production account that was never mirrored here is a "not found",
+        # not a server error: production turns it into a reported gap.
+        user = get_object_or_404(User, email=user_email)
         try:
             token = Token.objects.get(user=user)
         except Token.DoesNotExist:
@@ -1045,7 +1053,22 @@ class GetCurrentUserTokens(APIView):
 
         try:
             return SandboxClient().get_user_token(user_email)
-        except SandboxClientError:
+        except SandboxClientError as error:
+            # Answering without a token is the right call either way: the user
+            # sees their production token instead of an error page. But the two
+            # causes are not equivalent, and swallowing them both is what let a
+            # mirroring gap go unnoticed for months.
+            if error.status_code == http_status.HTTP_404_NOT_FOUND:
+                logger.warning(
+                    "User %s has no sandbox account: they were never mirrored",
+                    user_email,
+                )
+                sentry_sdk.capture_message(
+                    "A production user has no sandbox account", level="warning"
+                )
+            else:
+                logger.exception("Failed to fetch the sandbox token of %s", user_email)
+                sentry_sdk.capture_exception(error)
             return None
 
 

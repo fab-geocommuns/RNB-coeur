@@ -1,11 +1,37 @@
 import base64
+import secrets
 
 import requests
 from django.conf import settings
 
 
 class SandboxClientError(Exception):
-    pass
+    """Raised when the sandbox API answers with an unexpected status.
+
+    Carries the status code and body so callers can tell apart a duplicate
+    account (400), a throttled call (429) and a genuine failure.
+    """
+
+    def __init__(self, message: str, status_code: int | None = None, body: str = ""):
+        super().__init__(message)
+        self.status_code = status_code
+        self.body = body
+
+
+def has_sandbox_secret(request) -> bool:
+    """True when the request carries the shared production -> sandbox secret.
+
+    Identifies trusted server-to-server calls coming from the production
+    instance, as opposed to ordinary public traffic.
+    """
+    expected = settings.SANDBOX_SECRET_TOKEN
+    if not expected:
+        return False
+    provided = request.headers.get("Authorization") or ""
+    return secrets.compare_digest(
+        provided.encode("utf-8", "replace"),
+        f"Bearer {expected}".encode("utf-8", "replace"),
+    )
 
 
 class SandboxClient:
@@ -35,6 +61,8 @@ class SandboxClient:
         )
         if response.status_code != 200 and response.status_code != 201:
             raise SandboxClientError(
-                f"Failed to {method} {url}: {response.status_code}"
+                f"Failed to {method} {url}: {response.status_code}",
+                status_code=response.status_code,
+                body=response.text[:500],
             )
         return response
