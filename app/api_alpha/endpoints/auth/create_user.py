@@ -1,24 +1,13 @@
 import private_captcha
 from api_alpha.exceptions import BadRequest
 from api_alpha.serializers.serializers import UserSerializer
-from batid.tasks import create_sandbox_user
+from batid.services.sandbox import mirror_user_to_sandbox
 from django.conf import settings
 from django.db import transaction
 from django.http import QueryDict
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-
-def create_user_in_sandbox(user_data: dict) -> None:
-    user_data_without_password = {
-        "first_name": user_data["first_name"],
-        "last_name": user_data["last_name"],
-        "email": user_data["email"],
-        "username": user_data["username"],
-        "job_title": user_data.get("job_title", None),
-    }
-    create_sandbox_user.delay(user_data_without_password)
 
 
 def is_captcha_valid(captcha_solution: str) -> bool:
@@ -55,10 +44,10 @@ class CreateUserView(APIView):
         validate_captcha(request_data.get("captcha_solution"))
         user_serializer = UserSerializer(data=request_data)
         user_serializer.is_valid(raise_exception=True)
-        user_serializer.save()
+        user = user_serializer.save()
 
-        if settings.HAS_SANDBOX:
-            create_user_in_sandbox(request_data)
+        # on_commit: the worker must never see the task before the user is committed.
+        transaction.on_commit(lambda: mirror_user_to_sandbox(user))
 
         return Response(
             {"user": user_serializer.data},
