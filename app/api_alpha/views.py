@@ -1,8 +1,10 @@
 import binascii
+import logging
 import urllib.parse
 from datetime import datetime
 from typing import Any
 
+import sentry_sdk
 import yaml
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
@@ -66,6 +68,8 @@ from rest_framework.exceptions import AuthenticationFailed, NotFound, ParseError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+logger = logging.getLogger(__name__)
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
@@ -1015,7 +1019,13 @@ class GetUserToken(APIView):
     @sandbox_only
     def get(self, request, user_email_b64):
         user_email = urlsafe_base64_decode(user_email_b64).decode()
-        user = User.objects.get(email=user_email)
+        try:
+            user = User.objects.get(email=user_email)
+        except User.DoesNotExist:
+            # The production account was never mirrored here. Answering "not
+            # found" is the correct outcome, not a server error: production
+            # turns it into a reported gap on its side.
+            raise NotFound()
         try:
             token = Token.objects.get(user=user)
         except Token.DoesNotExist:
@@ -1047,7 +1057,22 @@ class GetCurrentUserTokens(APIView):
 
         try:
             return SandboxClient().get_user_token(user_email)
-        except SandboxClientError:
+        except SandboxClientError as error:
+            # Answering without a token is the right call either way: the user
+            # sees their production token instead of an error page. But the two
+            # causes are not equivalent, and swallowing them both is what let a
+            # mirroring gap go unnoticed for months.
+            if error.status_code == http_status.HTTP_404_NOT_FOUND:
+                logger.warning(
+                    "User %s has no sandbox account: they were never mirrored",
+                    user_email,
+                )
+                sentry_sdk.capture_message(
+                    "A production user has no sandbox account", level="warning"
+                )
+            else:
+                logger.exception("Failed to fetch the sandbox token of %s", user_email)
+                sentry_sdk.capture_exception(error)
             return None
 
 
