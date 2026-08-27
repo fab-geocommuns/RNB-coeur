@@ -1019,13 +1019,9 @@ class GetUserToken(APIView):
     @sandbox_only
     def get(self, request, user_email_b64):
         user_email = urlsafe_base64_decode(user_email_b64).decode()
-        try:
-            user = User.objects.get(email=user_email)
-        except User.DoesNotExist:
-            # The production account was never mirrored here. Answering "not
-            # found" is the correct outcome, not a server error: production
-            # turns it into a reported gap on its side.
-            raise NotFound()
+        # A production account that was never mirrored here is a "not found",
+        # not a server error: production turns it into a reported gap.
+        user = get_object_or_404(User, email=user_email)
         try:
             token = Token.objects.get(user=user)
         except Token.DoesNotExist:
