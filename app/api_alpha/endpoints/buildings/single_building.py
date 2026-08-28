@@ -282,7 +282,12 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                 "contribution_id": contribution.id,
             }
 
-            building = get_object_or_404(Building, rnb_id=rnb_id)
+            # lock the row against concurrent writes (plain reads are not
+            # blocked): deactivate/reactivate/update check is_active on this
+            # instance, so it must not be stale (issue #955)
+            building = get_object_or_404(
+                Building.objects.select_for_update(), rnb_id=rnb_id
+            )
 
             try:
                 if data.get("is_active") == False:
