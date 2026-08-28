@@ -122,7 +122,7 @@ services:
 
   metabase:
     restart: unless-stopped
-    image: metabase/metabase:v0.56.11.3
+    image: metabase/metabase:v0.63.15.3
     container_name: metabase
 
 volumes:
