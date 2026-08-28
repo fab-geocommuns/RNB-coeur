@@ -9,7 +9,6 @@ package-mode = false
 python = "3.14.5"
 boto3 = "~1.43.58"
 Django = "~6.0.7"
-drf-spectacular = "~0.30.0"
 drf-api-tracking = "~1.8.4"
 flower = "~2.0.1"
 sentry-sdk = "~2.66.1"
