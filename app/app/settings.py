@@ -104,7 +104,6 @@ INSTALLED_APPS = [
     "xp",
     "django_extensions",
     "revproxy",
-    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -214,7 +213,6 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 30,
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.ScopedRateThrottle",
     ],
@@ -229,15 +227,6 @@ REST_FRAMEWORK = {
 if ENVIRONMENT in ("test", "development"):
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["create_user"] = "1000/day"  # type: ignore[index]
 
-
-SPECTACULAR_SETTINGS = {
-    "TITLE": "Documentation de l'API du Référentiel National du Bâtiment (RNB)",
-    "VERSION": "0.0.1",
-    "SECURITY": [],
-    "PREPROCESSING_HOOKS": [
-        "api_alpha.utils.drf_spectacular_extension.filter_endpoints_hook"
-    ],
-}
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL")
 

@@ -1414,30 +1414,6 @@ djangorestframework = ">=3"
 pytz = "*"
 
 [[package]]
-name = "drf-spectacular"
-version = "0.29.0"
-description = "Sane and flexible OpenAPI 3 schema generation for Django REST framework"
-optional = false
-python-versions = ">=3.7"
-groups = ["main"]
-files = [
-    {file = "drf_spectacular-0.29.0-py3-none-any.whl", hash = "sha256:d1ee7c9535d89848affb4427347f7c4a22c5d22530b8842ef133d7b72e19b41a"},
-    {file = "drf_spectacular-0.29.0.tar.gz", hash = "sha256:0a069339ea390ce7f14a75e8b5af4a0860a46e833fd4af027411a3e94fc1a0cc"},
-]
-
-[package.dependencies]
-Django = ">=2.2"
-djangorestframework = ">=3.10.3"
-inflection = ">=0.3.1"
-jsonschema = ">=2.6.0"
-PyYAML = ">=5.1"
-uritemplate = ">=2.0.0"
-
-[package.extras]
-offline = ["drf-spectacular-sidecar"]
-sidecar = ["drf-spectacular-sidecar"]
-
-[[package]]
 name = "entrypoints"
 version = "0.4"
 description = "Discover and load entry points from installed packages."
@@ -1984,18 +1960,6 @@ files = [
 check = ["check-manifest", "flake8", "flake8-black", "flake8-deprecated", "flake8-isort", "mypy (>=1.10.0)", "mypy_extensions (>=0.4.1)", "pygments", "readme-renderer", "twine"]
 docs = ["docutils", "sphinx (>=5.0)", "sphinx_rtd_theme"]
 test = ["pytest"]
-
-[[package]]
-name = "inflection"
-version = "0.5.1"
-description = "A port of Ruby on Rails inflector to Python"
-optional = false
-python-versions = ">=3.5"
-groups = ["main"]
-files = [
-    {file = "inflection-0.5.1-py2.py3-none-any.whl", hash = "sha256:f38b2b640938a4f35ade69ac3d053042959b62a0f1076a5bbaa1b9526605a8a2"},
-    {file = "inflection-0.5.1.tar.gz", hash = "sha256:1a29730d366e996aaacffb2f1f1cb9593dc38e2ddd30c91250c6dde09ea9b417"},
-]
 
 [[package]]
 name = "ipykernel"
@@ -5545,18 +5509,6 @@ files = [
 dev = ["flake8", "flake8-annotations", "flake8-bandit", "flake8-bugbear", "flake8-commas", "flake8-comprehensions", "flake8-continuation", "flake8-datetimez", "flake8-docstrings", "flake8-import-order", "flake8-literal", "flake8-modern-annotations", "flake8-noqa", "flake8-pyproject", "flake8-requirements", "flake8-typechecking-import", "flake8-use-fstring", "mypy", "pep8-naming", "types-PyYAML"]
 
 [[package]]
-name = "uritemplate"
-version = "4.2.0"
-description = "Implementation of RFC 6570 URI Templates"
-optional = false
-python-versions = ">=3.9"
-groups = ["main"]
-files = [
-    {file = "uritemplate-4.2.0-py3-none-any.whl", hash = "sha256:962201ba1c4edcab02e60f9a0d3821e82dfc5d2d6662a21abd533879bdb8a686"},
-    {file = "uritemplate-4.2.0.tar.gz", hash = "sha256:480c2ed180878955863323eea31b0ede668795de182617fef9c6ca09e6ec9d0e"},
-]
-
-[[package]]
 name = "urllib3"
 version = "2.7.0"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
@@ -5748,4 +5700,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.1"
 python-versions = "3.14.5"
-content-hash = "c46773911ee89aec44f91b45222b39443c68248a96b34de9e7bfd4b8f746dcfc"
+content-hash = "4923fe6d0c2f8df1afa31461a2ef00cc183dc8928f9480f794f486185b502860"
