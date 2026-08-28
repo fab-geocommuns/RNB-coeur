@@ -1,5 +1,6 @@
+import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from batid.exceptions import BuildingTooLarge, BuildingTooSmall, InvalidWGS84Geometry
@@ -365,6 +366,56 @@ def create_building_from_candidate(c: Candidate) -> Building:
     )
 
     return b
+
+
+MAINTENANCE_STALE_AFTER = timedelta(days=30)
+
+
+def vacuum_analyze_candidates_if_needed():
+    """Run VACUUM ANALYZE on the candidate table if its vacuum or analyze is stale.
+
+    Fails open: inspection must proceed even if this maintenance step fails.
+    """
+    try:
+        if _candidate_maintenance_is_stale():
+            with connection.cursor() as cursor:
+                cursor.execute("SET statement_timeout = '0';")
+                cursor.execute(f"VACUUM ANALYZE {Candidate._meta.db_table};")
+                cursor.execute("RESET statement_timeout;")
+    except Exception:
+        logging.exception(
+            "Could not VACUUM ANALYZE the candidate table before inspection"
+        )
+
+
+def _candidate_maintenance_is_stale() -> bool:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT last_vacuum, last_autovacuum, last_analyze, last_autoanalyze "
+            "FROM pg_stat_user_tables WHERE relname = %s",
+            [Candidate._meta.db_table],
+        )
+        row = cursor.fetchone()
+
+    if row is None:
+        return True
+
+    return _maintenance_timestamps_are_stale(*row, now=datetime.now(timezone.utc))
+
+
+def _maintenance_timestamps_are_stale(
+    last_vacuum, last_autovacuum, last_analyze, last_autoanalyze, now
+) -> bool:
+    cutoff = now - MAINTENANCE_STALE_AFTER
+
+    def is_fresh(*timestamps):
+        known = [t for t in timestamps if t is not None]
+        return bool(known) and max(known) >= cutoff
+
+    return not (
+        is_fresh(last_vacuum, last_autovacuum)
+        and is_fresh(last_analyze, last_autoanalyze)
+    )
 
 
 def create_inspection_tasks() -> list:
