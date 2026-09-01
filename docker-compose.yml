@@ -123,6 +123,8 @@ services:
       service: metabase
     env_file:
       - ./.env.metabase.dev
+    profiles:
+      - metabase
 
   # Uncomment this to use OGC validator locally
   # ogc_validator:
