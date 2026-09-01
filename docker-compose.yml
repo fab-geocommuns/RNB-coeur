@@ -99,6 +99,8 @@ services:
     extends:
       file: docker-compose.common.yml
       service: rabbitmq
+    env_file:
+      - ./.env.rabbitmq.dev
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
