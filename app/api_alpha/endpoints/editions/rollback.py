@@ -4,9 +4,7 @@ from api_alpha.exceptions import BadRequest
 from api_alpha.permissions import RollbackPermission
 from api_alpha.serializers.rollback import RollbackWriteSerializer
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from batid.exceptions import DatabaseInconsistency
-from batid.exceptions import EventUnknown
-from batid.exceptions import InvalidOperation
+from batid.exceptions import DatabaseInconsistency, EventUnknown, InvalidOperation
 from batid.services.rollback import rollback_event
 from django.contrib.auth.models import User
 from rest_framework.exceptions import NotFound

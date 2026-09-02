@@ -1,8 +1,10 @@
 import uuid
 
-from batid.exceptions import DatabaseInconsistency
-from batid.exceptions import EventAlreadyReverted
-from batid.exceptions import RevertNotAllowed
+from batid.exceptions import (
+    DatabaseInconsistency,
+    EventAlreadyReverted,
+    RevertNotAllowed,
+)
 from batid.models.building import (
     Address,
     Building,
@@ -11,9 +13,7 @@ from batid.models.building import (
     EventType,
 )
 from batid.models.others import DataFix, UserProfile
-from batid.services.rollback import rollback
-from batid.services.rollback import rollback_dry_run
-from batid.services.rollback import rollback_event
+from batid.services.rollback import rollback, rollback_dry_run, rollback_event
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase, override_settings

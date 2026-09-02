@@ -1,11 +1,13 @@
 import uuid
 from datetime import datetime
 
-from batid.exceptions import DatabaseInconsistency
-from batid.exceptions import EventAlreadyReverted
-from batid.exceptions import EventIsARevert
-from batid.exceptions import EventUnknown
-from batid.exceptions import RevertNotAllowed
+from batid.exceptions import (
+    DatabaseInconsistency,
+    EventAlreadyReverted,
+    EventIsARevert,
+    EventUnknown,
+    RevertNotAllowed,
+)
 from batid.models.building import BuildingWithHistory, Event, EventType
 from batid.models.others import DataFix
 from batid.services.RNB_team_user import get_RNB_team_user
