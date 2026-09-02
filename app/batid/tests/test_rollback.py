@@ -1,6 +1,8 @@
 import uuid
 
-from batid.exceptions import DatabaseInconsistency, RevertNotAllowed
+from batid.exceptions import DatabaseInconsistency
+from batid.exceptions import EventAlreadyReverted
+from batid.exceptions import RevertNotAllowed
 from batid.models.building import (
     Address,
     Building,
@@ -9,7 +11,9 @@ from batid.models.building import (
     EventType,
 )
 from batid.models.others import DataFix, UserProfile
-from batid.services.rollback import rollback, rollback_dry_run
+from batid.services.rollback import rollback
+from batid.services.rollback import rollback_dry_run
+from batid.services.rollback import rollback_event
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase, override_settings
@@ -394,6 +398,64 @@ class TestUnitaryRollback(TransactionTestCase):
             str(e.exception),
             "Impossible to revert the building merge, because it has been modified.",
         )
+
+    def test_rollback_event_service(self):
+        """
+        rollback_event() (used by the single-event rollback API endpoint) reverts the
+        event, returns its id and the new revert event's id, and records a DataFix
+        mentioning the actor and the event. A second call on the same event_id is
+        rejected as already reverted.
+        """
+        creation_event_id = self.building_1.event_id
+        result = rollback_event(self.user, creation_event_id)
+
+        self.building_1.refresh_from_db()
+        self.assertEqual(result["event_id"], str(creation_event_id))
+        self.assertEqual(result["revert_event_id"], str(self.building_1.event_id))
+        self.assertEqual(self.building_1.event_type, EventType.REVERT_CREATION.value)
+
+        data_fix = DataFix.objects.get(id=result["data_fix_id"])
+        self.assertIn(str(creation_event_id), data_fix.text)
+        self.assertIn(self.user.username, data_fix.text)
+
+        with self.assertRaises(EventAlreadyReverted):
+            rollback_event(self.user, creation_event_id)
+
+    def test_rollback_event_service_includes_comment_in_data_fix(self):
+        """
+        The front-end only offers a rollback together with a (required) comment on
+        the annotation; rollback_event() takes that same text as an optional
+        `comment` kwarg and appends it to the DataFix text.
+        """
+        creation_event_id = self.building_1.event_id
+        result = rollback_event(
+            self.user, creation_event_id, comment="  Wrong shape, reverting  "
+        )
+
+        data_fix = DataFix.objects.get(id=result["data_fix_id"])
+        self.assertIn("Wrong shape, reverting", data_fix.text)
+        # the comment is stripped before being stored
+        self.assertNotIn("  Wrong shape, reverting  ", data_fix.text)
+
+    def test_rollback_event_blocked_by_other_user(self):
+        """
+        If a later event in the building's lineage was made by a different user (and
+        that later event hasn't itself been reverted), rollback_event() refuses to
+        revert the earlier event: same safety net as the batch rollback
+        (Event.event_could_be_reverted).
+        """
+        creation_event_id = self.building_1.event_id
+        self.building_1.update(
+            self.other_user,
+            {"source": "contribution"},
+            status="demolished",
+            addresses_id=None,
+            ext_ids=None,
+            shape=None,
+        )
+
+        with self.assertRaises(RevertNotAllowed):
+            rollback_event(self.user, creation_event_id)
 
 
 class TestGlobalRollback(TransactionTestCase):
