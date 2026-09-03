@@ -2,8 +2,7 @@ from io import StringIO
 
 from batid.models import Organization
 from django.conf import settings
-from django.contrib.auth.models import Group
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core.management import call_command
 from django.test import TestCase
 
