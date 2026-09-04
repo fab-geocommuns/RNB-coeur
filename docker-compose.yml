@@ -63,7 +63,7 @@ services:
     env_file:
       - ./.env.db_auth.dev
     ports:
-      - "5432:5432"
+      - "${DB_EXPOSED_PORT:-5432}:5432"
 
   worker:
     extends:
@@ -99,6 +99,8 @@ services:
     extends:
       file: docker-compose.common.yml
       service: rabbitmq
+    env_file:
+      - ./.env.rabbitmq.dev
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
@@ -121,6 +123,8 @@ services:
       service: metabase
     env_file:
       - ./.env.metabase.dev
+    profiles:
+      - metabase
 
   # Uncomment this to use OGC validator locally
   # ogc_validator:
