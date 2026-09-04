@@ -7,8 +7,8 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "3.14.5"
-boto3 = "~1.43.83"
-Django = "~6.0.7"
+boto3 = "~1.43.85"
+Django = "~6.1.0"
 drf-api-tracking = "~1.8.4"
 flower = "~2.1.0"
 sentry-sdk = "~2.68.1"
@@ -37,8 +37,8 @@ orjson = "^3.12.0"
 django-jsoneditor = "^0.2.4"
 django-taggit = "^6.1.0"
 private-captcha = "^0.0.6"
-rapidfuzz = "^3.14.3"
-authlib = "~1.7"
+rapidfuzz = "^3.14.6"
+authlib = "~1.8"
 
 [tool.poetry.group.dev.dependencies]
 moto = "^5.2.3"
