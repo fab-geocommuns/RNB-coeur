@@ -457,6 +457,33 @@ class TestUnitaryRollback(TransactionTestCase):
         with self.assertRaises(RevertNotAllowed):
             rollback_event(self.user, creation_event_id)
 
+    def test_rollback_event_blocked_by_same_user_later_edit(self):
+        """
+        Unlike the batch rollback (which tolerates a later event from the *same*
+        user, since it reverts a whole time range most-recent-first and will have
+        reverted that later event by the time it reaches this one), a single-event
+        rollback only ever reverts the one event it is asked about. So a later event
+        from the same user that hasn't itself been reverted must still block the
+        rollback (`Event.event_can_be_reverted_immediately` has no same-user bypass).
+
+        Expected: RevertNotAllowed is raised, and no DataFix is left behind (it must
+        not be created if the revert it describes never actually happens).
+        """
+        creation_event_id = self.building_1.event_id
+        self.building_1.update(
+            self.user,
+            {"source": "contribution"},
+            status="demolished",
+            addresses_id=None,
+            ext_ids=None,
+            shape=None,
+        )
+
+        data_fix_count_before = DataFix.objects.count()
+        with self.assertRaises(RevertNotAllowed):
+            rollback_event(self.user, creation_event_id)
+        self.assertEqual(DataFix.objects.count(), data_fix_count_before)
+
 
 class TestGlobalRollback(TransactionTestCase):
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)

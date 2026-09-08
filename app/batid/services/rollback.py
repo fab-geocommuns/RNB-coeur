@@ -12,6 +12,7 @@ from batid.models.building import BuildingWithHistory, Event, EventType
 from batid.models.others import DataFix
 from batid.services.RNB_team_user import get_RNB_team_user
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.db.models import Func
 
 
@@ -200,8 +201,13 @@ def rollback_event(
         EventAlreadyReverted: this event has already been reverted.
         EventIsARevert: this event is itself a revert and cannot be reverted.
         RevertNotAllowed: the event's type can't be reverted, or a later event in the
-            building's lineage belongs to another user and hasn't been reverted itself
-            (see `Event.event_could_be_reverted`).
+            building's lineage hasn't itself been reverted yet — regardless of who
+            made it (see `Event.event_can_be_reverted_immediately`). This differs from
+            the batch rollback (`rollback`/`rollback_dry_run` above), which tolerates
+            a later event from the same user because it reverts a whole time range
+            most-recent-first and will have reverted that later event by the time it
+            gets here; a single-event rollback only ever touches this one event, so it
+            must use the stricter, "right now" check instead.
     """
     if not isinstance(event_id, uuid.UUID):
         event_id = uuid.UUID(str(event_id))
@@ -216,7 +222,7 @@ def rollback_event(
         raise EventAlreadyReverted()
     if building.revert_event_id is not None:
         raise EventIsARevert()
-    if not Event.event_could_be_reverted(event_id):
+    if not Event.event_can_be_reverted_immediately(event_id):
         raise RevertNotAllowed()
 
     team_rnb = get_RNB_team_user()
@@ -227,12 +233,16 @@ def rollback_event(
     comment = comment.strip() if comment else ""
     if comment:
         text += f' Commentaire du reviewer : "{comment}"'
-    data_fix = DataFix.objects.create(text=text, user=team_rnb)
-    revert_event_id = Event.revert_event(
-        {"source": "data_fix", "id": data_fix.id},  # type: ignore[attr-defined]
-        event_id,
-        user_making_revert=team_rnb,
-    )
+    # atomic: the check above is re-done, deeper, by the revert_* method dispatched
+    # to below (e.g. a building integrity check can still raise DatabaseInconsistency
+    # there). Wrapping avoids leaving an orphaned DataFix behind if that happens.
+    with transaction.atomic():
+        data_fix = DataFix.objects.create(text=text, user=team_rnb)
+        revert_event_id = Event.revert_event(
+            {"source": "data_fix", "id": data_fix.id},  # type: ignore[attr-defined]
+            event_id,
+            user_making_revert=team_rnb,
+        )
 
     return {
         "event_id": str(event_id),
