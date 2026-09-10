@@ -2,7 +2,10 @@ import csv
 import datetime
 import io
 import json
+import threading
+import time
 import uuid
+from unittest.mock import patch
 
 from batid.models import Address, Building, City, Organization, UserProfile
 from django.contrib.auth.models import User
@@ -16,6 +19,20 @@ def get_content_from_streaming_response(response):
     content = list(response.streaming_content)
     # each element of the list is a byte string, that we need to decode
     return "".join([b.decode("utf-8") for b in content])
+
+
+def export_threads():
+    # The diff export thread is named when it is started, in get_diff.py
+    return [t for t in threading.enumerate() if t.name == "diff-export"]
+
+
+def wait_for_no_export_thread(timeout=5):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not export_threads():
+            return True
+        time.sleep(0.05)
+    return False
 
 
 class DiffTest(TransactionTestCase):
@@ -799,6 +816,61 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[1]["event_type"], "reactivation")
         self.assertListEqual(json.loads(rows[1]["addresses_id"]), ["ADDRESS_ID_1"])
         self.assertEqual(rows[1]["username"], "marcella")
+
+    def test_diff_download_leaves_no_export_thread(self):
+        """
+        Input: a building created after the 'since' threshold, and a diff request
+        whose streaming response is read until the end.
+        Expected: the CSV contains the building, and no export thread survives the
+        download. A leftover thread would hold a database connection open for the
+        whole life of the worker, since close_old_connections only ever runs on the
+        request thread.
+        """
+        Building.objects.create(rnb_id="B1", event_type="creation")
+        threshold = Building.objects.get(rnb_id="B1").sys_period.lower
+        Building.objects.create(rnb_id="B2", event_type="creation")
+
+        params = urlencode({"since": threshold.isoformat()})
+        r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
+
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("B2", get_content_from_streaming_response(r))
+
+        self.assertTrue(
+            wait_for_no_export_thread(),
+            f"export threads still running: {export_threads()}",
+        )
+
+    @patch("api_alpha.endpoints.buildings.get_diff.QUEUE_MAX_CHUNKS", 1)
+    @patch("api_alpha.endpoints.buildings.get_diff.CHUNK_SIZE", 1)
+    def test_diff_cancelled_download_stops_export_thread(self):
+        """
+        Input: four buildings and a diff request whose streaming response is
+        abandoned after a single chunk. The chunk size and the queue are shrunk to
+        one, so the export is left blocked on a full queue at that point.
+        Expected: closing the response ends the export thread, instead of leaving it
+        blocked there forever while holding a database connection.
+        """
+        Building.objects.create(rnb_id="B1", event_type="creation")
+        threshold = Building.objects.get(rnb_id="B1").sys_period.lower
+        for rnb_id in ("B2", "B3", "B4"):
+            Building.objects.create(rnb_id=rnb_id, event_type="creation")
+
+        params = urlencode({"since": threshold.isoformat()})
+        r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
+
+        self.assertEqual(r.status_code, 200)
+        # Read a single chunk, then walk away: the export has filled the one slot
+        # of the queue and is waiting for somebody to read the rest.
+        next(iter(r.streaming_content))
+        self.assertTrue(export_threads(), "the export should still be running")
+
+        r.close()
+
+        self.assertTrue(
+            wait_for_no_export_thread(),
+            f"export threads still running: {export_threads()}",
+        )
 
 
 class DiffInseeCodeTest(TransactionTestCase):

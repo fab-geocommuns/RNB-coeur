@@ -1,5 +1,7 @@
-import os
+import queue
 import re
+import threading
+from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
@@ -14,9 +16,245 @@ from django.utils.html import escape
 from psycopg2 import sql
 from rest_framework.views import APIView
 
+# psycopg2 calls write() once per exported row (~90 bytes), so rows are
+# accumulated into chunks of this size before being handed over. Without it, a
+# large diff would mean millions of queue operations and as many tiny writes on
+# the client socket.
+CHUNK_SIZE = 64 * 1024
+# Maximum number of chunks waiting to be sent. This bounds the memory used by a
+# download in flight (~1 MB) and applies backpressure on the export whenever the
+# client reads more slowly than the database produces.
+QUEUE_MAX_CHUNKS = 16
+# Queue operations wait in slices of this duration rather than blocking forever,
+# so that a client who gave up mid-download is noticed.
+QUEUE_TIMEOUT_SECONDS = 0.2
+# How long the response waits for the export thread to wind down at the end.
+THREAD_JOIN_TIMEOUT_SECONDS = 10
+
 
 def get_datetime_months_ago(months: int) -> datetime:
     return datetime.now(timezone.utc) - relativedelta(days=months * 30)
+
+
+class _DownloadCancelled(Exception):
+    """Raised in the export thread once the client stopped reading the response."""
+
+
+class _ChunkQueueWriter:
+    """
+    File-like object bridging the export to the response.
+
+    psycopg2's COPY is push-based: it calls write() on a file object. A
+    StreamingHttpResponse is pull-based: it iterates a generator. This object is
+    what the export thread writes into, while the response generator reads the
+    resulting chunks out of the queue.
+    """
+
+    def __init__(
+        self, chunks: queue.Queue[bytes | None], cancelled: threading.Event
+    ) -> None:
+        self.chunks = chunks
+        self.cancelled = cancelled
+        self.buffer = bytearray()
+
+    def write(self, data: bytes) -> None:
+        self.buffer += data
+        if len(self.buffer) >= CHUNK_SIZE:
+            self.flush()
+
+    def flush(self) -> None:
+        if not self.buffer:
+            return
+        chunk = bytes(self.buffer)
+        self.buffer.clear()
+        # The queue is bounded, so this blocks while the client is behind. We
+        # wait in slices instead of indefinitely, otherwise a client who gave up
+        # mid-download would leave this thread stuck here forever.
+        while True:
+            if self.cancelled.is_set():
+                raise _DownloadCancelled()
+            try:
+                self.chunks.put(chunk, timeout=QUEUE_TIMEOUT_SECONDS)
+                return
+            except queue.Full:
+                continue
+
+
+def _build_copy_query(
+    start_ts: datetime,
+    end_ts: datetime,
+    city_shape_wkt: str | None,
+    with_header: bool,
+) -> sql.Composed:
+    """Build the COPY statement exporting a single time slice of the diff."""
+    spatial_filter = ""
+    if city_shape_wkt:
+        spatial_filter = (
+            " AND ST_Intersects(bb.shape, ST_GeomFromText({city_shape}, 4326))"
+        )
+
+    raw_sql = (
+        """
+        COPY (
+            select
+            CASE
+                WHEN event_type = 'delete' THEN 'deactivate'
+                WHEN event_type = 'deactivation' THEN 'deactivate'
+                WHEN event_type = 'update' THEN 'update'
+                WHEN event_type = 'split' and not bb.is_active THEN 'deactivate'
+                WHEN event_type = 'split' and bb.is_active THEN 'create'
+                WHEN event_type = 'merge' and not bb.is_active THEN 'deactivate'
+                WHEN event_type = 'merge' and bb.is_active THEN 'create'
+                WHEN event_type = 'reactivation' THEN 'reactivate'
+                WHEN event_type = 'creation' THEN 'create'
+                WHEN event_type = 'revert_creation' THEN 'deactivate'
+                WHEN event_type = 'revert_update' THEN 'update'
+                WHEN event_type = 'revert_merge' and not bb.is_active THEN 'deactivate'
+                WHEN event_type = 'revert_merge' and bb.is_active THEN 'reactivate'
+                WHEN event_type = 'revert_split' and not bb.is_active THEN 'deactivate'
+                WHEN event_type = 'revert_split' and bb.is_active THEN 'reactivate'
+                ELSE CONCAT('unhandled_event_type_', event_type)
+            END as action,
+            rnb_id,
+            status,
+            bb.is_active::int,
+            sys_period,
+            ST_AsEWKT(point) as point,
+            ST_AsEWKT(shape) as shape,
+            to_json(addresses_id) as addresses_id,
+            COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
+            parent_buildings,
+            event_id,
+            event_type,
+            COALESCE(u.username, 'RNB') as username,
+            org.name as user_organization_name,
+            org.id as user_organization_id,
+            (
+                SELECT COALESCE(json_agg(
+                    json_build_object(
+                        'id', mu.id,
+                        'username', mu.username,
+                        'organization_name', mu_org.name,
+                        'organization_short_name', mu_org.short_name
+                    ) ORDER BY mu.id
+                ), '[]'::json)
+                FROM auth_user mu
+                LEFT JOIN LATERAL (
+                    SELECT org.name, org.short_name
+                    FROM batid_userprofile up
+                    JOIN batid_organization org ON up.organization_id = org.id
+                    WHERE up.user_id = mu.id
+                    LIMIT 1
+                ) AS mu_org ON TRUE
+                WHERE mu.id = ANY(bb.validated_by)
+            ) as validated_by
+            FROM batid_building_with_history bb
+            LEFT JOIN auth_user u on u.id = bb.event_user_id
+            LEFT JOIN batid_userprofile up ON up.user_id = u.id
+            LEFT JOIN batid_organization org ON org.id = up.organization_id
+            where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone"""
+        + spatial_filter  # nosec B608: spatial_filter comes from database (City.shape.wkt), not user input, and is escaped via sql.Literal() below
+        + """
+            order by lower(sys_period), is_active, rnb_id
+        ) TO STDOUT WITH CSV
+        """
+    )
+
+    if with_header:
+        raw_sql = raw_sql + " HEADER"
+
+    format_args = {
+        "start": sql.Literal(start_ts.isoformat()),
+        "end": sql.Literal(end_ts.isoformat()),
+    }
+    if city_shape_wkt:
+        format_args["city_shape"] = sql.Literal(city_shape_wkt)
+
+    return sql.SQL(raw_sql).format(**format_args)
+
+
+def _stream_diff(
+    since: datetime,
+    most_recent_modification: datetime,
+    city_shape_wkt: str | None,
+    statement_timeout: str,
+) -> Iterator[bytes]:
+    """
+    Yield the diff CSV chunk by chunk, so the client starts receiving data
+    while the export is still running.
+
+    The export runs in a thread because psycopg2 pushes the COPY output while
+    the response pulls it. That thread gets its own database connection, since
+    Django's connections are thread-local, and closing it is up to us:
+    close_old_connections only ever runs on the request thread.
+    """
+    chunks: queue.Queue[bytes | None] = queue.Queue(maxsize=QUEUE_MAX_CHUNKS)
+    cancelled = threading.Event()
+    failure: list[BaseException] = []
+
+    def export() -> None:
+        writer = _ChunkQueueWriter(chunks, cancelled)
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SET statement_timeout = %(statement_timeout)s;",
+                    {"statement_timeout": statement_timeout},
+                )
+                start_ts = since
+                first_slice = True
+                while start_ts < most_recent_modification:
+                    end_ts = start_ts + timedelta(days=1)
+                    cursor.copy_expert(
+                        _build_copy_query(
+                            start_ts, end_ts, city_shape_wkt, with_header=first_slice
+                        ),
+                        writer,
+                    )
+                    first_slice = False
+                    start_ts = end_ts
+            writer.flush()
+        except _DownloadCancelled:
+            # The client stopped reading before the end of the download, for
+            # instance because they cancelled it. Nothing went wrong on our
+            # side, there is simply nobody left to send the data to.
+            pass
+        except BaseException as error:
+            # Re-raised by the response generator below, so that it is reported
+            # with the request context instead of being silently swallowed.
+            failure.append(error)
+        finally:
+            connection.close()
+            # Signal the end of the export, waiting in slices for the same
+            # reason as the writer does.
+            while not cancelled.is_set():
+                try:
+                    chunks.put(None, timeout=QUEUE_TIMEOUT_SECONDS)
+                    break
+                except queue.Full:
+                    continue
+
+    thread = threading.Thread(target=export, name="diff-export", daemon=True)
+    thread.start()
+    try:
+        while True:
+            try:
+                chunk = chunks.get(timeout=QUEUE_TIMEOUT_SECONDS)
+            except queue.Empty:
+                if not thread.is_alive():
+                    # The thread is gone without signalling the end of the
+                    # export, so nothing more will ever arrive.
+                    break
+                continue
+            if chunk is None:
+                break
+            yield chunk
+        if failure:
+            raise failure[0]
+    finally:
+        # Also reached when the client disconnects, which closes this generator
+        # early: telling the thread to stop is what keeps it from leaking.
+        cancelled.set()
+        thread.join(timeout=THREAD_JOIN_TIMEOUT_SECONDS)
 
 
 class DiffView(RNBLoggingMixin, APIView):
@@ -136,142 +374,20 @@ class DiffView(RNBLoggingMixin, APIView):
             cursor.execute(most_recent_modification_query)
             most_recent_modification = cursor.fetchone()[0]
 
-        # file descriptors r, w for reading and writing
-        rfd, wfd = os.pipe()
-        # the process is forked
-        # would it be possible to avoid creating a new process
-        # and keep the streaming feature?
-        # https://stackoverflow.com/questions/78998534/stream-data-from-postgres-to-http-request-using-django-streaminghttpresponse?noredirect=1#comment139290268_78998534
-        processid = os.fork()
-
-        if processid:
-            # This is the parent process
-            # the parent will only read data coming from the child process, we can close w
-            os.close(wfd)
-            # data coming from the child process arrives here
-            r = os.fdopen(rfd)
-            if insee_code:
-                filename = f"diff_{insee_code}_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"
-            else:
-                filename = f"diff_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"
-            return StreamingHttpResponse(
-                r,
-                content_type="text/csv",
-                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-            )
+        if insee_code:
+            filename = f"diff_{insee_code}_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"
         else:
-            # This is the child process
-            # the child will only write data, we can close r
-            os.close(rfd)
-            w = os.fdopen(wfd, "w")
+            filename = (
+                f"diff_{since.isoformat()}_{most_recent_modification.isoformat()}.csv"
+            )
 
-            # Abandon the inherited database connection without closing it
-            # (the parent process still needs it). Setting connection to None
-            # forces Django to create a new connection for this child process.
-            connection.connection = None
-
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SET statement_timeout = %(statement_timeout)s;",
-                    {"statement_timeout": local_statement_timeout},
-                )
-                start_ts = since
-                first_query = True
-
-                while start_ts < most_recent_modification:
-                    end_ts = start_ts + timedelta(days=1)
-
-                    spatial_filter = ""
-                    if city_shape_wkt:
-                        spatial_filter = " AND ST_Intersects(bb.shape, ST_GeomFromText({city_shape}, 4326))"
-
-                    raw_sql = (
-                        """
-                        COPY (
-                            select
-                            CASE
-                                WHEN event_type = 'delete' THEN 'deactivate'
-                                WHEN event_type = 'deactivation' THEN 'deactivate'
-                                WHEN event_type = 'update' THEN 'update'
-                                WHEN event_type = 'split' and not bb.is_active THEN 'deactivate'
-                                WHEN event_type = 'split' and bb.is_active THEN 'create'
-                                WHEN event_type = 'merge' and not bb.is_active THEN 'deactivate'
-                                WHEN event_type = 'merge' and bb.is_active THEN 'create'
-                                WHEN event_type = 'reactivation' THEN 'reactivate'
-                                WHEN event_type = 'creation' THEN 'create'
-                                WHEN event_type = 'revert_creation' THEN 'deactivate'
-                                WHEN event_type = 'revert_update' THEN 'update'
-                                WHEN event_type = 'revert_merge' and not bb.is_active THEN 'deactivate'
-                                WHEN event_type = 'revert_merge' and bb.is_active THEN 'reactivate'
-                                WHEN event_type = 'revert_split' and not bb.is_active THEN 'deactivate'
-                                WHEN event_type = 'revert_split' and bb.is_active THEN 'reactivate'
-                                ELSE CONCAT('unhandled_event_type_', event_type)
-                            END as action,
-                            rnb_id,
-                            status,
-                            bb.is_active::int,
-                            sys_period,
-                            ST_AsEWKT(point) as point,
-                            ST_AsEWKT(shape) as shape,
-                            to_json(addresses_id) as addresses_id,
-                            COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
-                            parent_buildings,
-                            event_id,
-                            event_type,
-                            COALESCE(u.username, 'RNB') as username,
-                            org.name as user_organization_name,
-                            org.id as user_organization_id,
-                            (
-                                SELECT COALESCE(json_agg(
-                                    json_build_object(
-                                        'id', mu.id,
-                                        'username', mu.username,
-                                        'organization_name', mu_org.name,
-                                        'organization_short_name', mu_org.short_name
-                                    ) ORDER BY mu.id
-                                ), '[]'::json)
-                                FROM auth_user mu
-                                LEFT JOIN LATERAL (
-                                    SELECT org.name, org.short_name
-                                    FROM batid_userprofile up
-                                    JOIN batid_organization org ON up.organization_id = org.id
-                                    WHERE up.user_id = mu.id
-                                    LIMIT 1
-                                ) AS mu_org ON TRUE
-                                WHERE mu.id = ANY(bb.validated_by)
-                            ) as validated_by
-                            FROM batid_building_with_history bb
-                            LEFT JOIN auth_user u on u.id = bb.event_user_id
-                            LEFT JOIN batid_userprofile up ON up.user_id = u.id
-                            LEFT JOIN batid_organization org ON org.id = up.organization_id
-                            where lower(sys_period) > {start}::timestamp with time zone and lower(sys_period) <= {end}::timestamp with time zone"""
-                        + spatial_filter  # nosec B608: spatial_filter comes from database (City.shape.wkt), not user input, and is escaped via sql.Literal() below
-                        + """
-                            order by lower(sys_period), is_active, rnb_id
-                        ) TO STDOUT WITH CSV
-                        """
-                    )
-
-                    if first_query:
-                        raw_sql = raw_sql + " HEADER"
-                        first_query = False
-
-                    start_literal = start_ts.isoformat()
-                    end_literal = end_ts.isoformat()
-
-                    format_args = {
-                        "start": sql.Literal(start_literal),
-                        "end": sql.Literal(end_literal),
-                    }
-                    if city_shape_wkt:
-                        format_args["city_shape"] = sql.Literal(city_shape_wkt)
-
-                    sql_query = sql.SQL(raw_sql).format(**format_args)
-                    # the data coming from the query is streamed to the file descriptor w
-                    # and will be received by the parent process as a stream
-                    cursor.copy_expert(sql_query, w)
-                    start_ts = end_ts
-            connection.close()
-            w.close()
-            # the child process is terminated
-            os._exit(0)
+        return StreamingHttpResponse(
+            _stream_diff(
+                since,
+                most_recent_modification,
+                city_shape_wkt,
+                local_statement_timeout,
+            ),
+            content_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )

@@ -7,6 +7,7 @@ import sentry_sdk
 from authlib.jose import jwt as jose_jwt
 from batid.models import ProConnectIdentity, UserProfile
 from batid.services.organization import link_user_to_organization
+from batid.services.sandbox import mirror_user_to_sandbox
 from batid.services.url import add_params_to_url
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -258,6 +259,10 @@ def get_or_create_user_from_pro_connect(userinfo, id_token):
             user=user, sub=sub, last_id_token=id_token, siret=siret
         )
         token = Token.objects.create(user=user)
+
+        # This is the only Pro Connect branch that creates a production account,
+        # so it is the only one that needs a sandbox counterpart.
+        transaction.on_commit(lambda: mirror_user_to_sandbox(user))
 
     return user, token
 
