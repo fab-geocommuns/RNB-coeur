@@ -928,9 +928,9 @@ class ConcurrentDeactivationTest(APITransactionTestCase):
             # loading the building, until BOTH requests have reached this
             # point. They are then released together and race for the row:
             # - buggy code (no lock): both read is_active=True -> both 204
-            # - fixed code (select_for_update): the first one to get the row
-            #   lock wins, the other waits for its commit, re-reads
-            #   is_active=False and gets a 400.
+            # - fixed code: deactivate() locks the row and reloads it, the
+            #   first one to get the lock wins, the other waits for its
+            #   commit, re-reads is_active=False and gets a 400.
             try:
                 barrier.wait(timeout=10)
             except threading.BrokenBarrierError:
