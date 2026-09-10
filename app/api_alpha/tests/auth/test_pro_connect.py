@@ -486,3 +486,144 @@ class LogoutCallbackTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+
+@override_settings(
+    PRO_CONNECT_CLIENT_ID="test-client-id",
+    PRO_CONNECT_CLIENT_SECRET="test-client-secret",
+    PRO_CONNECT_REDIRECT_URI="http://localhost:8000/api/alpha/auth/pro_connect/callback/",
+    PRO_CONNECT_SCOPES="openid email given_name usual_name",
+    PRO_CONNECT_ALLOWED_REDIRECT_URIS=["http://localhost:3000"],
+    CONTRIBUTORS_GROUP_NAME="Contributors",
+    FRONTEND_URL="http://localhost:3000",
+    HAS_SANDBOX=True,
+    SANDBOX_URL="https://sandbox.example.test",
+)
+@mock.patch("batid.services.organization.fetch_siren_data", return_value=None)
+@mock.patch(
+    "api_alpha.endpoints.auth.pro_connect.fetch_userinfo", return_value=FAKE_USERINFO
+)
+@mock.patch(
+    "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+    return_value={"nonce": "test-nonce"},
+)
+@mock.patch(
+    "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+    return_value=("fake-access-token", "fake-id-token"),
+)
+class ProConnectSandboxMirroringTest(APITestCase):
+    """Pro Connect account creation must be mirrored to the sandbox, like the
+    classic signup endpoint is. Only the branch that creates a new production
+    account mirrors; the branches that attach an identity to an existing account
+    must not, since that account was already mirrored when it was created."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+
+        Group.objects.get_or_create(name="Contributors")
+
+    def _call_callback(self):
+        return self.client.get(
+            "/api/alpha/auth/pro_connect/callback/",
+            {"code": "auth-code", "state": _make_state()},
+        )
+
+    @mock.patch("batid.tasks.create_sandbox_user.delay")
+    def test_new_user_is_mirrored_to_sandbox(
+        self, mock_delay, mock_exchange, mock_verify, mock_userinfo, mock_siren
+    ):
+        """Unknown sub and unknown email: the sandbox task is queued exactly once,
+        with the identity of the freshly created user and no password."""
+        from django.contrib.auth.models import User
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self._call_callback()
+        self.assertEqual(response.status_code, 302)
+
+        user = User.objects.get(email="agent@gouv.fr")
+        mock_delay.assert_called_once_with(
+            {
+                "first_name": "Marie",
+                "last_name": "Dupont",
+                "email": "agent@gouv.fr",
+                "username": user.username,
+                "job_title": None,
+            }
+        )
+
+    @mock.patch("batid.tasks.create_sandbox_user.delay")
+    def test_existing_email_is_not_mirrored(
+        self, mock_delay, mock_exchange, mock_verify, mock_userinfo, mock_siren
+    ):
+        """Unknown sub but known email: the identity is attached to the existing
+        production account, so no sandbox account has to be created."""
+        from django.contrib.auth.models import User
+
+        User.objects.create_user(
+            username="existing",
+            email="agent@gouv.fr",
+            password="testpass123",
+            is_active=True,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self._call_callback()
+        self.assertEqual(response.status_code, 302)
+
+        mock_delay.assert_not_called()
+
+    @mock.patch("batid.tasks.create_sandbox_user.delay")
+    def test_known_pro_connect_identity_is_not_mirrored(
+        self, mock_delay, mock_exchange, mock_verify, mock_userinfo, mock_siren
+    ):
+        """Known sub: this is a plain login, no production account is created,
+        so nothing is sent to the sandbox."""
+        from django.contrib.auth.models import User
+
+        user = User.objects.create_user(
+            username="existing", email="agent@gouv.fr", password="testpass123"
+        )
+        ProConnectIdentity.objects.create(
+            user=user, sub="pro-connect-sub-123", last_id_token="old-token", siret=""
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self._call_callback()
+        self.assertEqual(response.status_code, 302)
+
+        mock_delay.assert_not_called()
+
+    @override_settings(HAS_SANDBOX=False)
+    @mock.patch("batid.tasks.create_sandbox_user.delay")
+    def test_no_mirroring_when_instance_has_no_sandbox(
+        self, mock_delay, mock_exchange, mock_verify, mock_userinfo, mock_siren
+    ):
+        """On an instance without a sandbox (the sandbox itself, staging, dev),
+        creating a Pro Connect user queues nothing."""
+        from django.contrib.auth.models import User
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self._call_callback()
+        self.assertEqual(response.status_code, 302)
+
+        self.assertTrue(User.objects.filter(email="agent@gouv.fr").exists())
+        mock_delay.assert_not_called()
+
+    @mock.patch(
+        "batid.tasks.create_sandbox_user.delay",
+        side_effect=Exception("broker unreachable"),
+    )
+    def test_broker_failure_does_not_break_login(
+        self, mock_delay, mock_exchange, mock_verify, mock_userinfo, mock_siren
+    ):
+        """If queuing the sandbox task fails (broker down), the Pro Connect login
+        still succeeds and the production account is created."""
+        from django.contrib.auth.models import User
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self._call_callback()
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("token=", response.url)
+        self.assertTrue(User.objects.filter(email="agent@gouv.fr").exists())
+        mock_delay.assert_called_once()

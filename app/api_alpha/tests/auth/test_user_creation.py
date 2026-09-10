@@ -253,16 +253,17 @@ class UserCreation(APITestCase):
                 response = self.client.post("/api/alpha/auth/users/", self.julie_data)
                 self.assertEqual(response.status_code, 201)
 
-                expected_user_data = {
-                    "first_name": self.julie_data["first_name"],
-                    "last_name": self.julie_data["last_name"],
-                    "email": self.julie_data["email"],
-                    "username": self.julie_data["username"],
-                    "job_title": self.julie_data.get("job_title"),
-                }
-                mock_create_sandbox_user.assert_called_once_with(expected_user_data)
+            # The task is queued on commit, so it is only sent once the block exits.
+            expected_user_data = {
+                "first_name": self.julie_data["first_name"],
+                "last_name": self.julie_data["last_name"],
+                "email": self.julie_data["email"],
+                "username": self.julie_data["username"],
+                "job_title": self.julie_data.get("job_title"),
+            }
+            mock_create_sandbox_user.assert_called_once_with(expected_user_data)
 
-                self.assertTrue(User.objects.filter(first_name="Julie").exists())
+            self.assertTrue(User.objects.filter(first_name="Julie").exists())
 
     @mock.patch("batid.tasks.create_sandbox_user.delay")
     @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")
@@ -281,16 +282,17 @@ class UserCreation(APITestCase):
                 )
                 self.assertEqual(response.status_code, 201)
 
-                expected_user_data = {
-                    "first_name": self.julie_data["first_name"],
-                    "last_name": self.julie_data["last_name"],
-                    "email": self.julie_data["email"],
-                    "username": self.julie_data["username"],
-                    "job_title": self.julie_data.get("job_title"),
-                }
-                mock_create_sandbox_user.assert_called_once_with(expected_user_data)
+            # The task is queued on commit, so it is only sent once the block exits.
+            expected_user_data = {
+                "first_name": self.julie_data["first_name"],
+                "last_name": self.julie_data["last_name"],
+                "email": self.julie_data["email"],
+                "username": self.julie_data["username"],
+                "job_title": self.julie_data.get("job_title"),
+            }
+            mock_create_sandbox_user.assert_called_once_with(expected_user_data)
 
-                self.assertTrue(User.objects.filter(first_name="Julie").exists())
+            self.assertTrue(User.objects.filter(first_name="Julie").exists())
 
     @mock.patch("batid.tasks.create_sandbox_user.delay")
     @mock.patch("api_alpha.endpoints.auth.create_user.validate_captcha")

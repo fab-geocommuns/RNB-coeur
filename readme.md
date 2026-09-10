@@ -44,6 +44,11 @@ docker compose build
 docker compose up -d
 ```
 
+Metabase ne démarre pas avec cette commande (profil dédié). Pour le lancer aussi :
+```
+docker compose --profile metabase up -d
+```
+
 Le serveur local est lancé à l'adresse http://localhost:8000
 
 ### 5. Créer un super utilisateur
