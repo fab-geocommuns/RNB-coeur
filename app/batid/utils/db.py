@@ -35,6 +35,10 @@ DISABLE_BUILDING_VERSIONING_SETTING = "rnb.disable_building_versioning"
 @contextmanager
 def building_versioning_disabled():
     """
+    !!WARNING!!
+    Use with caution if you have a good reason to do it. Most probably a database
+    migration/backfill on the building table.
+
     Skip the historisation of the building table for the current transaction.
 
     Inside this context manager, writes on batid_building do not create rows in
@@ -46,7 +50,19 @@ def building_versioning_disabled():
 
     Must be used inside a transaction: SET LOCAL has no effect in autocommit
     mode, which would silently keep the historisation on.
+
+    You can also skip the historisation using raw SQL in a transaction.
+    ```sql
+    begin;
+    SET LOCAL rnb.disable_building_versioning = 'on';
+
+    UPDATE batid_building SET ... WHERE ...;
+    ...
+
+    commit;
+    ```
     """
+
     if not connection.in_atomic_block:
         raise TransactionManagementError(
             "building_versioning_disabled() must be used inside a transaction, "
