@@ -1,8 +1,10 @@
 import binascii
+import logging
 import urllib.parse
 from datetime import datetime
 from typing import Any
 
+import sentry_sdk
 import yaml
 from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
@@ -25,7 +27,11 @@ from api_alpha.serializers.serializers import (
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import build_schema_all_endpoints, get_status_list, rnb_doc
-from api_alpha.utils.sandbox_client import SandboxClient, SandboxClientError
+from api_alpha.utils.sandbox_client import (
+    SandboxClient,
+    SandboxClientError,
+    has_sandbox_secret,
+)
 from batid.exceptions import (
     BANAPIDown,
     BANBadResultType,
@@ -47,12 +53,10 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Prefetch
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils.http import urlsafe_base64_decode
-from drf_spectacular.extensions import OpenApiAuthenticationExtension
-from drf_spectacular.openapi import OpenApiExample, OpenApiParameter
-from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework import status as http_status
 from rest_framework import viewsets
@@ -62,6 +66,8 @@ from rest_framework.exceptions import AuthenticationFailed, NotFound, ParseError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+logger = logging.getLogger(__name__)
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
@@ -386,7 +392,12 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                 Building.objects.filter(is_active=True)
                 .filter(addresses_read_only__id=cle_interop_ban)
                 .prefetch_related("addresses_read_only")
-                .prefetch_related("validated_by_read_only")
+                .prefetch_related(
+                    Prefetch(
+                        "validated_by_read_only",
+                        queryset=User.objects.order_by("id"),
+                    )
+                )
             )
             paginated_bdgs = paginator.paginate_queryset(buildings, request)
             serialized_buildings = BuildingSerializer(paginated_bdgs, many=True)
@@ -699,278 +710,18 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
         return search.get_queryset()
 
-    @extend_schema(
-        tags=["ADS"],
-        operation_id="list_ads",
-        summary="Liste et recherche d'ADS",
-        description=(
-            "Cette API permet de lister et de rechercher des ADS (Autorisation de Droit de Sol). "
-            "Les requêtes doivent être authentifiées en utilisant un token. "
-            "Les filtres de recherche peuvent être passés en tant que paramètres d'URL."
-        ),
-        parameters=[
-            OpenApiParameter(
-                name="q",
-                description="Recherche parmi les n° de dossiers (file_number).",
-                required=False,
-                type=str,
-            ),
-            OpenApiParameter(
-                name="since",
-                description="Récupère tous les dossiers décidés depuis cette date (AAAA-MM-DD).",
-                required=False,
-                type=str,
-            ),
-        ],
-        responses={
-            200: OpenApiResponse(
-                response=ADSSerializer,
-                examples=[
-                    OpenApiExample(
-                        name="Exemple",
-                        value={
-                            "count": 3,
-                            "next": None,
-                            "previous": None,
-                            "results": [
-                                {
-                                    "file_number": "TEST03818519U9999",
-                                    "decided_at": "2023-06-01",
-                                    "buildings_operations": [
-                                        {
-                                            "rnb_id": "A1B2C3A1B2C3",
-                                            "shape": None,
-                                            "operation": "build",
-                                        },
-                                        {
-                                            "rnb_id": None,
-                                            "shape": {
-                                                "type": "Point",
-                                                "coordinates": [
-                                                    5.722961565015281,
-                                                    45.1851103238598,
-                                                ],
-                                            },
-                                            "operation": "demolish",
-                                        },
-                                        {
-                                            "rnb_id": "1M2N3O1M2N3O",
-                                            "shape": {
-                                                "type": "Point",
-                                                "coordinates": [
-                                                    5.723006573148693,
-                                                    45.1851402293713,
-                                                ],
-                                            },
-                                            "operation": "demolish",
-                                        },
-                                    ],
-                                },
-                                {
-                                    "file_number": "PC3807123200WW",
-                                    "decided_at": "2023-05-01",
-                                    "buildings_operations": [
-                                        {
-                                            "rnb_id": "FXFJZNZYGTED",
-                                            "shape": None,
-                                            "operation": "build",
-                                        }
-                                    ],
-                                },
-                                {
-                                    "file_number": "PC384712301337",
-                                    "decided_at": "2023-02-22",
-                                    "buildings_operations": [
-                                        {
-                                            "rnb_id": "RXNOSN2DUCLG",
-                                            "geometry": {
-                                                "type": "Point",
-                                                "coordinates": [
-                                                    5.775791408470412,
-                                                    45.256939624268206,
-                                                ],
-                                            },
-                                            "operation": "modify",
-                                        }
-                                    ],
-                                },
-                            ],
-                        },
-                    )
-                ],
-            )
-        },
-    )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @extend_schema(
-        tags=["ADS"],
-        operation_id="get_ads",
-        summary="Consultation d'une ADS",
-        description=(
-            "Cette API permet de récupérer une ADS (Autorisation de Droit de Sol). "
-            "Les requêtes doivent être authentifiées en utilisant un token. "
-        ),
-        parameters=[
-            OpenApiParameter(
-                name="file_number",
-                description="Récupération par n° de dossier (file_number).",
-                required=True,
-                type=str,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
-        responses={
-            200: OpenApiResponse(
-                response=ADSSerializer,
-                examples=[
-                    OpenApiExample(
-                        name="Exemple",
-                        value={
-                            "file_number": "TEST03818519U9999",
-                            "decided_at": "2023-06-01",
-                            "buildings_operations": [
-                                {
-                                    "rnb_id": "A1B2C3A1B2C3",
-                                    "shape": None,
-                                    "operation": "build",
-                                },
-                                {
-                                    "rnb_id": None,
-                                    "shape": {
-                                        "type": "Point",
-                                        "coordinates": [
-                                            5.722961565015281,
-                                            45.1851103238598,
-                                        ],
-                                    },
-                                    "operation": "demolish",
-                                },
-                                {
-                                    "rnb_id": "1M2N3O1M2N3O",
-                                    "shape": {
-                                        "type": "Point",
-                                        "coordinates": [
-                                            5.723006573148693,
-                                            45.1851402293713,
-                                        ],
-                                    },
-                                    "operation": "demolish",
-                                },
-                            ],
-                        },
-                    )
-                ],
-            )
-        },
-    )
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
-    @extend_schema(
-        tags=["ADS"],
-        operation_id="create_ads",
-        summary="Création d'une ADS",
-        description=(
-            "Cet endpoint permet de créer une Autorisation du Droit des Sols (ADS) dans le RNB. "
-            "L'API ADS est réservée aux communes et requiert une authentification par token."
-        ),
-        request=ADSSerializer,
-        responses={
-            201: OpenApiResponse(
-                response=ADSSerializer,
-                examples=[
-                    OpenApiExample(
-                        name="Exemple",
-                        value={
-                            "file_number": "PCXXXXXXXXXX",
-                            "decided_at": "2019-03-18",
-                            "buildings_operations": [
-                                {
-                                    "operation": "demolish",
-                                    "rnb_id": "ABCD1234WXYZ",
-                                    "shape": None,
-                                },
-                                {
-                                    "operation": "build",
-                                    "rnb_id": None,
-                                    "shape": {
-                                        "type": "Point",
-                                        "coordinates": [
-                                            2.3552747458487002,
-                                            48.86958288638419,
-                                        ],
-                                    },
-                                },
-                            ],
-                        },
-                    )
-                ],
-            ),
-            400: {"description": "Requête invalide"},
-        },
-    )
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
 
-    @extend_schema(
-        tags=["ADS"],
-        operation_id="update_ads",
-        summary="Modification d'une ADS",
-        description=(
-            "Cet endpoint permet de modifier une Autorisation du Droit des Sols (ADS) existante dans le RNB. "
-            "L'API ADS est réservée aux communes et requiert une authentification par token."
-        ),
-        request=ADSSerializer,
-        responses={
-            200: OpenApiResponse(
-                response=ADSSerializer,
-                examples=[
-                    OpenApiExample(
-                        name="Exemple",
-                        value={
-                            "file_number": "PCXXXXXXXXXX",
-                            "decided_at": "2019-03-10",
-                            "buildings_operations": [
-                                {
-                                    "operation": "demolish",
-                                    "rnb_id": "7865HG43PLS9",
-                                    "shape": None,
-                                },
-                                {
-                                    "operation": "build",
-                                    "rnb_id": None,
-                                    "shape": {
-                                        "type": "Point",
-                                        "coordinates": [
-                                            2.3552747458487002,
-                                            48.86958288638419,
-                                        ],
-                                    },
-                                },
-                            ],
-                        },
-                    )
-                ],
-            ),
-            400: {"description": "Requête invalide"},
-            404: {"description": "ADS non trouvée"},
-        },
-    )
     def update(self, request, *args, **kwargs):
         return super().update(request, *args, **kwargs)
 
-    @extend_schema(
-        tags=["ADS"],
-        operation_id="delete_ads",
-        summary="Suppression d'une ADS",
-        description="Cet endpoint permet de supprimer une Autorisation du Droit des Sols (ADS) existante dans le RNB.",
-        responses={
-            204: {"description": "ADS supprimée avec succès"},
-            404: {"description": "ADS non trouvée"},
-        },
-    )
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
@@ -1000,9 +751,7 @@ def sandbox_only(func):
             print("Sandbox only endpoint called in non-sandbox environment")
             raise NotFound()
 
-        auth_header = request.headers.get("Authorization")
-        expected_auth_header = f"Bearer {settings.SANDBOX_SECRET_TOKEN}"
-        if not settings.SANDBOX_SECRET_TOKEN or auth_header != expected_auth_header:
+        if not has_sandbox_secret(request):
             raise SandboxAuthenticationError()
         return func(self, request, *args, **kwargs)
 
@@ -1013,7 +762,9 @@ class GetUserToken(APIView):
     @sandbox_only
     def get(self, request, user_email_b64):
         user_email = urlsafe_base64_decode(user_email_b64).decode()
-        user = User.objects.get(email=user_email)
+        # A production account that was never mirrored here is a "not found",
+        # not a server error: production turns it into a reported gap.
+        user = get_object_or_404(User, email=user_email)
         try:
             token = Token.objects.get(user=user)
         except Token.DoesNotExist:
@@ -1045,29 +796,23 @@ class GetCurrentUserTokens(APIView):
 
         try:
             return SandboxClient().get_user_token(user_email)
-        except SandboxClientError:
+        except SandboxClientError as error:
+            # Answering without a token is the right call either way: the user
+            # sees their production token instead of an error page. But the two
+            # causes are not equivalent, and swallowing them both is what let a
+            # mirroring gap go unnoticed for months.
+            if error.status_code == http_status.HTTP_404_NOT_FOUND:
+                logger.warning(
+                    "User %s has no sandbox account: they were never mirrored",
+                    user_email,
+                )
+                sentry_sdk.capture_message(
+                    "A production user has no sandbox account", level="warning"
+                )
+            else:
+                logger.exception("Failed to fetch the sandbox token of %s", user_email)
+                sentry_sdk.capture_exception(error)
             return None
-
-
-class TokenScheme(OpenApiAuthenticationExtension):
-    target_class = "rest_framework.authentication.TokenAuthentication"
-    name = "RNBTokenAuth"
-    priority = 1
-
-    def get_security_definition(self, auto_schema):
-        return {
-            "type": "apiKey",
-            "in": "header",
-            "name": "Authorization",
-            "description": "Toutes les requêtes liées aux ADS doivent faire l’objet d’une authentification. "
-            "Pour vous identifier, utilisez le token fourni par l’équipe du RNB. "
-            "Pour faire une demande de token, renseignez ce formulaire.\n\n"
-            "Ajoutez une clé `Authorization` aux headers HTTP de chacune de vos requêtes. "
-            "La valeur doit être votre token préfixé de la chaîne “Token”. "
-            "Un espace sépare “Token” et votre token.\n\n"
-            "Exemple:\n\n"
-            "`Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b`",
-        }
 
 
 class DiffusionDatabaseView(APIView):

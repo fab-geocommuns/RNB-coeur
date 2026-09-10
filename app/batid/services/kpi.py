@@ -45,7 +45,7 @@ def get_kpi_most_recent(name: str):
     return KPI.objects.filter(name=name).last()
 
 
-def compute_today_kpis(external_calls=True):
+def compute_daily_kpis(external_calls=True):
     """
     external_calls=False is for testing purposes, to avoid creating a Mock
     """
@@ -164,23 +164,31 @@ def compute_today_kpis(external_calls=True):
             )
 
     # Building change stats (import_bdtopo, import_bal, contributions)
-    daily_changes = count_building_changes_daily(today)
+    # Contrairement aux autres KPI ci-dessus (des stocks ou des cumuls depuis
+    # toujours, dont la valeur est juste un instantané pris à l'heure du cron),
+    # ceux-ci comptent les événements d'une journée précise. Le cron tourne à 3h
+    # UTC : compter "aujourd'hui" ne couvrirait que la tranche 0h-3h, et la
+    # valeur ne serait jamais recalculée ensuite. Les contributions (des
+    # éditions humaines, rares entre 2h et 5h à Paris) tombaient donc à 0.
+    # On compte donc la veille, seule journée complète au moment du calcul.
+    yesterday = today - timedelta(days=1)
+    daily_changes = count_building_changes_daily(yesterday)
     bdtopo_count = daily_changes["import_bdtopo"]
     KPI.objects.update_or_create(
         name=KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
-        value_date=today,
+        value_date=yesterday,
         defaults={"value": bdtopo_count},
     )
     bal_count = daily_changes["import_bal"]
     KPI.objects.update_or_create(
         name=KPI_BUILDING_CHANGES_IMPORT_BAL,
-        value_date=today,
+        value_date=yesterday,
         defaults={"value": bal_count},
     )
     contributions_count = daily_changes["contributions"]
     KPI.objects.update_or_create(
         name=KPI_BUILDING_CHANGES_CONTRIBUTIONS,
-        value_date=today,
+        value_date=yesterday,
         defaults={"value": contributions_count},
     )
 

@@ -233,6 +233,10 @@ class UserProfile(models.Model):
     job_title = models.CharField(max_length=255, blank=True, null=True)
     max_allowed_contributions = models.IntegerField(null=False, default=500)
     total_contributions = models.IntegerField(null=False, default=0)
+    # allow a Reviewer to leave a comment about the user
+    # e.g. "I sent an email to this user because he demolishes buildings instead of deactivating ID-RNB. Waiting for his reply before raising his quota."
+    # Comments are intended for the RNB team only to help keep the user review process in sync
+    comment_from_reviewer = models.TextField(blank=True)
 
     def check_and_increment_contribution_count(self) -> None:
         from api_alpha.exceptions import TooManyContributions

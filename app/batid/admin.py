@@ -265,6 +265,7 @@ class UserProfileInline(admin.StackedInline):
         "job_title",
         "max_allowed_contributions",
         "total_contributions",
+        "comment_from_reviewer",
     )
     readonly_fields = ("total_contributions",)
     autocomplete_fields = ("organization",)
@@ -308,8 +309,8 @@ admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
 
 
-def get_admin_urls(urls):
-    def get_urls():
+def get_admin_urls(get_urls):
+    def wrapped_get_urls():
         my_urls = [
             path(r"worker/", admin.site.admin_view(worker)),
             path(r"export_ads/", export_ads),
@@ -325,12 +326,16 @@ def get_admin_urls(urls):
                 name="rollback_confirm",
             ),
         ]
-        return my_urls + urls
+        # Call the wrapped get_urls() fresh each time (not once at import
+        # time): it rebuilds the app_list URL's app_label regex from
+        # whatever is currently in admin.site._registry, which depends on
+        # admin.py import order across INSTALLED_APPS.
+        return my_urls + get_urls()
 
-    return get_urls
+    return wrapped_get_urls
 
 
-admin.site.get_urls = get_admin_urls(admin.site.get_urls())  # type: ignore[method-assign]
+admin.site.get_urls = get_admin_urls(admin.site.get_urls)  # type: ignore[method-assign]
 
 
 class CustomUserCreationForm(UserCreationForm):

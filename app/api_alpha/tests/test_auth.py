@@ -386,3 +386,85 @@ class GetUserTokenTest(APITestCase):
             )
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data["token"], None)
+
+
+class UnmirroredSandboxAccountTest(APITestCase):
+    """A production account that was never mirrored to the sandbox used to fail
+    twice over: the sandbox answered 500 on a plain "no such user", and
+    production swallowed the error whole. The sandbox now answers 404, and
+    production reports the gap instead of hiding it.
+    """
+
+    def setUp(self):
+        self.user = ContributorUserFactory(
+            username="mirrored",
+            password="testpassword",
+            email="mirrored@example.test",
+        )
+        self.token = Token.objects.get(user=self.user)
+
+    def _sandbox_token_url(self, email):
+        encoded = base64.b64encode(email.encode("utf-8")).decode("utf-8")
+        return f"/api/alpha/auth/users/{encoded}/token"
+
+    def test_sandbox_answers_404_for_an_unknown_user(self):
+        """Asking the sandbox for the token of a user it does not have returns
+        404, not a 500 from an unhandled DoesNotExist."""
+        with self.settings(ENVIRONMENT="sandbox", SANDBOX_SECRET_TOKEN="right_token"):
+            response = self.client.get(
+                self._sandbox_token_url("never-mirrored@example.test"),
+                HTTP_AUTHORIZATION="Bearer right_token",
+            )
+            self.assertEqual(response.status_code, 404)
+
+    @override_settings(HAS_SANDBOX="true")
+    @mock.patch("api_alpha.views.sentry_sdk.capture_message")
+    @mock.patch("api_alpha.utils.sandbox_client.SandboxClient.get_user_token")
+    def test_missing_sandbox_account_is_reported(self, mock_get_token, mock_capture):
+        """A 404 from the sandbox means the account was never mirrored: the user
+        still gets their production token, and the gap is reported to Sentry."""
+        mock_get_token.side_effect = SandboxClientError(
+            "not found", status_code=404, body=""
+        )
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+
+        response = self.client.get("/api/alpha/auth/users/me/tokens")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["production_token"], self.token.key)
+        self.assertEqual(response.data["sandbox_token"], None)
+        mock_capture.assert_called_once()
+        self.assertEqual(mock_capture.call_args.kwargs["level"], "warning")
+
+    @override_settings(HAS_SANDBOX="true")
+    @mock.patch("api_alpha.views.sentry_sdk.capture_exception")
+    @mock.patch("api_alpha.utils.sandbox_client.SandboxClient.get_user_token")
+    def test_transport_error_is_reported_as_an_exception(
+        self, mock_get_token, mock_capture
+    ):
+        """Any other sandbox failure is a genuine error and is captured as such,
+        so it is not confused with a mirroring gap."""
+        error = SandboxClientError("boom", status_code=500, body="server error")
+        mock_get_token.side_effect = error
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+
+        response = self.client.get("/api/alpha/auth/users/me/tokens")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["sandbox_token"], None)
+        mock_capture.assert_called_once_with(error)
+
+    @override_settings(HAS_SANDBOX="true")
+    @mock.patch("api_alpha.views.sentry_sdk.capture_message")
+    @mock.patch("api_alpha.utils.sandbox_client.SandboxClient.get_user_token")
+    def test_nothing_is_reported_when_the_sandbox_answers(
+        self, mock_get_token, mock_capture
+    ):
+        """The normal case stays quiet."""
+        mock_get_token.return_value = "sandbox_token"
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+
+        response = self.client.get("/api/alpha/auth/users/me/tokens")
+
+        self.assertEqual(response.data["sandbox_token"], "sandbox_token")
+        mock_capture.assert_not_called()
