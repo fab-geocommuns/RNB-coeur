@@ -11,7 +11,7 @@ from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
-from django.db.models import Func, Value
+from django.db.models import F, Func, Value
 
 
 class BuildingAddressesReadOnly(models.Model):
@@ -141,7 +141,6 @@ class Address(models.Model):
             output_field=models.BigIntegerField(),
         ),
         editable=False,
-        null=True,
     )
     source = models.CharField(max_length=10, null=False)  # BAN or other origin
     point = models.PointField(null=True, spatial_index=True, srid=4326)
@@ -162,6 +161,17 @@ class Address(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            # Expression form on purpose: the field form, like unique=True, would
+            # be created as a UNIQUE constraint, and the primary key switch needs
+            # an index no constraint owns to run ADD PRIMARY KEY USING INDEX.
+            # See specs/migration_lien_batiment_adresse.md.
+            models.UniqueConstraint(
+                F("internal_id"), name="batid_address_internal_id_uniq"
+            )
+        ]
 
     @staticmethod
     def add_addresses_to_db_if_needed(addresses_id: list[str]) -> None:

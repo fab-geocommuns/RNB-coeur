@@ -12,7 +12,7 @@ def fill_address_internal_id(batch_size: int = DEFAULT_BATCH_SIZE) -> int:
 
     Addresses created after that migration get their internal_id from the column
     DEFAULT; this fills the rows that already existed. Meant to be run once, from
-    the fill_address_internal_id Celery task, before the migration that makes
+    the fill_address_internal_id Celery task, before migration 0147, which makes
     internal_id unique and NOT NULL.
 
     Rows are walked in primary key order, one committed batch at a time, so the
