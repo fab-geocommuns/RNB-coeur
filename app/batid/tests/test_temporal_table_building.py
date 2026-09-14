@@ -69,6 +69,35 @@ class TemporalTableCase(TransactionTestCase):
         )
         self.assertEqual(current.validated_by, [user.id, other_user.id])
 
+    def test_addresses_internal_id_is_historicized(self):
+        """
+        addresses_internal_id was added to both batid_building and
+        batid_building_history (same name, same type). If the types ever
+        diverged, the versioning trigger would fail with a datatype_mismatch
+        on every write (see specs/migration_lien_batiment_adresse.md,
+        contrainte n°1) — this checks the column round-trips through the
+        trigger like any other field.
+        """
+        building = Building.objects.create(rnb_id="XYZ")
+        building.addresses_internal_id = [1, 2]
+        building.save()
+
+        building.refresh_from_db()
+        self.assertEqual(building.addresses_internal_id, [1, 2])
+
+        previous_building_version = BuildingWithHistory.objects.get(
+            rnb_id="XYZ", sys_period__endswith__isnull=False
+        )
+        self.assertEqual(previous_building_version.addresses_internal_id, None)
+
+        current_building_version = BuildingWithHistory.objects.get(
+            rnb_id="XYZ", sys_period__endswith__isnull=True
+        )
+        self.assertEqual(current_building_version.addresses_internal_id, [1, 2])
+
+        history_row = BuildingHistoryOnly.objects.get(rnb_id="XYZ")
+        self.assertEqual(history_row.addresses_internal_id, None)
+
     def test_history_is_read_only(self):
         # trying to manually insert a new row in the history table should raise an exception
         # this table is not supposed to be written only with triggers
