@@ -1,4 +1,4 @@
-from batid.models import Building, BuildingHistoryOnly, BuildingWithHistory
+from batid.models import Address, Building, BuildingHistoryOnly, BuildingWithHistory
 from django.contrib.auth.models import User
 from django.db import connection
 from django.db.utils import InternalError
@@ -78,12 +78,17 @@ class TemporalTableCase(TransactionTestCase):
         contrainte n°1) — this checks the column round-trips through the
         trigger like any other field.
         """
+        a1 = Address.objects.create(id="address_1")
+        a2 = Address.objects.create(id="address_2")
+
         building = Building.objects.create(rnb_id="XYZ")
-        building.addresses_internal_id = [1, 2]
+        building.addresses_internal_id = [a1.internal_id, a2.internal_id]
         building.save()
 
         building.refresh_from_db()
-        self.assertEqual(building.addresses_internal_id, [1, 2])
+        self.assertEqual(
+            building.addresses_internal_id, [a1.internal_id, a2.internal_id]
+        )
 
         previous_building_version = BuildingWithHistory.objects.get(
             rnb_id="XYZ", sys_period__endswith__isnull=False
@@ -93,7 +98,10 @@ class TemporalTableCase(TransactionTestCase):
         current_building_version = BuildingWithHistory.objects.get(
             rnb_id="XYZ", sys_period__endswith__isnull=True
         )
-        self.assertEqual(current_building_version.addresses_internal_id, [1, 2])
+        self.assertEqual(
+            current_building_version.addresses_internal_id,
+            [a1.internal_id, a2.internal_id],
+        )
 
         history_row = BuildingHistoryOnly.objects.get(rnb_id="XYZ")
         self.assertEqual(history_row.addresses_internal_id, None)
