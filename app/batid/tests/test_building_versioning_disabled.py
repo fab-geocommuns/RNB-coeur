@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 
 from batid.models import Building, BuildingHistoryOnly
-from batid.utils.db import building_versioning_disabled
+from batid.utils.db import building_versioning_dangerously_disabled
 from django.db import connection, connections, transaction
 from django.db.transaction import TransactionManagementError
 from django.db.utils import DatabaseError, InternalError
@@ -30,18 +30,18 @@ def history_count(rnb_id):
 
 
 class DisableBuildingVersioningTestCase(TestCase):
-    """Effect of building_versioning_disabled() on the versioning trigger."""
+    """Effect of building_versioning_dangerously_disabled() on the versioning trigger."""
 
     def test_update_is_not_historicized(self):
         """
         Input: a building updated with save() inside
-        building_versioning_disabled().
+        building_versioning_dangerously_disabled().
         Expected: the new value is written, no history row is created and the
         building stays the current version (open sys_period).
         """
         building = Building.objects.create(rnb_id="VERSION0001")
 
-        with building_versioning_disabled():
+        with building_versioning_dangerously_disabled():
             building.parent_buildings = [1]
             building.save()
 
@@ -52,7 +52,7 @@ class DisableBuildingVersioningTestCase(TestCase):
 
     def test_sys_period_is_left_untouched(self):
         """
-        Input: a building updated inside building_versioning_disabled() with a
+        Input: a building updated inside building_versioning_dangerously_disabled() with a
         query that does not write the sys_period column.
         Expected: the sys_period keeps the exact value it had before the
         update, since the trigger no longer maintains it.
@@ -60,7 +60,7 @@ class DisableBuildingVersioningTestCase(TestCase):
         Building.objects.create(rnb_id="VERSION0008")
         sys_period_before = Building.objects.get(rnb_id="VERSION0008").sys_period
 
-        with building_versioning_disabled():
+        with building_versioning_dangerously_disabled():
             Building.objects.filter(rnb_id="VERSION0008").update(parent_buildings=[1])
 
         building = Building.objects.get(rnb_id="VERSION0008")
@@ -70,11 +70,11 @@ class DisableBuildingVersioningTestCase(TestCase):
 
     def test_insert_is_not_historicized(self):
         """
-        Input: a building created inside building_versioning_disabled().
+        Input: a building created inside building_versioning_dangerously_disabled().
         Expected: the row is created with an open sys_period (from the Django
         default, since the trigger did not set it) and no history row.
         """
-        with building_versioning_disabled():
+        with building_versioning_dangerously_disabled():
             building = Building.objects.create(rnb_id="VERSION0002")
 
         building.refresh_from_db()
@@ -90,7 +90,7 @@ class DisableBuildingVersioningTestCase(TestCase):
         """
         building = Building.objects.create(rnb_id="VERSION0003")
 
-        with building_versioning_disabled():
+        with building_versioning_dangerously_disabled():
             for i in range(3):
                 building.parent_buildings = [i]
                 building.save()
@@ -108,7 +108,7 @@ class DisableBuildingVersioningTestCase(TestCase):
         """
         building = Building.objects.create(rnb_id="VERSION0004")
 
-        with building_versioning_disabled():
+        with building_versioning_dangerously_disabled():
             building.parent_buildings = [1]
             building.save()
 
@@ -131,7 +131,7 @@ class DisableBuildingVersioningTestCase(TestCase):
         building = Building.objects.create(rnb_id="VERSION0005")
 
         with self.assertRaises(ValueError):
-            with building_versioning_disabled():
+            with building_versioning_dangerously_disabled():
                 building.parent_buildings = [1]
                 building.save()
                 raise ValueError("something went wrong")
@@ -143,15 +143,15 @@ class DisableBuildingVersioningTestCase(TestCase):
 
     def test_nested_context_managers(self):
         """
-        Input: two nested building_versioning_disabled(), with an update after
+        Input: two nested building_versioning_dangerously_disabled(), with an update after
         the inner one is closed but still inside the outer one.
         Expected: the inner context manager does not turn the versioning back
         on, so nothing is historicized before the outer one is closed.
         """
         building = Building.objects.create(rnb_id="VERSION0009")
 
-        with building_versioning_disabled():
-            with building_versioning_disabled():
+        with building_versioning_dangerously_disabled():
+            with building_versioning_dangerously_disabled():
                 building.parent_buildings = [1]
                 building.save()
 
@@ -173,7 +173,7 @@ class DisableBuildingVersioningTestCase(TestCase):
         """
         Building.objects.create(rnb_id="VERSION0006")
 
-        with building_versioning_disabled():
+        with building_versioning_dangerously_disabled():
             with self.assertRaises(InternalError):
                 # the failing statement is isolated in a savepoint, so that the
                 # surrounding transaction stays usable
@@ -223,7 +223,7 @@ class ConcurrentBuildingVersioningTestCase(TransactionTestCase):
         session A's update is not.
         """
         with transaction.atomic():
-            with building_versioning_disabled():
+            with building_versioning_dangerously_disabled():
                 Building.objects.filter(rnb_id="CONCURRENT01").update(
                     parent_buildings=[1]
                 )
@@ -262,7 +262,7 @@ class ConcurrentBuildingVersioningTestCase(TransactionTestCase):
                 cursor.execute("select pg_backend_pid();")
                 session_pid = cursor.fetchone()[0]
 
-            with building_versioning_disabled():
+            with building_versioning_dangerously_disabled():
                 Building.objects.filter(rnb_id="CONCURRENT01").update(
                     parent_buildings=[1]
                 )
@@ -289,7 +289,7 @@ class ConcurrentBuildingVersioningTestCase(TransactionTestCase):
         next write is historicized again.
         """
         with transaction.atomic():
-            with building_versioning_disabled():
+            with building_versioning_dangerously_disabled():
                 Building.objects.filter(rnb_id="CONCURRENT01").update(
                     parent_buildings=[1]
                 )
@@ -308,7 +308,7 @@ class ConcurrentBuildingVersioningTestCase(TransactionTestCase):
         self.assertFalse(connection.in_atomic_block)
 
         with self.assertRaises(TransactionManagementError):
-            with building_versioning_disabled():
+            with building_versioning_dangerously_disabled():
                 pass  # pragma: no cover
 
         Building.objects.filter(rnb_id="CONCURRENT01").update(parent_buildings=[1])

@@ -3,7 +3,7 @@ from django.db import migrations
 # The versioning trigger is now conditional: it does not fire when the
 # "rnb.disable_building_versioning" session setting is truthy. This makes it
 # possible to skip historisation inside a single transaction (see
-# batid.utils.db.building_versioning_disabled), instead of
+# batid.utils.db.building_versioning_dangerously_disabled), instead of
 # "ALTER TABLE ... DISABLE TRIGGER" which disables the trigger for every
 # session and locks the building table.
 #

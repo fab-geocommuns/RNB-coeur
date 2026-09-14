@@ -33,7 +33,7 @@ DISABLE_BUILDING_VERSIONING_SETTING = "rnb.disable_building_versioning"
 
 
 @contextmanager
-def building_versioning_disabled():
+def building_versioning_dangerously_disabled():
     """
     !!WARNING!!
     Use with caution if you have a good reason to do it. Most probably a database
@@ -65,7 +65,7 @@ def building_versioning_disabled():
 
     if not connection.in_atomic_block:
         raise TransactionManagementError(
-            "building_versioning_disabled() must be used inside a transaction, "
+            "building_versioning_dangerously_disabled() must be used inside a transaction, "
             "otherwise the building history would still be written."
         )
 
