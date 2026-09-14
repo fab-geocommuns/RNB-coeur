@@ -49,6 +49,12 @@ services:
     image: postgis/postgis:16-3.5
     platform: linux/amd64
     shm_size: 1gb
+    restart: unless-stopped
+    # Postgres treats SIGTERM as a smart shutdown: it waits for every client to
+    # disconnect, exceeds the stop grace period and gets SIGKILLed, leaving the
+    # cluster in recovery on the next boot. SIGINT is the fast shutdown.
+    stop_signal: SIGINT
+    stop_grace_period: 30s
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
