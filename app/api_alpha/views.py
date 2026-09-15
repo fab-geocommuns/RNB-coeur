@@ -53,6 +53,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Prefetch
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils.http import urlsafe_base64_decode
@@ -391,7 +392,12 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                 Building.objects.filter(is_active=True)
                 .filter(addresses_read_only__id=cle_interop_ban)
                 .prefetch_related("addresses_read_only")
-                .prefetch_related("validated_by_read_only")
+                .prefetch_related(
+                    Prefetch(
+                        "validated_by_read_only",
+                        queryset=User.objects.order_by("id"),
+                    )
+                )
             )
             paginated_bdgs = paginator.paginate_queryset(buildings, request)
             serialized_buildings = BuildingSerializer(paginated_bdgs, many=True)
