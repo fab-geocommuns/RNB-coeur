@@ -415,11 +415,10 @@ class Building(BuildingAbstract):
             )
             and (shape is None or shape == self.shape)
         )
-        building_and_ext_ids_identical = building_identical and (
-            ext_ids is None or ext_ids == self.ext_ids
-        )
+        
+        ext_ids_identical = ext_ids is None or ext_ids == self.ext_ids
 
-        if building_and_ext_ids_identical and validate is None:
+        if building_identical and ext_ids_identical and validate is None:
             # Nothing happens at all
             return
 
@@ -436,20 +435,22 @@ class Building(BuildingAbstract):
                 validated_by.append(user.id)
                 newly_validated = True
         else:
-            # the building itself is not updated: only its ext_ids may have changed
-            # (probably a BD Topo import), which does not remove existing validations
+
+            # The building itself (status, shape, adresses) dit not change
+            # Still, the update can concern a validation and/or and ext_ids change
+           
             validated_by = self.validated_by or []
 
             if validate:
-                # the building is validated
+                # The building is being validated
                 if user.id not in validated_by:
                     validated_by.append(user.id)
                     newly_validated = True
             elif validate is False and user.id in validated_by:
                 # the existing validation of this user is removed
                 validated_by.remove(user.id)
-            elif building_and_ext_ids_identical:
-                # no update at all, no validation change => no-op
+            elif ext_ids_identical:
+                # No update at all
                 return
 
         self.validated_by = validated_by
