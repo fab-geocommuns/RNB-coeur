@@ -1,6 +1,6 @@
 from batid.models import Address
 from batid.services.data_fix.fill_address_internal_id import fill_address_internal_id
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase
 
 
@@ -12,8 +12,16 @@ def read_internal_ids() -> dict:
 
 
 def clear_internal_ids(*address_ids: str) -> None:
-    """Bring the given addresses back to the state they had before migration 0146."""
+    """Bring the given addresses back to the state they had before migration 0146.
+
+    internal_id is NOT NULL since migration 0147, so the constraint has to be
+    lifted to reproduce that state. The test case runs inside a transaction, so
+    this DDL is rolled back along with the rows it allows.
+    """
     with connection.cursor() as cursor:
+        cursor.execute(
+            "ALTER TABLE batid_address ALTER COLUMN internal_id DROP NOT NULL;"
+        )
         cursor.execute(
             "UPDATE batid_address SET internal_id = NULL WHERE id = ANY(%s);",
             [list(address_ids)],
@@ -126,3 +134,31 @@ class FillAddressInternalIdTestCase(TestCase):
         Address.objects.all().delete()
 
         self.assertEqual(fill_address_internal_id(batch_size=2), 0)
+
+
+class AddressInternalIdConstraintsTestCase(TestCase):
+    """The unique index and the NOT NULL constraint installed by migration 0147."""
+
+    def setUp(self):
+        Address.objects.create(id="01001_0001_00001", source="ban")
+        Address.objects.create(id="01001_0001_00002", source="ban")
+
+    def test_duplicate_internal_id_is_rejected(self):
+        """An address forced onto the internal_id of another one -> IntegrityError."""
+        internal_ids = read_internal_ids()
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE batid_address SET internal_id = %s WHERE id = %s;",
+                    [internal_ids["01001_0001_00001"], "01001_0001_00002"],
+                )
+
+    def test_null_internal_id_is_rejected(self):
+        """An address whose internal_id is emptied -> IntegrityError."""
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE batid_address SET internal_id = NULL WHERE id = %s;",
+                    ["01001_0001_00001"],
+                )
