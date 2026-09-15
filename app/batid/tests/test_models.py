@@ -729,6 +729,90 @@ class TestUpdateBuildingValidatedBy(TestCase):
         b.refresh_from_db()
         self.assertEqual(b.validated_by, [self.user.id, self.other_user.id])
 
+    def test_update_only_ext_ids_keeps_validations(self):
+        """
+        Input: an existing building has two users in validated_by; update is
+        called with new ext_ids only (typical BD Topo import) and validate=None.
+        Expected: validated_by is left untouched, because attaching an external
+        id does not change the building itself; the ext_ids are saved and a new
+        history row is written (sys_period changes) to keep the import traceable.
+        """
+        b = self._create_building(validated_by=[self.user, self.other_user])
+        sys_period_before = b.sys_period
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status=None,
+            addresses_id=None,
+            ext_ids=[{"source": "bdtopo", "id": "bdtopo_1"}],
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.validated_by, [self.user.id, self.other_user.id])
+        self.assertEqual(b.ext_ids, [{"source": "bdtopo", "id": "bdtopo_1"}])
+        self.assertNotEqual(b.sys_period, sys_period_before)
+
+    def test_update_ext_ids_and_status_resets_validations(self):
+        """
+        Input: an existing building has two users in validated_by; update is
+        called with new ext_ids AND a new status.
+        Expected: validated_by is reset to [], because the building content
+        changed: the ext_ids exemption only holds when nothing else changes.
+        """
+        b = self._create_building(validated_by=[self.user, self.other_user])
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status="demolished",
+            addresses_id=None,
+            ext_ids=[{"source": "bdtopo", "id": "bdtopo_1"}],
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.validated_by, [])
+        self.assertEqual(b.ext_ids, [{"source": "bdtopo", "id": "bdtopo_1"}])
+
+    def test_update_only_ext_ids_with_validate_true_appends_user(self):
+        """
+        Input: an existing building has other_user in validated_by; update is
+        called with new ext_ids only and validate=True from self.user.
+        Expected: the existing validation is kept and self.user.id is appended,
+        because an ext_ids change never invalidates anything.
+        """
+        b = self._create_building(validated_by=[self.other_user])
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status=None,
+            addresses_id=None,
+            ext_ids=[{"source": "bdtopo", "id": "bdtopo_1"}],
+            validate=True,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.validated_by, [self.other_user.id, self.user.id])
+
+    def test_update_only_ext_ids_with_validate_false_removes_user(self):
+        """
+        Input: an existing building has self.user and other_user in validated_by;
+        update is called with new ext_ids only and validate=False from self.user.
+        Expected: only self.user's own validation is removed (other_user's is
+        kept) and the ext_ids are saved.
+        """
+        b = self._create_building(validated_by=[self.user, self.other_user])
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "test"},
+            status=None,
+            addresses_id=None,
+            ext_ids=[{"source": "bdtopo", "id": "bdtopo_1"}],
+            validate=False,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.validated_by, [self.other_user.id])
+        self.assertEqual(b.ext_ids, [{"source": "bdtopo", "id": "bdtopo_1"}])
+
 
 class TestCreateNewBuildingMarkedAsCorrect(TestCase):
     """Tests for the marked_as_correct_by behavior in Building.create_new()."""
