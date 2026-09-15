@@ -415,7 +415,7 @@ class Building(BuildingAbstract):
             )
             and (shape is None or shape == self.shape)
         )
-        
+
         ext_ids_identical = ext_ids is None or ext_ids == self.ext_ids
 
         if building_identical and ext_ids_identical and validate is None:
@@ -438,7 +438,7 @@ class Building(BuildingAbstract):
 
             # The building itself (status, shape, adresses) dit not change
             # Still, the update can concern a validation and/or and ext_ids change
-           
+
             validated_by = self.validated_by or []
 
             if validate:
