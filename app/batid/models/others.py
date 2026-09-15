@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
+from django.db.models import Func, Value
 
 
 class BuildingAddressesReadOnly(models.Model):
@@ -130,6 +131,18 @@ class Plot(models.Model):
 
 class Address(models.Model):
     id = models.CharField(max_length=40, primary_key=True, db_index=True)
+    # RNB internal key, meant to replace the BAN interop key (currently "id") as
+    # the anchor of the building <-> address link. Filled by the column DEFAULT,
+    # never by Django: see specs/migration_lien_batiment_adresse.md.
+    internal_id = models.BigIntegerField(
+        db_default=Func(
+            Value("batid_address_internal_id_seq"),
+            function="nextval",
+            output_field=models.BigIntegerField(),
+        ),
+        editable=False,
+        null=True,
+    )
     source = models.CharField(max_length=10, null=False)  # BAN or other origin
     point = models.PointField(null=True, spatial_index=True, srid=4326)
     street_number = models.CharField(max_length=10, null=True)
