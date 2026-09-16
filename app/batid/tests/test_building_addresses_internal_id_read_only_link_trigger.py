@@ -56,6 +56,27 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         self.assertEqual(links[1].building_id, b.id)
         self.assertEqual(links[1].address_id, a2.internal_id)
 
+    def test_clear_building_addresses(self):
+        """Input: a building linked to two addresses via addresses_internal_id,
+        then updated to clear addresses_internal_id (set to None).
+        Expected: the trigger deletes the two link rows, leaving none."""
+        a1 = Address.objects.create(id="address_1")
+        a2 = Address.objects.create(id="address_2")
+
+        b = Building.objects.create(
+            rnb_id="1", addresses_internal_id=[a1.internal_id, a2.internal_id]
+        )
+
+        self.assertEqual(BuildingAddressesInternalIdReadOnly.objects.count(), 2)
+
+        b.addresses_internal_id = None
+        b.save()
+
+        self.assertEqual(
+            BuildingAddressesInternalIdReadOnly.objects.filter(building_id=b.id).count(),
+            0,
+        )
+
     def test_update_building_does_not_affect_other_join_table(self):
         """Input: a building linked through both addresses_id and
         addresses_internal_id, then updated on addresses_internal_id only.
