@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0147_address_internal_id_constraints"),
+        ("batid", "0148_address_internal_id_constraints"),
     ]
 
     operations = [
