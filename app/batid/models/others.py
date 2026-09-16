@@ -45,7 +45,7 @@ class BuildingAddressesInternalIdReadOnly(models.Model):
         # check only recognizes plain-fields UniqueConstraints, not
         # expression-based ones, so it wrongly flags this FK target as
         # non-unique. The uniqueness is real and enforced at the DB level.
-        # Quand le internal_id sera devenue une PK, alors il faudra supprimer ce code. 
+        # Quand le internal_id sera devenue une PK, alors il faudra supprimer ce code.
         return [error for error in super().check(**kwargs) if error.id != "fields.E311"]
 
 
