@@ -73,7 +73,9 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         b.save()
 
         self.assertEqual(
-            BuildingAddressesInternalIdReadOnly.objects.filter(building_id=b.id).count(),
+            BuildingAddressesInternalIdReadOnly.objects.filter(
+                building_id=b.id
+            ).count(),
             0,
         )
 
