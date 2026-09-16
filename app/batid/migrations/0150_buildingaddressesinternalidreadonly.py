@@ -134,7 +134,7 @@ NEW_KEEP_BUILDING_ADDRESS_LINK_UPDATED_SQL = """
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0148_building_addresses_internal_id"),
+        ("batid", "0149_building_addresses_internal_id"),
     ]
 
     operations = [
