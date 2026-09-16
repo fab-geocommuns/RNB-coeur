@@ -69,6 +69,57 @@ class TemporalTableCase(TransactionTestCase):
         )
         self.assertEqual(current.validated_by, [user.id, other_user.id])
 
+    def test_addresses_internal_id_is_historicized(self):
+        """
+        addresses_internal_id was added to both batid_building and
+        batid_building_history (same name, same type). If the types ever
+        diverged, the versioning trigger would fail with a datatype_mismatch
+        on every write (see specs/migration_lien_batiment_adresse.md,
+        contrainte n°1) — this checks the column round-trips through the
+        trigger like any other field.
+        """
+        building = Building.objects.create(rnb_id="XYZ")
+        building.addresses_internal_id = [1, 2]
+        building.save()
+
+        building.refresh_from_db()
+        self.assertEqual(building.addresses_internal_id, [1, 2])
+
+        previous_building_version = BuildingWithHistory.objects.get(
+            rnb_id="XYZ", sys_period__endswith__isnull=False
+        )
+        self.assertEqual(previous_building_version.addresses_internal_id, None)
+
+        current_building_version = BuildingWithHistory.objects.get(
+            rnb_id="XYZ", sys_period__endswith__isnull=True
+        )
+        self.assertEqual(current_building_version.addresses_internal_id, [1, 2])
+
+        history_row = BuildingHistoryOnly.objects.get(rnb_id="XYZ")
+        self.assertEqual(history_row.addresses_internal_id, None)
+
+        # a third version, to make sure the previous non-null value ([1, 2])
+        # is also historicized correctly, alongside the original None value
+        building.addresses_internal_id = [3, 4]
+        building.save()
+
+        building.refresh_from_db()
+        self.assertEqual(building.addresses_internal_id, [3, 4])
+
+        historicized_values = list(
+            BuildingWithHistory.objects.filter(
+                rnb_id="XYZ", sys_period__endswith__isnull=False
+            )
+            .order_by("sys_period")
+            .values_list("addresses_internal_id", flat=True)
+        )
+        self.assertEqual(historicized_values, [None, [1, 2]])
+
+        current_building_version = BuildingWithHistory.objects.get(
+            rnb_id="XYZ", sys_period__endswith__isnull=True
+        )
+        self.assertEqual(current_building_version.addresses_internal_id, [3, 4])
+
     def test_history_is_read_only(self):
         # trying to manually insert a new row in the history table should raise an exception
         # this table is not supposed to be written only with triggers
