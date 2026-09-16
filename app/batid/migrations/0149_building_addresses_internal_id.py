@@ -10,6 +10,18 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # ADD COLUMN with no default is a catalog-only change, instant regardless
+        # of table size — but it still takes ACCESS EXCLUSIVE on batid_building
+        # and batid_building_history (same for the view drop/recreate below), so
+        # it waits for any transaction in flight on those tables and blocks every
+        # query arriving behind it meanwhile. batid_building is written to by
+        # Celery import/backfill jobs outside of request/response cycles, so a
+        # conflicting transaction here is more likely than on batid_address.
+        # lock_timeout makes the migration fail fast and roll back instead.
+        migrations.RunSQL(
+            "SET statement_timeout = '0'; SET lock_timeout = '5s';",
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         migrations.AddField(
             model_name="building",
             name="addresses_internal_id",
