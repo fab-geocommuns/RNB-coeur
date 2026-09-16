@@ -34,7 +34,7 @@ DROP_INTERNAL_ID = """
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0145_userprofile_comment_from_reviewer"),
+        ("batid", "0146_conditional_building_versioning_trigger"),
     ]
 
     operations = [
