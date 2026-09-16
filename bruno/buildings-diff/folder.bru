@@ -1,0 +1,80 @@
+meta {
+  name: buildings-diff
+}
+
+script:pre-request {
+  // Le endpoint refuse tout "since" à plus de 6 mois. Une date figée finirait par
+  // casser silencieusement ; on calcule donc "hier" à chaque exécution.
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  bru.setVar("since", since);
+}
+
+script:post-response {
+  // Aide d'affichage uniquement : parse le CSV renvoyé par /buildings/diff/ et
+  // l'imprime en tableau lisible dans la console Bruno. Ne touche jamais res.body :
+  // l'onglet Raw/Pretty de la réponse continue d'afficher la vraie valeur brute
+  // renvoyée par le serveur, sans transformation. Ce script n'existe que pour aider
+  // à lire, pas pour remplacer ce que voient les autres utilisateurs Bruno.
+
+  const contentType = res.getHeader("content-type") || "";
+  const body = res.getBody();
+
+  if (typeof body === "string" && contentType.includes("text/csv")) {
+    function parseCsvLine(line) {
+      const cells = [];
+      let cur = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (inQuotes) {
+          if (c === '"') {
+            if (line[i + 1] === '"') {
+              cur += '"';
+              i++;
+            } else {
+              inQuotes = false;
+            }
+          } else {
+            cur += c;
+          }
+        } else if (c === '"') {
+          inQuotes = true;
+        } else if (c === ",") {
+          cells.push(cur);
+          cur = "";
+        } else {
+          cur += c;
+        }
+      }
+      cells.push(cur);
+      return cells;
+    }
+
+    const lines = body.split("\n").filter((l) => l.length > 0);
+
+    if (lines.length > 0) {
+      const rows = lines.map(parseCsvLine);
+      const MAX_COL_WIDTH = 40;
+      const widths = rows[0].map((_, col) =>
+        Math.min(
+          MAX_COL_WIDTH,
+          Math.max(...rows.map((r) => (r[col] || "").length))
+        )
+      );
+      const truncate = (s, w) => (s.length > w ? s.slice(0, w - 1) + "…" : s);
+      const pad = (s, w) => truncate(s, w).padEnd(w);
+
+      console.log("");
+      console.log(
+        `CSV diff (affichage console uniquement) — ${rows.length - 1} ligne(s) de données`
+      );
+      rows.forEach((r, idx) => {
+        console.log(r.map((cell, col) => pad(cell || "", widths[col])).join(" | "));
+        if (idx === 0) {
+          console.log(widths.map((w) => "-".repeat(w)).join("-+-"));
+        }
+      });
+      console.log("");
+    }
+  }
+}
