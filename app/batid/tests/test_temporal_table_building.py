@@ -106,6 +106,28 @@ class TemporalTableCase(TransactionTestCase):
         history_row = BuildingHistoryOnly.objects.get(rnb_id="XYZ")
         self.assertEqual(history_row.addresses_internal_id, None)
 
+        # a third version, to make sure the previous non-null value ([1, 2])
+        # is also historicized correctly, alongside the original None value
+        building.addresses_internal_id = [3, 4]
+        building.save()
+
+        building.refresh_from_db()
+        self.assertEqual(building.addresses_internal_id, [3, 4])
+
+        historicized_values = list(
+            BuildingWithHistory.objects.filter(
+                rnb_id="XYZ", sys_period__endswith__isnull=False
+            )
+            .order_by("sys_period")
+            .values_list("addresses_internal_id", flat=True)
+        )
+        self.assertEqual(historicized_values, [None, [1, 2]])
+
+        current_building_version = BuildingWithHistory.objects.get(
+            rnb_id="XYZ", sys_period__endswith__isnull=True
+        )
+        self.assertEqual(current_building_version.addresses_internal_id, [3, 4])
+
     def test_history_is_read_only(self):
         # trying to manually insert a new row in the history table should raise an exception
         # this table is not supposed to be written only with triggers

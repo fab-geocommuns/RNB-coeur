@@ -22,7 +22,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("batid", "0146_address_internal_id"),
+        ("batid", "0147_address_internal_id"),
     ]
 
     operations = [
