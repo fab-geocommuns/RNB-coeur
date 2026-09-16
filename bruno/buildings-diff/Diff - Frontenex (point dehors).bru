@@ -1,0 +1,27 @@
+meta {
+  name: Diff - Frontenex (point dehors)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/buildings/diff/?since={{since}}&insee_code=73121
+  body: none
+  auth: none
+}
+
+params:query {
+  since: {{since}}
+  insee_code: 73121
+}
+
+docs {
+  Filtre ville du endpoint diff, unifié sur le point du bâtiment (PR #1028).
+
+  Complément de la requête "Verrens-Arvey" : un bâtiment dont la forme déborde dans
+  Frontenex (73121) sans que son point y soit ne doit PAS apparaître ici. Avant le
+  fix de la PR #1028, le filtre était basé sur la forme et l'aurait inclus à tort.
+
+  Prérequis local : une City avec code_insee=73121 doit exister en base, avec une
+  vraie géométrie (shape non nulle). Sans ça, la requête renvoie 404.
+}
