@@ -4,6 +4,7 @@ from batid.exceptions import (
     BANBadRequest,
     BANBadResultType,
     BANUnknownCleInterop,
+    DatabaseInconsistency,
 )
 from batid.validators import JSONSchemaValidator
 from django.conf import settings
@@ -212,6 +213,31 @@ class Address(models.Model):
             return
         else:
             Address.add_new_address_from_ban_api(address_id)
+
+    @staticmethod
+    def internal_ids_from_cle_interop(
+        addresses_id: list[str] | None,
+    ) -> list[int] | None:
+        """Resolve BAN "clé d'interopérabilité" keys to their batid_address.internal_id
+        values, preserving order and length so the result mirrors addresses_id 1:1.
+
+        Transitional helper for the addresses_id -> addresses_internal_id migration
+        (see specs/migration_lien_batiment_adresse.md). Delete this method once
+        addresses_id is dropped (PR 9 of that plan).
+        """
+        if addresses_id is None:
+            return None
+
+        internal_id_by_cle = dict(
+            Address.objects.filter(id__in=addresses_id).values_list("id", "internal_id")
+        )
+
+        try:
+            return [internal_id_by_cle[cle] for cle in addresses_id]
+        except KeyError as missing_cle:
+            raise DatabaseInconsistency(
+                f"L'adresse {missing_cle} référencée par addresses_id n'existe pas dans batid_address"
+            )
 
     @staticmethod
     def add_new_address_from_ban_api(address_id):
