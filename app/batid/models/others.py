@@ -22,6 +22,33 @@ class BuildingAddressesReadOnly(models.Model):
         unique_together = ("building", "address")
 
 
+class BuildingAddressesInternalIdReadOnly(models.Model):
+    # mirrors BuildingAddressesReadOnly, but keyed on batid_address.internal_id
+    # instead of the BAN interop key (see specs/migration_lien_batiment_adresse.md).
+    # Kept in sync with Building.addresses_internal_id by the same
+    # keep_building_address_link_updated() trigger that maintains
+    # BuildingAddressesReadOnly from addresses_id.
+    building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
+    address = models.ForeignKey(
+        "Address", on_delete=models.CASCADE, to_field="internal_id", db_index=True
+    )
+
+    class Meta:
+        unique_together = ("building", "address")
+
+    @classmethod
+    def check(cls, **kwargs):
+        # Address.internal_id is unique via an expression-based UniqueConstraint
+        # (Meta.constraints on Address), kept as a bare index on purpose so the
+        # future PK switch can reuse it with ADD PRIMARY KEY USING INDEX (see
+        # PR1b in specs/migration_lien_batiment_adresse.md). Django's fields.E311
+        # check only recognizes plain-fields UniqueConstraints, not
+        # expression-based ones, so it wrongly flags this FK target as
+        # non-unique. The uniqueness is real and enforced at the DB level.
+        # Quand le internal_id sera devenue une PK, alors il faudra supprimer ce code.
+        return [error for error in super().check(**kwargs) if error.id != "fields.E311"]
+
+
 class BuildingValidatedByReadOnly(models.Model):
     building = models.ForeignKey("Building", on_delete=models.PROTECT, db_index=True)
     user = models.ForeignKey(User, on_delete=models.PROTECT, db_index=True)
