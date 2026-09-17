@@ -171,6 +171,14 @@ class Building(BuildingAbstract):
         related_name="buildings_read_only",
         through="BuildingAddressesReadOnly",
     )
+    # same as addresses_read_only, but joining on batid_address.internal_id via
+    # addresses_internal_id instead of the BAN interop key. Also read-only.
+    addresses_internal_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
+        "Address",
+        blank=True,
+        related_name="buildings_internal_read_only",
+        through="BuildingAddressesInternalIdReadOnly",
+    )
     validated_by_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
         User,
         blank=True,

@@ -1,4 +1,4 @@
-from batid.models import Building, BuildingHistoryOnly, BuildingWithHistory
+from batid.models import Address, Building, BuildingHistoryOnly, BuildingWithHistory
 from django.contrib.auth.models import User
 from django.db import connection
 from django.db.utils import InternalError
@@ -78,12 +78,17 @@ class TemporalTableCase(TransactionTestCase):
         contrainte n°1) — this checks the column round-trips through the
         trigger like any other field.
         """
+        a1 = Address.objects.create(id="address_1")
+        a2 = Address.objects.create(id="address_2")
+
         building = Building.objects.create(rnb_id="XYZ")
-        building.addresses_internal_id = [1, 2]
+        building.addresses_internal_id = [a1.internal_id, a2.internal_id]
         building.save()
 
         building.refresh_from_db()
-        self.assertEqual(building.addresses_internal_id, [1, 2])
+        self.assertEqual(
+            building.addresses_internal_id, [a1.internal_id, a2.internal_id]
+        )
 
         previous_building_version = BuildingWithHistory.objects.get(
             rnb_id="XYZ", sys_period__endswith__isnull=False
@@ -93,18 +98,25 @@ class TemporalTableCase(TransactionTestCase):
         current_building_version = BuildingWithHistory.objects.get(
             rnb_id="XYZ", sys_period__endswith__isnull=True
         )
-        self.assertEqual(current_building_version.addresses_internal_id, [1, 2])
+        self.assertEqual(
+            current_building_version.addresses_internal_id,
+            [a1.internal_id, a2.internal_id],
+        )
 
         history_row = BuildingHistoryOnly.objects.get(rnb_id="XYZ")
         self.assertEqual(history_row.addresses_internal_id, None)
 
-        # a third version, to make sure the previous non-null value ([1, 2])
+        # a third version, to make sure the previous non-null value ([a1, a2])
         # is also historicized correctly, alongside the original None value
-        building.addresses_internal_id = [3, 4]
+        a3 = Address.objects.create(id="address_3")
+        a4 = Address.objects.create(id="address_4")
+        building.addresses_internal_id = [a3.internal_id, a4.internal_id]
         building.save()
 
         building.refresh_from_db()
-        self.assertEqual(building.addresses_internal_id, [3, 4])
+        self.assertEqual(
+            building.addresses_internal_id, [a3.internal_id, a4.internal_id]
+        )
 
         historicized_values = list(
             BuildingWithHistory.objects.filter(
@@ -113,12 +125,15 @@ class TemporalTableCase(TransactionTestCase):
             .order_by("sys_period")
             .values_list("addresses_internal_id", flat=True)
         )
-        self.assertEqual(historicized_values, [None, [1, 2]])
+        self.assertEqual(historicized_values, [None, [a1.internal_id, a2.internal_id]])
 
         current_building_version = BuildingWithHistory.objects.get(
             rnb_id="XYZ", sys_period__endswith__isnull=True
         )
-        self.assertEqual(current_building_version.addresses_internal_id, [3, 4])
+        self.assertEqual(
+            current_building_version.addresses_internal_id,
+            [a3.internal_id, a4.internal_id],
+        )
 
     def test_history_is_read_only(self):
         # trying to manually insert a new row in the history table should raise an exception
