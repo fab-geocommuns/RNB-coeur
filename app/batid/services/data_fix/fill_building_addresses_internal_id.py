@@ -1,6 +1,5 @@
 import logging
 
-from batid.exceptions import DatabaseInconsistency
 from batid.utils.db import building_versioning_dangerously_disabled
 from django.db import connection, transaction
 
@@ -15,20 +14,20 @@ def fill_building_addresses_internal_id(batch_size: int = DEFAULT_BATCH_SIZE) ->
     Buildings written since PR #1029 already get addresses_internal_id from
     Building._dangerously_save_forever(); this fills the rows that predate it,
     mirroring their addresses_id (a "clé d'interopérabilité BAN" array) as
-    batid_address.internal_id values.
+    batid_address.internal_id values. Every cle in addresses_id is guaranteed
+    to have a matching batid_address row: building_addresses_trigger (see
+    specs/migration_lien_batiment_adresse.md) has enforced that through a
+    foreign key on every write since migration 0081, and an address can never
+    be deleted while still referenced (prevent_delete_linked_address_trigger).
 
     Each batch is written inside building_versioning_dangerously_disabled(), so
     this catch-up write does not flood batid_building_history with one row per
-    building (see specs/migration_lien_batiment_adresse.md, PR 5).
+    building.
 
     Rows are walked in primary key order, one committed batch at a time, so the
     job can be interrupted and resumed. It only ever touches rows where
     addresses_internal_id IS NULL, so it never overwrites a value already
     written by the application and running it twice is harmless.
-
-    A "clé d'interopérabilité" with no matching batid_address row stops the
-    whole run with a DatabaseInconsistency, rather than silently writing a
-    shorter array than addresses_id.
 
     Returns the number of buildings that received an addresses_internal_id.
     """
@@ -58,50 +57,25 @@ def fill_building_addresses_internal_id(batch_size: int = DEFAULT_BATCH_SIZE) ->
                 break
 
             with transaction.atomic():
-                with connection.cursor() as check_cursor:
-                    check_cursor.execute(
+                with building_versioning_dangerously_disabled():
+                    cursor.execute(
                         """
-                        SELECT b.rnb_id, cle
-                        FROM batid_building b, unnest(b.addresses_id) AS cle
+                        UPDATE batid_building b
+                        SET addresses_internal_id = COALESCE(
+                            (
+                                SELECT array_agg(a.internal_id ORDER BY u.ord)
+                                FROM unnest(b.addresses_id) WITH ORDINALITY AS u(cle, ord)
+                                JOIN batid_address a ON a.id = u.cle
+                            ),
+                            '{}'
+                        )
                         WHERE b.id > %s AND b.id <= %s
                           AND b.addresses_internal_id IS NULL
-                          AND b.addresses_id IS NOT NULL
-                          AND NOT EXISTS (
-                              SELECT 1 FROM batid_address a WHERE a.id = cle
-                          )
-                        LIMIT 1;
+                          AND b.addresses_id IS NOT NULL;
                         """,
                         [last_id, batch_max_id],
                     )
-                    inconsistency = check_cursor.fetchone()
-
-                if inconsistency is not None:
-                    rnb_id, missing_cle = inconsistency
-                    raise DatabaseInconsistency(
-                        f"Le bâtiment {rnb_id} référence, via addresses_id, "
-                        f"l'adresse {missing_cle} qui n'existe pas dans batid_address"
-                    )
-
-                with building_versioning_dangerously_disabled():
-                    with connection.cursor() as update_cursor:
-                        update_cursor.execute(
-                            """
-                            UPDATE batid_building b
-                            SET addresses_internal_id = COALESCE(
-                                (
-                                    SELECT array_agg(a.internal_id ORDER BY u.ord)
-                                    FROM unnest(b.addresses_id) WITH ORDINALITY AS u(cle, ord)
-                                    JOIN batid_address a ON a.id = u.cle
-                                ),
-                                '{}'
-                            )
-                            WHERE b.id > %s AND b.id <= %s
-                              AND b.addresses_internal_id IS NULL
-                              AND b.addresses_id IS NOT NULL;
-                            """,
-                            [last_id, batch_max_id],
-                        )
-                        updated += update_cursor.rowcount
+                    updated += cursor.rowcount
 
             last_id = batch_max_id
             logger.info(

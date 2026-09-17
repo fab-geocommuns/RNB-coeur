@@ -1,4 +1,3 @@
-from batid.exceptions import DatabaseInconsistency
 from batid.models import (
     Address,
     Building,
@@ -9,7 +8,7 @@ from batid.services.data_fix.fill_building_addresses_internal_id import (
     fill_building_addresses_internal_id,
 )
 from django.db import connection
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase
 
 
 def read_addresses_internal_ids() -> dict:
@@ -144,40 +143,6 @@ class FillBuildingAddressesInternalIdTestCase(TestCase):
                 self.addresses["01001_0001_00002"],
             },
         )
-
-
-class FillBuildingAddressesInternalIdInconsistencyTestCase(TransactionTestCase):
-    """Separate from FillBuildingAddressesInternalIdTestCase: reproducing a
-    "clé d'interopérabilité" with no matching Address requires temporarily
-    disabling building_addresses_trigger (the FK to batid_address goes through
-    the join table it maintains), and ALTER TABLE ... DISABLE/ENABLE TRIGGER
-    cannot run while trigger events from an earlier statement in the same
-    transaction are still pending. TransactionTestCase runs each statement in
-    its own committed transaction, avoiding that restriction; it cleans up by
-    truncating tables rather than rolling back."""
-
-    def test_missing_address_raises_database_inconsistency(self):
-        """Input: a building whose addresses_id references a "clé
-        d'interopérabilité" absent from batid_address.
-        Expected: the backfill raises instead of writing a shorter array than
-        addresses_id."""
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "ALTER TABLE batid_building DISABLE TRIGGER building_addresses_trigger;"
-            )
-            cursor.execute(
-                "INSERT INTO batid_building (rnb_id, addresses_id, addresses_internal_id, "
-                "status, is_active, parent_buildings, sys_period, validated_by, created_at, updated_at) "
-                "VALUES ('BDG00000005', %s, NULL, 'constructed', true, NULL, "
-                "tstzrange(now(), null), '{}', now(), now());",
-                [["99999_9999_99999"]],
-            )
-            cursor.execute(
-                "ALTER TABLE batid_building ENABLE TRIGGER building_addresses_trigger;"
-            )
-
-        with self.assertRaises(DatabaseInconsistency):
-            fill_building_addresses_internal_id(batch_size=10)
 
 
 class FillBuildingAddressesInternalIdEmptyTableTestCase(TestCase):
