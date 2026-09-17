@@ -116,13 +116,21 @@ class FillBuildingAddressesInternalIdTestCase(TestCase):
     def test_backfill_is_not_historicized(self):
         """Input: buildings backfilled through
         building_versioning_dangerously_disabled().
-        Expected: no batid_building_history row is created and sys_period stays
-        open, exactly like a manual write inside that context manager."""
+        Expected: addresses_internal_id is still filled, but no
+        batid_building_history row is created and sys_period stays open,
+        exactly like a manual write inside that context manager."""
         sys_period_before = Building.objects.get(rnb_id="BDG00000001").sys_period
 
         fill_building_addresses_internal_id(batch_size=2)
 
         building = Building.objects.get(rnb_id="BDG00000001")
+        self.assertEqual(
+            building.addresses_internal_id,
+            [
+                self.internal_id_by_cle["00000_0000_00001"],
+                self.internal_id_by_cle["00000_0000_00002"],
+            ],
+        )
         self.assertEqual(building.sys_period, sys_period_before)
         self.assertEqual(history_count("BDG00000001"), 0)
         self.assertEqual(history_count("BDG00000002"), 0)
