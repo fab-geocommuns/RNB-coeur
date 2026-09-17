@@ -226,6 +226,16 @@ def backup_to_s3(self):
 
 
 @shared_task()
+def fill_address_internal_id():
+    from batid.services.data_fix.fill_address_internal_id import (
+        fill_address_internal_id as fill,
+    )
+
+    updated = fill()
+    return f"{updated} addresses filled"
+
+
+@shared_task()
 def populate_addresses_id_field():
     from batid.services.populate_addresses_id_field import launch_procedure
 
