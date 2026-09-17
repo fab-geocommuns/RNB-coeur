@@ -236,6 +236,16 @@ def fill_address_internal_id():
 
 
 @shared_task()
+def fill_building_addresses_internal_id():
+    from batid.services.data_fix.fill_building_addresses_internal_id import (
+        fill_building_addresses_internal_id as fill,
+    )
+
+    updated = fill()
+    return f"{updated} buildings filled"
+
+
+@shared_task()
 def populate_addresses_id_field():
     from batid.services.populate_addresses_id_field import launch_procedure
 
