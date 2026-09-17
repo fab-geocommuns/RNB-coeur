@@ -400,7 +400,15 @@ def _candidate_maintenance_is_stale() -> bool:
     if row is None:
         return True
 
-    return _maintenance_timestamps_are_stale(*row, now=datetime.now(timezone.utc))
+    last_vacuum, last_autovacuum, last_analyze, last_autoanalyze = row
+
+    return _maintenance_timestamps_are_stale(
+        last_vacuum,
+        last_autovacuum,
+        last_analyze,
+        last_autoanalyze,
+        now=datetime.now(timezone.utc),
+    )
 
 
 def _maintenance_timestamps_are_stale(
