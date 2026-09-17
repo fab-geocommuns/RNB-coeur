@@ -98,6 +98,12 @@ class BuildingAbstract(models.Model):
     # this field is the source of truth for the building <> address link
     # it contains BAN ids (clé d'interopérabilité)
     addresses_id = ArrayField(models.CharField(max_length=40), null=True)
+    # mirrors addresses_id as batid_address.internal_id values (see
+    # specs/migration_lien_batiment_adresse.md). Kept in sync with the
+    # BuildingAddressesInternalIdReadOnly join table by the
+    # keep_building_address_link_updated() trigger. The array itself is not
+    # backfilled yet: existing rows stay NULL until a later PR.
+    addresses_internal_id = ArrayField(models.BigIntegerField(), null=True)
     validated_by = ArrayField(models.IntegerField(), null=True, default=list)
 
     class Meta:
@@ -165,6 +171,14 @@ class Building(BuildingAbstract):
         blank=True,
         related_name="buildings_read_only",
         through="BuildingAddressesReadOnly",
+    )
+    # same as addresses_read_only, but joining on batid_address.internal_id via
+    # addresses_internal_id instead of the BAN interop key. Also read-only.
+    addresses_internal_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
+        "Address",
+        blank=True,
+        related_name="buildings_internal_read_only",
+        through="BuildingAddressesInternalIdReadOnly",
     )
     validated_by_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
         User,
