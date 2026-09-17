@@ -52,7 +52,7 @@ from batid.services.imports.import_plots import (
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
 )
-from batid.services.mattermost import notify_if_error, notify_tech
+from batid.services.tchap import notify_if_error, notify_tech
 from batid.services.reports.arcep import (
     dl_and_create_arcep_reports,
     reject_irrelevant_arcep_reports,

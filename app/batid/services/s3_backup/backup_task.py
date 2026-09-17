@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import boto3
 import requests
-from batid.services.mattermost import notify_tech
+from batid.services.tchap import notify_tech
 from botocore.config import Config  # type: ignore[import-untyped]
 
 
@@ -17,19 +17,19 @@ def backup_to_s3(task_id=None):
         download_url = create_backup_download_url(backup_id)
         upload_to_s3(backup_name, download_url)
         remove_older_backups()
-        notify_mattermost(backup_name)
+        notify_tchap(backup_name)
     except Exception as e:
-        notify_mattermost_error(e, task_id)
+        notify_tchap_error(e, task_id)
         raise e
 
 
-def notify_mattermost_error(error, task_id):
+def notify_tchap_error(error, task_id):
 
     msg = f"Une erreur est survenue lors de la création d'un backup de la base de production du RNB : {error}. Task ID : {task_id}"
     notify_tech(msg)
 
 
-def notify_mattermost(backup_name):
+def notify_tchap(backup_name):
 
     msg = f"Un nouveau backup de la base de production du RNB a été créé chez OVH : {backup_name}."
     notify_tech(msg)
