@@ -215,7 +215,9 @@ class Address(models.Model):
             Address.add_new_address_from_ban_api(address_id)
 
     @staticmethod
-    def internal_ids_from_cle_interop(addresses_id: list[str] | None) -> list[int] | None:
+    def internal_ids_from_cle_interop(
+        addresses_id: list[str] | None,
+    ) -> list[int] | None:
         """Resolve BAN "clé d'interopérabilité" keys to their batid_address.internal_id
         values, preserving order and length so the result mirrors addresses_id 1:1.
 
@@ -227,9 +229,7 @@ class Address(models.Model):
             return None
 
         internal_id_by_cle = dict(
-            Address.objects.filter(id__in=addresses_id).values_list(
-                "id", "internal_id"
-            )
+            Address.objects.filter(id__in=addresses_id).values_list("id", "internal_id")
         )
 
         try:

@@ -376,7 +376,9 @@ class TestAddressesInternalId(TestCase):
         shorter list than the input.
         """
         with self.assertRaises(DatabaseInconsistency):
-            Address.internal_ids_from_cle_interop([self.addr1.id, "unknown_cle_interop"])
+            Address.internal_ids_from_cle_interop(
+                [self.addr1.id, "unknown_cle_interop"]
+            )
 
 
 class TestSplitBuilding(TestCase):
