@@ -52,13 +52,13 @@ from batid.services.imports.import_plots import (
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
 )
-from batid.services.tchap import notify_if_error, notify_tech
 from batid.services.reports.arcep import (
     dl_and_create_arcep_reports,
     reject_irrelevant_arcep_reports,
 )
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
 from batid.services.source import Source
+from batid.services.tchap import notify_if_error, notify_tech
 from batid.utils.auth import make_random_password
 from celery import Signature, chain, shared_task
 
