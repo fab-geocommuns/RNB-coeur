@@ -11,15 +11,17 @@ from django.db import connection
 from django.test import TestCase
 
 
-def read_addresses_internal_ids() -> dict:
-    """Read addresses_internal_id straight from the database, keyed by rnb_id."""
+def read_building_addresses_internal_id() -> dict:
+    """Read batid_building.addresses_internal_id straight from the database,
+    keyed by rnb_id."""
     with connection.cursor() as cursor:
         cursor.execute("SELECT rnb_id, addresses_internal_id FROM batid_building;")
         return dict(cursor.fetchall())
 
 
-def read_address_internal_ids() -> dict:
-    """Read batid_address.internal_id straight from the database, keyed by id."""
+def read_address_internal_id_by_cle() -> dict:
+    """Read batid_address.internal_id straight from the database, keyed by the
+    "clé d'interopérabilité" (batid_address.id)."""
     with connection.cursor() as cursor:
         cursor.execute("SELECT id, internal_id FROM batid_address;")
         return dict(cursor.fetchall())
@@ -35,22 +37,22 @@ class FillBuildingAddressesInternalIdTestCase(TestCase):
 
     def setUp(self):
         for cle in [
-            "01001_0001_00001",
-            "01001_0001_00002",
-            "02002_0002_00001",
+            "00000_0000_00001",
+            "00000_0000_00002",
+            "00000_0000_00003",
         ]:
             Address.objects.create(id=cle, source="ban")
-        self.addresses = read_address_internal_ids()
+        self.internal_id_by_cle = read_address_internal_id_by_cle()
 
         # Created through the ORM directly (bypassing
         # Building._dangerously_save_forever()), so addresses_internal_id stays
         # NULL exactly as it would for a row written before PR #1029.
         self.building_two_addresses = Building.objects.create(
             rnb_id="BDG00000001",
-            addresses_id=["01001_0001_00001", "01001_0001_00002"],
+            addresses_id=["00000_0000_00001", "00000_0000_00002"],
         )
         self.building_one_address = Building.objects.create(
-            rnb_id="BDG00000002", addresses_id=["02002_0002_00001"]
+            rnb_id="BDG00000002", addresses_id=["00000_0000_00003"]
         )
         self.building_no_address = Building.objects.create(
             rnb_id="BDG00000003", addresses_id=[]
@@ -68,15 +70,17 @@ class FillBuildingAddressesInternalIdTestCase(TestCase):
         updated = fill_building_addresses_internal_id(batch_size=2)
 
         self.assertEqual(updated, 3)
-        rows = read_addresses_internal_ids()
+        rows = read_building_addresses_internal_id()
         self.assertEqual(
             rows["BDG00000001"],
             [
-                self.addresses["01001_0001_00001"],
-                self.addresses["01001_0001_00002"],
+                self.internal_id_by_cle["00000_0000_00001"],
+                self.internal_id_by_cle["00000_0000_00002"],
             ],
         )
-        self.assertEqual(rows["BDG00000002"], [self.addresses["02002_0002_00001"]])
+        self.assertEqual(
+            rows["BDG00000002"], [self.internal_id_by_cle["00000_0000_00003"]]
+        )
         self.assertEqual(rows["BDG00000003"], [])
         self.assertIsNone(rows["BDG00000004"])
 
@@ -86,7 +90,7 @@ class FillBuildingAddressesInternalIdTestCase(TestCase):
         others still NULL.
         Expected: only the three NULL ones are touched, the pre-filled one keeps
         its exact (mismatched) value untouched."""
-        already_filled = [self.addresses["02002_0002_00001"]]
+        already_filled = [self.internal_id_by_cle["00000_0000_00003"]]
         with connection.cursor() as cursor:
             cursor.execute(
                 "UPDATE batid_building SET addresses_internal_id = %s WHERE rnb_id = %s;",
@@ -96,18 +100,18 @@ class FillBuildingAddressesInternalIdTestCase(TestCase):
         updated = fill_building_addresses_internal_id(batch_size=2)
 
         self.assertEqual(updated, 2)
-        rows = read_addresses_internal_ids()
+        rows = read_building_addresses_internal_id()
         self.assertEqual(rows["BDG00000001"], already_filled)
 
     def test_is_idempotent(self):
         """Running the backfill a second time updates nothing and changes nothing."""
         fill_building_addresses_internal_id(batch_size=2)
-        after_first_run = read_addresses_internal_ids()
+        after_first_run = read_building_addresses_internal_id()
 
         updated = fill_building_addresses_internal_id(batch_size=2)
 
         self.assertEqual(updated, 0)
-        self.assertEqual(read_addresses_internal_ids(), after_first_run)
+        self.assertEqual(read_building_addresses_internal_id(), after_first_run)
 
     def test_backfill_is_not_historicized(self):
         """Input: buildings backfilled through
@@ -139,8 +143,8 @@ class FillBuildingAddressesInternalIdTestCase(TestCase):
         self.assertEqual(
             internal_ids,
             {
-                self.addresses["01001_0001_00001"],
-                self.addresses["01001_0001_00002"],
+                self.internal_id_by_cle["00000_0000_00001"],
+                self.internal_id_by_cle["00000_0000_00002"],
             },
         )
 
