@@ -984,8 +984,14 @@ class DiffInseeCodeTest(TransactionTestCase):
         self.assertIn("INSIDE", rnb_ids)
         self.assertNotIn("OUTSIDE", rnb_ids)
 
-    def test_diff_building_overlapping_city_included(self):
-        # Building that overlaps the city boundary
+    def test_diff_building_shape_overlapping_but_point_outside_excluded(self):
+        """
+        Input: a building whose shape straddles the city boundary (lon 2.39-2.42,
+        city limit is 2.4) but whose point-on-surface (centroid, lon 2.405) falls
+        outside the city.
+        Expected: excluded from the diff, since only the point decides commune
+        membership.
+        """
         geom_overlap = GEOSGeometry(
             "MULTIPOLYGON(((2.39 48.85, 2.42 48.85, 2.42 48.86, 2.39 48.86, 2.39 48.85)))",
             srid=4326,
@@ -1018,7 +1024,49 @@ class DiffInseeCodeTest(TransactionTestCase):
         rows = list(reader)
 
         rnb_ids = [row["rnb_id"] for row in rows]
-        self.assertIn("OVERLAP", rnb_ids)
+        self.assertNotIn("OVERLAP", rnb_ids)
+
+    def test_diff_building_shape_overlapping_but_point_inside_included(self):
+        """
+        Input: a building whose shape straddles the city boundary (lon 2.38-2.41,
+        city limit is 2.4) but whose point-on-surface (centroid, lon 2.395) falls
+        inside the city.
+        Expected: included in the diff, since only the point decides commune
+        membership.
+        """
+        geom_overlap = GEOSGeometry(
+            "MULTIPOLYGON(((2.38 48.85, 2.41 48.85, 2.41 48.86, 2.38 48.86, 2.38 48.85)))",
+            srid=4326,
+        )
+        Building.objects.create(
+            rnb_id="OVERLAP_IN",
+            shape=geom_overlap,
+            point=geom_overlap.point_on_surface,
+            status="constructed",
+            event_type="creation",
+        )
+        threshold = Building.objects.get(rnb_id="OVERLAP_IN").sys_period.lower
+
+        user = User.objects.get(username="testuser")
+        b = Building.objects.get(rnb_id="OVERLAP_IN")
+        b.update(
+            status="demolished",
+            user=user,
+            event_origin={"source": "test"},
+            addresses_id=[],
+        )
+
+        params = urlencode({"since": threshold.isoformat(), "insee_code": "75056"})
+        url = f"/api/alpha/buildings/diff/?{params}"
+        r = self.client.get(url)
+
+        self.assertEqual(r.status_code, 200)
+        diff_text = get_content_from_streaming_response(r)
+        reader = csv.DictReader(io.StringIO(diff_text))
+        rows = list(reader)
+
+        rnb_ids = [row["rnb_id"] for row in rows]
+        self.assertIn("OVERLAP_IN", rnb_ids)
 
     def test_diff_city_with_null_shape(self):
         Building.objects.create(rnb_id="B1", event_type="creation")
