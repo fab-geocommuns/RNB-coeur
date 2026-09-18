@@ -19,6 +19,16 @@ def get_staff_emails() -> list[str]:
     )
 
 
+def get_user_organization_name(user: User) -> str | None:
+    """
+    Returns the name of the user's organization, or None if the user has no profile or no organization.
+    """
+    profile = getattr(user, "profile", None)
+    if profile is None or profile.organization is None:
+        return None
+    return profile.organization.name
+
+
 def check_and_increment_contribution_count(user: User | None) -> None:
     if user is None:
         return
