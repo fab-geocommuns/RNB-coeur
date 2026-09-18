@@ -84,6 +84,37 @@ class FillBuildingAddressesInternalIdTestCase(TestCase):
         self.assertEqual(rows["BDG00000003"], [])
         self.assertIsNone(rows["BDG00000004"])
 
+    def test_min_id_max_id_restrict_the_range(self):
+        """Input: the backfill run twice with disjoint, complementary
+        min_id/max_id ranges (as two parallel workers would, splitting the id
+        space so each row is only ever covered by one of them: max_id is
+        inclusive, min_id exclusive, exactly like the batch bounds).
+        Expected: together they fill every eligible building exactly once,
+        the same result as a single unrestricted run."""
+        boundary = self.building_two_addresses.id
+
+        updated_first_half = fill_building_addresses_internal_id(
+            batch_size=2, max_id=boundary
+        )
+        updated_second_half = fill_building_addresses_internal_id(
+            batch_size=2, min_id=boundary
+        )
+
+        self.assertEqual(updated_first_half, 1)
+        self.assertEqual(updated_second_half, 2)
+        rows = read_building_addresses_internal_id()
+        self.assertEqual(
+            rows["BDG00000001"],
+            [
+                self.internal_id_by_cle["00000_0000_00001"],
+                self.internal_id_by_cle["00000_0000_00002"],
+            ],
+        )
+        self.assertEqual(
+            rows["BDG00000002"], [self.internal_id_by_cle["00000_0000_00003"]]
+        )
+        self.assertEqual(rows["BDG00000003"], [])
+
     def test_does_not_overwrite_existing_values(self):
         """Input: one building already filled (as PR #1029's write path would do),
         with a value that deliberately does not match its addresses_id, three

@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from batid.utils.db import building_versioning_dangerously_disabled
 from django.db import connection, transaction
@@ -7,8 +8,16 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BATCH_SIZE = 10_000
 
+# batid_building.id is a plain int4 AutoField: safe upper bound when max_id is
+# not given, so the id range check can stay a single SQL expression.
+MAX_INT4 = 2**31 - 1
 
-def fill_building_addresses_internal_id(batch_size: int = DEFAULT_BATCH_SIZE) -> int:
+
+def fill_building_addresses_internal_id(
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    min_id: int = 0,
+    max_id: Optional[int] = None,
+) -> int:
     """Give buildings written before migration 0149 their addresses_internal_id.
 
     Buildings written since PR #1029 already get addresses_internal_id from
@@ -29,10 +38,19 @@ def fill_building_addresses_internal_id(batch_size: int = DEFAULT_BATCH_SIZE) ->
     addresses_internal_id IS NULL, so it never overwrites a value already
     written by the application and running it twice is harmless.
 
+    min_id/max_id restrict the scan to a slice of the id space (min_id
+    exclusive, max_id inclusive, like the batch bounds themselves), so several
+    calls can run in parallel over disjoint ranges - each row is only ever
+    touched by the call whose range covers it, so there is no risk of two
+    calls racing on the same building. Measured on staging: at ~49.6M rows and
+    the table's existing index footprint, a single-range run would take
+    close to 12 days: splitting the id space across several parallel Celery
+    tasks is the intended way to run this in production.
+
     Returns the number of buildings that received an addresses_internal_id.
     """
     updated = 0
-    last_id = 0
+    last_id = min_id
 
     with connection.cursor() as cursor:
         # The worker connection carries a statement timeout of a few seconds,
@@ -46,10 +64,12 @@ def fill_building_addresses_internal_id(batch_size: int = DEFAULT_BATCH_SIZE) ->
             cursor.execute(
                 """
                 SELECT max(id) FROM (
-                    SELECT id FROM batid_building WHERE id > %s ORDER BY id LIMIT %s
+                    SELECT id FROM batid_building
+                    WHERE id > %s AND id <= %s
+                    ORDER BY id LIMIT %s
                 ) AS batch;
                 """,
-                [last_id, batch_size],
+                [last_id, max_id if max_id is not None else MAX_INT4, batch_size],
             )
             batch_max_id = cursor.fetchone()[0]
 

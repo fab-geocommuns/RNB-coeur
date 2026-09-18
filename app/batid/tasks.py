@@ -236,12 +236,14 @@ def fill_address_internal_id():
 
 
 @shared_task()
-def fill_building_addresses_internal_id():
+def fill_building_addresses_internal_id(min_id: int = 0, max_id: Optional[int] = None):
+    # min_id/max_id let several calls run in parallel over disjoint id ranges,
+    # see fill_building_addresses_internal_id()'s docstring.
     from batid.services.data_fix.fill_building_addresses_internal_id import (
         fill_building_addresses_internal_id as fill,
     )
 
-    updated = fill()
+    updated = fill(min_id=min_id, max_id=max_id)
     return f"{updated} buildings filled"
 
 
