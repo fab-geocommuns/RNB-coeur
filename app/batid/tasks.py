@@ -277,6 +277,51 @@ def queue_fill_building_addresses_internal_id(n_slices: int = 4):
 
 
 @shared_task()
+def fill_building_history_addresses_internal_id(
+    min_id: int = 0, max_id: Optional[int] = None
+):
+    # min_id/max_id let several calls run in parallel over disjoint bh_id
+    # ranges, see fill_building_history_addresses_internal_id()'s docstring.
+    from batid.services.data_fix.fill_building_history_addresses_internal_id import (
+        fill_building_history_addresses_internal_id as fill,
+    )
+
+    updated = fill(min_id=min_id, max_id=max_id)
+    return f"{updated} history rows filled"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_fill_building_history_addresses_internal_id(n_slices: int = 4):
+    # Splits [0, max(bh_id)] into n_slices disjoint ranges and queues one
+    # fill_building_history_addresses_internal_id per range, so they run in
+    # parallel across available workers. batid_building_history is the
+    # largest table of the migration (specs/migration_lien_batiment_adresse.md),
+    # so this parallelization matters even more than for the batid_building
+    # backfill.
+    from batid.services.data_fix.fill_building_history_addresses_internal_id import (
+        compute_id_slices,
+    )
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT max(bh_id) FROM batid_building_history;")
+        max_id = cursor.fetchone()[0] or 0
+
+    slices = compute_id_slices(max_id, n_slices)
+    notify_tech(
+        f"Backfill addresses_internal_id (historique) : {n_slices} tâches en parallèle jusqu'au bh_id {max_id}."
+    )
+
+    for slice_min_id, slice_max_id in slices:
+        fill_building_history_addresses_internal_id.delay(
+            min_id=slice_min_id, max_id=slice_max_id
+        )
+
+    return f"Queued {n_slices} parallel ranges up to bh_id {max_id}"
+
+
+@shared_task()
 def populate_addresses_id_field():
     from batid.services.populate_addresses_id_field import launch_procedure
 
