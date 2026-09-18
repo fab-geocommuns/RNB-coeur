@@ -2,6 +2,7 @@ import datetime
 import json
 import uuid
 
+from batid.models import Organization
 from batid.models.building import Building
 from batid.services.email import build_monthly_leaderboard_email
 from batid.services.leaderboard import (
@@ -81,6 +82,35 @@ class LeaderboardQueryTestCase(TestCase):
         self.assertEqual(results[0]["edit_count"], 2)
         self.assertEqual(results[1]["username"], "user_b")
         self.assertEqual(results[1]["edit_count"], 1)
+
+    def test_leaderboard_includes_organization_name(self):
+        """
+        Input: user A belongs to organization "Mairie de Test", user B has no organization; each has 1 contribution event.
+        Expected: user A's row has organization_name="Mairie de Test", user B's row has organization_name=None.
+        """
+        now = timezone.now()
+        user_a = ContributorUserFactory(username="user_a", email="a@example.com")
+        user_b = ContributorUserFactory(username="user_b", email="b@example.com")
+        organization = Organization.objects.create(name="Mairie de Test")
+        user_a.profile.organization = organization
+        user_a.profile.save()
+
+        for user, shape in [(user_a, SIMPLE_POLYGON), (user_b, OTHER_POLYGON)]:
+            Building.create_new(
+                user=user,
+                event_origin={"source": "contribution"},
+                status="constructed",
+                addresses_id=[],
+                shape=shape,
+                ext_ids=[],
+            )
+
+        results = get_monthly_edit_leaderboard(now.year, now.month)
+
+        by_username = {row["username"]: row for row in results}
+        self.assertEqual(len(results), 2)
+        self.assertEqual(by_username["user_a"]["organization_name"], "Mairie de Test")
+        self.assertIsNone(by_username["user_b"]["organization_name"])
 
     def test_leaderboard_excludes_other_months(self):
         """
@@ -266,6 +296,28 @@ class LeaderboardEmailTestCase(TestCase):
         self.assertIn("Bienvenue aux nouveaux inscrits", html_body)
         self.assertIn("bob", html_body)
         self.assertIn("charlie", html_body)
+
+    def test_build_monthly_leaderboard_email_with_organization_names(self):
+        """
+        Input: current year/month; alice (5 edits) belongs to "Mairie de Test"; new user bob belongs to "IGN"; new user charlie has no organization.
+        Expected: HTML body contains "alice (Mairie de Test)", "bob (IGN)" and "charlie" without parentheses.
+        """
+        self.alice.profile.organization = Organization.objects.create(
+            name="Mairie de Test"
+        )
+        self.alice.profile.save()
+        bob = ContributorUserFactory(username="bob", email="bob@example.com")
+        bob.profile.organization = Organization.objects.create(name="IGN")
+        bob.profile.save()
+        ContributorUserFactory(username="charlie", email="charlie@example.com")
+
+        msg = build_monthly_leaderboard_email(self.year, self.month)
+
+        html_body = str(msg.alternatives[0][0])
+        self.assertIn("alice (Mairie de Test)", html_body)
+        self.assertIn("bob (IGN)", html_body)
+        self.assertIn("charlie", html_body)
+        self.assertNotIn("charlie (", html_body)
 
     def test_build_monthly_leaderboard_email_no_new_users(self):
         """
