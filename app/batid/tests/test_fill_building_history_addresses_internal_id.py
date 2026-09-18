@@ -53,9 +53,7 @@ class FillBuildingHistoryAddressesInternalIdTestCase(TestCase):
         self.history_two_addresses = historicize(
             "BDG00000001", ["00000_0000_00001", "00000_0000_00002"]
         )
-        self.history_one_address = historicize(
-            "BDG00000002", ["00000_0000_00003"]
-        )
+        self.history_one_address = historicize("BDG00000002", ["00000_0000_00003"])
         self.history_no_address = historicize("BDG00000003", [])
         self.history_null_addresses_id = historicize("BDG00000004", None)
 
@@ -173,7 +171,9 @@ class FillBuildingHistoryAddressesInternalIdTestCase(TestCase):
         fill_building_history_addresses_internal_id(batch_size=2)
 
         with connection.cursor() as cursor:
-            cursor.execute("SELECT count(*) FROM batid_buildingaddressesinternalidreadonly;")
+            cursor.execute(
+                "SELECT count(*) FROM batid_buildingaddressesinternalidreadonly;"
+            )
             self.assertEqual(cursor.fetchone()[0], 0)
 
 

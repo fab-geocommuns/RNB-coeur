@@ -1,9 +1,6 @@
 import logging
 from typing import Optional
 
-from batid.services.data_fix.fill_building_addresses_internal_id import (
-    compute_id_slices,
-)
 from django.db import connection, transaction
 
 logger = logging.getLogger(__name__)
