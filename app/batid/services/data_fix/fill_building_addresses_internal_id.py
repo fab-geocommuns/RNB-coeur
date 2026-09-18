@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from batid.utils.db import building_versioning_dangerously_disabled
 from django.db import connection, transaction
@@ -11,6 +11,23 @@ DEFAULT_BATCH_SIZE = 10_000
 # batid_building.id is a plain int4 AutoField: safe upper bound when max_id is
 # not given, so the id range check can stay a single SQL expression.
 MAX_INT4 = 2**31 - 1
+
+
+def compute_id_slices(max_id: int, n_slices: int) -> List[Tuple[int, Optional[int]]]:
+    """Split [0, max_id] into n_slices contiguous, non-overlapping (min_id,
+    max_id) ranges, using the same bounds convention as
+    fill_building_addresses_internal_id() (min_id exclusive, max_id
+    inclusive) - so calling it once per range covers every row exactly once.
+    The last range's max_id is None (open-ended), so it also covers any
+    building inserted after max_id was read; harmless even for an empty
+    slice, since the backfill only ever touches addresses_internal_id IS NULL
+    rows.
+    """
+    bounds = [round(i * max_id / n_slices) for i in range(n_slices + 1)]
+    return [
+        (lo, hi if i < n_slices - 1 else None)
+        for i, (lo, hi) in enumerate(zip(bounds, bounds[1:]))
+    ]
 
 
 def fill_building_addresses_internal_id(

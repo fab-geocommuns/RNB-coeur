@@ -5,10 +5,11 @@ from batid.models import (
     BuildingHistoryOnly,
 )
 from batid.services.data_fix.fill_building_addresses_internal_id import (
+    compute_id_slices,
     fill_building_addresses_internal_id,
 )
 from django.db import connection
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 
 def read_building_addresses_internal_id() -> dict:
@@ -197,3 +198,29 @@ class FillBuildingAddressesInternalIdEmptyTableTestCase(TestCase):
     def test_on_empty_table(self):
         """No building at all -> the backfill returns 0 instead of looping."""
         self.assertEqual(fill_building_addresses_internal_id(batch_size=2), 0)
+
+
+class ComputeIdSlicesTestCase(SimpleTestCase):
+    """Splitting [0, max_id] into disjoint ranges for parallel workers."""
+
+    def test_splits_into_contiguous_ranges(self):
+        """Input: max_id=100, 4 slices.
+        Expected: 4 contiguous ranges, each (min_id, max_id) matching the
+        backfill's own bounds convention, the last one open-ended."""
+        self.assertEqual(
+            compute_id_slices(max_id=100, n_slices=4),
+            [(0, 25), (25, 50), (50, 75), (75, None)],
+        )
+
+    def test_single_slice_covers_everything(self):
+        """Input: 1 slice.
+        Expected: a single, fully open-ended range."""
+        self.assertEqual(compute_id_slices(max_id=100, n_slices=1), [(0, None)])
+
+    def test_on_empty_table(self):
+        """Input: max_id=0 (nothing to backfill yet).
+        Expected: only empty ranges, harmless once fed to the backfill."""
+        self.assertEqual(
+            compute_id_slices(max_id=0, n_slices=4),
+            [(0, 0), (0, 0), (0, 0), (0, None)],
+        )
