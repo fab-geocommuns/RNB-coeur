@@ -99,10 +99,9 @@ class BuildingAbstract(models.Model):
     # it contains BAN ids (clé d'interopérabilité)
     addresses_id = ArrayField(models.CharField(max_length=40), null=True)
     # mirrors addresses_id as batid_address.internal_id values (see
-    # specs/migration_lien_batiment_adresse.md). Kept in sync with the
-    # BuildingAddressesInternalIdReadOnly join table by the
-    # keep_building_address_link_updated() trigger. The array itself is not
-    # backfilled yet: existing rows stay NULL until a later PR.
+    # specs/migration_lien_batiment_adresse.md). Kept in sync on every write by
+    # Building._dangerously_save_forever(). Existing rows written before this
+    # was added are not backfilled yet: that's a separate PR.
     addresses_internal_id = ArrayField(models.BigIntegerField(), null=True)
     validated_by = ArrayField(models.IntegerField(), null=True, default=list)
 
@@ -209,6 +208,12 @@ class Building(BuildingAbstract):
         functions of this class. "Forever" is literal: any write enters the RNB
         history permanently, nothing is ever erased.
         """
+        # Transitional: addresses_internal_id mirrors addresses_id as
+        # batid_address.internal_id values. Delete this line once addresses_id is
+        # dropped (see specs/migration_lien_batiment_adresse.md, PR 9).
+        self.addresses_internal_id = Address.internal_ids_from_cle_interop(
+            self.addresses_id
+        )
         super().save(*args, **kwargs)
 
     def _lock_and_refresh(self):

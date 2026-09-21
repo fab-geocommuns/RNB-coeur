@@ -90,7 +90,7 @@ def _build_copy_query(
     spatial_filter = ""
     if city_shape_wkt:
         spatial_filter = (
-            " AND ST_Intersects(bb.shape, ST_GeomFromText({city_shape}, 4326))"
+            " AND ST_Intersects(bb.point, ST_GeomFromText({city_shape}, 4326))"
         )
 
     raw_sql = (
@@ -292,8 +292,9 @@ class DiffView(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": (
                             "Code INSEE de la commune pour filtrer les modifications du RNB. "
-                            "Seules les modifications de bâtiments dont la géométrie intersecte "
-                            "la commune seront retournées. Le code INSEE est composé de 5 caractères."
+                            "Seules les modifications de bâtiments dont le point (localisation) "
+                            "intersecte la commune seront retournées. Le code INSEE est composé "
+                            "de 5 caractères."
                         ),
                         "required": False,
                         "schema": {"type": "string"},
