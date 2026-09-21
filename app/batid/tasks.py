@@ -303,18 +303,24 @@ def queue_fill_building_history_addresses_internal_id(n_slices: int = 4):
     )
     from django.db import connection, transaction
 
-    eligible = "addresses_id IS NOT NULL AND addresses_internal_id IS NULL"
-
     with transaction.atomic(), connection.cursor() as cursor:
         # Finding the first eligible row walks the primary key through every
         # ineligible row before it, which exceeds the worker statement timeout.
         cursor.execute("SET LOCAL statement_timeout = '0';")
         cursor.execute(
-            f"SELECT bh_id FROM batid_building_history WHERE {eligible} ORDER BY bh_id LIMIT 1;"
+            """
+            SELECT bh_id FROM batid_building_history
+            WHERE addresses_id IS NOT NULL AND addresses_internal_id IS NULL
+            ORDER BY bh_id LIMIT 1;
+            """
         )
         first = cursor.fetchone()
         cursor.execute(
-            f"SELECT bh_id FROM batid_building_history WHERE {eligible} ORDER BY bh_id DESC LIMIT 1;"
+            """
+            SELECT bh_id FROM batid_building_history
+            WHERE addresses_id IS NOT NULL AND addresses_internal_id IS NULL
+            ORDER BY bh_id DESC LIMIT 1;
+            """
         )
         last = cursor.fetchone()
 
