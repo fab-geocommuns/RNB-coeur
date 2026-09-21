@@ -293,24 +293,39 @@ def fill_building_history_addresses_internal_id(
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_fill_building_history_addresses_internal_id(n_slices: int = 4):
-    # Splits [0, max(bh_id)] into n_slices disjoint ranges and queues one
-    # fill_building_history_addresses_internal_id per range, so they run in
-    # parallel across available workers. batid_building_history is the
-    # largest table of the migration (specs/migration_lien_batiment_adresse.md),
-    # so this parallelization matters even more than for the batid_building
-    # backfill.
+    # Splits the bh_id span of the rows still to fill into n_slices disjoint
+    # ranges and queues one fill_building_history_addresses_internal_id per
+    # range, so they run in parallel across available workers. Most history
+    # rows predate addresses_id and are never eligible: slicing [0, max(bh_id)]
+    # would leave all the work to the last worker.
     from batid.services.data_fix.fill_building_addresses_internal_id import (
         compute_id_slices,
     )
-    from django.db import connection
+    from django.db import connection, transaction
 
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT max(bh_id) FROM batid_building_history;")
-        max_id = cursor.fetchone()[0] or 0
+    eligible = "addresses_id IS NOT NULL AND addresses_internal_id IS NULL"
 
-    slices = compute_id_slices(max_id, n_slices)
+    with transaction.atomic(), connection.cursor() as cursor:
+        # Finding the first eligible row walks the primary key through every
+        # ineligible row before it, which exceeds the worker statement timeout.
+        cursor.execute("SET LOCAL statement_timeout = '0';")
+        cursor.execute(
+            f"SELECT bh_id FROM batid_building_history WHERE {eligible} ORDER BY bh_id LIMIT 1;"
+        )
+        first = cursor.fetchone()
+        cursor.execute(
+            f"SELECT bh_id FROM batid_building_history WHERE {eligible} ORDER BY bh_id DESC LIMIT 1;"
+        )
+        last = cursor.fetchone()
+
+    if first is None or last is None:
+        return "Nothing to fill"
+
+    first_id, last_id = first[0], last[0]
+    # min_id is exclusive: start just before the first eligible row
+    slices = compute_id_slices(last_id, n_slices, min_id=first_id - 1)
     notify_tech(
-        f"Backfill addresses_internal_id (historique) : {n_slices} tâches en parallèle jusqu'au bh_id {max_id}."
+        f"Backfill addresses_internal_id (historique) : {n_slices} tâches en parallèle, du bh_id {first_id} au bh_id {last_id}."
     )
 
     for slice_min_id, slice_max_id in slices:
@@ -318,7 +333,7 @@ def queue_fill_building_history_addresses_internal_id(n_slices: int = 4):
             min_id=slice_min_id, max_id=slice_max_id
         )
 
-    return f"Queued {n_slices} parallel ranges up to bh_id {max_id}"
+    return f"Queued {n_slices} parallel ranges from bh_id {first_id} to {last_id}"
 
 
 @shared_task()
