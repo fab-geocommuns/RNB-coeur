@@ -299,7 +299,7 @@ def queue_fill_building_history_addresses_internal_id(n_slices: int = 4):
     # largest table of the migration (specs/migration_lien_batiment_adresse.md),
     # so this parallelization matters even more than for the batid_building
     # backfill.
-    from batid.services.data_fix.fill_building_history_addresses_internal_id import (
+    from batid.services.data_fix.fill_building_addresses_internal_id import (
         compute_id_slices,
     )
     from django.db import connection
