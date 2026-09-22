@@ -1,5 +1,9 @@
 import factory
-from api_alpha.permissions import RNBContributorPermission, RNBReviewerPermission
+from api_alpha.permissions import (
+    RNBContributorPermission,
+    RNBReviewerPermission,
+    RollbackPermission,
+)
 from batid.models import UserProfile
 from django.contrib.auth.models import Group, User
 from rest_framework.authtoken.models import Token
@@ -46,6 +50,25 @@ class ReviewerUserFactory(UserFactory):
         if create:
             group, created = Group.objects.get_or_create(
                 name=RNBReviewerPermission.group_name
+            )
+            self.groups.add(group)
+            self.save()
+
+
+class RollbackUserFactory(UserFactory):
+    """Staff user member of the Rollback group: can call the rollback endpoint.
+
+    Distinct from ReviewerUserFactory: seeing the rollback button in the UI only
+    requires being a Reviewer, but actually performing a rollback requires this.
+    """
+
+    is_staff = True
+
+    @factory.post_generation
+    def add_to_rollback_group(self, create, _extracted, **kwargs):
+        if create:
+            group, created = Group.objects.get_or_create(
+                name=RollbackPermission.group_name
             )
             self.groups.add(group)
             self.save()
