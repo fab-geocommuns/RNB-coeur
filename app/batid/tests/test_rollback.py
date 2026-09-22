@@ -3,6 +3,7 @@ import uuid
 from batid.exceptions import (
     DatabaseInconsistency,
     EventAlreadyReverted,
+    EventIsARevert,
     RevertNotAllowed,
 )
 from batid.models.building import (
@@ -482,6 +483,42 @@ class TestUnitaryRollback(TransactionTestCase):
         data_fix_count_before = DataFix.objects.count()
         with self.assertRaises(RevertNotAllowed):
             rollback_event(self.user, creation_event_id)
+        self.assertEqual(DataFix.objects.count(), data_fix_count_before)
+
+    def test_rollback_event_already_reverted_raises(self):
+        """
+        Input: rollback_event() is called on an event_id that has already been
+        reverted (the corresponding building's history entry has a
+        revert_event_id, i.e. it's the target of a previous revert).
+        Expected: EventAlreadyReverted is raised, and no DataFix is created.
+        """
+        creation_event_id = self.building_1.event_id
+        Event.revert_event(
+            {"source": "rollback"}, creation_event_id, user_making_revert=self.team_rnb
+        )
+
+        data_fix_count_before = DataFix.objects.count()
+        with self.assertRaises(EventAlreadyReverted):
+            rollback_event(self.user, creation_event_id)
+        self.assertEqual(DataFix.objects.count(), data_fix_count_before)
+
+    def test_rollback_event_is_a_revert_raises(self):
+        """
+        Input: rollback_event() is called on an event_id that is itself the
+        result of a revert (building.revert_event_id is set on that history
+        entry), i.e. trying to roll back a revert.
+        Expected: EventIsARevert is raised, and no DataFix is created.
+        """
+        creation_event_id = self.building_1.event_id
+        Event.revert_event(
+            {"source": "rollback"}, creation_event_id, user_making_revert=self.team_rnb
+        )
+        self.building_1.refresh_from_db()
+        revert_event_id = self.building_1.event_id
+
+        data_fix_count_before = DataFix.objects.count()
+        with self.assertRaises(EventIsARevert):
+            rollback_event(self.user, revert_event_id)
         self.assertEqual(DataFix.objects.count(), data_fix_count_before)
 
 
