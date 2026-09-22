@@ -4,12 +4,14 @@ import uuid
 from batid.exceptions import (
     BANBadResultType,
     BuildingCannotMove,
+    DatabaseInconsistency,
     NotEnoughBuildings,
     OperationOnInactiveBuilding,
 )
 from batid.models import Address, Building
 from batid.tests.factories.users import ContributorUserFactory
 from batid.tests.helpers import coords_to_mp_geom
+from batid.utils.db import building_versioning_dangerously_disabled
 from batid.utils.misc import ext_ids_equal
 from django.contrib.gis.geos import GEOSGeometry
 from django.db.utils import IntegrityError
@@ -162,6 +164,221 @@ class TestBuilding(TestCase):
             # that type does not exist
             b.event_type = "spawn"
             b.save()
+
+
+class TestAddressesInternalId(TestCase):
+    """addresses_internal_id must mirror addresses_id (as batid_address.internal_id
+    values) after every write going through Building._dangerously_save_forever()."""
+
+    def setUp(self):
+        self.user = ContributorUserFactory(username="internal_id_tester")
+        self.addr1 = Address.objects.create(id="cle_interop_addr1")
+        self.addr2 = Address.objects.create(id="cle_interop_addr2")
+
+    def test_create_new_fills_addresses_internal_id(self):
+        """
+        Input: create_new with addresses_id=[addr1.id, addr2.id].
+        Expected: addresses_internal_id mirrors [addr1.internal_id, addr2.internal_id],
+        in the same order.
+        """
+        b = Building.create_new(
+            user=self.user,
+            event_origin={"source": "dummy"},
+            status="constructed",
+            addresses_id=[self.addr1.id, self.addr2.id],
+            shape=GEOSGeometry("POINT(0 0)"),
+            ext_ids=[],
+        )
+        self.assertEqual(
+            b.addresses_internal_id, [self.addr1.internal_id, self.addr2.internal_id]
+        )
+
+    def test_create_new_with_no_address_gives_empty_list(self):
+        """
+        Input: create_new with addresses_id=[].
+        Expected: addresses_internal_id == [], not None.
+        """
+        b = Building.create_new(
+            user=self.user,
+            event_origin={"source": "dummy"},
+            status="constructed",
+            addresses_id=[],
+            shape=GEOSGeometry("POINT(0 0)"),
+            ext_ids=[],
+        )
+        self.assertEqual(b.addresses_internal_id, [])
+
+    def test_update_changing_addresses_id_updates_addresses_internal_id(self):
+        """
+        Input: update() changing addresses_id from [addr1.id] to [addr2.id].
+        Expected: addresses_internal_id becomes [addr2.internal_id].
+        """
+        b = Building.create_new(
+            user=self.user,
+            event_origin={"source": "dummy"},
+            status="constructed",
+            addresses_id=[self.addr1.id],
+            shape=GEOSGeometry("POINT(0 0)"),
+            ext_ids=[],
+        )
+        b.update(
+            user=self.user,
+            event_origin={"source": "dummy_update"},
+            status=None,
+            addresses_id=[self.addr2.id],
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.addresses_internal_id, [self.addr2.internal_id])
+
+    def test_update_not_touching_addresses_id_still_syncs_addresses_internal_id(self):
+        """
+        Input: a building whose addresses_internal_id was left NULL (simulating a row
+        written before this fill logic existed), then update() changing only status
+        (addresses_id=None, i.e. not touched).
+        Expected: addresses_internal_id is synced to match the existing addresses_id, as
+        an incidental side effect of any write going through _dangerously_save_forever().
+        """
+        b = Building.create_new(
+            user=self.user,
+            event_origin={"source": "dummy"},
+            status="constructed",
+            addresses_id=[self.addr1.id],
+            shape=GEOSGeometry("POINT(0 0)"),
+            ext_ids=[],
+        )
+        # simulate a legacy row: addresses_internal_id not synced yet. Bypass
+        # historisation so this setup write doesn't consume the creation event_id
+        # a second time (the versioning trigger would otherwise collide on
+        # unique_rnb_id_event_id with the real update below).
+        b.addresses_internal_id = None
+        with building_versioning_dangerously_disabled():
+            b.save()
+        b.refresh_from_db()
+        self.assertIsNone(b.addresses_internal_id)
+
+        b.update(
+            user=self.user,
+            event_origin={"source": "dummy_update"},
+            status="demolished",
+            addresses_id=None,
+        )
+        b.refresh_from_db()
+        self.assertEqual(b.addresses_internal_id, [self.addr1.internal_id])
+
+    def test_merge_fills_addresses_internal_id(self):
+        """
+        Input: merge() of two buildings with addresses_id=[addr1.id, addr2.id].
+        Expected: the merged building's addresses_internal_id mirrors
+        [addr1.internal_id, addr2.internal_id].
+        """
+        b1 = Building.objects.create(
+            rnb_id="MAAA", shape="POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"
+        )
+        b2 = Building.objects.create(
+            rnb_id="MBBB", shape="POLYGON((1 0, 1 1, 2 1, 2 0, 1 0))"
+        )
+        merged = Building.merge(
+            [b1, b2],
+            self.user,
+            {"source": "dummy"},
+            "constructed",
+            [self.addr1.id, self.addr2.id],
+        )
+        self.assertEqual(
+            merged.addresses_internal_id,
+            [self.addr1.internal_id, self.addr2.internal_id],
+        )
+
+    @override_settings(MAX_BUILDING_AREA=float("inf"), MIN_BUILDING_AREA=0)
+    def test_split_fills_addresses_internal_id(self):
+        """
+        Input: split() creating one child with addresses_cle_interop=[addr1.id, addr2.id]
+        and one child with no address.
+        Expected: the first child's addresses_internal_id mirrors
+        {addr1.internal_id, addr2.internal_id} (split() itself deduplicates
+        addresses_cle_interop through a set, so order isn't guaranteed), the
+        second's is [].
+        """
+        base_lon = 2.3522
+        base_lat = 48.8566
+        offset = 0.0002
+        parent_shape = f"SRID=4326;POLYGON(({base_lon} {base_lat}, {base_lon} {base_lat + offset}, {base_lon + offset * 2} {base_lat + offset}, {base_lon + offset * 2} {base_lat}, {base_lon} {base_lat}))"
+        b1 = Building.objects.create(
+            rnb_id="SPLIT1", status="constructed", shape=GEOSGeometry(parent_shape)
+        )
+        child1_shape = f"SRID=4326;POLYGON(({base_lon} {base_lat}, {base_lon} {base_lat + offset}, {base_lon + offset * 0.9} {base_lat + offset}, {base_lon + offset * 0.9} {base_lat}, {base_lon} {base_lat}))"
+        child2_shape = f"SRID=4326;POLYGON(({base_lon + offset * 1.1} {base_lat}, {base_lon + offset * 1.1} {base_lat + offset}, {base_lon + offset * 2} {base_lat + offset}, {base_lon + offset * 2} {base_lat}, {base_lon + offset * 1.1} {base_lat}))"
+
+        created_buildings = b1.split(
+            [
+                {
+                    "status": "constructed",
+                    "addresses_cle_interop": [self.addr1.id, self.addr2.id],
+                    "shape": child1_shape,
+                },
+                {
+                    "status": "constructed",
+                    "addresses_cle_interop": [],
+                    "shape": child2_shape,
+                },
+            ],
+            self.user,
+            {"source": "dummy"},
+        )
+        child1 = created_buildings[0]
+        self.assertEqual(
+            set(child1.addresses_internal_id),
+            {self.addr1.internal_id, self.addr2.internal_id},
+        )
+        self.assertEqual(len(child1.addresses_internal_id), len(child1.addresses_id))
+        self.assertEqual(created_buildings[1].addresses_internal_id, [])
+
+    def test_deactivate_reactivate_sync_addresses_internal_id(self):
+        """
+        Input: a building whose addresses_internal_id was left NULL (simulating a legacy
+        row), then deactivate() then reactivate() -- neither touches addresses_id.
+        Expected: both writes sync addresses_internal_id to match addresses_id, as an
+        incidental side effect.
+        """
+        b = Building.create_new(
+            user=self.user,
+            event_origin={"source": "dummy"},
+            status="constructed",
+            addresses_id=[self.addr1.id],
+            shape=GEOSGeometry("POINT(0 0)"),
+            ext_ids=[],
+        )
+        b.addresses_internal_id = None
+        with building_versioning_dangerously_disabled():
+            b.save()
+
+        b.deactivate(self.user, {"source": "dummy_deactivation"})
+        b.refresh_from_db()
+        self.assertEqual(b.addresses_internal_id, [self.addr1.internal_id])
+
+        b.addresses_internal_id = None
+        with building_versioning_dangerously_disabled():
+            b.save()
+
+        b.reactivate(self.user, {"source": "dummy_reactivation"})
+        b.refresh_from_db()
+        self.assertEqual(b.addresses_internal_id, [self.addr1.internal_id])
+
+    def test_internal_ids_from_cle_interop_raises_on_orphan_key(self):
+        """
+        Input: Address.internal_ids_from_cle_interop() called with a cle_interop that
+        has no matching Address row. (In practice this can't happen through a Building
+        write: the existing building_addresses_trigger / FK on
+        batid_buildingaddressesreadonly already refuses to save a building whose
+        addresses_id references an unknown address. This test targets the helper
+        directly as a defensive-code safety net.)
+        Expected: DatabaseInconsistency is raised instead of silently producing a
+        shorter list than the input.
+        """
+        with self.assertRaises(DatabaseInconsistency):
+            Address.internal_ids_from_cle_interop(
+                [self.addr1.id, "unknown_cle_interop"]
+            )
 
 
 class TestSplitBuilding(TestCase):
