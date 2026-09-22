@@ -282,6 +282,8 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                 "contribution_id": contribution.id,
             }
 
+            # no lock needed here: deactivate/reactivate/update lock the row
+            # and reload it themselves before checking its state (issue #955)
             building = get_object_or_404(Building, rnb_id=rnb_id)
 
             try:
