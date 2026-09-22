@@ -216,6 +216,27 @@ class Building(BuildingAbstract):
         )
         super().save(*args, **kwargs)
 
+    def _lock_and_refresh(self):
+        """
+        Locks the building row until the end of the current transaction and
+        reloads this instance from it. Every RNB business function that checks
+        the building state (is_active, event_type, ...) before writing must call
+        this first: concurrent writes on the same building are then serialized by
+        Postgres, the second one waits for the first commit and re-reads the fresh
+        state, so its check fails instead of overwriting (issue #955).
+        Plain reads (SELECT without FOR UPDATE) are never blocked.
+        Any unsaved in-memory change on this instance is discarded.
+        """
+        self.refresh_from_db(from_queryset=Building.objects.select_for_update())
+
+    @staticmethod
+    def _get_locked(rnb_id: str) -> "Building":
+        """
+        Returns the current version of a building, locked until the end of the
+        current transaction (see _lock_and_refresh).
+        """
+        return Building.objects.select_for_update().get(rnb_id=rnb_id)
+
     def contains_ext_id(
         self, source: str, source_version: Optional[str], id: str
     ) -> bool:
@@ -265,6 +286,7 @@ class Building(BuildingAbstract):
 
         revert_event_id is expected when reverting a reactivation.
         """
+        self._lock_and_refresh()
         check_and_increment_contribution_count(user)
 
         if self.is_active:
@@ -288,6 +310,7 @@ class Building(BuildingAbstract):
                 f"Impossible de désactiver un identifiant déjà inactif : {self.rnb_id}"
             )
 
+    @transaction.atomic
     @staticmethod
     def revert_creation(
         user: User,
@@ -295,11 +318,6 @@ class Building(BuildingAbstract):
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
         """a wrapper around the existing deactivate method, to deactivate a building based on an event_id"""
-        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
-            raise RevertNotAllowed(
-                "Impossible to revert the building creation, because it has been modified."
-            )
-
         buildings_to_revert = BuildingWithHistory.get_by_event_id(event_id_to_revert)
         building_to_revert = buildings_to_revert[0]
 
@@ -313,9 +331,16 @@ class Building(BuildingAbstract):
 
         rnb_id = building_to_revert.rnb_id
 
-        # get the current version
-        building = Building.objects.get(rnb_id=rnb_id)
-        # and update it
+        # lock the current version BEFORE checking the event history: a
+        # concurrent write on this building would otherwise slip in between
+        # the check and our write
+        building = Building._get_locked(rnb_id)
+
+        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
+            raise RevertNotAllowed(
+                "Impossible to revert the building creation, because it has been modified."
+            )
+
         new_event_id = uuid.uuid4()
         building.event_type = EventType.REVERT_CREATION.value
         building.revert_event_id = event_id_to_revert
@@ -333,6 +358,7 @@ class Building(BuildingAbstract):
         This method allows a user to undo a RNB ID deactivation made by mistake.
         We may add some checks in the future, like only allowing to reactivate a recently deactivated ID.
         """
+        self._lock_and_refresh()
         check_and_increment_contribution_count(user)
 
         if self.is_active == False and self.event_type == EventType.DEACTIVATION.value:
@@ -354,11 +380,6 @@ class Building(BuildingAbstract):
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
         """a wrapper around the existing reactivate method, to reactivate a building based on an event_id"""
-        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
-            raise RevertNotAllowed(
-                "Impossible to revert the building deactivation, because it has been modified."
-            )
-
         buildings_to_revert = BuildingWithHistory.get_by_event_id(event_id_to_revert)
 
         if len(buildings_to_revert) != 1:
@@ -373,7 +394,14 @@ class Building(BuildingAbstract):
                 "The event_id does not correspond to a deactivation."
             )
 
-        current_building = Building.objects.get(rnb_id=building_to_revert.rnb_id)
+        # lock the current version BEFORE checking the event history (see revert_creation)
+        current_building = Building._get_locked(building_to_revert.rnb_id)
+
+        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
+            raise RevertNotAllowed(
+                "Impossible to revert the building deactivation, because it has been modified."
+            )
+
         current_building.reactivate(user, event_origin)
 
         # reactivate() always assigns a new event_id (or raises), so it is never None here
@@ -386,11 +414,6 @@ class Building(BuildingAbstract):
         event_origin: dict,
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
-        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
-            raise RevertNotAllowed(
-                "Impossible to revert the building reactivation, because it has been modified."
-            )
-
         buildings_to_revert = BuildingWithHistory.get_by_event_id(event_id_to_revert)
 
         if len(buildings_to_revert) != 1:
@@ -405,11 +428,17 @@ class Building(BuildingAbstract):
                 "The event_id does not correspond to a reactivation."
             )
 
-        current_building = Building.objects.get(rnb_id=building_to_revert.rnb_id)
+        # lock the current version BEFORE checking the event history (see revert_creation)
+        current_building = Building._get_locked(building_to_revert.rnb_id)
+
+        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
+            raise RevertNotAllowed(
+                "Impossible to revert the building reactivation, because it has been modified."
+            )
+
         current_building.deactivate(
             user, event_origin, revert_event_id=event_id_to_revert
         )
-        current_building.refresh_from_db()
         # deactivate() always assigns a new event_id (or raises), so it is never None here
         return cast(uuid.UUID, current_building.event_id)
 
@@ -424,6 +453,9 @@ class Building(BuildingAbstract):
         shape: GEOSGeometry | None = None,
         validate: bool | None = None,
     ):
+        # the "identical" comparison and the is_active check below must be made
+        # against the current state of the building, not the caller's instance
+        self._lock_and_refresh()
         check_and_increment_contribution_count(user)
 
         building_identical = (
@@ -512,15 +544,11 @@ class Building(BuildingAbstract):
 
         self._dangerously_save_forever()
 
+    @transaction.atomic
     @staticmethod
     def revert_update(
         user: User, event_origin: dict, event_id_to_revert: uuid.UUID
     ) -> uuid.UUID:
-        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
-            raise RevertNotAllowed(
-                "Impossible to revert the building update, because it has been modified."
-            )
-
         buildings_to_revert = BuildingWithHistory.get_by_event_id(event_id_to_revert)
 
         if len(buildings_to_revert) != 1:
@@ -541,8 +569,13 @@ class Building(BuildingAbstract):
         )
         building_prior_version = building_prior_versions[0]
 
-        # get current version to proceed with update
-        building_to_revert = Building.objects.get(rnb_id=building_prior_version.rnb_id)
+        # lock the current version BEFORE checking the event history (see revert_creation)
+        building_to_revert = Building._get_locked(building_prior_version.rnb_id)
+
+        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
+            raise RevertNotAllowed(
+                "Impossible to revert the building update, because it has been modified."
+            )
 
         new_event_id = uuid.uuid4()
 
