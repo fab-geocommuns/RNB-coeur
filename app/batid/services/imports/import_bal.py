@@ -279,14 +279,10 @@ def find_and_update_bdg(  # type: ignore[return]
 
     if isinstance(bdg_to_link, Building):
 
-        # Translate internal ids back to interop keys, preserving the array order
-        internal_ids = bdg_to_link.addresses_internal_id or []
-        interop_by_internal_id = dict(
-            Address.objects.filter(internal_id__in=internal_ids).values_list(
-                "internal_id", "id"
-            )
+        bdg_addresses = (
+            Address.cle_interop_from_internal_ids(bdg_to_link.addresses_internal_id)
+            or []
         )
-        bdg_addresses = [interop_by_internal_id[i] for i in internal_ids]
         bdg_addresses.append(cle_interop)
 
         bdg_to_link.update(
