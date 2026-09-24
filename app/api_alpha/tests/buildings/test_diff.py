@@ -858,9 +858,7 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(r.status_code, 200)
 
         diff_text = get_content_from_streaming_response(r)
-        rows = {
-            row["rnb_id"]: row for row in csv.DictReader(io.StringIO(diff_text))
-        }
+        rows = {row["rnb_id"]: row for row in csv.DictReader(io.StringIO(diff_text))}
 
         self.assertEqual(rows["1"]["addresses_id"], '["ADDRESS_ID_3","ADDRESS_ID_1"]')
         self.assertEqual(rows["2"]["addresses_id"], "[]")

@@ -240,6 +240,34 @@ class Address(models.Model):
             )
 
     @staticmethod
+    def cle_interop_from_internal_ids(
+        internal_ids: list[int] | None,
+    ) -> list[str] | None:
+        """Resolve batid_address.internal_id values to their BAN "clé d'interopérabilité",
+        preserving order and length so the result mirrors internal_ids 1:1.
+
+        Used to read the building <> address link from addresses_internal_id while
+        the rest of the code (API contract, business functions) still speaks interop
+        keys. An id without matching address, including a positional NULL left in
+        batid_building_history by its backfill, raises DatabaseInconsistency.
+        """
+        if internal_ids is None:
+            return None
+
+        cle_by_internal_id = dict(
+            Address.objects.filter(internal_id__in=internal_ids).values_list(
+                "internal_id", "id"
+            )
+        )
+
+        try:
+            return [cle_by_internal_id[internal_id] for internal_id in internal_ids]
+        except KeyError as missing_internal_id:
+            raise DatabaseInconsistency(
+                f"L'adresse d'internal_id {missing_internal_id} n'existe pas dans batid_address"
+            )
+
+    @staticmethod
     def add_new_address_from_ban_api(address_id):
 
         BAN_API_URL = "https://plateforme.adresse.data.gouv.fr/lookup/"
