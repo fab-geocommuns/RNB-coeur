@@ -252,9 +252,7 @@ class Inspector:
         # ADDRESSES
         # Handle change in addresses
         bdg_addresses = set(
-            Address.objects.filter(
-                internal_id__in=bdg.addresses_internal_id or []
-            ).values_list("id", flat=True)
+            Address.cle_interop_from_internal_ids(bdg.addresses_internal_id) or []
         )
         candidate_addresses = set(self.candidate.address_keys or [])
 
