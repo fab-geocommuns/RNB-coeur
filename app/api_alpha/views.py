@@ -38,7 +38,14 @@ from batid.exceptions import (
     BANUnknownCleInterop,
     InvalidOperation,
 )
-from batid.models import ADS, Building, Contribution, DiffusionDatabase, Organization
+from batid.models import (
+    ADS,
+    Address,
+    Building,
+    Contribution,
+    DiffusionDatabase,
+    Organization,
+)
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
@@ -443,20 +450,22 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
 
             merge_existing_addresses = data.get("merge_existing_addresses")
             if merge_existing_addresses:
-                addresses_id = [
-                    address
-                    for building in buildings
-                    for address in building.addresses_id
-                ]
+                addresses_cle_interop = Address.cle_interop_from_internal_ids(
+                    [
+                        internal_id
+                        for building in buildings
+                        for internal_id in (building.addresses_internal_id or [])
+                    ]
+                )
             else:
-                addresses_id = data.get("addresses_cle_interop")
+                addresses_cle_interop = data.get("addresses_cle_interop")
 
             # remove possible duplicates
-            addresses_id = list(set(addresses_id))
+            addresses_cle_interop = list(set(addresses_cle_interop))
 
             try:
                 new_building = Building.merge(
-                    buildings, user, event_origin, status, addresses_id
+                    buildings, user, event_origin, status, addresses_cle_interop
                 )
             except BANAPIDown:
                 raise ServiceUnavailable(detail="BAN API is currently down")
