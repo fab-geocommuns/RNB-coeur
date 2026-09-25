@@ -461,8 +461,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                 addresses_cle_interop = data.get("addresses_cle_interop")
 
             # remove possible duplicates
-            if addresses_cle_interop:
-                addresses_cle_interop = list(set(addresses_cle_interop))
+            addresses_cle_interop = list(set(addresses_cle_interop))
 
             try:
                 new_building = Building.merge(
