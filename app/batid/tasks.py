@@ -399,13 +399,6 @@ def compute_daily_kpis():
     return "done"
 
 
-# One-shot data fix, no longer runnable (see batid/services/data_fix/fill_empty_event_origin.py)
-# @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
-# def fill_empty_event_origin(from_rnb_id=None, to_rnb_id=None, batch_size=10000):
-#     fix_fill_empty_event_origin(from_rnb_id, to_rnb_id, batch_size)
-#     return "done"
-
-
 # @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 # def delete_to_deactivation(batch_size=10000):
 #     delete_to_deactivation_job(batch_size)
