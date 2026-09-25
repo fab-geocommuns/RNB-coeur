@@ -29,7 +29,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
             )
         ), '[]'::json)
         FROM public.batid_address AS adr
-        WHERE adr.id = ANY(bdg.addresses_id)
+        WHERE adr.internal_id = ANY(bdg.addresses_internal_id)
     ) as addresses,
 
     -- The validated_by part
@@ -137,14 +137,14 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
 	    			'status', prev_data.status,
 	    			'shape', prev_data.shape,
 	    			'ext_ids', prev_data.ext_ids,
-	    			'addresses_id', prev_data.addresses_id,
+	    			'addresses_internal_id', prev_data.addresses_internal_id,
 	    			'validated_by', prev_data.validated_by
 	    		),
                 'current_version', json_build_object(
 	    			'status', bdg.status,
 	    			'shape', bdg.shape,
 	    			'ext_ids', bdg.ext_ids,
-	    			'addresses_id', bdg.addresses_id,
+	    			'addresses_internal_id', bdg.addresses_internal_id,
 	    			'validated_by', bdg.validated_by
                 )
 	    	)
@@ -207,7 +207,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
     ) AS author_org ON TRUE
     LEFT JOIN LATERAL (
 		SELECT
-			prev.rnb_id, prev.status, prev.shape, prev.ext_ids, prev.addresses_id, prev.validated_by
+			prev.rnb_id, prev.status, prev.shape, prev.ext_ids, prev.addresses_internal_id, prev.validated_by
 		FROM batid_building_with_history AS prev
 		WHERE prev.rnb_id = bdg.rnb_id
 		AND lower(prev.sys_period) < lower(bdg.sys_period)
