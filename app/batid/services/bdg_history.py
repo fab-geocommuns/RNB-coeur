@@ -29,7 +29,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
             )
         ), '[]'::json)
         FROM public.batid_address AS adr
-        WHERE adr.id = ANY(bdg.addresses_id)
+        WHERE adr.internal_id = ANY(bdg.addresses_internal_id)
     ) as addresses,
 
     -- The validated_by part
