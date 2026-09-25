@@ -24,7 +24,7 @@ class BALImport(TransactionTestCase):
 
         # Building ONE
 
-        Address.objects.create(
+        old_on_one = Address.objects.create(
             id="OLD_ON_ONE",
             source="Import BAN",
             point=Point(
@@ -45,6 +45,7 @@ class BALImport(TransactionTestCase):
         b_one = Building.objects.create(
             rnb_id="ONE",
             addresses_id=["OLD_ON_ONE"],
+            addresses_internal_id=[old_on_one.internal_id],
             status="constructed",
             shape=GEOSGeometry(
                 json.dumps(
