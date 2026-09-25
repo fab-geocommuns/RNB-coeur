@@ -338,14 +338,6 @@ def queue_fill_building_history_addresses_internal_id(n_slices: int = 4):
     return f"Queued {n_slices} parallel ranges from bh_id {first_id} to {last_id}"
 
 
-@shared_task()
-def populate_addresses_id_field():
-    from batid.services.populate_addresses_id_field import launch_procedure
-
-    launch_procedure()
-    return "done"
-
-
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def publish_datagouv_national():
     publish("nat")
