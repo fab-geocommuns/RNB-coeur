@@ -817,6 +817,53 @@ class DiffTest(TransactionTestCase):
         self.assertListEqual(json.loads(rows[1]["addresses_id"]), ["ADDRESS_ID_1"])
         self.assertEqual(rows[1]["username"], "marcella")
 
+    def test_diff_addresses_read_from_internal_id(self):
+        """
+        Input: buildings whose addresses_internal_id differs on purpose from their
+        addresses_id (non-alphabetical order, empty array, NULL).
+        Expected: the addresses_id CSV column is built from addresses_internal_id,
+        translated back to "clés d'interopérabilité" in the array order, with the
+        exact former to_json() formatting: no space after commas, [] for an empty
+        array and an empty field for NULL.
+        """
+        internal_ids = dict(Address.objects.values_list("id", "internal_id"))
+
+        Building.objects.create(rnb_id="t", event_type="creation")
+        threshold = Building.objects.get(rnb_id="t").sys_period.lower
+
+        Building.objects.create(
+            rnb_id="1",
+            event_type="creation",
+            addresses_id=["ADDRESS_ID_1"],
+            addresses_internal_id=[
+                internal_ids["ADDRESS_ID_3"],
+                internal_ids["ADDRESS_ID_1"],
+            ],
+        )
+        Building.objects.create(
+            rnb_id="2",
+            event_type="creation",
+            addresses_id=["ADDRESS_ID_2"],
+            addresses_internal_id=[],
+        )
+        Building.objects.create(
+            rnb_id="3",
+            event_type="creation",
+            addresses_id=["ADDRESS_ID_2"],
+            addresses_internal_id=None,
+        )
+
+        params = urlencode({"since": threshold.isoformat()})
+        r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
+        self.assertEqual(r.status_code, 200)
+
+        diff_text = get_content_from_streaming_response(r)
+        rows = {row["rnb_id"]: row for row in csv.DictReader(io.StringIO(diff_text))}
+
+        self.assertEqual(rows["1"]["addresses_id"], '["ADDRESS_ID_3","ADDRESS_ID_1"]')
+        self.assertEqual(rows["2"]["addresses_id"], "[]")
+        self.assertEqual(rows["3"]["addresses_id"], "")
+
     def test_diff_download_leaves_no_export_thread(self):
         """
         Input: a building created after the 'since' threshold, and a diff request

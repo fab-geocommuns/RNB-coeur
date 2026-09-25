@@ -121,7 +121,25 @@ def _build_copy_query(
             sys_period,
             ST_AsEWKT(point) as point,
             ST_AsEWKT(shape) as shape,
-            to_json(addresses_id) as addresses_id,
+            -- The public contract exposes BAN "clés d'interopérabilité", while the
+            -- link is read from addresses_internal_id (batid_address.internal_id
+            -- values): translate them back, keeping the array order.
+            -- to_json(array_agg()) rather than json_agg() to keep the exact former
+            -- formatting (json_agg adds a space after each comma), and a NULL
+            -- array stays NULL while an empty one gives [].
+            CASE
+                WHEN bb.addresses_internal_id IS NULL THEN NULL
+                ELSE (
+                    SELECT to_json(COALESCE(
+                        array_agg(addr.id ORDER BY link.ord),
+                        '{{}}'::varchar[]
+                    ))
+                    FROM unnest(bb.addresses_internal_id)
+                        WITH ORDINALITY AS link(internal_id, ord)
+                    LEFT JOIN batid_address addr
+                        ON addr.internal_id = link.internal_id
+                )
+            END as addresses_id,
             COALESCE(ext_ids, '[]'::jsonb) as ext_ids,
             parent_buildings,
             event_id,
