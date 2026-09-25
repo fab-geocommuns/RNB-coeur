@@ -339,7 +339,9 @@ def _known_building_address_link(cle_interop: str, rnb_id: str) -> bool:
         select 1
         from batid_building_with_history as bdg
         where bdg.rnb_id = %(rnb_id)s
-        and %(cle_interop)s = any(bdg.addresses_id)
+        and (
+            select ad.internal_id from batid_address as ad where ad.id = %(cle_interop)s
+        ) = any(bdg.addresses_internal_id)
     """
 
     params = {
