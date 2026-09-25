@@ -61,13 +61,13 @@ class BuildingEventSerializer(serializers.Serializer):
 
             prev_addresses = (
                 []
-                if previous.get("addresses_id") is None
-                else previous.get("addresses_id")
+                if previous.get("addresses_internal_id") is None
+                else previous.get("addresses_internal_id")
             )
             curr_addresses = (
                 []
-                if current.get("addresses_id") is None
-                else current.get("addresses_id")
+                if current.get("addresses_internal_id") is None
+                else current.get("addresses_internal_id")
             )
 
             if set(prev_addresses) != set(curr_addresses):
