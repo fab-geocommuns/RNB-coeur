@@ -104,7 +104,7 @@ def list_bdgs(params, only_active=True) -> QuerySet:
 
     cle_interop_ban = params.get("cle_interop_ban", None)
     if cle_interop_ban:
-        qs = qs.filter(addresses_read_only__id=cle_interop_ban)
+        qs = qs.filter(addresses_internal_read_only__id=cle_interop_ban)
         qs = qs.order_by("created_at")
 
     # #######################
