@@ -24,7 +24,7 @@ class BALImport(TransactionTestCase):
 
         # Building ONE
 
-        Address.objects.create(
+        old_on_one = Address.objects.create(
             id="OLD_ON_ONE",
             source="Import BAN",
             point=Point(
@@ -45,6 +45,7 @@ class BALImport(TransactionTestCase):
         b_one = Building.objects.create(
             rnb_id="ONE",
             addresses_id=["OLD_ON_ONE"],
+            addresses_internal_id=[old_on_one.internal_id],
             status="constructed",
             shape=GEOSGeometry(
                 json.dumps(
@@ -522,7 +523,7 @@ class LinkSearch(TestCase):
 
         """
 
-        Address.objects.create(
+        address = Address.objects.create(
             id="1234",
             source="Import BAL",
             point=Point(
@@ -552,10 +553,12 @@ class LinkSearch(TestCase):
                 )
             ),
             addresses_id=["1234"],
+            addresses_internal_id=[address.internal_id],
         )
 
         # Second version has the address removed
         bdg.addresses_id = []
+        bdg.addresses_internal_id = []
         bdg.save()
 
         address_point = Point(-0.5206731809492453, 44.83095412267062, srid=4326)
@@ -566,8 +569,12 @@ class LinkSearch(TestCase):
         self.assertIsNone(bdg)
 
     def test_already_linked_bdg(self):
+        """
+        Input: a building currently linked to address "1234", and a BAL point on it for "1234".
+        Expected: find_bdg_to_link returns None (the link already exists).
+        """
 
-        Address.objects.create(
+        address = Address.objects.create(
             id="1234",
             source="Import BAL",
             point=Point(
@@ -597,6 +604,7 @@ class LinkSearch(TestCase):
                 )
             ),
             addresses_id=["1234"],
+            addresses_internal_id=[address.internal_id],
         )
 
         address_point = Point(-0.5206731809492453, 44.83095412267062, srid=4326)
@@ -1144,7 +1152,7 @@ class LinkSearch(TestCase):
             ],
         }
         # We create the address in advance
-        Address.objects.create(id="DUMMY")
+        address = Address.objects.create(id="DUMMY")
 
         # First run : building has no address yet
         bdg = self._run_geojson_scenario(data)
@@ -1154,6 +1162,7 @@ class LinkSearch(TestCase):
         # Second run : building has now the address linked
         bdg = Building.objects.get(rnb_id="GOOD")
         bdg.addresses_id = ["DUMMY"]
+        bdg.addresses_internal_id = [address.internal_id]
         bdg.save()
 
         bdg = find_bdg_to_link(GEOSGeometry(json.dumps(address_point)), "DUMMY")
@@ -1162,6 +1171,7 @@ class LinkSearch(TestCase):
         # Third run : building has had the address in the past
         bdg = Building.objects.get(rnb_id="GOOD")
         bdg.addresses_id = []
+        bdg.addresses_internal_id = []
         bdg.save()
 
         bdg = find_bdg_to_link(GEOSGeometry(json.dumps(address_point)), "DUMMY")

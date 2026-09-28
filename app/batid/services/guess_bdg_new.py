@@ -502,7 +502,7 @@ class GeocodeAddressHandler(AbstractHandler):
 
             # The old version of the query before the "bdg_addresses_id_idx" index disappeared
             # bdgs = qs.filter(addresses_id__contains=[ban_id])
-            bdgs = qs.filter(addresses_read_only__id=ban_id)  # type: ignore[union-attr]
+            bdgs = qs.filter(addresses_internal_read_only__id=ban_id)  # type: ignore[union-attr]
 
             if bdgs.count() > 0:
                 guess["matches"] = bdgs  # type: ignore[typeddict-item]

@@ -12,7 +12,7 @@ class SingleBuildingTest(APITestCase):
         u1 = User.objects.create_user(username="u1", email="u1@test.com")
         u2 = User.objects.create_user(username="u2", email="u2@test.com")
 
-        Address.objects.create(
+        addr = Address.objects.create(
             id="addr-1",
             source="bdnb",
             street_number="3",
@@ -45,6 +45,7 @@ class SingleBuildingTest(APITestCase):
             point=geom.point_on_surface,
             status="constructed",
             addresses_id=["addr-1"],
+            addresses_internal_id=[addr.internal_id],
             ext_ids=[
                 {
                     "source": "bdnb",

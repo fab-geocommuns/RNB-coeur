@@ -9,9 +9,6 @@ from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list, slice_dpts
 from batid.services.building import export_city as export_city_job
 from batid.services.candidate import Inspector
-from batid.services.data_fix.fill_empty_event_origin import (
-    fix as fix_fill_empty_event_origin,
-)
 from batid.services.data_fix.remove_light_buildings import (
     list_light_buildings_france as list_light_buildings_france_job,
 )
@@ -338,14 +335,6 @@ def queue_fill_building_history_addresses_internal_id(n_slices: int = 4):
     return f"Queued {n_slices} parallel ranges from bh_id {first_id} to {last_id}"
 
 
-@shared_task()
-def populate_addresses_id_field():
-    from batid.services.populate_addresses_id_field import launch_procedure
-
-    launch_procedure()
-    return "done"
-
-
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def publish_datagouv_national():
     publish("nat")
@@ -407,12 +396,6 @@ def compute_daily_kpis():
     from batid.services.kpi import compute_daily_kpis as compute_daily_kpis_service
 
     compute_daily_kpis_service()
-    return "done"
-
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
-def fill_empty_event_origin(from_rnb_id=None, to_rnb_id=None, batch_size=10000):
-    fix_fill_empty_event_origin(from_rnb_id, to_rnb_id, batch_size)
     return "done"
 
 

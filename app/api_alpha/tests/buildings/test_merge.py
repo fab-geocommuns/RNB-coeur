@@ -24,6 +24,7 @@ class BuildingMergeTest(APITestCase):
             shape="POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
             is_active=True,
             addresses_id=[self.adr1.id],
+            addresses_internal_id=[self.adr1.internal_id],
             ext_ids=[
                 {
                     "id": "xxx",
@@ -38,6 +39,7 @@ class BuildingMergeTest(APITestCase):
             shape="POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))",
             is_active=True,
             addresses_id=[self.adr2.id],
+            addresses_internal_id=[self.adr2.internal_id],
             ext_ids=[
                 {
                     "id": "yyy",
