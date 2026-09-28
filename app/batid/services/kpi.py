@@ -310,7 +310,7 @@ def count_real_buildings_wo_addresses():
     return Building.objects.filter(
         is_active=True,
         status__in=BuildingStatus.REAL_BUILDINGS_STATUS,
-        addresses_read_only=None,
+        addresses_internal_read_only=None,
     ).count()
 
 
@@ -321,7 +321,7 @@ def count_building_address_links():
     with connection.cursor() as cursor:
         cursor.execute("SET statement_timeout = 3600000;")
         cursor.execute(
-            "SELECT COUNT(*) FROM batid_buildingaddressesreadonly ba"
+            "SELECT COUNT(*) FROM batid_buildingaddressesinternalidreadonly ba"
             " JOIN batid_building b ON ba.building_id = b.id"
             " WHERE b.is_active = TRUE"
         )
