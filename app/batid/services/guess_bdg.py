@@ -234,7 +234,7 @@ class BuildingGuess:
         )
 
         qs = Building.objects.raw(global_query, params).prefetch_related(
-            "addresses_read_only"
+            "addresses_internal_read_only"
         )
 
         # print("---- QUERY ---")

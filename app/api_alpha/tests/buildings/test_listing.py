@@ -918,11 +918,25 @@ class BuildingsWithPlots(APITestCase):
 
     @patch.object(ListBuildingQuerySerializer, "validate", lambda self, data: data)
     def test_no_n_plus_1_query(self):
-        Address.objects.create(id="add_1")
-        Building.objects.create(rnb_id="A", addresses_id=["add_1"], point="POINT(0 0)")
+        """
+        Input: 2 buildings, each linked to its own address, listed via /api/alpha/buildings/.
+        Expected: a constant number of queries (4), addresses being prefetched.
+        """
+        add_1 = Address.objects.create(id="add_1")
+        Building.objects.create(
+            rnb_id="A",
+            addresses_id=["add_1"],
+            addresses_internal_id=[add_1.internal_id],
+            point="POINT(0 0)",
+        )
 
-        Address.objects.create(id="add_2")
-        Building.objects.create(rnb_id="B", addresses_id=["add_2"], point="POINT(0 0)")
+        add_2 = Address.objects.create(id="add_2")
+        Building.objects.create(
+            rnb_id="B",
+            addresses_id=["add_2"],
+            addresses_internal_id=[add_2.internal_id],
+            point="POINT(0 0)",
+        )
 
         def list_buildings():
             self.client.get("/api/alpha/buildings/")

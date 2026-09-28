@@ -322,7 +322,7 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
             buildings = (
                 Building.objects.filter(is_active=True)
                 .filter(addresses_internal_read_only__id=cle_interop_ban)
-                .prefetch_related("addresses_read_only")
+                .prefetch_related("addresses_internal_read_only")
                 .prefetch_related(
                     Prefetch(
                         "validated_by_read_only",
