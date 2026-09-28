@@ -380,6 +380,40 @@ class TestAddressesInternalId(TestCase):
                 [self.addr1.id, "unknown_cle_interop"]
             )
 
+    def test_cle_interop_from_internal_ids(self):
+        """
+        Input: Address.cle_interop_from_internal_ids() called with
+        [addr2.internal_id, addr1.internal_id], then [], then None.
+        Expected: the matching interop keys in the same order
+        ([addr2.id, addr1.id]), then [], then None.
+        """
+        self.assertEqual(
+            Address.cle_interop_from_internal_ids(
+                [self.addr2.internal_id, self.addr1.internal_id]
+            ),
+            [self.addr2.id, self.addr1.id],
+        )
+        self.assertEqual(Address.cle_interop_from_internal_ids([]), [])
+        self.assertIsNone(Address.cle_interop_from_internal_ids(None))
+
+    def test_cle_interop_from_internal_ids_raises_on_unknown_id(self):
+        """
+        Input: Address.cle_interop_from_internal_ids() called with an internal_id
+        that has no matching Address row, then with a positional NULL (as left by
+        the batid_building_history backfill for an orphan interop key).
+        Expected: DatabaseInconsistency in both cases, instead of silently producing
+        a shorter list than the input.
+        """
+        unknown_internal_id = (
+            Address.objects.order_by("-internal_id").first().internal_id + 1
+        )
+        with self.assertRaises(DatabaseInconsistency):
+            Address.cle_interop_from_internal_ids(
+                [self.addr1.internal_id, unknown_internal_id]
+            )
+        with self.assertRaises(DatabaseInconsistency):
+            Address.cle_interop_from_internal_ids([self.addr1.internal_id, None])
+
 
 class TestSplitBuilding(TestCase):
     def setUp(self):

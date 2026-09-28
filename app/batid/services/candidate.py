@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Literal
 
 from batid.exceptions import BuildingTooLarge, BuildingTooSmall, InvalidWGS84Geometry
-from batid.models import Building, BuildingWithHistory, Candidate
+from batid.models import Address, Building, BuildingWithHistory, Candidate
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
 from batid.services.data_fix.fill_empty_event_origin import building_identicals
 from batid.services.RNB_team_user import get_RNB_team_user
@@ -251,7 +251,9 @@ class Inspector:
         # ##############################
         # ADDRESSES
         # Handle change in addresses
-        bdg_addresses = set(bdg.addresses_id or [])
+        bdg_addresses = set(
+            Address.cle_interop_from_internal_ids(bdg.addresses_internal_id) or []
+        )
         candidate_addresses = set(self.candidate.address_keys or [])
 
         if candidate_addresses - bdg_addresses:
