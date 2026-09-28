@@ -464,11 +464,12 @@ class Building(BuildingAbstract):
                 addresses_id is None
                 or set(addresses_id) == set(self.addresses_id or [])
             )
-            and (ext_ids is None or ext_ids == self.ext_ids)
             and (shape is None or shape == self.shape)
         )
 
-        if building_identical and validate is None:
+        ext_ids_identical = ext_ids is None or ext_ids == self.ext_ids
+
+        if building_identical and ext_ids_identical and validate is None:
             # Nothing happens at all
             return
 
@@ -477,23 +478,33 @@ class Building(BuildingAbstract):
         newly_validated = False
 
         if not building_identical:
+            # the building itself is updated, so existing validations are removed
             validated_by: list[int] = []
 
             if validate:
+                # this is a building update + a validation in the same request
                 validated_by.append(user.id)
                 newly_validated = True
-            self.validated_by = validated_by
         else:
+
+            # The building itself (status, shape, adresses) dit not change
+            # Still, the update can concern a validation and/or and ext_ids change
+
             validated_by = self.validated_by or []
+
             if validate:
+                # The building is being validated
                 if user.id not in validated_by:
                     validated_by.append(user.id)
                     newly_validated = True
-            elif user.id in validated_by:
+            elif validate is False and user.id in validated_by:
+                # the existing validation of this user is removed
                 validated_by.remove(user.id)
-            else:
+            elif ext_ids_identical:
+                # No update at all
                 return
-            self.validated_by = validated_by
+
+        self.validated_by = validated_by
 
         if not self.is_active:
             raise OperationOnInactiveBuilding(
