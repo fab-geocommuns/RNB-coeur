@@ -448,7 +448,7 @@ class Building(BuildingAbstract):
         user: User,
         event_origin: dict | None,
         status: str | None,
-        addresses_id: list | None,
+        addresses_cle_interop: list | None,
         ext_ids: list | None = None,
         shape: GEOSGeometry | None = None,
         validate: bool | None = None,
@@ -461,8 +461,8 @@ class Building(BuildingAbstract):
         building_identical = (
             (status is None or status == self.status)
             and (
-                addresses_id is None
-                or set(addresses_id) == set(self.addresses_id or [])
+                addresses_cle_interop is None
+                or set(addresses_cle_interop) == set(self.addresses_id or [])
             )
             and (ext_ids is None or ext_ids == self.ext_ids)
             and (shape is None or shape == self.shape)
@@ -525,16 +525,16 @@ class Building(BuildingAbstract):
             # Summer Challenge!
             SummerChallenge.score_shape(user, self.point, self.rnb_id, self.event_id)
 
-        if addresses_id is not None:
-            Address.add_addresses_to_db_if_needed(addresses_id)
+        if addresses_cle_interop is not None:
+            Address.add_addresses_to_db_if_needed(addresses_cle_interop)
 
             # Summer Challenge!
-            if self.addresses_id != addresses_id:
+            if self.addresses_id != addresses_cle_interop:
                 SummerChallenge.score_address(
                     user, self.point, self.rnb_id, self.event_id
                 )
 
-            self.addresses_id = addresses_id
+            self.addresses_id = addresses_cle_interop
 
         # Summer Challenge!
         if newly_validated:
@@ -632,7 +632,7 @@ class Building(BuildingAbstract):
         user: User,
         event_origin: dict | None,
         status: str,
-        addresses_id: list,
+        addresses_cle_interop: list,
         shape: GEOSGeometry,
         ext_ids: list,
         is_valid: bool = False,
@@ -642,7 +642,7 @@ class Building(BuildingAbstract):
         if (
             not event_origin
             or not status
-            or addresses_id is None
+            or addresses_cle_interop is None
             or not shape
             or ext_ids is None
         ):
@@ -665,8 +665,8 @@ class Building(BuildingAbstract):
         if is_valid:
             SummerChallenge.score_validation(user, point, rnb_id, event_id)
 
-        if addresses_id is not None and len(addresses_id) > 0:
-            Address.add_addresses_to_db_if_needed(addresses_id)
+        if addresses_cle_interop is not None and len(addresses_cle_interop) > 0:
+            Address.add_addresses_to_db_if_needed(addresses_cle_interop)
 
             # Summer Challenge!
             SummerChallenge.score_address(user, point, rnb_id, event_id)
@@ -682,7 +682,7 @@ class Building(BuildingAbstract):
             event_type=EventType.CREATION.value,
             event_user=user,
             is_active=True,
-            addresses_id=addresses_id,
+            addresses_id=addresses_cle_interop,
             validated_by=[user.id] if is_valid else [],
         )
         building._dangerously_save_forever()
@@ -690,7 +690,7 @@ class Building(BuildingAbstract):
 
     @staticmethod
     @transaction.atomic
-    def merge(buildings: list, user, event_origin, status, addresses_id):
+    def merge(buildings: list, user, event_origin, status, addresses_cle_interop):
         check_and_increment_contribution_count(user)
 
         from batid.utils.geo import merge_contiguous_shapes
@@ -718,8 +718,8 @@ class Building(BuildingAbstract):
             if ext_id not in merged_ext_ids[i + 1 :]
         ]
 
-        if addresses_id is not None:
-            Address.add_addresses_to_db_if_needed(addresses_id)
+        if addresses_cle_interop is not None:
+            Address.add_addresses_to_db_if_needed(addresses_cle_interop)
 
         def remove_existing_builing(building):
             building.is_active = False
@@ -743,7 +743,7 @@ class Building(BuildingAbstract):
         building.event_user = user
         building.event_origin = event_origin
         building.parent_buildings = parent_buildings
-        building.addresses_id = addresses_id
+        building.addresses_id = addresses_cle_interop
         building.shape = merged_shape
         building.point = merged_shape.point_on_surface
         building.ext_ids = merged_ext_ids

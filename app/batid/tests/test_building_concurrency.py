@@ -86,7 +86,7 @@ class StaleInstanceTest(TestCase):
 
         with self.assertRaises(OperationOnInactiveBuilding):
             stale.update(
-                self.user, EVENT_ORIGIN, status="demolished", addresses_id=None
+                self.user, EVENT_ORIGIN, status="demolished", addresses_cle_interop=None
             )
 
         building = Building.objects.get(rnb_id=self.rnb_id)

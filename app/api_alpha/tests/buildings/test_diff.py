@@ -103,7 +103,7 @@ class DiffTest(TransactionTestCase):
             status="demolished",
             user=user,
             event_origin={"source": "test"},
-            addresses_id=["ADDRESS_ID_2", "ADDRESS_ID_3"],
+            addresses_cle_interop=["ADDRESS_ID_2", "ADDRESS_ID_3"],
         )
 
         # #############
@@ -315,7 +315,7 @@ class DiffTest(TransactionTestCase):
             [b1, b2],
             user=user,
             event_origin={"source": "dummy"},
-            addresses_id=["ADDRESS_ID_1", "ADDRESS_ID_2"],
+            addresses_cle_interop=["ADDRESS_ID_1", "ADDRESS_ID_2"],
             status="constructed",
         )
 
@@ -481,7 +481,7 @@ class DiffTest(TransactionTestCase):
             status="constructed",
             user=user,
             event_origin={"source": "test"},
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
 
         params = urlencode({"since": threshold.strftime("%Y-%m-%dT%H:%M:%S")})
@@ -501,7 +501,7 @@ class DiffTest(TransactionTestCase):
             status="constructed",
             user=user,
             event_origin={"source": "test"},
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
 
         params = urlencode({"since": threshold.strftime("%Y-%m-%d")})
@@ -577,7 +577,7 @@ class DiffTest(TransactionTestCase):
             user=user,
             event_origin={"source": "test"},
             status="demolished",
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
         b1.refresh_from_db()
         update_event_id = b1.event_id
@@ -652,7 +652,7 @@ class DiffTest(TransactionTestCase):
             user=user,
             event_origin={"source": "test"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
         b3.refresh_from_db()
         merge_event_id = b3.event_id
@@ -1015,7 +1015,7 @@ class DiffInseeCodeTest(TransactionTestCase):
                 status="demolished",
                 user=user,
                 event_origin={"source": "test"},
-                addresses_id=[],
+                addresses_cle_interop=[],
             )
 
         params = urlencode({"since": threshold.isoformat(), "insee_code": "75056"})
@@ -1058,7 +1058,7 @@ class DiffInseeCodeTest(TransactionTestCase):
             status="demolished",
             user=user,
             event_origin={"source": "test"},
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
 
         params = urlencode({"since": threshold.isoformat(), "insee_code": "75056"})
@@ -1100,7 +1100,7 @@ class DiffInseeCodeTest(TransactionTestCase):
             status="demolished",
             user=user,
             event_origin={"source": "test"},
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
 
         params = urlencode({"since": threshold.isoformat(), "insee_code": "75056"})
