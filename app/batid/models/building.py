@@ -160,18 +160,17 @@ class Building(BuildingAbstract):
     # We define a custom object manager to lock bulk_create, bulk_update functions
     objects = BuildingQuerySet.as_manager()
 
-    # Transitional: same as addresses_internal_read_only, but joining on the
-    # addresses_id mirror (BAN interop keys). Not read anymore, to be deleted
-    # along with addresses_id.
+    # this only exists to make it possible for the Django ORM to access the associated addresses
+    # but this field is read-only : you should not attempt to save a building/address association through this field
+    # use the business functions (create_new, update, ...), which write in the correct place (addresses_internal_id).
     addresses_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
         "Address",
         blank=True,
         related_name="buildings_read_only",
         through="BuildingAddressesReadOnly",
     )
-    # this only exists to make it possible for the Django ORM to access the associated addresses
-    # but this field is read-only : you should not attempt to save a building/address association through this field
-    # use the business functions (create_new, update, ...), which write in the correct place (addresses_internal_id).
+    # same as addresses_read_only, but joining on batid_address.internal_id via
+    # addresses_internal_id instead of the BAN interop key. Also read-only.
     addresses_internal_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
         "Address",
         blank=True,
