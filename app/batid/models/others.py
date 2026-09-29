@@ -216,27 +216,31 @@ class Address(models.Model):
 
     @staticmethod
     def internal_ids_from_cle_interop(
-        addresses_id: list[str] | None,
+        addresses_cle_interop: list[str] | None,
     ) -> list[int] | None:
         """Resolve BAN "clé d'interopérabilité" keys to their batid_address.internal_id
-        values, preserving order and length so the result mirrors addresses_id 1:1.
+        values, preserving order and length so the result mirrors
+        addresses_cle_interop 1:1.
 
-        Transitional helper for the addresses_id -> addresses_internal_id migration
-        (see specs/migration_lien_batiment_adresse.md). Delete this method once
-        addresses_id is dropped (PR 9 of that plan).
+        Used by the building business functions, which receive interop keys (API
+        contract) and write addresses_internal_id. A key without matching address
+        raises DatabaseInconsistency: call Address.add_addresses_to_db_if_needed()
+        first.
         """
-        if addresses_id is None:
+        if addresses_cle_interop is None:
             return None
 
         internal_id_by_cle = dict(
-            Address.objects.filter(id__in=addresses_id).values_list("id", "internal_id")
+            Address.objects.filter(id__in=addresses_cle_interop).values_list(
+                "id", "internal_id"
+            )
         )
 
         try:
-            return [internal_id_by_cle[cle] for cle in addresses_id]
+            return [internal_id_by_cle[cle] for cle in addresses_cle_interop]
         except KeyError as missing_cle:
             raise DatabaseInconsistency(
-                f"L'adresse {missing_cle} référencée par addresses_id n'existe pas dans batid_address"
+                f"L'adresse {missing_cle} n'existe pas dans batid_address"
             )
 
     @staticmethod
@@ -248,8 +252,10 @@ class Address(models.Model):
 
         Used to read the building <> address link from addresses_internal_id while
         the rest of the code (API contract, business functions) still speaks interop
-        keys. An id without matching address, including a positional NULL left in
-        batid_building_history by its backfill, raises DatabaseInconsistency.
+        keys, and to fill the transitional addresses_id mirror in
+        Building._dangerously_save_forever(). An id without matching address,
+        including a positional NULL left in batid_building_history by its backfill,
+        raises DatabaseInconsistency.
         """
         if internal_ids is None:
             return None

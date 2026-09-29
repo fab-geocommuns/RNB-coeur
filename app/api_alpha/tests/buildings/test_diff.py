@@ -296,6 +296,7 @@ class DiffTest(TransactionTestCase):
             status="constructed",
             event_type="creation",
             addresses_id=["ADDRESS_ID_1"],
+            addresses_internal_id=[Address.objects.get(id="ADDRESS_ID_1").internal_id],
             shape=geom,
             point=geom.point_on_surface,
         )
@@ -304,6 +305,7 @@ class DiffTest(TransactionTestCase):
             status="constructed",
             event_type="creation",
             addresses_id=["ADDRESS_ID_2"],
+            addresses_internal_id=[Address.objects.get(id="ADDRESS_ID_2").internal_id],
             shape=geom,
             point=geom.point_on_surface,
         )
@@ -779,6 +781,7 @@ class DiffTest(TransactionTestCase):
                 }
             ],
             addresses_id=["ADDRESS_ID_1"],
+            addresses_internal_id=[Address.objects.get(id="ADDRESS_ID_1").internal_id],
             status="constructed",
             event_type="creation",
         )
