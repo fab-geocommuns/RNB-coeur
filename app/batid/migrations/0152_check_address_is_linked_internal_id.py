@@ -36,7 +36,7 @@ def check_address_is_linked_sql(column: str, value: str) -> str:
         END;
         $function$
         ;
-    """
+    """  # nosec B608: column/value are hardcoded literals passed below, not user input
 
 
 class Migration(migrations.Migration):
