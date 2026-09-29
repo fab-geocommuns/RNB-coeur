@@ -44,7 +44,6 @@ class SingleBuildingTest(APITestCase):
             shape=geom,
             point=geom.point_on_surface,
             status="constructed",
-            addresses_id=["addr-1"],
             addresses_internal_id=[addr.internal_id],
             ext_ids=[
                 {

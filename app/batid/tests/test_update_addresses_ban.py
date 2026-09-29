@@ -524,11 +524,12 @@ class TestUpdateAddressesTextAndBanIdDuplicateBanId(TestCase):
 
 class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
     @staticmethod
-    def _link_addresses(bdg, addresses_id):
-        # bdg.save() is Django's native save (tests only): it bypasses the app
-        # hook filling addresses_internal_id, so both columns are set here.
-        bdg.addresses_id = addresses_id
-        bdg.addresses_internal_id = Address.internal_ids_from_cle_interop(addresses_id)
+    def _link_addresses(bdg, addresses_cle_interop):
+        # bdg.save() is Django's native save (tests only): it bypasses the
+        # business functions, so addresses_internal_id is resolved here.
+        bdg.addresses_internal_id = Address.internal_ids_from_cle_interop(
+            addresses_cle_interop
+        )
         bdg.save()
 
     @staticmethod
@@ -587,7 +588,6 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
 
         # Address is no longer in batid_building but still in history
         bdg.refresh_from_db()
-        self.assertEqual(bdg.addresses_id, [])
         self.assertEqual(bdg.addresses_internal_id, [])
 
         deleted = delete_unlinked_obsolete_addresses()

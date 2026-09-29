@@ -1,7 +1,7 @@
 import json
 import os
 
-from batid.models import Building, City
+from batid.models import Address, Building, City
 from django.contrib.gis.geos import GEOSGeometry
 from requests import Response
 
@@ -1145,6 +1145,19 @@ def create_default_bdg(rnb_id="DEFAULT"):
         [5.717918517856731, 45.178820091145724],
     ]
     return create_bdg(rnb_id, coords)
+
+
+def internal_ids(addresses_cle_interop: list[str] | None) -> list[int] | None:
+    """batid_address.internal_id values of the given BAN interop keys, in the same
+    order. To fill Building.addresses_internal_id in fixtures written with
+    Django's native create()/save(), which bypass the business functions."""
+    return Address.internal_ids_from_cle_interop(addresses_cle_interop)
+
+
+def addresses_cle_interop(building: Building) -> list[str] | None:
+    """BAN interop keys of the addresses linked to a building, read from its
+    addresses_internal_id, in the same order."""
+    return Address.cle_interop_from_internal_ids(building.addresses_internal_id)
 
 
 def mock_ban_geocoder_result(id: str, lng: float, lat: float, score=0.99) -> Response:

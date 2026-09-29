@@ -8,6 +8,7 @@ import uuid
 from unittest.mock import patch
 
 from batid.models import Address, Building, City, Organization, UserProfile
+from batid.tests.helpers import internal_ids
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase, override_settings
@@ -92,7 +93,7 @@ class DiffTest(TransactionTestCase):
                     "created_at": "2024-08-05T00:00:00Z",
                 }
             ],
-            addresses_id=["ADDRESS_ID_1"],
+            addresses_internal_id=internal_ids(["ADDRESS_ID_1"]),
             event_type="creation",
         )
         # reload the buildings to get the sys_period
@@ -295,7 +296,6 @@ class DiffTest(TransactionTestCase):
             rnb_id="1",
             status="constructed",
             event_type="creation",
-            addresses_id=["ADDRESS_ID_1"],
             addresses_internal_id=[Address.objects.get(id="ADDRESS_ID_1").internal_id],
             shape=geom,
             point=geom.point_on_surface,
@@ -304,7 +304,6 @@ class DiffTest(TransactionTestCase):
             rnb_id="2",
             status="constructed",
             event_type="creation",
-            addresses_id=["ADDRESS_ID_2"],
             addresses_internal_id=[Address.objects.get(id="ADDRESS_ID_2").internal_id],
             shape=geom,
             point=geom.point_on_surface,
@@ -780,7 +779,6 @@ class DiffTest(TransactionTestCase):
                     "created_at": "2024-08-05T00:00:00Z",
                 }
             ],
-            addresses_id=["ADDRESS_ID_1"],
             addresses_internal_id=[Address.objects.get(id="ADDRESS_ID_1").internal_id],
             status="constructed",
             event_type="creation",
@@ -822,14 +820,14 @@ class DiffTest(TransactionTestCase):
 
     def test_diff_addresses_read_from_internal_id(self):
         """
-        Input: buildings whose addresses_internal_id differs on purpose from their
-        addresses_id (non-alphabetical order, empty array, NULL).
+        Input: buildings whose addresses_internal_id is non-alphabetical, an empty
+        array, NULL (addresses_id left NULL on all of them).
         Expected: the addresses_id CSV column is built from addresses_internal_id,
         translated back to "clés d'interopérabilité" in the array order, with the
         exact former to_json() formatting: no space after commas, [] for an empty
         array and an empty field for NULL.
         """
-        internal_ids = dict(Address.objects.values_list("id", "internal_id"))
+        internal_id_by_cle = dict(Address.objects.values_list("id", "internal_id"))
 
         Building.objects.create(rnb_id="t", event_type="creation")
         threshold = Building.objects.get(rnb_id="t").sys_period.lower
@@ -837,22 +835,19 @@ class DiffTest(TransactionTestCase):
         Building.objects.create(
             rnb_id="1",
             event_type="creation",
-            addresses_id=["ADDRESS_ID_1"],
             addresses_internal_id=[
-                internal_ids["ADDRESS_ID_3"],
-                internal_ids["ADDRESS_ID_1"],
+                internal_id_by_cle["ADDRESS_ID_3"],
+                internal_id_by_cle["ADDRESS_ID_1"],
             ],
         )
         Building.objects.create(
             rnb_id="2",
             event_type="creation",
-            addresses_id=["ADDRESS_ID_2"],
             addresses_internal_id=[],
         )
         Building.objects.create(
             rnb_id="3",
             event_type="creation",
-            addresses_id=["ADDRESS_ID_2"],
             addresses_internal_id=None,
         )
 

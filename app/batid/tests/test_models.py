@@ -10,7 +10,7 @@ from batid.exceptions import (
 )
 from batid.models import Address, Building
 from batid.tests.factories.users import ContributorUserFactory
-from batid.tests.helpers import coords_to_mp_geom
+from batid.tests.helpers import addresses_cle_interop, coords_to_mp_geom
 from batid.utils.db import building_versioning_dangerously_disabled
 from batid.utils.misc import ext_ids_equal
 from django.contrib.gis.geos import GEOSGeometry
@@ -555,7 +555,7 @@ class TestSplitBuilding(TestCase):
         self.assertEqual(b1.event_type, "split")
         self.assertEqual(b1.event_user, self.user)
         self.assertFalse(b1.is_active)
-        self.assertEqual(b1.addresses_id, None)
+        self.assertEqual(addresses_cle_interop(b1), None)
 
         # Check child 1 (polygon)
         self.assertIsNotNone(b2.point)
@@ -568,7 +568,7 @@ class TestSplitBuilding(TestCase):
         self.assertEqual(b2.event_type, "split")
         self.assertEqual(b2.event_user, self.user)
         self.assertTrue(b2.is_active)
-        self.assertEqual(b2.addresses_id, [])
+        self.assertEqual(addresses_cle_interop(b2), [])
 
         # Check child 2 (point)
         self.assertEqual(b3.shape.geom_type, "Point")
@@ -580,7 +580,7 @@ class TestSplitBuilding(TestCase):
         self.assertEqual(b3.event_type, "split")
         self.assertEqual(b3.event_user, self.user)
         self.assertTrue(b3.is_active)
-        self.assertEqual(b3.addresses_id, [self.adr1.id])
+        self.assertEqual(addresses_cle_interop(b3), [self.adr1.id])
 
         # Check child 3 (polygon)
         self.assertIsNotNone(b4.point)
@@ -593,7 +593,7 @@ class TestSplitBuilding(TestCase):
         self.assertEqual(b4.event_type, "split")
         self.assertEqual(b4.event_user, self.user)
         self.assertTrue(b4.is_active)
-        self.assertEqual(b4.addresses_id.sort(), [self.adr1.id, self.adr2.id].sort())
+        self.assertCountEqual(addresses_cle_interop(b4), [self.adr1.id, self.adr2.id])
 
     def test_split_a_building_raise(self):
         # create building
@@ -735,9 +735,9 @@ class TestUpdateBuilding(TestCase):
         status = b.status
         shape = b.shape
         ext_ids = b.ext_ids
-        addresses_id = b.addresses_id
+        cles = addresses_cle_interop(b)
         # order shouldn't matter
-        addresses_id.reverse()
+        cles.reverse()
 
         sys_period = b.sys_period
 
@@ -751,7 +751,7 @@ class TestUpdateBuilding(TestCase):
             self.user,
             event_origin={"source": "xxx"},
             status=status,
-            addresses_cle_interop=addresses_id,
+            addresses_cle_interop=cles,
             shape=shape,
             ext_ids=ext_ids,
         )
