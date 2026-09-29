@@ -100,7 +100,7 @@ class BusinessFunctionsStillWorkTestCase(TestCase):
                 user=self.user,
                 event_origin={"source": "test"},
                 status="constructed",
-                addresses_id=[],
+                addresses_cle_interop=[],
                 shape=coords_to_mp_geom(PARIS_COORDS),
                 ext_ids=[],
             )
@@ -110,7 +110,7 @@ class BusinessFunctionsStillWorkTestCase(TestCase):
                 user=self.user,
                 event_origin={"source": "test"},
                 status="notUsable",
-                addresses_id=None,
+                addresses_cle_interop=None,
             )
             building.refresh_from_db()
             self.assertEqual(building.status, "notUsable")

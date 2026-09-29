@@ -782,7 +782,7 @@ class BuildingsWithPlots(APITestCase):
             user=user,
             event_origin={"dummy": "dummy"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             ext_ids=[],
             shape=GEOSGeometry(
                 json.dumps(
@@ -807,7 +807,7 @@ class BuildingsWithPlots(APITestCase):
             user=user,
             event_origin={"dummy": "dummy"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             ext_ids=[],
             shape=GEOSGeometry(
                 json.dumps(

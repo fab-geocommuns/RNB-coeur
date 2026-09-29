@@ -44,7 +44,7 @@ class TestUnitaryRollback(TransactionTestCase):
             user=self.user,
             event_origin={"source": "contribution", "contribution_id": 1},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=self.shape_1,
             ext_ids=[],
         )
@@ -52,7 +52,7 @@ class TestUnitaryRollback(TransactionTestCase):
             user=self.user,
             event_origin={"source": "contribution", "contribution_id": 1},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry("POLYGON((1 0, 1 1, 2 1, 2 0, 1 0))"),
             ext_ids=[],
         )
@@ -80,7 +80,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=None,
             shape=None,
         )
@@ -143,7 +143,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.other_user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=None,
             shape=None,
         )
@@ -172,7 +172,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=[self.address_1.id],
+            addresses_cle_interop=[self.address_1.id],
             ext_ids=ext_ids,
             shape=GEOSGeometry("POINT(0 0)"),
         )
@@ -181,7 +181,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="notUsable",
-            addresses_id=[],
+            addresses_cle_interop=[],
             ext_ids=[{"source": "bdtopo", "id": "YYY"}],
             shape=GEOSGeometry("POINT(0.000000001 0)"),
         )
@@ -207,7 +207,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=None,
             shape=None,
         )
@@ -317,7 +317,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="notUsable",
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=None,
             shape=None,
         )
@@ -339,7 +339,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="constructed",
-            addresses_id=[self.address_1.id],
+            addresses_cle_interop=[self.address_1.id],
         )
         merge_event_id = building.event_id
 
@@ -379,14 +379,14 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="constructed",
-            addresses_id=[self.address_1.id],
+            addresses_cle_interop=[self.address_1.id],
         )
         merge_event_id = building.event_id
         building.update(
             self.user,
             event_origin={"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         building.refresh_from_db()
 
@@ -450,7 +450,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.other_user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=None,
             shape=None,
         )
@@ -475,7 +475,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=None,
             shape=None,
         )
@@ -547,7 +547,7 @@ class TestGlobalRollback(TransactionTestCase):
             user=self.user,
             event_origin={"source": "contribution", "contribution_id": 1},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=self.shape_1,
             ext_ids=[],
         )
@@ -555,7 +555,7 @@ class TestGlobalRollback(TransactionTestCase):
             user=self.user,
             event_origin={"source": "contribution", "contribution_id": 2},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=self.shape_1,
             ext_ids=[],
         )
@@ -563,7 +563,7 @@ class TestGlobalRollback(TransactionTestCase):
             user=self.user,
             event_origin={"source": "contribution", "contribution_id": 3},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry("POLYGON((1 0, 1 1, 2 1, 2 0, 1 0))"),
             ext_ids=[],
         )
@@ -571,7 +571,7 @@ class TestGlobalRollback(TransactionTestCase):
             user=self.other_user,
             event_origin={"source": "contribution", "contribution_id": 4},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=self.shape_1,
             ext_ids=[],
         )
@@ -640,7 +640,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_1.refresh_from_db()
         building_1_update_event_id = self.building_1.event_id
@@ -649,7 +649,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.other_user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
 
         results = rollback_dry_run(self.user, start_time, end_time)
@@ -723,7 +723,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_2.refresh_from_db()
         building_2_edition_1_event_id = self.building_2.event_id
@@ -733,7 +733,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="notUsable",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_2.refresh_from_db()
         building_2_edition_2_event_id = self.building_2.event_id
@@ -805,7 +805,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.other_user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
 
         results = rollback_dry_run(self.user, start_time, end_time)
@@ -833,7 +833,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_2.refresh_from_db()
         building_2_edition_1_event_id = self.building_2.event_id
@@ -843,7 +843,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="notUsable",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_2.refresh_from_db()
         building_2_edition_2_event_id = self.building_2.event_id
@@ -934,7 +934,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_1.refresh_from_db()
 
@@ -1005,7 +1005,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="constructed",
-            addresses_id=[self.address_1.id],
+            addresses_cle_interop=[self.address_1.id],
         )
         merge_event_id = building.event_id
 
@@ -1066,7 +1066,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_2.refresh_from_db()
         next_start_time = self.building_2.sys_period.lower
@@ -1131,7 +1131,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_2.refresh_from_db()
         start_time = self.building_2.sys_period.lower
@@ -1150,7 +1150,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.other_user,
             {"source": "contribution"},
             status="notUsable",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
 
         # building 2 update by user is not rollbackable anymore

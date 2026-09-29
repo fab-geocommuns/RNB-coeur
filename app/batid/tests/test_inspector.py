@@ -381,7 +381,7 @@ class InspectorMergeBuilding(TestCase):
             user=UserFactory(),
             event_origin={"source": "import"},
             status="constructed",
-            addresses_id=["add_1"],
+            addresses_cle_interop=["add_1"],
             shape=shape,
             ext_ids=[
                 {
@@ -481,7 +481,7 @@ class InspectorMergeBuilding(TestCase):
             user=UserFactory(),
             event_origin={"source": "import"},
             status="constructed",
-            addresses_id=["add_1", "add_2", "add_3"],
+            addresses_cle_interop=["add_1", "add_2", "add_3"],
             shape=shape,
             ext_ids=[
                 {

@@ -288,7 +288,7 @@ def find_and_update_bdg(  # type: ignore[return]
         bdg_to_link.update(
             user=get_RNB_team_user(),
             event_origin={"source": "import", "id": bdg_import_id},
-            addresses_id=bdg_addresses,
+            addresses_cle_interop=bdg_addresses,
             status=None,
         )
 

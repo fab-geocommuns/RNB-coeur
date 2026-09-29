@@ -553,7 +553,7 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
             user=UserFactory(username="test_user"),
             event_origin={"source": "test"},
             status=None,
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
 
         # Address is no longer in batid_building but still in history

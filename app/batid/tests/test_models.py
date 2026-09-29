@@ -177,7 +177,7 @@ class TestAddressesInternalId(TestCase):
 
     def test_create_new_fills_addresses_internal_id(self):
         """
-        Input: create_new with addresses_id=[addr1.id, addr2.id].
+        Input: create_new with addresses_cle_interop=[addr1.id, addr2.id].
         Expected: addresses_internal_id mirrors [addr1.internal_id, addr2.internal_id],
         in the same order.
         """
@@ -185,7 +185,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy"},
             status="constructed",
-            addresses_id=[self.addr1.id, self.addr2.id],
+            addresses_cle_interop=[self.addr1.id, self.addr2.id],
             shape=GEOSGeometry("POINT(0 0)"),
             ext_ids=[],
         )
@@ -195,14 +195,14 @@ class TestAddressesInternalId(TestCase):
 
     def test_create_new_with_no_address_gives_empty_list(self):
         """
-        Input: create_new with addresses_id=[].
+        Input: create_new with addresses_cle_interop=[].
         Expected: addresses_internal_id == [], not None.
         """
         b = Building.create_new(
             user=self.user,
             event_origin={"source": "dummy"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry("POINT(0 0)"),
             ext_ids=[],
         )
@@ -217,7 +217,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy"},
             status="constructed",
-            addresses_id=[self.addr1.id],
+            addresses_cle_interop=[self.addr1.id],
             shape=GEOSGeometry("POINT(0 0)"),
             ext_ids=[],
         )
@@ -225,7 +225,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy_update"},
             status=None,
-            addresses_id=[self.addr2.id],
+            addresses_cle_interop=[self.addr2.id],
         )
         b.refresh_from_db()
         self.assertEqual(b.addresses_internal_id, [self.addr2.internal_id])
@@ -234,7 +234,7 @@ class TestAddressesInternalId(TestCase):
         """
         Input: a building whose addresses_internal_id was left NULL (simulating a row
         written before this fill logic existed), then update() changing only status
-        (addresses_id=None, i.e. not touched).
+        (addresses_cle_interop=None, i.e. not touched).
         Expected: addresses_internal_id is synced to match the existing addresses_id, as
         an incidental side effect of any write going through _dangerously_save_forever().
         """
@@ -242,7 +242,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy"},
             status="constructed",
-            addresses_id=[self.addr1.id],
+            addresses_cle_interop=[self.addr1.id],
             shape=GEOSGeometry("POINT(0 0)"),
             ext_ids=[],
         )
@@ -260,14 +260,14 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy_update"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         b.refresh_from_db()
         self.assertEqual(b.addresses_internal_id, [self.addr1.internal_id])
 
     def test_merge_fills_addresses_internal_id(self):
         """
-        Input: merge() of two buildings with addresses_id=[addr1.id, addr2.id].
+        Input: merge() of two buildings with addresses_cle_interop=[addr1.id, addr2.id].
         Expected: the merged building's addresses_internal_id mirrors
         [addr1.internal_id, addr2.internal_id].
         """
@@ -344,7 +344,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy"},
             status="constructed",
-            addresses_id=[self.addr1.id],
+            addresses_cle_interop=[self.addr1.id],
             shape=GEOSGeometry("POINT(0 0)"),
             ext_ids=[],
         )
@@ -616,7 +616,7 @@ class TestUpdateBuilding(TestCase):
             user=self.user,
             event_origin={"source": "dummy_creation"},
             status="constructed",
-            addresses_id=["addr1", "addr2"],
+            addresses_cle_interop=["addr1", "addr2"],
             shape=GEOSGeometry(
                 json.dumps(
                     {
@@ -653,7 +653,7 @@ class TestUpdateBuilding(TestCase):
             user=self.user,
             status="demolished",
             event_origin={"source": "dummy_update"},
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
 
         b.refresh_from_db()
@@ -673,13 +673,16 @@ class TestUpdateBuilding(TestCase):
         sys_period = b.sys_period
 
         b.update(
-            self.user, event_origin={"source": "xxx"}, status=status, addresses_id=None
+            self.user,
+            event_origin={"source": "xxx"},
+            status=status,
+            addresses_cle_interop=None,
         )
         b.update(
             self.user,
             event_origin={"source": "xxx"},
             status=status,
-            addresses_id=addresses_id,
+            addresses_cle_interop=addresses_id,
             shape=shape,
             ext_ids=ext_ids,
         )
@@ -692,7 +695,7 @@ class TestUpdateBuilding(TestCase):
                 self.user,
                 event_origin={"source": "xxx"},
                 status=None,
-                addresses_id=None,
+                addresses_cle_interop=None,
                 shape=GEOSGeometry(
                     "POLYGON((0 0, 0 0.00001, 0.0001 0.0001, 0.0001 0, 0 0))"
                 ),
@@ -722,7 +725,7 @@ class TestUpdateBuilding(TestCase):
             event_origin={"source": "test"},
             shape=new_poly,
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
 
     def updating_point_to_far_big_poly_raises(self):
@@ -752,7 +755,7 @@ class TestUpdateBuilding(TestCase):
                 event_origin={"source": "test"},
                 shape=new_mp,
                 status=None,
-                addresses_id=None,
+                addresses_cle_interop=None,
             )
 
 
@@ -786,7 +789,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status="constructed",
-            addresses_id=["addr1", "addr2"],
+            addresses_cle_interop=["addr1", "addr2"],
             shape=GEOSGeometry(self.SHAPE_JSON),
             ext_ids=[],
         )
@@ -798,7 +801,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
                 user=user,
                 event_origin={"source": "test"},
                 status=None,
-                addresses_id=None,
+                addresses_cle_interop=None,
                 validate=True,
             )
         b.refresh_from_db()
@@ -817,7 +820,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         b.refresh_from_db()
         self.assertEqual(b.validated_by, [])
@@ -837,7 +840,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             validate=True,
         )
         b.refresh_from_db()
@@ -856,7 +859,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             validate=False,
         )
         b.refresh_from_db()
@@ -875,7 +878,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             validate=True,
         )
         b.refresh_from_db()
@@ -896,7 +899,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             validate=False,
         )
         b.refresh_from_db()
@@ -920,7 +923,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             validate=False,
         )
         b.refresh_from_db()
@@ -944,7 +947,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             validate=None,
         )
         b.refresh_from_db()
@@ -964,7 +967,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             validate=True,
         )
         b.refresh_from_db()
@@ -974,7 +977,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.other_user,
             event_origin={"source": "test"},
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             validate=True,
         )
         b.refresh_from_db()
@@ -1009,7 +1012,7 @@ class TestCreateNewBuildingMarkedAsCorrect(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=self.SHAPE,
             ext_ids=[],
             **kwargs,

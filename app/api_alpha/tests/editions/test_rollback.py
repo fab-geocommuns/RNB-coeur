@@ -36,7 +36,7 @@ class RollbackEventViewTest(APITransactionTestCase):
             user=self.author,
             event_origin={"source": "contribution"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry("POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"),
             ext_ids=[],
         )

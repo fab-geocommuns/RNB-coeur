@@ -30,7 +30,7 @@ class TestSummerChallengeRanking(APITestCase):
             user=user_1,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry(
                 json.dumps(
                     {
@@ -55,7 +55,7 @@ class TestSummerChallengeRanking(APITestCase):
             user_2,
             event_origin=None,
             status=None,
-            addresses_id=["addr1", "addr2"],
+            addresses_cle_interop=["addr1", "addr2"],
             shape=None,
         )
 
@@ -64,7 +64,7 @@ class TestSummerChallengeRanking(APITestCase):
             user=user_1,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry(
                 json.dumps(
                     {
@@ -89,7 +89,7 @@ class TestSummerChallengeRanking(APITestCase):
             user_3,
             event_origin=None,
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             shape=None,
         )
 

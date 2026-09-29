@@ -201,7 +201,7 @@ class Inspector:
                 user=get_RNB_team_user(),
                 event_origin=changes.get("event_origin"),
                 status=None,
-                addresses_id=changes.get("addresses_id"),
+                addresses_cle_interop=changes.get("addresses_cle_interop"),
                 ext_ids=changes.get("ext_ids"),
                 shape=changes.get("shape"),
             )
@@ -258,7 +258,7 @@ class Inspector:
 
         if candidate_addresses - bdg_addresses:
             # update the addresses with the new ones
-            changes["addresses_id"] = list(bdg_addresses | candidate_addresses)  # type: ignore
+            changes["addresses_cle_interop"] = list(bdg_addresses | candidate_addresses)  # type: ignore
 
         if changes:
             changes["event_origin"] = self.candidate.created_by
@@ -354,7 +354,7 @@ def create_building_from_candidate(c: Candidate) -> Building:
         user=get_RNB_team_user(),
         event_origin=c.created_by,
         status="constructed",
-        addresses_id=c.address_keys or [],
+        addresses_cle_interop=c.address_keys or [],
         shape=c.shape,  # type: ignore
         ext_ids=[
             {
