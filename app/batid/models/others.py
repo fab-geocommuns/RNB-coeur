@@ -16,6 +16,10 @@ from django.db.models import F, Func, Value
 
 
 class BuildingAddressesReadOnly(models.Model):
+    # Transitional: building <> address join table built from the addresses_id
+    # mirror (BAN interop keys) by the keep_building_address_link_updated()
+    # trigger. Not read anymore: use BuildingAddressesInternalIdReadOnly.
+    # To be deleted along with addresses_id.
     building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
     address = models.ForeignKey("Address", on_delete=models.CASCADE, db_index=True)
 
@@ -24,11 +28,9 @@ class BuildingAddressesReadOnly(models.Model):
 
 
 class BuildingAddressesInternalIdReadOnly(models.Model):
-    # mirrors BuildingAddressesReadOnly, but keyed on batid_address.internal_id
-    # instead of the BAN interop key (see specs/migration_lien_batiment_adresse.md).
-    # Kept in sync with Building.addresses_internal_id by the same
-    # keep_building_address_link_updated() trigger that maintains
-    # BuildingAddressesReadOnly from addresses_id.
+    # building <> address join table, keyed on batid_address.internal_id. Kept in
+    # sync with Building.addresses_internal_id by the
+    # keep_building_address_link_updated() trigger.
     building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
     address = models.ForeignKey(
         "Address", on_delete=models.CASCADE, to_field="internal_id", db_index=True
