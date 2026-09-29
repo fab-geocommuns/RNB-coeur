@@ -95,10 +95,8 @@ class BuildingAbstract(models.Model):
     revert_event_id = models.UUIDField(null=True, db_index=True)
     # only currently active buildings are considered part of the RNB
     is_active = models.BooleanField(db_index=True, default=True)
-    # Transitional mirror of addresses_internal_id, as BAN ids (clé
-    # d'interopérabilité). Derived from addresses_internal_id on every write by
-    # Building._dangerously_save_forever(): never write it directly. To be
-    # dropped (see specs/migration_lien_batiment_adresse.md, PR 9).
+    # contains clés d'interoperabilité
+    # to be deleted soon, when transition to addresses_internal_id is complete
     addresses_id = ArrayField(models.CharField(max_length=40), null=True)
     # the source of truth for the building <> address link
     # it contains batid_address.internal_id values
@@ -164,7 +162,7 @@ class Building(BuildingAbstract):
 
     # this only exists to make it possible for the Django ORM to access the associated addresses
     # but this field is read-only : you should not attempt to save a building/address association through this field
-    # use the business functions (create_new, update, ...), which write addresses_internal_id.
+    # use the business functions (create_new, update, ...), which write in the correct place (addresses_internal_id).
     addresses_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
         "Address",
         blank=True,
@@ -209,8 +207,7 @@ class Building(BuildingAbstract):
         history permanently, nothing is ever erased.
         """
         # Transitional: addresses_id mirrors addresses_internal_id as BAN interop
-        # keys. Delete this line once addresses_id is dropped (see
-        # specs/migration_lien_batiment_adresse.md, PR 9).
+        # keys. Delete this line once addresses_id is dropped
         self.addresses_id = Address.cle_interop_from_internal_ids(
             self.addresses_internal_id
         )

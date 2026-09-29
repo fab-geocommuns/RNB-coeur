@@ -253,10 +253,9 @@ class Address(models.Model):
         Used to read the building <> address link from addresses_internal_id while
         the rest of the code (API contract, business functions) still speaks interop
         keys, and to fill the transitional addresses_id mirror in
-        Building._dangerously_save_forever(). An id without matching address,
-        including a positional NULL left in batid_building_history by its backfill,
-        raises DatabaseInconsistency.
+        Building._dangerously_save_forever().
         """
+
         if internal_ids is None:
             return None
 
