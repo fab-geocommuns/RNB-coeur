@@ -343,7 +343,13 @@ def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
     """Delete obsolete addresses (still_exists=False) that are not linked
     to any building (current or historical).
 
-    Uses the @> operator to leverage the GIN index on addresses_id.
+    The link is checked on addresses_internal_id (bigint[]) against
+    batid_address.internal_id (bigint), so that the @> operator can use the
+    GIN indexes on addresses_internal_id (batid_building and
+    batid_building_history).
+
+    Warning: the protection trigger is disabled during the run, so this relies
+    on addresses_internal_id being complete on both tables.
     """
     total_deleted = 0
 
@@ -367,7 +373,7 @@ def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
                         WHERE a.still_exists = False
                         AND NOT EXISTS (
                             SELECT 1 FROM batid_building_with_history b
-                            WHERE b.addresses_id @> ARRAY[a.id]
+                            WHERE b.addresses_internal_id @> ARRAY[a.internal_id]
                         )
                         LIMIT %s
                     )

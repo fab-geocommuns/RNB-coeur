@@ -14,6 +14,7 @@ from batid.services.imports.update_addresses_ban import (
 )
 from batid.tests.factories.users import UserFactory
 from django.contrib.gis.geos import Point
+from django.db import connection
 from django.test import TestCase, TransactionTestCase
 
 
@@ -522,7 +523,28 @@ class TestUpdateAddressesTextAndBanIdDuplicateBanId(TestCase):
 
 
 class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
+    @staticmethod
+    def _link_addresses(bdg, addresses_id):
+        # bdg.save() is Django's native save (tests only): it bypasses the app
+        # hook filling addresses_internal_id, so both columns are set here.
+        bdg.addresses_id = addresses_id
+        bdg.addresses_internal_id = Address.internal_ids_from_cle_interop(addresses_id)
+        bdg.save()
+
+    @staticmethod
+    def _protection_trigger_enabled_state():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT tgenabled FROM pg_trigger "
+                "WHERE tgname = 'prevent_delete_linked_address_trigger'"
+            )
+            return cursor.fetchone()[0]
+
     def test_obsolete_address_not_linked_is_deleted(self):
+        """
+        Input: an obsolete address (still_exists=False) referenced by no building.
+        Expected: the address is deleted, 1 deletion reported.
+        """
         Address.objects.create(id="04001_old_00001", source="ban", still_exists=False)
 
         deleted = delete_unlinked_obsolete_addresses()
@@ -531,10 +553,13 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         self.assertFalse(Address.objects.filter(id="04001_old_00001").exists())
 
     def test_obsolete_address_linked_to_current_building_is_kept(self):
+        """
+        Input: an obsolete address referenced by a current building.
+        Expected: the address is kept, 0 deletion reported.
+        """
         Address.objects.create(id="04001_old_00002", source="ban", still_exists=False)
         bdg = helpers.create_default_bdg()
-        bdg.addresses_id = ["04001_old_00002"]
-        bdg.save()
+        self._link_addresses(bdg, ["04001_old_00002"])
 
         deleted = delete_unlinked_obsolete_addresses()
 
@@ -542,10 +567,14 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         self.assertTrue(Address.objects.filter(id="04001_old_00002").exists())
 
     def test_obsolete_address_linked_to_building_history_is_kept(self):
+        """
+        Input: an obsolete address referenced only by a past version of a
+        building (the building was then updated to drop it).
+        Expected: the address is kept, 0 deletion reported.
+        """
         Address.objects.create(id="04001_old_00003", source="ban", still_exists=False)
         bdg = helpers.create_default_bdg()
-        bdg.addresses_id = ["04001_old_00003"]
-        bdg.save()
+        self._link_addresses(bdg, ["04001_old_00003"])
 
         # Update building with empty addresses — the trigger saves the old
         # version (with the address) to batid_building_history
@@ -559,6 +588,7 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         # Address is no longer in batid_building but still in history
         bdg.refresh_from_db()
         self.assertEqual(bdg.addresses_id, [])
+        self.assertEqual(bdg.addresses_internal_id, [])
 
         deleted = delete_unlinked_obsolete_addresses()
 
@@ -566,9 +596,68 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         self.assertTrue(Address.objects.filter(id="04001_old_00003").exists())
 
     def test_address_with_still_exists_true_is_not_touched(self):
+        """
+        Input: an address still existing in the BAN (still_exists=True),
+        referenced by no building.
+        Expected: the address is kept, 0 deletion reported.
+        """
         Address.objects.create(id="04001_ok_00001", source="ban", still_exists=True)
 
         deleted = delete_unlinked_obsolete_addresses()
 
         self.assertEqual(deleted, {"deleted_addresses": 0})
         self.assertTrue(Address.objects.filter(id="04001_ok_00001").exists())
+
+    def test_mixed_addresses_over_several_batches(self):
+        """
+        Input: 3 unlinked obsolete addresses, 1 obsolete address linked to a
+        building, 1 unlinked still existing address, batch_size=1.
+        Expected: only the 3 unlinked obsolete addresses are deleted (over
+        several batches), 3 deletions reported.
+        """
+        for i in range(1, 4):
+            Address.objects.create(
+                id=f"04001_old_1000{i}", source="ban", still_exists=False
+            )
+        Address.objects.create(id="04001_old_10004", source="ban", still_exists=False)
+        Address.objects.create(id="04001_ok_10005", source="ban", still_exists=True)
+        bdg = helpers.create_default_bdg()
+        self._link_addresses(bdg, ["04001_old_10004"])
+
+        deleted = delete_unlinked_obsolete_addresses(batch_size=1)
+
+        self.assertEqual(deleted, {"deleted_addresses": 3})
+        self.assertEqual(
+            set(Address.objects.values_list("id", flat=True)),
+            {"04001_old_10004", "04001_ok_10005"},
+        )
+
+    def test_protection_trigger_is_enabled_after_run(self):
+        """
+        Input: one unlinked obsolete address, then a run of the function.
+        Expected: the prevent_delete_linked_address_trigger is enabled again
+        after the run (tgenabled = 'O').
+        """
+        Address.objects.create(id="04001_old_00004", source="ban", still_exists=False)
+
+        delete_unlinked_obsolete_addresses()
+
+        self.assertEqual(self._protection_trigger_enabled_state(), "O")
+
+    def test_protection_trigger_is_enabled_after_failure(self):
+        """
+        Input: a run of the function interrupted by an error raised after the
+        first deletion batch.
+        Expected: the error is propagated and the
+        prevent_delete_linked_address_trigger is enabled again (tgenabled = 'O').
+        """
+        Address.objects.create(id="04001_old_00005", source="ban", still_exists=False)
+
+        with patch(
+            "batid.services.imports.update_addresses_ban.logger.info",
+            side_effect=RuntimeError("boom"),
+        ):
+            with self.assertRaises(RuntimeError):
+                delete_unlinked_obsolete_addresses()
+
+        self.assertEqual(self._protection_trigger_enabled_state(), "O")
