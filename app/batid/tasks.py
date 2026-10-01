@@ -25,7 +25,7 @@ from batid.services.imports.import_bal import (
 from batid.services.imports.import_ban import (
     create_ban_full_import_tasks,
     import_ban_addresses,
-    update_all_cities_ban_ids_reliability,
+    update_dpt_cities_ban_ids_reliability,
 )
 from batid.services.imports.import_bdnb_2023_01 import (
     import_bdnd_2023_01_addresses,
@@ -431,12 +431,10 @@ def import_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[
     return import_ban_addresses(src_params, bulk_launch_uuid)
 
 
-# No autoretry here: failures are handled city by city inside the job and a
-# retry would query the BAN API for all the cities again
 @notify_if_error
-@shared_task
-def update_cities_ban_ids_reliability():
-    return update_all_cities_ban_ids_reliability()
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def update_cities_ban_ids_reliability(dpt: str):
+    return update_dpt_cities_ban_ids_reliability(dpt)
 
 
 @notify_if_error
