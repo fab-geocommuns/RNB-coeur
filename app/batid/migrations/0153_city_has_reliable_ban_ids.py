@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('batid', '0152_check_address_is_linked_internal_id'),
+        ("batid", "0152_check_address_is_linked_internal_id"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='city',
-            name='has_reliable_ban_ids',
+            model_name="city",
+            name="has_reliable_ban_ids",
             field=models.BooleanField(null=True),
         ),
     ]
