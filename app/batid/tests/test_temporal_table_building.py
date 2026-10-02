@@ -74,8 +74,7 @@ class TemporalTableCase(TransactionTestCase):
         addresses_internal_id was added to both batid_building and
         batid_building_history (same name, same type). If the types ever
         diverged, the versioning trigger would fail with a datatype_mismatch
-        on every write (see specs/migration_lien_batiment_adresse.md,
-        contrainte n°1) — this checks the column round-trips through the
+        on every write — this checks the column round-trips through the
         trigger like any other field.
         """
         a1 = Address.objects.create(id="address_1")

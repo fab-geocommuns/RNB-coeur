@@ -1,5 +1,5 @@
-# PR 6 of the migration of the building <-> address link towards an internal
-# key (see specs/migration_lien_batiment_adresse.md).
+# Step of the migration of the building <-> address link towards an internal
+# key.
 #
 # New join table, mirroring batid_buildingaddressesreadonly but keyed on
 # batid_address.internal_id instead of the BAN interop key. Kept in sync from
