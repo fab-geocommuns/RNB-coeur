@@ -268,14 +268,6 @@ class Inspector:
         return changes
 
 
-# Do not use this function anymore: it modifies a building without going through
-# the RNB business functions (create_new, update, deactivate...). Any call will
-# fail with a ForbiddenDjangoNativeFunction error.
-def add_addresses_to_building(bdg: Building, add_keys):
-    bdg.addresses_id = add_keys
-    bdg.save()
-
-
 def match_shapes(
     a: GEOSGeometry, b: GEOSGeometry
 ) -> Literal["match", "no_match", "conflict"]:

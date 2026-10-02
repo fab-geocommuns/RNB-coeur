@@ -146,7 +146,7 @@ class LeaderboardQueryTestCase(TestCase):
             event_origin={"source": "import"},
             event_user=None,
             is_active=True,
-            addresses_id=[],
+            addresses_internal_id=[],
             ext_ids=[],
         )
 

@@ -95,13 +95,11 @@ class BuildingAbstract(models.Model):
     revert_event_id = models.UUIDField(null=True, db_index=True)
     # only currently active buildings are considered part of the RNB
     is_active = models.BooleanField(db_index=True, default=True)
-    # this field is the source of truth for the building <> address link
-    # it contains BAN ids (clé d'interopérabilité)
+    # contains clés d'interoperabilité
+    # to be deleted soon, when transition to addresses_internal_id is complete
     addresses_id = ArrayField(models.CharField(max_length=40), null=True)
-    # mirrors addresses_id as batid_address.internal_id values (see
-    # specs/migration_lien_batiment_adresse.md). Kept in sync on every write by
-    # Building._dangerously_save_forever(). Existing rows written before this
-    # was added are not backfilled yet: that's a separate PR.
+    # the source of truth for the building <> address link
+    # it contains batid_address.internal_id values
     addresses_internal_id = ArrayField(models.BigIntegerField(), null=True)
     validated_by = ArrayField(models.IntegerField(), null=True, default=list)
 
@@ -164,7 +162,7 @@ class Building(BuildingAbstract):
 
     # this only exists to make it possible for the Django ORM to access the associated addresses
     # but this field is read-only : you should not attempt to save a building/address association through this field
-    # use addresses_id instead.
+    # use the business functions (create_new, update, ...), which write in the correct place (addresses_internal_id).
     addresses_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
         "Address",
         blank=True,
@@ -208,11 +206,10 @@ class Building(BuildingAbstract):
         functions of this class. "Forever" is literal: any write enters the RNB
         history permanently, nothing is ever erased.
         """
-        # Transitional: addresses_internal_id mirrors addresses_id as
-        # batid_address.internal_id values. Delete this line once addresses_id is
-        # dropped (see specs/migration_lien_batiment_adresse.md, PR 9).
-        self.addresses_internal_id = Address.internal_ids_from_cle_interop(
-            self.addresses_id
+        # Transitional: addresses_id mirrors addresses_internal_id as BAN interop
+        # keys. Delete this line once addresses_id is dropped
+        self.addresses_id = Address.cle_interop_from_internal_ids(
+            self.addresses_internal_id
         )
         super().save(*args, **kwargs)
 
@@ -462,7 +459,11 @@ class Building(BuildingAbstract):
             (status is None or status == self.status)
             and (
                 addresses_cle_interop is None
-                or set(addresses_cle_interop) == set(self.addresses_id or [])
+                or set(addresses_cle_interop)
+                == set(
+                    Address.cle_interop_from_internal_ids(self.addresses_internal_id)
+                    or []
+                )
             )
             and (ext_ids is None or ext_ids == self.ext_ids)
             and (shape is None or shape == self.shape)
@@ -527,14 +528,17 @@ class Building(BuildingAbstract):
 
         if addresses_cle_interop is not None:
             Address.add_addresses_to_db_if_needed(addresses_cle_interop)
+            addresses_internal_id = Address.internal_ids_from_cle_interop(
+                addresses_cle_interop
+            )
 
             # Summer Challenge!
-            if self.addresses_id != addresses_cle_interop:
+            if self.addresses_internal_id != addresses_internal_id:
                 SummerChallenge.score_address(
                     user, self.point, self.rnb_id, self.event_id
                 )
 
-            self.addresses_id = addresses_cle_interop
+            self.addresses_internal_id = addresses_internal_id
 
         # Summer Challenge!
         if newly_validated:
@@ -593,7 +597,9 @@ class Building(BuildingAbstract):
         building_to_revert.is_active = (
             building_prior_version.is_active
         )  # expected to be True anyway
-        building_to_revert.addresses_id = building_prior_version.addresses_id
+        building_to_revert.addresses_internal_id = (
+            building_prior_version.addresses_internal_id
+        )
         building_to_revert._dangerously_save_forever()
 
         return new_event_id
@@ -671,6 +677,10 @@ class Building(BuildingAbstract):
             # Summer Challenge!
             SummerChallenge.score_address(user, point, rnb_id, event_id)
 
+        addresses_internal_id = Address.internal_ids_from_cle_interop(
+            addresses_cle_interop
+        )
+
         building = Building(
             rnb_id=rnb_id,
             point=point,
@@ -682,7 +692,7 @@ class Building(BuildingAbstract):
             event_type=EventType.CREATION.value,
             event_user=user,
             is_active=True,
-            addresses_id=addresses_cle_interop,
+            addresses_internal_id=addresses_internal_id,
             validated_by=[user.id] if is_valid else [],
         )
         building._dangerously_save_forever()
@@ -720,6 +730,9 @@ class Building(BuildingAbstract):
 
         if addresses_cle_interop is not None:
             Address.add_addresses_to_db_if_needed(addresses_cle_interop)
+        addresses_internal_id = Address.internal_ids_from_cle_interop(
+            addresses_cle_interop
+        )
 
         def remove_existing_builing(building):
             building.is_active = False
@@ -743,7 +756,7 @@ class Building(BuildingAbstract):
         building.event_user = user
         building.event_origin = event_origin
         building.parent_buildings = parent_buildings
-        building.addresses_id = addresses_cle_interop
+        building.addresses_internal_id = addresses_internal_id
         building.shape = merged_shape
         building.point = merged_shape.point_on_surface
         building.ext_ids = merged_ext_ids
@@ -861,7 +874,9 @@ class Building(BuildingAbstract):
             child_building.event_user = user
             child_building.event_origin = event_origin
             child_building.parent_buildings = [self.rnb_id]
-            child_building.addresses_id = addresses_cle_interop
+            child_building.addresses_internal_id = (
+                Address.internal_ids_from_cle_interop(addresses_cle_interop)
+            )
             child_building.shape = geos_shape
             child_building.point = geos_shape.point_on_surface
             child_building.ext_ids = self.ext_ids

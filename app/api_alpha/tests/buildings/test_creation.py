@@ -4,6 +4,7 @@ from unittest import mock
 
 from batid.models import Address, Building, Contribution, SummerChallenge, Trophy
 from batid.tests.factories.users import ContributorUserFactory
+from batid.tests.helpers import addresses_cle_interop
 from django.test import override_settings
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
@@ -140,7 +141,7 @@ class BuildingPostTest(APITestCase):
         building = Building.objects.get(rnb_id=res["rnb_id"])
 
         self.assertEqual(r.status_code, 201)
-        self.assertEqual(building.addresses_id, ["cle_interop_1"])
+        self.assertEqual(addresses_cle_interop(building), ["cle_interop_1"])
 
     @override_settings(MAX_BUILDING_AREA=float("inf"))
     @mock.patch("batid.models.requests.get")

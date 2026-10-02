@@ -12,6 +12,7 @@ from batid.services.imports.import_bal import (
 )
 from batid.services.rnb_id import generate_rnb_id
 from batid.tests.factories.users import UserFactory
+from batid.tests.helpers import addresses_cle_interop
 from django.contrib.gis.geos import GEOSGeometry, Point
 from django.test import TestCase, TransactionTestCase
 from nanoid import generate
@@ -44,7 +45,6 @@ class BALImport(TransactionTestCase):
 
         b_one = Building.objects.create(
             rnb_id="ONE",
-            addresses_id=["OLD_ON_ONE"],
             addresses_internal_id=[old_on_one.internal_id],
             status="constructed",
             shape=GEOSGeometry(
@@ -122,7 +122,9 @@ class BALImport(TransactionTestCase):
         bdg_one = Building.objects.get(rnb_id="ONE")
         new_updated_at = bdg_one.updated_at
 
-        self.assertListEqual(bdg_one.addresses_id, ["OLD_ON_ONE", "GO_ON_ONE"])
+        self.assertListEqual(
+            addresses_cle_interop(bdg_one), ["OLD_ON_ONE", "GO_ON_ONE"]
+        )
         self.assertDictEqual(
             bdg_one.event_origin, {"source": "import", "id": report.id}
         )
@@ -131,7 +133,7 @@ class BALImport(TransactionTestCase):
         self.assertNotEqual(old_updated_at, new_updated_at)
 
         bdg_two = Building.objects.get(rnb_id="TWO")
-        self.assertListEqual(bdg_two.addresses_id, ["GO_ON_TWO"])
+        self.assertListEqual(addresses_cle_interop(bdg_two), ["GO_ON_TWO"])
         self.assertDictEqual(
             bdg_two.event_origin, {"source": "import", "id": report.id}
         )
@@ -202,11 +204,11 @@ class BALImport(TransactionTestCase):
 
         # THREE was linked via the bâtiment row
         bdg_three = Building.objects.get(rnb_id="THREE")
-        self.assertIn("FILTERED_CLE", bdg_three.addresses_id)
+        self.assertIn("FILTERED_CLE", addresses_cle_interop(bdg_three))
 
         # FOUR was NOT linked — the entrée row was filtered out
         bdg_four = Building.objects.get(rnb_id="FOUR")
-        self.assertFalse(bdg_four.addresses_id)
+        self.assertFalse(addresses_cle_interop(bdg_four))
 
 
 class BALImportWithUnknownCleInterop(TestCase):
@@ -552,12 +554,10 @@ class LinkSearch(TestCase):
                     }
                 )
             ),
-            addresses_id=["1234"],
             addresses_internal_id=[address.internal_id],
         )
 
         # Second version has the address removed
-        bdg.addresses_id = []
         bdg.addresses_internal_id = []
         bdg.save()
 
@@ -603,7 +603,6 @@ class LinkSearch(TestCase):
                     }
                 )
             ),
-            addresses_id=["1234"],
             addresses_internal_id=[address.internal_id],
         )
 
@@ -1161,7 +1160,6 @@ class LinkSearch(TestCase):
 
         # Second run : building has now the address linked
         bdg = Building.objects.get(rnb_id="GOOD")
-        bdg.addresses_id = ["DUMMY"]
         bdg.addresses_internal_id = [address.internal_id]
         bdg.save()
 
@@ -1170,7 +1168,6 @@ class LinkSearch(TestCase):
 
         # Third run : building has had the address in the past
         bdg = Building.objects.get(rnb_id="GOOD")
-        bdg.addresses_id = []
         bdg.addresses_internal_id = []
         bdg.save()
 
