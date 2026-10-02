@@ -1,9 +1,5 @@
 # app/dbrouters.py
-from batid.models import (
-    BuildingAddressesReadOnly,
-    BuildingHistoryOnly,
-    BuildingWithHistory,
-)
+from batid.models import BuildingHistoryOnly, BuildingWithHistory
 
 
 class DBRouter(object):
@@ -11,8 +7,4 @@ class DBRouter(object):
 
         if model == BuildingWithHistory or model == BuildingHistoryOnly:
             raise Exception("BuildingWithHistory model is read only!")
-        if model == BuildingAddressesReadOnly:
-            raise Exception(
-                "BuildingAddressesReadOnly model is read only, as the name suggests!"
-            )
         return None

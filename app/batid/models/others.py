@@ -15,18 +15,6 @@ from django.contrib.postgres.fields import ArrayField
 from django.db.models import F, Func, Value
 
 
-class BuildingAddressesReadOnly(models.Model):
-    # Transitional: building <> address join table built from the addresses_id
-    # mirror (BAN interop keys) by the keep_building_address_link_updated()
-    # trigger. Not read anymore: use BuildingAddressesInternalIdReadOnly.
-    # To be deleted along with addresses_id.
-    building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
-    address = models.ForeignKey("Address", on_delete=models.CASCADE, db_index=True)
-
-    class Meta:
-        unique_together = ("building", "address")
-
-
 class BuildingAddressesInternalIdReadOnly(models.Model):
     # building <> address join table, keyed on batid_address.internal_id. Kept in
     # sync with Building.addresses_internal_id by the
@@ -204,9 +192,9 @@ class Address(models.Model):
         ]
 
     @staticmethod
-    def add_addresses_to_db_if_needed(addresses_id: list[str]) -> None:
+    def add_addresses_to_db_if_needed(addresses_cle_interop: list[str]) -> None:
         """given a list of "clés d'interopérabilité BAN", we add those addresses to our Address table if they don't exist yet."""
-        for address_id in addresses_id:
+        for address_id in addresses_cle_interop:
             Address.add_address_to_db_if_needed(address_id)
 
     @staticmethod
@@ -254,8 +242,7 @@ class Address(models.Model):
 
         Used to read the building <> address link from addresses_internal_id while
         the rest of the code (API contract, business functions) still speaks interop
-        keys, and to fill the transitional addresses_id mirror in
-        Building._dangerously_save_forever().
+        keys.
         """
 
         if internal_ids is None:
