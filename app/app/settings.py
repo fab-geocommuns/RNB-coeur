@@ -310,11 +310,9 @@ BLOCKED_IPS = os.environ.get("BLOCKED_IPS", "").split(",")
 URL = os.environ.get("URL")
 
 
-# Mattermost
-MATTERMOST_NOTIFICATIONS = (
-    True
-    if os.environ.get("MATTERMOST_NOTIFICATIONS") in ("true", "1", "True")
-    else False
+# Tchap (tech team notifications, see batid/services/tchap.py)
+TCHAP_NOTIFICATIONS = (
+    True if os.environ.get("TCHAP_NOTIFICATIONS") in ("true", "1", "True") else False
 )
 
 sentry_dsn = os.environ.get("SENTRY_DSN", None)
