@@ -212,21 +212,18 @@ class CountRealBuildingsWithoutAddress(TestCase):
         Building.objects.create(
             rnb_id="r1",
             status="constructed",
-            addresses_id=["one", "two"],
             addresses_internal_id=[one.internal_id, two.internal_id],
         )
         # test empty array
         Building.objects.create(
             rnb_id="r2",
             status="notUsable",
-            addresses_id=[],
             addresses_internal_id=[],
         )
         # test None
         Building.objects.create(
             rnb_id="r3",
             status="notUsable",
-            addresses_id=None,
             addresses_internal_id=None,
         )
 
@@ -235,7 +232,6 @@ class CountRealBuildingsWithoutAddress(TestCase):
             rnb_id="3",
             status="constructed",
             is_active=False,
-            addresses_id=["one"],
             addresses_internal_id=[one.internal_id],
         )
         Building.objects.create(rnb_id="4", status="demolished", is_active=True)

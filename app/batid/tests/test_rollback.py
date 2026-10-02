@@ -15,6 +15,7 @@ from batid.models.building import (
 )
 from batid.models.others import DataFix, UserProfile
 from batid.services.rollback import rollback, rollback_dry_run, rollback_event
+from batid.tests.helpers import addresses_cle_interop
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase, override_settings
@@ -71,7 +72,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertNotEqual(self.building_1.event_id, creation_event_id)
         self.assertEqual(self.building_1.event_origin, {"source": "rollback"})
         self.assertEqual(self.building_1.status, "constructed")
-        self.assertEqual(self.building_1.addresses_id, [])
+        self.assertEqual(addresses_cle_interop(self.building_1), [])
         self.assertEqual(self.building_1.shape, self.shape_1)
 
     def test_revert_creation_impossible(self):
@@ -132,7 +133,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertNotEqual(self.building_1.event_id, deactivation_event_id)
         self.assertEqual(self.building_1.event_origin, {"source": "rollback"})
         self.assertEqual(self.building_1.status, "constructed")
-        self.assertEqual(self.building_1.addresses_id, [])
+        self.assertEqual(addresses_cle_interop(self.building_1), [])
         self.assertEqual(self.building_1.shape, self.shape_1)
 
     def test_revert_deactivation_already_done(self):
@@ -198,7 +199,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertNotEqual(self.building_1.event_id, update_event_id)
         self.assertEqual(self.building_1.event_origin, {"source": "rollback"})
         self.assertEqual(self.building_1.status, "demolished")
-        self.assertEqual(self.building_1.addresses_id, [self.address_1.id])
+        self.assertEqual(addresses_cle_interop(self.building_1), [self.address_1.id])
         self.assertEqual(self.building_1.ext_ids, ext_ids)
         self.assertEqual(self.building_1.shape.wkt, GEOSGeometry("POINT(0 0)").wkt)
 
@@ -270,7 +271,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertNotEqual(new_event_id, split_event_id)
         self.assertEqual(self.building_1.event_origin, {"source": "rollback"})
         self.assertEqual(self.building_1.status, "constructed")
-        self.assertEqual(self.building_1.addresses_id, [])
+        self.assertEqual(addresses_cle_interop(self.building_1), [])
         self.assertEqual(
             self.building_1.shape.wkt,
             GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))").wkt,
@@ -355,7 +356,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertNotEqual(new_event_id, merge_event_id)
         self.assertEqual(building.event_origin, {"source": "rollback"})
         self.assertEqual(building.status, "constructed")
-        self.assertEqual(building.addresses_id, [self.address_1.id])
+        self.assertEqual(addresses_cle_interop(building), [self.address_1.id])
         self.assertAlmostEqual(building.shape.area, 2, delta=0.01)
 
         parent_1 = self.building_1

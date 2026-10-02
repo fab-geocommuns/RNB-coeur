@@ -4,7 +4,7 @@ import os
 
 from batid.models import Address, Building
 from batid.services.building import export_city
-from batid.tests.helpers import create_bdg, create_grenoble
+from batid.tests.helpers import create_bdg, create_grenoble, internal_ids
 from django.test import TestCase
 
 
@@ -48,7 +48,7 @@ class TestCityExport(TestCase):
             ],
         )
 
-        bdg.addresses_id = [address_1.id]
+        bdg.addresses_internal_id = internal_ids([address_1.id])
 
         # Add some attributes
         bdg.ext_ids = Building.add_ext_id(
@@ -74,7 +74,7 @@ class TestCityExport(TestCase):
             ],
         )
 
-        bdg.addresses_id = [address_1.id, address_2.id]
+        bdg.addresses_internal_id = internal_ids([address_1.id, address_2.id])
 
         # Add some attributes
         bdg.ext_ids = Building.add_ext_id(
