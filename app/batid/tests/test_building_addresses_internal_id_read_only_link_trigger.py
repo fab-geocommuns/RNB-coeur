@@ -35,7 +35,7 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         """Input: a building created with no addresses_internal_id, then
         updated to reference two addresses.
         Expected: no link row before the update, two after — the trigger
-        deletes and re-inserts on update, same as for addresses_id."""
+        deletes and re-inserts on update."""
         a1 = Address.objects.create(id="address_1")
         a2 = Address.objects.create(id="address_2")
 
@@ -79,32 +79,10 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
             0,
         )
 
-    def test_update_building_does_not_affect_other_join_table(self):
-        """Input: a building linked through both addresses_id and
-        addresses_internal_id, then updated on addresses_internal_id only.
-        Expected: the addresses_id-based join table (BuildingAddressesReadOnly)
-        is untouched, since only addresses_internal_id changed."""
-        from batid.models import BuildingAddressesReadOnly
-
-        a1 = Address.objects.create(id="address_1")
-        a2 = Address.objects.create(id="address_2")
-
-        b = Building.objects.create(
-            rnb_id="1",
-            addresses_id=[a1.id],
-            addresses_internal_id=[a1.internal_id],
-        )
-
-        b.addresses_internal_id = [a1.internal_id, a2.internal_id]
-        b.save()
-
-        self.assertEqual(BuildingAddressesInternalIdReadOnly.objects.count(), 2)
-        self.assertEqual(BuildingAddressesReadOnly.objects.count(), 1)
-
     def test_delete_building_is_forbidden_and_links_survive(self):
         """Input: a building linked to two addresses via addresses_internal_id.
-        Expected: deletion is blocked (same postgres trigger as for
-        addresses_id), and the internal_id-based links are left intact."""
+        Expected: deletion is blocked (prevent_building_deletion() postgres
+        trigger), and the links are left intact."""
         from batid.exceptions import ForbiddenDjangoNativeFunction
 
         a1 = Address.objects.create(id="address_1")
@@ -128,8 +106,7 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         """Input: a building created with an addresses_internal_id value that
         does not match any Address.internal_id.
         Expected: the FK on BuildingAddressesInternalIdReadOnly rejects the insert with
-        an IntegrityError, same as the addresses_id path does against
-        batid_address.id."""
+        an IntegrityError."""
         from django.db.utils import IntegrityError
 
         a1 = Address.objects.create(id="address_1")

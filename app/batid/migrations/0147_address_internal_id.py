@@ -2,7 +2,7 @@ from django.db import migrations, models
 from django.db.models import Func, Value
 
 # First step of the migration of the building <-> address link towards an
-# internal key (see specs/migration_lien_batiment_adresse.md).
+# internal key.
 #
 # The column is only created here. Nothing reads or writes it yet: existing rows
 # are filled by the fill_address_internal_id task, and the unique index and the

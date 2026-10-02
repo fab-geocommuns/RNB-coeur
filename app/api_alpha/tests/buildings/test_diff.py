@@ -821,7 +821,7 @@ class DiffTest(TransactionTestCase):
     def test_diff_addresses_read_from_internal_id(self):
         """
         Input: buildings whose addresses_internal_id is non-alphabetical, an empty
-        array, NULL (addresses_id left NULL on all of them).
+        array, NULL.
         Expected: the addresses_id CSV column is built from addresses_internal_id,
         translated back to "clés d'interopérabilité" in the array order, with the
         exact former to_json() formatting: no space after commas, [] for an empty
