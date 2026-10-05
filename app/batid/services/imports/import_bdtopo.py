@@ -6,11 +6,11 @@ from datetime import date, datetime, timezone
 from typing import Optional
 
 import fiona
-import psycopg2
 from batid.models import Building, BuildingImport, Candidate
 from batid.services.administrative_areas import dpts_list
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy, Source
+from batid.utils.db import copy_from_file
 from batid.utils.geo import drop_z, fix_nested_shells
 from celery import Signature, chain
 from django.contrib.gis.geos import GEOSGeometry
@@ -104,21 +104,23 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
     with open(buffer.path, "r") as f:
         with transaction.atomic():
             print("-- transfer buffer to db --")
-            try:
-                with connection.cursor() as cursor:
+            with connection.cursor() as cursor:
 
-                    # Allow for a long COPY operation
-                    timeout = 5 * 3600 * 1000  # 5 hours in milliseconds
-                    cursor.execute(f"SET statement_timeout = {timeout};")
+                # Allow for a long COPY operation
+                timeout = 5 * 3600 * 1000  # 5 hours in milliseconds
+                cursor.execute(f"SET statement_timeout = {timeout};")
 
-                    cursor.copy_from(f, Candidate._meta.db_table, sep=";", columns=cols)
-
-                building_import_history.increment_created_candidates(
-                    building_import, len(candidates)
+                copy_from_file(
+                    cursor=cursor,
+                    file=f,
+                    table=Candidate._meta.db_table,
+                    columns=cols,
+                    sep=";",
                 )
 
-            except (Exception, psycopg2.DatabaseError) as error:
-                raise error
+            building_import_history.increment_created_candidates(
+                building_import, len(candidates)
+            )
 
     print("- remove buffer")
     os.remove(buffer.path)
