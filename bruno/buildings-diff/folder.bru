@@ -3,23 +3,28 @@ meta {
 }
 
 script:pre-request {
-  // Le endpoint refuse tout "since" à plus de 6 mois. Une date figée finirait par
-  // casser silencieusement ; on calcule donc "hier" à chaque exécution.
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // The endpoint rejects any "since" older than 6 months, so a hardcoded date would
+  // eventually break. "since" is recomputed on every run instead. Widen the window
+  // if the local data you want to see is older than this.
+  const WINDOW_DAYS = 30;
+  const since = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
   bru.setVar("since", since);
 }
 
 script:post-response {
-  // Aide d'affichage uniquement : parse le CSV renvoyé par /buildings/diff/ et
-  // l'imprime en tableau lisible dans la console Bruno. Ne touche jamais res.body :
-  // l'onglet Raw/Pretty de la réponse continue d'afficher la vraie valeur brute
-  // renvoyée par le serveur, sans transformation. Ce script n'existe que pour aider
-  // à lire, pas pour remplacer ce que voient les autres utilisateurs Bruno.
+  // Display helper only: prints the CSV returned by /buildings/diff/ as an aligned
+  // table in the Bruno console. It never touches res.body, so the Raw/Pretty tabs keep
+  // showing the exact response sent by the server.
+
+  const MAX_PRINTED_ROWS = 50;
+  const MAX_COL_WIDTH = 40;
 
   const contentType = res.getHeader("content-type") || "";
   const body = res.getBody();
 
   if (typeof body === "string" && contentType.includes("text/csv")) {
+    // Minimal RFC 4180 line parser: handles quoted fields containing commas and
+    // doubled quotes (e.g. the sys_period range).
     function parseCsvLine(line) {
       const cells = [];
       let cur = "";
@@ -53,8 +58,9 @@ script:post-response {
     const lines = body.split("\n").filter((l) => l.length > 0);
 
     if (lines.length > 0) {
-      const rows = lines.map(parseCsvLine);
-      const MAX_COL_WIDTH = 40;
+      const totalDataRows = lines.length - 1;
+      // header + at most MAX_PRINTED_ROWS data rows: a diff can hold thousands of rows
+      const rows = lines.slice(0, MAX_PRINTED_ROWS + 1).map(parseCsvLine);
       const widths = rows[0].map((_, col) =>
         Math.min(
           MAX_COL_WIDTH,
@@ -66,7 +72,7 @@ script:post-response {
 
       console.log("");
       console.log(
-        `CSV diff (affichage console uniquement) — ${rows.length - 1} ligne(s) de données`
+        `CSV diff (console display only): ${totalDataRows} data row(s), ${rows.length - 1} printed`
       );
       rows.forEach((r, idx) => {
         console.log(r.map((cell, col) => pad(cell || "", widths[col])).join(" | "));
