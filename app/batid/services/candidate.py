@@ -53,7 +53,7 @@ class Inspector:
 
     def get_candidate(self):
         q = sql.SQL(
-            "SELECT id, ST_AsEWKB(shape) as shape, source, source_version, source_id, address_keys, is_light, inspected_at  FROM {candidate} WHERE inspected_at IS NULL ORDER BY inspected_at asc, random asc LIMIT 1 FOR UPDATE SKIP LOCKED"
+            "SELECT id, shape, source, source_version, source_id, address_keys, is_light, inspected_at  FROM {candidate} WHERE inspected_at IS NULL ORDER BY inspected_at asc, random asc LIMIT 1 FOR UPDATE SKIP LOCKED"
         ).format(
             candidate=sql.Identifier(Candidate._meta.db_table),
         )
@@ -63,17 +63,17 @@ class Inspector:
     def get_matching_bdgs(self):
 
         q = sql.SQL(
-            "SELECT id, ST_AsEWKB(shape) as shape "
+            "SELECT id, shape "
             "FROM {building} "
             "WHERE ST_DWithin(shape::geography, ST_GeomFromText(%(c_shape)s)::geography, 3) "
-            "AND status IN %(status)s "
+            "AND status = ANY(%(status)s) "
             "AND is_active = true"
         ).format(
             building=sql.Identifier(Building._meta.db_table),
         )
         params = {
             "c_shape": f"{self.candidate.shape}",
-            "status": tuple(BuildingStatusService.REAL_BUILDINGS_STATUS),
+            "status": list(BuildingStatusService.REAL_BUILDINGS_STATUS),
         }
         self.matching_bdgs = Building.objects.raw(q, params)
 

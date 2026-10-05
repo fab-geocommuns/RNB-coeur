@@ -43,8 +43,8 @@ class BuildingGuess:
 
         # Status
         if self.params.status:
-            wheres.append("status IN %(status)s")
-            params["status"] = tuple(self.params.status)
+            wheres.append("status = ANY(%(status)s)")
+            params["status"] = list(self.params.status)
 
         # #########################################
         # OSM Address point
@@ -161,9 +161,7 @@ class BuildingGuess:
 
         # SELECT
 
-        selects.append(
-            "ST_AsEWKB(b.point) as point",
-        )  # geometries must be sent back as EWKB to work with RawQuerySet
+        selects.append("b.point as point")
         select_str = ", ".join(selects)
 
         # JOIN
