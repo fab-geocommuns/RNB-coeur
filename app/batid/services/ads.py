@@ -59,9 +59,9 @@ def get_cities(rnb_ids: list, geojson_geometries: list[GEOSGeometry]) -> list:
 
     if rnb_ids:
         wheres.append(
-            "EXISTS (SELECT 1 FROM batid_building as b WHERE b.rnb_id IN %s AND ST_Intersects(b.point, c.shape))"
+            "EXISTS (SELECT 1 FROM batid_building as b WHERE b.rnb_id = ANY(%s) AND ST_Intersects(b.point, c.shape))"
         )
-        params.append(tuple(rnb_ids))
+        params.append(list(rnb_ids))
 
     for geojson_geom in geojson_geometries:
         wheres.append(
