@@ -1,7 +1,7 @@
 from batid.models import Contribution
 from batid.utils.db import dictfetchall
 from django.db import connection
-from psycopg2 import sql
+from psycopg import sql
 
 
 def export_format() -> list:

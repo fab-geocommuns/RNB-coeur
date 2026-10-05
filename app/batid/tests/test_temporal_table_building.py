@@ -1,7 +1,7 @@
 from batid.models import Address, Building, BuildingHistoryOnly, BuildingWithHistory
 from django.contrib.auth.models import User
 from django.db import connection
-from django.db.utils import InternalError
+from django.db.utils import ProgrammingError
 from django.test import TransactionTestCase
 
 
@@ -161,7 +161,7 @@ class TemporalTableCase(TransactionTestCase):
 
         # SQL side: the Postgres trigger must block the DELETE
         sql = "delete from batid_building_history where rnb_id = 'XYZ';"
-        with self.assertRaises(InternalError):
+        with self.assertRaisesMessage(ProgrammingError, "deletions are forbidden"):
             with connection.cursor() as cursor:
                 cursor.execute(sql)
 

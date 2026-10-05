@@ -12,7 +12,7 @@ from batid.utils.geo import assert_shape_is_valid
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection, transaction
-from psycopg2 import sql
+from psycopg import sql
 
 
 class Inspector:

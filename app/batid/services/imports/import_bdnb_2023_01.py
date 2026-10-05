@@ -4,13 +4,12 @@ import os
 import random
 from datetime import datetime, timezone
 
-import psycopg2
 from batid.models import Address, Candidate
 from batid.services.imports import building_import_history
 from batid.services.source import BufferToCopy, Source
+from batid.utils.db import copy_from_file
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection, transaction
-from psycopg2.extras import execute_values
 
 
 def import_bdnd_2023_01_bdgs(dpt, bulk_launch_uuid=None):
@@ -67,17 +66,18 @@ def import_bdnd_2023_01_bdgs(dpt, bulk_launch_uuid=None):
         with open(buffer.path, "r") as f:
             with transaction.atomic():
                 print("- import buffer")
-                try:
-                    with connection.cursor() as cursor:
-                        cursor.copy_from(
-                            f, Candidate._meta.db_table, sep=";", columns=cols
-                        )
-
-                    building_import_history.increment_created_candidates(
-                        building_import, len(candidates)
+                with connection.cursor() as cursor:
+                    copy_from_file(
+                        cursor=cursor,
+                        file=f,
+                        table=Candidate._meta.db_table,
+                        columns=cols,
+                        sep=";",
                     )
-                except (Exception, psycopg2.DatabaseError) as error:
-                    raise error
+
+                building_import_history.increment_created_candidates(
+                    building_import, len(candidates)
+                )
 
         print("- remove buffer")
         os.remove(buffer.path)
@@ -114,18 +114,20 @@ def import_bdnd_2023_01_addresses(dpt):
             }
             addresses.append(address)
 
-        cols_str = f"({', '.join(addresses[0].keys())})"
+        cols = list(addresses[0].keys())
+        cols_str = f"({', '.join(cols)})"
 
         data = [tuple(row.values()) for row in addresses]
 
-        q = f"INSERT INTO {Address._meta.db_table} {cols_str} VALUES %s ON CONFLICT DO NOTHING"
+        placeholders = ", ".join(["%s"] * len(cols))
+        q = f"INSERT INTO {Address._meta.db_table} {cols_str} VALUES ({placeholders}) ON CONFLICT DO NOTHING"
 
         with connection.cursor() as cursor:
             print("- import buffer")
             try:
-                execute_values(cursor, q, data)
+                cursor.executemany(q, data)
                 connection.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
+            except Exception:
                 connection.rollback()
                 cursor.close()
-                raise error
+                raise

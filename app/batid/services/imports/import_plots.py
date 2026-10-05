@@ -9,6 +9,7 @@ import ijson  # type: ignore[import-untyped]
 from batid.models import Plot
 from batid.services.administrative_areas import dpt_list_metropole, drom_list
 from batid.services.source import Source
+from batid.utils.db import copy_from_file
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 from django.db import connection, transaction
@@ -60,9 +61,10 @@ def _save_plots(rows):
     f.seek(0)
 
     with connection.cursor() as cursor:
-        cursor.copy_from(
-            f,
-            Plot._meta.db_table,
+        copy_from_file(
+            cursor=cursor,
+            file=f,
+            table=Plot._meta.db_table,
             columns=("id", "shape", "created_at", "updated_at", "source_version"),
             sep=",",
         )

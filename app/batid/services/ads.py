@@ -3,7 +3,7 @@ from batid.utils.db import dictfetchall
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
-from psycopg2 import sql
+from psycopg import sql
 
 
 def get_managed_insee_codes(user: User) -> list:

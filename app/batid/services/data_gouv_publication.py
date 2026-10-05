@@ -124,14 +124,16 @@ def sql_query(code_area):
 def create_csv(directory_name, code_area):
     sql = sql_query(code_area)
     local_statement_timeout = settings.DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT
-    with open(f"{file_path(directory_name, code_area)}.csv", "w") as fp:
+    with open(f"{file_path(directory_name, code_area)}.csv", "wb") as fp:
         with transaction.atomic():
             with connection.cursor() as cursor:
                 cursor.execute(
                     "SET statement_timeout = %(statement_timeout)s;",
                     {"statement_timeout": local_statement_timeout},
                 )
-                cursor.copy_expert(sql, fp)
+                with cursor.copy(sql) as copy:
+                    for data in copy:
+                        fp.write(data)
 
 
 def sha1sum(filename):
