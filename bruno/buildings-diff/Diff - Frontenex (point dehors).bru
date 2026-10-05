@@ -24,4 +24,8 @@ docs {
 
   Prérequis local : une City avec code_insee=73121 doit exister en base, avec une
   vraie géométrie (shape non nulle). Sans ça, la requête renvoie 404.
+
+  Seules les modifications des 30 derniers jours sont retournées (paramètre since
+  calculé dans folder.bru). Un diff vide ne prouve rien si aucun bâtiment de la
+  commune n'a été modifié sur cette période.
 }
