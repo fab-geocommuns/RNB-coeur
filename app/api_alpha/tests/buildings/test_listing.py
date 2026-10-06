@@ -307,17 +307,15 @@ class BuildingsEndpointsTest(APITestCase):
         bdg = Building.objects.create(
             rnb_id="XXX",
             point=GEOSGeometry("POINT(0 0)"),
-            addresses_id=[cle_interop_ban],
             addresses_internal_id=[adr.internal_id],
         )
 
         # other buildings
         Building.objects.create(
             rnb_id="YYY",
-            addresses_id=["123"],
             addresses_internal_id=[other_adr.internal_id],
         )
-        Building.objects.create(rnb_id="ZZZ", addresses_id=[], addresses_internal_id=[])
+        Building.objects.create(rnb_id="ZZZ", addresses_internal_id=[])
 
         r = self.client.get(f"/api/alpha/buildings/?cle_interop_ban={cle_interop_ban}")
         self.assertEqual(r.status_code, 200)
@@ -925,7 +923,6 @@ class BuildingsWithPlots(APITestCase):
         add_1 = Address.objects.create(id="add_1")
         Building.objects.create(
             rnb_id="A",
-            addresses_id=["add_1"],
             addresses_internal_id=[add_1.internal_id],
             point="POINT(0 0)",
         )
@@ -933,7 +930,6 @@ class BuildingsWithPlots(APITestCase):
         add_2 = Address.objects.create(id="add_2")
         Building.objects.create(
             rnb_id="B",
-            addresses_id=["add_2"],
             addresses_internal_id=[add_2.internal_id],
             point="POINT(0 0)",
         )

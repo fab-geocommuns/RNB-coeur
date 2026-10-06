@@ -13,6 +13,7 @@ from batid.models import (
     Trophy,
 )
 from batid.tests.factories.users import ContributorUserFactory
+from batid.tests.helpers import addresses_cle_interop
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connections
 from django.test import override_settings
@@ -285,7 +286,9 @@ class BuildingPatchTest(APITestCase):
 
         self.assertEqual(self.building.event_type, "update")
         self.assertEqual(self.building.status, "notUsable")
-        self.assertCountEqual(self.building.addresses_id, [self.adr1.id, self.adr2.id])
+        self.assertCountEqual(
+            addresses_cle_interop(self.building), [self.adr1.id, self.adr2.id]
+        )
         self.assertEqual(
             self.building.event_origin,
             {"source": "contribution", "contribution_id": contribution.id},
@@ -319,7 +322,7 @@ class BuildingPatchTest(APITestCase):
 
         self.assertEqual(self.building.event_type, "update")
         self.assertEqual(self.building.status, "notUsable")
-        self.assertEqual(self.building.addresses_id, [self.adr1.id])
+        self.assertEqual(addresses_cle_interop(self.building), [self.adr1.id])
         self.assertEqual(
             self.building.event_origin,
             {"source": "contribution", "contribution_id": contribution.id},
@@ -352,9 +355,9 @@ class BuildingPatchTest(APITestCase):
         expected_addresses = ["cle_interop_1", "cle_interop_2"]
         expected_addresses.sort()
 
-        self.building.addresses_id.sort()
-
-        self.assertListEqual(self.building.addresses_id, expected_addresses)
+        self.assertListEqual(
+            sorted(addresses_cle_interop(self.building)), expected_addresses
+        )
 
         # We can now remove all addresses
         data = {
@@ -371,7 +374,7 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(r.status_code, 204)
         self.building.refresh_from_db()
 
-        self.assertListEqual(self.building.addresses_id, [])
+        self.assertListEqual(addresses_cle_interop(self.building), [])
 
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_update_building_shape_hex(self):
