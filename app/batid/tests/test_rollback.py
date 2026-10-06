@@ -1,6 +1,11 @@
 import uuid
 
-from batid.exceptions import DatabaseInconsistency, RevertNotAllowed
+from batid.exceptions import (
+    DatabaseInconsistency,
+    EventAlreadyReverted,
+    EventIsARevert,
+    RevertNotAllowed,
+)
 from batid.models.building import (
     Address,
     Building,
@@ -9,7 +14,8 @@ from batid.models.building import (
     EventType,
 )
 from batid.models.others import DataFix, UserProfile
-from batid.services.rollback import rollback, rollback_dry_run
+from batid.services.rollback import rollback, rollback_dry_run, rollback_event
+from batid.tests.helpers import addresses_cle_interop
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase, override_settings
@@ -39,7 +45,7 @@ class TestUnitaryRollback(TransactionTestCase):
             user=self.user,
             event_origin={"source": "contribution", "contribution_id": 1},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=self.shape_1,
             ext_ids=[],
         )
@@ -47,7 +53,7 @@ class TestUnitaryRollback(TransactionTestCase):
             user=self.user,
             event_origin={"source": "contribution", "contribution_id": 1},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry("POLYGON((1 0, 1 1, 2 1, 2 0, 1 0))"),
             ext_ids=[],
         )
@@ -66,7 +72,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertNotEqual(self.building_1.event_id, creation_event_id)
         self.assertEqual(self.building_1.event_origin, {"source": "rollback"})
         self.assertEqual(self.building_1.status, "constructed")
-        self.assertEqual(self.building_1.addresses_id, [])
+        self.assertEqual(addresses_cle_interop(self.building_1), [])
         self.assertEqual(self.building_1.shape, self.shape_1)
 
     def test_revert_creation_impossible(self):
@@ -75,7 +81,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=None,
             shape=None,
         )
@@ -127,7 +133,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertNotEqual(self.building_1.event_id, deactivation_event_id)
         self.assertEqual(self.building_1.event_origin, {"source": "rollback"})
         self.assertEqual(self.building_1.status, "constructed")
-        self.assertEqual(self.building_1.addresses_id, [])
+        self.assertEqual(addresses_cle_interop(self.building_1), [])
         self.assertEqual(self.building_1.shape, self.shape_1)
 
     def test_revert_deactivation_already_done(self):
@@ -138,7 +144,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.other_user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=None,
             shape=None,
         )
@@ -167,7 +173,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=[self.address_1.id],
+            addresses_cle_interop=[self.address_1.id],
             ext_ids=ext_ids,
             shape=GEOSGeometry("POINT(0 0)"),
         )
@@ -176,7 +182,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="notUsable",
-            addresses_id=[],
+            addresses_cle_interop=[],
             ext_ids=[{"source": "bdtopo", "id": "YYY"}],
             shape=GEOSGeometry("POINT(0.000000001 0)"),
         )
@@ -193,7 +199,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertNotEqual(self.building_1.event_id, update_event_id)
         self.assertEqual(self.building_1.event_origin, {"source": "rollback"})
         self.assertEqual(self.building_1.status, "demolished")
-        self.assertEqual(self.building_1.addresses_id, [self.address_1.id])
+        self.assertEqual(addresses_cle_interop(self.building_1), [self.address_1.id])
         self.assertEqual(self.building_1.ext_ids, ext_ids)
         self.assertEqual(self.building_1.shape.wkt, GEOSGeometry("POINT(0 0)").wkt)
 
@@ -202,7 +208,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=None,
             shape=None,
         )
@@ -265,7 +271,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertNotEqual(new_event_id, split_event_id)
         self.assertEqual(self.building_1.event_origin, {"source": "rollback"})
         self.assertEqual(self.building_1.status, "constructed")
-        self.assertEqual(self.building_1.addresses_id, [])
+        self.assertEqual(addresses_cle_interop(self.building_1), [])
         self.assertEqual(
             self.building_1.shape.wkt,
             GEOSGeometry("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))").wkt,
@@ -312,7 +318,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="notUsable",
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=None,
             shape=None,
         )
@@ -334,7 +340,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="constructed",
-            addresses_id=[self.address_1.id],
+            addresses_cle_interop=[self.address_1.id],
         )
         merge_event_id = building.event_id
 
@@ -350,7 +356,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertNotEqual(new_event_id, merge_event_id)
         self.assertEqual(building.event_origin, {"source": "rollback"})
         self.assertEqual(building.status, "constructed")
-        self.assertEqual(building.addresses_id, [self.address_1.id])
+        self.assertEqual(addresses_cle_interop(building), [self.address_1.id])
         self.assertAlmostEqual(building.shape.area, 2, delta=0.01)
 
         parent_1 = self.building_1
@@ -374,14 +380,14 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="constructed",
-            addresses_id=[self.address_1.id],
+            addresses_cle_interop=[self.address_1.id],
         )
         merge_event_id = building.event_id
         building.update(
             self.user,
             event_origin={"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         building.refresh_from_db()
 
@@ -394,6 +400,127 @@ class TestUnitaryRollback(TransactionTestCase):
             str(e.exception),
             "Impossible to revert the building merge, because it has been modified.",
         )
+
+    def test_rollback_event_service(self):
+        """
+        rollback_event() (used by the single-event rollback API endpoint) reverts the
+        event, returns its id and the new revert event's id, and records a DataFix
+        mentioning the actor and the event. A second call on the same event_id is
+        rejected as already reverted.
+        """
+        creation_event_id = self.building_1.event_id
+        result = rollback_event(self.user, creation_event_id)
+
+        self.building_1.refresh_from_db()
+        self.assertEqual(result["event_id"], str(creation_event_id))
+        self.assertEqual(result["revert_event_id"], str(self.building_1.event_id))
+        self.assertEqual(self.building_1.event_type, EventType.REVERT_CREATION.value)
+
+        data_fix = DataFix.objects.get(id=result["data_fix_id"])
+        self.assertIn(str(creation_event_id), data_fix.text)
+        self.assertIn(self.user.username, data_fix.text)
+
+        with self.assertRaises(EventAlreadyReverted):
+            rollback_event(self.user, creation_event_id)
+
+    def test_rollback_event_service_includes_comment_in_data_fix(self):
+        """
+        The front-end only offers a rollback together with a (required) comment on
+        the annotation; rollback_event() takes that same text as an optional
+        `comment` kwarg and appends it to the DataFix text.
+        """
+        creation_event_id = self.building_1.event_id
+        result = rollback_event(
+            self.user, creation_event_id, comment="  Wrong shape, reverting  "
+        )
+
+        data_fix = DataFix.objects.get(id=result["data_fix_id"])
+        self.assertIn("Wrong shape, reverting", data_fix.text)
+        # the comment is stripped before being stored
+        self.assertNotIn("  Wrong shape, reverting  ", data_fix.text)
+
+    def test_rollback_event_blocked_by_other_user(self):
+        """
+        If a later event in the building's lineage was made by a different user (and
+        that later event hasn't itself been reverted), rollback_event() refuses to
+        revert the earlier event: same safety net as the batch rollback
+        (Event.event_could_be_reverted).
+        """
+        creation_event_id = self.building_1.event_id
+        self.building_1.update(
+            self.other_user,
+            {"source": "contribution"},
+            status="demolished",
+            addresses_cle_interop=None,
+            ext_ids=None,
+            shape=None,
+        )
+
+        with self.assertRaises(RevertNotAllowed):
+            rollback_event(self.user, creation_event_id)
+
+    def test_rollback_event_blocked_by_same_user_later_edit(self):
+        """
+        Unlike the batch rollback (which tolerates a later event from the *same*
+        user, since it reverts a whole time range most-recent-first and will have
+        reverted that later event by the time it reaches this one), a single-event
+        rollback only ever reverts the one event it is asked about. So a later event
+        from the same user that hasn't itself been reverted must still block the
+        rollback (`Event.event_can_be_reverted_immediately` has no same-user bypass).
+
+        Expected: RevertNotAllowed is raised, and no DataFix is left behind (it must
+        not be created if the revert it describes never actually happens).
+        """
+        creation_event_id = self.building_1.event_id
+        self.building_1.update(
+            self.user,
+            {"source": "contribution"},
+            status="demolished",
+            addresses_cle_interop=None,
+            ext_ids=None,
+            shape=None,
+        )
+
+        data_fix_count_before = DataFix.objects.count()
+        with self.assertRaises(RevertNotAllowed):
+            rollback_event(self.user, creation_event_id)
+        self.assertEqual(DataFix.objects.count(), data_fix_count_before)
+
+    def test_rollback_event_already_reverted_raises(self):
+        """
+        Input: rollback_event() is called on an event_id that has already been
+        reverted (the corresponding building's history entry has a
+        revert_event_id, i.e. it's the target of a previous revert).
+        Expected: EventAlreadyReverted is raised, and no DataFix is created.
+        """
+        creation_event_id = self.building_1.event_id
+        Event.revert_event(
+            {"source": "rollback"}, creation_event_id, user_making_revert=self.team_rnb
+        )
+
+        data_fix_count_before = DataFix.objects.count()
+        with self.assertRaises(EventAlreadyReverted):
+            rollback_event(self.user, creation_event_id)
+        self.assertEqual(DataFix.objects.count(), data_fix_count_before)
+
+    def test_rollback_event_is_a_revert_raises(self):
+        """
+        Input: rollback_event() is called on an event_id that is itself the
+        result of a revert (building.revert_event_id is set on that history
+        entry), i.e. trying to roll back a revert.
+        Expected: EventIsARevert is raised, and no DataFix is created.
+        """
+        creation_event_id = self.building_1.event_id
+        Event.revert_event(
+            {"source": "rollback"}, creation_event_id, user_making_revert=self.team_rnb
+        )
+        self.building_1.refresh_from_db()
+        revert_event_id = self.building_1.event_id
+
+        data_fix_count_before = DataFix.objects.count()
+        with self.assertRaises(EventIsARevert):
+            rollback_event(self.user, revert_event_id)
+        self.assertEqual(DataFix.objects.count(), data_fix_count_before)
 
 
 class TestGlobalRollback(TransactionTestCase):
@@ -421,7 +548,7 @@ class TestGlobalRollback(TransactionTestCase):
             user=self.user,
             event_origin={"source": "contribution", "contribution_id": 1},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=self.shape_1,
             ext_ids=[],
         )
@@ -429,7 +556,7 @@ class TestGlobalRollback(TransactionTestCase):
             user=self.user,
             event_origin={"source": "contribution", "contribution_id": 2},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=self.shape_1,
             ext_ids=[],
         )
@@ -437,7 +564,7 @@ class TestGlobalRollback(TransactionTestCase):
             user=self.user,
             event_origin={"source": "contribution", "contribution_id": 3},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry("POLYGON((1 0, 1 1, 2 1, 2 0, 1 0))"),
             ext_ids=[],
         )
@@ -445,7 +572,7 @@ class TestGlobalRollback(TransactionTestCase):
             user=self.other_user,
             event_origin={"source": "contribution", "contribution_id": 4},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=self.shape_1,
             ext_ids=[],
         )
@@ -514,7 +641,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_1.refresh_from_db()
         building_1_update_event_id = self.building_1.event_id
@@ -523,7 +650,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.other_user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
 
         results = rollback_dry_run(self.user, start_time, end_time)
@@ -597,7 +724,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_2.refresh_from_db()
         building_2_edition_1_event_id = self.building_2.event_id
@@ -607,7 +734,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="notUsable",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_2.refresh_from_db()
         building_2_edition_2_event_id = self.building_2.event_id
@@ -679,7 +806,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.other_user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
 
         results = rollback_dry_run(self.user, start_time, end_time)
@@ -707,7 +834,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_2.refresh_from_db()
         building_2_edition_1_event_id = self.building_2.event_id
@@ -717,7 +844,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="notUsable",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_2.refresh_from_db()
         building_2_edition_2_event_id = self.building_2.event_id
@@ -808,7 +935,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_1.refresh_from_db()
 
@@ -879,7 +1006,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="constructed",
-            addresses_id=[self.address_1.id],
+            addresses_cle_interop=[self.address_1.id],
         )
         merge_event_id = building.event_id
 
@@ -940,7 +1067,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_2.refresh_from_db()
         next_start_time = self.building_2.sys_period.lower
@@ -1005,7 +1132,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
         self.building_2.refresh_from_db()
         start_time = self.building_2.sys_period.lower
@@ -1024,7 +1151,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.other_user,
             {"source": "contribution"},
             status="notUsable",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
 
         # building 2 update by user is not rollbackable anymore

@@ -54,7 +54,7 @@ class LeaderboardQueryTestCase(TestCase):
             user=user_a,
             event_origin={"source": "contribution"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=SIMPLE_POLYGON,
             ext_ids=[],
         )
@@ -62,14 +62,14 @@ class LeaderboardQueryTestCase(TestCase):
             user=user_a,
             event_origin={"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             shape=None,
         )
         Building.create_new(
             user=user_b,
             event_origin={"source": "contribution"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=OTHER_POLYGON,
             ext_ids=[],
         )
@@ -96,7 +96,7 @@ class LeaderboardQueryTestCase(TestCase):
             user=user,
             event_origin={"source": "contribution"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=SIMPLE_POLYGON,
             ext_ids=[],
         )
@@ -120,7 +120,7 @@ class LeaderboardQueryTestCase(TestCase):
             user=user,
             event_origin={"source": "import"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=SIMPLE_POLYGON,
             ext_ids=[],
         )
@@ -146,7 +146,7 @@ class LeaderboardQueryTestCase(TestCase):
             event_origin={"source": "import"},
             event_user=None,
             is_active=True,
-            addresses_id=[],
+            addresses_internal_id=[],
             ext_ids=[],
         )
 
@@ -215,7 +215,7 @@ class LeaderboardEmailTestCase(TestCase):
             user=self.alice,
             event_origin={"source": "contribution"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=SIMPLE_POLYGON,
             ext_ids=[],
         )
@@ -224,7 +224,7 @@ class LeaderboardEmailTestCase(TestCase):
                 user=self.alice,
                 event_origin={"source": "contribution"},
                 status=status,
-                addresses_id=None,
+                addresses_cle_interop=None,
                 shape=None,
             )
 

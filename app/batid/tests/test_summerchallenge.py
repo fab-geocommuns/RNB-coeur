@@ -54,7 +54,7 @@ class TestSummerChallenge(TestCase):
             user=self.user,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=["addr1", "addr2"],
+            addresses_cle_interop=["addr1", "addr2"],
             shape=GEOSGeometry(
                 json.dumps(
                     {
@@ -109,7 +109,7 @@ class TestSummerChallenge(TestCase):
             user=self.user,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=["addr1", "addr2"],
+            addresses_cle_interop=["addr1", "addr2"],
             shape=GEOSGeometry(
                 json.dumps(
                     {
@@ -149,7 +149,7 @@ class TestSummerChallenge(TestCase):
             user=self.user,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry(
                 json.dumps(
                     {
@@ -173,7 +173,7 @@ class TestSummerChallenge(TestCase):
             self.user,
             event_origin=None,
             status="demolished",
-            addresses_id=["addr1", "addr2"],
+            addresses_cle_interop=["addr1", "addr2"],
             shape=GEOSGeometry(
                 json.dumps(
                     {
@@ -241,7 +241,7 @@ class TestSummerChallenge(TestCase):
             user=self.user,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry(
                 json.dumps(
                     {
@@ -301,7 +301,7 @@ class TestSummerChallenge(TestCase):
             user=self.user,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=shape,
             ext_ids=[],
         )
@@ -335,7 +335,7 @@ class TestSummerChallenge(TestCase):
             user=self.user,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry(
                 json.dumps(
                     {
@@ -390,7 +390,7 @@ class TestSummerChallenge(TestCase):
             user=self.user,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry(
                 json.dumps(
                     {
@@ -414,7 +414,7 @@ class TestSummerChallenge(TestCase):
             self.user,
             event_origin={"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             validate=True,
         )
         building.refresh_from_db()
@@ -443,7 +443,7 @@ class TestSummerChallenge(TestCase):
             user=self.user,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry(
                 json.dumps(
                     {
@@ -468,7 +468,7 @@ class TestSummerChallenge(TestCase):
             self.user,
             event_origin={"source": "contribution"},
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             validate=True,
         )
         # Second validation by the same user: no-op, must not score again.
@@ -476,7 +476,7 @@ class TestSummerChallenge(TestCase):
             self.user,
             event_origin={"source": "contribution"},
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             validate=True,
         )
 
@@ -499,7 +499,7 @@ class TestSummerChallenge(TestCase):
             user=self.user,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry(
                 json.dumps(
                     {
@@ -523,7 +523,7 @@ class TestSummerChallenge(TestCase):
             self.user,
             event_origin={"source": "contribution"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
         )
 
         scores = SummerChallenge.objects.filter(
@@ -554,7 +554,7 @@ class TestSummerChallenge(TestCase):
             user=self.user,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=shape,
             ext_ids=[],
         )
@@ -562,7 +562,7 @@ class TestSummerChallenge(TestCase):
             user=self.user,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=shape,
             ext_ids=[],
         )
@@ -571,7 +571,7 @@ class TestSummerChallenge(TestCase):
             self.user,
             event_origin={"source": "xxx"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
 
         scores = (

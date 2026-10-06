@@ -4,6 +4,7 @@ from batid.exceptions import (
     BANBadRequest,
     BANBadResultType,
     BANUnknownCleInterop,
+    DatabaseInconsistency,
 )
 from batid.validators import JSONSchemaValidator
 from django.conf import settings
@@ -15,6 +16,10 @@ from django.db.models import F, Func, Value
 
 
 class BuildingAddressesReadOnly(models.Model):
+    # Transitional: building <> address join table built from the addresses_id
+    # mirror (BAN interop keys) by the keep_building_address_link_updated()
+    # trigger. Not read anymore: use BuildingAddressesInternalIdReadOnly.
+    # To be deleted along with addresses_id.
     building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
     address = models.ForeignKey("Address", on_delete=models.CASCADE, db_index=True)
 
@@ -23,11 +28,9 @@ class BuildingAddressesReadOnly(models.Model):
 
 
 class BuildingAddressesInternalIdReadOnly(models.Model):
-    # mirrors BuildingAddressesReadOnly, but keyed on batid_address.internal_id
-    # instead of the BAN interop key (see specs/migration_lien_batiment_adresse.md).
-    # Kept in sync with Building.addresses_internal_id by the same
-    # keep_building_address_link_updated() trigger that maintains
-    # BuildingAddressesReadOnly from addresses_id.
+    # building <> address join table, keyed on batid_address.internal_id. Kept in
+    # sync with Building.addresses_internal_id by the
+    # keep_building_address_link_updated() trigger.
     building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
     address = models.ForeignKey(
         "Address", on_delete=models.CASCADE, to_field="internal_id", db_index=True
@@ -212,6 +215,64 @@ class Address(models.Model):
             return
         else:
             Address.add_new_address_from_ban_api(address_id)
+
+    @staticmethod
+    def internal_ids_from_cle_interop(
+        addresses_cle_interop: list[str] | None,
+    ) -> list[int] | None:
+        """Resolve BAN "clé d'interopérabilité" keys to their batid_address.internal_id
+        values, preserving order and length so the result mirrors
+        addresses_cle_interop 1:1.
+
+        Used by the building business functions, which receive interop keys (API
+        contract) and write addresses_internal_id. A key without matching address
+        raises DatabaseInconsistency: call Address.add_addresses_to_db_if_needed()
+        first.
+        """
+        if addresses_cle_interop is None:
+            return None
+
+        internal_id_by_cle = dict(
+            Address.objects.filter(id__in=addresses_cle_interop).values_list(
+                "id", "internal_id"
+            )
+        )
+
+        try:
+            return [internal_id_by_cle[cle] for cle in addresses_cle_interop]
+        except KeyError as missing_cle:
+            raise DatabaseInconsistency(
+                f"L'adresse {missing_cle} n'existe pas dans batid_address"
+            )
+
+    @staticmethod
+    def cle_interop_from_internal_ids(
+        internal_ids: list[int] | None,
+    ) -> list[str] | None:
+        """Resolve batid_address.internal_id values to their BAN "clé d'interopérabilité",
+        preserving order and length so the result mirrors internal_ids 1:1.
+
+        Used to read the building <> address link from addresses_internal_id while
+        the rest of the code (API contract, business functions) still speaks interop
+        keys, and to fill the transitional addresses_id mirror in
+        Building._dangerously_save_forever().
+        """
+
+        if internal_ids is None:
+            return None
+
+        cle_by_internal_id = dict(
+            Address.objects.filter(internal_id__in=internal_ids).values_list(
+                "internal_id", "id"
+            )
+        )
+
+        try:
+            return [cle_by_internal_id[internal_id] for internal_id in internal_ids]
+        except KeyError as missing_internal_id:
+            raise DatabaseInconsistency(
+                f"L'adresse d'internal_id {missing_internal_id} n'existe pas dans batid_address"
+            )
 
     @staticmethod
     def add_new_address_from_ban_api(address_id):

@@ -29,7 +29,7 @@ def get_buildings_on_plot(plot_id: str):
         .order_by("-bdg_cover_ratio", "rnb_id")
     )
 
-    qs = qs.prefetch_related("addresses_read_only")
+    qs = qs.prefetch_related("addresses_internal_read_only")
     qs = qs.prefetch_related("validated_by_read_only")
 
     return qs

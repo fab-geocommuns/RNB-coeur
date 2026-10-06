@@ -298,7 +298,7 @@ class TestBuildingOverlapIntegration(TestCase):
                 user=self.user,
                 event_origin={"source": "test"},
                 status="constructed",
-                addresses_id=[],
+                addresses_cle_interop=[],
                 shape=new_shape,
                 ext_ids=[],
             )
@@ -320,7 +320,7 @@ class TestBuildingOverlapIntegration(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=new_shape,
             ext_ids=[],
         )
@@ -354,7 +354,7 @@ class TestBuildingOverlapIntegration(TestCase):
                 user=self.user,
                 event_origin={"source": "test"},
                 status=None,
-                addresses_id=None,
+                addresses_cle_interop=None,
                 shape=overlapping_shape,
             )
 
@@ -378,7 +378,7 @@ class TestBuildingOverlapIntegration(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             shape=new_shape,
         )
 
@@ -411,7 +411,7 @@ class TestBuildingOverlapIntegration(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status="constructed",
-            addresses_id=None,
+            addresses_cle_interop=None,
             shape=None,  # No shape change
         )
 

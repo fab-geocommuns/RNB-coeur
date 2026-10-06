@@ -69,6 +69,20 @@ class RevertNotAllowed(InvalidOperation):
         return "Le retour en arrière de l'opération n'est pas possible, car les bâtiments concernés ont été modifiés depuis"
 
 
+class EventAlreadyReverted(InvalidOperation):
+    """The event has already been reverted, reverting it again would be a no-op"""
+
+    def api_message(self):
+        return "Cette édition a déjà fait l'objet d'un rollback"
+
+
+class EventIsARevert(InvalidOperation):
+    """A revert event is itself the result of a rollback and cannot be reverted"""
+
+    def api_message(self):
+        return "Cette édition est elle-même un rollback, elle ne peut pas être annulée"
+
+
 class NotEnoughBuildings(InvalidOperation):
     """Not enough buildings were provided for the operation to succeed"""
 

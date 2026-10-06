@@ -23,7 +23,7 @@ class BuildingMergeTest(APITestCase):
             rnb_id="AAAA00000000",
             shape="POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
             is_active=True,
-            addresses_id=[self.adr1.id],
+            addresses_internal_id=[self.adr1.internal_id],
             ext_ids=[
                 {
                     "id": "xxx",
@@ -37,7 +37,7 @@ class BuildingMergeTest(APITestCase):
             rnb_id="BBBB00000000",
             shape="POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))",
             is_active=True,
-            addresses_id=[self.adr2.id],
+            addresses_internal_id=[self.adr2.internal_id],
             ext_ids=[
                 {
                     "id": "yyy",
@@ -52,14 +52,14 @@ class BuildingMergeTest(APITestCase):
             rnb_id="CCCC00000000",
             shape="POINT (10 0)",
             is_active=True,
-            addresses_id=[],
+            addresses_internal_id=[],
         )
 
         self.building_inactive = Building.objects.create(
             rnb_id="DDDD00000000",
             shape="POLYGON ((1 0, 1 1, 2 1, 2 0, 1 0))",
             is_active=False,
-            addresses_id=[],
+            addresses_internal_id=[],
         )
 
     def test_merge_buildings_permission(self):
@@ -116,13 +116,13 @@ class BuildingMergeTest(APITestCase):
         )
         self.assertEqual(res["shape"]["type"], "Polygon")
         addresses = res["addresses"]
-        addresses_ids = [address["id"] for address in addresses]
-        addresses_ids.sort()
+        cles = [address["id"] for address in addresses]
+        cles.sort()
 
         expected_addresses = [self.adr1.id, self.adr2.id]
         expected_addresses.sort()
 
-        self.assertListEqual(addresses_ids, expected_addresses)
+        self.assertListEqual(cles, expected_addresses)
 
         self.assertEqual(len(addresses), 2)
         self.assertEqual(

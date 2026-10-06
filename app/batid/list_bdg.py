@@ -104,7 +104,7 @@ def list_bdgs(params, only_active=True) -> QuerySet:
 
     cle_interop_ban = params.get("cle_interop_ban", None)
     if cle_interop_ban:
-        qs = qs.filter(addresses_read_only__id=cle_interop_ban)
+        qs = qs.filter(addresses_internal_read_only__id=cle_interop_ban)
         qs = qs.order_by("created_at")
 
     # #######################
@@ -176,7 +176,7 @@ def list_bdgs(params, only_active=True) -> QuerySet:
         qs = qs.annotate(plots=PlotsAggSubquery(subquery))
 
     # to prevent an ugly N+1 problem on the addresses and the validated_by fields
-    qs = qs.prefetch_related("addresses_read_only")
+    qs = qs.prefetch_related("addresses_internal_read_only")
     # order the validators explicitly: the M2M has no default ordering, so without
     # this the "validated_by" list comes back in a non-deterministic order.
     qs = qs.prefetch_related(

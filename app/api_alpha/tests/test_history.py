@@ -298,7 +298,7 @@ class SingleBuildingHistoryTest(APITestCase):
             user=User.objects.get(id=self.user_id),
             event_origin=None,
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             shape=None,
             ext_ids=new_ext_ids,
         )
@@ -529,7 +529,7 @@ class SingleBuildingHistoryTest(APITestCase):
             user=User.objects.get(id=self.user_id),
             status="demolished",
             shape=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=None,
         )
 
@@ -558,7 +558,7 @@ class SingleBuildingHistoryTest(APITestCase):
             user=User.objects.get(id=self.user_id),
             status="demolished",
             shape=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=None,
         )
 

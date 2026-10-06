@@ -112,7 +112,11 @@ class AddressDeletionTrigger(TransactionTestCase):
         a1 = Address.objects.create(id="address_1")
         a2 = Address.objects.create(id="address_2")
 
-        Building.objects.create(rnb_id="1", addresses_id=[a1.id, a2.id])
+        Building.objects.create(
+            rnb_id="1",
+            addresses_id=[a1.id, a2.id],
+            addresses_internal_id=[a1.internal_id, a2.internal_id],
+        )
 
         with self.assertRaises(InternalError):
             a1.delete()
@@ -129,10 +133,15 @@ class AddressDeletionTrigger(TransactionTestCase):
         a2 = Address.objects.create(id="address_2")
 
         # Create a building with both addresses
-        b = Building.objects.create(rnb_id="1", addresses_id=[a1.id, a2.id])
+        b = Building.objects.create(
+            rnb_id="1",
+            addresses_id=[a1.id, a2.id],
+            addresses_internal_id=[a1.internal_id, a2.internal_id],
+        )
 
         # Remove a1 from the building — this creates a history entry referencing a1
         b.addresses_id = [a2.id]
+        b.addresses_internal_id = [a2.internal_id]
         b.save()
 
         # a1 is no longer in any current building, but is still in history

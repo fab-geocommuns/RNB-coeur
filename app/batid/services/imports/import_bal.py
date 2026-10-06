@@ -10,7 +10,7 @@ from batid.exceptions import (
     BANBadResultType,
     BANUnknownCleInterop,
 )
-from batid.models import Building, BuildingImport
+from batid.models import Address, Building, BuildingImport
 from batid.services.bdg_status import BuildingStatus
 from batid.services.imports import building_import_history
 from batid.services.RNB_team_user import get_RNB_team_user
@@ -279,13 +279,16 @@ def find_and_update_bdg(  # type: ignore[return]
 
     if isinstance(bdg_to_link, Building):
 
-        bdg_addresses = list(bdg_to_link.addresses_id or [])  # make a shallow copy
+        bdg_addresses = (
+            Address.cle_interop_from_internal_ids(bdg_to_link.addresses_internal_id)
+            or []
+        )
         bdg_addresses.append(cle_interop)
 
         bdg_to_link.update(
             user=get_RNB_team_user(),
             event_origin={"source": "import", "id": bdg_import_id},
-            addresses_id=bdg_addresses,
+            addresses_cle_interop=bdg_addresses,
             status=None,
         )
 
@@ -336,7 +339,9 @@ def _known_building_address_link(cle_interop: str, rnb_id: str) -> bool:
         select 1
         from batid_building_with_history as bdg
         where bdg.rnb_id = %(rnb_id)s
-        and %(cle_interop)s = any(bdg.addresses_id)
+        and (
+            select ad.internal_id from batid_address as ad where ad.id = %(cle_interop)s
+        ) = any(bdg.addresses_internal_id)
     """
 
     params = {
