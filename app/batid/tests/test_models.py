@@ -1067,7 +1067,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=[{"source": "bdtopo", "id": "bdtopo_1"}],
         )
         b.refresh_from_db()
@@ -1088,7 +1088,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status="demolished",
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=[{"source": "bdtopo", "id": "bdtopo_1"}],
         )
         b.refresh_from_db()
@@ -1108,7 +1108,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=[{"source": "bdtopo", "id": "bdtopo_1"}],
             validate=True,
         )
@@ -1128,7 +1128,7 @@ class TestUpdateBuildingValidatedBy(TestCase):
             user=self.user,
             event_origin={"source": "test"},
             status=None,
-            addresses_id=None,
+            addresses_cle_interop=None,
             ext_ids=[{"source": "bdtopo", "id": "bdtopo_1"}],
             validate=False,
         )

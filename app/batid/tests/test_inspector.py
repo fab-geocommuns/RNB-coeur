@@ -551,7 +551,7 @@ class InspectorKeepsValidations(TestCase):
             user=contributor,
             event_origin={"source": "import"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=shape,
             ext_ids=[
                 {
