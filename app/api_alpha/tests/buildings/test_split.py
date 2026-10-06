@@ -164,6 +164,13 @@ class BuildingSplitTest(APITestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_split_buildings_missing_info(self):
+        """
+        Input: split requests that are valid, have no RNB ID, an unknown RNB ID,
+        a single child building, or child buildings missing status/address.
+        Expected: 201 for the valid request, 404 for missing/unknown RNB ID
+        (with the French "not found" message, as LANGUAGE_CODE is "fr"),
+        400 with an explicit message for the other cases.
+        """
 
         # base case: correct
         data = {
@@ -239,7 +246,7 @@ class BuildingSplitTest(APITestCase):
 
         self.assertEqual(r.status_code, 404)
         self.assertEqual(
-            r.content, b'{"detail":"No Building matches the given query."}'
+            r.json(), {"detail": "Aucun objet Building ne correspond à cette requête."}
         )
 
         # split in 1 is impossible
