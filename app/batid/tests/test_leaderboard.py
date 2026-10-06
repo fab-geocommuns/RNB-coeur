@@ -100,7 +100,7 @@ class LeaderboardQueryTestCase(TestCase):
                 user=user,
                 event_origin={"source": "contribution"},
                 status="constructed",
-                addresses_id=[],
+                addresses_cle_interop=[],
                 shape=shape,
                 ext_ids=[],
             )
