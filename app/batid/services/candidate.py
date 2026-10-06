@@ -1,11 +1,12 @@
+import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from batid.exceptions import BuildingTooLarge, BuildingTooSmall, InvalidWGS84Geometry
-from batid.models import Building, BuildingWithHistory, Candidate
+from batid.models import Address, Building, BuildingWithHistory, Candidate
+from batid.services.bdg_diff import building_identicals
 from batid.services.bdg_status import BuildingStatus as BuildingStatusService
-from batid.services.data_fix.fill_empty_event_origin import building_identicals
 from batid.services.RNB_team_user import get_RNB_team_user
 from batid.utils.geo import assert_shape_is_valid
 from celery import Signature
@@ -201,7 +202,7 @@ class Inspector:
                 user=get_RNB_team_user(),
                 event_origin=changes.get("event_origin"),
                 status=None,
-                addresses_id=changes.get("addresses_id"),
+                addresses_cle_interop=changes.get("addresses_cle_interop"),
                 ext_ids=changes.get("ext_ids"),
                 shape=changes.get("shape"),
             )
@@ -251,12 +252,14 @@ class Inspector:
         # ##############################
         # ADDRESSES
         # Handle change in addresses
-        bdg_addresses = set(bdg.addresses_id or [])
+        bdg_addresses = set(
+            Address.cle_interop_from_internal_ids(bdg.addresses_internal_id) or []
+        )
         candidate_addresses = set(self.candidate.address_keys or [])
 
         if candidate_addresses - bdg_addresses:
             # update the addresses with the new ones
-            changes["addresses_id"] = list(bdg_addresses | candidate_addresses)  # type: ignore
+            changes["addresses_cle_interop"] = list(bdg_addresses | candidate_addresses)  # type: ignore
 
         if changes:
             changes["event_origin"] = self.candidate.created_by
@@ -264,14 +267,6 @@ class Inspector:
         # return an empty dict if nothing has changed
         # or a dict of changes
         return changes
-
-
-# Do not use this function anymore: it modifies a building without going through
-# the RNB business functions (create_new, update, deactivate...). Any call will
-# fail with a ForbiddenDjangoNativeFunction error.
-def add_addresses_to_building(bdg: Building, add_keys):
-    bdg.addresses_id = add_keys
-    bdg.save()
 
 
 def match_shapes(
@@ -352,7 +347,7 @@ def create_building_from_candidate(c: Candidate) -> Building:
         user=get_RNB_team_user(),
         event_origin=c.created_by,
         status="constructed",
-        addresses_id=c.address_keys or [],
+        addresses_cle_interop=c.address_keys or [],
         shape=c.shape,  # type: ignore
         ext_ids=[
             {
@@ -365,6 +360,64 @@ def create_building_from_candidate(c: Candidate) -> Building:
     )
 
     return b
+
+
+MAINTENANCE_STALE_AFTER = timedelta(days=30)
+
+
+def vacuum_analyze_candidates_if_needed():
+    """Run VACUUM ANALYZE on the candidate table if its vacuum or analyze is stale.
+
+    Fails open: inspection must proceed even if this maintenance step fails.
+    """
+    try:
+        if _candidate_maintenance_is_stale():
+            with connection.cursor() as cursor:
+                cursor.execute("SET statement_timeout = '0';")
+                cursor.execute(f"VACUUM ANALYZE {Candidate._meta.db_table};")
+                cursor.execute("RESET statement_timeout;")
+    except Exception:
+        logging.exception(
+            "Could not VACUUM ANALYZE the candidate table before inspection"
+        )
+
+
+def _candidate_maintenance_is_stale() -> bool:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT last_vacuum, last_autovacuum, last_analyze, last_autoanalyze "
+            "FROM pg_stat_user_tables WHERE relname = %s",
+            [Candidate._meta.db_table],
+        )
+        row = cursor.fetchone()
+
+    if row is None:
+        return True
+
+    last_vacuum, last_autovacuum, last_analyze, last_autoanalyze = row
+
+    return _maintenance_timestamps_are_stale(
+        last_vacuum,
+        last_autovacuum,
+        last_analyze,
+        last_autoanalyze,
+        now=datetime.now(timezone.utc),
+    )
+
+
+def _maintenance_timestamps_are_stale(
+    last_vacuum, last_autovacuum, last_analyze, last_autoanalyze, now
+) -> bool:
+    cutoff = now - MAINTENANCE_STALE_AFTER
+
+    def is_fresh(*timestamps):
+        known = [t for t in timestamps if t is not None]
+        return bool(known) and max(known) >= cutoff
+
+    return not (
+        is_fresh(last_vacuum, last_autovacuum)
+        and is_fresh(last_analyze, last_autoanalyze)
+    )
 
 
 def create_inspection_tasks() -> list:

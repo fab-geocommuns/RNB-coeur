@@ -19,6 +19,7 @@ from batid.services.candidate import (
 from batid.services.rnb_id import generate_rnb_id
 from batid.tests.factories.users import UserFactory
 from batid.tests.helpers import (
+    addresses_cle_interop,
     coords_to_mp_geom,
     coords_to_point_geom,
     create_bdg,
@@ -96,10 +97,10 @@ class TestInspectorBdgCreate(TestCase):
 
         # Check the building has two adresses
         b = Building.objects.all().first()
-        self.assertEqual(len(b.addresses_id), 2)
-        addresses_ids = b.addresses_id
-        self.assertIn("add_1", addresses_ids)
-        self.assertIn("add_2", addresses_ids)
+        self.assertEqual(len(addresses_cle_interop(b)), 2)
+        cles = addresses_cle_interop(b)
+        self.assertIn("add_1", cles)
+        self.assertIn("add_2", cles)
 
         self.assertEqual(len(b.ext_ids), 1)
         self.assertEqual(b.ext_ids[0]["source"], "bdnb")
@@ -308,12 +309,12 @@ class TestInspectorBdgUpdate(TestCase):
 
         # Check the building has three adresses
         b = Building.objects.get(rnb_id="EXISTING")
-        self.assertEqual(len(b.addresses_id), 3)
+        self.assertEqual(len(addresses_cle_interop(b)), 3)
 
-        addresses_ids = b.addresses_id
-        self.assertIn("add_1", addresses_ids)
-        self.assertIn("add_2", addresses_ids)
-        self.assertIn("add_3", addresses_ids)
+        cles = addresses_cle_interop(b)
+        self.assertIn("add_1", cles)
+        self.assertIn("add_2", cles)
+        self.assertIn("add_3", cles)
 
         # Check the ext_ids are correct
         self.assertEqual(len(b.ext_ids), 3)
@@ -381,7 +382,7 @@ class InspectorMergeBuilding(TestCase):
             user=UserFactory(),
             event_origin={"source": "import"},
             status="constructed",
-            addresses_id=["add_1"],
+            addresses_cle_interop=["add_1"],
             shape=shape,
             ext_ids=[
                 {
@@ -481,7 +482,7 @@ class InspectorMergeBuilding(TestCase):
             user=UserFactory(),
             event_origin={"source": "import"},
             status="constructed",
-            addresses_id=["add_1", "add_2", "add_3"],
+            addresses_cle_interop=["add_1", "add_2", "add_3"],
             shape=shape,
             ext_ids=[
                 {
@@ -518,6 +519,73 @@ class InspectorMergeBuilding(TestCase):
         self.assertEqual(len(buildings), 1)
         building = buildings[0]
         self.assertEqual(building.event_type, "creation")
+
+
+class InspectorKeepsValidations(TestCase):
+    def test_ext_ids_only_update_keeps_validations(self):
+        """
+        Input: a validated building already carrying a BD Topo ext_id, and a new
+        BD Topo candidate with the same shape, no address and a new source_id, so
+        the only thing the inspector has to update is the ext_ids list.
+        Expected: the candidate is decided as an update, the new ext_id is added
+        and validated_by is left untouched: an import must not revoke the
+        validations made by contributors.
+        """
+        # RNB team user used by candidate.decide_update()
+        UserFactory(username="RNB")
+
+        contributor = UserFactory()
+
+        shape = coords_to_mp_geom(
+            [
+                [2.349804906833981, 48.85789205519228],
+                [2.349701279442314, 48.85786369735885],
+                [2.3496535925009994, 48.85777922711969],
+                [2.349861764341199, 48.85773095834841],
+                [2.3499452164882086, 48.857847406681174],
+                [2.349804906833981, 48.85789205519228],
+            ]
+        )
+
+        b = Building.create_new(
+            user=contributor,
+            event_origin={"source": "import"},
+            status="constructed",
+            addresses_cle_interop=[],
+            shape=shape,
+            ext_ids=[
+                {
+                    "id": "bdtopo_1",
+                    "source": "bdtopo",
+                    "created_at": "2023-12-10T19:42:40.038998+00:00",
+                    "source_version": "2023_01",
+                }
+            ],
+            is_valid=True,
+        )
+        rnb_id = b.rnb_id
+        self.assertEqual(b.validated_by, [contributor.id])
+
+        c = Candidate.objects.create(
+            shape=shape,
+            source="bdtopo",
+            source_id="bdtopo_2",
+            source_version="2024_01",
+            address_keys=None,
+            is_light=False,
+        )
+
+        Inspector().inspect()
+
+        c.refresh_from_db()
+        self.assertEqual(c.inspection_details, {"decision": "update", "rnb_id": rnb_id})
+
+        b.refresh_from_db()
+        self.assertEqual(
+            [ext_id["id"] for ext_id in b.ext_ids], ["bdtopo_1", "bdtopo_2"]
+        )
+        self.assertEqual(b.validated_by, [contributor.id])
+        self.assertEqual(b.event_type, "update")
 
 
 class InspectTest(TestCase):

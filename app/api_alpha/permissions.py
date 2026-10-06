@@ -96,6 +96,28 @@ class RNBReviewerPermission(permissions.BasePermission):
         return is_in_group(request.user, self.group_name)
 
 
+class RollbackPermission(permissions.BasePermission):
+    """
+    Reserved to staff members of the "Rollback" group.
+
+    Same restriction as the `can_rollback` check used by the back-office rollback
+    tool (batid.views.can_rollback): being a Reviewer is not enough, a user also needs
+    to be staff and explicitly added to the Rollback group to actually perform a
+    rollback (they may still see the rollback button in the UI as a Reviewer, but the
+    API call itself is gated by this permission).
+    """
+
+    group_name = "Rollback"
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_staff
+            and is_in_group(request.user, self.group_name)
+        )
+
+
 class ReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.method in SAFE_METHODS

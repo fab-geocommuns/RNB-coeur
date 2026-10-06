@@ -191,7 +191,7 @@ class TestDataGouvPublication(TestCase):
             point=geom_bdg_paris.point_on_surface,
             status="constructed",
             ext_ids={"some_source": "1234"},
-            addresses_id=[address_paris_1.id],
+            addresses_internal_id=[address_paris_1.internal_id],
             is_active=True,
             validated_by=[self.user_1.id],
         )
@@ -203,7 +203,7 @@ class TestDataGouvPublication(TestCase):
             point=geom_bdg_paris.point_on_surface,
             status="constructed",
             ext_ids={"some_source": "1234"},
-            addresses_id=[address_paris_1.id],
+            addresses_internal_id=[address_paris_1.internal_id],
             is_active=False,
         )
 
@@ -224,7 +224,10 @@ class TestDataGouvPublication(TestCase):
             point=geom_bdg_paris.point_on_surface,
             status="constructed",
             ext_ids={"some_source": "9999"},
-            addresses_id=[address_paris_1.id, address_paris_2.id],
+            addresses_internal_id=[
+                address_paris_1.internal_id,
+                address_paris_2.internal_id,
+            ],
         )
 
         address_Montreuil = Address.objects.create(
@@ -242,7 +245,10 @@ class TestDataGouvPublication(TestCase):
             point=geom_bdg_montreuil.point_on_surface,
             status="constructed",
             ext_ids={"some_source": "987"},
-            addresses_id=[address_paris_1.id, address_Montreuil.id],
+            addresses_internal_id=[
+                address_paris_1.internal_id,
+                address_Montreuil.internal_id,
+            ],
         )
 
         # create 2 plots touching the Parisian building

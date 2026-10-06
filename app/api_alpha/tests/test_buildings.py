@@ -21,7 +21,7 @@ class BuildingClosestViewTest(APITestCase):
             user=user,
             event_origin={"source": "test"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             ext_ids=[],
             shape=GEOSGeometry(
                 json.dumps(
@@ -50,7 +50,7 @@ class BuildingClosestViewTest(APITestCase):
             user=user,
             event_origin={"source": "test"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             ext_ids=[],
             shape=GEOSGeometry(
                 json.dumps(
@@ -78,7 +78,7 @@ class BuildingClosestViewTest(APITestCase):
                 user=user,
                 status="constructed",
                 event_origin={"source": "test"},
-                addresses_id=[],
+                addresses_cle_interop=[],
                 ext_ids=[],
                 shape=GEOSGeometry(
                     json.dumps(
@@ -105,7 +105,7 @@ class BuildingClosestViewTest(APITestCase):
             user=user,
             status="constructed",
             event_origin={"source": "test"},
-            addresses_id=[],
+            addresses_cle_interop=[],
             ext_ids=[],
             shape=GEOSGeometry(
                 json.dumps(
@@ -132,7 +132,7 @@ class BuildingClosestViewTest(APITestCase):
             user=user,
             status="demolished",
             event_origin={"source": "test"},
-            addresses_id=[],
+            addresses_cle_interop=[],
             ext_ids=[],
             shape=GEOSGeometry(
                 json.dumps(
@@ -158,7 +158,7 @@ class BuildingClosestViewTest(APITestCase):
             user=user,
             status="constructed",
             event_origin={"source": "test"},
-            addresses_id=[],
+            addresses_cle_interop=[],
             ext_ids=[],
             shape=GEOSGeometry(
                 json.dumps(
@@ -323,7 +323,7 @@ class BuildingClosestViewTest(APITestCase):
             user=user,
             event_origin={"source": "test"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             ext_ids=[],
             shape=GEOSGeometry(
                 json.dumps(
@@ -347,7 +347,7 @@ class BuildingClosestViewTest(APITestCase):
             user=user,
             event_origin={"source": "test"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             ext_ids=[],
             shape=GEOSGeometry(
                 json.dumps(
@@ -397,7 +397,7 @@ class BuildingAddressViewTest(APITestCase):
             user=self.user,
             event_origin={"source": "test"},
             status="constructed",
-            addresses_id=[self.cle_interop_ban_1, self.cle_interop_ban_2],
+            addresses_cle_interop=[self.cle_interop_ban_1, self.cle_interop_ban_2],
             ext_ids=[],
             shape=GEOSGeometry(
                 json.dumps(
@@ -425,7 +425,7 @@ class BuildingAddressViewTest(APITestCase):
             user=self.user,
             event_origin={"source": "test"},
             status="constructed",
-            addresses_id=[self.cle_interop_ban_1],
+            addresses_cle_interop=[self.cle_interop_ban_1],
             ext_ids=[],
             shape=GEOSGeometry(
                 json.dumps(

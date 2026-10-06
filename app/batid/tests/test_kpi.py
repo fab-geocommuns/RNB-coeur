@@ -204,26 +204,44 @@ class CountRealBuildingsWithoutAddress(TestCase):
     def setUp(self):
 
         # Addresses
-        Address.objects.create(id="one")
-        Address.objects.create(id="two")
+        one = Address.objects.create(id="one")
+        two = Address.objects.create(id="two")
         Address.objects.create(id="three")
 
         # Real buildings
         Building.objects.create(
-            rnb_id="r1", status="constructed", addresses_id=["one", "two"]
+            rnb_id="r1",
+            status="constructed",
+            addresses_internal_id=[one.internal_id, two.internal_id],
         )
         # test empty array
-        Building.objects.create(rnb_id="r2", status="notUsable", addresses_id=[])
+        Building.objects.create(
+            rnb_id="r2",
+            status="notUsable",
+            addresses_internal_id=[],
+        )
         # test None
-        Building.objects.create(rnb_id="r3", status="notUsable", addresses_id=None)
+        Building.objects.create(
+            rnb_id="r3",
+            status="notUsable",
+            addresses_internal_id=None,
+        )
 
         # Not real buildings
         Building.objects.create(
-            rnb_id="3", status="constructed", is_active=False, addresses_id=["one"]
+            rnb_id="3",
+            status="constructed",
+            is_active=False,
+            addresses_internal_id=[one.internal_id],
         )
         Building.objects.create(rnb_id="4", status="demolished", is_active=True)
 
     def test(self):
+        """
+        Input: 3 real buildings (one with 2 addresses, one with an empty address
+        array, one with NULL addresses) and 2 non-real buildings.
+        Expected: 2 real buildings without addresses (empty array and NULL).
+        """
 
         value = count_real_buildings_wo_addresses()
         self.assertEqual(value, 2)
