@@ -13,8 +13,10 @@ DEFAULT_BATCH_SIZE = 10_000
 MAX_INT4 = 2**31 - 1
 
 
-def compute_id_slices(max_id: int, n_slices: int) -> List[Tuple[int, Optional[int]]]:
-    """Split [0, max_id] into n_slices contiguous, non-overlapping (min_id,
+def compute_id_slices(
+    max_id: int, n_slices: int, min_id: int = 0
+) -> List[Tuple[int, Optional[int]]]:
+    """Split [min_id, max_id] into n_slices contiguous, non-overlapping (min_id,
     max_id) ranges, using the same bounds convention as
     fill_building_addresses_internal_id() (min_id exclusive, max_id
     inclusive) - so calling it once per range covers every row exactly once.
@@ -23,7 +25,9 @@ def compute_id_slices(max_id: int, n_slices: int) -> List[Tuple[int, Optional[in
     slice, since the backfill only ever touches addresses_internal_id IS NULL
     rows.
     """
-    bounds = [round(i * max_id / n_slices) for i in range(n_slices + 1)]
+    bounds = [
+        min_id + round(i * (max_id - min_id) / n_slices) for i in range(n_slices + 1)
+    ]
     return [
         (lo, hi if i < n_slices - 1 else None)
         for i, (lo, hi) in enumerate(zip(bounds, bounds[1:]))

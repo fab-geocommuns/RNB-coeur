@@ -8,6 +8,7 @@ import uuid
 from unittest.mock import patch
 
 from batid.models import Address, Building, City, Organization, UserProfile
+from batid.tests.helpers import internal_ids
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase, override_settings
@@ -92,7 +93,7 @@ class DiffTest(TransactionTestCase):
                     "created_at": "2024-08-05T00:00:00Z",
                 }
             ],
-            addresses_id=["ADDRESS_ID_1"],
+            addresses_internal_id=internal_ids(["ADDRESS_ID_1"]),
             event_type="creation",
         )
         # reload the buildings to get the sys_period
@@ -103,7 +104,7 @@ class DiffTest(TransactionTestCase):
             status="demolished",
             user=user,
             event_origin={"source": "test"},
-            addresses_id=["ADDRESS_ID_2", "ADDRESS_ID_3"],
+            addresses_cle_interop=["ADDRESS_ID_2", "ADDRESS_ID_3"],
         )
 
         # #############
@@ -295,7 +296,7 @@ class DiffTest(TransactionTestCase):
             rnb_id="1",
             status="constructed",
             event_type="creation",
-            addresses_id=["ADDRESS_ID_1"],
+            addresses_internal_id=[Address.objects.get(id="ADDRESS_ID_1").internal_id],
             shape=geom,
             point=geom.point_on_surface,
         )
@@ -303,7 +304,7 @@ class DiffTest(TransactionTestCase):
             rnb_id="2",
             status="constructed",
             event_type="creation",
-            addresses_id=["ADDRESS_ID_2"],
+            addresses_internal_id=[Address.objects.get(id="ADDRESS_ID_2").internal_id],
             shape=geom,
             point=geom.point_on_surface,
         )
@@ -315,7 +316,7 @@ class DiffTest(TransactionTestCase):
             [b1, b2],
             user=user,
             event_origin={"source": "dummy"},
-            addresses_id=["ADDRESS_ID_1", "ADDRESS_ID_2"],
+            addresses_cle_interop=["ADDRESS_ID_1", "ADDRESS_ID_2"],
             status="constructed",
         )
 
@@ -481,7 +482,7 @@ class DiffTest(TransactionTestCase):
             status="constructed",
             user=user,
             event_origin={"source": "test"},
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
 
         params = urlencode({"since": threshold.strftime("%Y-%m-%dT%H:%M:%S")})
@@ -501,7 +502,7 @@ class DiffTest(TransactionTestCase):
             status="constructed",
             user=user,
             event_origin={"source": "test"},
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
 
         params = urlencode({"since": threshold.strftime("%Y-%m-%d")})
@@ -577,7 +578,7 @@ class DiffTest(TransactionTestCase):
             user=user,
             event_origin={"source": "test"},
             status="demolished",
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
         b1.refresh_from_db()
         update_event_id = b1.event_id
@@ -652,7 +653,7 @@ class DiffTest(TransactionTestCase):
             user=user,
             event_origin={"source": "test"},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
         b3.refresh_from_db()
         merge_event_id = b3.event_id
@@ -778,7 +779,7 @@ class DiffTest(TransactionTestCase):
                     "created_at": "2024-08-05T00:00:00Z",
                 }
             ],
-            addresses_id=["ADDRESS_ID_1"],
+            addresses_internal_id=[Address.objects.get(id="ADDRESS_ID_1").internal_id],
             status="constructed",
             event_type="creation",
         )
@@ -816,6 +817,50 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(rows[1]["event_type"], "reactivation")
         self.assertListEqual(json.loads(rows[1]["addresses_id"]), ["ADDRESS_ID_1"])
         self.assertEqual(rows[1]["username"], "marcella")
+
+    def test_diff_addresses_read_from_internal_id(self):
+        """
+        Input: buildings whose addresses_internal_id is non-alphabetical, an empty
+        array, NULL (addresses_id left NULL on all of them).
+        Expected: the addresses_id CSV column is built from addresses_internal_id,
+        translated back to "clés d'interopérabilité" in the array order, with the
+        exact former to_json() formatting: no space after commas, [] for an empty
+        array and an empty field for NULL.
+        """
+        internal_id_by_cle = dict(Address.objects.values_list("id", "internal_id"))
+
+        Building.objects.create(rnb_id="t", event_type="creation")
+        threshold = Building.objects.get(rnb_id="t").sys_period.lower
+
+        Building.objects.create(
+            rnb_id="1",
+            event_type="creation",
+            addresses_internal_id=[
+                internal_id_by_cle["ADDRESS_ID_3"],
+                internal_id_by_cle["ADDRESS_ID_1"],
+            ],
+        )
+        Building.objects.create(
+            rnb_id="2",
+            event_type="creation",
+            addresses_internal_id=[],
+        )
+        Building.objects.create(
+            rnb_id="3",
+            event_type="creation",
+            addresses_internal_id=None,
+        )
+
+        params = urlencode({"since": threshold.isoformat()})
+        r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
+        self.assertEqual(r.status_code, 200)
+
+        diff_text = get_content_from_streaming_response(r)
+        rows = {row["rnb_id"]: row for row in csv.DictReader(io.StringIO(diff_text))}
+
+        self.assertEqual(rows["1"]["addresses_id"], '["ADDRESS_ID_3","ADDRESS_ID_1"]')
+        self.assertEqual(rows["2"]["addresses_id"], "[]")
+        self.assertEqual(rows["3"]["addresses_id"], "")
 
     def test_diff_download_leaves_no_export_thread(self):
         """
@@ -968,7 +1013,7 @@ class DiffInseeCodeTest(TransactionTestCase):
                 status="demolished",
                 user=user,
                 event_origin={"source": "test"},
-                addresses_id=[],
+                addresses_cle_interop=[],
             )
 
         params = urlencode({"since": threshold.isoformat(), "insee_code": "75056"})
@@ -1011,7 +1056,7 @@ class DiffInseeCodeTest(TransactionTestCase):
             status="demolished",
             user=user,
             event_origin={"source": "test"},
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
 
         params = urlencode({"since": threshold.isoformat(), "insee_code": "75056"})
@@ -1053,7 +1098,7 @@ class DiffInseeCodeTest(TransactionTestCase):
             status="demolished",
             user=user,
             event_origin={"source": "test"},
-            addresses_id=[],
+            addresses_cle_interop=[],
         )
 
         params = urlencode({"since": threshold.isoformat(), "insee_code": "75056"})

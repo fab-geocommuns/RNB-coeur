@@ -95,7 +95,7 @@ class BuildingSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     addresses = AddressSerializer(
-        many=True, read_only=True, source="addresses_read_only"
+        many=True, read_only=True, source="addresses_internal_read_only"
     )
 
     validated_by = PublicUserSerializer(
@@ -230,7 +230,7 @@ class GuessBuildingSerializer(serializers.ModelSerializer):
     sub_scores = serializers.JSONField(read_only=True)
     point = serializers.DictField(source="point_geojson", read_only=True)
     addresses = AddressSerializer(
-        many=True, read_only=True, source="addresses_read_only"
+        many=True, read_only=True, source="addresses_internal_read_only"
     )
     ext_ids = serializers.JSONField(read_only=True)
 
@@ -251,7 +251,7 @@ class BuildingClosestSerializer(serializers.ModelSerializer):
     distance = serializers.SerializerMethodField()
     point = serializers.DictField(source="point_geojson", read_only=True)
     addresses = AddressSerializer(
-        many=True, read_only=True, source="addresses_read_only"
+        many=True, read_only=True, source="addresses_internal_read_only"
     )
     validated_by = PublicUserSerializer(
         many=True, read_only=True, source="validated_by_read_only"

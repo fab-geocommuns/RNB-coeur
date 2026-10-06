@@ -1,4 +1,4 @@
-from batid.models import Building, Plot
+from batid.models import Address, Building, Plot
 from batid.services.bdg_status import BuildingStatus as BuildingStatusRef
 from batid.services.geocoders import BanGeocoder, PhotonGeocoder
 from batid.utils.misc import is_float
@@ -72,13 +72,16 @@ class BuildingGuess:
         # BAN ID
         if self.params._ban_id:
             joins.append(
-                f"LEFT JOIN {Building.addresses_read_only.through._meta.db_table} as b_rel_a ON b_rel_a.building_id = b.id"
+                f"LEFT JOIN {Building.addresses_internal_read_only.through._meta.db_table} as b_rel_a ON b_rel_a.building_id = b.id"
             )
 
             group_by = "b.id"
 
+            # The join table stores address internal_ids: resolve the BAN id (interop key) first.
+            # An unknown BAN id resolves to NULL, so the CASE falls to ELSE 0.
+            ban_internal_id_q = f"SELECT internal_id FROM {Address._meta.db_table} WHERE id = %(ban_id)s"  # nosec B608: meta.db_table is safe
             self.scores["ban_id_shared"] = (
-                f"CASE WHEN %(ban_id)s = ANY(array_agg(b_rel_a.address_id)) THEN 1 ELSE 0 END"
+                f"CASE WHEN ({ban_internal_id_q}) = ANY(array_agg(b_rel_a.address_id)) THEN 1 ELSE 0 END"
             )
             params["ban_id"] = self.params._ban_id
 
@@ -231,7 +234,7 @@ class BuildingGuess:
         )
 
         qs = Building.objects.raw(global_query, params).prefetch_related(
-            "addresses_read_only"
+            "addresses_internal_read_only"
         )
 
         # print("---- QUERY ---")

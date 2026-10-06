@@ -37,7 +37,7 @@ def get_buildings_intersecting_polygon(poly: Polygon):
         .order_by(F("iou").desc(nulls_last=True), "rnb_id")
     )
 
-    qs = qs.prefetch_related("addresses_read_only")
+    qs = qs.prefetch_related("addresses_internal_read_only")
     qs = qs.prefetch_related("validated_by_read_only")
 
     return qs

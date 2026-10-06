@@ -111,11 +111,11 @@ class TestGuesser(TransactionTestCase):
         )
 
         bs = Building.objects.get(rnb_id="SouthOne")
-        bs.addresses_id = [address_1.id, address_2.id]
+        bs.addresses_internal_id = [address_1.internal_id, address_2.internal_id]
         bs.save()
 
         bl = Building.objects.get(rnb_id="BigLong")
-        bl.addresses_id = [address_2.id]
+        bl.addresses_internal_id = [address_2.internal_id]
         bl.save()
 
     def _create_guess_work_file(self):
@@ -700,16 +700,16 @@ class TestIsolatedMatching(PartialRoofTest):
 class TestAddressGeocoding(TransactionTestCase):
     def setUp(self):
 
-        Address.objects.create(id="BAN_ID_ONE")
-        Address.objects.create(id="BAN_ID_TWO")
+        adr_one = Address.objects.create(id="BAN_ID_ONE")
+        adr_two = Address.objects.create(id="BAN_ID_TWO")
         Address.objects.create(id="BAN_ID_THREE")
 
         b = create_default_bdg(rnb_id="BDG_ONE")
-        b.addresses_id = ["BAN_ID_ONE"]
+        b.addresses_internal_id = [adr_one.internal_id]
         b.save()
 
         b = create_default_bdg(rnb_id="BDG_TWO")
-        b.addresses_id = ["BAN_ID_ONE", "BAN_ID_TWO"]
+        b.addresses_internal_id = [adr_one.internal_id, adr_two.internal_id]
         b.save()
 
         b = create_default_bdg(rnb_id="BDG_THREE")

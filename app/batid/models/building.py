@@ -95,13 +95,11 @@ class BuildingAbstract(models.Model):
     revert_event_id = models.UUIDField(null=True, db_index=True)
     # only currently active buildings are considered part of the RNB
     is_active = models.BooleanField(db_index=True, default=True)
-    # this field is the source of truth for the building <> address link
-    # it contains BAN ids (clé d'interopérabilité)
+    # contains clés d'interoperabilité
+    # to be deleted soon, when transition to addresses_internal_id is complete
     addresses_id = ArrayField(models.CharField(max_length=40), null=True)
-    # mirrors addresses_id as batid_address.internal_id values (see
-    # specs/migration_lien_batiment_adresse.md). Kept in sync on every write by
-    # Building._dangerously_save_forever(). Existing rows written before this
-    # was added are not backfilled yet: that's a separate PR.
+    # the source of truth for the building <> address link
+    # it contains batid_address.internal_id values
     addresses_internal_id = ArrayField(models.BigIntegerField(), null=True)
     validated_by = ArrayField(models.IntegerField(), null=True, default=list)
 
@@ -164,7 +162,7 @@ class Building(BuildingAbstract):
 
     # this only exists to make it possible for the Django ORM to access the associated addresses
     # but this field is read-only : you should not attempt to save a building/address association through this field
-    # use addresses_id instead.
+    # use the business functions (create_new, update, ...), which write in the correct place (addresses_internal_id).
     addresses_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
         "Address",
         blank=True,
@@ -208,13 +206,33 @@ class Building(BuildingAbstract):
         functions of this class. "Forever" is literal: any write enters the RNB
         history permanently, nothing is ever erased.
         """
-        # Transitional: addresses_internal_id mirrors addresses_id as
-        # batid_address.internal_id values. Delete this line once addresses_id is
-        # dropped (see specs/migration_lien_batiment_adresse.md, PR 9).
-        self.addresses_internal_id = Address.internal_ids_from_cle_interop(
-            self.addresses_id
+        # Transitional: addresses_id mirrors addresses_internal_id as BAN interop
+        # keys. Delete this line once addresses_id is dropped
+        self.addresses_id = Address.cle_interop_from_internal_ids(
+            self.addresses_internal_id
         )
         super().save(*args, **kwargs)
+
+    def _lock_and_refresh(self):
+        """
+        Locks the building row until the end of the current transaction and
+        reloads this instance from it. Every RNB business function that checks
+        the building state (is_active, event_type, ...) before writing must call
+        this first: concurrent writes on the same building are then serialized by
+        Postgres, the second one waits for the first commit and re-reads the fresh
+        state, so its check fails instead of overwriting (issue #955).
+        Plain reads (SELECT without FOR UPDATE) are never blocked.
+        Any unsaved in-memory change on this instance is discarded.
+        """
+        self.refresh_from_db(from_queryset=Building.objects.select_for_update())
+
+    @staticmethod
+    def _get_locked(rnb_id: str) -> "Building":
+        """
+        Returns the current version of a building, locked until the end of the
+        current transaction (see _lock_and_refresh).
+        """
+        return Building.objects.select_for_update().get(rnb_id=rnb_id)
 
     def contains_ext_id(
         self, source: str, source_version: Optional[str], id: str
@@ -265,6 +283,7 @@ class Building(BuildingAbstract):
 
         revert_event_id is expected when reverting a reactivation.
         """
+        self._lock_and_refresh()
         check_and_increment_contribution_count(user)
 
         if self.is_active:
@@ -288,6 +307,7 @@ class Building(BuildingAbstract):
                 f"Impossible de désactiver un identifiant déjà inactif : {self.rnb_id}"
             )
 
+    @transaction.atomic
     @staticmethod
     def revert_creation(
         user: User,
@@ -295,11 +315,6 @@ class Building(BuildingAbstract):
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
         """a wrapper around the existing deactivate method, to deactivate a building based on an event_id"""
-        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
-            raise RevertNotAllowed(
-                "Impossible to revert the building creation, because it has been modified."
-            )
-
         buildings_to_revert = BuildingWithHistory.get_by_event_id(event_id_to_revert)
         building_to_revert = buildings_to_revert[0]
 
@@ -313,9 +328,16 @@ class Building(BuildingAbstract):
 
         rnb_id = building_to_revert.rnb_id
 
-        # get the current version
-        building = Building.objects.get(rnb_id=rnb_id)
-        # and update it
+        # lock the current version BEFORE checking the event history: a
+        # concurrent write on this building would otherwise slip in between
+        # the check and our write
+        building = Building._get_locked(rnb_id)
+
+        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
+            raise RevertNotAllowed(
+                "Impossible to revert the building creation, because it has been modified."
+            )
+
         new_event_id = uuid.uuid4()
         building.event_type = EventType.REVERT_CREATION.value
         building.revert_event_id = event_id_to_revert
@@ -333,6 +355,7 @@ class Building(BuildingAbstract):
         This method allows a user to undo a RNB ID deactivation made by mistake.
         We may add some checks in the future, like only allowing to reactivate a recently deactivated ID.
         """
+        self._lock_and_refresh()
         check_and_increment_contribution_count(user)
 
         if self.is_active == False and self.event_type == EventType.DEACTIVATION.value:
@@ -354,11 +377,6 @@ class Building(BuildingAbstract):
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
         """a wrapper around the existing reactivate method, to reactivate a building based on an event_id"""
-        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
-            raise RevertNotAllowed(
-                "Impossible to revert the building deactivation, because it has been modified."
-            )
-
         buildings_to_revert = BuildingWithHistory.get_by_event_id(event_id_to_revert)
 
         if len(buildings_to_revert) != 1:
@@ -373,7 +391,14 @@ class Building(BuildingAbstract):
                 "The event_id does not correspond to a deactivation."
             )
 
-        current_building = Building.objects.get(rnb_id=building_to_revert.rnb_id)
+        # lock the current version BEFORE checking the event history (see revert_creation)
+        current_building = Building._get_locked(building_to_revert.rnb_id)
+
+        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
+            raise RevertNotAllowed(
+                "Impossible to revert the building deactivation, because it has been modified."
+            )
+
         current_building.reactivate(user, event_origin)
 
         # reactivate() always assigns a new event_id (or raises), so it is never None here
@@ -386,11 +411,6 @@ class Building(BuildingAbstract):
         event_origin: dict,
         event_id_to_revert: uuid.UUID,
     ) -> uuid.UUID:
-        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
-            raise RevertNotAllowed(
-                "Impossible to revert the building reactivation, because it has been modified."
-            )
-
         buildings_to_revert = BuildingWithHistory.get_by_event_id(event_id_to_revert)
 
         if len(buildings_to_revert) != 1:
@@ -405,11 +425,17 @@ class Building(BuildingAbstract):
                 "The event_id does not correspond to a reactivation."
             )
 
-        current_building = Building.objects.get(rnb_id=building_to_revert.rnb_id)
+        # lock the current version BEFORE checking the event history (see revert_creation)
+        current_building = Building._get_locked(building_to_revert.rnb_id)
+
+        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
+            raise RevertNotAllowed(
+                "Impossible to revert the building reactivation, because it has been modified."
+            )
+
         current_building.deactivate(
             user, event_origin, revert_event_id=event_id_to_revert
         )
-        current_building.refresh_from_db()
         # deactivate() always assigns a new event_id (or raises), so it is never None here
         return cast(uuid.UUID, current_building.event_id)
 
@@ -419,18 +445,25 @@ class Building(BuildingAbstract):
         user: User,
         event_origin: dict | None,
         status: str | None,
-        addresses_id: list | None,
+        addresses_cle_interop: list | None,
         ext_ids: list | None = None,
         shape: GEOSGeometry | None = None,
         validate: bool | None = None,
     ):
+        # the "identical" comparison and the is_active check below must be made
+        # against the current state of the building, not the caller's instance
+        self._lock_and_refresh()
         check_and_increment_contribution_count(user)
 
         building_identical = (
             (status is None or status == self.status)
             and (
-                addresses_id is None
-                or set(addresses_id) == set(self.addresses_id or [])
+                addresses_cle_interop is None
+                or set(addresses_cle_interop)
+                == set(
+                    Address.cle_interop_from_internal_ids(self.addresses_internal_id)
+                    or []
+                )
             )
             and (ext_ids is None or ext_ids == self.ext_ids)
             and (shape is None or shape == self.shape)
@@ -493,16 +526,19 @@ class Building(BuildingAbstract):
             # Summer Challenge!
             SummerChallenge.score_shape(user, self.point, self.rnb_id, self.event_id)
 
-        if addresses_id is not None:
-            Address.add_addresses_to_db_if_needed(addresses_id)
+        if addresses_cle_interop is not None:
+            Address.add_addresses_to_db_if_needed(addresses_cle_interop)
+            addresses_internal_id = Address.internal_ids_from_cle_interop(
+                addresses_cle_interop
+            )
 
             # Summer Challenge!
-            if self.addresses_id != addresses_id:
+            if self.addresses_internal_id != addresses_internal_id:
                 SummerChallenge.score_address(
                     user, self.point, self.rnb_id, self.event_id
                 )
 
-            self.addresses_id = addresses_id
+            self.addresses_internal_id = addresses_internal_id
 
         # Summer Challenge!
         if newly_validated:
@@ -512,15 +548,11 @@ class Building(BuildingAbstract):
 
         self._dangerously_save_forever()
 
+    @transaction.atomic
     @staticmethod
     def revert_update(
         user: User, event_origin: dict, event_id_to_revert: uuid.UUID
     ) -> uuid.UUID:
-        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
-            raise RevertNotAllowed(
-                "Impossible to revert the building update, because it has been modified."
-            )
-
         buildings_to_revert = BuildingWithHistory.get_by_event_id(event_id_to_revert)
 
         if len(buildings_to_revert) != 1:
@@ -541,8 +573,13 @@ class Building(BuildingAbstract):
         )
         building_prior_version = building_prior_versions[0]
 
-        # get current version to proceed with update
-        building_to_revert = Building.objects.get(rnb_id=building_prior_version.rnb_id)
+        # lock the current version BEFORE checking the event history (see revert_creation)
+        building_to_revert = Building._get_locked(building_prior_version.rnb_id)
+
+        if not Event.event_can_be_reverted_immediately(event_id_to_revert):
+            raise RevertNotAllowed(
+                "Impossible to revert the building update, because it has been modified."
+            )
 
         new_event_id = uuid.uuid4()
 
@@ -560,7 +597,9 @@ class Building(BuildingAbstract):
         building_to_revert.is_active = (
             building_prior_version.is_active
         )  # expected to be True anyway
-        building_to_revert.addresses_id = building_prior_version.addresses_id
+        building_to_revert.addresses_internal_id = (
+            building_prior_version.addresses_internal_id
+        )
         building_to_revert._dangerously_save_forever()
 
         return new_event_id
@@ -599,7 +638,7 @@ class Building(BuildingAbstract):
         user: User,
         event_origin: dict | None,
         status: str,
-        addresses_id: list,
+        addresses_cle_interop: list,
         shape: GEOSGeometry,
         ext_ids: list,
         is_valid: bool = False,
@@ -609,7 +648,7 @@ class Building(BuildingAbstract):
         if (
             not event_origin
             or not status
-            or addresses_id is None
+            or addresses_cle_interop is None
             or not shape
             or ext_ids is None
         ):
@@ -632,11 +671,15 @@ class Building(BuildingAbstract):
         if is_valid:
             SummerChallenge.score_validation(user, point, rnb_id, event_id)
 
-        if addresses_id is not None and len(addresses_id) > 0:
-            Address.add_addresses_to_db_if_needed(addresses_id)
+        if addresses_cle_interop is not None and len(addresses_cle_interop) > 0:
+            Address.add_addresses_to_db_if_needed(addresses_cle_interop)
 
             # Summer Challenge!
             SummerChallenge.score_address(user, point, rnb_id, event_id)
+
+        addresses_internal_id = Address.internal_ids_from_cle_interop(
+            addresses_cle_interop
+        )
 
         building = Building(
             rnb_id=rnb_id,
@@ -649,7 +692,7 @@ class Building(BuildingAbstract):
             event_type=EventType.CREATION.value,
             event_user=user,
             is_active=True,
-            addresses_id=addresses_id,
+            addresses_internal_id=addresses_internal_id,
             validated_by=[user.id] if is_valid else [],
         )
         building._dangerously_save_forever()
@@ -657,7 +700,7 @@ class Building(BuildingAbstract):
 
     @staticmethod
     @transaction.atomic
-    def merge(buildings: list, user, event_origin, status, addresses_id):
+    def merge(buildings: list, user, event_origin, status, addresses_cle_interop):
         check_and_increment_contribution_count(user)
 
         from batid.utils.geo import merge_contiguous_shapes
@@ -685,8 +728,11 @@ class Building(BuildingAbstract):
             if ext_id not in merged_ext_ids[i + 1 :]
         ]
 
-        if addresses_id is not None:
-            Address.add_addresses_to_db_if_needed(addresses_id)
+        if addresses_cle_interop is not None:
+            Address.add_addresses_to_db_if_needed(addresses_cle_interop)
+        addresses_internal_id = Address.internal_ids_from_cle_interop(
+            addresses_cle_interop
+        )
 
         def remove_existing_builing(building):
             building.is_active = False
@@ -710,7 +756,7 @@ class Building(BuildingAbstract):
         building.event_user = user
         building.event_origin = event_origin
         building.parent_buildings = parent_buildings
-        building.addresses_id = addresses_id
+        building.addresses_internal_id = addresses_internal_id
         building.shape = merged_shape
         building.point = merged_shape.point_on_surface
         building.ext_ids = merged_ext_ids
@@ -828,7 +874,9 @@ class Building(BuildingAbstract):
             child_building.event_user = user
             child_building.event_origin = event_origin
             child_building.parent_buildings = [self.rnb_id]
-            child_building.addresses_id = addresses_cle_interop
+            child_building.addresses_internal_id = (
+                Address.internal_ids_from_cle_interop(addresses_cle_interop)
+            )
             child_building.shape = geos_shape
             child_building.point = geos_shape.point_on_surface
             child_building.ext_ids = self.ext_ids
@@ -906,6 +954,9 @@ class Building(BuildingAbstract):
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
             GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
+            GinIndex(
+                fields=["addresses_internal_id"], name="bdg_addresses_internal_id_idx"
+            ),
             models.Index(fields=("status",), name="bdg_status_idx"),
             GinIndex(fields=("ext_ids",), name="bdg_ext_ids_idx"),
             # lower is used to create an index on the start of the time range
@@ -1166,6 +1217,9 @@ class BuildingHistoryOnly(BuildingAbstract):
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_history_event_origin_idx"),
             GinIndex(fields=["addresses_id"], name="bdg_history_addresses_id_idx"),
+            GinIndex(
+                fields=["addresses_internal_id"], name="bdg_hist_addr_internal_id_idx"
+            ),
             models.Index(fields=("status",), name="bdg_history_status_idx"),
             Index(Lower("sys_period"), name="bdg_hist_sys_period_start_idx"),
             models.Index(fields=("event_type",), name="bdg_history_event_type_idx"),

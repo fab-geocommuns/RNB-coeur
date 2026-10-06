@@ -19,6 +19,7 @@ from batid.services.candidate import (
 from batid.services.rnb_id import generate_rnb_id
 from batid.tests.factories.users import UserFactory
 from batid.tests.helpers import (
+    addresses_cle_interop,
     coords_to_mp_geom,
     coords_to_point_geom,
     create_bdg,
@@ -96,10 +97,10 @@ class TestInspectorBdgCreate(TestCase):
 
         # Check the building has two adresses
         b = Building.objects.all().first()
-        self.assertEqual(len(b.addresses_id), 2)
-        addresses_ids = b.addresses_id
-        self.assertIn("add_1", addresses_ids)
-        self.assertIn("add_2", addresses_ids)
+        self.assertEqual(len(addresses_cle_interop(b)), 2)
+        cles = addresses_cle_interop(b)
+        self.assertIn("add_1", cles)
+        self.assertIn("add_2", cles)
 
         self.assertEqual(len(b.ext_ids), 1)
         self.assertEqual(b.ext_ids[0]["source"], "bdnb")
@@ -308,12 +309,12 @@ class TestInspectorBdgUpdate(TestCase):
 
         # Check the building has three adresses
         b = Building.objects.get(rnb_id="EXISTING")
-        self.assertEqual(len(b.addresses_id), 3)
+        self.assertEqual(len(addresses_cle_interop(b)), 3)
 
-        addresses_ids = b.addresses_id
-        self.assertIn("add_1", addresses_ids)
-        self.assertIn("add_2", addresses_ids)
-        self.assertIn("add_3", addresses_ids)
+        cles = addresses_cle_interop(b)
+        self.assertIn("add_1", cles)
+        self.assertIn("add_2", cles)
+        self.assertIn("add_3", cles)
 
         # Check the ext_ids are correct
         self.assertEqual(len(b.ext_ids), 3)
@@ -381,7 +382,7 @@ class InspectorMergeBuilding(TestCase):
             user=UserFactory(),
             event_origin={"source": "import"},
             status="constructed",
-            addresses_id=["add_1"],
+            addresses_cle_interop=["add_1"],
             shape=shape,
             ext_ids=[
                 {
@@ -481,7 +482,7 @@ class InspectorMergeBuilding(TestCase):
             user=UserFactory(),
             event_origin={"source": "import"},
             status="constructed",
-            addresses_id=["add_1", "add_2", "add_3"],
+            addresses_cle_interop=["add_1", "add_2", "add_3"],
             shape=shape,
             ext_ids=[
                 {

@@ -38,7 +38,14 @@ from batid.exceptions import (
     BANUnknownCleInterop,
     InvalidOperation,
 )
-from batid.models import ADS, Building, Contribution, DiffusionDatabase, Organization
+from batid.models import (
+    ADS,
+    Address,
+    Building,
+    Contribution,
+    DiffusionDatabase,
+    Organization,
+)
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
@@ -71,82 +78,6 @@ logger = logging.getLogger(__name__)
 
 
 class BuildingGuessView(RNBLoggingMixin, APIView):
-    @rnb_doc(
-        {
-            "get": {
-                "summary": "Identification de bâtiment",
-                "description": (
-                    "OBSOLÈTE : Cet endpoint permet d'identifier le bâtiment correspondant à une série de critères. Il permet d'accueillir des données imprécises et tente de les combiner pour fournir le meilleur résultat. NB : l'URL se termine nécessairement par un slash (/)."
-                ),
-                "operationId": "guessBuilding",
-                "parameters": [
-                    {
-                        "name": "address",
-                        "in": "query",
-                        "description": "Adresse du bâtiment",
-                        "required": False,
-                        "schema": {"type": "string"},
-                        "example": "1 rue de la paix, Mérignac",
-                    },
-                    {
-                        "name": "point",
-                        "in": "query",
-                        "description": "Coordonnées GPS du bâtiment. Format : <code>lat,lng</code>.",
-                        "required": False,
-                        "schema": {"type": "string"},
-                        "example": "44.84114313595151,-0.5705289444867035",
-                    },
-                    {
-                        "name": "name",
-                        "in": "query",
-                        "description": "Nom du bâtiment. Est transmis à un géocoder OSM (<a href='https://github.com/komoot/photon'>Photon</a>).",
-                        "required": False,
-                        "schema": {"type": "string"},
-                        "example": "Notre Dame de Paris",
-                    },
-                    {
-                        "name": "page",
-                        "in": "query",
-                        "description": "Numéro de page pour la pagination",
-                        "required": False,
-                        "schema": {"type": "integer"},
-                        "example": 1,
-                    },
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Liste des bâtiments identifiés triés par score descendant.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "items": {
-                                        "allOf": [
-                                            {"$ref": "#/components/schemas/Building"},
-                                            {
-                                                "type": "object",
-                                                "properties": {
-                                                    "score": {
-                                                        "type": "number",
-                                                        "description": "Score de correspondance entre la requête et le bâtiment",
-                                                        "example": 0.8,
-                                                    },
-                                                    "sub_scores": {
-                                                        "type": "object",
-                                                        "description": "Liste des scores intermédiaires. Leur somme est égale au score principal.",
-                                                    },
-                                                },
-                                            },
-                                        ]
-                                    },
-                                    "type": "array",
-                                }
-                            }
-                        },
-                    }
-                },
-            }
-        }
-    )
     def get(self, request, *args, **kwargs):
 
         sunset_date = datetime(2026, 1, 5)
@@ -390,8 +321,8 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
             infos["status"] = "ok"
             buildings = (
                 Building.objects.filter(is_active=True)
-                .filter(addresses_read_only__id=cle_interop_ban)
-                .prefetch_related("addresses_read_only")
+                .filter(addresses_internal_read_only__id=cle_interop_ban)
+                .prefetch_related("addresses_internal_read_only")
                 .prefetch_related(
                     Prefetch(
                         "validated_by_read_only",
@@ -519,20 +450,22 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
 
             merge_existing_addresses = data.get("merge_existing_addresses")
             if merge_existing_addresses:
-                addresses_id = [
-                    address
-                    for building in buildings
-                    for address in building.addresses_id
-                ]
+                addresses_cle_interop = Address.cle_interop_from_internal_ids(
+                    [
+                        internal_id
+                        for building in buildings
+                        for internal_id in (building.addresses_internal_id or [])
+                    ]
+                )
             else:
-                addresses_id = data.get("addresses_cle_interop")
+                addresses_cle_interop = data.get("addresses_cle_interop")
 
             # remove possible duplicates
-            addresses_id = list(set(addresses_id))
+            addresses_cle_interop = list(set(addresses_cle_interop))
 
             try:
                 new_building = Building.merge(
-                    buildings, user, event_origin, status, addresses_id
+                    buildings, user, event_origin, status, addresses_cle_interop
                 )
             except BANAPIDown:
                 raise ServiceUnavailable(detail="BAN API is currently down")

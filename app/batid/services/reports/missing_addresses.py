@@ -23,7 +23,7 @@ inner join batid_city bc on
 	ST_INTERSECTS(bc.shape, bb.shape) and bc.code_insee = %s
 where
 	st_area(bb.shape::geography) > 100
-	and bb.addresses_id = '{}'
+	and bb.addresses_internal_id = '{}'
 	and br.building_id is null
     and bb.is_active
     and (bb.status = ANY(%s))
@@ -82,7 +82,7 @@ JOIN LATERAL (
   WHERE
     br.building_id IS NULL
     AND bb.is_active
-    AND bb.addresses_id = '{}'
+    AND bb.addresses_internal_id = '{}'
     AND bb.status = ANY (%s)
     AND ST_Area(bb.shape) > 0.00000000600
     AND bb.shape && c.cell

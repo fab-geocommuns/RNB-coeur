@@ -212,6 +212,15 @@ class ComputeIdSlicesTestCase(SimpleTestCase):
             [(0, 25), (25, 50), (50, 75), (75, None)],
         )
 
+    def test_splits_only_the_span_above_min_id(self):
+        """Input: min_id=100, max_id=200, 4 slices.
+        Expected: 4 contiguous ranges covering only (100, 200], the first one
+        starting at min_id (exclusive) and the last one open-ended."""
+        self.assertEqual(
+            compute_id_slices(max_id=200, n_slices=4, min_id=100),
+            [(100, 125), (125, 150), (150, 175), (175, None)],
+        )
+
     def test_single_slice_covers_everything(self):
         """Input: 1 slice.
         Expected: a single, fully open-ended range."""

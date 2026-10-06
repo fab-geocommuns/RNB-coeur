@@ -282,6 +282,8 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                 "contribution_id": contribution.id,
             }
 
+            # no lock needed here: deactivate/reactivate/update lock the row
+            # and reload it themselves before checking its state (issue #955)
             building = get_object_or_404(Building, rnb_id=rnb_id)
 
             try:
@@ -295,9 +297,9 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                     status = data.get("status")
                     addresses_cle_interop = data.get("addresses_cle_interop")
 
-                    addresses_id = None
+                    # remove possible duplicates
                     if isinstance(addresses_cle_interop, list):
-                        addresses_id = list(set(addresses_cle_interop))
+                        addresses_cle_interop = list(set(addresses_cle_interop))
 
                     shape = (
                         GEOSGeometry(data.get("shape")) if data.get("shape") else None
@@ -306,7 +308,7 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`True`) ou de re
                         user,
                         event_origin,
                         status,
-                        addresses_id,
+                        addresses_cle_interop,
                         shape=shape,
                         validate=data.get("is_valid"),
                     )

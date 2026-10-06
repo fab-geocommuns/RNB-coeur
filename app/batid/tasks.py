@@ -9,9 +9,6 @@ from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list, slice_dpts
 from batid.services.building import export_city as export_city_job
 from batid.services.candidate import Inspector, vacuum_analyze_candidates_if_needed
-from batid.services.data_fix.fill_empty_event_origin import (
-    fix as fix_fill_empty_event_origin,
-)
 from batid.services.data_fix.remove_light_buildings import (
     list_light_buildings_france as list_light_buildings_france_job,
 )
@@ -278,11 +275,65 @@ def queue_fill_building_addresses_internal_id(n_slices: int = 4):
 
 
 @shared_task()
-def populate_addresses_id_field():
-    from batid.services.populate_addresses_id_field import launch_procedure
+def fill_building_history_addresses_internal_id(
+    min_id: int = 0, max_id: Optional[int] = None
+):
+    # min_id/max_id let several calls run in parallel over disjoint bh_id
+    # ranges, see fill_building_history_addresses_internal_id()'s docstring.
+    from batid.services.data_fix.fill_building_history_addresses_internal_id import (
+        fill_building_history_addresses_internal_id as fill,
+    )
 
-    launch_procedure()
-    return "done"
+    updated = fill(min_id=min_id, max_id=max_id)
+    return f"{updated} history rows filled"
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def queue_fill_building_history_addresses_internal_id(n_slices: int = 4):
+    # Splits the bh_id span of the rows still to fill into n_slices disjoint
+    # ranges and queues one fill_building_history_addresses_internal_id per
+    # range, so they run in parallel across available workers. Most history
+    # rows predate addresses_id and are never eligible: slicing [0, max(bh_id)]
+    # would leave all the work to the last worker.
+    from batid.services.data_fix.fill_building_addresses_internal_id import (
+        compute_id_slices,
+    )
+    from django.db import connection, transaction
+
+    with transaction.atomic(), connection.cursor() as cursor:
+        # Finding the first eligible row walks the primary key through every
+        # ineligible row before it, which exceeds the worker statement timeout.
+        cursor.execute("SET LOCAL statement_timeout = '0';")
+        cursor.execute("""
+            SELECT bh_id FROM batid_building_history
+            WHERE addresses_id IS NOT NULL AND addresses_internal_id IS NULL
+            ORDER BY bh_id LIMIT 1;
+            """)
+        first = cursor.fetchone()
+        cursor.execute("""
+            SELECT bh_id FROM batid_building_history
+            WHERE addresses_id IS NOT NULL AND addresses_internal_id IS NULL
+            ORDER BY bh_id DESC LIMIT 1;
+            """)
+        last = cursor.fetchone()
+
+    if first is None or last is None:
+        return "Nothing to fill"
+
+    first_id, last_id = first[0], last[0]
+    # min_id is exclusive: start just before the first eligible row
+    slices = compute_id_slices(last_id, n_slices, min_id=first_id - 1)
+    notify_tech(
+        f"Backfill addresses_internal_id (historique) : {n_slices} tâches en parallèle, du bh_id {first_id} au bh_id {last_id}."
+    )
+
+    for slice_min_id, slice_max_id in slices:
+        fill_building_history_addresses_internal_id.delay(
+            min_id=slice_min_id, max_id=slice_max_id
+        )
+
+    return f"Queued {n_slices} parallel ranges from bh_id {first_id} to {last_id}"
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
@@ -346,12 +397,6 @@ def compute_daily_kpis():
     from batid.services.kpi import compute_daily_kpis as compute_daily_kpis_service
 
     compute_daily_kpis_service()
-    return "done"
-
-
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
-def fill_empty_event_origin(from_rnb_id=None, to_rnb_id=None, batch_size=10000):
-    fix_fill_empty_event_origin(from_rnb_id, to_rnb_id, batch_size)
     return "done"
 
 

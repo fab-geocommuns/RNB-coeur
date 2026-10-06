@@ -23,7 +23,7 @@ class BuildingSplitTest(APITestCase):
             rnb_id="AAAA00000000",
             shape="POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
             is_active=True,
-            addresses_id=[self.adr1.id],
+            addresses_internal_id=[self.adr1.internal_id],
             ext_ids=[
                 {
                     "id": "xxx",

@@ -109,8 +109,8 @@ def sql_query(code_area):
            WHERE v.building_id = bdg.id
        ) AS validated_by
         FROM batid_building bdg
-        LEFT JOIN batid_buildingaddressesreadonly bdg_addr ON bdg_addr.building_id = bdg.id
-        LEFT JOIN batid_address addr ON addr.id = bdg_addr.address_id
+        LEFT JOIN batid_buildingaddressesinternalidreadonly bdg_addr ON bdg_addr.building_id = bdg.id
+        LEFT JOIN batid_address addr ON addr.internal_id = bdg_addr.address_id
         {dpt_join}
         WHERE is_active
         {dpt_where}

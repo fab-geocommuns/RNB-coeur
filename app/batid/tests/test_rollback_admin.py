@@ -52,7 +52,7 @@ class RollbackAdminTestCase(TransactionTestCase):
             user=self.contributor,
             event_origin={"source": "contribution", "contribution_id": 1},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=self.shape,
             ext_ids=[],
         )
@@ -418,7 +418,7 @@ class RollbackWithDatesTest(RollbackAdminTestCase):
             user=self.contributor,
             event_origin={"source": "contribution", "contribution_id": 2},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry("POLYGON((2 0, 2 1, 3 1, 3 0, 2 0))"),
             ext_ids=[],
         )
@@ -463,7 +463,7 @@ class RollbackWithDatesTest(RollbackAdminTestCase):
             user=self.contributor,
             event_origin={"source": "contribution", "contribution_id": 2},
             status="constructed",
-            addresses_id=[],
+            addresses_cle_interop=[],
             shape=GEOSGeometry("POLYGON((2 0, 2 1, 3 1, 3 0, 2 0))"),
             ext_ids=[],
         )
