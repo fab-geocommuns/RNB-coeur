@@ -95,11 +95,7 @@ class BuildingAbstract(models.Model):
     revert_event_id = models.UUIDField(null=True, db_index=True)
     # only currently active buildings are considered part of the RNB
     is_active = models.BooleanField(db_index=True, default=True)
-    # contains clés d'interoperabilité
-    # to be deleted soon, when transition to addresses_internal_id is complete
-    addresses_id = ArrayField(models.CharField(max_length=40), null=True)
-    # the source of truth for the building <> address link
-    # it contains batid_address.internal_id values
+    # the building <> address link: it contains batid_address.internal_id values
     addresses_internal_id = ArrayField(models.BigIntegerField(), null=True)
     validated_by = ArrayField(models.IntegerField(), null=True, default=list)
 
@@ -163,14 +159,7 @@ class Building(BuildingAbstract):
     # this only exists to make it possible for the Django ORM to access the associated addresses
     # but this field is read-only : you should not attempt to save a building/address association through this field
     # use the business functions (create_new, update, ...), which write in the correct place (addresses_internal_id).
-    addresses_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
-        "Address",
-        blank=True,
-        related_name="buildings_read_only",
-        through="BuildingAddressesReadOnly",
-    )
-    # same as addresses_read_only, but joining on batid_address.internal_id via
-    # addresses_internal_id instead of the BAN interop key. Also read-only.
+    # It joins on batid_address.internal_id, through addresses_internal_id.
     addresses_internal_read_only = models.ManyToManyField(  # type: ignore[var-annotated]
         "Address",
         blank=True,
@@ -206,11 +195,6 @@ class Building(BuildingAbstract):
         functions of this class. "Forever" is literal: any write enters the RNB
         history permanently, nothing is ever erased.
         """
-        # Transitional: addresses_id mirrors addresses_internal_id as BAN interop
-        # keys. Delete this line once addresses_id is dropped
-        self.addresses_id = Address.cle_interop_from_internal_ids(
-            self.addresses_internal_id
-        )
         super().save(*args, **kwargs)
 
     def _lock_and_refresh(self):
@@ -964,7 +948,6 @@ class Building(BuildingAbstract):
         # ordering = ["rnb_id"]
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_event_origin_idx"),
-            GinIndex(fields=["addresses_id"], name="bdg_addresses_id_idx"),
             GinIndex(
                 fields=["addresses_internal_id"], name="bdg_addresses_internal_id_idx"
             ),
@@ -1227,7 +1210,6 @@ class BuildingHistoryOnly(BuildingAbstract):
         db_table = "batid_building_history"
         indexes = [
             GinIndex(fields=["event_origin"], name="bdg_history_event_origin_idx"),
-            GinIndex(fields=["addresses_id"], name="bdg_history_addresses_id_idx"),
             GinIndex(
                 fields=["addresses_internal_id"], name="bdg_hist_addr_internal_id_idx"
             ),
