@@ -12,7 +12,6 @@ from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
-from django.db.models import F, Func, Value
 
 
 class BuildingAddressesInternalIdReadOnly(models.Model):
@@ -20,24 +19,10 @@ class BuildingAddressesInternalIdReadOnly(models.Model):
     # sync with Building.addresses_internal_id by the
     # keep_building_address_link_updated() trigger.
     building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
-    address = models.ForeignKey(
-        "Address", on_delete=models.CASCADE, to_field="internal_id", db_index=True
-    )
+    address = models.ForeignKey("Address", on_delete=models.CASCADE, db_index=True)
 
     class Meta:
         unique_together = ("building", "address")
-
-    @classmethod
-    def check(cls, **kwargs):
-        # Address.internal_id is unique via an expression-based UniqueConstraint
-        # (Meta.constraints on Address), kept as a bare index on purpose so the
-        # future PK switch can reuse it with ADD PRIMARY KEY USING INDEX.
-        # Django's fields.E311 check only recognizes plain-fields
-        # UniqueConstraints, not expression-based ones, so it wrongly flags this
-        # FK target as non-unique. The uniqueness is real and enforced at the DB
-        # level.
-        # Quand le internal_id sera devenue une PK, alors il faudra supprimer ce code.
-        return [error for error in super().check(**kwargs) if error.id != "fields.E311"]
 
 
 class BuildingValidatedByReadOnly(models.Model):
@@ -148,19 +133,12 @@ class Plot(models.Model):
 
 
 class Address(models.Model):
-    # BAN "clé d'interopérabilité"
-    cle_interop = models.CharField(max_length=40, primary_key=True, db_index=True)
-    # RNB internal key, meant to replace the BAN interop key (cle_interop) as
-    # the anchor of the building <-> address link. Filled by the column DEFAULT,
-    # never by Django.
-    internal_id = models.BigIntegerField(
-        db_default=Func(
-            Value("batid_address_internal_id_seq"),
-            function="nextval",
-            output_field=models.BigIntegerField(),
-        ),
-        editable=False,
-    )
+    # RNB internal key, the anchor of the building <-> address link. Drawn from
+    # batid_address_internal_id_seq by the column DEFAULT.
+    internal_id = models.BigAutoField(primary_key=True)
+    # BAN "clé d'interopérabilité". Meant to be replaced by ban_id once every
+    # address has one.
+    cle_interop = models.CharField(max_length=40, unique=True)
     source = models.CharField(max_length=10, null=False)  # BAN or other origin
     point = models.PointField(null=True, spatial_index=True, srid=4326)
     street_number = models.CharField(max_length=10, null=True)
@@ -180,16 +158,6 @@ class Address(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        constraints = [
-            # Expression form on purpose: the field form, like unique=True, would
-            # be created as a UNIQUE constraint, and the primary key switch needs
-            # an index no constraint owns to run ADD PRIMARY KEY USING INDEX.
-            models.UniqueConstraint(
-                F("internal_id"), name="batid_address_internal_id_uniq"
-            )
-        ]
 
     @staticmethod
     def add_addresses_to_db_if_needed(addresses_cle_interop: list[str]) -> None:
