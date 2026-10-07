@@ -27,7 +27,7 @@ class ImportBDNB7TestCase(TransactionTestCase):
         self.assertEqual(Address.objects.count(), 3)
 
         # check the addresses are correctly imported
-        address_1 = Address.objects.get(id="0010000A032800101")
+        address_1 = Address.objects.get(cle_interop="0010000A032800101")
         self.assertEqual(address_1.source, "Arcep")
         self.assertEqual(address_1.street_number, "9")
         self.assertEqual(address_1.street_rep, "B")
@@ -126,9 +126,9 @@ class ImportBDNB7TestCase(TransactionTestCase):
         )
 
         # manually insert some addresses for foreign key constraints
-        Address.objects.create(id="01300_0013_00145")
-        Address.objects.create(id="3000000C051200101")
-        Address.objects.create(id="3000000C051200201")
+        Address.objects.create(cle_interop="01300_0013_00145")
+        Address.objects.create(cle_interop="3000000C051200101")
+        Address.objects.create(cle_interop="3000000C051200201")
 
         # RNB team user used by candidate.decide_update()
         UserFactory(username="RNB")

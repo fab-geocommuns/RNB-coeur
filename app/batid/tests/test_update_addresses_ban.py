@@ -20,14 +20,14 @@ from django.test import TestCase, TransactionTestCase
 
 class TestUpdateBatch(TestCase):
     def test_update_existing_address(self):
-        Address.objects.create(id="04001_test_00001", source="ban")
+        Address.objects.create(cle_interop="04001_test_00001", source="ban")
 
         batch = ["04001_test_00001"]
 
         updated = _mark_existing_addresses(batch)
 
         self.assertEqual(updated, 1)
-        addr = Address.objects.get(id="04001_test_00001")
+        addr = Address.objects.get(cle_interop="04001_test_00001")
         self.assertTrue(addr.still_exists)
 
     def test_address_not_in_db_is_ignored(self):
@@ -36,11 +36,13 @@ class TestUpdateBatch(TestCase):
         updated = _mark_existing_addresses(batch)
 
         self.assertEqual(updated, 0)
-        self.assertFalse(Address.objects.filter(id="99999_unknown_00001").exists())
+        self.assertFalse(
+            Address.objects.filter(cle_interop="99999_unknown_00001").exists()
+        )
 
     def test_still_exists_none_by_default(self):
         addr = Address.objects.create(
-            id="04001_test_00002",
+            cle_interop="04001_test_00002",
             source="ban",
         )
         self.assertIsNone(addr.still_exists)
@@ -53,9 +55,9 @@ class TestFlagAddressesFromBanFile(TestCase):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         # Create addresses that exist in the fixture
-        Address.objects.create(id="04001_pk624e_00001", source="ban")
-        Address.objects.create(id="04001_pk624e_00002", source="ban")
-        Address.objects.create(id="04001_pk624e_00003", source="ban")
+        Address.objects.create(cle_interop="04001_pk624e_00001", source="ban")
+        Address.objects.create(cle_interop="04001_pk624e_00002", source="ban")
+        Address.objects.create(cle_interop="04001_pk624e_00003", source="ban")
 
         result = flag_addresses_from_ban_file({"dpt": "04"})
 
@@ -63,13 +65,13 @@ class TestFlagAddressesFromBanFile(TestCase):
         self.assertEqual(result["still_exist"], 3)
 
         # Check addresses have still_exists=True
-        addr1 = Address.objects.get(id="04001_pk624e_00001")
+        addr1 = Address.objects.get(cle_interop="04001_pk624e_00001")
         self.assertTrue(addr1.still_exists)
 
-        addr2 = Address.objects.get(id="04001_pk624e_00002")
+        addr2 = Address.objects.get(cle_interop="04001_pk624e_00002")
         self.assertTrue(addr2.still_exists)
 
-        addr3 = Address.objects.get(id="04001_pk624e_00003")
+        addr3 = Address.objects.get(cle_interop="04001_pk624e_00003")
         self.assertTrue(addr3.still_exists)
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
@@ -78,7 +80,7 @@ class TestFlagAddressesFromBanFile(TestCase):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         # Create only one address that exists in the fixture
-        Address.objects.create(id="04001_pk624e_00001", source="ban")
+        Address.objects.create(cle_interop="04001_pk624e_00001", source="ban")
 
         result = flag_addresses_from_ban_file({"dpt": "04"})
 
@@ -86,7 +88,9 @@ class TestFlagAddressesFromBanFile(TestCase):
         self.assertEqual(result["still_exist"], 1)
 
         # The unknown address from fixture should not be created
-        self.assertFalse(Address.objects.filter(id="04001_unknown_99999").exists())
+        self.assertFalse(
+            Address.objects.filter(cle_interop="04001_unknown_99999").exists()
+        )
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
     @patch("batid.services.imports.update_addresses_ban.os.remove")
@@ -94,17 +98,17 @@ class TestFlagAddressesFromBanFile(TestCase):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         # Create addresses: one in fixture, one not
-        Address.objects.create(id="04001_pk624e_00001", source="ban")
-        Address.objects.create(id="04001_not_in_ban_00001", source="ban")
+        Address.objects.create(cle_interop="04001_pk624e_00001", source="ban")
+        Address.objects.create(cle_interop="04001_not_in_ban_00001", source="ban")
 
         result = flag_addresses_from_ban_file({"dpt": "04"})
 
         # Address in fixture should have still_exists=True
-        addr_in_ban = Address.objects.get(id="04001_pk624e_00001")
+        addr_in_ban = Address.objects.get(cle_interop="04001_pk624e_00001")
         self.assertTrue(addr_in_ban.still_exists)
 
         # Address NOT in fixture should be marked still_exists=False
-        addr_not_in_ban = Address.objects.get(id="04001_not_in_ban_00001")
+        addr_not_in_ban = Address.objects.get(cle_interop="04001_not_in_ban_00001")
         self.assertFalse(addr_not_in_ban.still_exists)
 
         # Check obsolete count in result
@@ -118,7 +122,9 @@ class TestFlagAddressesFromBanFile(TestCase):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         # Create an address in another department
-        other_dept_addr = Address.objects.create(id="75001_other_00001", source="ban")
+        other_dept_addr = Address.objects.create(
+            cle_interop="75001_other_00001", source="ban"
+        )
 
         flag_addresses_from_ban_file({"dpt": "04"})
 
@@ -221,7 +227,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         # id_ban_adresse=a1b2c3d4-e5f6-7890-abcd-ef1234567890
         # Point ~5m from BAN coordinates
         Address.objects.create(
-            id="04001_pk624e_00001",
+            cle_interop="04001_pk624e_00001",
             source="ban",
             still_exists=True,
             point=Point(6.13518, 44.07000, srid=4326),
@@ -236,7 +242,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         # Fixture row 2: nom_voie=Impasse de la Treille
         # DB has abbreviation "Imp" → should match via alias expansion
         Address.objects.create(
-            id="04001_pk624e_00002",
+            cle_interop="04001_pk624e_00002",
             source="ban",
             still_exists=True,
             street="Imp de la Treille",
@@ -248,7 +254,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         # Fixture row 3: nom_voie=Impasse de la Treille
         # DB has "Impasse de las Treilles" (Levenshtein distance = 2) → should match
         Address.objects.create(
-            id="04001_pk624e_00003",
+            cle_interop="04001_pk624e_00003",
             source="ban",
             still_exists=True,
             street="Impasse de las Treilles",
@@ -264,7 +270,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         self.assertEqual(result["mismatched"], 0)
 
         # Row 1: exact match (after normalization)
-        addr = Address.objects.get(id="04001_pk624e_00001")
+        addr = Address.objects.get(cle_interop="04001_pk624e_00001")
         self.assertEqual(addr.street, "Impasse de la Treille")
         self.assertEqual(addr.city_name, "Aiglun")
         self.assertEqual(addr.street_rep, "bis")
@@ -276,12 +282,12 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         self.assertAlmostEqual(addr.point.y, 44.070028, places=5)
 
         # Row 2: abbreviation "Imp" expanded to "impasse" → match
-        addr2 = Address.objects.get(id="04001_pk624e_00002")
+        addr2 = Address.objects.get(cle_interop="04001_pk624e_00002")
         self.assertEqual(addr2.street, "Impasse de la Treille")
         self.assertEqual(addr2.ban_update_flag, "update")
 
         # Row 3: Levenshtein distance = 2 → match
-        addr3 = Address.objects.get(id="04001_pk624e_00003")
+        addr3 = Address.objects.get(cle_interop="04001_pk624e_00003")
         self.assertEqual(addr3.street, "Impasse de la Treille")
         self.assertEqual(addr3.ban_update_flag, "update")
 
@@ -295,7 +301,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         # DB has "rue de la gare" but BAN has "Impasse de la Treille" → mismatch
         # No point → distance_m should not appear in details
         Address.objects.create(
-            id="04001_pk624e_00002",
+            cle_interop="04001_pk624e_00002",
             source="ban",
             still_exists=True,
             street="rue de la gare",
@@ -309,7 +315,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
 
         self.assertEqual(result["mismatched"], 1)
 
-        addr = Address.objects.get(id="04001_pk624e_00002")
+        addr = Address.objects.get(cle_interop="04001_pk624e_00002")
         self.assertEqual(addr.ban_update_flag, "text_mismatch")
         # Street should not be updated on mismatch
         self.assertEqual(addr.street, "rue de la gare")
@@ -328,7 +334,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
 
         # Fixture row 3: id_ban_adresse is empty
         Address.objects.create(
-            id="04001_pk624e_00003",
+            cle_interop="04001_pk624e_00003",
             source="ban",
             still_exists=True,
             street="impasse de la treille",
@@ -342,7 +348,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
 
         self.assertEqual(result["updated"], 1)
 
-        addr = Address.objects.get(id="04001_pk624e_00003")
+        addr = Address.objects.get(cle_interop="04001_pk624e_00003")
         self.assertEqual(addr.street, "Impasse de la Treille")
         self.assertEqual(addr.city_name, "Aiglun")
         self.assertIsNone(addr.ban_id)
@@ -354,7 +360,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
 
         # Address with still_exists=False should be ignored
         Address.objects.create(
-            id="04001_pk624e_00001",
+            cle_interop="04001_pk624e_00001",
             source="ban",
             still_exists=False,
             street="impasse de la treille",
@@ -370,7 +376,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         self.assertEqual(result["updated"], 0)
         self.assertEqual(result["mismatched"], 0)
 
-        addr = Address.objects.get(id="04001_pk624e_00001")
+        addr = Address.objects.get(cle_interop="04001_pk624e_00001")
         # Street should remain unchanged
         self.assertEqual(addr.street, "impasse de la treille")
         self.assertIsNone(addr.ban_id)
@@ -383,7 +389,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         # Fixture row 2: lon=6.135332, lat=44.069986, nom_voie=Impasse de la Treille
         # DB street differs, but point is ~5m away → distance < 20m → update
         Address.objects.create(
-            id="04001_pk624e_00002",
+            cle_interop="04001_pk624e_00002",
             source="ban",
             still_exists=True,
             point=Point(6.13530, 44.06996, srid=4326),
@@ -399,7 +405,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         self.assertEqual(result["updated"], 1)
         self.assertEqual(result["mismatched"], 0)
 
-        addr = Address.objects.get(id="04001_pk624e_00002")
+        addr = Address.objects.get(cle_interop="04001_pk624e_00002")
         self.assertEqual(addr.ban_update_flag, "update")
         # Fields should be updated to BAN values
         self.assertEqual(addr.street, "Impasse de la Treille")
@@ -416,7 +422,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         # Fixture row 1: lon=6.135212, lat=44.070028
         # Point is ~500m away but all fields match → update
         Address.objects.create(
-            id="04001_pk624e_00001",
+            cle_interop="04001_pk624e_00001",
             source="ban",
             still_exists=True,
             point=Point(6.14, 44.073, srid=4326),
@@ -433,7 +439,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         self.assertEqual(result["updated"], 1)
         self.assertEqual(result["mismatched"], 0)
 
-        addr = Address.objects.get(id="04001_pk624e_00001")
+        addr = Address.objects.get(cle_interop="04001_pk624e_00001")
         self.assertEqual(addr.ban_update_flag, "update")
         self.assertEqual(addr.street, "Impasse de la Treille")
         # Point should be updated to BAN coordinates
@@ -450,7 +456,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
         # Fixture row 2: lon=6.135332, lat=44.069986, nom_voie=Impasse de la Treille
         # Point is ~500m away AND street differs → mismatch with distance_m
         Address.objects.create(
-            id="04001_pk624e_00002",
+            cle_interop="04001_pk624e_00002",
             source="ban",
             still_exists=True,
             point=Point(6.14, 44.073, srid=4326),
@@ -465,7 +471,7 @@ class TestUpdateAddressesTextAndBanId(TestCase):
 
         self.assertEqual(result["mismatched"], 1)
 
-        addr = Address.objects.get(id="04001_pk624e_00002")
+        addr = Address.objects.get(cle_interop="04001_pk624e_00002")
         self.assertEqual(addr.ban_update_flag, "text_mismatch")
         self.assertEqual(addr.street, "rue de la gare")
         self.assertIn("street", addr.ban_update_details)
@@ -487,7 +493,7 @@ class TestUpdateAddressesTextAndBanIdDuplicateBanId(TestCase):
 
         # Two addresses in DB, both present in the fixture with the same id_ban_adresse
         Address.objects.create(
-            id="85288_p1h9zg_02965",
+            cle_interop="85288_p1h9zg_02965",
             source="ban",
             still_exists=True,
             street="route de la martiniere",
@@ -497,7 +503,7 @@ class TestUpdateAddressesTextAndBanIdDuplicateBanId(TestCase):
             city_insee_code="85288",
         )
         Address.objects.create(
-            id="85103_0099_02965",
+            cle_interop="85103_0099_02965",
             source="ban",
             still_exists=True,
             street="route de la martiniere",
@@ -512,12 +518,12 @@ class TestUpdateAddressesTextAndBanIdDuplicateBanId(TestCase):
         # Only the first row is processed; the second (duplicate ban_id) is skipped
         self.assertEqual(result["updated"], 1)
 
-        addr1 = Address.objects.get(id="85288_p1h9zg_02965")
+        addr1 = Address.objects.get(cle_interop="85288_p1h9zg_02965")
         self.assertEqual(addr1.ban_id, UUID("9e63d301-1c76-4d33-a508-9ea9e39293d2"))
         self.assertEqual(addr1.ban_update_flag, "update")
 
         # Second address was skipped entirely: no ban_id, no update flag
-        addr2 = Address.objects.get(id="85103_0099_02965")
+        addr2 = Address.objects.get(cle_interop="85103_0099_02965")
         self.assertIsNone(addr2.ban_id)
         self.assertIsNone(addr2.ban_update_flag)
 
@@ -546,26 +552,30 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         Input: an obsolete address (still_exists=False) referenced by no building.
         Expected: the address is deleted, 1 deletion reported.
         """
-        Address.objects.create(id="04001_old_00001", source="ban", still_exists=False)
+        Address.objects.create(
+            cle_interop="04001_old_00001", source="ban", still_exists=False
+        )
 
         deleted = delete_unlinked_obsolete_addresses()
 
         self.assertEqual(deleted, {"deleted_addresses": 1})
-        self.assertFalse(Address.objects.filter(id="04001_old_00001").exists())
+        self.assertFalse(Address.objects.filter(cle_interop="04001_old_00001").exists())
 
     def test_obsolete_address_linked_to_current_building_is_kept(self):
         """
         Input: an obsolete address referenced by a current building.
         Expected: the address is kept, 0 deletion reported.
         """
-        Address.objects.create(id="04001_old_00002", source="ban", still_exists=False)
+        Address.objects.create(
+            cle_interop="04001_old_00002", source="ban", still_exists=False
+        )
         bdg = helpers.create_default_bdg()
         self._link_addresses(bdg, ["04001_old_00002"])
 
         deleted = delete_unlinked_obsolete_addresses()
 
         self.assertEqual(deleted, {"deleted_addresses": 0})
-        self.assertTrue(Address.objects.filter(id="04001_old_00002").exists())
+        self.assertTrue(Address.objects.filter(cle_interop="04001_old_00002").exists())
 
     def test_obsolete_address_linked_to_building_history_is_kept(self):
         """
@@ -573,7 +583,9 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         building (the building was then updated to drop it).
         Expected: the address is kept, 0 deletion reported.
         """
-        Address.objects.create(id="04001_old_00003", source="ban", still_exists=False)
+        Address.objects.create(
+            cle_interop="04001_old_00003", source="ban", still_exists=False
+        )
         bdg = helpers.create_default_bdg()
         self._link_addresses(bdg, ["04001_old_00003"])
 
@@ -593,7 +605,7 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         deleted = delete_unlinked_obsolete_addresses()
 
         self.assertEqual(deleted, {"deleted_addresses": 0})
-        self.assertTrue(Address.objects.filter(id="04001_old_00003").exists())
+        self.assertTrue(Address.objects.filter(cle_interop="04001_old_00003").exists())
 
     def test_address_with_still_exists_true_is_not_touched(self):
         """
@@ -601,12 +613,14 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         referenced by no building.
         Expected: the address is kept, 0 deletion reported.
         """
-        Address.objects.create(id="04001_ok_00001", source="ban", still_exists=True)
+        Address.objects.create(
+            cle_interop="04001_ok_00001", source="ban", still_exists=True
+        )
 
         deleted = delete_unlinked_obsolete_addresses()
 
         self.assertEqual(deleted, {"deleted_addresses": 0})
-        self.assertTrue(Address.objects.filter(id="04001_ok_00001").exists())
+        self.assertTrue(Address.objects.filter(cle_interop="04001_ok_00001").exists())
 
     def test_mixed_addresses_over_several_batches(self):
         """
@@ -617,10 +631,14 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         """
         for i in range(1, 4):
             Address.objects.create(
-                id=f"04001_old_1000{i}", source="ban", still_exists=False
+                cle_interop=f"04001_old_1000{i}", source="ban", still_exists=False
             )
-        Address.objects.create(id="04001_old_10004", source="ban", still_exists=False)
-        Address.objects.create(id="04001_ok_10005", source="ban", still_exists=True)
+        Address.objects.create(
+            cle_interop="04001_old_10004", source="ban", still_exists=False
+        )
+        Address.objects.create(
+            cle_interop="04001_ok_10005", source="ban", still_exists=True
+        )
         bdg = helpers.create_default_bdg()
         self._link_addresses(bdg, ["04001_old_10004"])
 
@@ -628,7 +646,7 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
 
         self.assertEqual(deleted, {"deleted_addresses": 3})
         self.assertEqual(
-            set(Address.objects.values_list("id", flat=True)),
+            set(Address.objects.values_list("cle_interop", flat=True)),
             {"04001_old_10004", "04001_ok_10005"},
         )
 
@@ -638,7 +656,9 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         Expected: the prevent_delete_linked_address_trigger is enabled again
         after the run (tgenabled = 'O').
         """
-        Address.objects.create(id="04001_old_00004", source="ban", still_exists=False)
+        Address.objects.create(
+            cle_interop="04001_old_00004", source="ban", still_exists=False
+        )
 
         delete_unlinked_obsolete_addresses()
 
@@ -651,7 +671,9 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         Expected: the error is propagated and the
         prevent_delete_linked_address_trigger is enabled again (tgenabled = 'O').
         """
-        Address.objects.create(id="04001_old_00005", source="ban", still_exists=False)
+        Address.objects.create(
+            cle_interop="04001_old_00005", source="ban", still_exists=False
+        )
 
         with patch(
             "batid.services.imports.update_addresses_ban.logger.info",

@@ -148,8 +148,9 @@ class Plot(models.Model):
 
 
 class Address(models.Model):
-    id = models.CharField(max_length=40, primary_key=True, db_index=True)
-    # RNB internal key, meant to replace the BAN interop key (currently "id") as
+    # BAN "clé d'interopérabilité"
+    cle_interop = models.CharField(max_length=40, primary_key=True, db_index=True)
+    # RNB internal key, meant to replace the BAN interop key (cle_interop) as
     # the anchor of the building <-> address link. Filled by the column DEFAULT,
     # never by Django.
     internal_id = models.BigIntegerField(
@@ -198,7 +199,7 @@ class Address(models.Model):
 
     @staticmethod
     def add_address_to_db_if_needed(address_id: str) -> None:
-        if Address.objects.filter(id=address_id).exists():
+        if Address.objects.filter(cle_interop=address_id).exists():
             return
         else:
             Address.add_new_address_from_ban_api(address_id)
@@ -220,8 +221,8 @@ class Address(models.Model):
             return None
 
         internal_id_by_cle = dict(
-            Address.objects.filter(id__in=addresses_cle_interop).values_list(
-                "id", "internal_id"
+            Address.objects.filter(cle_interop__in=addresses_cle_interop).values_list(
+                "cle_interop", "internal_id"
             )
         )
 
@@ -249,7 +250,7 @@ class Address(models.Model):
 
         cle_by_internal_id = dict(
             Address.objects.filter(internal_id__in=internal_ids).values_list(
-                "internal_id", "id"
+                "internal_id", "cle_interop"
             )
         )
 
@@ -284,7 +285,7 @@ class Address(models.Model):
             raise BANBadResultType
 
         Address.objects.create(
-            id=data["cleInterop"],
+            cle_interop=data["cleInterop"],
             source="ban",
             point=Point(data["lon"], data["lat"], srid=4326),
             street_number=data["numero"],

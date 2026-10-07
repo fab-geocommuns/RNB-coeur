@@ -33,8 +33,8 @@ class BuildingPatchTest(APITestCase):
         self.building = Building.objects.create(
             rnb_id=self.rnb_id, shape=GEOSGeometry("POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))")
         )
-        self.adr1 = Address.objects.create(id="cle_interop_1")
-        self.adr2 = Address.objects.create(id="cle_interop_2")
+        self.adr1 = Address.objects.create(cle_interop="cle_interop_1")
+        self.adr2 = Address.objects.create(cle_interop="cle_interop_2")
 
     def test_update_a_building_permission(self):
         self.user.groups.clear()
@@ -179,7 +179,7 @@ class BuildingPatchTest(APITestCase):
         # update status and addresses
         data = {
             "status": "constructed",
-            "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+            "addresses_cle_interop": [self.adr1.cle_interop, self.adr2.cle_interop],
             "comment": "mise à jour status et adresses",
         }
         r = self.client.patch(
@@ -193,7 +193,7 @@ class BuildingPatchTest(APITestCase):
         # comment is not mandatory
         data = {
             "status": "constructed",
-            "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+            "addresses_cle_interop": [self.adr1.cle_interop, self.adr2.cle_interop],
             "comment": "",
         }
         r = self.client.patch(
@@ -205,7 +205,7 @@ class BuildingPatchTest(APITestCase):
 
         data = {
             "status": "constructed",
-            "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+            "addresses_cle_interop": [self.adr1.cle_interop, self.adr2.cle_interop],
         }
         r = self.client.patch(
             f"/api/alpha/buildings/{self.rnb_id}/",
@@ -268,7 +268,7 @@ class BuildingPatchTest(APITestCase):
         comment = "maj du batiment"
         data = {
             "status": "notUsable",
-            "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+            "addresses_cle_interop": [self.adr1.cle_interop, self.adr2.cle_interop],
             "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
             "comment": comment,
         }
@@ -287,7 +287,8 @@ class BuildingPatchTest(APITestCase):
         self.assertEqual(self.building.event_type, "update")
         self.assertEqual(self.building.status, "notUsable")
         self.assertCountEqual(
-            addresses_cle_interop(self.building), [self.adr1.id, self.adr2.id]
+            addresses_cle_interop(self.building),
+            [self.adr1.cle_interop, self.adr2.cle_interop],
         )
         self.assertEqual(
             self.building.event_origin,
@@ -304,7 +305,7 @@ class BuildingPatchTest(APITestCase):
         comment = "maj du batiment"
         data = {
             "status": "notUsable",
-            "addresses_cle_interop": [self.adr1.id, self.adr1.id],
+            "addresses_cle_interop": [self.adr1.cle_interop, self.adr1.cle_interop],
             "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
             "comment": comment,
         }
@@ -322,7 +323,7 @@ class BuildingPatchTest(APITestCase):
 
         self.assertEqual(self.building.event_type, "update")
         self.assertEqual(self.building.status, "notUsable")
-        self.assertEqual(addresses_cle_interop(self.building), [self.adr1.id])
+        self.assertEqual(addresses_cle_interop(self.building), [self.adr1.cle_interop])
         self.assertEqual(
             self.building.event_origin,
             {"source": "contribution", "contribution_id": contribution.id},
@@ -459,7 +460,7 @@ class BuildingPatchTest(APITestCase):
             f"https://plateforme.adresse.data.gouv.fr/lookup/{cle_interop}"
         )
 
-        address = Address.objects.get(id=cle_interop)
+        address = Address.objects.get(cle_interop=cle_interop)
 
         self.assertEqual(address.source, "ban")
         self.assertEqual(address.point.wkt, "POINT (-0.581012 44.845842)")
@@ -567,7 +568,7 @@ class BuildingPatchTest(APITestCase):
 
         data = {
             "status": "notUsable",
-            "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+            "addresses_cle_interop": [self.adr1.cle_interop, self.adr2.cle_interop],
             "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
             "comment": "maj du batiment",
         }
@@ -601,7 +602,7 @@ class BuildingPatchTest(APITestCase):
 
             data = {
                 "status": "notUsable",
-                "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+                "addresses_cle_interop": [self.adr1.cle_interop, self.adr2.cle_interop],
                 "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
                 "comment": "maj du batiment",
             }

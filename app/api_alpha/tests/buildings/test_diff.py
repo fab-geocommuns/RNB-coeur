@@ -49,9 +49,9 @@ class DiffTest(TransactionTestCase):
         profile.save(update_fields=["organization"])
 
         # We need some addresses
-        Address.objects.create(id="ADDRESS_ID_1")
-        Address.objects.create(id="ADDRESS_ID_2")
-        Address.objects.create(id="ADDRESS_ID_3")
+        Address.objects.create(cle_interop="ADDRESS_ID_1")
+        Address.objects.create(cle_interop="ADDRESS_ID_2")
+        Address.objects.create(cle_interop="ADDRESS_ID_3")
 
     def test_diff_create_update_deactivate(self):
         """
@@ -296,7 +296,9 @@ class DiffTest(TransactionTestCase):
             rnb_id="1",
             status="constructed",
             event_type="creation",
-            addresses_internal_id=[Address.objects.get(id="ADDRESS_ID_1").internal_id],
+            addresses_internal_id=[
+                Address.objects.get(cle_interop="ADDRESS_ID_1").internal_id
+            ],
             shape=geom,
             point=geom.point_on_surface,
         )
@@ -304,7 +306,9 @@ class DiffTest(TransactionTestCase):
             rnb_id="2",
             status="constructed",
             event_type="creation",
-            addresses_internal_id=[Address.objects.get(id="ADDRESS_ID_2").internal_id],
+            addresses_internal_id=[
+                Address.objects.get(cle_interop="ADDRESS_ID_2").internal_id
+            ],
             shape=geom,
             point=geom.point_on_surface,
         )
@@ -779,7 +783,9 @@ class DiffTest(TransactionTestCase):
                     "created_at": "2024-08-05T00:00:00Z",
                 }
             ],
-            addresses_internal_id=[Address.objects.get(id="ADDRESS_ID_1").internal_id],
+            addresses_internal_id=[
+                Address.objects.get(cle_interop="ADDRESS_ID_1").internal_id
+            ],
             status="constructed",
             event_type="creation",
         )
@@ -827,7 +833,9 @@ class DiffTest(TransactionTestCase):
         exact former to_json() formatting: no space after commas, [] for an empty
         array and an empty field for NULL.
         """
-        internal_id_by_cle = dict(Address.objects.values_list("id", "internal_id"))
+        internal_id_by_cle = dict(
+            Address.objects.values_list("cle_interop", "internal_id")
+        )
 
         Building.objects.create(rnb_id="t", event_type="creation")
         threshold = Building.objects.get(rnb_id="t").sys_period.lower

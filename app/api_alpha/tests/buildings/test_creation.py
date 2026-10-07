@@ -18,8 +18,8 @@ class BuildingPostTest(APITestCase):
         token = Token.objects.get(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
-        self.adr1 = Address.objects.create(id="cle_interop_1")
-        self.adr2 = Address.objects.create(id="cle_interop_2")
+        self.adr1 = Address.objects.create(cle_interop="cle_interop_1")
+        self.adr2 = Address.objects.create(cle_interop="cle_interop_2")
 
     def test_empty_shape(self):
         data = {

@@ -131,7 +131,7 @@ def _build_copy_query(
                 WHEN bb.addresses_internal_id IS NULL THEN NULL
                 ELSE (
                     SELECT to_json(COALESCE(
-                        array_agg(addr.id ORDER BY link.ord),
+                        array_agg(addr.cle_interop ORDER BY link.ord),
                         '{{}}'::varchar[]
                     ))
                     FROM unnest(bb.addresses_internal_id)

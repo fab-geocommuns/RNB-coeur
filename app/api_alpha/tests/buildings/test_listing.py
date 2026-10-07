@@ -301,8 +301,8 @@ class BuildingsEndpointsTest(APITestCase):
     def test_bdg_with_cle_interop_ban(self):
         cle_interop_ban = "33522_2620_00021"
         ban_id = "fd9736e8-9970-4127-84eb-f2886043c122"
-        adr = Address.objects.create(id=cle_interop_ban, ban_id=ban_id)
-        other_adr = Address.objects.create(id="123")
+        adr = Address.objects.create(cle_interop=cle_interop_ban, ban_id=ban_id)
+        other_adr = Address.objects.create(cle_interop="123")
 
         bdg = Building.objects.create(
             rnb_id="XXX",
@@ -920,14 +920,14 @@ class BuildingsWithPlots(APITestCase):
         Input: 2 buildings, each linked to its own address, listed via /api/alpha/buildings/.
         Expected: a constant number of queries (4), addresses being prefetched.
         """
-        add_1 = Address.objects.create(id="add_1")
+        add_1 = Address.objects.create(cle_interop="add_1")
         Building.objects.create(
             rnb_id="A",
             addresses_internal_id=[add_1.internal_id],
             point="POINT(0 0)",
         )
 
-        add_2 = Address.objects.create(id="add_2")
+        add_2 = Address.objects.create(cle_interop="add_2")
         Building.objects.create(
             rnb_id="B",
             addresses_internal_id=[add_2.internal_id],

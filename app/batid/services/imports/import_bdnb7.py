@@ -126,7 +126,7 @@ def import_bdnb7_addresses(dpt):
 
 def _convert_address_row(row: dict) -> dict:
     return {
-        "id": row["cle_interop_adr"],
+        "cle_interop": row["cle_interop_adr"],
         "point": row["WKT"],
         "street_number": row["numero"],
         "street_rep": row["rep"],

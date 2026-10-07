@@ -77,8 +77,8 @@ class TemporalTableCase(TransactionTestCase):
         on every write — this checks the column round-trips through the
         trigger like any other field.
         """
-        a1 = Address.objects.create(id="address_1")
-        a2 = Address.objects.create(id="address_2")
+        a1 = Address.objects.create(cle_interop="address_1")
+        a2 = Address.objects.create(cle_interop="address_2")
 
         building = Building.objects.create(rnb_id="XYZ")
         building.addresses_internal_id = [a1.internal_id, a2.internal_id]
@@ -107,8 +107,8 @@ class TemporalTableCase(TransactionTestCase):
 
         # a third version, to make sure the previous non-null value ([a1, a2])
         # is also historicized correctly, alongside the original None value
-        a3 = Address.objects.create(id="address_3")
-        a4 = Address.objects.create(id="address_4")
+        a3 = Address.objects.create(cle_interop="address_3")
+        a4 = Address.objects.create(cle_interop="address_4")
         building.addresses_internal_id = [a3.internal_id, a4.internal_id]
         building.save()
 
