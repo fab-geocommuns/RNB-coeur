@@ -1,5 +1,4 @@
 from batid.models import Address
-from batid.services.data_fix.fill_address_internal_id import fill_address_internal_id
 from django.db import IntegrityError, connection, transaction
 from django.test import TestCase
 
@@ -9,23 +8,6 @@ def read_internal_ids() -> dict:
     with connection.cursor() as cursor:
         cursor.execute("SELECT cle_interop, internal_id FROM batid_address;")
         return dict(cursor.fetchall())
-
-
-def clear_internal_ids(*address_ids: str) -> None:
-    """Bring the given addresses back to the state they had before migration 0146.
-
-    internal_id is NOT NULL since migration 0147, so the constraint has to be
-    lifted to reproduce that state. The test case runs inside a transaction, so
-    this DDL is rolled back along with the rows it allows.
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "ALTER TABLE batid_address ALTER COLUMN internal_id DROP NOT NULL;"
-        )
-        cursor.execute(
-            "UPDATE batid_address SET internal_id = NULL WHERE cle_interop = ANY(%s);",
-            [list(address_ids)],
-        )
 
 
 class AddressInternalIdDefaultTestCase(TestCase):
@@ -77,71 +59,78 @@ class AddressInternalIdDefaultTestCase(TestCase):
             internal_ids["01001_0001_00001"], internal_ids["01001_0001_00002"]
         )
 
+    def test_created_instance_carries_its_internal_id(self):
+        """Address.objects.create -> the instance returned holds the internal_id the
+        database drew, which is also its primary key."""
+        address = Address.objects.create(cle_interop="01001_0001_00001", source="ban")
 
-class FillAddressInternalIdTestCase(TestCase):
-    """Backfill of the addresses that predate the column."""
-
-    def setUp(self):
-        # Five addresses spread over two interop key prefixes, so that a batch
-        # size of 2 produces several batches and a non trivial ordering.
-        self.address_ids = [
-            "01001_0001_00001",
-            "01001_0001_00002",
-            "01001_0001_00003",
-            "02002_0002_00001",
-            "02002_0002_00002",
-        ]
-        for address_id in self.address_ids:
-            Address.objects.create(cle_interop=address_id, source="ban")
-
-    def test_fills_every_empty_row(self):
-        """All five addresses emptied -> all five filled, with distinct values."""
-        clear_internal_ids(*self.address_ids)
-
-        updated = fill_address_internal_id(batch_size=2)
-
-        self.assertEqual(updated, 5)
-        internal_ids = read_internal_ids()
-        self.assertEqual(len(internal_ids), 5)
-        self.assertNotIn(None, internal_ids.values())
-        self.assertEqual(len(set(internal_ids.values())), 5)
-
-    def test_does_not_overwrite_existing_values(self):
-        """Only two addresses emptied -> the three others keep their exact value."""
-        untouched_before = read_internal_ids()
-        clear_internal_ids("01001_0001_00002", "02002_0002_00001")
-
-        updated = fill_address_internal_id(batch_size=2)
-
-        self.assertEqual(updated, 2)
-        internal_ids = read_internal_ids()
-        for address_id in ["01001_0001_00001", "01001_0001_00003", "02002_0002_00002"]:
-            self.assertEqual(internal_ids[address_id], untouched_before[address_id])
-
-    def test_is_idempotent(self):
-        """Running the backfill a second time updates nothing and changes nothing."""
-        clear_internal_ids(*self.address_ids)
-        fill_address_internal_id(batch_size=2)
-        after_first_run = read_internal_ids()
-
-        updated = fill_address_internal_id(batch_size=2)
-
-        self.assertEqual(updated, 0)
-        self.assertEqual(read_internal_ids(), after_first_run)
-
-    def test_on_empty_table(self):
-        """No address at all -> the backfill returns 0 instead of looping."""
-        Address.objects.all().delete()
-
-        self.assertEqual(fill_address_internal_id(batch_size=2), 0)
+        self.assertEqual(address.internal_id, read_internal_ids()["01001_0001_00001"])
+        self.assertEqual(address.pk, address.internal_id)
 
 
-class AddressInternalIdConstraintsTestCase(TestCase):
-    """The unique index and the NOT NULL constraint installed by migration 0147."""
+class AddressPrimaryKeyTestCase(TestCase):
+    """internal_id is the primary key of batid_address, cle_interop a plain unique
+    column."""
 
     def setUp(self):
         Address.objects.create(cle_interop="01001_0001_00001", source="ban")
         Address.objects.create(cle_interop="01001_0001_00002", source="ban")
+
+    def test_internal_id_is_the_primary_key(self):
+        """
+        Input: the primary key of the Django model and of the table.
+        Expected: internal_id alone, on both sides.
+        """
+        self.assertEqual(Address._meta.pk.name, "internal_id")
+
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT a.attname
+                FROM pg_index i
+                JOIN pg_attribute a
+                    ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+                WHERE i.indrelid = 'batid_address'::regclass AND i.indisprimary;
+                """)
+            primary_key_columns = [row[0] for row in cursor.fetchall()]
+
+        self.assertEqual(primary_key_columns, ["internal_id"])
+
+    def test_cle_interop_is_unique(self):
+        """
+        Input: a second address created with the interop key of an existing one.
+        Expected: IntegrityError, now raised by the UNIQUE constraint on
+        cle_interop rather than by the primary key.
+        """
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Address.objects.create(cle_interop="01001_0001_00001", source="ban")
+
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT a.attname
+                FROM pg_constraint c
+                JOIN pg_attribute a
+                    ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
+                WHERE c.conrelid = 'batid_address'::regclass AND c.contype = 'u'
+                    AND a.attname = 'cle_interop';
+                """)
+            self.assertEqual(cursor.fetchall(), [("cle_interop",)])
+
+    def test_join_table_references_the_primary_key(self):
+        """
+        Input: the foreign key of the building <> address join table.
+        Expected: it targets batid_address.internal_id, now the primary key.
+        """
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT a.attname
+                FROM pg_constraint c
+                JOIN pg_attribute a
+                    ON a.attrelid = c.confrelid AND a.attnum = ANY(c.confkey)
+                WHERE c.contype = 'f'
+                    AND c.conrelid = 'batid_buildingaddressesinternalidreadonly'::regclass
+                    AND c.confrelid = 'batid_address'::regclass;
+                """)
+            self.assertEqual(cursor.fetchall(), [("internal_id",)])
 
     def test_duplicate_internal_id_is_rejected(self):
         """An address forced onto the internal_id of another one -> IntegrityError."""

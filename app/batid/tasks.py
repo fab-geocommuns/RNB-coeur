@@ -223,16 +223,6 @@ def backup_to_s3(self):
     return "done"
 
 
-@shared_task()
-def fill_address_internal_id():
-    from batid.services.data_fix.fill_address_internal_id import (
-        fill_address_internal_id as fill,
-    )
-
-    updated = fill()
-    return f"{updated} addresses filled"
-
-
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def publish_datagouv_national():
     publish("nat")
