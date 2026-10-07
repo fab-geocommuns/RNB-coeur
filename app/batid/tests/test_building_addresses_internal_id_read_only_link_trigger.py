@@ -3,8 +3,7 @@ from django.test import TransactionTestCase
 
 
 class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
-    """Mirrors test_building_addresse_link_trigger.py: same
-    keep_building_address_link_updated() trigger, extended to also maintain
+    """The keep_building_address_link_updated() trigger maintains
     BuildingAddressesInternalIdReadOnly from addresses_internal_id."""
 
     def test_create_building(self):
@@ -101,6 +100,19 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
 
         self.assertTrue(Building.objects.filter(rnb_id="1").exists())
         self.assertEqual(BuildingAddressesInternalIdReadOnly.objects.count(), 2)
+
+    def test_writing_a_link_through_the_orm_is_forbidden(self):
+        """Input: a link row created directly through the ORM, bypassing the trigger.
+        Expected: the DBRouter refuses the write and no row is created. The table is
+        derived from addresses_internal_id: a row written by hand would be erased by
+        the next update of the building."""
+        a1 = Address.objects.create(id="address_1")
+        b = Building.objects.create(rnb_id="1")
+
+        with self.assertRaisesMessage(Exception, "read only"):
+            BuildingAddressesInternalIdReadOnly.objects.create(building=b, address=a1)
+
+        self.assertEqual(BuildingAddressesInternalIdReadOnly.objects.count(), 0)
 
     def test_create_building_with_non_existing_address_internal_id(self):
         """Input: a building created with an addresses_internal_id value that
