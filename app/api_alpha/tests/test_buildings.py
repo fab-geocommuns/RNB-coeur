@@ -385,11 +385,11 @@ class BuildingAddressViewTest(APITestCase):
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def setUp(self):
         self.cle_interop_ban_1 = "33522_2620_00021"
-        self.address_1 = Address.objects.create(id=self.cle_interop_ban_1)
+        self.address_1 = Address.objects.create(cle_interop=self.cle_interop_ban_1)
         self.cle_interop_ban_2 = "33522_2620_00022"
-        self.address_2 = Address.objects.create(id=self.cle_interop_ban_2)
+        self.address_2 = Address.objects.create(cle_interop=self.cle_interop_ban_2)
         self.cle_interop_ban_3 = "33522_2620_00023"
-        self.address_3 = Address.objects.create(id=self.cle_interop_ban_3)
+        self.address_3 = Address.objects.create(cle_interop=self.cle_interop_ban_3)
 
         self.user = ContributorUserFactory(username="user")
 

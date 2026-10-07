@@ -100,7 +100,7 @@ def import_bdnd_2023_01_addresses(dpt):
             point.srid = 4326
 
             address = {
-                "id": row["cle_interop_adr"],
+                "cle_interop": row["cle_interop_adr"],
                 "source": "bdnb",
                 "point": point.wkt,
                 "street_number": row["numero"],

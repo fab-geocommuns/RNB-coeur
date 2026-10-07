@@ -165,7 +165,7 @@ class TestDataGouvPublication(TestCase):
 
         # Address
         address_paris_1 = Address.objects.create(
-            id="75105_8884_00004",
+            cle_interop="75105_8884_00004",
             source="BAN",
             point=geom_bdg_paris.point_on_surface,
             street_number="4",
@@ -175,7 +175,7 @@ class TestDataGouvPublication(TestCase):
         )
 
         address_paris_2 = Address.objects.create(
-            id="75105_8884_00005",
+            cle_interop="75105_8884_00005",
             source="BAN",
             point=geom_bdg_paris.point_on_surface,
             street_number="6",
@@ -231,7 +231,7 @@ class TestDataGouvPublication(TestCase):
         )
 
         address_Montreuil = Address.objects.create(
-            id="93048_1450_00050",
+            cle_interop="93048_1450_00050",
             source="BAN",
             point=geom_bdg_montreuil.point_on_surface,
             street_number="50",

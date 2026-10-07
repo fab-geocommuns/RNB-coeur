@@ -13,7 +13,7 @@ class SingleBuildingTest(APITestCase):
         u2 = User.objects.create_user(username="u2", email="u2@test.com")
 
         addr = Address.objects.create(
-            id="addr-1",
+            cle_interop="addr-1",
             source="bdnb",
             street_number="3",
             street_rep="",

@@ -25,7 +25,7 @@ class BANImportDB(TestCase):
         self.assertEqual(Address.objects.count(), 4)
 
         # Verify the first address
-        address = Address.objects.get(id="04001_pk624e_00001")
+        address = Address.objects.get(cle_interop="04001_pk624e_00001")
 
         self.assertEqual(address.source, "Import BAN")
         self.assertEqual(address.point, Point(6.135212, 44.070028, srid=4326))
@@ -44,7 +44,7 @@ class BANImportDB(TestCase):
         self.assertGreater(address.updated_at, before_import)
 
         # Verify an address without id_ban_adresse has ban_id=None
-        address_without_ban_id = Address.objects.get(id="04001_pk624e_00003")
+        address_without_ban_id = Address.objects.get(cle_interop="04001_pk624e_00003")
         self.assertIsNone(address_without_ban_id.ban_id)
 
     @patch("batid.services.imports.import_ban.Source.find")
@@ -63,7 +63,7 @@ class BANImportDB(TestCase):
 
         # Create some addresse before import
         existing_address = Address.objects.create(
-            id="04001_pk624e_00001",
+            cle_interop="04001_pk624e_00001",
             source="OldAddress",
             point=Point(0, 0, srid=4326),
             street_number="old_number",
@@ -83,7 +83,7 @@ class BANImportDB(TestCase):
         self.assertEqual(Address.objects.count(), 4)
 
         # We verify the existing address has not been modified at all
-        address = Address.objects.get(id="04001_pk624e_00001")
+        address = Address.objects.get(cle_interop="04001_pk624e_00001")
 
         self.assertEqual(address.source, "OldAddress")
         self.assertEqual(address.point, Point(0, 0, srid=4326))

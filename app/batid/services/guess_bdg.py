@@ -79,7 +79,7 @@ class BuildingGuess:
 
             # The join table stores address internal_ids: resolve the BAN id (interop key) first.
             # An unknown BAN id resolves to NULL, so the CASE falls to ELSE 0.
-            ban_internal_id_q = f"SELECT internal_id FROM {Address._meta.db_table} WHERE id = %(ban_id)s"  # nosec B608: meta.db_table is safe
+            ban_internal_id_q = f"SELECT internal_id FROM {Address._meta.db_table} WHERE cle_interop = %(ban_id)s"  # nosec B608: meta.db_table is safe
             self.scores["ban_id_shared"] = (
                 f"CASE WHEN ({ban_internal_id_q}) = ANY(array_agg(b_rel_a.address_id)) THEN 1 ELSE 0 END"
             )

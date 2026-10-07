@@ -14,8 +14,8 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         links_n = BuildingAddressesInternalIdReadOnly.objects.count()
         self.assertEqual(links_n, 0)
 
-        a1 = Address.objects.create(id="address_1")
-        a2 = Address.objects.create(id="address_2")
+        a1 = Address.objects.create(cle_interop="address_1")
+        a2 = Address.objects.create(cle_interop="address_2")
 
         b = Building.objects.create(
             rnb_id="1", addresses_internal_id=[a1.internal_id, a2.internal_id]
@@ -35,8 +35,8 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         updated to reference two addresses.
         Expected: no link row before the update, two after — the trigger
         deletes and re-inserts on update."""
-        a1 = Address.objects.create(id="address_1")
-        a2 = Address.objects.create(id="address_2")
+        a1 = Address.objects.create(cle_interop="address_1")
+        a2 = Address.objects.create(cle_interop="address_2")
 
         b = Building.objects.create(rnb_id="1")
 
@@ -59,8 +59,8 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         """Input: a building linked to two addresses via addresses_internal_id,
         then updated to clear addresses_internal_id (set to None).
         Expected: the trigger deletes the two link rows, leaving none."""
-        a1 = Address.objects.create(id="address_1")
-        a2 = Address.objects.create(id="address_2")
+        a1 = Address.objects.create(cle_interop="address_1")
+        a2 = Address.objects.create(cle_interop="address_2")
 
         b = Building.objects.create(
             rnb_id="1", addresses_internal_id=[a1.internal_id, a2.internal_id]
@@ -84,8 +84,8 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         trigger), and the links are left intact."""
         from batid.exceptions import ForbiddenDjangoNativeFunction
 
-        a1 = Address.objects.create(id="address_1")
-        a2 = Address.objects.create(id="address_2")
+        a1 = Address.objects.create(cle_interop="address_1")
+        a2 = Address.objects.create(cle_interop="address_2")
 
         Building.objects.create(
             rnb_id="1", addresses_internal_id=[a1.internal_id, a2.internal_id]
@@ -106,7 +106,7 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         Expected: the DBRouter refuses the write and no row is created. The table is
         derived from addresses_internal_id: a row written by hand would be erased by
         the next update of the building."""
-        a1 = Address.objects.create(id="address_1")
+        a1 = Address.objects.create(cle_interop="address_1")
         b = Building.objects.create(rnb_id="1")
 
         with self.assertRaisesMessage(Exception, "read only"):
@@ -121,7 +121,7 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         an IntegrityError."""
         from django.db.utils import IntegrityError
 
-        a1 = Address.objects.create(id="address_1")
+        a1 = Address.objects.create(cle_interop="address_1")
 
         with self.assertRaises(IntegrityError):
             Building.objects.create(

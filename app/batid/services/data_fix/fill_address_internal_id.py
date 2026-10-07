@@ -37,8 +37,8 @@ def fill_address_internal_id(batch_size: int = DEFAULT_BATCH_SIZE) -> int:
             # since a batch made only of already filled rows updates nothing.
             cursor.execute(
                 """
-                SELECT max(id) FROM (
-                    SELECT id FROM batid_address WHERE id > %s ORDER BY id LIMIT %s
+                SELECT max(cle_interop) FROM (
+                    SELECT cle_interop FROM batid_address WHERE cle_interop > %s ORDER BY cle_interop LIMIT %s
                 ) AS batch;
                 """,
                 [last_id, batch_size],
@@ -54,7 +54,7 @@ def fill_address_internal_id(batch_size: int = DEFAULT_BATCH_SIZE) -> int:
                 """
                 UPDATE batid_address
                 SET internal_id = nextval('batid_address_internal_id_seq')
-                WHERE id > %s AND id <= %s AND internal_id IS NULL;
+                WHERE cle_interop > %s AND cle_interop <= %s AND internal_id IS NULL;
                 """,
                 [last_id, batch_max_id],
             )

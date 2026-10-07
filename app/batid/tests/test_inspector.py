@@ -59,7 +59,7 @@ class TestInspectorBdgCreate(TestCase):
 
         # Create the addresses
         Address.objects.create(
-            id="add_1",
+            cle_interop="add_1",
             source="ban",
             point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
             street_number="39",
@@ -69,7 +69,7 @@ class TestInspectorBdgCreate(TestCase):
             city_insee_code="75104",
         )
         Address.objects.create(
-            id="add_2",
+            cle_interop="add_2",
             source="ban",
             point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
             street_number="39",
@@ -261,7 +261,7 @@ class TestInspectorBdgUpdate(TestCase):
 
         # Create the addresses
         Address.objects.create(
-            id="add_1",
+            cle_interop="add_1",
             source="ban",
             point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
             street_number="39",
@@ -271,7 +271,7 @@ class TestInspectorBdgUpdate(TestCase):
             city_insee_code="75104",
         )
         Address.objects.create(
-            id="add_2",
+            cle_interop="add_2",
             source="ban",
             point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
             street_number="39",
@@ -282,7 +282,7 @@ class TestInspectorBdgUpdate(TestCase):
             city_insee_code="75104",
         )
         Address.objects.create(
-            id="add_3",
+            cle_interop="add_3",
             source="ban",
             point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
             street_number="39",
@@ -356,7 +356,7 @@ class InspectorMergeBuilding(TestCase):
     def test_empty_incoming_address(self):
         # Create an address
         Address.objects.create(
-            id="add_1",
+            cle_interop="add_1",
             source="ban",
             point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
             street_number="39",
@@ -434,7 +434,7 @@ class InspectorMergeBuilding(TestCase):
     def test_all_addresses_are_known(self):
         # Create an address
         Address.objects.create(
-            id="add_1",
+            cle_interop="add_1",
             source="ban",
             point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
             street_number="39",
@@ -445,7 +445,7 @@ class InspectorMergeBuilding(TestCase):
         )
 
         Address.objects.create(
-            id="add_2",
+            cle_interop="add_2",
             source="ban",
             point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
             street_number="40",
@@ -456,7 +456,7 @@ class InspectorMergeBuilding(TestCase):
         )
 
         Address.objects.create(
-            id="add_3",
+            cle_interop="add_3",
             source="ban",
             point=coords_to_point_geom(lng=2.3498853683277345, lat=48.85791913114588),
             street_number="40",

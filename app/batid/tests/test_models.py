@@ -46,7 +46,7 @@ class TestBuilding(TestCase):
             user,
             {"source": "contribution", "contribution_id": 1},
             "constructed",
-            [address.id],
+            [address.cle_interop],
         )
 
         building_1.refresh_from_db()
@@ -171,8 +171,8 @@ class TestAddressesInternalId(TestCase):
 
     def setUp(self):
         self.user = ContributorUserFactory(username="internal_id_tester")
-        self.addr1 = Address.objects.create(id="cle_interop_addr1")
-        self.addr2 = Address.objects.create(id="cle_interop_addr2")
+        self.addr1 = Address.objects.create(cle_interop="cle_interop_addr1")
+        self.addr2 = Address.objects.create(cle_interop="cle_interop_addr2")
 
     def test_create_new_fills_addresses_internal_id(self):
         """
@@ -184,7 +184,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy"},
             status="constructed",
-            addresses_cle_interop=[self.addr1.id, self.addr2.id],
+            addresses_cle_interop=[self.addr1.cle_interop, self.addr2.cle_interop],
             shape=GEOSGeometry("POINT(0 0)"),
             ext_ids=[],
         )
@@ -218,7 +218,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy"},
             status="constructed",
-            addresses_cle_interop=[self.addr1.id],
+            addresses_cle_interop=[self.addr1.cle_interop],
             shape=GEOSGeometry("POINT(0 0)"),
             ext_ids=[],
         )
@@ -226,7 +226,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy_update"},
             status=None,
-            addresses_cle_interop=[self.addr2.id],
+            addresses_cle_interop=[self.addr2.cle_interop],
         )
         b.refresh_from_db()
         self.assertEqual(b.addresses_internal_id, [self.addr2.internal_id])
@@ -241,7 +241,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy"},
             status="constructed",
-            addresses_cle_interop=[self.addr1.id],
+            addresses_cle_interop=[self.addr1.cle_interop],
             shape=GEOSGeometry("POINT(0 0)"),
             ext_ids=[],
         )
@@ -266,7 +266,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy"},
             status="constructed",
-            addresses_cle_interop=[self.addr1.id, self.addr2.id],
+            addresses_cle_interop=[self.addr1.cle_interop, self.addr2.cle_interop],
             shape=GEOSGeometry("POINT(0 0)"),
             ext_ids=[],
         )
@@ -278,7 +278,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy_update"},
             status=None,
-            addresses_cle_interop=[self.addr2.id, self.addr1.id],
+            addresses_cle_interop=[self.addr2.cle_interop, self.addr1.cle_interop],
         )
         b.refresh_from_db()
         self.assertEqual(b.sys_period, sys_period)
@@ -295,7 +295,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy"},
             status="constructed",
-            addresses_cle_interop=[self.addr1.id],
+            addresses_cle_interop=[self.addr1.cle_interop],
             shape=GEOSGeometry("POINT(0 0)"),
             ext_ids=[],
         )
@@ -303,7 +303,7 @@ class TestAddressesInternalId(TestCase):
             user=self.user,
             event_origin={"source": "dummy_update"},
             status=None,
-            addresses_cle_interop=[self.addr2.id],
+            addresses_cle_interop=[self.addr2.cle_interop],
         )
         b.refresh_from_db()
 
@@ -328,7 +328,7 @@ class TestAddressesInternalId(TestCase):
             self.user,
             {"source": "dummy"},
             "constructed",
-            [self.addr1.id, self.addr2.id],
+            [self.addr1.cle_interop, self.addr2.cle_interop],
         )
         merged.refresh_from_db()
         self.assertEqual(
@@ -360,7 +360,10 @@ class TestAddressesInternalId(TestCase):
             [
                 {
                     "status": "constructed",
-                    "addresses_cle_interop": [self.addr1.id, self.addr2.id],
+                    "addresses_cle_interop": [
+                        self.addr1.cle_interop,
+                        self.addr2.cle_interop,
+                    ],
                     "shape": child1_shape,
                 },
                 {
@@ -391,7 +394,7 @@ class TestAddressesInternalId(TestCase):
         """
         with self.assertRaises(DatabaseInconsistency):
             Address.internal_ids_from_cle_interop(
-                [self.addr1.id, "unknown_cle_interop"]
+                [self.addr1.cle_interop, "unknown_cle_interop"]
             )
 
     def test_cle_interop_from_internal_ids(self):
@@ -405,7 +408,7 @@ class TestAddressesInternalId(TestCase):
             Address.cle_interop_from_internal_ids(
                 [self.addr2.internal_id, self.addr1.internal_id]
             ),
-            [self.addr2.id, self.addr1.id],
+            [self.addr2.cle_interop, self.addr1.cle_interop],
         )
         self.assertEqual(Address.cle_interop_from_internal_ids([]), [])
         self.assertIsNone(Address.cle_interop_from_internal_ids(None))
@@ -432,8 +435,8 @@ class TestAddressesInternalId(TestCase):
 class TestSplitBuilding(TestCase):
     def setUp(self):
         self.user = ContributorUserFactory()
-        self.adr1 = Address.objects.create(id="cle_interop_1")
-        self.adr2 = Address.objects.create(id="cle_interop_2")
+        self.adr1 = Address.objects.create(cle_interop="cle_interop_1")
+        self.adr2 = Address.objects.create(cle_interop="cle_interop_2")
 
     @override_settings(MAX_BUILDING_AREA=float("inf"), MIN_BUILDING_AREA=0)
     def test_split_a_building(self):
@@ -470,12 +473,18 @@ class TestSplitBuilding(TestCase):
                 {
                     "status": "demolished",
                     # duplicate on purpose
-                    "addresses_cle_interop": [self.adr1.id, self.adr1.id],
+                    "addresses_cle_interop": [
+                        self.adr1.cle_interop,
+                        self.adr1.cle_interop,
+                    ],
                     "shape": child2_point,
                 },
                 {
                     "status": "constructed",
-                    "addresses_cle_interop": [self.adr1.id, self.adr2.id],
+                    "addresses_cle_interop": [
+                        self.adr1.cle_interop,
+                        self.adr2.cle_interop,
+                    ],
                     "shape": child3_shape,
                 },
             ],
@@ -525,7 +534,7 @@ class TestSplitBuilding(TestCase):
         self.assertEqual(b3.event_type, "split")
         self.assertEqual(b3.event_user, self.user)
         self.assertTrue(b3.is_active)
-        self.assertEqual(addresses_cle_interop(b3), [self.adr1.id])
+        self.assertEqual(addresses_cle_interop(b3), [self.adr1.cle_interop])
 
         # Check child 3 (polygon)
         self.assertIsNotNone(b4.point)
@@ -538,7 +547,9 @@ class TestSplitBuilding(TestCase):
         self.assertEqual(b4.event_type, "split")
         self.assertEqual(b4.event_user, self.user)
         self.assertTrue(b4.is_active)
-        self.assertCountEqual(addresses_cle_interop(b4), [self.adr1.id, self.adr2.id])
+        self.assertCountEqual(
+            addresses_cle_interop(b4), [self.adr1.cle_interop, self.adr2.cle_interop]
+        )
 
     def test_split_a_building_raise(self):
         # create building
@@ -620,9 +631,9 @@ class TestUpdateBuilding(TestCase):
 
     def setUp(self):
 
-        Address.objects.create(id="addr1")
-        Address.objects.create(id="addr2")
-        Address.objects.create(id="addr3")
+        Address.objects.create(cle_interop="addr1")
+        Address.objects.create(cle_interop="addr2")
+        Address.objects.create(cle_interop="addr3")
 
         self.user = ContributorUserFactory(username="solo_user")
 
@@ -792,8 +803,8 @@ class TestUpdateBuildingValidatedBy(TestCase):
     )
 
     def setUp(self):
-        Address.objects.create(id="addr1")
-        Address.objects.create(id="addr2")
+        Address.objects.create(cle_interop="addr1")
+        Address.objects.create(cle_interop="addr2")
 
         self.user = ContributorUserFactory(username="solo_user")
         self.other_user = ContributorUserFactory(username="other_user")
@@ -1163,7 +1174,7 @@ class TestSaveNewAddress(TestCase):
 
         Address.save_new_address(data)
 
-        address = Address.objects.get(id="01001_0001_00001")
+        address = Address.objects.get(cle_interop="01001_0001_00001")
 
         # We disabled BAN id import for now since it creates duplicates and should be treated globally, so we expect ban_id to be None for all addresses
         # self.assertEqual(str(address.ban_id), ban_id)
