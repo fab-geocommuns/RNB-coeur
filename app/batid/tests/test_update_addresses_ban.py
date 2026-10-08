@@ -132,6 +132,24 @@ class TestFlagAddressesFromBanFile(TestCase):
         other_dept_addr.refresh_from_db()
         self.assertIsNone(other_dept_addr.still_exists)
 
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_flag_addresses_corsica_lowercase_keys(self, mock_remove, mock_find):
+        """
+        Input: Corsica department "2A" (uppercase), an address with a lowercase
+        BAN key "2a004_..." absent from the BAN file.
+        Expected: the address is marked still_exists=False, 1 obsolete reported.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+
+        Address.objects.create(cle_interop="2a004_0010_00001", source="ban")
+
+        result = flag_addresses_from_ban_file({"dpt": "2A"})
+
+        self.assertEqual(result["obsolete"], 1)
+        addr = Address.objects.get(cle_interop="2a004_0010_00001")
+        self.assertFalse(addr.still_exists)
+
 
 class TestNormalizeText(TestCase):
     def test_removes_accents_and_lowercases(self):

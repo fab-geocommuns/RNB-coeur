@@ -73,8 +73,7 @@ def normalize_text(text: str) -> str:
 
 def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> dict:
     """
-    Update addresses for a department with still_exists=True
-    and their ban_id from the BAN file.
+    Mark addresses of a department found in the BAN file with still_exists=True.
     Addresses in the department but NOT in the BAN file are marked still_exists=False.
     """
     dpt = src_params["dpt"]
@@ -115,24 +114,20 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
 
 
 def _mark_existing_addresses(cle_interops: list) -> int:
-    """Update a batch of addresses."""
-    addresses = list(Address.objects.filter(cle_interop__in=cle_interops))
-
-    for addr in addresses:
-        addr.still_exists = True
-
-    if addresses:
-        Address.objects.bulk_update(addresses, ["still_exists"])
-
-    return len(addresses)
+    """Mark a batch of addresses as still existing in the BAN."""
+    return Address.objects.filter(cle_interop__in=cle_interops).update(
+        still_exists=True
+    )
 
 
 def _mark_obsolete_addresses(dpt: str, seen_cle_interops: set) -> int:
     """Mark addresses in the department that are not in the BAN file as obsolete."""
-    # Filter addresses by department prefix (cle_interop starts with department code)
+    # Filter addresses by department prefix (cle_interop starts with department code).
+    # BAN keys are lowercase ("2a004_..."), while Corsica department codes are
+    # uppercase ("2A").
     obsolete_count = (
         Address.objects.filter(
-            cle_interop__startswith=dpt,
+            cle_interop__startswith=dpt.lower(),
         )
         .exclude(
             cle_interop__in=seen_cle_interops,
