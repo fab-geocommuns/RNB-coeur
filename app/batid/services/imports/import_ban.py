@@ -95,7 +95,7 @@ def import_ban_addresses(
 
             addresses_batch.append(
                 Address(
-                    id=row["id"],
+                    cle_interop=row["id"],
                     source="Import BAN",
                     point=Point(float(row["lon"]), float(row["lat"]), srid=4326),
                     street_number=row["numero"],

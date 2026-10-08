@@ -93,8 +93,8 @@
 # def insert_building_history_1():
 #     # a case with multiple updates, some squashing needed
 #     rnb_id = "1C23HEP2JDF2"
-#     Address.objects.create(id="51250_0027_00007")
-#     Address.objects.create(id="51250_0027_00008")
+#     Address.objects.create(cle_interop="51250_0027_00007")
+#     Address.objects.create(cle_interop="51250_0027_00008")
 #     # creation
 #     b = Building.objects.create(
 #         rnb_id=rnb_id,

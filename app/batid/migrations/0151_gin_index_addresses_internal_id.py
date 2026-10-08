@@ -2,8 +2,7 @@ import django.contrib.postgres.indexes
 from django.db import migrations
 
 # GIN indexes on addresses_internal_id, needed before switching the "@>" reads of
-# addresses_id (address deletion, check_address_is_linked() trigger) to it. See
-# specs/migration_lien_batiment_adresse.md.
+# addresses_id (address deletion, check_address_is_linked() trigger) to it.
 #
 # CONCURRENTLY, as in 0107: writes on the buildings are not blocked during the
 # build. IF NOT EXISTS: the index on batid_building_history is long to build, and

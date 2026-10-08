@@ -16,8 +16,8 @@ class BuildingSplitTest(APITestCase):
         token = Token.objects.get(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
-        self.adr1 = Address.objects.create(id="cle_interop_1")
-        self.adr2 = Address.objects.create(id="cle_interop_2")
+        self.adr1 = Address.objects.create(cle_interop="cle_interop_1")
+        self.adr2 = Address.objects.create(cle_interop="cle_interop_2")
 
         self.building_1 = Building.objects.create(
             rnb_id="AAAA00000000",
@@ -44,12 +44,12 @@ class BuildingSplitTest(APITestCase):
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr1.id],
+                    "addresses_cle_interop": [self.adr1.cle_interop],
                 },
                 {
                     "status": "notUsable",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr2.id],
+                    "addresses_cle_interop": [self.adr2.cle_interop],
                 },
             ],
         }
@@ -70,12 +70,12 @@ class BuildingSplitTest(APITestCase):
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr1.id],
+                    "addresses_cle_interop": [self.adr1.cle_interop],
                 },
                 {
                     "status": "notUsable",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr2.id],
+                    "addresses_cle_interop": [self.adr2.cle_interop],
                 },
             ],
         }
@@ -104,7 +104,7 @@ class BuildingSplitTest(APITestCase):
             },
         )
         addresses = b1["addresses"]
-        self.assertEqual(addresses[0]["id"], self.adr1.id)
+        self.assertEqual(addresses[0]["id"], self.adr1.cle_interop)
         self.assertEqual(len(addresses), 1)
         self.assertEqual(
             b1["ext_ids"],
@@ -133,7 +133,7 @@ class BuildingSplitTest(APITestCase):
             },
         )
         addresses = b2["addresses"]
-        self.assertEqual(addresses[0]["id"], self.adr2.id)
+        self.assertEqual(addresses[0]["id"], self.adr2.cle_interop)
         self.assertEqual(len(addresses), 1)
         self.assertEqual(
             b2["ext_ids"],
@@ -164,6 +164,13 @@ class BuildingSplitTest(APITestCase):
 
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_split_buildings_missing_info(self):
+        """
+        Input: split requests that are valid, have no RNB ID, an unknown RNB ID,
+        a single child building, or child buildings missing status/address.
+        Expected: 201 for the valid request, 404 for missing/unknown RNB ID
+        (with the French "not found" message, as LANGUAGE_CODE is "fr"),
+        400 with an explicit message for the other cases.
+        """
 
         # base case: correct
         data = {
@@ -171,12 +178,12 @@ class BuildingSplitTest(APITestCase):
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr1.id],
+                    "addresses_cle_interop": [self.adr1.cle_interop],
                 },
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr2.id],
+                    "addresses_cle_interop": [self.adr2.cle_interop],
                 },
             ],
         }
@@ -196,12 +203,12 @@ class BuildingSplitTest(APITestCase):
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr1.id],
+                    "addresses_cle_interop": [self.adr1.cle_interop],
                 },
                 {
                     "status": "notUsable",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr2.id],
+                    "addresses_cle_interop": [self.adr2.cle_interop],
                 },
             ],
         }
@@ -221,12 +228,12 @@ class BuildingSplitTest(APITestCase):
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr1.id],
+                    "addresses_cle_interop": [self.adr1.cle_interop],
                 },
                 {
                     "status": "notUsable",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr2.id],
+                    "addresses_cle_interop": [self.adr2.cle_interop],
                 },
             ],
         }
@@ -239,7 +246,7 @@ class BuildingSplitTest(APITestCase):
 
         self.assertEqual(r.status_code, 404)
         self.assertEqual(
-            r.content, b'{"detail":"No Building matches the given query."}'
+            r.json(), {"detail": "Aucun objet Building ne correspond à cette requête."}
         )
 
         # split in 1 is impossible
@@ -249,7 +256,7 @@ class BuildingSplitTest(APITestCase):
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr1.id],
+                    "addresses_cle_interop": [self.adr1.cle_interop],
                 }
             ],
         }
@@ -272,11 +279,11 @@ class BuildingSplitTest(APITestCase):
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr1.id],
+                    "addresses_cle_interop": [self.adr1.cle_interop],
                 },
                 {
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr2.id],
+                    "addresses_cle_interop": [self.adr2.cle_interop],
                 },
             ],
         }
@@ -299,7 +306,7 @@ class BuildingSplitTest(APITestCase):
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr1.id],
+                    "addresses_cle_interop": [self.adr1.cle_interop],
                 },
                 {
                     "status": "constructed",
@@ -326,12 +333,12 @@ class BuildingSplitTest(APITestCase):
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr1.id],
+                    "addresses_cle_interop": [self.adr1.cle_interop],
                 },
                 {
                     "status": "constructed",
                     "shape": "coucou",
-                    "addresses_cle_interop": [self.adr2.id],
+                    "addresses_cle_interop": [self.adr2.cle_interop],
                 },
             ],
         }
@@ -367,7 +374,7 @@ class BuildingSplitTest(APITestCase):
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr2.id],
+                    "addresses_cle_interop": [self.adr2.cle_interop],
                 },
             ],
         }
@@ -401,7 +408,7 @@ class BuildingSplitTest(APITestCase):
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr2.id],
+                    "addresses_cle_interop": [self.adr2.cle_interop],
                 },
             ],
         }
@@ -430,12 +437,12 @@ class BuildingSplitTest(APITestCase):
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr1.id],
+                    "addresses_cle_interop": [self.adr1.cle_interop],
                 },
                 {
                     "status": "constructed",
                     "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                    "addresses_cle_interop": [self.adr2.id],
+                    "addresses_cle_interop": [self.adr2.cle_interop],
                 },
             ],
         }
@@ -473,12 +480,12 @@ class BuildingSplitTest(APITestCase):
                     {
                         "status": "constructed",
                         "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                        "addresses_cle_interop": [self.adr1.id],
+                        "addresses_cle_interop": [self.adr1.cle_interop],
                     },
                     {
                         "status": "constructed",
                         "shape": "POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))",
-                        "addresses_cle_interop": [self.adr2.id],
+                        "addresses_cle_interop": [self.adr2.cle_interop],
                     },
                 ],
             }

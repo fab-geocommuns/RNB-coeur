@@ -16,8 +16,8 @@ class BuildingMergeTest(APITestCase):
         token = Token.objects.get(user=self.user)
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
 
-        self.adr1 = Address.objects.create(id="cle_interop_1")
-        self.adr2 = Address.objects.create(id="cle_interop_2")
+        self.adr1 = Address.objects.create(cle_interop="cle_interop_1")
+        self.adr2 = Address.objects.create(cle_interop="cle_interop_2")
 
         self.building_1 = Building.objects.create(
             rnb_id="AAAA00000000",
@@ -119,7 +119,7 @@ class BuildingMergeTest(APITestCase):
         cles = [address["id"] for address in addresses]
         cles.sort()
 
-        expected_addresses = [self.adr1.id, self.adr2.id]
+        expected_addresses = [self.adr1.cle_interop, self.adr2.cle_interop]
         expected_addresses.sort()
 
         self.assertListEqual(cles, expected_addresses)
@@ -159,7 +159,7 @@ class BuildingMergeTest(APITestCase):
             "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
             "status": "constructed",
             # we put a duplicate on purpose
-            "addresses_cle_interop": [self.adr1.id, self.adr1.id],
+            "addresses_cle_interop": [self.adr1.cle_interop, self.adr1.cle_interop],
             "comment": "Ces deux bâtiments ne font qu'un, mais une seule adresse est la bonne",
         }
 
@@ -177,7 +177,7 @@ class BuildingMergeTest(APITestCase):
         self.assertEqual(res["point"], {"type": "Point", "coordinates": [1.0, 0.5]})
 
         addresses = res["addresses"]
-        self.assertEqual(addresses[0]["id"], self.adr1.id)
+        self.assertEqual(addresses[0]["id"], self.adr1.cle_interop)
         self.assertEqual(len(addresses), 1)
 
         self.assertEqual(
@@ -333,7 +333,7 @@ class BuildingMergeTest(APITestCase):
         data = {
             "rnb_ids": [self.building_1.rnb_id, self.building_2.rnb_id],
             "status": "constructed",
-            "addresses_cle_interop": [self.adr1.id],
+            "addresses_cle_interop": [self.adr1.cle_interop],
         }
 
         r = self.client.post(

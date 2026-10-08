@@ -43,8 +43,8 @@ def create_city_dpt(self):
 @override_settings(MAX_BUILDING_AREA=float("inf"))
 class TestSummerChallenge(TestCase):
     def setUp(self):
-        Address.objects.create(id="addr1")
-        Address.objects.create(id="addr2")
+        Address.objects.create(cle_interop="addr1")
+        Address.objects.create(cle_interop="addr2")
 
         create_city_dpt(self)
 

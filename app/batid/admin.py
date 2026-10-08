@@ -181,7 +181,7 @@ admin.site.register(BuildingImport, BuildingImportAdmin)
 
 class AddressAdmin(admin.ModelAdmin):
     list_display = (
-        "id",
+        "cle_interop",
         "source",
         "street_number",
         "street_rep",

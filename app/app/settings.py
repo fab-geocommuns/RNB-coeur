@@ -222,6 +222,10 @@ REST_FRAMEWORK = {
         "create_report": "20/min",
     },
     "URL_FORMAT_OVERRIDE": None,
+    # Keep the list-based error format for nested `many=True` serializers
+    # (e.g. ADS buildings_operations) to avoid breaking API clients.
+    # This format is deprecated and will be removed in DRF 3.20.
+    "LIST_SERIALIZER_ERRORS_AS_DICT": False,
 }
 
 if ENVIRONMENT in ("test", "development"):

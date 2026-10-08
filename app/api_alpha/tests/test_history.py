@@ -42,7 +42,7 @@ class SingleBuildingHistoryTest(APITestCase):
 
         # We need some addresses
         Address.objects.create(
-            id="cle_interop_1",
+            cle_interop="cle_interop_1",
             source="source1",
             street_number="1",
             street="Rue de la Paix",
@@ -51,7 +51,7 @@ class SingleBuildingHistoryTest(APITestCase):
             city_insee_code="75056",
         )
         Address.objects.create(
-            id="cle_interop_2",
+            cle_interop="cle_interop_2",
             source="source2",
             street_number="2",
             street_rep="bis",

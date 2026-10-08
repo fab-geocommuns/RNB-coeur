@@ -67,8 +67,8 @@ Voici un exemple des requêtes SQL qui permet d'extraire les bâtiments et les a
 SELECT * FROM batid_building bb WHERE st_dwithin(bb.shape, st_geomfromewkt('SRID=4326;POINT (2.294492349179413 48.85837023573654)'), 0.001);
 
 
-WITH addresses AS (SELECT unnest(addresses_id) FROM batid_building bb WHERE st_dwithin(bb.shape, st_geomfromewkt('SRID=4326;POINT (2.294492349179413 48.85837023573654)'), 0.001))
-SELECT * FROM batid_address ba WHERE id IN (SELECT * FROM addresses);
+WITH addresses AS (SELECT unnest(addresses_internal_id) AS internal_id FROM batid_building bb WHERE st_dwithin(bb.shape, st_geomfromewkt('SRID=4326;POINT (2.294492349179413 48.85837023573654)'), 0.001))
+SELECT * FROM batid_address ba WHERE internal_id IN (SELECT internal_id FROM addresses);
 ```
 
 L'insertion en base des adresses doit se faire avant celle des bâtiments, pour respecter les contraintes SQL de ForeignKeys.

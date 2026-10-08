@@ -68,7 +68,7 @@ def sql_query(code_area):
         bdg.ext_ids as ext_ids,
         coalesce(json_agg(
              json_build_object(
-                    'cle_interop_ban', addr.id,
+                    'cle_interop_ban', addr.cle_interop,
                     'street_number', addr.street_number,
                     'street_rep', addr.street_rep,
                     'street', addr.street,
@@ -76,7 +76,7 @@ def sql_query(code_area):
                     'city_name', addr.city_name
                 )
 
-        ) FILTER (WHERE addr.id IS NOT NULL), '[]'::json) AS addresses,
+        ) FILTER (WHERE addr.cle_interop IS NOT NULL), '[]'::json) AS addresses,
         (
            SELECT json_agg(json_build_object('id', p.id, 'bdg_cover_ratio',
                CASE

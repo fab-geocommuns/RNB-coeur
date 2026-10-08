@@ -59,12 +59,19 @@ def build_monthly_leaderboard_email(
         get_monthly_edit_leaderboard,
         get_monthly_new_users,
     )
+    from batid.services.user import get_user_organization_name
     from batid.utils.date import french_month_year_label
 
     leaderboard = get_monthly_edit_leaderboard(year, month)
     month_year_label = french_month_year_label(year, month)
     new_users = get_monthly_new_users(year, month)
-    new_usernames = list(new_users.values_list("username", flat=True))
+    new_users_entries = [
+        {
+            "username": user.username,
+            "organization_name": get_user_organization_name(user),
+        }
+        for user in new_users
+    ]
 
     total_contributions = sum(entry["edit_count"] for entry in leaderboard)
 
@@ -73,7 +80,9 @@ def build_monthly_leaderboard_email(
         {
             "leaderboard": leaderboard,
             "month_year_label": month_year_label,
-            "new_usernames": sorted(new_usernames, key=str.lower),
+            "new_users": sorted(
+                new_users_entries, key=lambda entry: entry["username"].lower()
+            ),
             "total_contributions": total_contributions,
         },
     )

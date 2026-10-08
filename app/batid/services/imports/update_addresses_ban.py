@@ -116,7 +116,7 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
 
 def _mark_existing_addresses(cle_interops: list) -> int:
     """Update a batch of addresses."""
-    addresses = list(Address.objects.filter(id__in=cle_interops))
+    addresses = list(Address.objects.filter(cle_interop__in=cle_interops))
 
     for addr in addresses:
         addr.still_exists = True
@@ -132,10 +132,10 @@ def _mark_obsolete_addresses(dpt: str, seen_cle_interops: set) -> int:
     # Filter addresses by department prefix (cle_interop starts with department code)
     obsolete_count = (
         Address.objects.filter(
-            id__startswith=dpt,
+            cle_interop__startswith=dpt,
         )
         .exclude(
-            id__in=seen_cle_interops,
+            cle_interop__in=seen_cle_interops,
         )
         .update(still_exists=False)
     )
@@ -284,7 +284,9 @@ def _update_text_batch(batch: list) -> dict:
 
     addresses = list(
         Address.objects.filter(
-            id__in=cle_interops, still_exists=True, ban_update_flag__isnull=True
+            cle_interop__in=cle_interops,
+            still_exists=True,
+            ban_update_flag__isnull=True,
         )
     )
 
@@ -295,7 +297,7 @@ def _update_text_batch(batch: list) -> dict:
     now = datetime.now(timezone.utc)
 
     for addr in addresses:
-        ban = ban_data[addr.id]
+        ban = ban_data[addr.cle_interop]
 
         distance_m = _calculate_distance(addr.point, ban["lon"], ban["lat"])
         diffs = _get_field_diffs(addr, ban)
@@ -368,8 +370,8 @@ def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
                 cursor.execute(
                     """
                     DELETE FROM batid_address
-                    WHERE id IN (
-                        SELECT a.id FROM batid_address a
+                    WHERE cle_interop IN (
+                        SELECT a.cle_interop FROM batid_address a
                         WHERE a.still_exists = False
                         AND NOT EXISTS (
                             SELECT 1 FROM batid_building_with_history b

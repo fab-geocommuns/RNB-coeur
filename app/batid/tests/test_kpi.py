@@ -204,9 +204,9 @@ class CountRealBuildingsWithoutAddress(TestCase):
     def setUp(self):
 
         # Addresses
-        one = Address.objects.create(id="one")
-        two = Address.objects.create(id="two")
-        Address.objects.create(id="three")
+        one = Address.objects.create(cle_interop="one")
+        two = Address.objects.create(cle_interop="two")
+        Address.objects.create(cle_interop="three")
 
         # Real buildings
         Building.objects.create(

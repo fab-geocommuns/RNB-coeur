@@ -12,19 +12,6 @@ from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
-from django.db.models import F, Func, Value
-
-
-class BuildingAddressesReadOnly(models.Model):
-    # Transitional: building <> address join table built from the addresses_id
-    # mirror (BAN interop keys) by the keep_building_address_link_updated()
-    # trigger. Not read anymore: use BuildingAddressesInternalIdReadOnly.
-    # To be deleted along with addresses_id.
-    building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
-    address = models.ForeignKey("Address", on_delete=models.CASCADE, db_index=True)
-
-    class Meta:
-        unique_together = ("building", "address")
 
 
 class BuildingAddressesInternalIdReadOnly(models.Model):
@@ -32,24 +19,10 @@ class BuildingAddressesInternalIdReadOnly(models.Model):
     # sync with Building.addresses_internal_id by the
     # keep_building_address_link_updated() trigger.
     building = models.ForeignKey("Building", on_delete=models.CASCADE, db_index=True)
-    address = models.ForeignKey(
-        "Address", on_delete=models.CASCADE, to_field="internal_id", db_index=True
-    )
+    address = models.ForeignKey("Address", on_delete=models.CASCADE, db_index=True)
 
     class Meta:
         unique_together = ("building", "address")
-
-    @classmethod
-    def check(cls, **kwargs):
-        # Address.internal_id is unique via an expression-based UniqueConstraint
-        # (Meta.constraints on Address), kept as a bare index on purpose so the
-        # future PK switch can reuse it with ADD PRIMARY KEY USING INDEX (see
-        # PR1b in specs/migration_lien_batiment_adresse.md). Django's fields.E311
-        # check only recognizes plain-fields UniqueConstraints, not
-        # expression-based ones, so it wrongly flags this FK target as
-        # non-unique. The uniqueness is real and enforced at the DB level.
-        # Quand le internal_id sera devenue une PK, alors il faudra supprimer ce code.
-        return [error for error in super().check(**kwargs) if error.id != "fields.E311"]
 
 
 class BuildingValidatedByReadOnly(models.Model):
@@ -163,18 +136,12 @@ class Plot(models.Model):
 
 
 class Address(models.Model):
-    id = models.CharField(max_length=40, primary_key=True, db_index=True)
-    # RNB internal key, meant to replace the BAN interop key (currently "id") as
-    # the anchor of the building <-> address link. Filled by the column DEFAULT,
-    # never by Django: see specs/migration_lien_batiment_adresse.md.
-    internal_id = models.BigIntegerField(
-        db_default=Func(
-            Value("batid_address_internal_id_seq"),
-            function="nextval",
-            output_field=models.BigIntegerField(),
-        ),
-        editable=False,
-    )
+    # RNB internal key, the anchor of the building <-> address link. Drawn from
+    # batid_address_internal_id_seq by the column DEFAULT.
+    internal_id = models.BigAutoField(primary_key=True)
+    # BAN "clé d'interopérabilité". Meant to be replaced by ban_id once every
+    # address has one.
+    cle_interop = models.CharField(max_length=40, unique=True)
     source = models.CharField(max_length=10, null=False)  # BAN or other origin
     point = models.PointField(null=True, spatial_index=True, srid=4326)
     street_number = models.CharField(max_length=10, null=True)
@@ -195,26 +162,15 @@ class Address(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        constraints = [
-            # Expression form on purpose: the field form, like unique=True, would
-            # be created as a UNIQUE constraint, and the primary key switch needs
-            # an index no constraint owns to run ADD PRIMARY KEY USING INDEX.
-            # See specs/migration_lien_batiment_adresse.md.
-            models.UniqueConstraint(
-                F("internal_id"), name="batid_address_internal_id_uniq"
-            )
-        ]
-
     @staticmethod
-    def add_addresses_to_db_if_needed(addresses_id: list[str]) -> None:
+    def add_addresses_to_db_if_needed(addresses_cle_interop: list[str]) -> None:
         """given a list of "clés d'interopérabilité BAN", we add those addresses to our Address table if they don't exist yet."""
-        for address_id in addresses_id:
+        for address_id in addresses_cle_interop:
             Address.add_address_to_db_if_needed(address_id)
 
     @staticmethod
     def add_address_to_db_if_needed(address_id: str) -> None:
-        if Address.objects.filter(id=address_id).exists():
+        if Address.objects.filter(cle_interop=address_id).exists():
             return
         else:
             Address.add_new_address_from_ban_api(address_id)
@@ -236,8 +192,8 @@ class Address(models.Model):
             return None
 
         internal_id_by_cle = dict(
-            Address.objects.filter(id__in=addresses_cle_interop).values_list(
-                "id", "internal_id"
+            Address.objects.filter(cle_interop__in=addresses_cle_interop).values_list(
+                "cle_interop", "internal_id"
             )
         )
 
@@ -257,8 +213,7 @@ class Address(models.Model):
 
         Used to read the building <> address link from addresses_internal_id while
         the rest of the code (API contract, business functions) still speaks interop
-        keys, and to fill the transitional addresses_id mirror in
-        Building._dangerously_save_forever().
+        keys.
         """
 
         if internal_ids is None:
@@ -266,7 +221,7 @@ class Address(models.Model):
 
         cle_by_internal_id = dict(
             Address.objects.filter(internal_id__in=internal_ids).values_list(
-                "internal_id", "id"
+                "internal_id", "cle_interop"
             )
         )
 
@@ -301,7 +256,7 @@ class Address(models.Model):
             raise BANBadResultType
 
         Address.objects.create(
-            id=data["cleInterop"],
+            cle_interop=data["cleInterop"],
             source="ban",
             point=Point(data["lon"], data["lat"], srid=4326),
             street_number=data["numero"],
