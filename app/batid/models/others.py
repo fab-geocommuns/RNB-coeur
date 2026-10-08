@@ -38,6 +38,9 @@ class City(models.Model):
     code_insee = models.CharField(max_length=10, null=False, db_index=True, unique=True)
     name = models.CharField(max_length=200, null=False, db_index=True)
     shape = models.MultiPolygonField(null=True, spatial_index=True, srid=4326)
+    # Are the BAN IDs of this city reliable enough to be imported?
+    # None means the reliability has never been (successfully) checked.
+    has_reliable_ban_ids = models.BooleanField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
