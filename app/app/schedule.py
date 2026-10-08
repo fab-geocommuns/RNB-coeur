@@ -52,15 +52,17 @@ production_schedule = {
         # once a week, saturday at 3am
         "schedule": crontab(hour=3, minute=0, day_of_week=6),
     },
-    "import_ban": {
-        "task": "batid.tasks.queue_full_ban_import",
-        "schedule": crontab(minute=0, hour=0, day_of_month="1,15"),
-    },
-    "create_bal_links": {
-        "task": "batid.tasks.queue_full_bal_rnb_links",
-        # we create links after the BAN has been imported
-        "schedule": crontab(minute=0, hour=0, day_of_month="2,16"),
-    },
+    # Temporary deactivation of those imports during the
+    # Great Refresh of the clés d'interop
+    # "import_ban": {
+    #     "task": "batid.tasks.queue_full_ban_import",
+    #     "schedule": crontab(minute=0, hour=0, day_of_month="1,15"),
+    # },
+    # "create_bal_links": {
+    #     "task": "batid.tasks.queue_full_bal_rnb_links",
+    #     # we create links after the BAN has been imported
+    #     "schedule": crontab(minute=0, hour=0, day_of_month="2,16"),
+    # },
     "send_monthly_leaderboard_emails": {
         "task": "batid.tasks.send_monthly_leaderboard_emails",
         # 1st of each month at 6am UTC
