@@ -1,15 +1,19 @@
 import csv
+import logging
 import time
 import uuid
 from typing import Optional
 
 import requests
 from batid.models import Address, City
+from batid.services.administrative_areas import dpts_list
 from batid.services.imports import building_import_history
 from batid.services.source import Source
 from celery import Signature
 from django.contrib.gis.geos import Point
 from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 BAN_LOOKUP_URL = "https://plateforme.adresse.data.gouv.fr/lookup/{insee_code}"
 BAN_LOOKUP_TIMEOUT = 30
@@ -50,7 +54,9 @@ def _create_ban_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
 
     # 1) We refresh the BAN IDs reliability of the cities of the department
     reliability_task = Signature(  # type: ignore[var-annotated]
-        "batid.tasks.update_cities_ban_ids_reliability", args=(dpt,), immutable=True
+        "batid.tasks.update_dpt_cities_ban_ids_reliability",
+        args=(dpt,),
+        immutable=True,
     )
     tasks.append(reliability_task)
 
@@ -125,12 +131,56 @@ def import_ban_addresses(
     return f"Imported {adresses_count} BAN addresses"
 
 
+def update_all_cities_ban_ids_reliability(
+    dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
+) -> str:
+    """
+    Refresh the has_reliable_ban_ids column of all the cities, department by
+    department (optionally from dpt_start to dpt_end).
+    Any failing check raises and stops the process: the departments already
+    processed keep their values, and the run can be resumed with dpt_start.
+    """
+    dpts = dpts_list(dpt_start, dpt_end)
+
+    checked_count = 0
+    changed_count = 0
+
+    for dpt in dpts:
+        dpt_checked_count, dpt_changed_count = _update_dpt_cities_ban_ids_reliability(
+            dpt
+        )
+        checked_count += dpt_checked_count
+        changed_count += dpt_changed_count
+
+        logger.info(
+            "BAN IDs reliability dpt %s done: %s cities checked, %s changed",
+            dpt,
+            dpt_checked_count,
+            dpt_changed_count,
+        )
+
+    return (
+        f"[{dpts[0]} to {dpts[-1]}] BAN IDs reliability: {checked_count} cities "
+        f"checked, {changed_count} changed"
+    )
+
+
 def update_dpt_cities_ban_ids_reliability(dpt: str) -> str:
     """
     Refresh the has_reliable_ban_ids column of all the cities of a department.
     Any failing check (BAN API error, city unknown to the BAN, ...) raises and
     stops the process.
     """
+    checked_count, changed_count = _update_dpt_cities_ban_ids_reliability(dpt)
+
+    return (
+        f"[{dpt}] BAN IDs reliability: {checked_count} cities checked, "
+        f"{changed_count} changed"
+    )
+
+
+def _update_dpt_cities_ban_ids_reliability(dpt: str) -> tuple[int, int]:
+    """Returns the number of cities checked and the number of cities changed."""
     insee_codes = (
         City.objects.filter(code_insee__startswith=dpt)
         .order_by("code_insee")
@@ -147,10 +197,7 @@ def update_dpt_cities_ban_ids_reliability(dpt: str) -> str:
 
         time.sleep(BAN_LOOKUP_DELAY)
 
-    return (
-        f"[{dpt}] BAN IDs reliability: {checked_count} cities checked, "
-        f"{changed_count} changed"
-    )
+    return checked_count, changed_count
 
 
 def update_one_city_ban_ids_reliability(insee_code: str) -> bool:

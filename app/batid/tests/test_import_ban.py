@@ -9,6 +9,7 @@ from batid.services.imports.import_ban import (
     create_ban_full_import_tasks,
     has_city_reliable_ban_ids,
     import_ban_addresses,
+    update_all_cities_ban_ids_reliability,
     update_dpt_cities_ban_ids_reliability,
     update_one_city_ban_ids_reliability,
 )
@@ -224,6 +225,40 @@ class BANIdsReliability(TestCase):
         self.assertIs(self._reliability("01001"), True)
         self.assertIs(self._reliability("01002"), False)
 
+    def test_update_all_dpts(self, get_mock):
+        """Input: cities in departments 01, 2A, 38 and 971, lookups all reliable, update of all departments. Expected: every city is looked up (in departments order) and updated; the result sums all departments."""
+        City.objects.create(code_insee="01001", name="A")
+        City.objects.create(code_insee="2A004", name="Ajaccio")
+        City.objects.create(code_insee="97101", name="B")
+        get_mock.return_value = _ban_lookup_response(True, [["bal"]])
+
+        result = update_all_cities_ban_ids_reliability()
+
+        for insee_code in ["01001", "2A004", "38185", "97101"]:
+            self.assertIs(self._reliability(insee_code), True)
+        called_codes = [call.args[0].split("/")[-1] for call in get_mock.call_args_list]
+        self.assertEqual(called_codes, ["01001", "2A004", "38185", "97101"])
+        self.assertEqual(
+            result, "[01 to 989] BAN IDs reliability: 4 cities checked, 4 changed"
+        )
+
+    def test_update_all_dpts_from_start_to_end(self, get_mock):
+        """Input: cities in departments 01, 2A, 38 and 971, lookups all reliable, update from department 2A to 38. Expected: only the cities of 2A and 38 are looked up and updated."""
+        City.objects.create(code_insee="01001", name="A")
+        City.objects.create(code_insee="2A004", name="Ajaccio")
+        City.objects.create(code_insee="97101", name="B")
+        get_mock.return_value = _ban_lookup_response(True, [["bal"]])
+
+        result = update_all_cities_ban_ids_reliability(dpt_start="2A", dpt_end="38")
+
+        self.assertIsNone(self._reliability("01001"))
+        self.assertIsNone(self._reliability("97101"))
+        called_codes = [call.args[0].split("/")[-1] for call in get_mock.call_args_list]
+        self.assertEqual(called_codes, ["2A004", "38185"])
+        self.assertEqual(
+            result, "[2A to 38] BAN IDs reliability: 2 cities checked, 2 changed"
+        )
+
     def test_has_city_reliable_ban_ids(self, get_mock):
         """Input: a reliable city, a not reliable one, a never checked one, an unknown code, a district of reliable Paris. Expected: True only for the reliable city and the Paris district."""
         City.objects.filter(code_insee="38185").update(has_reliable_ban_ids=True)
@@ -271,10 +306,10 @@ class BANImportTasks(TestCase):
         self.assertEqual(
             [t.task for t in tasks],
             [
-                "batid.tasks.update_cities_ban_ids_reliability",
+                "batid.tasks.update_dpt_cities_ban_ids_reliability",
                 "batid.tasks.dl_source",
                 "batid.tasks.import_ban",
-                "batid.tasks.update_cities_ban_ids_reliability",
+                "batid.tasks.update_dpt_cities_ban_ids_reliability",
                 "batid.tasks.dl_source",
                 "batid.tasks.import_ban",
             ],

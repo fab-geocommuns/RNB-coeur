@@ -25,7 +25,12 @@ from batid.services.imports.import_bal import (
 from batid.services.imports.import_ban import (
     create_ban_full_import_tasks,
     import_ban_addresses,
-    update_dpt_cities_ban_ids_reliability,
+)
+from batid.services.imports.import_ban import (
+    update_all_cities_ban_ids_reliability as update_all_cities_ban_ids_reliability_job,
+)
+from batid.services.imports.import_ban import (
+    update_dpt_cities_ban_ids_reliability as update_dpt_cities_ban_ids_reliability_job,
 )
 from batid.services.imports.import_bdnb_2023_01 import (
     import_bdnd_2023_01_addresses,
@@ -321,8 +326,18 @@ def import_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def update_cities_ban_ids_reliability(dpt: str):
-    return update_dpt_cities_ban_ids_reliability(dpt)
+def update_dpt_cities_ban_ids_reliability(dpt: str):
+    return update_dpt_cities_ban_ids_reliability_job(dpt)
+
+
+# No autoretry: a retry would restart the whole multi-hour run from the first
+# department. On failure, resume it with dpt_start.
+@notify_if_error
+@shared_task
+def update_all_cities_ban_ids_reliability(
+    dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
+):
+    return update_all_cities_ban_ids_reliability_job(dpt_start, dpt_end)
 
 
 @notify_if_error
