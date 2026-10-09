@@ -9,6 +9,8 @@ from batid.models import Address
 from batid.services.source import Source
 from django.contrib.gis.geos import Point
 from django.db import connection
+from django.db.models.functions import Upper
+from django.db.models.lookups import In
 from pyproj import Geod
 from rapidfuzz.distance import Levenshtein
 
@@ -75,6 +77,10 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
     """
     Mark addresses of a department found in the BAN file with still_exists=True.
     Addresses in the department but NOT in the BAN file are marked still_exists=False.
+    Interop keys are compared case-insensitively, on their uppercase version: some
+    keys in db are uppercase ("2A004_...", "35001_B001_00010") while the BAN file
+    holds lowercase ones. The comparison relies on the
+    address_cle_interop_upper_idx index on UPPER(cle_interop).
     """
     dpt = src_params["dpt"]
     src = Source("ban_with_ids")
@@ -114,23 +120,26 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
 
 
 def _mark_existing_addresses(cle_interops: list) -> int:
-    """Mark a batch of addresses as still existing in the BAN."""
-    return Address.objects.filter(cle_interop__in=cle_interops).update(
-        still_exists=True
-    )
+    """Mark a batch of addresses as still existing in the BAN (case-insensitive)."""
+    upper_cle_interops = [cle_interop.upper() for cle_interop in cle_interops]
+    return Address.objects.filter(
+        In(Upper("cle_interop"), upper_cle_interops)
+    ).update(still_exists=True)
 
 
 def _mark_obsolete_addresses(dpt: str, seen_cle_interops: set) -> int:
-    """Mark addresses in the department that are not in the BAN file as obsolete."""
+    """Mark addresses in the department that are not in the BAN file as obsolete
+    (case-insensitive)."""
+    upper_seen_cle_interops = {cle_interop.upper() for cle_interop in seen_cle_interops}
     # Filter addresses by department prefix (cle_interop starts with department code).
-    # BAN keys are lowercase ("2a004_..."), while Corsica department codes are
-    # uppercase ("2A").
+    # istartswith compares UPPER(cle_interop), which uses the same index. Corsica
+    # department codes are uppercase ("2A") and keys can be "2a004_..." or "2A004_...".
     obsolete_count = (
         Address.objects.filter(
-            cle_interop__startswith=dpt.lower(),
+            cle_interop__istartswith=dpt,
         )
         .exclude(
-            cle_interop__in=seen_cle_interops,
+            In(Upper("cle_interop"), upper_seen_cle_interops),
         )
         .update(still_exists=False)
     )

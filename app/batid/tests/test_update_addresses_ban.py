@@ -134,21 +134,46 @@ class TestFlagAddressesFromBanFile(TestCase):
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
     @patch("batid.services.imports.update_addresses_ban.os.remove")
-    def test_flag_addresses_corsica_lowercase_keys(self, mock_remove, mock_find):
+    def test_flag_addresses_corsica_keys_any_case(self, mock_remove, mock_find):
         """
-        Input: Corsica department "2A" (uppercase), an address with a lowercase
-        BAN key "2a004_..." absent from the BAN file.
-        Expected: the address is marked still_exists=False, 1 obsolete reported.
+        Input: Corsica department "2A" (uppercase), two addresses absent from the
+        BAN file, one with a lowercase key "2a004_..." and one with an uppercase
+        key "2A004_...".
+        Expected: both addresses are marked still_exists=False, 2 obsolete reported.
         """
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         Address.objects.create(cle_interop="2a004_0010_00001", source="ban")
+        Address.objects.create(cle_interop="2A004_0010_00002", source="ban")
 
         result = flag_addresses_from_ban_file({"dpt": "2A"})
 
-        self.assertEqual(result["obsolete"], 1)
-        addr = Address.objects.get(cle_interop="2a004_0010_00001")
-        self.assertFalse(addr.still_exists)
+        self.assertEqual(result["obsolete"], 2)
+        for cle_interop in ["2a004_0010_00001", "2A004_0010_00002"]:
+            addr = Address.objects.get(cle_interop=cle_interop)
+            self.assertFalse(addr.still_exists)
+
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_flag_addresses_keys_compared_case_insensitively(
+        self, mock_remove, mock_find
+    ):
+        """
+        Input: an address with an uppercase key "04001_PK624E_00001" whose
+        lowercase version is in the BAN file.
+        Expected: the address is marked still_exists=True, 1 still existing and
+        0 obsolete reported.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+
+        Address.objects.create(cle_interop="04001_PK624E_00001", source="ban")
+
+        result = flag_addresses_from_ban_file({"dpt": "04"})
+
+        self.assertEqual(result["still_exist"], 1)
+        self.assertEqual(result["obsolete"], 0)
+        addr = Address.objects.get(cle_interop="04001_PK624E_00001")
+        self.assertTrue(addr.still_exists)
 
 
 class TestNormalizeText(TestCase):
