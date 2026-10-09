@@ -122,9 +122,9 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
 def _mark_existing_addresses(cle_interops: list) -> int:
     """Mark a batch of addresses as still existing in the BAN (case-insensitive)."""
     upper_cle_interops = [cle_interop.upper() for cle_interop in cle_interops]
-    return Address.objects.filter(
-        In(Upper("cle_interop"), upper_cle_interops)
-    ).update(still_exists=True)
+    return Address.objects.filter(In(Upper("cle_interop"), upper_cle_interops)).update(
+        still_exists=True
+    )
 
 
 def _mark_obsolete_addresses(dpt: str, seen_cle_interops: set) -> int:
