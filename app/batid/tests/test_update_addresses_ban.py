@@ -132,6 +132,79 @@ class TestFlagAddressesFromBanFile(TestCase):
         other_dept_addr.refresh_from_db()
         self.assertIsNone(other_dept_addr.still_exists)
 
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_flag_addresses_corsica_keys_any_case(self, mock_remove, mock_find):
+        """
+        Input: Corsica department "2A" (uppercase), two addresses absent from the
+        BAN file, one with a lowercase key "2a004_..." and one with an uppercase
+        key "2A004_...".
+        Expected: both addresses are marked still_exists=False, 2 obsolete reported.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+
+        Address.objects.create(cle_interop="2a004_0010_00001", source="ban")
+        Address.objects.create(cle_interop="2A004_0010_00002", source="ban")
+
+        result = flag_addresses_from_ban_file({"dpt": "2A"})
+
+        self.assertEqual(result["obsolete"], 2)
+        for cle_interop in ["2a004_0010_00001", "2A004_0010_00002"]:
+            addr = Address.objects.get(cle_interop=cle_interop)
+            self.assertFalse(addr.still_exists)
+
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_flag_addresses_keys_compared_case_insensitively(
+        self, mock_remove, mock_find
+    ):
+        """
+        Input: an address with an uppercase key "04001_PK624E_00001" whose
+        lowercase version is in the BAN file.
+        Expected: the address is marked still_exists=True, 1 still existing and
+        0 obsolete reported.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+
+        Address.objects.create(cle_interop="04001_PK624E_00001", source="ban")
+
+        result = flag_addresses_from_ban_file({"dpt": "04"})
+
+        self.assertEqual(result["still_exist"], 1)
+        self.assertEqual(result["obsolete"], 0)
+        addr = Address.objects.get(cle_interop="04001_PK624E_00001")
+        self.assertTrue(addr.still_exists)
+
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_flag_addresses_uppercase_file_keys_match_lowercase_db_keys(
+        self, mock_remove, mock_find
+    ):
+        """
+        Input: a BAN file holding uppercase keys ("2A004_0010_00001",
+        "2A004_0010_00002") and two addresses in db with lowercase keys:
+        "2a004_0010_00001" (in the file in uppercase) and "2a004_0010_00003"
+        (absent from the file).
+        Expected: "2a004_0010_00001" is marked still_exists=True and is not
+        marked obsolete, "2a004_0010_00003" is marked still_exists=False;
+        1 still existing and 1 obsolete reported.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_uppercase_keys.csv")
+
+        Address.objects.create(cle_interop="2a004_0010_00001", source="ban")
+        Address.objects.create(cle_interop="2a004_0010_00003", source="ban")
+
+        result = flag_addresses_from_ban_file({"dpt": "2A"})
+
+        self.assertEqual(result["still_exist"], 1)
+        self.assertEqual(result["obsolete"], 1)
+        self.assertTrue(
+            Address.objects.get(cle_interop="2a004_0010_00001").still_exists
+        )
+        self.assertFalse(
+            Address.objects.get(cle_interop="2a004_0010_00003").still_exists
+        )
+
 
 class TestNormalizeText(TestCase):
     def test_removes_accents_and_lowercases(self):
