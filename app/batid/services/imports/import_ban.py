@@ -297,6 +297,8 @@ def _ban_lookup_is_reliable(insee_code: str) -> Optional[bool]:
     - withBanId is true: reliable
     - withBanId is false and no street comes from a "bal" source: reliable
     - withBanId is false and at least one street comes from a "bal" source: not reliable
+    withBanId may be absent from the response (seen on old BALs without any BAN ID):
+    it is treated as false.
     """
     response = requests.get(
         BAN_LOOKUP_URL.format(insee_code=insee_code), timeout=BAN_LOOKUP_TIMEOUT
@@ -306,7 +308,7 @@ def _ban_lookup_is_reliable(insee_code: str) -> Optional[bool]:
     response.raise_for_status()
     data = response.json()
 
-    if data["withBanId"]:
+    if data.get("withBanId"):
         return True
 
     for voie in data.get("voies", []):
