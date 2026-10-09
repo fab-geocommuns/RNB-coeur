@@ -12,6 +12,8 @@ from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import OpClass
+from django.db.models.functions import Upper
 
 
 class BuildingAddressesInternalIdReadOnly(models.Model):
@@ -161,6 +163,18 @@ class Address(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            # Case-insensitive lookups on cle_interop: some keys in db are uppercase
+            # while the BAN files hold lowercase ones. text_pattern_ops serves both
+            # the equality (IN) and the prefix (istartswith) lookups on
+            # UPPER(cle_interop).
+            models.Index(
+                OpClass(Upper("cle_interop"), name="text_pattern_ops"),
+                name="address_cle_interop_upper_idx",
+            ),
+        ]
 
     @staticmethod
     def add_addresses_to_db_if_needed(addresses_cle_interop: list[str]) -> None:
