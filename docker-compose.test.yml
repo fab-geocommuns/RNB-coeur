@@ -23,7 +23,7 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - WAIT_HOSTS=db:5432 rabbitmq:5672 redis:6379
       - WAIT_BEFORE=8
-      - MATTERMOST_NOTIFICATIONS=0
+      - TCHAP_NOTIFICATIONS=0
       - URL=http://dummy.fake
       - FRONTEND_URL=http://front.fake
       - DJANGO_EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
