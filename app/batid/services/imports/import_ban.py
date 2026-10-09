@@ -1,15 +1,19 @@
 import csv
+import logging
 import time
 import uuid
 from typing import Optional
 
 import requests
 from batid.models import Address, City
+from batid.services.administrative_areas import dpts_list
 from batid.services.imports import building_import_history
 from batid.services.source import Source
 from celery import Signature
 from django.contrib.gis.geos import Point
 from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 BAN_LOOKUP_URL = "https://plateforme.adresse.data.gouv.fr/lookup/{insee_code}"
 BAN_LOOKUP_TIMEOUT = 30
@@ -50,7 +54,9 @@ def _create_ban_dpt_import_tasks(dpt: str, bulk_launch_id=None) -> list:
 
     # 1) We refresh the BAN IDs reliability of the cities of the department
     reliability_task = Signature(  # type: ignore[var-annotated]
-        "batid.tasks.update_cities_ban_ids_reliability", args=(dpt,), immutable=True
+        "batid.tasks.update_dpt_cities_ban_ids_reliability",
+        args=(dpt,),
+        immutable=True,
     )
     tasks.append(reliability_task)
 
@@ -125,11 +131,69 @@ def import_ban_addresses(
     return f"Imported {adresses_count} BAN addresses"
 
 
+def update_all_cities_ban_ids_reliability(
+    dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
+) -> str:
+    """
+    Refresh the has_reliable_ban_ids column of all the cities, department by
+    department (optionally from dpt_start to dpt_end).
+    Cities unknown to the BAN are set to None (see
+    update_one_city_ban_ids_reliability). Any other failing check raises and
+    stops the process: the departments already processed keep their values,
+    and the run can be resumed with dpt_start.
+    """
+    dpts = dpts_list(dpt_start, dpt_end)
+
+    checked_count = 0
+    changed_count = 0
+    unverifiable_count = 0
+
+    for dpt in dpts:
+        (
+            dpt_checked_count,
+            dpt_changed_count,
+            dpt_unverifiable_count,
+        ) = _update_dpt_cities_ban_ids_reliability(dpt)
+        checked_count += dpt_checked_count
+        changed_count += dpt_changed_count
+        unverifiable_count += dpt_unverifiable_count
+
+        logger.info(
+            "BAN IDs reliability dpt %s done: %s cities checked, %s changed, "
+            "%s unverifiable",
+            dpt,
+            dpt_checked_count,
+            dpt_changed_count,
+            dpt_unverifiable_count,
+        )
+
+    return (
+        f"[{dpts[0]} to {dpts[-1]}] BAN IDs reliability: {checked_count} cities "
+        f"checked, {changed_count} changed, {unverifiable_count} unverifiable"
+    )
+
+
 def update_dpt_cities_ban_ids_reliability(dpt: str) -> str:
     """
     Refresh the has_reliable_ban_ids column of all the cities of a department.
-    Any failing check (BAN API error, city unknown to the BAN, ...) raises and
-    stops the process.
+    Cities unknown to the BAN are set to None (see
+    update_one_city_ban_ids_reliability). Any other failing check (BAN API
+    error, ...) raises and stops the process.
+    """
+    checked_count, changed_count, unverifiable_count = (
+        _update_dpt_cities_ban_ids_reliability(dpt)
+    )
+
+    return (
+        f"[{dpt}] BAN IDs reliability: {checked_count} cities checked, "
+        f"{changed_count} changed, {unverifiable_count} unverifiable"
+    )
+
+
+def _update_dpt_cities_ban_ids_reliability(dpt: str) -> tuple[int, int, int]:
+    """
+    Returns the number of cities checked, the number of cities changed and the
+    number of cities unverifiable (unknown to the BAN).
     """
     insee_codes = (
         City.objects.filter(code_insee__startswith=dpt)
@@ -139,40 +203,60 @@ def update_dpt_cities_ban_ids_reliability(dpt: str) -> str:
 
     checked_count = 0
     changed_count = 0
+    unverifiable_count = 0
 
     for insee_code in insee_codes:
-        if update_one_city_ban_ids_reliability(insee_code):
+        changed, is_reliable = update_one_city_ban_ids_reliability(insee_code)
+        if changed:
             changed_count += 1
+        if is_reliable is None:
+            unverifiable_count += 1
         checked_count += 1
 
         time.sleep(BAN_LOOKUP_DELAY)
 
-    return (
-        f"[{dpt}] BAN IDs reliability: {checked_count} cities checked, "
-        f"{changed_count} changed"
-    )
+    return checked_count, changed_count, unverifiable_count
 
 
-def update_one_city_ban_ids_reliability(insee_code: str) -> bool:
+def update_one_city_ban_ids_reliability(
+    insee_code: str,
+) -> tuple[bool, Optional[bool]]:
     """
     Ask the BAN whether the BAN IDs of the city are reliable and save the answer
     in the has_reliable_ban_ids column, only if the value has to change.
-    Returns True if the column has been changed.
+    Cities unknown to the BAN (eg: old cities merged into another one, still
+    present in our City table) can't be verified: their value is set to None,
+    meaning not reliable.
+    Returns whether the column has been changed, and the new reliability value.
     """
     city = City.objects.defer("shape").get(code_insee=insee_code)
 
     # Paris, Lyon and Marseille are reliable only if all their districts are
     lookup_codes = CITIES_DISTRICTS.get(insee_code, [insee_code])
-    is_reliable = all(_ban_lookup_is_reliable(code) for code in lookup_codes)
+    is_reliable: Optional[bool] = True
+    for code in lookup_codes:
+        code_is_reliable = _ban_lookup_is_reliable(code)
+        if code_is_reliable is None:
+            logger.warning(
+                "BAN IDs reliability: %s unknown to the BAN lookup, city %s "
+                "set as unverifiable",
+                code,
+                insee_code,
+            )
+            is_reliable = None
+            break
+        if not code_is_reliable:
+            is_reliable = False
+            break
 
     if city.has_reliable_ban_ids == is_reliable:
-        return False
+        return False, is_reliable
 
     city.has_reliable_ban_ids = is_reliable
     city.save(update_fields=["has_reliable_ban_ids", "updated_at"])
     cache.delete(_reliable_ban_ids_cache_key(insee_code))
 
-    return True
+    return True, is_reliable
 
 
 def has_city_reliable_ban_ids(insee_code: str) -> bool:
@@ -206,8 +290,9 @@ def _read_city_ban_ids_reliability(insee_code: str) -> bool:
     return value is True
 
 
-def _ban_lookup_is_reliable(insee_code: str) -> bool:
+def _ban_lookup_is_reliable(insee_code: str) -> Optional[bool]:
     """
+    Returns None if the BAN lookup does not know the insee code (404).
     Reliability rules (see https://github.com/fab-geocommuns/RNB-coeur/issues/1037):
     - withBanId is true: reliable
     - withBanId is false and no street comes from a "bal" source: reliable
@@ -216,6 +301,8 @@ def _ban_lookup_is_reliable(insee_code: str) -> bool:
     response = requests.get(
         BAN_LOOKUP_URL.format(insee_code=insee_code), timeout=BAN_LOOKUP_TIMEOUT
     )
+    if response.status_code == 404:
+        return None
     response.raise_for_status()
     data = response.json()
 

@@ -9,6 +9,7 @@ from batid.services.imports.import_ban import (
     create_ban_full_import_tasks,
     has_city_reliable_ban_ids,
     import_ban_addresses,
+    update_all_cities_ban_ids_reliability,
     update_dpt_cities_ban_ids_reliability,
     update_one_city_ban_ids_reliability,
 )
@@ -130,9 +131,10 @@ class BANIdsReliability(TestCase):
         get_mock.return_value = _ban_lookup_response(True, [["bal"], ["bal"]])
 
         self.assertIsNone(self._reliability())
-        changed = update_one_city_ban_ids_reliability("38185")
+        changed, is_reliable = update_one_city_ban_ids_reliability("38185")
 
         self.assertTrue(changed)
+        self.assertIs(is_reliable, True)
         self.assertIs(self._reliability(), True)
         get_mock.assert_called_once_with(
             "https://plateforme.adresse.data.gouv.fr/lookup/38185", timeout=30
@@ -162,7 +164,7 @@ class BANIdsReliability(TestCase):
         updated_at = City.objects.get(code_insee="38185").updated_at
         get_mock.return_value = _ban_lookup_response(True, [["bal"]])
 
-        changed = update_one_city_ban_ids_reliability("38185")
+        changed, _ = update_one_city_ban_ids_reliability("38185")
 
         self.assertFalse(changed)
         self.assertEqual(City.objects.get(code_insee="38185").updated_at, updated_at)
@@ -203,17 +205,68 @@ class BANIdsReliability(TestCase):
         called_codes = [call.args[0].split("/")[-1] for call in get_mock.call_args_list]
         self.assertEqual(called_codes, ["38001", "38185"])
         self.assertEqual(
-            result, "[38] BAN IDs reliability: 2 cities checked, 2 changed"
+            result,
+            "[38] BAN IDs reliability: 2 cities checked, 2 changed, 0 unverifiable",
+        )
+
+    def test_unknown_city_is_unverifiable(self, get_mock):
+        """Input: city reliable in db, lookup returns a 404 (city unknown to the BAN, eg: merged into another one). Expected: city reliability is reset to None, function returns (True, None)."""
+        City.objects.filter(code_insee="38185").update(has_reliable_ban_ids=True)
+        get_mock.return_value = _ban_lookup_response(False, [], status_code=404)
+
+        changed, is_reliable = update_one_city_ban_ids_reliability("38185")
+
+        self.assertTrue(changed)
+        self.assertIsNone(is_reliable)
+        self.assertIsNone(self._reliability())
+
+    def test_unknown_district_makes_city_unverifiable(self, get_mock):
+        """Input: Lyon (69123) reliable in db, lookup returns a 404 for one district and reliable for the others. Expected: Lyon reliability is reset to None."""
+        City.objects.create(code_insee="69123", name="Lyon", has_reliable_ban_ids=True)
+
+        def lookup(url, timeout):
+            if url.endswith("/69385"):
+                return _ban_lookup_response(False, [], status_code=404)
+            return _ban_lookup_response(True, [["bal"]])
+
+        get_mock.side_effect = lookup
+        update_one_city_ban_ids_reliability("69123")
+
+        self.assertIsNone(self._reliability("69123"))
+
+    def test_update_dpt_skips_unknown_cities(self, get_mock):
+        """Input: 3 cities in department 01, the second one is reliable in db and unknown to the BAN (404), the others are reliable. Expected: no error, the process goes on; the unknown city is set to None and counted as unverifiable."""
+        City.objects.create(code_insee="01001", name="A")
+        City.objects.create(
+            code_insee="01330", name="Ruffieu", has_reliable_ban_ids=True
+        )
+        City.objects.create(code_insee="01400", name="C")
+
+        def lookup(url, timeout):
+            if url.endswith("/01330"):
+                return _ban_lookup_response(False, [], status_code=404)
+            return _ban_lookup_response(True, [["bal"]])
+
+        get_mock.side_effect = lookup
+
+        result = update_dpt_cities_ban_ids_reliability("01")
+
+        self.assertIs(self._reliability("01001"), True)
+        self.assertIsNone(self._reliability("01330"))
+        self.assertIs(self._reliability("01400"), True)
+        self.assertEqual(
+            result,
+            "[01] BAN IDs reliability: 3 cities checked, 3 changed, 1 unverifiable",
         )
 
     def test_update_dpt_crashes_on_failure(self, get_mock):
-        """Input: 2 cities in department 01; lookup is reliable for the first one and a 404 for the second. Expected: an HTTPError is raised; the first city is updated, the second keeps its value."""
+        """Input: 2 cities in department 01; lookup is reliable for the first one and a 500 for the second. Expected: an HTTPError is raised; the first city is updated, the second keeps its value."""
         City.objects.create(code_insee="01001", name="A")
         City.objects.create(code_insee="01002", name="B", has_reliable_ban_ids=False)
 
         def lookup(url, timeout):
             if url.endswith("/01002"):
-                return _ban_lookup_response(False, [], status_code=404)
+                return _ban_lookup_response(False, [], status_code=500)
             return _ban_lookup_response(True, [["bal"]])
 
         get_mock.side_effect = lookup
@@ -223,6 +276,44 @@ class BANIdsReliability(TestCase):
 
         self.assertIs(self._reliability("01001"), True)
         self.assertIs(self._reliability("01002"), False)
+
+    def test_update_all_dpts(self, get_mock):
+        """Input: cities in departments 01, 2A, 38 and 971, lookups all reliable, update of all departments. Expected: every city is looked up (in departments order) and updated; the result sums all departments."""
+        City.objects.create(code_insee="01001", name="A")
+        City.objects.create(code_insee="2A004", name="Ajaccio")
+        City.objects.create(code_insee="97101", name="B")
+        get_mock.return_value = _ban_lookup_response(True, [["bal"]])
+
+        result = update_all_cities_ban_ids_reliability()
+
+        for insee_code in ["01001", "2A004", "38185", "97101"]:
+            self.assertIs(self._reliability(insee_code), True)
+        called_codes = [call.args[0].split("/")[-1] for call in get_mock.call_args_list]
+        self.assertEqual(called_codes, ["01001", "2A004", "38185", "97101"])
+        self.assertEqual(
+            result,
+            "[01 to 989] BAN IDs reliability: 4 cities checked, 4 changed, "
+            "0 unverifiable",
+        )
+
+    def test_update_all_dpts_from_start_to_end(self, get_mock):
+        """Input: cities in departments 01, 2A, 38 and 971, lookups all reliable, update from department 2A to 38. Expected: only the cities of 2A and 38 are looked up and updated."""
+        City.objects.create(code_insee="01001", name="A")
+        City.objects.create(code_insee="2A004", name="Ajaccio")
+        City.objects.create(code_insee="97101", name="B")
+        get_mock.return_value = _ban_lookup_response(True, [["bal"]])
+
+        result = update_all_cities_ban_ids_reliability(dpt_start="2A", dpt_end="38")
+
+        self.assertIsNone(self._reliability("01001"))
+        self.assertIsNone(self._reliability("97101"))
+        called_codes = [call.args[0].split("/")[-1] for call in get_mock.call_args_list]
+        self.assertEqual(called_codes, ["2A004", "38185"])
+        self.assertEqual(
+            result,
+            "[2A to 38] BAN IDs reliability: 2 cities checked, 2 changed, "
+            "0 unverifiable",
+        )
 
     def test_has_city_reliable_ban_ids(self, get_mock):
         """Input: a reliable city, a not reliable one, a never checked one, an unknown code, a district of reliable Paris. Expected: True only for the reliable city and the Paris district."""
@@ -271,10 +362,10 @@ class BANImportTasks(TestCase):
         self.assertEqual(
             [t.task for t in tasks],
             [
-                "batid.tasks.update_cities_ban_ids_reliability",
+                "batid.tasks.update_dpt_cities_ban_ids_reliability",
                 "batid.tasks.dl_source",
                 "batid.tasks.import_ban",
-                "batid.tasks.update_cities_ban_ids_reliability",
+                "batid.tasks.update_dpt_cities_ban_ids_reliability",
                 "batid.tasks.dl_source",
                 "batid.tasks.import_ban",
             ],
