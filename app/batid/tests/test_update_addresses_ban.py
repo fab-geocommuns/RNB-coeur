@@ -189,9 +189,7 @@ class TestFlagAddressesFromBanFile(TestCase):
         marked obsolete, "2a004_0010_00003" is marked still_exists=False;
         1 still existing and 1 obsolete reported.
         """
-        mock_find.return_value = helpers.fixture_path(
-            "ban_with_ids_uppercase_keys.csv"
-        )
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_uppercase_keys.csv")
 
         Address.objects.create(cle_interop="2a004_0010_00001", source="ban")
         Address.objects.create(cle_interop="2a004_0010_00003", source="ban")
