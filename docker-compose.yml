@@ -23,6 +23,8 @@ services:
       - ./.env.db_auth.dev
       - ./.env.app.dev
       - ./.env.rnb.dev
+      - path: ./.env.seed.dev
+        required: false
     build:
       args:
         - WITH_DEV_DEPENDENCIES=true

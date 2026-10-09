@@ -59,19 +59,22 @@ docker exec -it web python manage.py createsuperuser
 
 ### 6. Importer des données de travail
 
-Pour importer des données de travail, il faut se connecter à une base de donnée existante et extraire un périmètre autour d'un point de référence.
+La commande `seed_local_db` remplit la base locale avec les bâtiments situés autour d'un ou plusieurs points GPS, extraits d'une base existante (typiquement la sandbox, copie de la prod). Elle importe aussi les adresses liées à ces bâtiments ainsi que les communes et départements concernés. Aucun utilisateur n'est copié.
 
-Voici un exemple des requêtes SQL qui permet d'extraire les bâtiments et les adresses autour de la tour Eiffel.
+Renseigner les paramètres dans `.env.seed.dev` (créé par `make env-local`, puis `docker compose up -d` pour le prendre en compte), puis :
 
-```sql
-SELECT * FROM batid_building bb WHERE st_dwithin(bb.shape, st_geomfromewkt('SRID=4326;POINT (2.294492349179413 48.85837023573654)'), 0.001);
-
-
-WITH addresses AS (SELECT unnest(addresses_internal_id) AS internal_id FROM batid_building bb WHERE st_dwithin(bb.shape, st_geomfromewkt('SRID=4326;POINT (2.294492349179413 48.85837023573654)'), 0.001))
-SELECT * FROM batid_address ba WHERE internal_id IN (SELECT internal_id FROM addresses);
+```
+docker exec -it web python manage.py seed_local_db
 ```
 
-L'insertion en base des adresses doit se faire avant celle des bâtiments, pour respecter les contraintes SQL de ForeignKeys.
+Chaque paramètre peut aussi être passé en ligne de commande, et est demandé de façon interactive s'il manque :
+
+```
+docker exec -it web python manage.py seed_local_db --point 48.8584,2.2945 --point 45.7640,4.8357 --radius-km 2
+```
+
+Avant l'import, la commande vérifie que les points sont en France, affiche le volume à importer et demande confirmation. `--truncate` vide d'abord les tables locales concernées, pour repartir de zéro.
+
 ## Lancer les tests
 ```
 docker exec -ti web python manage.py test
