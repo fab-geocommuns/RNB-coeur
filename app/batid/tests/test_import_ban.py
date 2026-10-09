@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
@@ -106,13 +107,18 @@ class BANImportDB(TestCase):
         self.assertEqual(address.updated_at, old_updated_at)
 
 
-def _ban_lookup_response(with_ban_id: bool, streets_sources: list, status_code=200):
-    """Build a fake response of the BAN lookup endpoint, with one "lieu-dit" (no sources) and one street per given sources list."""
+def _ban_lookup_response(
+    with_ban_id: Optional[bool], streets_sources: list, status_code=200
+):
+    """Build a fake response of the BAN lookup endpoint, with one "lieu-dit" (no sources) and one street per given sources list. The withBanId key is omitted when with_ban_id is None."""
     response = requests.Response()
     response.status_code = status_code
     voies = [{"type": "lieu-dit", "nomVoie": "Le Pré"}]
     voies += [{"type": "voie", "sources": sources} for sources in streets_sources]
-    response.json = lambda: {"withBanId": with_ban_id, "voies": voies}  # type: ignore[method-assign]
+    data: dict = {"voies": voies}
+    if with_ban_id is not None:
+        data["withBanId"] = with_ban_id
+    response.json = lambda: data  # type: ignore[method-assign]
     return response
 
 
@@ -153,6 +159,14 @@ class BANIdsReliability(TestCase):
     def test_without_ban_id_with_bal(self, get_mock):
         """Input: lookup with withBanId=false and "bal" streets. Expected: city becomes not reliable."""
         get_mock.return_value = _ban_lookup_response(False, [["bal"], ["bal"]])
+
+        update_one_city_ban_ids_reliability("38185")
+
+        self.assertIs(self._reliability(), False)
+
+    def test_missing_ban_id_key_with_bal(self, get_mock):
+        """Input: lookup without the withBanId key (old BAL without BAN IDs) and "bal" streets. Expected: no crash, city becomes not reliable."""
+        get_mock.return_value = _ban_lookup_response(None, [["bal"], ["bal"]])
 
         update_one_city_ban_ids_reliability("38185")
 
