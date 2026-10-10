@@ -3,7 +3,7 @@ from batid.utils.db import dictfetchall
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
-from psycopg2 import sql
+from psycopg import sql
 
 
 def get_managed_insee_codes(user: User) -> list:
@@ -59,9 +59,9 @@ def get_cities(rnb_ids: list, geojson_geometries: list[GEOSGeometry]) -> list:
 
     if rnb_ids:
         wheres.append(
-            "EXISTS (SELECT 1 FROM batid_building as b WHERE b.rnb_id IN %s AND ST_Intersects(b.point, c.shape))"
+            "EXISTS (SELECT 1 FROM batid_building as b WHERE b.rnb_id = ANY(%s) AND ST_Intersects(b.point, c.shape))"
         )
-        params.append(tuple(rnb_ids))
+        params.append(list(rnb_ids))
 
     for geojson_geom in geojson_geometries:
         wheres.append(

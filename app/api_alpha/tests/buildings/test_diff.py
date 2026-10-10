@@ -11,6 +11,7 @@ from batid.models import Address, Building, City, Organization, UserProfile
 from batid.tests.helpers import internal_ids
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
+from django.db import connection, transaction
 from django.test import TransactionTestCase, override_settings
 from django.utils.http import urlencode
 
@@ -34,6 +35,34 @@ def wait_for_no_export_thread(timeout=5):
             return True
         time.sleep(0.05)
     return False
+
+
+def wait_until(*, condition, timeout):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if condition():
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def count_other_connections():
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT count(*) FROM pg_stat_activity "
+            "WHERE datname = current_database() AND pid <> pg_backend_pid()"
+        )
+        return cursor.fetchone()[0]
+
+
+def active_copies():
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT pid FROM pg_stat_activity "
+            "WHERE datname = current_database() AND pid <> pg_backend_pid() "
+            "AND state = 'active' AND ltrim(query, chr(10) || chr(32)) ILIKE 'COPY (%'"
+        )
+        return cursor.fetchall()
 
 
 class DiffTest(TransactionTestCase):
@@ -493,7 +522,7 @@ class DiffTest(TransactionTestCase):
         url = f"/api/alpha/buildings/diff/?{params}"
         r = self.client.get(url)
         self.assertEqual(r.status_code, 200)
-        # Consume the streaming response to ensure the forked child process
+        # Consume the streaming response to ensure the export thread
         # finishes and closes its DB connection before teardown runs flush.
         get_content_from_streaming_response(r)
 
@@ -513,7 +542,7 @@ class DiffTest(TransactionTestCase):
         url = f"/api/alpha/buildings/diff/?{params}"
         r = self.client.get(url)
         self.assertEqual(r.status_code, 200)
-        # Consume the streaming response to ensure the forked child process
+        # Consume the streaming response to ensure the export thread
         # finishes and closes its DB connection before teardown runs flush.
         get_content_from_streaming_response(r)
 
@@ -925,6 +954,62 @@ class DiffTest(TransactionTestCase):
             f"export threads still running: {export_threads()}",
         )
 
+    @patch("api_alpha.endpoints.buildings.get_diff.QUEUE_MAX_CHUNKS", 1)
+    @patch("api_alpha.endpoints.buildings.get_diff.CHUNK_SIZE", 1)
+    def test_diff_cancelled_download_leaves_no_copy_nor_connection(self):
+        """
+        Input: 50k buildings (enough for the COPY to usually still be running server
+        side when the client leaves) and a diff request abandoned after a single
+        chunk.
+        Expected: afterwards the export thread ends, no COPY remains active and the
+        number of other connections on the database is no higher than before the
+        request. If the server had already sent everything before the client left,
+        there is nothing to cancel and the test is skipped.
+        """
+        with transaction.atomic(), connection.cursor() as cursor:
+            # The seeding insert can exceed the connection's statement timeout
+            cursor.execute("SET LOCAL statement_timeout = 0")
+            cursor.execute(
+                "INSERT INTO batid_building "
+                "(rnb_id, created_at, updated_at, sys_period, status, is_active, event_type) "
+                "SELECT 'S' || lpad(g::text, 11, '0'), now(), now(), "
+                "tstzrange(now(), NULL), 'constructed', true, 'creation' "
+                "FROM generate_series(1, 50000) g"
+            )
+        # Connections of previous tests' export threads may still be shutting down
+        wait_for_no_export_thread()
+        connections_before = count_other_connections()
+
+        since = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            hours=1
+        )
+        r = self.client.get(
+            "/api/alpha/buildings/diff/?" + urlencode({"since": since.isoformat()})
+        )
+        self.assertEqual(r.status_code, 200)
+        self.addCleanup(r.close)
+        next(iter(r.streaming_content))
+        if not wait_until(condition=lambda: active_copies() != [], timeout=10):
+            self.skipTest("the COPY finished server side before the client left")
+
+        r.close()
+
+        self.assertTrue(
+            wait_for_no_export_thread(timeout=15),
+            f"export threads still running: {export_threads()}",
+        )
+        self.assertTrue(
+            wait_until(condition=lambda: active_copies() == [], timeout=10),
+            "a COPY is still active after the download was cancelled",
+        )
+        self.assertTrue(
+            wait_until(
+                condition=lambda: count_other_connections() <= connections_before,
+                timeout=10,
+            ),
+            "the export connection was not closed",
+        )
+
 
 class DiffInseeCodeTest(TransactionTestCase):
     def setUp(self):
@@ -967,7 +1052,7 @@ class DiffInseeCodeTest(TransactionTestCase):
         r = self.client.get(url)
 
         self.assertEqual(r.status_code, 200)
-        # Consume the streaming response to ensure the forked child process
+        # Consume the streaming response to ensure the export thread
         # finishes and closes its DB connection before teardown runs flush.
         get_content_from_streaming_response(r)
 

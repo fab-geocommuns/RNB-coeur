@@ -1,6 +1,6 @@
 from batid.models import Address, Building
 from django.db import connection, transaction
-from django.db.utils import InternalError
+from django.db.utils import ProgrammingError
 from django.test import TransactionTestCase
 
 
@@ -43,7 +43,7 @@ class AddressDeletionGuardTestCase(TransactionTestCase):
         )
 
         with self.assertRaisesMessage(
-            InternalError,
+            ProgrammingError,
             "Cannot delete address 01001_0001_00001 because it is referenced by a building",
         ):
             with transaction.atomic():
@@ -66,7 +66,7 @@ class AddressDeletionGuardTestCase(TransactionTestCase):
         building.save()
 
         with self.assertRaisesMessage(
-            InternalError,
+            ProgrammingError,
             "Cannot delete address 01001_0001_00001 because it is referenced in building history",
         ):
             with transaction.atomic():
