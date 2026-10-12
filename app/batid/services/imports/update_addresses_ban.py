@@ -354,10 +354,17 @@ def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
     GIN indexes on addresses_internal_id (batid_building and
     batid_building_history).
 
+    Obsolete addresses are walked once, in internal_id order (keyset
+    pagination): each batch takes the next batch_size obsolete addresses after
+    the last internal_id seen and deletes the unlinked ones. Linked addresses
+    are thus checked only once, instead of being checked again by every batch.
+
     Warning: the protection trigger is disabled during the run, so this relies
     on addresses_internal_id being complete on both tables.
     """
     total_deleted = 0
+    # internal_id is drawn from a sequence starting at 1
+    last_internal_id = 0
 
     with connection.cursor() as cursor:
         # this trigger is triggered by an address deletion : it checks if a Building is referencing
@@ -373,26 +380,40 @@ def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    DELETE FROM batid_address
-                    WHERE cle_interop IN (
-                        SELECT a.cle_interop FROM batid_address a
-                        WHERE a.still_exists = False
+                    WITH batch AS (
+                        SELECT internal_id FROM batid_address
+                        WHERE still_exists = False AND internal_id > %s
+                        ORDER BY internal_id
+                        LIMIT %s
+                    ), deleted AS (
+                        DELETE FROM batid_address a
+                        USING batch
+                        WHERE a.internal_id = batch.internal_id
                         AND NOT EXISTS (
                             SELECT 1 FROM batid_building_with_history b
                             WHERE b.addresses_internal_id @> ARRAY[a.internal_id]
                         )
-                        LIMIT %s
+                        RETURNING 1
                     )
+                    SELECT (SELECT max(internal_id) FROM batch),
+                           (SELECT count(*) FROM deleted)
                     """,
-                    [batch_size],
+                    [last_internal_id, batch_size],
                 )
-                deleted = cursor.rowcount
+                batch_last_internal_id, deleted = cursor.fetchone()
 
-            if deleted == 0:
+            # Stop when no obsolete address is left after last_internal_id. A batch
+            # can delete nothing (all its addresses are linked) and still not be
+            # the last one.
+            if batch_last_internal_id is None:
                 break
 
+            last_internal_id = batch_last_internal_id
             total_deleted += deleted
-            logger.info(f"Deleted {deleted} unlinked obsolete addresses (batch)")
+            logger.info(
+                f"Deleted {deleted} unlinked obsolete addresses (batch up to "
+                f"internal_id {last_internal_id}, {total_deleted} so far)"
+            )
     finally:
         with connection.cursor() as cursor:
             cursor.execute(

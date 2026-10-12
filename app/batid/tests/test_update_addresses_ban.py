@@ -723,6 +723,31 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
             {"04001_old_10004", "04001_ok_10005"},
         )
 
+    def test_batch_of_linked_addresses_does_not_stop_the_run(self):
+        """
+        Input: 2 obsolete addresses linked to a building, created first (lowest
+        internal_id), then 1 unlinked obsolete address, batch_size=2.
+        Expected: the first batch deletes nothing, the run goes on and deletes
+        the unlinked address in the second batch, 1 deletion reported.
+        """
+        for i in range(1, 3):
+            Address.objects.create(
+                cle_interop=f"04001_old_2000{i}", source="ban", still_exists=False
+            )
+        Address.objects.create(
+            cle_interop="04001_old_20003", source="ban", still_exists=False
+        )
+        bdg = helpers.create_default_bdg()
+        self._link_addresses(bdg, ["04001_old_20001", "04001_old_20002"])
+
+        deleted = delete_unlinked_obsolete_addresses(batch_size=2)
+
+        self.assertEqual(deleted, {"deleted_addresses": 1})
+        self.assertEqual(
+            set(Address.objects.values_list("cle_interop", flat=True)),
+            {"04001_old_20001", "04001_old_20002"},
+        )
+
     def test_protection_trigger_is_enabled_after_run(self):
         """
         Input: one unlinked obsolete address, then a run of the function.
