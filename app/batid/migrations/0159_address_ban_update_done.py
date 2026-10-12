@@ -4,9 +4,8 @@ from django.db import migrations, models
 # without default, so adding the column only touches the catalog (no table
 # rewrite).
 #
-# Partial index on the addresses still to be handled (ban_update_done null or
-# false). The column starts null everywhere, so the index initially holds every
-# row of batid_address and its build takes as long as a full index build.
+# Index on ban_update_done. It holds every row of batid_address, so its build
+# reads and sorts the whole table.
 #
 # CONCURRENTLY, as in 0158: writes on batid_address are not blocked during the
 # build. IF NOT EXISTS: migrate runs in the entrypoint of the web container (the
@@ -17,7 +16,7 @@ from django.db import migrations, models
 # A failed CREATE INDEX CONCURRENTLY leaves an INVALID index behind, which IF NOT
 # EXISTS would silently accept: the last operation refuses to go on in that case.
 
-INDEX_NAME = "address_ban_update_todo_idx"
+INDEX_NAME = "address_ban_update_done_idx"
 
 
 class Migration(migrations.Migration):
@@ -43,8 +42,7 @@ class Migration(migrations.Migration):
                 ),
                 migrations.RunSQL(
                     f"CREATE INDEX CONCURRENTLY IF NOT EXISTS {INDEX_NAME} "
-                    "ON batid_address (internal_id) "
-                    "WHERE (ban_update_done IS NULL OR NOT ban_update_done);",
+                    "ON batid_address (ban_update_done);",
                     reverse_sql=f"DROP INDEX CONCURRENTLY IF EXISTS {INDEX_NAME};",
                 ),
             ],
@@ -57,12 +55,7 @@ class Migration(migrations.Migration):
                 migrations.AddIndex(
                     model_name="address",
                     index=models.Index(
-                        condition=models.Q(
-                            ("ban_update_done__isnull", True),
-                            ("ban_update_done", False),
-                            _connector="OR",
-                        ),
-                        fields=["internal_id"],
+                        fields=["ban_update_done"],
                         name=INDEX_NAME,
                     ),
                 ),
