@@ -1,17 +1,18 @@
+from unittest.mock import patch
+
 from batid.models import Building, EmailNotificationOptOut, Report
+from batid.services.brevo import BrevoTemplate
+from batid.services.email import read_unsubscribe_token
 from batid.services.reports.notifications import notify_report_author
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
-from django.core import mail
 from django.test import TestCase, override_settings
 
+SEND_PATH = "batid.services.reports.notifications.send_transactional_email"
 
-@override_settings(
-    FRONTEND_URL="https://rnb.beta.gouv.fr",
-    RNB_SEND_ADDRESS="coucou@rnb.beta.gouv.fr",
-    RNB_SEND_NAME="RNB",
-    RNB_REPLY_TO_ADDRESS="reply@rnb.beta.gouv.fr",
-)
+
+@override_settings(FRONTEND_URL="https://rnb.beta.gouv.fr")
+@patch(SEND_PATH)
 class NotifyReportAuthorTest(TestCase):
     def setUp(self):
         self.author = User.objects.create_user(
@@ -38,85 +39,108 @@ class NotifyReportAuthorTest(TestCase):
             tags=[],
         )
 
-    def _add_message(self, report, user=None, email=None):
-        return report.messages.create(
-            text="Reply text", created_by_user=user, created_by_email=email
+    def _notify(self, report, action, actor):
+        message = report.messages.create(text="Reply text", created_by_user=actor)
+        notify_report_author(
+            report_id=report.id,
+            action=action,
+            actor_user_id=actor.id,
+            message_id=message.id,
         )
 
-    def test_sends_for_each_action(self):
+    def test_sends_for_each_action(self, mock_send):
         """
         Input: report by an account author, an actor (different user) replies with
                fix/reject/comment.
-        Expected: one email is sent to the author for every action.
+        Expected: one Brevo email per action, to the author, with the
+                  action-specific subject and label.
         """
-        for action in ["fix", "reject", "comment"]:
-            mail.outbox = []
-            report = self._report(user=self.author)
-            message = self._add_message(report, user=self.actor)
-            notify_report_author(report.id, action, self.actor.id, None, message.id)
-            self.assertEqual(len(mail.outbox), 1, action)
-            self.assertEqual(mail.outbox[0].to, ["author@example.com"])
+        cases = {
+            "fix": ("Votre signalement RNB a été traité", "résolu"),
+            "reject": ("Votre signalement RNB a été refusé", "refusé"),
+            "comment": ("Nouveau message sur votre signalement RNB", "commenté"),
+        }
+        for action, (subject, label) in cases.items():
+            mock_send.reset_mock()
+            self._notify(self._report(user=self.author), action, self.actor)
+            mock_send.assert_called_once()
+            kwargs = mock_send.call_args.kwargs
+            self.assertEqual(kwargs["template"], BrevoTemplate.REPORT_ACTIVITY)
+            self.assertEqual(kwargs["to"], "author@example.com")
+            self.assertEqual(kwargs["params"]["SUBJECT"], subject)
+            self.assertEqual(kwargs["params"]["ACTIVITY_LABEL"], label)
 
-    def test_skip_when_no_email(self):
+    def test_params_hold_message_map_link_and_unsubscribe_link(self, mock_send):
+        """
+        Input: report on a building, an actor replies "fix" with "Reply text".
+        Expected: params hold the message text, the map link (report= and q=rnb_id)
+                  and an unsubscribe link whose token decodes to the recipient.
+        """
+        report = self._report(user=self.author)
+        self._notify(report, "fix", self.actor)
+        params = mock_send.call_args.kwargs["params"]
+        self.assertEqual(params["MESSAGE_TEXT"], "Reply text")
+        self.assertEqual(
+            params["REPORT_URL"],
+            f"https://rnb.beta.gouv.fr/carte?report={report.id}"
+            f"&extra_layers=reports&q={self.building.rnb_id}",
+        )
+        prefix = "https://rnb.beta.gouv.fr/notifications/desinscription?token="
+        self.assertTrue(params["UNSUBSCRIBE_URL"].startswith(prefix))
+        token = params["UNSUBSCRIBE_URL"][len(prefix) :]
+        self.assertEqual(read_unsubscribe_token(token), "author@example.com")
+
+    def test_map_link_omits_q_without_building(self, mock_send):
+        """
+        Input: report whose building is None, an actor comments.
+        Expected: the map link has report= but no q= parameter.
+        """
+        report = self._report(user=self.author)
+        report.building = None
+        report.save()
+        self._notify(report, "comment", self.actor)
+        report_url = mock_send.call_args.kwargs["params"]["REPORT_URL"]
+        self.assertIn(f"report={report.id}", report_url)
+        self.assertNotIn("&q=", report_url)
+
+    def test_skip_when_no_email(self, mock_send):
         """
         Input: report with neither created_by_user nor created_by_email.
         Expected: no email is sent.
         """
-        report = self._report(user=None, email=None)
-        message = self._add_message(report, user=self.actor)
-        notify_report_author(report.id, "comment", self.actor.id, None, message.id)
-        self.assertEqual(len(mail.outbox), 0)
+        self._notify(self._report(), "comment", self.actor)
+        mock_send.assert_not_called()
 
-    def test_skip_when_actor_is_author_account(self):
+    def test_skip_when_actor_is_author_account(self, mock_send):
         """
-        Input: account author replies to their own report (actor_user_id == author).
+        Input: account author replies to their own report.
         Expected: no email (one does not notify oneself).
         """
-        report = self._report(user=self.author)
-        message = self._add_message(report, user=self.author)
-        notify_report_author(report.id, "comment", self.author.id, None, message.id)
-        self.assertEqual(len(mail.outbox), 0)
+        self._notify(self._report(user=self.author), "comment", self.author)
+        mock_send.assert_not_called()
 
-    def test_skip_when_actor_is_author_email_case_insensitive(self):
+    def test_skip_when_actor_is_anonymous_author_case_insensitive(self, mock_send):
         """
-        Input: anonymous author "anon@example.com" replies with actor_email
-               "ANON@Example.com" (different case).
+        Input: anonymous report by "actor@EXAMPLE.com", replied to by the account
+               whose email is "actor@example.com" (same person, other case).
         Expected: no email (author == actor, case ignored).
         """
-        report = self._report(email="anon@example.com")
-        message = self._add_message(report, email="ANON@Example.com")
-        notify_report_author(report.id, "comment", None, "ANON@Example.com", message.id)
-        self.assertEqual(len(mail.outbox), 0)
+        self._notify(self._report(email="actor@EXAMPLE.com"), "comment", self.actor)
+        mock_send.assert_not_called()
 
-    def test_skip_when_opted_out(self):
+    def test_skip_when_opted_out(self, mock_send):
         """
         Input: report author's email is in EmailNotificationOptOut.
         Expected: no email is sent.
         """
         EmailNotificationOptOut.opt_out("author@example.com")
-        report = self._report(user=self.author)
-        message = self._add_message(report, user=self.actor)
-        notify_report_author(report.id, "fix", self.actor.id, None, message.id)
-        self.assertEqual(len(mail.outbox), 0)
+        self._notify(self._report(user=self.author), "fix", self.actor)
+        mock_send.assert_not_called()
 
-    def test_recipient_is_account_email(self):
-        """
-        Input: report by an account author, anonymous actor replies.
-        Expected: email goes to the author account email.
-        """
-        report = self._report(user=self.author)
-        message = self._add_message(report, email="someone@example.com")
-        notify_report_author(report.id, "fix", None, "someone@example.com", message.id)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ["author@example.com"])
-
-    def test_recipient_is_anonymous_email(self):
+    def test_recipient_is_anonymous_email(self, mock_send):
         """
         Input: anonymous report (created_by_email), an account actor replies.
         Expected: email goes to the anonymous author's email.
         """
-        report = self._report(email="anon@example.com")
-        message = self._add_message(report, user=self.actor)
-        notify_report_author(report.id, "fix", self.actor.id, None, message.id)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ["anon@example.com"])
+        self._notify(self._report(email="anon@example.com"), "fix", self.actor)
+        self.assertEqual(mock_send.call_args.kwargs["to"], "anon@example.com")
