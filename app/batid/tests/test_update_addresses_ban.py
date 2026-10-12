@@ -858,9 +858,7 @@ class TestGeocodeObsoleteAddresses(TestCase):
 
         result = geocode_obsolete_addresses()
 
-        self.assertEqual(
-            result, {"geocoding_successes": 1, "geocoding_failures": 0}
-        )
+        self.assertEqual(result, {"geocoding_successes": 1, "geocoding_failures": 0})
         addr.refresh_from_db()
         self.assertEqual(addr.ban_update_flag, "geocoding_success")
         self.assertEqual(
@@ -927,9 +925,7 @@ class TestGeocodeObsoleteAddresses(TestCase):
 
         result = geocode_obsolete_addresses()
 
-        self.assertEqual(
-            result, {"geocoding_successes": 0, "geocoding_failures": 1}
-        )
+        self.assertEqual(result, {"geocoding_successes": 0, "geocoding_failures": 1})
         addr.refresh_from_db()
         self.assertEqual(addr.ban_update_flag, "geocoding_failure")
         self.assertEqual(addr.ban_update_details["cle_interop"], "04001_0040_00001")
@@ -1022,7 +1018,9 @@ class TestGeocodeObsoleteAddresses(TestCase):
         geocode_obsolete_addresses()
 
         kwargs = mock_geocode.call_args.kwargs
-        self.assertEqual(kwargs["columns"], ["numero", "rep", "voie", "postcode", "city"])
+        self.assertEqual(
+            kwargs["columns"], ["numero", "rep", "voie", "postcode", "city"]
+        )
         self.assertEqual(kwargs["citycode_col"], "citycode")
         sent = kwargs["data"][0]
         self.assertEqual((sent["numero"], sent["rep"]), ("11", "bis"))
@@ -1040,9 +1038,7 @@ class TestGeocodeObsoleteAddresses(TestCase):
         result = geocode_obsolete_addresses(batch_size=2)
 
         self.assertEqual(mock_geocode.call_count, 2)
-        self.assertEqual(
-            result, {"geocoding_successes": 3, "geocoding_failures": 0}
-        )
+        self.assertEqual(result, {"geocoding_successes": 3, "geocoding_failures": 0})
         self.assertEqual(
             Address.objects.filter(ban_update_flag="geocoding_success").count(), 3
         )
