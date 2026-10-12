@@ -170,8 +170,8 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("reports/<int:report_id>/", GetReport.as_view()),
     path("reports/<int:report_id>/reply/", ReplyToReportView.as_view()),
     # Notifications
-    path("notifications/unsubscribe", UnsubscribeView.as_view()),
-    path("notifications/preferences", NotificationPreferencesView.as_view()),
+    path("notifications/unsubscribe/", UnsubscribeView.as_view()),
+    path("notifications/preferences/", NotificationPreferencesView.as_view()),
 ]
 
 
