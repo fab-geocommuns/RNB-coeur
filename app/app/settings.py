@@ -238,7 +238,7 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL")
 # server logs instead of being sent.
 EMAIL_SENDING_ENABLED = os.environ.get("EMAIL_SENDING_ENABLED") in ("true", "1", "True")
 EMAIL_BACKEND = (
-    os.environ.get("DJANGO_EMAIL_BACKEND")
+    "django.core.mail.backends.smtp.EmailBackend"
     if EMAIL_SENDING_ENABLED
     else "django.core.mail.backends.console.EmailBackend"
 )
