@@ -177,10 +177,6 @@ class Address(models.Model):
                 OpClass(Upper("cle_interop"), name="text_pattern_ops"),
                 name="address_cle_interop_upper_idx",
             ),
-            models.Index(
-                fields=["ban_update_done"],
-                name="address_ban_update_done_idx",
-            ),
         ]
 
     @staticmethod
