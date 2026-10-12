@@ -244,7 +244,7 @@ EMAIL_USE_SSL = os.environ.get("DJANGO_EMAIL_USE_SSL") == "1"
 
 RNB_SEND_ADDRESS = os.environ.get("RNB_SEND_ADDRESS")
 RNB_SEND_NAME = "Référentiel National des Bâtiments"
-RNB_REPLY_TO_ADDRESS = os.environ.get("RNB_REPLY_TO_ADDRESS")
+RNB_REPLY_TO_ADDRESS = os.environ.get("RNB_REPLY_TO_ADDRESS", "rnb@beta.gouv.fr")
 
 # Biggest building in RNB is GB97B3AYBKRN and is roughly 487,000m²
 MAX_BUILDING_AREA = 500000
