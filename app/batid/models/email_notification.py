@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from django.db import models
+from django.contrib.gis.db import models
 
 
 class EmailNotificationOptOut(models.Model):
-    """Une ligne = cette adresse ne reçoit plus d'emails de notification."""
+    """One row = this address no longer receives notification emails."""
 
     email: models.EmailField = models.EmailField(unique=True)
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)

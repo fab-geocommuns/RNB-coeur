@@ -1,4 +1,7 @@
+from typing import cast
+
 from batid.models import EmailNotificationOptOut
+from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -16,17 +19,20 @@ class NotificationPreferencesView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request) -> Response:
-        subscribed = not EmailNotificationOptOut.is_opted_out(request.user.email)
+        # IsAuthenticated guarantees a real User here.
+        user = cast(User, request.user)
+        subscribed = not EmailNotificationOptOut.is_opted_out(user.email)
         return Response({"subscribed": subscribed})
 
     def put(self, request: Request) -> Response:
         serializer = PreferencesSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        user = cast(User, request.user)
         subscribed = serializer.validated_data["subscribed"]
         if subscribed:
-            EmailNotificationOptOut.opt_in(request.user.email)
+            EmailNotificationOptOut.opt_in(user.email)
         else:
-            EmailNotificationOptOut.opt_out(request.user.email)
+            EmailNotificationOptOut.opt_out(user.email)
 
         return Response({"subscribed": subscribed})
