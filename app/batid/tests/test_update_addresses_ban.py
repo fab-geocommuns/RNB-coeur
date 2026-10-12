@@ -730,13 +730,10 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         Expected: the first batch deletes nothing, the run goes on and deletes
         the unlinked address in the second batch, 1 deletion reported.
         """
-        for i in range(1, 3):
+        for i in range(1, 4):
             Address.objects.create(
                 cle_interop=f"04001_old_2000{i}", source="ban", still_exists=False
             )
-        Address.objects.create(
-            cle_interop="04001_old_20003", source="ban", still_exists=False
-        )
         bdg = helpers.create_default_bdg()
         self._link_addresses(bdg, ["04001_old_20001", "04001_old_20002"])
 
