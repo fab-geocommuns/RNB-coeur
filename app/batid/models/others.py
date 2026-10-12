@@ -13,6 +13,7 @@ from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import OpClass
+from django.db.models import Q
 from django.db.models.functions import Upper
 
 
@@ -137,6 +138,12 @@ class Plot(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+# Addresses still to be handled by the BAN update (ban_update_done null or false).
+# Filter with this exact expression so that Postgres can use the partial index
+# address_ban_update_todo_idx.
+ADDRESS_BAN_UPDATE_TODO = Q(ban_update_done__isnull=True) | Q(ban_update_done=False)
+
+
 class Address(models.Model):
     # RNB internal key, the anchor of the building <-> address link. Drawn from
     # batid_address_internal_id_seq by the column DEFAULT.
@@ -160,6 +167,9 @@ class Address(models.Model):
         max_length=20, null=True, default=None, db_index=True
     )
     ban_update_details = models.JSONField(null=True, default=None)
+    # Has the address been handled by the BAN update?
+    # None = never handled, True = done, False = not done (still to be handled)
+    ban_update_done = models.BooleanField(null=True, default=None)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -173,6 +183,13 @@ class Address(models.Model):
             models.Index(
                 OpClass(Upper("cle_interop"), name="text_pattern_ops"),
                 name="address_cle_interop_upper_idx",
+            ),
+            # Partial index on the addresses still to be handled by the BAN update.
+            # It shrinks as the update goes on.
+            models.Index(
+                fields=["internal_id"],
+                condition=ADDRESS_BAN_UPDATE_TODO,
+                name="address_ban_update_todo_idx",
             ),
         ]
 
