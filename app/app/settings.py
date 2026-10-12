@@ -234,7 +234,14 @@ if ENVIRONMENT in ("test", "development"):
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL")
 
-EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND")
+# Outside an explicit "true", every email (Django and Brevo) is written to the
+# server logs instead of being sent.
+EMAIL_SENDING_ENABLED = os.environ.get("EMAIL_SENDING_ENABLED") in ("true", "1", "True")
+EMAIL_BACKEND = (
+    os.environ.get("DJANGO_EMAIL_BACKEND")
+    if EMAIL_SENDING_ENABLED
+    else "django.core.mail.backends.console.EmailBackend"
+)
 EMAIL_HOST = os.environ.get("DJANGO_EMAIL_HOST")
 EMAIL_PORT = os.environ.get("DJANGO_EMAIL_PORT")
 EMAIL_HOST_USER = os.environ.get("DJANGO_EMAIL_HOST_USER")

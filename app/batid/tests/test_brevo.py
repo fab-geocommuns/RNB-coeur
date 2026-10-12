@@ -4,7 +4,11 @@ from batid.services.brevo import BrevoError, BrevoTemplate, send_transactional_e
 from django.test import SimpleTestCase, override_settings
 
 
-@override_settings(BREVO_API_KEY="test-key", RNB_REPLY_TO_ADDRESS="reply@rnb.fr")
+@override_settings(
+    EMAIL_SENDING_ENABLED=True,
+    BREVO_API_KEY="test-key",
+    RNB_REPLY_TO_ADDRESS="reply@rnb.fr",
+)
 @patch("batid.services.brevo.requests.post")
 class SendTransactionalEmailTest(SimpleTestCase):
     def test_posts_template_recipient_and_params(self, mock_post):
@@ -44,3 +48,17 @@ class SendTransactionalEmailTest(SimpleTestCase):
             send_transactional_email(
                 template=BrevoTemplate.REPORT_ACTIVITY, to="a@b.fr", params={}
             )
+
+    @override_settings(EMAIL_SENDING_ENABLED=False)
+    def test_logs_instead_of_sending_when_disabled(self, mock_post):
+        """
+        Input: EMAIL_SENDING_ENABLED off, send REPORT_ACTIVITY to "a@b.fr".
+        Expected: no call to Brevo, and one log line holding the recipient and params.
+        """
+        with self.assertLogs("batid.services.brevo", level="INFO") as logs:
+            send_transactional_email(
+                template=BrevoTemplate.REPORT_ACTIVITY, to="a@b.fr", params={"X": "1"}
+            )
+        mock_post.assert_not_called()
+        self.assertIn("a@b.fr", logs.output[0])
+        self.assertIn("'X': '1'", logs.output[0])
