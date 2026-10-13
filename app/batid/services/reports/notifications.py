@@ -7,7 +7,6 @@ from batid.services.email import (
     report_map_url,
     report_unsubscribe_url,
 )
-from django.contrib.auth.models import User
 
 _REPORT_ACTIVITY_SUBJECTS = {
     "fix": "Votre signalement RNB a été traité",
@@ -26,24 +25,28 @@ def notify_report_author(
     *, report_id: int, action: str, actor_user_id: int, message_id: int
 ) -> None:
     """
-    Loads the report, resolves the recipient email (created_by_user.email or
-    created_by_email) and emails the author about the new activity through Brevo.
+    Emails the author of the report about the new activity through Brevo.
 
-    Silently skips when: there is no recipient email; the author is the actor
-    of the activity; the recipient email is opted out (EmailNotificationOptOut).
+    Only reports created by an account are notified: the email of an anonymous
+    report is never verified, so anyone could otherwise make RNB send their
+    reply text to any address.
+
+    Silently skips when: the report is anonymous; the author account has no
+    email; the author is the actor of the activity; the author email is opted
+    out (EmailNotificationOptOut).
     """
     report = Report.objects.select_related("created_by_user", "building").get(
         id=report_id
     )
 
-    recipient_email = _resolve_recipient_email(report)
-    if not recipient_email:
+    author = report.created_by_user
+    if author is None or not author.email:
         return
 
-    actor = User.objects.get(id=actor_user_id)
-    if _author_is_actor(report=report, actor=actor):
+    if author.id == actor_user_id:
         return
 
+    recipient_email = author.email
     if EmailNotificationOptOut.is_opted_out(recipient_email):
         return
 
@@ -61,16 +64,3 @@ def notify_report_author(
             ),
         },
     )
-
-
-def _resolve_recipient_email(report: Report) -> str | None:
-    if report.created_by_user_id is not None:
-        return report.created_by_user.email or None
-    return report.created_by_email or None
-
-
-def _author_is_actor(*, report: Report, actor: User) -> bool:
-    if report.created_by_user_id is not None:
-        return report.created_by_user_id == actor.id
-    # Anonymous report: the actor may be its author, now logged in.
-    return bool(actor.email) and report.created_by_email.lower() == actor.email.lower()

@@ -105,7 +105,7 @@ class NotifyReportAuthorTest(TestCase):
 
     def test_skip_when_no_email(self, mock_send):
         """
-        Input: report with neither created_by_user nor created_by_email.
+        Input: anonymous report with neither created_by_user nor created_by_email.
         Expected: no email is sent.
         """
         self._notify(self._report(), "comment", self.actor)
@@ -119,15 +119,6 @@ class NotifyReportAuthorTest(TestCase):
         self._notify(self._report(user=self.author), "comment", self.author)
         mock_send.assert_not_called()
 
-    def test_skip_when_actor_is_anonymous_author_case_insensitive(self, mock_send):
-        """
-        Input: anonymous report by "actor@EXAMPLE.com", replied to by the account
-               whose email is "actor@example.com" (same person, other case).
-        Expected: no email (author == actor, case ignored).
-        """
-        self._notify(self._report(email="actor@EXAMPLE.com"), "comment", self.actor)
-        mock_send.assert_not_called()
-
     def test_skip_when_opted_out(self, mock_send):
         """
         Input: report author's email is in EmailNotificationOptOut.
@@ -137,10 +128,12 @@ class NotifyReportAuthorTest(TestCase):
         self._notify(self._report(user=self.author), "fix", self.actor)
         mock_send.assert_not_called()
 
-    def test_recipient_is_anonymous_email(self, mock_send):
+    def test_skip_when_report_is_anonymous(self, mock_send):
         """
-        Input: anonymous report (created_by_email), an account actor replies.
-        Expected: email goes to the anonymous author's email.
+        Input: anonymous report with an unverified created_by_email, an account
+               actor replies.
+        Expected: no email, otherwise anyone could make RNB send their reply
+                  text to any address typed on an anonymous report.
         """
-        self._notify(self._report(email="anon@example.com"), "fix", self.actor)
-        self.assertEqual(mock_send.call_args.kwargs["to"], "anon@example.com")
+        self._notify(self._report(email="victim@example.com"), "comment", self.actor)
+        mock_send.assert_not_called()
