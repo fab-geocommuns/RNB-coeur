@@ -1,9 +1,11 @@
 from unittest.mock import patch
 
+import requests
 from batid.models import Building, EmailNotificationOptOut, Report
 from batid.services.brevo import BrevoTemplate
 from batid.services.email import read_unsubscribe_token
 from batid.services.reports.notifications import notify_report_author
+from batid.tasks import send_report_activity_notification
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
 from django.test import TestCase, override_settings
@@ -137,3 +139,28 @@ class NotifyReportAuthorTest(TestCase):
         """
         self._notify(self._report(email="victim@example.com"), "comment", self.actor)
         mock_send.assert_not_called()
+
+
+@patch("batid.services.reports.notifications.notify_report_author")
+class SendReportActivityNotificationRetryTest(TestCase):
+    TASK_KWARGS = {"report_id": 1, "action": "fix", "actor_user_id": 1, "message_id": 1}
+
+    def test_retries_when_brevo_cannot_be_reached(self, mock_notify):
+        """
+        Input: the notification keeps raising requests.ConnectionError, task run eagerly.
+        Expected: 4 attempts (1 try + 3 retries), then the task ends failed.
+        """
+        mock_notify.side_effect = requests.ConnectionError("Brevo unreachable")
+        result = send_report_activity_notification.apply(kwargs=self.TASK_KWARGS)
+        self.assertEqual(mock_notify.call_count, 4)
+        self.assertTrue(result.failed())
+
+    def test_no_retry_after_read_timeout(self, mock_notify):
+        """
+        Input: the notification raises requests.ReadTimeout (Brevo may have sent it).
+        Expected: a single attempt, so the author never gets the email twice.
+        """
+        mock_notify.side_effect = requests.ReadTimeout("Brevo too slow")
+        result = send_report_activity_notification.apply(kwargs=self.TASK_KWARGS)
+        self.assertEqual(mock_notify.call_count, 1)
+        self.assertTrue(result.failed())
