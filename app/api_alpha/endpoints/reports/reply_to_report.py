@@ -83,19 +83,20 @@ class ReplyToReportView(RNBLoggingMixin, APIView):
             status=new_status,
         )
 
-        # Anonymous replies notify no one: a report's email is never verified, so
-        # an anonymous author could otherwise relay any text to any address.
+        # Anonymous replies notify no one: anyone could otherwise relay any text
+        # to a report author.
         if authenticated_user is not None:
             actor_user_id = authenticated_user.id
-            # Enqueue after commit so the task only runs once the message is persisted
-            # (robust even when ATOMIC_REQUESTS is active).
+            # Enqueue after commit so the task only runs once the message is persisted.
+            # robust: a broker outage must not turn an already saved reply into a 500.
             transaction.on_commit(
                 lambda: send_report_activity_notification.delay(
                     report_id=report.id,
                     action=action,
                     actor_user_id=actor_user_id,
                     message_id=message.id,
-                )
+                ),
+                robust=True,
             )
 
         serializer = ReportSerializer(report)
