@@ -1,14 +1,19 @@
-from unittest.mock import patch
+import csv
+from io import StringIO
+from unittest.mock import Mock, patch
 from uuid import UUID
 
 import batid.tests.helpers as helpers
 from batid.models import Address
 from batid.services.imports.update_addresses_ban import (
     _expand_street_abbreviations,
+    _is_geocoding_success,
     _mark_existing_addresses,
+    _split_housenumber,
     _streets_match,
     delete_unlinked_obsolete_addresses,
     flag_addresses_from_ban_file,
+    geocode_obsolete_addresses,
     normalize_text,
     update_addresses_text_and_ban_id,
 )
@@ -778,3 +783,408 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
                 delete_unlinked_obsolete_addresses()
 
         self.assertEqual(self._protection_trigger_enabled_state(), "O")
+
+
+# Point of "1 Place de la Mairie 04510 Aiglun" in the geocoder results below
+GEOCODED_LON = 6.143959
+GEOCODED_LAT = 44.050963
+
+
+def _geocoder_result(**overrides) -> dict:
+    """Result columns of the BAN batch geocoder for "1 Place de la Mairie 04510
+    Aiglun", a housenumber with a high score."""
+    result = {
+        "result_id": "04001_0040_00001",
+        "result_banId": "2fbce2cc-1ad7-422a-ac99-722dd94760d3",
+        "result_type": "housenumber",
+        "result_score": "0.9",
+        "result_label": "1 Place de la Mairie 04510 Aiglun",
+        "result_housenumber": "1",
+        "result_street": "Place de la Mairie",
+        "result_postcode": "04510",
+        "result_city": "Aiglun",
+        "result_citycode": "04001",
+        "longitude": str(GEOCODED_LON),
+        "latitude": str(GEOCODED_LAT),
+    }
+    result.update(overrides)
+    return result
+
+
+@patch("batid.services.imports.update_addresses_ban.BanBatchGeocoder.geocode")
+class TestGeocodeObsoleteAddresses(TestCase):
+    @staticmethod
+    def _answer(mock_geocode, results_by_street: dict):
+        """Make the mocked geocoder answer a CSV like the real one: the sent
+        columns followed by the result columns, taken from results_by_street
+        (keyed by the sent "voie"), empty when the street is not in it."""
+
+        def geocode(data, columns, citycode_col, result_columns):
+            out = StringIO()
+            writer = csv.DictWriter(
+                out, fieldnames=list(data[0].keys()) + result_columns
+            )
+            writer.writeheader()
+            for row in data:
+                writer.writerow({**row, **results_by_street.get(row["voie"], {})})
+            return Mock(status_code=200, text=out.getvalue())
+
+        mock_geocode.side_effect = geocode
+
+    @staticmethod
+    def _obsolete_address(cle_interop: str, street: str, **fields):
+        values = {
+            "street_number": "1",
+            "street": street,
+            "city_zipcode": "04510",
+            "city_name": "Aiglun",
+            "city_insee_code": "04001",
+            "point": Point(GEOCODED_LON, GEOCODED_LAT, srid=4326),
+        }
+        values.update(fields)
+        return Address.objects.create(
+            cle_interop=cle_interop, source="ban", still_exists=False, **values
+        )
+
+    def test_success_stores_full_details(self, mock_geocode):
+        """
+        Input: an obsolete address geocoded as a housenumber with a 0.9 score,
+        at the same position.
+        Expected: flag "geocoding_success", details hold the geocoded address
+        field by field, the score, the type and a 0 m distance. The address
+        fields themselves are untouched.
+        """
+        addr = self._obsolete_address("04001_old_00001", "place de la mairie")
+        self._answer(mock_geocode, {"place de la mairie": _geocoder_result()})
+
+        result = geocode_obsolete_addresses()
+
+        self.assertEqual(result, {"geocoding_successes": 1, "geocoding_failures": 0})
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_success")
+        self.assertEqual(
+            addr.ban_update_details,
+            {
+                "cle_interop": "04001_0040_00001",
+                "ban_id": "2fbce2cc-1ad7-422a-ac99-722dd94760d3",
+                "street_number": "1",
+                "street_rep": None,
+                "street": "Place de la Mairie",
+                "city_zipcode": "04510",
+                "city_name": "Aiglun",
+                "city_insee_code": "04001",
+                "lon": GEOCODED_LON,
+                "lat": GEOCODED_LAT,
+                "label": "1 Place de la Mairie 04510 Aiglun",
+                "type": "housenumber",
+                "score": 0.9,
+                "distance_m": 0.0,
+            },
+        )
+        self.assertEqual(addr.cle_interop, "04001_old_00001")
+        self.assertEqual(addr.street, "place de la mairie")
+        self.assertFalse(addr.still_exists)
+
+    def test_low_score_but_close_is_a_success(self, mock_geocode):
+        """
+        Input: an obsolete address geocoded as a housenumber with a 0.6 score,
+        about 11 m away.
+        Expected: flag "geocoding_success".
+        """
+        addr = self._obsolete_address(
+            "04001_old_00002",
+            "place de la mairie",
+            point=Point(GEOCODED_LON, GEOCODED_LAT + 0.0001, srid=4326),
+        )
+        self._answer(
+            mock_geocode,
+            {"place de la mairie": _geocoder_result(result_score="0.6")},
+        )
+
+        geocode_obsolete_addresses()
+
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_success")
+        self.assertLess(addr.ban_update_details["distance_m"], 20)
+
+    def test_low_score_and_far_is_a_failure_with_details(self, mock_geocode):
+        """
+        Input: an obsolete address geocoded as a housenumber with a 0.6 score,
+        about 500 m away.
+        Expected: flag "geocoding_failure", details still hold the proposed
+        address, its score and the distance.
+        """
+        addr = self._obsolete_address(
+            "04001_old_00003",
+            "place de la mairie",
+            point=Point(GEOCODED_LON + 0.006, GEOCODED_LAT, srid=4326),
+        )
+        self._answer(
+            mock_geocode,
+            {"place de la mairie": _geocoder_result(result_score="0.6")},
+        )
+
+        result = geocode_obsolete_addresses()
+
+        self.assertEqual(result, {"geocoding_successes": 0, "geocoding_failures": 1})
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertEqual(addr.ban_update_details["cle_interop"], "04001_0040_00001")
+        self.assertEqual(addr.ban_update_details["score"], 0.6)
+        self.assertGreater(addr.ban_update_details["distance_m"], 400)
+
+    def test_lost_suffix_is_a_failure(self, mock_geocode):
+        """
+        Input: an obsolete address "1 bis place de la mairie" geocoded as "1
+        Place de la Mairie" (no suffix) with a 0.9 score, about 100 m away.
+        Expected: flag "geocoding_failure", although score and distance alone
+        would make it a success.
+        """
+        addr = self._obsolete_address(
+            "04001_old_00001_bis",
+            "place de la mairie",
+            street_rep="bis",
+            point=Point(GEOCODED_LON, GEOCODED_LAT + 0.0009, srid=4326),
+        )
+        self._answer(mock_geocode, {"place de la mairie": _geocoder_result()})
+
+        geocode_obsolete_addresses()
+
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertIsNone(addr.ban_update_details["street_rep"])
+
+    def test_street_result_is_a_failure(self, mock_geocode):
+        """
+        Input: an obsolete address geocoded as a street (no housenumber) with a
+        0.95 score.
+        Expected: flag "geocoding_failure".
+        """
+        addr = self._obsolete_address("04001_old_00004", "place de la mairie")
+        self._answer(
+            mock_geocode,
+            {
+                "place de la mairie": _geocoder_result(
+                    result_type="street",
+                    result_id="04001_0040",
+                    result_score="0.95",
+                    result_housenumber="",
+                )
+            },
+        )
+
+        geocode_obsolete_addresses()
+
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertEqual(addr.ban_update_details["type"], "street")
+
+    def test_no_result_is_a_failure(self, mock_geocode):
+        """
+        Input: an obsolete address the geocoder finds nothing for (empty result
+        columns).
+        Expected: flag "geocoding_failure", every details value is None.
+        """
+        addr = self._obsolete_address("04001_old_00005", "chemin inconnu")
+        self._answer(mock_geocode, {})
+
+        geocode_obsolete_addresses()
+
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertTrue(
+            all(value is None for value in addr.ban_update_details.values())
+        )
+
+    def test_only_unprocessed_obsolete_addresses_are_geocoded(self, mock_geocode):
+        """
+        Input: an obsolete address not yet geocoded, an obsolete address already
+        geocoded (ban_update_flag set), an existing address (still_exists=True)
+        and an unchecked one (still_exists=None).
+        Expected: only the first one is sent to the geocoder, the others keep
+        their flag.
+        """
+        to_geocode = self._obsolete_address("04001_old_00006", "place de la mairie")
+        already_geocoded = self._obsolete_address(
+            "04001_old_00007", "rue deja faite", ban_update_flag="geocoding_failure"
+        )
+        existing = Address.objects.create(
+            cle_interop="04001_ok_00001", source="ban", still_exists=True
+        )
+        unchecked = Address.objects.create(cle_interop="04001_new_00001", source="ban")
+        self._answer(mock_geocode, {"place de la mairie": _geocoder_result()})
+
+        geocode_obsolete_addresses()
+
+        mock_geocode.assert_called_once()
+        sent = mock_geocode.call_args.kwargs["data"]
+        self.assertEqual([row["internal_id"] for row in sent], [to_geocode.internal_id])
+        already_geocoded.refresh_from_db()
+        self.assertEqual(already_geocoded.ban_update_flag, "geocoding_failure")
+        existing.refresh_from_db()
+        self.assertIsNone(existing.ban_update_flag)
+        unchecked.refresh_from_db()
+        self.assertIsNone(unchecked.ban_update_flag)
+
+    def test_suffix_is_sent_apart_from_the_number(self, mock_geocode):
+        """
+        Input: an obsolete address "11 bis avenue de segur".
+        Expected: the geocoder gets the number and the suffix in two columns,
+        both used to build the query, and the city code as a filter.
+        """
+        self._obsolete_address(
+            "75107_old_00011_b", "avenue de segur", street_number="11", street_rep="bis"
+        )
+        self._answer(mock_geocode, {})
+
+        geocode_obsolete_addresses()
+
+        kwargs = mock_geocode.call_args.kwargs
+        self.assertEqual(
+            kwargs["columns"], ["numero", "rep", "voie", "postcode", "city"]
+        )
+        self.assertEqual(kwargs["citycode_col"], "citycode")
+        sent = kwargs["data"][0]
+        self.assertEqual((sent["numero"], sent["rep"]), ("11", "bis"))
+
+    def test_several_batches(self, mock_geocode):
+        """
+        Input: 3 obsolete addresses, batch_size=2.
+        Expected: 2 calls to the geocoder, the 3 addresses are flagged, 3
+        successes reported.
+        """
+        for i in range(1, 4):
+            self._obsolete_address(f"04001_old_1000{i}", "place de la mairie")
+        self._answer(mock_geocode, {"place de la mairie": _geocoder_result()})
+
+        result = geocode_obsolete_addresses(batch_size=2)
+
+        self.assertEqual(mock_geocode.call_count, 2)
+        self.assertEqual(result, {"geocoding_successes": 3, "geocoding_failures": 0})
+        self.assertEqual(
+            Address.objects.filter(ban_update_flag="geocoding_success").count(), 3
+        )
+
+    def test_geocoder_error_is_raised_and_nothing_is_flagged(self, mock_geocode):
+        """
+        Input: an obsolete address, the geocoder answers an HTTP error.
+        Expected: the error is raised, the address keeps a null flag (it will be
+        geocoded by the next run).
+        """
+        addr = self._obsolete_address("04001_old_00008", "place de la mairie")
+        response = Mock(status_code=503)
+        response.raise_for_status.side_effect = RuntimeError("503")
+        mock_geocode.return_value = response
+
+        with self.assertRaises(RuntimeError):
+            geocode_obsolete_addresses()
+
+        addr.refresh_from_db()
+        self.assertIsNone(addr.ban_update_flag)
+
+
+def _details(score, distance_m, street_rep=None, result_type="housenumber") -> dict:
+    """Geocoding details of an obsolete address, as stored by
+    geocode_obsolete_addresses, with only the fields the success rule reads."""
+    return {
+        "cle_interop": "04001_0040_00001",
+        "type": result_type,
+        "score": score,
+        "distance_m": distance_m,
+        "street_rep": street_rep,
+    }
+
+
+class TestIsGeocodingSuccess(TestCase):
+    def test_distance_and_score_tiers(self):
+        """
+        Input: housenumber results without suffix on either side, on each side
+        of the tiers (< 3 m whatever the score, < 20 m and > 0.55, < 50 m and
+        > 0.7, < 150 m and > 0.85, < 300 m and > 0.9).
+        Expected: a success only when one tier is met.
+        """
+        cases = [
+            (0.3, 2, True),
+            (0.3, 4, False),
+            (0.6, 15, True),
+            (0.5, 15, False),
+            (0.75, 40, True),
+            (0.65, 40, False),
+            (0.88, 100, True),
+            (0.8, 100, False),
+            (0.95, 250, True),
+            (0.88, 250, False),
+            (0.99, 350, False),
+        ]
+        for score, distance_m, expected in cases:
+            with self.subTest(score=score, distance_m=distance_m):
+                self.assertEqual(
+                    _is_geocoding_success(Address(), _details(score, distance_m)),
+                    expected,
+                )
+
+    def test_not_a_housenumber_or_no_distance(self):
+        """
+        Input: a street result 0 m away with a 0.95 score, and a housenumber
+        result with a 0.95 score but no distance (obsolete address without
+        point).
+        Expected: both are failures.
+        """
+        self.assertFalse(
+            _is_geocoding_success(Address(), _details(0.95, 0, result_type="street"))
+        )
+        self.assertFalse(_is_geocoding_success(Address(), _details(0.95, None)))
+
+    def test_suffix_on_one_side_only(self):
+        """
+        Input: results whose repetition index is present on one side only
+        ("bis" lost, or "bis" added), at various scores and distances.
+        Expected: a failure, unless < 10 m and score > 0.85.
+        """
+        cases = [
+            ("bis", None, 0.95, 50, False),
+            ("bis", None, 0.9, 5, True),
+            ("bis", None, 0.8, 5, False),
+            ("bis", None, 0.95, 15, False),
+            (None, "bis", 0.95, 50, False),
+        ]
+        for old_rep, new_rep, score, distance_m, expected in cases:
+            with self.subTest(old_rep=old_rep, new_rep=new_rep, score=score):
+                self.assertEqual(
+                    _is_geocoding_success(
+                        Address(street_rep=old_rep),
+                        _details(score, distance_m, street_rep=new_rep),
+                    ),
+                    expected,
+                )
+
+    def test_suffix_on_both_sides_or_null_string(self):
+        """
+        Input: "B" geocoded as "bis" 50 m away with a 0.9 score, and an obsolete
+        address whose street_rep is the string "null" geocoded without suffix
+        100 m away with a 0.9 score.
+        Expected: both are successes ("B"/"bis" is a suffix on both sides,
+        "null" is not a suffix).
+        """
+        self.assertTrue(
+            _is_geocoding_success(
+                Address(street_rep="B"), _details(0.9, 50, street_rep="bis")
+            )
+        )
+        self.assertTrue(
+            _is_geocoding_success(Address(street_rep="null"), _details(0.9, 100))
+        )
+
+
+class TestSplitHousenumber(TestCase):
+    def test_split_housenumber(self):
+        """
+        Input: geocoder housenumbers "11B", "11 bis", "11", "" and None.
+        Expected: ("11", "B"), ("11", "bis"), ("11", None), (None, None) and
+        (None, None).
+        """
+        self.assertEqual(_split_housenumber("11B"), ("11", "B"))
+        self.assertEqual(_split_housenumber("11 bis"), ("11", "bis"))
+        self.assertEqual(_split_housenumber("11"), ("11", None))
+        self.assertEqual(_split_housenumber(""), (None, None))
+        self.assertEqual(_split_housenumber(None), (None, None))

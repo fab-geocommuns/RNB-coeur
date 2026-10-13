@@ -1,11 +1,14 @@
 import csv
 import logging
 import os
+import re
 import unicodedata
 import uuid
 from datetime import datetime, timezone
+from io import StringIO
 
 from batid.models import Address
+from batid.services.geocoders import BanBatchGeocoder
 from batid.services.source import Source
 from django.contrib.gis.geos import Point
 from django.db import connection
@@ -422,3 +425,206 @@ def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
 
     logger.info(f"Total deleted unlinked obsolete addresses: {total_deleted}")
     return {"deleted_addresses": total_deleted}
+
+
+GEOCODING_SUCCESS = "geocoding_success"
+GEOCODING_FAILURE = "geocoding_failure"
+
+# A housenumber result is a success if it is closer to the obsolete address than
+# one of these distances (in meters) with a score above the matching minimum: the
+# further the result, the higher the score must be. None: whatever the score.
+GEOCODING_SUCCESS_TIERS: list[tuple[int, float | None]] = [
+    (3, None),
+    (20, 0.55),
+    (50, 0.7),
+    (150, 0.85),
+    (300, 0.9),
+]
+# A result with a repetition index (bis, ter, a...) on one side only (the obsolete
+# address or the result) is a failure, unless it is this close with this score.
+GEOCODING_SUFFIX_MISMATCH_MAX_DISTANCE_M = 10
+GEOCODING_SUFFIX_MISMATCH_MIN_SCORE = 0.85
+
+GEOCODING_RESULT_COLUMNS = [
+    "result_id",
+    "result_banId",
+    "result_type",
+    "result_score",
+    "result_label",
+    "result_housenumber",
+    "result_street",
+    "result_postcode",
+    "result_city",
+    "result_citycode",
+    "longitude",
+    "latitude",
+]
+
+
+def geocode_obsolete_addresses(batch_size: int = 1000) -> dict:
+    """
+    Geocode the obsolete addresses (still_exists=False) still in db, i.e. the
+    ones linked to a building once delete_unlinked_obsolete_addresses has run,
+    and store the result without changing the address itself:
+    - ban_update_flag: "geocoding_success" or "geocoding_failure"
+    - ban_update_details: the geocoded address field by field, named after the
+      Address fields so that the address can later be updated from it, with the
+      geocoding score, the result type and the distance in meters to the
+      obsolete address. Stored for failures too, to study them.
+
+    Addresses are walked in internal_id order (keyset pagination). Geocoded
+    addresses get a ban_update_flag and are skipped by the next runs: a new run
+    resumes where the previous one stopped.
+    """
+    geocoder = BanBatchGeocoder()
+    last_internal_id = 0
+    successes = 0
+    failures = 0
+
+    while True:
+        addresses = list(
+            Address.objects.filter(
+                still_exists=False,
+                ban_update_flag__isnull=True,
+                internal_id__gt=last_internal_id,
+            ).order_by("internal_id")[:batch_size]
+        )
+        if not addresses:
+            break
+
+        last_internal_id = addresses[-1].internal_id
+        results = _geocode_addresses(geocoder, addresses)
+
+        batch_successes = 0
+        for addr in addresses:
+            details = _geocoding_details(addr, results.get(addr.internal_id, {}))
+            if _is_geocoding_success(addr, details):
+                addr.ban_update_flag = GEOCODING_SUCCESS
+                batch_successes += 1
+            else:
+                addr.ban_update_flag = GEOCODING_FAILURE
+            addr.ban_update_details = details
+
+        Address.objects.bulk_update(
+            addresses, ["ban_update_flag", "ban_update_details"]
+        )
+
+        successes += batch_successes
+        failures += len(addresses) - batch_successes
+        logger.info(
+            f"Geocoded obsolete addresses up to internal_id {last_internal_id}: "
+            f"{successes} successes, {failures} failures so far"
+        )
+
+    logger.info(
+        f"Geocoding of obsolete addresses done: {successes} successes, {failures} failures"
+    )
+    return {"geocoding_successes": successes, "geocoding_failures": failures}
+
+
+def _geocode_addresses(geocoder: BanBatchGeocoder, addresses: list) -> dict:
+    """Geocode a batch of addresses. Returns the geocoder result rows by address
+    internal_id."""
+    data = [
+        {
+            "internal_id": addr.internal_id,
+            "numero": addr.street_number or "",
+            # Sent apart from the number: "11" and "11 b" are two different
+            # addresses
+            "rep": addr.street_rep or "",
+            "voie": addr.street or "",
+            "postcode": addr.city_zipcode or "",
+            "city": addr.city_name or "",
+            "citycode": addr.city_insee_code or "",
+        }
+        for addr in addresses
+    ]
+
+    response = geocoder.geocode(
+        data=data,
+        columns=["numero", "rep", "voie", "postcode", "city"],
+        citycode_col="citycode",
+        result_columns=GEOCODING_RESULT_COLUMNS,
+    )
+    response.raise_for_status()
+
+    reader = csv.DictReader(StringIO(response.text))
+    return {int(row["internal_id"]): row for row in reader}
+
+
+def _geocoding_details(addr: Address, row: dict) -> dict:
+    """The geocoding result of an address, field by field. Empty values are None."""
+    street_number, street_rep = _split_housenumber(row.get("result_housenumber"))
+    distance_m = _calculate_distance(
+        addr.point, row.get("longitude", ""), row.get("latitude", "")
+    )
+
+    return {
+        "cle_interop": row.get("result_id") or None,
+        "ban_id": row.get("result_banId") or None,
+        "street_number": street_number,
+        "street_rep": street_rep,
+        "street": row.get("result_street") or None,
+        "city_zipcode": row.get("result_postcode") or None,
+        "city_name": row.get("result_city") or None,
+        "city_insee_code": row.get("result_citycode") or None,
+        "lon": _float_or_none(row.get("longitude")),
+        "lat": _float_or_none(row.get("latitude")),
+        "label": row.get("result_label") or None,
+        "type": row.get("result_type") or None,
+        "score": _float_or_none(row.get("result_score")),
+        "distance_m": round(distance_m, 2) if distance_m is not None else None,
+    }
+
+
+def _split_housenumber(housenumber: str | None) -> tuple[str | None, str | None]:
+    """Split a geocoder housenumber ("11B", "11 bis", "11") into the number and
+    its suffix."""
+    housenumber = (housenumber or "").strip()
+    if not housenumber:
+        return None, None
+
+    match = re.fullmatch(r"(\d+)\s*(\S.*)?", housenumber)
+    if not match:
+        return housenumber, None
+
+    return match.group(1), match.group(2)
+
+
+def _float_or_none(value: str | None) -> float | None:
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_geocoding_success(addr: Address, details: dict) -> bool:
+    """Whether the geocoding result of an obsolete address can replace it. The
+    distance is required: without a point, the obsolete address is not checkable."""
+    distance_m = details["distance_m"]
+    if (
+        details["type"] != "housenumber"
+        or not details["cle_interop"]
+        or distance_m is None
+    ):
+        return False
+
+    score = details["score"] or 0
+
+    if _has_suffix(addr.street_rep) != _has_suffix(details["street_rep"]) and not (
+        distance_m < GEOCODING_SUFFIX_MISMATCH_MAX_DISTANCE_M
+        and score > GEOCODING_SUFFIX_MISMATCH_MIN_SCORE
+    ):
+        return False
+
+    return any(
+        distance_m < max_distance_m and (min_score is None or score > min_score)
+        for max_distance_m, min_score in GEOCODING_SUCCESS_TIERS
+    )
+
+
+def _has_suffix(street_rep: str | None) -> bool:
+    """Whether a street_rep holds a repetition index. Some addresses in db hold
+    the string "null" instead of a null value."""
+    street_rep = (street_rep or "").strip()
+    return bool(street_rep) and street_rep.lower() != "null"
