@@ -506,9 +506,7 @@ class TestCompareAddressesWithBanFile(TestCase):
         self.assertGreater(addr.ban_update_details["distance_m"], 20)
         self.assertIn("street", addr.ban_update_details["diffs"])
 
-    def test_uppercase_key_is_compared_with_the_file_key(
-        self, mock_remove, mock_find
-    ):
+    def test_uppercase_key_is_compared_with_the_file_key(self, mock_remove, mock_find):
         """
         Input: an existing address with an uppercase key "04001_PK624E_00002",
         whose lowercase version is in the BAN file.
