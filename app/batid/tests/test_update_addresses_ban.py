@@ -9,7 +9,7 @@ from batid.services.imports.update_addresses_ban import (
     _is_geocoding_success,
     _mark_existing_addresses,
     _split_housenumber,
-    _streets_match,
+    _street_levenshtein,
     compare_addresses_with_ban_file,
     delete_unlinked_obsolete_addresses,
     flag_addresses_from_ban_file,
@@ -255,41 +255,32 @@ class TestExpandStreetAbbreviations(TestCase):
         )
 
 
-class TestStreetsMatch(TestCase):
-    def test_exact_match(self):
-        self.assertTrue(_streets_match("Rue des Lilas", "Rue des Lilas"))
-
-    def test_match_with_case_and_accents(self):
-        self.assertTrue(_streets_match("rue de la république", "Rue de la République"))
-
-    def test_du_vs_des(self):
-        # Levenshtein distance of 2 between "du" and "des"
-        self.assertTrue(_streets_match("Rue du Moulin", "Rue des Moulin"))
-
-    def test_abbreviation_imp(self):
-        self.assertTrue(_streets_match("Imp de la Treille", "Impasse de la Treille"))
-
-    def test_abbreviation_che(self):
-        self.assertTrue(_streets_match("Che du Pont Vieux", "Chemin du Pont Vieux"))
-
-    def test_abbreviation_plus_small_diff(self):
-        # "Imp du Moulin" → expand → "impasse du moulin"
-        # "Impasse des Moulin" → "impasse des moulin"
-        # Levenshtein("impasse du moulin", "impasse des moulin") = 2 → match
-        self.assertTrue(_streets_match("Imp du Moulin", "Impasse des Moulin"))
-
-    def test_large_difference_no_match(self):
-        self.assertFalse(_streets_match("Rue de la Gare", "Impasse de la Treille"))
-
-    def test_none_db_street(self):
-        self.assertFalse(_streets_match(None, "Rue des Lilas"))
-
-    def test_both_empty(self):
-        self.assertTrue(_streets_match("", ""))
-
-    def test_single_char_difference(self):
-        # Levenshtein distance = 1
-        self.assertTrue(_streets_match("Rue des Lilas", "Rue des Lilac"))
+class TestStreetLevenshtein(TestCase):
+    def test_street_levenshtein(self):
+        """
+        Input: pairs of street names (db, BAN) differing by their case, accents,
+        street type abbreviation, a few letters or entirely, and missing values.
+        Expected: the Levenshtein distance between the normalized names, with
+        the street type abbreviation expanded ("Imp" counts as "impasse").
+        """
+        cases = [
+            ("Rue des Lilas", "Rue des Lilas", 0),
+            ("rue de la république", "Rue de la République", 0),
+            ("Imp de la Treille", "Impasse de la Treille", 0),
+            ("Che du Pont Vieux", "Chemin du Pont Vieux", 0),
+            ("", "", 0),
+            ("Rue des Lilas", "Rue des Lilac", 1),
+            # "du" vs "des"
+            ("Rue du Moulin", "Rue des Moulin", 2),
+            # "impasse du moulin" vs "impasse des moulin" once expanded
+            ("Imp du Moulin", "Impasse des Moulin", 2),
+            ("Rue de la Gare", "Impasse de la Treille", 12),
+            # A missing db street is an empty one
+            (None, "Rue des Lilas", 13),
+        ]
+        for db_street, ban_street, expected in cases:
+            with self.subTest(db_street=db_street, ban_street=ban_street):
+                self.assertEqual(_street_levenshtein(db_street, ban_street), expected)
 
 
 @patch("batid.services.imports.update_addresses_ban.Source.find")
@@ -322,8 +313,9 @@ class TestCompareAddressesWithBanFile(TestCase):
         normalized: lowercase text and "B" for "bis" (row 1, ~5 m away), "Imp"
         for "Impasse" (row 2) and a 2-letter typo (row 3).
         Expected: 3 "comparison_success". The details of row 1 hold the BAN
-        address field by field, the distance and no diffs. The addresses
-        themselves are untouched.
+        address field by field, the distance, a street_lev of 0 and no diffs.
+        Row 3 has a street_lev of 2 and no diffs. The addresses themselves are
+        untouched.
         """
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
         self._existing_address(
@@ -362,12 +354,19 @@ class TestCompareAddressesWithBanFile(TestCase):
                 "city_insee_code": "04001",
                 "lon": 6.135212,
                 "lat": 44.070028,
+                "street_lev": 0,
                 "diffs": {},
             },
         )
         self.assertEqual(addr.street, "impasse de la treille")
         self.assertEqual(addr.street_rep, "B")
         self.assertIsNone(addr.ban_id)
+
+        details = Address.objects.get(
+            cle_interop="04001_pk624e_00003"
+        ).ban_update_details
+        self.assertEqual(details["street_lev"], 2)
+        self.assertEqual(details["diffs"], {})
 
     def test_mismatching_fields_without_point_are_a_failure(
         self, mock_remove, mock_find
@@ -376,7 +375,8 @@ class TestCompareAddressesWithBanFile(TestCase):
         Input: an existing address without point, "rue de la gare" in db and
         "Impasse de la Treille" in the BAN file.
         Expected: "comparison_failure", the details hold the BAN address, a null
-        distance and the street diff. The street is untouched.
+        distance, the street_lev (12) and the street diff. The street is
+        untouched.
         """
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
         self._existing_address(
@@ -390,6 +390,7 @@ class TestCompareAddressesWithBanFile(TestCase):
         self.assertEqual(addr.ban_update_flag, "comparison_failure")
         self.assertEqual(addr.ban_update_details["street"], "Impasse de la Treille")
         self.assertIsNone(addr.ban_update_details["distance_m"])
+        self.assertEqual(addr.ban_update_details["street_lev"], 12)
         self.assertEqual(
             addr.ban_update_details["diffs"],
             {"street": {"db": "rue de la gare", "ban": "Impasse de la Treille"}},

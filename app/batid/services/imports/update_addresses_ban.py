@@ -56,11 +56,12 @@ def _expand_street_abbreviations(text: str) -> str:
     return " ".join(words)
 
 
-def _streets_match(db_street: str | None, ban_street: str) -> bool:
-    """Check if two street names match, allowing abbreviations and Levenshtein distance <= 2."""
+def _street_levenshtein(db_street: str | None, ban_street: str) -> int:
+    """Levenshtein distance between two street names, once normalized and their
+    street type abbreviation expanded."""
     s1 = _expand_street_abbreviations(normalize_text(db_street or ""))
     s2 = _expand_street_abbreviations(normalize_text(ban_street))
-    return Levenshtein.distance(s1, s2) <= 2
+    return Levenshtein.distance(s1, s2)
 
 
 def normalize_text(text: str) -> str:
@@ -153,6 +154,8 @@ COMPARISON_FAILURE = "comparison_failure"
 # Closer than this to its BAN position (in meters), an address is the same as
 # the BAN one, whatever its text.
 COMPARISON_MAX_DISTANCE_M = 20
+# Street names this close (Levenshtein distance, once normalized) are the same.
+COMPARISON_MAX_STREET_LEVENSHTEIN = 2
 
 
 def compare_addresses_with_ban_file(src_params: dict, batch_size: int = 10000) -> dict:
@@ -165,8 +168,10 @@ def compare_addresses_with_ban_file(src_params: dict, batch_size: int = 10000) -
     - ban_update_details: the BAN address field by field, named after the
       Address fields like the geocoding details (see geocode_obsolete_addresses)
       so that a single later task can update the addresses from both, with the
-      distance in meters to the BAN position and the mismatching fields ("diffs").
-      Stored for failures too, to study them.
+      distance in meters to the BAN position, the Levenshtein distance between
+      the normalized street names ("street_lev", stored even when the streets
+      match) and the mismatching fields ("diffs"). Stored for failures too, to
+      study them.
 
     Interop keys are compared case-insensitively, as in
     flag_addresses_from_ban_file: details["cle_interop"] is the key of the BAN
@@ -226,15 +231,16 @@ def _normalize_rep(street_rep: str | None) -> str:
     return STREET_REP_ALIASES.get(street_rep, street_rep)
 
 
-def _get_field_diffs(addr: Address, ban: dict) -> dict:
-    """Compare all address fields between DB and BAN data.
+def _get_field_diffs(addr: Address, ban: dict, street_lev: int) -> dict:
+    """Compare all address fields between DB and BAN data. street_lev is the
+    Levenshtein distance between the normalized street names.
 
     Returns an empty dict if all fields match, or a dict of mismatched fields
     with their DB and BAN values.
     """
     diffs = {}
     # Text fields: normalize (strip + lower + remove accents)
-    if not _streets_match(addr.street, ban["nom_voie"]):
+    if street_lev > COMPARISON_MAX_STREET_LEVENSHTEIN:
         diffs["street"] = {"db": addr.street, "ban": ban["nom_voie"]}
     if normalize_text(addr.city_name or "") != normalize_text(ban["nom_commune"]):
         diffs["city_name"] = {"db": addr.city_name, "ban": ban["nom_commune"]}
@@ -286,7 +292,8 @@ def _compare_batch(rows: list) -> dict:
         ban = ban_rows[addr.cle_interop.upper()]
 
         distance_m = _calculate_distance(addr.point, ban["lon"], ban["lat"])
-        diffs = _get_field_diffs(addr, ban)
+        street_lev = _street_levenshtein(addr.street, ban["nom_voie"])
+        diffs = _get_field_diffs(addr, ban, street_lev)
 
         if (distance_m is not None and distance_m < COMPARISON_MAX_DISTANCE_M) or (
             not diffs
@@ -299,6 +306,7 @@ def _compare_batch(rows: list) -> dict:
         addr.ban_update_details = {
             **_ban_file_details(ban),
             "distance_m": round(distance_m, 2) if distance_m is not None else None,
+            "street_lev": street_lev,
             "diffs": diffs,
         }
 
