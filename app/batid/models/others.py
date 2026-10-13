@@ -160,6 +160,9 @@ class Address(models.Model):
         max_length=20, null=True, default=None, db_index=True
     )
     ban_update_details = models.JSONField(null=True, default=None)
+    # Has the address been handled by the BAN update?
+    # None = never handled, True = done, False = not done (still to be handled)
+    ban_update_done = models.BooleanField(null=True, default=None)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
