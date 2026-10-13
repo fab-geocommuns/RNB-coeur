@@ -160,6 +160,9 @@ class Address(models.Model):
         max_length=20, null=True, default=None, db_index=True
     )
     ban_update_details = models.JSONField(null=True, default=None)
+    # Has the address been handled by the BAN update?
+    # None = never handled, True = done, False = not done (still to be handled)
+    ban_update_done = models.BooleanField(null=True, default=None)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -173,6 +176,10 @@ class Address(models.Model):
             models.Index(
                 OpClass(Upper("cle_interop"), name="text_pattern_ops"),
                 name="address_cle_interop_upper_idx",
+            ),
+            models.Index(
+                fields=["ban_update_done"],
+                name="address_ban_update_done_idx",
             ),
         ]
 
