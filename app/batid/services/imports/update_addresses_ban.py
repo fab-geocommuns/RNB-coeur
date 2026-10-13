@@ -430,11 +430,20 @@ def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
 GEOCODING_SUCCESS = "geocoding_success"
 GEOCODING_FAILURE = "geocoding_failure"
 
-# A geocoding result is a success if it is a housenumber with a high score, or
-# with a lower score but close to the obsolete address.
-GEOCODING_MIN_SCORE = 0.85
-GEOCODING_MIN_SCORE_IF_CLOSE = 0.55
-GEOCODING_CLOSE_DISTANCE_M = 20
+# A housenumber result is a success if it is closer to the obsolete address than
+# one of these distances (in meters) with a score above the matching minimum: the
+# further the result, the higher the score must be. None: whatever the score.
+GEOCODING_SUCCESS_TIERS: list[tuple[int, float | None]] = [
+    (3, None),
+    (20, 0.55),
+    (50, 0.7),
+    (150, 0.85),
+    (300, 0.9),
+]
+# A result with a repetition index (bis, ter, a...) on one side only (the obsolete
+# address or the result) is a failure, unless it is this close with this score.
+GEOCODING_SUFFIX_MISMATCH_MAX_DISTANCE_M = 10
+GEOCODING_SUFFIX_MISMATCH_MIN_SCORE = 0.85
 
 GEOCODING_RESULT_COLUMNS = [
     "result_id",
@@ -489,7 +498,7 @@ def geocode_obsolete_addresses(batch_size: int = 1000) -> dict:
         batch_successes = 0
         for addr in addresses:
             details = _geocoding_details(addr, results.get(addr.internal_id, {}))
-            if _is_geocoding_success(details):
+            if _is_geocoding_success(addr, details):
                 addr.ban_update_flag = GEOCODING_SUCCESS
                 batch_successes += 1
             else:
@@ -589,17 +598,33 @@ def _float_or_none(value: str | None) -> float | None:
         return None
 
 
-def _is_geocoding_success(details: dict) -> bool:
-    if details["type"] != "housenumber" or not details["cle_interop"]:
+def _is_geocoding_success(addr: Address, details: dict) -> bool:
+    """Whether the geocoding result of an obsolete address can replace it. The
+    distance is required: without a point, the obsolete address is not checkable."""
+    distance_m = details["distance_m"]
+    if (
+        details["type"] != "housenumber"
+        or not details["cle_interop"]
+        or distance_m is None
+    ):
         return False
 
     score = details["score"] or 0
-    if score >= GEOCODING_MIN_SCORE:
-        return True
 
-    distance_m = details["distance_m"]
-    return (
-        score >= GEOCODING_MIN_SCORE_IF_CLOSE
-        and distance_m is not None
-        and distance_m < GEOCODING_CLOSE_DISTANCE_M
+    if _has_suffix(addr.street_rep) != _has_suffix(details["street_rep"]) and not (
+        distance_m < GEOCODING_SUFFIX_MISMATCH_MAX_DISTANCE_M
+        and score > GEOCODING_SUFFIX_MISMATCH_MIN_SCORE
+    ):
+        return False
+
+    return any(
+        distance_m < max_distance_m and (min_score is None or score > min_score)
+        for max_distance_m, min_score in GEOCODING_SUCCESS_TIERS
     )
+
+
+def _has_suffix(street_rep: str | None) -> bool:
+    """Whether a street_rep holds a repetition index. Some addresses in db hold
+    the string "null" instead of a null value."""
+    street_rep = (street_rep or "").strip()
+    return bool(street_rep) and street_rep.lower() != "null"

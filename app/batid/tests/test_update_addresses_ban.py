@@ -7,6 +7,7 @@ import batid.tests.helpers as helpers
 from batid.models import Address
 from batid.services.imports.update_addresses_ban import (
     _expand_street_abbreviations,
+    _is_geocoding_success,
     _mark_existing_addresses,
     _split_housenumber,
     _streets_match,
@@ -887,13 +888,13 @@ class TestGeocodeObsoleteAddresses(TestCase):
     def test_low_score_but_close_is_a_success(self, mock_geocode):
         """
         Input: an obsolete address geocoded as a housenumber with a 0.6 score,
-        about 1 m away.
+        about 11 m away.
         Expected: flag "geocoding_success".
         """
         addr = self._obsolete_address(
             "04001_old_00002",
             "place de la mairie",
-            point=Point(GEOCODED_LON, GEOCODED_LAT + 0.00001, srid=4326),
+            point=Point(GEOCODED_LON, GEOCODED_LAT + 0.0001, srid=4326),
         )
         self._answer(
             mock_geocode,
@@ -931,6 +932,27 @@ class TestGeocodeObsoleteAddresses(TestCase):
         self.assertEqual(addr.ban_update_details["cle_interop"], "04001_0040_00001")
         self.assertEqual(addr.ban_update_details["score"], 0.6)
         self.assertGreater(addr.ban_update_details["distance_m"], 400)
+
+    def test_lost_suffix_is_a_failure(self, mock_geocode):
+        """
+        Input: an obsolete address "1 bis place de la mairie" geocoded as "1
+        Place de la Mairie" (no suffix) with a 0.9 score, about 100 m away.
+        Expected: flag "geocoding_failure", although score and distance alone
+        would make it a success.
+        """
+        addr = self._obsolete_address(
+            "04001_old_00001_bis",
+            "place de la mairie",
+            street_rep="bis",
+            point=Point(GEOCODED_LON, GEOCODED_LAT + 0.0009, srid=4326),
+        )
+        self._answer(mock_geocode, {"place de la mairie": _geocoder_result()})
+
+        geocode_obsolete_addresses()
+
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertIsNone(addr.ban_update_details["street_rep"])
 
     def test_street_result_is_a_failure(self, mock_geocode):
         """
@@ -1059,6 +1081,101 @@ class TestGeocodeObsoleteAddresses(TestCase):
 
         addr.refresh_from_db()
         self.assertIsNone(addr.ban_update_flag)
+
+
+def _details(score, distance_m, street_rep=None, result_type="housenumber") -> dict:
+    """Geocoding details of an obsolete address, as stored by
+    geocode_obsolete_addresses, with only the fields the success rule reads."""
+    return {
+        "cle_interop": "04001_0040_00001",
+        "type": result_type,
+        "score": score,
+        "distance_m": distance_m,
+        "street_rep": street_rep,
+    }
+
+
+class TestIsGeocodingSuccess(TestCase):
+    def test_distance_and_score_tiers(self):
+        """
+        Input: housenumber results without suffix on either side, on each side
+        of the tiers (< 3 m whatever the score, < 20 m and > 0.55, < 50 m and
+        > 0.7, < 150 m and > 0.85, < 300 m and > 0.9).
+        Expected: a success only when one tier is met.
+        """
+        cases = [
+            (0.3, 2, True),
+            (0.3, 4, False),
+            (0.6, 15, True),
+            (0.5, 15, False),
+            (0.75, 40, True),
+            (0.65, 40, False),
+            (0.88, 100, True),
+            (0.8, 100, False),
+            (0.95, 250, True),
+            (0.88, 250, False),
+            (0.99, 350, False),
+        ]
+        for score, distance_m, expected in cases:
+            with self.subTest(score=score, distance_m=distance_m):
+                self.assertEqual(
+                    _is_geocoding_success(Address(), _details(score, distance_m)),
+                    expected,
+                )
+
+    def test_not_a_housenumber_or_no_distance(self):
+        """
+        Input: a street result 0 m away with a 0.95 score, and a housenumber
+        result with a 0.95 score but no distance (obsolete address without
+        point).
+        Expected: both are failures.
+        """
+        self.assertFalse(
+            _is_geocoding_success(
+                Address(), _details(0.95, 0, result_type="street")
+            )
+        )
+        self.assertFalse(_is_geocoding_success(Address(), _details(0.95, None)))
+
+    def test_suffix_on_one_side_only(self):
+        """
+        Input: results whose repetition index is present on one side only
+        ("bis" lost, or "bis" added), at various scores and distances.
+        Expected: a failure, unless < 10 m and score > 0.85.
+        """
+        cases = [
+            ("bis", None, 0.95, 50, False),
+            ("bis", None, 0.9, 5, True),
+            ("bis", None, 0.8, 5, False),
+            ("bis", None, 0.95, 15, False),
+            (None, "bis", 0.95, 50, False),
+        ]
+        for old_rep, new_rep, score, distance_m, expected in cases:
+            with self.subTest(old_rep=old_rep, new_rep=new_rep, score=score):
+                self.assertEqual(
+                    _is_geocoding_success(
+                        Address(street_rep=old_rep),
+                        _details(score, distance_m, street_rep=new_rep),
+                    ),
+                    expected,
+                )
+
+    def test_suffix_on_both_sides_or_null_string(self):
+        """
+        Input: "B" geocoded as "bis" 50 m away with a 0.9 score, and an obsolete
+        address whose street_rep is the string "null" geocoded without suffix
+        100 m away with a 0.9 score.
+        Expected: both are successes ("B"/"bis" is a suffix on both sides,
+        "null" is not a suffix).
+        """
+        self.assertTrue(
+            _is_geocoding_success(
+                Address(street_rep="B"), _details(0.9, 50, street_rep="bis")
+            )
+        )
+        self.assertTrue(
+            _is_geocoding_success(Address(street_rep="null"), _details(0.9, 100))
+        )
 
 
 class TestSplitHousenumber(TestCase):
