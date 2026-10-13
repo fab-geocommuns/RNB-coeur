@@ -1131,9 +1131,7 @@ class TestIsGeocodingSuccess(TestCase):
         Expected: both are failures.
         """
         self.assertFalse(
-            _is_geocoding_success(
-                Address(), _details(0.95, 0, result_type="street")
-            )
+            _is_geocoding_success(Address(), _details(0.95, 0, result_type="street"))
         )
         self.assertFalse(_is_geocoding_success(Address(), _details(0.95, None)))
 
