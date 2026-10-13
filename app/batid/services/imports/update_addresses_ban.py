@@ -3,14 +3,11 @@ import logging
 import os
 import re
 import unicodedata
-import uuid
-from datetime import datetime, timezone
 from io import StringIO
 
 from batid.models import Address
 from batid.services.geocoders import BanBatchGeocoder
 from batid.services.source import Source
-from django.contrib.gis.geos import Point
 from django.db import connection
 from django.db.models.functions import Upper
 from django.db.models.lookups import In
@@ -150,80 +147,83 @@ def _mark_obsolete_addresses(dpt: str, seen_cle_interops: set) -> int:
     return obsolete_count
 
 
-def update_addresses_text_and_ban_id(src_params: dict, batch_size: int = 10000) -> dict:
+COMPARISON_SUCCESS = "comparison_success"
+COMPARISON_FAILURE = "comparison_failure"
+
+# Closer than this to its BAN position (in meters), an address is the same as
+# the BAN one, whatever its text.
+COMPARISON_MAX_DISTANCE_M = 20
+
+
+def compare_addresses_with_ban_file(src_params: dict, batch_size: int = 10000) -> dict:
     """
-    For addresses with still_exists=True, compare with BAN file using distance and normalized text.
-    - If distance < 20m: update all fields with BAN version (same address).
-    - Else if all normalized fields match: update all fields with BAN version.
-    - Else: set ban_update_flag="text_mismatch" with diff details.
+    Compare the existing addresses (still_exists=True) of a department with the
+    BAN file, and store the result without changing the address itself:
+    - ban_update_flag: "comparison_success" if the address is closer than 20 m
+      to its BAN position or if all its normalized fields match the BAN ones,
+      "comparison_failure" otherwise.
+    - ban_update_details: the BAN address field by field, named after the
+      Address fields like the geocoding details (see geocode_obsolete_addresses)
+      so that a single later task can update the addresses from both, with the
+      distance in meters to the BAN position and the mismatching fields ("diffs").
+      Stored for failures too, to study them.
+
+    Interop keys are compared case-insensitively, as in
+    flag_addresses_from_ban_file: details["cle_interop"] is the key of the BAN
+    file, which can differ from the address key by its case.
+
+    Addresses with a ban_update_flag are skipped: a new run resumes where the
+    previous one stopped.
     """
     dpt = src_params["dpt"]
     src = Source("ban_with_ids")
     src.set_params(src_params)
 
-    updated_count = 0
-    mismatch_count = 0
+    successes = 0
+    failures = 0
     file_path = src.find(src.filename)
 
     with open(file_path, "r") as f:
         reader = csv.DictReader(f, delimiter=";")
         batch = []
-        seen_ban_ids: set[str] = set()
 
         for row in reader:
-            ban_id = row.get("id_ban_adresse", "")
-            if ban_id and ban_id in seen_ban_ids:
-                logger.warning(
-                    f"[{dpt}] Duplicate ban_id in source file: {ban_id}, skipping row"
-                )
-                continue
-            if ban_id:
-                seen_ban_ids.add(ban_id)
-
-            batch.append(
-                {
-                    "cle_interop": row["id"],
-                    "nom_voie": row["nom_voie"],
-                    "nom_commune": row["nom_commune"],
-                    "numero": row["numero"],
-                    "rep": row["rep"],
-                    "code_postal": row["code_postal"],
-                    "code_insee": row["code_insee"],
-                    "id_ban_adresse": ban_id,
-                    "lon": row.get("lon", ""),
-                    "lat": row.get("lat", ""),
-                }
-            )
+            batch.append(row)
 
             if len(batch) >= batch_size:
-                counts = _update_text_batch(batch)
-                updated_count += counts["updated"]
-                mismatch_count += counts["mismatched"]
+                counts = _compare_batch(batch)
+                successes += counts["successes"]
+                failures += counts["failures"]
                 logger.info(
-                    f"[{dpt}] Batch done: {updated_count} updated, {mismatch_count} mismatched so far"
+                    f"[{dpt}] Batch done: {successes} successes, {failures} failures so far"
                 )
                 batch = []
 
         if batch:
-            counts = _update_text_batch(batch)
-            updated_count += counts["updated"]
-            mismatch_count += counts["mismatched"]
+            counts = _compare_batch(batch)
+            successes += counts["successes"]
+            failures += counts["failures"]
 
     os.remove(file_path)
 
     logger.info(
-        f"[{dpt}] Text update: {updated_count} updated, {mismatch_count} mismatched"
+        f"[{dpt}] Comparison with the BAN file: {successes} successes, {failures} failures"
     )
-    return {"dpt": dpt, "updated": updated_count, "mismatched": mismatch_count}
+    return {"dpt": dpt, "successes": successes, "failures": failures}
 
 
 def _rep_match(db_rep: str | None, ban_rep: str) -> bool:
     # street_rep: case-insensitive + alias expansion (B→bis, T→ter, Q→quater)
-    db_rep = STREET_REP_ALIASES.get(
-        (db_rep or "").strip().lower(), (db_rep or "").strip().lower()
-    )
-    ban_rep = STREET_REP_ALIASES.get(ban_rep.strip().lower(), ban_rep.strip().lower())
-    return db_rep == ban_rep
+    return _normalize_rep(db_rep) == _normalize_rep(ban_rep)
+
+
+def _normalize_rep(street_rep: str | None) -> str:
+    """Lowercase street_rep with its aliases expanded. Some addresses in db hold
+    the string "null" instead of a null value: it is normalized to ""."""
+    street_rep = (street_rep or "").strip().lower()
+    if street_rep == "null":
+        return ""
+    return STREET_REP_ALIASES.get(street_rep, street_rep)
 
 
 def _get_field_diffs(addr: Address, ban: dict) -> dict:
@@ -268,84 +268,63 @@ def _calculate_distance(db_point, lon: str, lat: str):
     return dist_m
 
 
-def _apply_ban_update(addr: Address, ban: dict, now: datetime) -> None:
-    """Apply BAN field values to an address and flag it as updated."""
-    addr.street_number = ban["numero"]
-    addr.street_rep = ban["rep"] or None
-    addr.city_name = ban["nom_commune"]
-    addr.city_zipcode = ban["code_postal"]
-    if ban["lon"] and ban["lat"]:
-        addr.point = Point(float(ban["lon"]), float(ban["lat"]), srid=4326)
-    addr.city_insee_code = ban["code_insee"]
-    addr.street = ban["nom_voie"]
-    if ban["id_ban_adresse"]:
-        addr.ban_id = uuid.UUID(ban["id_ban_adresse"])
-    addr.ban_update_flag = "update"
-    addr.updated_at = now
-
-
-def _update_text_batch(batch: list) -> dict:
-    """Compare normalized text and update or flag each address."""
-    ban_data = {item["cle_interop"]: item for item in batch}
-    cle_interops = list(ban_data.keys())
+def _compare_batch(rows: list) -> dict:
+    """Compare a batch of BAN file rows with the matching addresses and flag
+    each address."""
+    ban_rows = {row["id"].upper(): row for row in rows}
 
     addresses = list(
         Address.objects.filter(
-            cle_interop__in=cle_interops,
+            In(Upper("cle_interop"), list(ban_rows.keys())),
             still_exists=True,
             ban_update_flag__isnull=True,
         )
     )
 
-    updated = 0
-    mismatched = 0
-    to_update = []
-
-    now = datetime.now(timezone.utc)
-
+    successes = 0
     for addr in addresses:
-        ban = ban_data[addr.cle_interop]
+        ban = ban_rows[addr.cle_interop.upper()]
 
         distance_m = _calculate_distance(addr.point, ban["lon"], ban["lat"])
         diffs = _get_field_diffs(addr, ban)
 
-        if distance_m is not None and distance_m < 20:
-            # Close enough: same address, proceed with update
-            _apply_ban_update(addr, ban, now)
-            updated += 1
-        elif not diffs:
-            # All fields match: proceed with update
-            _apply_ban_update(addr, ban, now)
-            updated += 1
+        if (distance_m is not None and distance_m < COMPARISON_MAX_DISTANCE_M) or (
+            not diffs
+        ):
+            addr.ban_update_flag = COMPARISON_SUCCESS
+            successes += 1
         else:
-            # Both tests failed: flag as mismatch with distance
-            addr.ban_update_flag = "text_mismatch"
-            if distance_m is not None:
-                diffs["distance_m"] = round(distance_m, 2)
-            addr.ban_update_details = diffs
-            mismatched += 1
+            addr.ban_update_flag = COMPARISON_FAILURE
 
-        to_update.append(addr)
+        addr.ban_update_details = {
+            **_ban_file_details(ban),
+            "distance_m": round(distance_m, 2) if distance_m is not None else None,
+            "diffs": diffs,
+        }
 
-    if to_update:
+    if addresses:
         Address.objects.bulk_update(
-            to_update,
-            [
-                "point",
-                "street_number",
-                "street",
-                "street_rep",
-                "city_name",
-                "city_zipcode",
-                "city_insee_code",
-                "ban_id",
-                "ban_update_flag",
-                "ban_update_details",
-                "updated_at",
-            ],
+            addresses, ["ban_update_flag", "ban_update_details"]
         )
 
-    return {"updated": updated, "mismatched": mismatched}
+    return {"successes": successes, "failures": len(addresses) - successes}
+
+
+def _ban_file_details(ban: dict) -> dict:
+    """A BAN file row, field by field, named after the Address fields. Empty
+    values are None."""
+    return {
+        "cle_interop": ban["id"],
+        "ban_id": ban.get("id_ban_adresse") or None,
+        "street_number": ban["numero"] or None,
+        "street_rep": ban["rep"] or None,
+        "street": ban["nom_voie"] or None,
+        "city_zipcode": ban["code_postal"] or None,
+        "city_name": ban["nom_commune"] or None,
+        "city_insee_code": ban["code_insee"] or None,
+        "lon": _float_or_none(ban.get("lon")),
+        "lat": _float_or_none(ban.get("lat")),
+    }
 
 
 def delete_unlinked_obsolete_addresses(batch_size: int = 10000) -> dict:
