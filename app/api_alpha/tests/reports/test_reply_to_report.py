@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 from batid.models import Building, Organization, Report, UserProfile
 from django.contrib.auth.models import User
@@ -72,6 +73,59 @@ class ReplyToReportTest(APITestCase):
         self.assertEqual(self.report.messages.last().text, "Indeed")
         self.assertEqual(self.report.messages.last().created_by_user, self.user)
         self.assertIsNone(self.report.messages.last().created_by_email)
+
+    def test_reply_enqueues_notification_with_right_args(self):
+        """
+        Input: authenticated user replies "fix" to a report authored by someone else.
+        Expected: send_report_activity_notification.delay is enqueued on commit with
+                  the report id, "fix", the actor user id and the created message id;
+                  the response returns the newly created message.
+        """
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+        data = {"message": "This has been fixed", "action": "fix"}
+
+        with patch(
+            "api_alpha.endpoints.reports.reply_to_report.send_report_activity_notification.delay"
+        ) as mock_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(
+                    f"/api/alpha/reports/{self.report.id}/reply/",
+                    data=json.dumps(data),
+                    content_type="application/json",
+                )
+
+        self.assertEqual(response.status_code, 200)
+        new_message = self.report.messages.last()
+        self.assertEqual(response.json()["messages"][-1]["text"], "This has been fixed")
+
+        mock_delay.assert_called_once_with(
+            report_id=self.report.id,
+            action="fix",
+            actor_user_id=self.user.id,
+            message_id=new_message.id,
+        )
+
+    def test_anonymous_comment_enqueues_no_notification(self):
+        """
+        Input: anonymous comment with an email on a report.
+        Expected: the comment is saved but no notification is enqueued, since an
+                  anonymous author could otherwise relay any text to any address.
+        """
+        data = {"message": "Look at this", "action": "comment", "email": "a@b.fr"}
+
+        with patch(
+            "api_alpha.endpoints.reports.reply_to_report.send_report_activity_notification.delay"
+        ) as mock_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(
+                    f"/api/alpha/reports/{self.report.id}/reply/",
+                    data=json.dumps(data),
+                    content_type="application/json",
+                )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.report.messages.last().text, "Look at this")
+        mock_delay.assert_not_called()
 
     def test_reply_logged_out_user_without_changing_status(self):
         data = {

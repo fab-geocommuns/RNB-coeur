@@ -123,3 +123,29 @@ class TestReport(TestCase):
         self.assertEqual(report.tags.count(), 2)
         self.assertIn("tag1", report.tags.names())
         self.assertIn("tag2", report.tags.names())
+
+    def test_add_message_returns_created_message_and_feve_flag(self):
+        """
+        Input: add_message_and_update_status on an open report (no feve attached).
+        Expected: returns (ReportMessage, False) where the message is the one
+                  persisted on the report with the given text and status applied.
+        """
+        report = Report.objects.create(
+            point=self.point,
+            building=self.building,
+            created_by_user=self.user,
+            status="pending",
+        )
+
+        message, feve_found = report.add_message_and_update_status(
+            text="Fixed it",
+            created_by_user=self.user,
+            created_by_email=None,
+            status="fixed",
+        )
+
+        self.assertFalse(feve_found)
+        self.assertEqual(message, report.messages.last())
+        self.assertEqual(message.text, "Fixed it")
+        report.refresh_from_db()
+        self.assertEqual(report.status, "fixed")

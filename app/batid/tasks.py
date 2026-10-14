@@ -5,6 +5,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+import requests
 from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list, slice_dpts
 from batid.services.building import export_city as export_city_job
@@ -444,6 +445,28 @@ def send_monthly_leaderboard_emails():
 @shared_task
 def close_irrelevant_reports():
     reject_irrelevant_arcep_reports()
+
+
+# Retries only when Brevo could not be reached: after a read timeout Brevo may
+# already have sent the email, and a retry would send it twice.
+# Other failures are reported by Sentry (Celery integration).
+@shared_task(
+    name="batid.tasks.send_report_activity_notification",
+    autoretry_for=(requests.ConnectionError,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
+def send_report_activity_notification(
+    *, report_id: int, action: str, actor_user_id: int, message_id: int
+):
+    from batid.services.reports.notifications import notify_report_author
+
+    notify_report_author(
+        report_id=report_id,
+        action=action,
+        actor_user_id=actor_user_id,
+        message_id=message_id,
+    )
 
 
 @notify_if_error
