@@ -1306,9 +1306,8 @@ class TestUpdateAddressesFromBanComparison(TestCase):
         whose details hold the lowercase key of the BAN file and a BAN address
         of a city with reliable BAN ids.
         Expected: every field is copied from the details, the lowercase key
-        and the point included, source is "BAN", still_exists and
-        ban_update_done are True, updated_at is refreshed, the flag and the
-        details are kept.
+        and the point included, source is "BAN", ban_update_done is True,
+        updated_at is refreshed, the flag and the details are kept.
         """
         details = _get_ban_details(cle_interop="04001_pk624e_00002")
         addr = self._create_address("04001_PK624E_00002", "comparison_success", details)
@@ -1328,7 +1327,6 @@ class TestUpdateAddressesFromBanComparison(TestCase):
         self.assertEqual(addr.city_insee_code, "04001")
         self.assertEqual((addr.point.x, addr.point.y), (GEOCODED_LON, GEOCODED_LAT))
         self.assertEqual(addr.source, "BAN")
-        self.assertTrue(addr.still_exists)
         self.assertTrue(addr.ban_update_done)
         self.assertGreater(addr.updated_at, updated_at)
         self.assertEqual(addr.ban_update_flag, "comparison_success")

@@ -645,7 +645,7 @@ def update_addresses_from_ban_comparison(batch_size: int = 1000) -> dict:
     - point is updated only if lon and lat are both known;
     - ban_id is updated only if the BAN ids of the city (city_insee_code of the
       details) are reliable;
-    - source is set to "BAN", still_exists and ban_update_done to True.
+    - source is set to "BAN" and ban_update_done to True.
     ban_update_flag and ban_update_details are kept.
 
     cle_interop and ban_id are unique: a conflict raises an IntegrityError,
@@ -683,7 +683,6 @@ def update_addresses_from_ban_comparison(batch_size: int = 1000) -> dict:
                 "point",
                 "ban_id",
                 "source",
-                "still_exists",
                 "ban_update_done",
                 "updated_at",
             ],
@@ -719,7 +718,6 @@ def _apply_ban_details(addr: Address, now: datetime) -> None:
         addr.ban_id = details["ban_id"]
 
     addr.source = "BAN"
-    addr.still_exists = True
     addr.ban_update_done = True
     # bulk_update does not apply auto_now
     addr.updated_at = now
