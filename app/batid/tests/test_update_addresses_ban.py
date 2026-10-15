@@ -6,6 +6,7 @@ import batid.tests.helpers as helpers
 from batid.models import Address
 from batid.services.imports.update_addresses_ban import (
     _expand_street_abbreviations,
+    _is_comparison_success,
     _is_geocoding_success,
     _mark_existing_addresses,
     _split_housenumber,
@@ -290,7 +291,14 @@ class TestCompareAddressesWithBanFile(TestCase):
     # 04510 Aiglun" (04001):
     # - 04001_pk624e_00001: 1 bis, lon=6.135212, lat=44.070028, with a ban_id
     # - 04001_pk624e_00002: 2, lon=6.135332, lat=44.069986, with a ban_id
-    # - 04001_pk624e_00003: 3, no ban_id
+    # - 04001_pk624e_00003: 3, lon=6.135447, lat=44.069901, no ban_id
+    # The points *_300M are 300 m north of these positions: too far for the
+    # distance alone to make a success, close enough for matching fields.
+    ROW_1_300M = Point(6.135212, 44.072728, srid=4326)
+    ROW_2 = Point(6.135332, 44.069986, srid=4326)
+    ROW_2_300M = Point(6.135332, 44.072686, srid=4326)
+    ROW_3 = Point(6.135447, 44.069901, srid=4326)
+    ROW_3_300M = Point(6.135447, 44.072601, srid=4326)
 
     @staticmethod
     def _existing_address(cle_interop: str, **fields):
@@ -311,7 +319,8 @@ class TestCompareAddressesWithBanFile(TestCase):
         """
         Input: 3 existing addresses whose fields match the BAN file once
         normalized: lowercase text and "B" for "bis" (row 1, ~5 m away), "Imp"
-        for "Impasse" (row 2) and a 2-letter typo (row 3).
+        for "Impasse" (row 2, 300 m away) and a 2-letter typo (row 3, 300 m
+        away).
         Expected: 3 "comparison_success". The details of row 1 hold the BAN
         address field by field, the distance, a street_lev of 0 and no diffs.
         Row 3 has a street_lev of 2 and no diffs. The addresses themselves are
@@ -325,10 +334,16 @@ class TestCompareAddressesWithBanFile(TestCase):
             point=Point(6.13518, 44.07000, srid=4326),
         )
         self._existing_address(
-            "04001_pk624e_00002", street_number="2", street="Imp de la Treille"
+            "04001_pk624e_00002",
+            street_number="2",
+            street="Imp de la Treille",
+            point=self.ROW_2_300M,
         )
         self._existing_address(
-            "04001_pk624e_00003", street_number="3", street="Impasse de las Treilles"
+            "04001_pk624e_00003",
+            street_number="3",
+            street="Impasse de las Treilles",
+            point=self.ROW_3_300M,
         )
 
         result = compare_addresses_with_ban_file({"dpt": "04"})
@@ -403,13 +418,31 @@ class TestCompareAddressesWithBanFile(TestCase):
         Expected: "comparison_success" with a null ban_id in the details.
         """
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
-        self._existing_address("04001_pk624e_00003", street_number="3")
+        self._existing_address(
+            "04001_pk624e_00003", street_number="3", point=self.ROW_3
+        )
 
         compare_addresses_with_ban_file({"dpt": "04"})
 
         addr = Address.objects.get(cle_interop="04001_pk624e_00003")
         self.assertEqual(addr.ban_update_flag, "comparison_success")
         self.assertIsNone(addr.ban_update_details["ban_id"])
+
+    def test_matching_fields_without_point_are_a_failure(self, mock_remove, mock_find):
+        """
+        Input: an existing address without point, whose fields match row 3.
+        Expected: "comparison_failure" with a null distance and no diffs: without
+        a point, the address is not checkable.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        self._existing_address("04001_pk624e_00003", street_number="3")
+
+        compare_addresses_with_ban_file({"dpt": "04"})
+
+        addr = Address.objects.get(cle_interop="04001_pk624e_00003")
+        self.assertEqual(addr.ban_update_flag, "comparison_failure")
+        self.assertIsNone(addr.ban_update_details["distance_m"])
+        self.assertEqual(addr.ban_update_details["diffs"], {})
 
     def test_obsolete_and_already_flagged_addresses_are_skipped(
         self, mock_remove, mock_find
@@ -444,7 +477,7 @@ class TestCompareAddressesWithBanFile(TestCase):
         self, mock_remove, mock_find
     ):
         """
-        Input: an existing address ~5 m away from its BAN position, with another
+        Input: an existing address 40 m away from its BAN position, with another
         street name.
         Expected: "comparison_success", the street diff is still in the details.
         """
@@ -453,23 +486,46 @@ class TestCompareAddressesWithBanFile(TestCase):
             "04001_pk624e_00002",
             street_number="2",
             street="rue de la gare",
-            point=Point(6.13530, 44.06996, srid=4326),
+            point=Point(6.135332, 44.070346, srid=4326),
         )
 
         compare_addresses_with_ban_file({"dpt": "04"})
 
         addr = Address.objects.get(cle_interop="04001_pk624e_00002")
         self.assertEqual(addr.ban_update_flag, "comparison_success")
-        self.assertLess(addr.ban_update_details["distance_m"], 20)
+        self.assertAlmostEqual(addr.ban_update_details["distance_m"], 40, delta=1)
         self.assertIn("street", addr.ban_update_details["diffs"])
 
     def test_far_distance_with_matching_fields_is_a_success(
         self, mock_remove, mock_find
     ):
         """
-        Input: an existing address ~500 m away from its BAN position, with
+        Input: an existing address 300 m away from its BAN position, with
         matching fields.
         Expected: "comparison_success" with the distance in the details.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        self._existing_address(
+            "04001_pk624e_00001",
+            street_number="1",
+            street_rep="B",
+            point=self.ROW_1_300M,
+        )
+
+        compare_addresses_with_ban_file({"dpt": "04"})
+
+        addr = Address.objects.get(cle_interop="04001_pk624e_00001")
+        self.assertEqual(addr.ban_update_flag, "comparison_success")
+        self.assertAlmostEqual(addr.ban_update_details["distance_m"], 300, delta=1)
+
+    def test_too_far_distance_with_matching_fields_is_a_failure(
+        self, mock_remove, mock_find
+    ):
+        """
+        Input: an existing address ~500 m away from its BAN position, with
+        matching fields (the interop key may now designate another place).
+        Expected: "comparison_failure" with the distance and no diffs in the
+        details.
         """
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
         self._existing_address(
@@ -482,12 +538,13 @@ class TestCompareAddressesWithBanFile(TestCase):
         compare_addresses_with_ban_file({"dpt": "04"})
 
         addr = Address.objects.get(cle_interop="04001_pk624e_00001")
-        self.assertEqual(addr.ban_update_flag, "comparison_success")
-        self.assertGreater(addr.ban_update_details["distance_m"], 20)
+        self.assertEqual(addr.ban_update_flag, "comparison_failure")
+        self.assertGreater(addr.ban_update_details["distance_m"], 400)
+        self.assertEqual(addr.ban_update_details["diffs"], {})
 
     def test_far_distance_with_field_diffs_is_a_failure(self, mock_remove, mock_find):
         """
-        Input: an existing address ~500 m away from its BAN position, with
+        Input: an existing address 100 m away from its BAN position, with
         another street name.
         Expected: "comparison_failure" with the distance and the street diff in
         the details.
@@ -497,14 +554,14 @@ class TestCompareAddressesWithBanFile(TestCase):
             "04001_pk624e_00002",
             street_number="2",
             street="rue de la gare",
-            point=Point(6.14, 44.073, srid=4326),
+            point=Point(6.135332, 44.070886, srid=4326),
         )
 
         compare_addresses_with_ban_file({"dpt": "04"})
 
         addr = Address.objects.get(cle_interop="04001_pk624e_00002")
         self.assertEqual(addr.ban_update_flag, "comparison_failure")
-        self.assertGreater(addr.ban_update_details["distance_m"], 20)
+        self.assertAlmostEqual(addr.ban_update_details["distance_m"], 100, delta=1)
         self.assertIn("street", addr.ban_update_details["diffs"])
 
     def test_uppercase_key_is_compared_with_the_file_key(self, mock_remove, mock_find):
@@ -515,7 +572,9 @@ class TestCompareAddressesWithBanFile(TestCase):
         BAN file (lowercase).
         """
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
-        self._existing_address("04001_PK624E_00002", street_number="2")
+        self._existing_address(
+            "04001_PK624E_00002", street_number="2", point=self.ROW_2
+        )
 
         compare_addresses_with_ban_file({"dpt": "04"})
 
@@ -525,7 +584,7 @@ class TestCompareAddressesWithBanFile(TestCase):
 
     def test_null_string_rep_matches_an_empty_rep(self, mock_remove, mock_find):
         """
-        Input: an existing address ~500 m away from its BAN position, holding
+        Input: an existing address 300 m away from its BAN position, holding
         the string "null" as street_rep, while the BAN file has no suffix.
         Expected: "comparison_success" without diffs.
         """
@@ -534,7 +593,7 @@ class TestCompareAddressesWithBanFile(TestCase):
             "04001_pk624e_00002",
             street_number="2",
             street_rep="null",
-            point=Point(6.14, 44.073, srid=4326),
+            point=self.ROW_2_300M,
         )
 
         compare_addresses_with_ban_file({"dpt": "04"})
@@ -564,6 +623,7 @@ class TestCompareAddressesWithBanFile(TestCase):
                 city_name=city_name,
                 city_zipcode="85440",
                 city_insee_code=city_insee_code,
+                point=Point(-1.606121, 46.520051, srid=4326),
             )
 
         result = compare_addresses_with_ban_file({"dpt": "85"})
@@ -573,6 +633,31 @@ class TestCompareAddressesWithBanFile(TestCase):
             {addr.ban_update_details["ban_id"] for addr in Address.objects.all()},
             {"9e63d301-1c76-4d33-a508-9ea9e39293d2"},
         )
+
+
+class TestIsComparisonSuccess(TestCase):
+    def test_distance_thresholds(self):
+        """
+        Input: distances on each side of the thresholds (60 m whatever the
+        fields, 400 m with matching fields), with and without field diffs, and
+        no distance (address without point).
+        Expected: a success under 60 m, or under 400 m without diffs. Never a
+        success without distance.
+        """
+        street_diff = {"street": {"db": "rue de la gare", "ban": "rue du port"}}
+        cases = [
+            (59.9, street_diff, True),
+            (60, street_diff, False),
+            (100, street_diff, False),
+            (59.9, {}, True),
+            (399.9, {}, True),
+            (400, {}, False),
+            (None, {}, False),
+            (None, street_diff, False),
+        ]
+        for distance_m, diffs, expected in cases:
+            with self.subTest(distance_m=distance_m, diffs=diffs):
+                self.assertEqual(_is_comparison_success(distance_m, diffs), expected)
 
 
 class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):

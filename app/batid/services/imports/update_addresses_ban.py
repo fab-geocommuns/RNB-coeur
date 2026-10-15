@@ -153,7 +153,11 @@ COMPARISON_FAILURE = "comparison_failure"
 
 # Closer than this to its BAN position (in meters), an address is the same as
 # the BAN one, whatever its text.
-COMPARISON_MAX_DISTANCE_M = 20
+COMPARISON_MAX_DISTANCE_M = 60
+# With all its normalized fields matching the BAN ones, an address is the same
+# as the BAN one up to this distance (in meters). Further, the interop key may
+# now designate another place (e.g. after a renumbering).
+COMPARISON_MAX_MATCHING_DISTANCE_M = 400
 # Street names this close (Levenshtein distance, once normalized) are the same.
 COMPARISON_MAX_STREET_LEVENSHTEIN = 2
 
@@ -162,9 +166,10 @@ def compare_addresses_with_ban_file(src_params: dict, batch_size: int = 10000) -
     """
     Compare the existing addresses (still_exists=True) of a department with the
     BAN file, and store the result without changing the address itself:
-    - ban_update_flag: "comparison_success" if the address is closer than 20 m
-      to its BAN position or if all its normalized fields match the BAN ones,
-      "comparison_failure" otherwise.
+    - ban_update_flag: "comparison_success" if the address is closer than 60 m
+      to its BAN position, or closer than 400 m with all its normalized fields
+      matching the BAN ones, "comparison_failure" otherwise (see
+      _is_comparison_success).
     - ban_update_details: the BAN address field by field, named after the
       Address fields like the geocoding details (see geocode_obsolete_addresses)
       so that a single later task can update the addresses from both, with the
@@ -295,9 +300,7 @@ def _compare_batch(rows: list) -> dict:
         street_lev = _street_levenshtein(addr.street, ban["nom_voie"])
         diffs = _get_field_diffs(addr, ban, street_lev)
 
-        if (distance_m is not None and distance_m < COMPARISON_MAX_DISTANCE_M) or (
-            not diffs
-        ):
+        if _is_comparison_success(distance_m, diffs):
             addr.ban_update_flag = COMPARISON_SUCCESS
             successes += 1
         else:
@@ -316,6 +319,19 @@ def _compare_batch(rows: list) -> dict:
         )
 
     return {"successes": successes, "failures": len(addresses) - successes}
+
+
+def _is_comparison_success(distance_m: float | None, diffs: dict) -> bool:
+    """Whether an address is the same as its BAN one: closer than 60 m whatever
+    its text, or closer than 400 m with all its normalized fields matching. The
+    distance is required: without a point, the address is not checkable."""
+    if distance_m is None:
+        return False
+
+    if distance_m < COMPARISON_MAX_DISTANCE_M:
+        return True
+
+    return not diffs and distance_m < COMPARISON_MAX_MATCHING_DISTANCE_M
 
 
 def _ban_file_details(ban: dict) -> dict:
