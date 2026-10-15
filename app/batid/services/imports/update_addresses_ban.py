@@ -636,7 +636,7 @@ def _has_suffix(street_rep: str | None) -> bool:
     return bool(street_rep) and street_rep.lower() != "null"
 
 
-def update_addresses_from_ban_details(batch_size: int = 10000) -> dict:
+def update_addresses_from_ban_details(batch_size: int = 1000) -> dict:
     """
     Update the addresses flagged "geocoding_success" or "comparison_success"
     and not done yet with the BAN address stored in their ban_update_details:
