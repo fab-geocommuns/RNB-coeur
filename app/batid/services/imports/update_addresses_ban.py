@@ -838,9 +838,7 @@ def _replace_obsolete_address(
             user,
             event_origin,
             status=None,
-            addresses_cle_interop=Address.cle_interop_from_internal_ids(
-                internal_ids
-            ),
+            addresses_cle_interop=Address.cle_interop_from_internal_ids(internal_ids),
         )
         stats["updated_buildings"] += 1
 
