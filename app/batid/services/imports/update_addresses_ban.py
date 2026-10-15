@@ -3,11 +3,14 @@ import logging
 import os
 import re
 import unicodedata
+from datetime import datetime, timezone
 from io import StringIO
 
 from batid.models import Address
 from batid.services.geocoders import BanBatchGeocoder
+from batid.services.imports.import_ban import has_city_reliable_ban_ids
 from batid.services.source import Source
+from django.contrib.gis.geos import Point
 from django.db import connection
 from django.db.models.functions import Upper
 from django.db.models.lookups import In
@@ -631,3 +634,92 @@ def _has_suffix(street_rep: str | None) -> bool:
     the string "null" instead of a null value."""
     street_rep = (street_rep or "").strip()
     return bool(street_rep) and street_rep.lower() != "null"
+
+
+# Address fields copied as is from ban_update_details, empty values included
+BAN_DETAILS_FIELDS = [
+    "cle_interop",
+    "street_number",
+    "street_rep",
+    "street",
+    "city_name",
+    "city_zipcode",
+    "city_insee_code",
+]
+
+
+def update_addresses_from_ban_details(batch_size: int = 10000) -> dict:
+    """
+    Update the addresses flagged "geocoding_success" or "comparison_success"
+    and not done yet with the BAN address stored in their ban_update_details:
+    - the BAN_DETAILS_FIELDS are overwritten, empty values included;
+    - point is updated only if lon and lat are both known;
+    - ban_id is updated only if the BAN ids of the city (city_insee_code of the
+      details) are reliable;
+    - source is set to "BAN", still_exists and ban_update_done to True.
+    ban_update_flag and ban_update_details are kept.
+
+    cle_interop and ban_id are unique: a conflict raises an IntegrityError,
+    which aborts the batch and the run.
+
+    Updated addresses get ban_update_done=True, so every batch only holds
+    addresses not done yet and a new run resumes where the previous one
+    stopped.
+    """
+    updated = 0
+
+    while True:
+        addresses = list(
+            Address.objects.filter(
+                ban_update_flag__in=[GEOCODING_SUCCESS, COMPARISON_SUCCESS]
+            ).exclude(ban_update_done=True)[:batch_size]
+        )
+        if not addresses:
+            break
+
+        now = datetime.now(timezone.utc)
+        for addr in addresses:
+            _apply_ban_details(addr, now)
+
+        Address.objects.bulk_update(
+            addresses,
+            BAN_DETAILS_FIELDS
+            + [
+                "point",
+                "ban_id",
+                "source",
+                "still_exists",
+                "ban_update_done",
+                "updated_at",
+            ],
+        )
+
+        updated += len(addresses)
+        logger.info(f"Updated {updated} addresses from their BAN details so far")
+
+    logger.info(f"Update of addresses from their BAN details done: {updated} updated")
+    return {"updated": updated}
+
+
+def _apply_ban_details(addr: Address, now: datetime) -> None:
+    """Copy the BAN address stored in ban_update_details onto the address."""
+    details = addr.ban_update_details
+
+    for field in BAN_DETAILS_FIELDS:
+        setattr(addr, field, details[field])
+
+    if details["lon"] is not None and details["lat"] is not None:
+        addr.point = Point(details["lon"], details["lat"], srid=4326)
+
+    if (
+        details["ban_id"]
+        and details["city_insee_code"]
+        and has_city_reliable_ban_ids(details["city_insee_code"])
+    ):
+        addr.ban_id = details["ban_id"]
+
+    addr.source = "BAN"
+    addr.still_exists = True
+    addr.ban_update_done = True
+    # bulk_update does not apply auto_now
+    addr.updated_at = now
