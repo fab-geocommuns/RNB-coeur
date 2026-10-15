@@ -16,7 +16,7 @@ from batid.services.imports.update_addresses_ban import (
     flag_addresses_from_ban_file,
     geocode_obsolete_addresses,
     normalize_text,
-    update_addresses_from_ban_details,
+    update_addresses_from_ban_comparison,
 )
 from batid.tests.factories.users import UserFactory
 from django.contrib.gis.geos import Point
@@ -1250,7 +1250,7 @@ BAN_ID = "2fbce2cc-1ad7-422a-ac99-722dd94760d3"
 
 
 def _get_ban_details(**overrides) -> dict:
-    """ban_update_details of a successfully geocoded or compared address."""
+    """ban_update_details of a successfully compared address."""
     details = {
         "cle_interop": "04001_0040_00001",
         "ban_id": BAN_ID,
@@ -1268,7 +1268,7 @@ def _get_ban_details(**overrides) -> dict:
     return details
 
 
-class TestUpdateAddressesFromBanDetails(TestCase):
+class TestUpdateAddressesFromBanComparison(TestCase):
     def setUp(self):
         # has_city_reliable_ban_ids caches its answer
         cache.clear()
@@ -1289,7 +1289,8 @@ class TestUpdateAddressesFromBanDetails(TestCase):
             "city_name": "Digne",
             "city_insee_code": "04070",
             "point": Point(6.0, 44.0, srid=4326),
-            "still_exists": False,
+            # the comparison only flags addresses that still exist
+            "still_exists": True,
         }
         values.update(fields)
         return Address.objects.create(
@@ -1299,23 +1300,25 @@ class TestUpdateAddressesFromBanDetails(TestCase):
             **values,
         )
 
-    def test_geocoding_success_is_updated(self):
+    def test_comparison_success_is_updated(self):
         """
-        Input: an obsolete address flagged "geocoding_success", whose details
-        hold a BAN address of a city with reliable BAN ids.
-        Expected: every field is copied from the details, point included,
-        source is "BAN", still_exists and ban_update_done are True,
-        updated_at is refreshed, the flag and the details are kept.
+        Input: an address "04001_PK624E_00002" flagged "comparison_success",
+        whose details hold the lowercase key of the BAN file and a BAN address
+        of a city with reliable BAN ids.
+        Expected: every field is copied from the details, the lowercase key
+        and the point included, source is "BAN", still_exists and
+        ban_update_done are True, updated_at is refreshed, the flag and the
+        details are kept.
         """
-        details = _get_ban_details()
-        addr = self._create_address("04070_old_00003", "geocoding_success", details)
+        details = _get_ban_details(cle_interop="04001_pk624e_00002")
+        addr = self._create_address("04001_PK624E_00002", "comparison_success", details)
         updated_at = addr.updated_at
 
-        result = update_addresses_from_ban_details()
+        result = update_addresses_from_ban_comparison()
 
         self.assertEqual(result, {"updated": 1})
         addr.refresh_from_db()
-        self.assertEqual(addr.cle_interop, "04001_0040_00001")
+        self.assertEqual(addr.cle_interop, "04001_pk624e_00002")
         self.assertEqual(str(addr.ban_id), BAN_ID)
         self.assertEqual(addr.street_number, "1")
         self.assertEqual(addr.street_rep, "bis")
@@ -1328,41 +1331,21 @@ class TestUpdateAddressesFromBanDetails(TestCase):
         self.assertTrue(addr.still_exists)
         self.assertTrue(addr.ban_update_done)
         self.assertGreater(addr.updated_at, updated_at)
-        self.assertEqual(addr.ban_update_flag, "geocoding_success")
+        self.assertEqual(addr.ban_update_flag, "comparison_success")
         self.assertEqual(addr.ban_update_details, details)
-
-    def test_comparison_success_renames_cle_interop(self):
-        """
-        Input: an existing address "04001_PK624E_00002" flagged
-        "comparison_success", whose details hold the lowercase key of the BAN
-        file.
-        Expected: the address takes the lowercase key and is done.
-        """
-        addr = self._create_address(
-            "04001_PK624E_00002",
-            "comparison_success",
-            _get_ban_details(cle_interop="04001_pk624e_00002"),
-            still_exists=True,
-        )
-
-        update_addresses_from_ban_details()
-
-        addr.refresh_from_db()
-        self.assertEqual(addr.cle_interop, "04001_pk624e_00002")
-        self.assertTrue(addr.ban_update_done)
 
     def test_ban_id_of_unreliable_city_is_not_written(self):
         """
-        Input: two successes whose details hold a ban_id, one of a city with
-        unreliable BAN ids, the other of a city never checked.
+        Input: two comparison successes whose details hold a ban_id, one of a
+        city with unreliable BAN ids, the other of a city never checked.
         Expected: both addresses are updated but their ban_id stays empty.
         """
         City.objects.create(
             code_insee="04002", name="Allemagne", has_reliable_ban_ids=False
         )
         unreliable = self._create_address(
-            "04002_old_00001",
-            "geocoding_success",
+            "04002_0010_00001",
+            "comparison_success",
             _get_ban_details(
                 cle_interop="04002_0010_00001",
                 city_insee_code="04002",
@@ -1370,7 +1353,7 @@ class TestUpdateAddressesFromBanDetails(TestCase):
             ),
         )
         unchecked = self._create_address(
-            "04003_old_00001",
+            "04003_0010_00001",
             "comparison_success",
             _get_ban_details(
                 cle_interop="04003_0010_00001",
@@ -1379,7 +1362,7 @@ class TestUpdateAddressesFromBanDetails(TestCase):
             ),
         )
 
-        update_addresses_from_ban_details()
+        update_addresses_from_ban_comparison()
 
         for addr in (unreliable, unchecked):
             addr.refresh_from_db()
@@ -1388,18 +1371,18 @@ class TestUpdateAddressesFromBanDetails(TestCase):
 
     def test_empty_details_overwrite_fields_but_not_point(self):
         """
-        Input: a success whose details have no street_rep, no ban_id and no
-        lon.
+        Input: a comparison success whose details have no street_rep, no
+        ban_id and no lon.
         Expected: street_rep is overwritten with None, ban_id stays empty and
         the point is left untouched.
         """
         addr = self._create_address(
-            "04070_old_00003",
+            "04001_0040_00001",
             "comparison_success",
             _get_ban_details(street_rep=None, ban_id=None, lon=None),
         )
 
-        update_addresses_from_ban_details()
+        update_addresses_from_ban_comparison()
 
         addr.refresh_from_db()
         self.assertIsNone(addr.street_rep)
@@ -1407,75 +1390,88 @@ class TestUpdateAddressesFromBanDetails(TestCase):
         self.assertEqual((addr.point.x, addr.point.y), (6.0, 44.0))
         self.assertTrue(addr.ban_update_done)
 
-    def test_only_successes_not_done_are_updated(self):
+    def test_only_comparison_successes_not_done_are_updated(self):
         """
-        Input: a geocoding failure, a comparison failure, an address without
-        flag and a success already done, all with details.
+        Input: a geocoding success, a geocoding failure, a comparison failure,
+        an address without flag and a comparison success already done, all
+        but the unflagged one with details.
         Expected: nothing is updated, ban_update_done stays as it was.
         """
+        geocoding_success = self._create_address(
+            "04070_old_00001",
+            "geocoding_success",
+            _get_ban_details(cle_interop="04001_0040_00001", ban_id=None),
+            still_exists=False,
+        )
         geocoding_failure = self._create_address(
-            "04070_old_00001", "geocoding_failure", _get_ban_details()
+            "04070_old_00002",
+            "geocoding_failure",
+            _get_ban_details(cle_interop="04001_0040_00002", ban_id=None),
+            still_exists=False,
         )
         comparison_failure = self._create_address(
-            "04070_old_00002",
+            "04070_0040_00003",
             "comparison_failure",
-            _get_ban_details(cle_interop="04001_0040_00002", ban_id=None),
+            _get_ban_details(cle_interop="04070_0040_00003", ban_id=None),
         )
-        no_flag = self._create_address("04070_old_00003", None, None)
+        no_flag = self._create_address("04070_0040_00004", None, None)
         done = self._create_address(
-            "04070_old_00004",
-            "geocoding_success",
-            _get_ban_details(cle_interop="04001_0040_00004", ban_id=None),
+            "04070_0040_00005",
+            "comparison_success",
+            _get_ban_details(cle_interop="04001_0040_00005", ban_id=None),
             ban_update_done=True,
         )
 
-        result = update_addresses_from_ban_details()
+        result = update_addresses_from_ban_comparison()
 
         self.assertEqual(result, {"updated": 0})
-        for addr in (geocoding_failure, comparison_failure, no_flag):
+        for addr in (geocoding_success, geocoding_failure, comparison_failure, no_flag):
             addr.refresh_from_db()
             self.assertIsNone(addr.ban_update_done)
             self.assertEqual(addr.street, "rue de la gare")
         done.refresh_from_db()
-        self.assertEqual(done.cle_interop, "04070_old_00004")
+        self.assertEqual(done.cle_interop, "04070_0040_00005")
 
     def test_addresses_are_updated_in_several_batches(self):
         """
-        Input: 5 successes, batch_size=2.
+        Input: 5 comparison successes, batch_size=2.
         Expected: all of them are updated, in 3 batches.
         """
         for i in range(5):
             self._create_address(
-                f"04070_old_0000{i}",
-                "geocoding_success",
+                f"04001_0040_0000{i}",
+                "comparison_success",
                 _get_ban_details(cle_interop=f"04001_0040_0000{i}", ban_id=None),
             )
 
-        result = update_addresses_from_ban_details(batch_size=2)
+        result = update_addresses_from_ban_comparison(batch_size=2)
 
         self.assertEqual(result, {"updated": 5})
         self.assertEqual(Address.objects.filter(ban_update_done=True).count(), 5)
 
     def test_cle_interop_conflict_aborts_the_batch(self):
         """
-        Input: a success whose details cle_interop is already held by another
-        address, and a success without conflict in the same batch.
+        Input: a comparison success whose details cle_interop is already held
+        by another address, and a comparison success without conflict in the
+        same batch.
         Expected: an IntegrityError is raised and no address of the batch is
         updated.
         """
-        self._create_address("04001_0040_00001", None, None, still_exists=True)
+        self._create_address("04001_0040_00001", None, None)
         conflicting = self._create_address(
-            "04070_old_00001", "geocoding_success", _get_ban_details(ban_id=None)
+            "04001_0040_00001_bis",
+            "comparison_success",
+            _get_ban_details(ban_id=None),
         )
         other = self._create_address(
-            "04070_old_00002",
-            "geocoding_success",
+            "04001_0040_00002",
+            "comparison_success",
             _get_ban_details(cle_interop="04001_0040_00002", ban_id=None),
         )
 
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                update_addresses_from_ban_details()
+                update_addresses_from_ban_comparison()
 
         for addr in (conflicting, other):
             addr.refresh_from_db()
@@ -1483,22 +1479,22 @@ class TestUpdateAddressesFromBanDetails(TestCase):
 
     def test_duplicate_ban_id_aborts_the_batch(self):
         """
-        Input: two successes of a reliable city whose details hold the same
-        ban_id.
+        Input: two comparison successes of a reliable city whose details hold
+        the same ban_id.
         Expected: an IntegrityError is raised and none of them is updated.
         """
         first = self._create_address(
-            "04070_old_00001", "geocoding_success", _get_ban_details()
+            "04001_0040_00001", "comparison_success", _get_ban_details()
         )
         second = self._create_address(
-            "04070_old_00002",
+            "04001_0040_00002",
             "comparison_success",
             _get_ban_details(cle_interop="04001_0040_00002"),
         )
 
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                update_addresses_from_ban_details()
+                update_addresses_from_ban_comparison()
 
         for addr in (first, second):
             addr.refresh_from_db()

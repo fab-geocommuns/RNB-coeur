@@ -636,10 +636,10 @@ def _has_suffix(street_rep: str | None) -> bool:
     return bool(street_rep) and street_rep.lower() != "null"
 
 
-def update_addresses_from_ban_details(batch_size: int = 1000) -> dict:
+def update_addresses_from_ban_comparison(batch_size: int = 1000) -> dict:
     """
-    Update the addresses flagged "geocoding_success" or "comparison_success"
-    and not done yet with the BAN address stored in their ban_update_details:
+    Update the addresses flagged "comparison_success" and not done yet with
+    the BAN address stored in their ban_update_details:
     - cle_interop, street_number, street_rep, street, city_name,
       city_zipcode and city_insee_code are overwritten, empty values included;
     - point is updated only if lon and lat are both known;
@@ -659,9 +659,9 @@ def update_addresses_from_ban_details(batch_size: int = 1000) -> dict:
 
     while True:
         addresses = list(
-            Address.objects.filter(
-                ban_update_flag__in=[GEOCODING_SUCCESS, COMPARISON_SUCCESS]
-            ).exclude(ban_update_done=True)[:batch_size]
+            Address.objects.filter(ban_update_flag=COMPARISON_SUCCESS).exclude(
+                ban_update_done=True
+            )[:batch_size]
         )
         if not addresses:
             break
