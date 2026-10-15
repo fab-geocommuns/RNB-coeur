@@ -508,22 +508,23 @@ def queue_ban_address_flag_exists(
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def update_addresses_text_ban(src_params: dict, batch_size: int = 1000):  # type: ignore[assignment]
+def compare_addresses_with_ban(src_params: dict, batch_size: int = 1000):  # type: ignore[assignment]
     from batid.services.imports.update_addresses_ban import (
-        update_addresses_text_and_ban_id,
+        compare_addresses_with_ban_file,
     )
 
-    return update_addresses_text_and_ban_id(src_params, batch_size=batch_size)
+    return compare_addresses_with_ban_file(src_params, batch_size=batch_size)
 
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def queue_ban_address_text_update(
+def queue_ban_address_comparison(
     dpt_start: Optional[str] = None,
     dpt_end: Optional[str] = None,
     batch_size: int = 1000,
 ):
-    """Queue text update tasks for all departments."""
+    """Queue the comparison of the existing addresses with the BAN file for all
+    departments."""
     dpts = dpts_list(dpt_start, dpt_end)
 
     for dpt in dpts:
@@ -535,7 +536,7 @@ def queue_ban_address_text_update(
                 immutable=True,
             ),
             Signature(
-                "batid.tasks.update_addresses_text_ban",
+                "batid.tasks.compare_addresses_with_ban",
                 args=(src_params, batch_size),
                 immutable=True,
                 priority=8,
@@ -543,7 +544,7 @@ def queue_ban_address_text_update(
         ]
         chain(*tasks)()
 
-    return f"Queued text update for {len(dpts)} departments"
+    return f"Queued comparison with the BAN file for {len(dpts)} departments"
 
 
 @notify_if_error
