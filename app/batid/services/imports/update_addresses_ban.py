@@ -5,6 +5,7 @@ import re
 import unicodedata
 from datetime import datetime, timezone
 from io import StringIO
+from typing import cast
 
 from batid.models import Address
 from batid.services.geocoders import BanBatchGeocoder
@@ -697,7 +698,8 @@ def update_addresses_from_ban_comparison(batch_size: int = 1000) -> dict:
 
 def _apply_ban_details(addr: Address, now: datetime) -> None:
     """Copy the BAN address stored in ban_update_details onto the address."""
-    details = addr.ban_update_details
+    # the comparison always stores the details of a success
+    details = cast(dict, addr.ban_update_details)
 
     addr.cle_interop = details["cle_interop"]
     addr.street_number = details["street_number"]
