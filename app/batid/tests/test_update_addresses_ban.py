@@ -1595,9 +1595,7 @@ class TestReplaceObsoleteAddressesFromGeocoding(TestCase):
         fresh = self._create_address("04002_PK624E_00002")
         obsolete = self._create_obsolete(
             "04002_old_00001",
-            _get_ban_details(
-                cle_interop="04002_pk624e_00002", city_insee_code="04002"
-            ),
+            _get_ban_details(cle_interop="04002_pk624e_00002", city_insee_code="04002"),
         )
         bdg = self._create_bdg("BDG1", [obsolete])
 
