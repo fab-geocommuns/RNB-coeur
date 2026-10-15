@@ -7,12 +7,14 @@ from datetime import datetime, timezone
 from io import StringIO
 from typing import cast
 
-from batid.models import Address
+from batid.models import Address, Building, DataFix
 from batid.services.geocoders import BanBatchGeocoder
 from batid.services.imports.import_ban import has_city_reliable_ban_ids
 from batid.services.source import Source
+from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
-from django.db import connection
+from django.db import connection, transaction
+from django.db.models import Q
 from django.db.models.functions import Upper
 from django.db.models.lookups import In
 from pyproj import Geod
@@ -723,3 +725,196 @@ def _apply_ban_details(addr: Address, now: datetime) -> None:
     addr.ban_update_done = True
     # bulk_update does not apply auto_now
     addr.updated_at = now
+
+
+OBSOLETE_ADDRESSES_DATA_FIX_TEXT = "Retrait et remplacement des clés d'interop périmées"
+OBSOLETE_ADDRESSES_DATA_FIX_USERNAME = "paul"
+
+
+def replace_obsolete_addresses_from_geocoding(batch_size: int = 1000) -> dict:
+    """
+    Handle the obsolete addresses flagged "geocoding_success" and not done yet:
+    in the current version of the active and not validated buildings linked to
+    them, replace them with the fresh address of their ban_update_details, or
+    remove them when no usable fresh address is found
+    (see https://github.com/fab-geocommuns/RNB-coeur/issues/1105).
+
+    The fresh address is:
+    - the address holding the ban_id of the details, if this ban_id is reliable;
+    - else the address holding the cle_interop of the details (case-insensitive),
+      given the ban_id of the details if it is reliable and the address has
+      none. A "comparison_failure" address is not used: the obsolete address is
+      then only removed;
+    - else a new address created from the details.
+
+    Buildings are updated with Building.update, signed by the user of the
+    "Retrait et remplacement des clés d'interop périmées" DataFix, which is
+    created on the first run and reused by the next ones.
+
+    Each obsolete address is handled in its own transaction, which ends with
+    ban_update_done=True: a new run resumes where the previous one stopped.
+    """
+    data_fix = _get_obsolete_addresses_data_fix()
+    event_origin = {"source": "data_fix", "id": data_fix.id}
+    user = cast(User, data_fix.user)
+
+    last_internal_id = 0
+    stats = {
+        "addresses": 0,
+        "replaced": 0,
+        "removed": 0,
+        "created_addresses": 0,
+        "updated_buildings": 0,
+    }
+
+    while True:
+        addresses = list(
+            Address.objects.filter(
+                ban_update_flag=GEOCODING_SUCCESS,
+                internal_id__gt=last_internal_id,
+            )
+            .exclude(ban_update_done=True)
+            .order_by("internal_id")[:batch_size]
+        )
+        if not addresses:
+            break
+
+        last_internal_id = addresses[-1].internal_id
+
+        for obsolete in addresses:
+            with transaction.atomic():
+                _replace_obsolete_address(obsolete, user, event_origin, stats)
+
+        logger.info(
+            f"Replaced obsolete addresses up to internal_id {last_internal_id}: {stats}"
+        )
+
+    logger.info(f"Replacement of obsolete addresses done: {stats}")
+    return stats
+
+
+def _get_obsolete_addresses_data_fix() -> DataFix:
+    """The DataFix of the obsolete addresses replacement, created on the first
+    run. Its user must be staff: Building.update limits the number of
+    contributions of the other users."""
+    data_fix = (
+        DataFix.objects.filter(text=OBSOLETE_ADDRESSES_DATA_FIX_TEXT)
+        .order_by("id")
+        .first()
+    )
+    if data_fix is None:
+        data_fix = DataFix.objects.create(
+            text=OBSOLETE_ADDRESSES_DATA_FIX_TEXT,
+            user=User.objects.get(username=OBSOLETE_ADDRESSES_DATA_FIX_USERNAME),
+        )
+
+    if data_fix.user is None or not data_fix.user.is_staff:
+        raise Exception(f"The user of the DataFix {data_fix.id} must be staff")
+
+    return data_fix
+
+
+def _replace_obsolete_address(
+    obsolete: Address, user: User, event_origin: dict, stats: dict
+) -> None:
+    """Replace (or remove) an obsolete address in the buildings linked to it and
+    mark it as done. Must run in a transaction."""
+    fresh, created = _get_fresh_address(obsolete)
+
+    buildings = (
+        Building.objects.select_for_update()
+        .filter(
+            addresses_internal_id__contains=[obsolete.internal_id],
+            is_active=True,
+        )
+        .filter(Q(validated_by__isnull=True) | Q(validated_by=[]))
+        .order_by("id")
+    )
+    for building in buildings:
+        internal_ids = _replace_internal_id(
+            building.addresses_internal_id or [], obsolete.internal_id, fresh
+        )
+        building.update(
+            user,
+            event_origin,
+            status=None,
+            addresses_cle_interop=Address.cle_interop_from_internal_ids(
+                internal_ids
+            ),
+        )
+        stats["updated_buildings"] += 1
+
+    obsolete.ban_update_done = True
+    obsolete.save(update_fields=["ban_update_done", "updated_at"])
+
+    stats["addresses"] += 1
+    stats["replaced" if fresh else "removed"] += 1
+    if created:
+        stats["created_addresses"] += 1
+
+
+def _get_fresh_address(obsolete: Address) -> tuple[Address | None, bool]:
+    """The fresh address of an obsolete address, from its geocoding details, and
+    whether it has just been created. None when the address holding the
+    geocoded cle_interop is a comparison failure."""
+    # the geocoding always stores the details of a success
+    details = cast(dict, obsolete.ban_update_details)
+    reliable_ban_id = (
+        details["ban_id"]
+        if details["ban_id"]
+        and details["city_insee_code"]
+        and has_city_reliable_ban_ids(details["city_insee_code"])
+        else None
+    )
+
+    if reliable_ban_id:
+        fresh = Address.objects.filter(ban_id=reliable_ban_id).first()
+        if fresh:
+            return fresh, False
+
+    fresh = (
+        Address.objects.filter(
+            In(Upper("cle_interop"), [details["cle_interop"].upper()])
+        )
+        .order_by("internal_id")
+        .first()
+    )
+    if fresh:
+        if fresh.ban_update_flag == COMPARISON_FAILURE:
+            return None, False
+        if reliable_ban_id and fresh.ban_id is None:
+            # free: no address holds this ban_id (looked up above)
+            fresh.ban_id = reliable_ban_id
+            fresh.save(update_fields=["ban_id", "updated_at"])
+        return fresh, False
+
+    point = None
+    if details["lon"] is not None and details["lat"] is not None:
+        point = Point(details["lon"], details["lat"], srid=4326)
+
+    fresh = Address.objects.create(
+        cle_interop=details["cle_interop"],
+        street_number=details["street_number"],
+        street_rep=details["street_rep"],
+        street=details["street"],
+        city_name=details["city_name"],
+        city_zipcode=details["city_zipcode"],
+        city_insee_code=details["city_insee_code"],
+        point=point,
+        ban_id=reliable_ban_id,
+        source="BAN",
+        still_exists=True,
+    )
+    return fresh, True
+
+
+def _replace_internal_id(
+    internal_ids: list[int], obsolete_id: int, fresh: Address | None
+) -> list[int]:
+    """The addresses of a building once the obsolete one is replaced by the fresh
+    one, at the same position. The obsolete one is only removed when there is no
+    fresh address or when the building already has it."""
+    if fresh is None or fresh.internal_id in internal_ids:
+        return [i for i in internal_ids if i != obsolete_id]
+
+    return [fresh.internal_id if i == obsolete_id else i for i in internal_ids]

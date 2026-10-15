@@ -3,7 +3,7 @@ from io import StringIO
 from unittest.mock import Mock, patch
 
 import batid.tests.helpers as helpers
-from batid.models import Address, City
+from batid.models import Address, Building, City, DataFix
 from batid.services.imports.update_addresses_ban import (
     _expand_street_abbreviations,
     _is_comparison_success,
@@ -16,6 +16,7 @@ from batid.services.imports.update_addresses_ban import (
     flag_addresses_from_ban_file,
     geocode_obsolete_addresses,
     normalize_text,
+    replace_obsolete_addresses_from_geocoding,
     update_addresses_from_ban_comparison,
 )
 from batid.tests.factories.users import UserFactory
@@ -1497,3 +1498,353 @@ class TestUpdateAddressesFromBanComparison(TestCase):
         for addr in (first, second):
             addr.refresh_from_db()
             self.assertIsNone(addr.ban_update_done)
+
+
+class TestReplaceObsoleteAddressesFromGeocoding(TestCase):
+    def setUp(self):
+        # has_city_reliable_ban_ids caches its answer
+        cache.clear()
+        City.objects.create(
+            code_insee="04001", name="Aiglun", has_reliable_ban_ids=True
+        )
+        self.user = UserFactory(username="paul", is_staff=True)
+
+    @staticmethod
+    def _create_obsolete(cle_interop: str, details: dict, **fields) -> Address:
+        values = {
+            "source": "arcep",
+            "street": "rue de la gare",
+            "still_exists": False,
+            "ban_update_flag": "geocoding_success",
+            "ban_update_details": details,
+        }
+        values.update(fields)
+        return Address.objects.create(cle_interop=cle_interop, **values)
+
+    @staticmethod
+    def _create_address(cle_interop: str, **fields) -> Address:
+        return Address.objects.create(cle_interop=cle_interop, source="BAN", **fields)
+
+    @staticmethod
+    def _create_bdg(rnb_id: str, addresses: list[Address], **fields) -> Building:
+        bdg = helpers.create_default_bdg(rnb_id)
+        # bdg.save() is Django's native save (tests only): it bypasses the
+        # business functions
+        bdg.addresses_internal_id = [a.internal_id for a in addresses]
+        for field, value in fields.items():
+            setattr(bdg, field, value)
+        bdg.save()
+        return bdg
+
+    def test_obsolete_address_replaced_by_address_found_by_ban_id(self):
+        """
+        Input: a building linked to [A, obsolete, B]; the obsolete address
+        details hold a reliable ban_id held by the address "fresh", and the
+        cle_interop of another address.
+        Expected: the building is linked to [A, fresh, B], the update is signed
+        by the DataFix (event_origin) and its user, the obsolete address is
+        marked as done, no address is created.
+        """
+        fresh = self._create_address("04001_0040_00009", ban_id=BAN_ID)
+        self._create_address("04001_0040_00001")
+        a = self._create_address("04001_0040_00002")
+        b = self._create_address("04001_0040_00003")
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        bdg = self._create_bdg("BDG1", [a, obsolete, b])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(
+            result,
+            {
+                "addresses": 1,
+                "replaced": 1,
+                "removed": 0,
+                "created_addresses": 0,
+                "updated_buildings": 1,
+            },
+        )
+        data_fix = DataFix.objects.get()
+        self.assertEqual(
+            data_fix.text, "Retrait et remplacement des clés d'interop périmées"
+        )
+        self.assertEqual(data_fix.user, self.user)
+        bdg.refresh_from_db()
+        self.assertEqual(
+            bdg.addresses_internal_id, [a.internal_id, fresh.internal_id, b.internal_id]
+        )
+        self.assertEqual(bdg.event_type, "update")
+        self.assertEqual(bdg.event_origin, {"source": "data_fix", "id": data_fix.id})
+        self.assertEqual(bdg.event_user, self.user)
+        obsolete.refresh_from_db()
+        self.assertTrue(obsolete.ban_update_done)
+        self.assertEqual(Address.objects.count(), 5)
+
+    def test_unreliable_ban_id_falls_back_on_case_insensitive_cle_interop(self):
+        """
+        Input: details of a city with unreliable BAN ids, holding a ban_id held
+        by an address, and a lowercase cle_interop held in uppercase by
+        another address without ban_id.
+        Expected: the building is linked to the uppercase address, whose ban_id
+        stays empty; no address is created.
+        """
+        City.objects.create(
+            code_insee="04002", name="Allemagne", has_reliable_ban_ids=False
+        )
+        self._create_address("04002_0040_00009", ban_id=BAN_ID)
+        fresh = self._create_address("04002_PK624E_00002")
+        obsolete = self._create_obsolete(
+            "04002_old_00001",
+            _get_ban_details(
+                cle_interop="04002_pk624e_00002", city_insee_code="04002"
+            ),
+        )
+        bdg = self._create_bdg("BDG1", [obsolete])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["created_addresses"], 0)
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [fresh.internal_id])
+        fresh.refresh_from_db()
+        self.assertIsNone(fresh.ban_id)
+
+    def test_reliable_ban_id_is_given_to_address_found_by_cle_interop(self):
+        """
+        Input: details holding a reliable ban_id held by no address, and the
+        cle_interop of an address without ban_id.
+        Expected: the building is linked to this address, which gets the
+        ban_id.
+        """
+        fresh = self._create_address("04001_0040_00001")
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        bdg = self._create_bdg("BDG1", [obsolete])
+
+        replace_obsolete_addresses_from_geocoding()
+
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [fresh.internal_id])
+        fresh.refresh_from_db()
+        self.assertEqual(str(fresh.ban_id), BAN_ID)
+
+    def test_details_without_ban_id_use_cle_interop(self):
+        """
+        Input: details without ban_id, holding the cle_interop of an address
+        flagged "comparison_success".
+        Expected: the building is linked to this address, whose ban_id stays
+        empty.
+        """
+        fresh = self._create_address(
+            "04001_0040_00001", ban_update_flag="comparison_success"
+        )
+        obsolete = self._create_obsolete(
+            "04001_old_00001", _get_ban_details(ban_id=None)
+        )
+        bdg = self._create_bdg("BDG1", [obsolete])
+
+        replace_obsolete_addresses_from_geocoding()
+
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [fresh.internal_id])
+        fresh.refresh_from_db()
+        self.assertIsNone(fresh.ban_id)
+
+    def test_comparison_failure_address_is_not_used(self):
+        """
+        Input: a building linked to [obsolete, A]; the details cle_interop is
+        held by an address flagged "comparison_failure".
+        Expected: the obsolete address is only removed (building linked to
+        [A]), no address is created, the comparison failure gets no ban_id and
+        the obsolete address is marked as done.
+        """
+        failure = self._create_address(
+            "04001_0040_00001", ban_update_flag="comparison_failure"
+        )
+        a = self._create_address("04001_0040_00002")
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        bdg = self._create_bdg("BDG1", [obsolete, a])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["removed"], 1)
+        self.assertEqual(result["created_addresses"], 0)
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [a.internal_id])
+        failure.refresh_from_db()
+        self.assertIsNone(failure.ban_id)
+        obsolete.refresh_from_db()
+        self.assertTrue(obsolete.ban_update_done)
+
+    def test_fresh_address_is_created_from_details(self):
+        """
+        Input: details of a reliable city whose ban_id and cle_interop are held
+        by no address.
+        Expected: an address is created from the details (fields, point,
+        reliable ban_id, source "BAN", still_exists True) and replaces the
+        obsolete one on the building.
+        """
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        bdg = self._create_bdg("BDG1", [obsolete])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["created_addresses"], 1)
+        fresh = Address.objects.get(cle_interop="04001_0040_00001")
+        self.assertEqual(str(fresh.ban_id), BAN_ID)
+        self.assertEqual(fresh.street_number, "1")
+        self.assertEqual(fresh.street_rep, "bis")
+        self.assertEqual(fresh.street, "Place de la Mairie")
+        self.assertEqual(fresh.city_zipcode, "04510")
+        self.assertEqual(fresh.city_name, "Aiglun")
+        self.assertEqual(fresh.city_insee_code, "04001")
+        self.assertEqual((fresh.point.x, fresh.point.y), (GEOCODED_LON, GEOCODED_LAT))
+        self.assertEqual(fresh.source, "BAN")
+        self.assertTrue(fresh.still_exists)
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [fresh.internal_id])
+
+    def test_created_address_of_unreliable_city_has_no_ban_id(self):
+        """
+        Input: details of a city never checked for BAN ids reliability, whose
+        cle_interop is held by no address.
+        Expected: the address is created without ban_id.
+        """
+        obsolete = self._create_obsolete(
+            "04003_old_00001",
+            _get_ban_details(cle_interop="04003_0040_00001", city_insee_code="04003"),
+        )
+        self._create_bdg("BDG1", [obsolete])
+
+        replace_obsolete_addresses_from_geocoding()
+
+        self.assertIsNone(Address.objects.get(cle_interop="04003_0040_00001").ban_id)
+
+    def test_fresh_address_already_on_building_is_not_duplicated(self):
+        """
+        Input: a building linked to [obsolete, fresh], fresh holding the
+        reliable ban_id of the details.
+        Expected: the building is linked to [fresh] only.
+        """
+        fresh = self._create_address("04001_0040_00001", ban_id=BAN_ID)
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        bdg = self._create_bdg("BDG1", [obsolete, fresh])
+
+        replace_obsolete_addresses_from_geocoding()
+
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [fresh.internal_id])
+
+    def test_inactive_and_validated_buildings_are_not_updated(self):
+        """
+        Input: an obsolete address linked to an inactive building, a validated
+        building and a building with validated_by null.
+        Expected: only the building with validated_by null is updated; the
+        other two keep the obsolete address; the obsolete address is marked as
+        done.
+        """
+        fresh = self._create_address("04001_0040_00001", ban_id=BAN_ID)
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        inactive = self._create_bdg("BDG1", [obsolete], is_active=False)
+        validated = self._create_bdg("BDG2", [obsolete], validated_by=[self.user.id])
+        not_validated = self._create_bdg("BDG3", [obsolete], validated_by=None)
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["updated_buildings"], 1)
+        for bdg in (inactive, validated):
+            bdg.refresh_from_db()
+            self.assertEqual(bdg.addresses_internal_id, [obsolete.internal_id])
+        not_validated.refresh_from_db()
+        self.assertEqual(not_validated.addresses_internal_id, [fresh.internal_id])
+        obsolete.refresh_from_db()
+        self.assertTrue(obsolete.ban_update_done)
+
+    def test_only_geocoding_successes_not_done_are_handled(self):
+        """
+        Input: a geocoding failure and a geocoding success already done, each
+        linked to a building.
+        Expected: nothing is handled, the buildings keep their address and no
+        address is created.
+        """
+        failure = self._create_obsolete(
+            "04001_old_00001",
+            _get_ban_details(),
+            ban_update_flag="geocoding_failure",
+        )
+        done = self._create_obsolete(
+            "04001_old_00002", _get_ban_details(), ban_update_done=True
+        )
+        bdg_failure = self._create_bdg("BDG1", [failure])
+        bdg_done = self._create_bdg("BDG2", [done])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["addresses"], 0)
+        bdg_failure.refresh_from_db()
+        self.assertEqual(bdg_failure.addresses_internal_id, [failure.internal_id])
+        bdg_done.refresh_from_db()
+        self.assertEqual(bdg_done.addresses_internal_id, [done.internal_id])
+        self.assertEqual(Address.objects.count(), 2)
+        failure.refresh_from_db()
+        self.assertIsNone(failure.ban_update_done)
+
+    def test_data_fix_is_reused_and_addresses_handled_in_several_batches(self):
+        """
+        Input: 3 obsolete addresses, batch_size=2, then a second run with a new
+        obsolete address.
+        Expected: the 3 addresses are handled by the first run, the new one by
+        the second run, and a single DataFix is used by both runs.
+        """
+        for i in range(3):
+            self._create_obsolete(
+                f"04001_old_0000{i}",
+                _get_ban_details(cle_interop=f"04001_0040_0000{i}", ban_id=None),
+            )
+
+        result = replace_obsolete_addresses_from_geocoding(batch_size=2)
+        self.assertEqual(result["addresses"], 3)
+
+        self._create_obsolete(
+            "04001_old_00009",
+            _get_ban_details(cle_interop="04001_0040_00009", ban_id=None),
+        )
+        result = replace_obsolete_addresses_from_geocoding(batch_size=2)
+
+        self.assertEqual(result["addresses"], 1)
+        self.assertEqual(DataFix.objects.count(), 1)
+        self.assertEqual(Address.objects.filter(ban_update_done=True).count(), 4)
+
+    def test_data_fix_user_must_be_staff(self):
+        """
+        Input: the user "paul" is not staff.
+        Expected: an exception is raised before any address is handled.
+        """
+        self.user.is_staff = False
+        self.user.save()
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+
+        with self.assertRaises(Exception):
+            replace_obsolete_addresses_from_geocoding()
+
+        obsolete.refresh_from_db()
+        self.assertIsNone(obsolete.ban_update_done)
+
+    def test_failing_building_update_rolls_back_the_address(self):
+        """
+        Input: an obsolete address whose fresh address must be created, linked
+        to a building whose update fails.
+        Expected: the error is raised, the fresh address is not created and the
+        obsolete address is not marked as done.
+        """
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        self._create_bdg("BDG1", [obsolete])
+
+        with patch.object(Building, "update", side_effect=RuntimeError("boom")):
+            with self.assertRaises(RuntimeError):
+                replace_obsolete_addresses_from_geocoding()
+
+        self.assertFalse(
+            Address.objects.filter(cle_interop="04001_0040_00001").exists()
+        )
+        obsolete.refresh_from_db()
+        self.assertIsNone(obsolete.ban_update_done)
