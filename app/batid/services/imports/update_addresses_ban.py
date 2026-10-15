@@ -636,23 +636,12 @@ def _has_suffix(street_rep: str | None) -> bool:
     return bool(street_rep) and street_rep.lower() != "null"
 
 
-# Address fields copied as is from ban_update_details, empty values included
-BAN_DETAILS_FIELDS = [
-    "cle_interop",
-    "street_number",
-    "street_rep",
-    "street",
-    "city_name",
-    "city_zipcode",
-    "city_insee_code",
-]
-
-
 def update_addresses_from_ban_details(batch_size: int = 10000) -> dict:
     """
     Update the addresses flagged "geocoding_success" or "comparison_success"
     and not done yet with the BAN address stored in their ban_update_details:
-    - the BAN_DETAILS_FIELDS are overwritten, empty values included;
+    - cle_interop, street_number, street_rep, street, city_name,
+      city_zipcode and city_insee_code are overwritten, empty values included;
     - point is updated only if lon and lat are both known;
     - ban_id is updated only if the BAN ids of the city (city_insee_code of the
       details) are reliable;
@@ -683,8 +672,14 @@ def update_addresses_from_ban_details(batch_size: int = 10000) -> dict:
 
         Address.objects.bulk_update(
             addresses,
-            BAN_DETAILS_FIELDS
-            + [
+            [
+                "cle_interop",
+                "street_number",
+                "street_rep",
+                "street",
+                "city_name",
+                "city_zipcode",
+                "city_insee_code",
                 "point",
                 "ban_id",
                 "source",
@@ -705,8 +700,13 @@ def _apply_ban_details(addr: Address, now: datetime) -> None:
     """Copy the BAN address stored in ban_update_details onto the address."""
     details = addr.ban_update_details
 
-    for field in BAN_DETAILS_FIELDS:
-        setattr(addr, field, details[field])
+    addr.cle_interop = details["cle_interop"]
+    addr.street_number = details["street_number"]
+    addr.street_rep = details["street_rep"]
+    addr.street = details["street"]
+    addr.city_name = details["city_name"]
+    addr.city_zipcode = details["city_zipcode"]
+    addr.city_insee_code = details["city_insee_code"]
 
     if details["lon"] is not None and details["lat"] is not None:
         addr.point = Point(details["lon"], details["lat"], srid=4326)
