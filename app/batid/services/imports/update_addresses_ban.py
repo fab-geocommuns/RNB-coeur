@@ -747,8 +747,9 @@ def replace_obsolete_addresses_from_geocoding(batch_size: int = 1000) -> dict:
       none;
     - else a new address created from the details.
 
-    A found fresh address which is itself obsolete (still_exists=False) or a
-    comparison failure is ambiguous: no building is updated and
+    A found fresh address which is itself obsolete (still_exists=False), a
+    comparison failure or which holds another ban_id than the details is
+    ambiguous: no building is updated and
     "update_result": "skipped_because_of_ambiguous_new_address" is added to the
     ban_update_details of the obsolete address.
 
@@ -824,7 +825,7 @@ def _replace_obsolete_address(
     fresh, created = _get_fresh_address(details, reliable_ban_id)
     stats["addresses"] += 1
 
-    if _is_ambiguous(fresh):
+    if _is_ambiguous(fresh, details):
         obsolete.ban_update_details = {
             **details,
             "update_result": SKIPPED_AMBIGUOUS_NEW_ADDRESS,
@@ -922,10 +923,21 @@ def _get_fresh_address(
     return fresh, True
 
 
-def _is_ambiguous(fresh: Address) -> bool:
+def _is_ambiguous(fresh: Address, details: dict) -> bool:
     """Whether a fresh address can not replace an obsolete one: it is itself
-    obsolete or a comparison failure."""
-    return fresh.still_exists is False or fresh.ban_update_flag == COMPARISON_FAILURE
+    obsolete, a comparison failure or holds another ban_id than the geocoding
+    details of the obsolete one."""
+    # ban_id is a UUID once read from db, but the str given at creation
+    other_ban_id = (
+        fresh.ban_id is not None
+        and details["ban_id"] is not None
+        and str(fresh.ban_id).lower() != details["ban_id"].lower()
+    )
+    return (
+        fresh.still_exists is False
+        or fresh.ban_update_flag == COMPARISON_FAILURE
+        or other_ban_id
+    )
 
 
 def _replace_internal_id(
