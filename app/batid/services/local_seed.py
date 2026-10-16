@@ -154,9 +154,9 @@ class SeedTable:
     # primary key, whose sequence is reset after the load
     pk: str
     # SQL condition selecting the rows to copy, using the CTEs of selection_ctes()
-    where: str
+    where: sql.SQL
     # column -> SQL expression replacing its value (used to drop personal data)
-    overrides: dict
+    overrides: dict[str, sql.SQL]
 
 
 # Tables in loading order: addresses must exist before the buildings, since
@@ -165,13 +165,13 @@ SEED_TABLES = [
     SeedTable(
         name="batid_department",
         pk="id",
-        where="id IN (SELECT id FROM selected_departments)",
+        where=sql.SQL("id IN (SELECT id FROM selected_departments)"),
         overrides={},
     ),
     SeedTable(
         name="batid_department_subdivided",
         pk="id",
-        where=(
+        where=sql.SQL(
             "code IN (SELECT code FROM batid_department "
             "WHERE id IN (SELECT id FROM selected_departments))"
         ),
@@ -180,22 +180,22 @@ SEED_TABLES = [
     SeedTable(
         name="batid_city",
         pk="id",
-        where="id IN (SELECT id FROM selected_cities)",
+        where=sql.SQL("id IN (SELECT id FROM selected_cities)"),
         overrides={},
     ),
     SeedTable(
         name="batid_address",
         pk="internal_id",
-        where="internal_id IN (SELECT internal_id FROM selected_addresses)",
+        where=sql.SQL("internal_id IN (SELECT internal_id FROM selected_addresses)"),
         overrides={},
     ),
     SeedTable(
         name="batid_building",
         pk="id",
-        where="id IN (SELECT id FROM selected_buildings)",
+        where=sql.SQL("id IN (SELECT id FROM selected_buildings)"),
         overrides={
-            "event_user_id": "NULL",
-            "validated_by": "'{}'::integer[]",
+            "event_user_id": sql.SQL("NULL"),
+            "validated_by": sql.SQL("'{}'::integer[]"),
         },
     ),
 ]
@@ -208,21 +208,21 @@ EXTRA_TRUNCATED_TABLES = [
 ]
 
 
-def selection_ctes(cursor, zones: list[Zone]) -> str:
+def selection_ctes(zones: list[Zone]) -> sql.Composed:
     """
     Return the WITH clause selecting the ids of the rows to copy.
 
     The CTEs are MATERIALIZED so that each spatial join is planned on its own:
     a few zones joined to a big table through its spatial index.
     """
-    values = ", ".join(
-        sql.SQL("(ST_SetSRID(ST_MakePoint({}, {}), 4326), {}, {})")
-        .format(*map(sql.Literal, [z.lon, z.lat, z.radius_m, z.radius_deg]))
-        .as_string(cursor)
+    values = sql.SQL(", ").join(
+        sql.SQL("(ST_SetSRID(ST_MakePoint({}, {}), 4326), {}, {})").format(
+            *map(sql.Literal, [z.lon, z.lat, z.radius_m, z.radius_deg])
+        )
         for z in zones
     )
 
-    return f"""
+    return sql.SQL("""
         WITH zones(pt, radius_m, radius_deg) AS (VALUES {values}),
         selected_buildings AS MATERIALIZED (
             SELECT DISTINCT b.id
@@ -252,7 +252,7 @@ def selection_ctes(cursor, zones: list[Zone]) -> str:
             FROM zones z
             JOIN batid_department d ON ST_DWithin(d.shape, z.pt, z.radius_deg)
         )
-    """
+    """).format(values=values)
 
 
 def count_rows(source_conn, zones: list[Zone]) -> dict[str, int]:
@@ -261,10 +261,12 @@ def count_rows(source_conn, zones: list[Zone]) -> dict[str, int]:
     """
     counts = {}
     with source_conn.cursor() as cursor:
-        ctes = selection_ctes(cursor, zones)
+        ctes = selection_ctes(zones)
         for table in SEED_TABLES:
             cursor.execute(
-                f"{ctes} SELECT count(*) FROM {table.name} WHERE {table.where}"
+                sql.SQL("{} SELECT count(*) FROM {} WHERE {}").format(
+                    ctes, sql.Identifier(table.name), table.where
+                )
             )
             counts[table.name] = cursor.fetchone()[0]
     return counts
@@ -302,7 +304,9 @@ def _reset_sequence(cursor, table: str, column: str):
         sequence = match.group(1)
 
     cursor.execute(
-        f"SELECT setval(%s, COALESCE((SELECT MAX({column}) FROM {table}), 0) + 1, false)",
+        sql.SQL(
+            "SELECT setval(%s, COALESCE((SELECT MAX({}) FROM {}), 0) + 1, false)"
+        ).format(sql.Identifier(column), sql.Identifier(table)),
         [sequence],
     )
 
@@ -315,7 +319,11 @@ def _reset_sequence(cursor, table: str, column: str):
 def target_is_empty() -> bool:
     with connection.cursor() as cursor:
         for table in SEED_TABLES:
-            cursor.execute(f"SELECT EXISTS (SELECT 1 FROM {table.name})")
+            cursor.execute(
+                sql.SQL("SELECT EXISTS (SELECT 1 FROM {})").format(
+                    sql.Identifier(table.name)
+                )
+            )
             if cursor.fetchone()[0]:
                 return False
     return True
@@ -346,9 +354,13 @@ def seed(
             if truncate:
                 tables = [t.name for t in SEED_TABLES] + EXTRA_TRUNCATED_TABLES
                 # CASCADE also empties the local tables referencing those ones (reports, ...)
-                target.execute(f"TRUNCATE {', '.join(tables)} CASCADE")
+                target.execute(
+                    sql.SQL("TRUNCATE {} CASCADE").format(
+                        sql.SQL(", ").join(map(sql.Identifier, tables))
+                    )
+                )
 
-            ctes = selection_ctes(source, zones)
+            ctes = selection_ctes(zones)
 
             for table in SEED_TABLES:
                 target_columns = _table_columns(target, table.name)
@@ -362,12 +374,17 @@ def seed(
                         f"laissées à leur valeur par défaut : {', '.join(missing)}"
                     )
 
-                select_list = ", ".join(table.overrides.get(c, c) for c in columns)
+                select_list = sql.SQL(", ").join(
+                    table.overrides.get(c, sql.Identifier(c)) for c in columns
+                )
 
                 with tempfile.TemporaryFile() as buffer:
                     with source.copy(
-                        f"COPY ({ctes} SELECT {select_list} FROM {table.name} "
-                        f"WHERE {table.where}) TO STDOUT"
+                        sql.SQL(
+                            "COPY ({} SELECT {} FROM {} WHERE {}) TO STDOUT"
+                        ).format(
+                            ctes, select_list, sql.Identifier(table.name), table.where
+                        )
                     ) as copy:
                         for data in copy:
                             buffer.write(data)
@@ -380,7 +397,11 @@ def seed(
                         sep="\t",
                     )
 
-                target.execute(f"SELECT count(*) FROM {table.name}")
+                target.execute(
+                    sql.SQL("SELECT count(*) FROM {}").format(
+                        sql.Identifier(table.name)
+                    )
+                )
                 loaded[table.name] = target.fetchone()[0]
                 log(f"  ✓ {table.name} : {loaded[table.name]} lignes")
 
