@@ -14,7 +14,6 @@ from batid.services.source import Source
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
 from django.db import connection, transaction
-from django.db.models import Q
 from django.db.models.functions import Upper
 from django.db.models.lookups import In
 from pyproj import Geod
@@ -729,25 +728,32 @@ def _apply_ban_details(addr: Address, now: datetime) -> None:
 
 OBSOLETE_ADDRESSES_DATA_FIX_TEXT = "Retrait et remplacement des clés d'interop périmées"
 OBSOLETE_ADDRESSES_DATA_FIX_USERNAME = "paul"
+# update_result stored in the ban_update_details of an obsolete address whose
+# found fresh address is itself obsolete or a comparison failure
+SKIPPED_AMBIGUOUS_NEW_ADDRESS = "skipped_because_of_ambiguous_new_address"
 
 
 def replace_obsolete_addresses_from_geocoding(batch_size: int = 1000) -> dict:
     """
     Handle the obsolete addresses flagged "geocoding_success" and not done yet:
-    in the current version of the active and not validated buildings linked to
-    them, replace them with the fresh address of their ban_update_details, or
-    remove them when no usable fresh address is found
+    in the current version of the active buildings linked to them, replace them
+    with the fresh address of their ban_update_details
     (see https://github.com/fab-geocommuns/RNB-coeur/issues/1105).
 
     The fresh address is:
     - the address holding the ban_id of the details, if this ban_id is reliable;
     - else the address holding the cle_interop of the details (case-insensitive),
       given the ban_id of the details if it is reliable and the address has
-      none. A "comparison_failure" address is not used: the obsolete address is
-      then only removed;
+      none;
     - else a new address created from the details.
 
-    Buildings are updated with Building.update, signed by the user of the
+    A found fresh address which is itself obsolete (still_exists=False) or a
+    comparison failure is ambiguous: no building is updated and
+    "update_result": "skipped_because_of_ambiguous_new_address" is added to the
+    ban_update_details of the obsolete address.
+
+    Buildings are updated with Building.update, which removes their validations,
+    signed by the user of the
     "Retrait et remplacement des clés d'interop périmées" DataFix, which is
     created on the first run and reused by the next ones.
 
@@ -762,7 +768,7 @@ def replace_obsolete_addresses_from_geocoding(batch_size: int = 1000) -> dict:
     stats = {
         "addresses": 0,
         "replaced": 0,
-        "removed": 0,
+        "skipped": 0,
         "created_addresses": 0,
         "updated_buildings": 0,
     }
@@ -817,9 +823,22 @@ def _get_obsolete_addresses_data_fix() -> DataFix:
 def _replace_obsolete_address(
     obsolete: Address, user: User, event_origin: dict, stats: dict
 ) -> None:
-    """Replace (or remove) an obsolete address in the buildings linked to it and
-    mark it as done. Must run in a transaction."""
+    """Replace an obsolete address in the buildings linked to it and mark it as
+    done. Must run in a transaction."""
     fresh, created = _get_fresh_address(obsolete)
+    stats["addresses"] += 1
+
+    if fresh is None:
+        obsolete.ban_update_details = {
+            **cast(dict, obsolete.ban_update_details),
+            "update_result": SKIPPED_AMBIGUOUS_NEW_ADDRESS,
+        }
+        obsolete.ban_update_done = True
+        obsolete.save(
+            update_fields=["ban_update_details", "ban_update_done", "updated_at"]
+        )
+        stats["skipped"] += 1
+        return
 
     buildings = (
         Building.objects.select_for_update()
@@ -827,7 +846,6 @@ def _replace_obsolete_address(
             addresses_internal_id__contains=[obsolete.internal_id],
             is_active=True,
         )
-        .filter(Q(validated_by__isnull=True) | Q(validated_by=[]))
         .order_by("id")
     )
     for building in buildings:
@@ -845,16 +863,15 @@ def _replace_obsolete_address(
     obsolete.ban_update_done = True
     obsolete.save(update_fields=["ban_update_done", "updated_at"])
 
-    stats["addresses"] += 1
-    stats["replaced" if fresh else "removed"] += 1
+    stats["replaced"] += 1
     if created:
         stats["created_addresses"] += 1
 
 
 def _get_fresh_address(obsolete: Address) -> tuple[Address | None, bool]:
     """The fresh address of an obsolete address, from its geocoding details, and
-    whether it has just been created. None when the address holding the
-    geocoded cle_interop is a comparison failure."""
+    whether it has just been created. None when the found address is ambiguous:
+    itself obsolete or a comparison failure."""
     # the geocoding always stores the details of a success
     details = cast(dict, obsolete.ban_update_details)
     reliable_ban_id = (
@@ -868,7 +885,7 @@ def _get_fresh_address(obsolete: Address) -> tuple[Address | None, bool]:
     if reliable_ban_id:
         fresh = Address.objects.filter(ban_id=reliable_ban_id).first()
         if fresh:
-            return fresh, False
+            return (None if _is_ambiguous(fresh) else fresh), False
 
     fresh = (
         Address.objects.filter(
@@ -878,7 +895,7 @@ def _get_fresh_address(obsolete: Address) -> tuple[Address | None, bool]:
         .first()
     )
     if fresh:
-        if fresh.ban_update_flag == COMPARISON_FAILURE:
+        if _is_ambiguous(fresh):
             return None, False
         if reliable_ban_id and fresh.ban_id is None:
             # free: no address holds this ban_id (looked up above)
@@ -906,13 +923,18 @@ def _get_fresh_address(obsolete: Address) -> tuple[Address | None, bool]:
     return fresh, True
 
 
+def _is_ambiguous(fresh: Address) -> bool:
+    """Whether a found fresh address can not replace an obsolete one."""
+    return fresh.still_exists is False or fresh.ban_update_flag == COMPARISON_FAILURE
+
+
 def _replace_internal_id(
-    internal_ids: list[int], obsolete_id: int, fresh: Address | None
+    internal_ids: list[int], obsolete_id: int, fresh: Address
 ) -> list[int]:
     """The addresses of a building once the obsolete one is replaced by the fresh
-    one, at the same position. The obsolete one is only removed when there is no
-    fresh address or when the building already has it."""
-    if fresh is None or fresh.internal_id in internal_ids:
+    one, at the same position. The obsolete one is only removed when the
+    building already has the fresh one."""
+    if fresh.internal_id in internal_ids:
         return [i for i in internal_ids if i != obsolete_id]
 
     return [fresh.internal_id if i == obsolete_id else i for i in internal_ids]

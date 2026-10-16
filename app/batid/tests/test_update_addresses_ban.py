@@ -1559,7 +1559,7 @@ class TestReplaceObsoleteAddressesFromGeocoding(TestCase):
             {
                 "addresses": 1,
                 "replaced": 1,
-                "removed": 0,
+                "skipped": 0,
                 "created_addresses": 0,
                 "updated_buildings": 1,
             },
@@ -1647,31 +1647,73 @@ class TestReplaceObsoleteAddressesFromGeocoding(TestCase):
         fresh.refresh_from_db()
         self.assertIsNone(fresh.ban_id)
 
-    def test_comparison_failure_address_is_not_used(self):
+    def test_ambiguous_fresh_address_skips_the_obsolete_address(self):
         """
-        Input: a building linked to [obsolete, A]; the details cle_interop is
-        held by an address flagged "comparison_failure".
-        Expected: the obsolete address is only removed (building linked to
-        [A]), no address is created, the comparison failure gets no ban_id and
-        the obsolete address is marked as done.
+        Input: three obsolete addresses, each linked to a building with another
+        address A; the fresh address found is, respectively, a comparison
+        failure found by cle_interop, an obsolete address (still_exists=False)
+        found by cle_interop and an obsolete address found by ban_id.
+        Expected: no building is updated, no address is created, the found
+        addresses get no ban_id, each obsolete address is marked as done and
+        its details get "update_result":
+        "skipped_because_of_ambiguous_new_address".
         """
+        other_ban_id = "3fbce2cc-1ad7-422a-ac99-722dd94760d3"
         failure = self._create_address(
             "04001_0040_00001", ban_update_flag="comparison_failure"
         )
-        a = self._create_address("04001_0040_00002")
-        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
-        bdg = self._create_bdg("BDG1", [obsolete, a])
+        not_existing = self._create_address("04001_0040_00002", still_exists=False)
+        self._create_address(
+            "04001_0040_00003", ban_id=other_ban_id, still_exists=False
+        )
+        a = self._create_address("04001_0040_00009")
+        obsoletes = [
+            self._create_obsolete("04001_old_00001", _get_ban_details()),
+            self._create_obsolete(
+                "04001_old_00002",
+                _get_ban_details(
+                    cle_interop="04001_0040_00002",
+                    ban_id="4fbce2cc-1ad7-422a-ac99-722dd94760d3",
+                ),
+            ),
+            self._create_obsolete(
+                "04001_old_00003",
+                _get_ban_details(cle_interop="04001_0040_00004", ban_id=other_ban_id),
+            ),
+        ]
+        bdgs = [
+            self._create_bdg(f"BDG{i}", [obsolete, a])
+            for i, obsolete in enumerate(obsoletes)
+        ]
 
         result = replace_obsolete_addresses_from_geocoding()
 
-        self.assertEqual(result["removed"], 1)
-        self.assertEqual(result["created_addresses"], 0)
-        bdg.refresh_from_db()
-        self.assertEqual(bdg.addresses_internal_id, [a.internal_id])
-        failure.refresh_from_db()
-        self.assertIsNone(failure.ban_id)
-        obsolete.refresh_from_db()
-        self.assertTrue(obsolete.ban_update_done)
+        self.assertEqual(
+            result,
+            {
+                "addresses": 3,
+                "replaced": 0,
+                "skipped": 3,
+                "created_addresses": 0,
+                "updated_buildings": 0,
+            },
+        )
+        for bdg, obsolete in zip(bdgs, obsoletes):
+            bdg.refresh_from_db()
+            self.assertEqual(
+                bdg.addresses_internal_id, [obsolete.internal_id, a.internal_id]
+            )
+            self.assertEqual(bdg.event_type, "creation")
+            obsolete.refresh_from_db()
+            self.assertTrue(obsolete.ban_update_done)
+            self.assertEqual(
+                obsolete.ban_update_details["update_result"],
+                "skipped_because_of_ambiguous_new_address",
+            )
+        for addr in (failure, not_existing):
+            addr.refresh_from_db()
+            self.assertIsNone(addr.ban_id)
+        self.assertEqual(Address.objects.count(), 7)
 
     def test_fresh_address_is_created_from_details(self):
         """
@@ -1732,28 +1774,27 @@ class TestReplaceObsoleteAddressesFromGeocoding(TestCase):
         bdg.refresh_from_db()
         self.assertEqual(bdg.addresses_internal_id, [fresh.internal_id])
 
-    def test_inactive_and_validated_buildings_are_not_updated(self):
+    def test_validated_buildings_are_updated_but_not_inactive_ones(self):
         """
-        Input: an obsolete address linked to an inactive building, a validated
-        building and a building with validated_by null.
-        Expected: only the building with validated_by null is updated; the
-        other two keep the obsolete address; the obsolete address is marked as
-        done.
+        Input: an obsolete address linked to an inactive building and to a
+        validated building.
+        Expected: the inactive building keeps the obsolete address; the
+        validated building is linked to the fresh address and loses its
+        validations; the obsolete address is marked as done.
         """
         fresh = self._create_address("04001_0040_00001", ban_id=BAN_ID)
         obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
         inactive = self._create_bdg("BDG1", [obsolete], is_active=False)
         validated = self._create_bdg("BDG2", [obsolete], validated_by=[self.user.id])
-        not_validated = self._create_bdg("BDG3", [obsolete], validated_by=None)
 
         result = replace_obsolete_addresses_from_geocoding()
 
         self.assertEqual(result["updated_buildings"], 1)
-        for bdg in (inactive, validated):
-            bdg.refresh_from_db()
-            self.assertEqual(bdg.addresses_internal_id, [obsolete.internal_id])
-        not_validated.refresh_from_db()
-        self.assertEqual(not_validated.addresses_internal_id, [fresh.internal_id])
+        inactive.refresh_from_db()
+        self.assertEqual(inactive.addresses_internal_id, [obsolete.internal_id])
+        validated.refresh_from_db()
+        self.assertEqual(validated.addresses_internal_id, [fresh.internal_id])
+        self.assertEqual(validated.validated_by, [])
         obsolete.refresh_from_db()
         self.assertTrue(obsolete.ban_update_done)
 
