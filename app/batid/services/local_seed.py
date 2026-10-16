@@ -15,9 +15,10 @@ import re
 import tempfile
 from dataclasses import dataclass
 
-from batid.utils.db import DISABLE_BUILDING_VERSIONING_SETTING
+from batid.utils.db import DISABLE_BUILDING_VERSIONING_SETTING, copy_from_file
 from django.conf import settings
 from django.db import connection, transaction
+from psycopg import sql
 
 MAX_RADIUS_KM = 10
 
@@ -215,10 +216,9 @@ def selection_ctes(cursor, zones: list[Zone]) -> str:
     a few zones joined to a big table through its spatial index.
     """
     values = ", ".join(
-        cursor.mogrify(
-            "(ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s)",
-            [z.lon, z.lat, z.radius_m, z.radius_deg],
-        ).decode()
+        sql.SQL("(ST_SetSRID(ST_MakePoint({}, {}), 4326), {}, {})")
+        .format(*map(sql.Literal, [z.lon, z.lat, z.radius_m, z.radius_deg]))
+        .as_string(cursor)
         for z in zones
     )
 
@@ -325,7 +325,7 @@ def seed(
     source_conn, zones: list[Zone], truncate: bool = False, log=print
 ) -> dict[str, int]:
     """
-    Copy the selected rows from the source connection (psycopg2) into the
+    Copy the selected rows from the source connection (psycopg) into the
     default database. Everything happens in a single transaction.
     Returns the number of rows loaded per table.
     """
@@ -363,17 +363,21 @@ def seed(
                     )
 
                 select_list = ", ".join(table.overrides.get(c, c) for c in columns)
-                column_list = ", ".join(columns)
 
                 with tempfile.TemporaryFile() as buffer:
-                    source.copy_expert(
+                    with source.copy(
                         f"COPY ({ctes} SELECT {select_list} FROM {table.name} "
-                        f"WHERE {table.where}) TO STDOUT",
-                        buffer,
-                    )
+                        f"WHERE {table.where}) TO STDOUT"
+                    ) as copy:
+                        for data in copy:
+                            buffer.write(data)
                     buffer.seek(0)
-                    target.copy_expert(
-                        f"COPY {table.name} ({column_list}) FROM STDIN", buffer
+                    copy_from_file(
+                        cursor=target,
+                        file=buffer,
+                        table=table.name,
+                        columns=columns,
+                        sep="\t",
                     )
 
                 target.execute(f"SELECT count(*) FROM {table.name}")

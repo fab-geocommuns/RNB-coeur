@@ -3,7 +3,7 @@ import readline  # noqa: F401 (enables line editing and history in input())
 import sys
 from getpass import getpass
 
-import psycopg2
+import psycopg
 from batid.services.local_seed import (
     MAX_RADIUS_KM,
     SeedConfigError,
@@ -72,11 +72,11 @@ class Command(BaseCommand):
 
         self.stdout.write("Connexion à la base source…")
         try:
-            source_conn = psycopg2.connect(dsn)
-        except psycopg2.OperationalError as e:
+            source_conn = psycopg.connect(dsn)
+        except psycopg.OperationalError as e:
             raise CommandError(f"Connexion à la base source impossible : {e}")
         # the source is only read, never written
-        source_conn.set_session(readonly=True)
+        source_conn.read_only = True
 
         try:
             self._run(source_conn, zones, options)
