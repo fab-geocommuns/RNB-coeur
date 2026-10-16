@@ -758,13 +758,13 @@ def replace_obsolete_addresses_from_geocoding(batch_size: int = 1000) -> dict:
     created on the first run and reused by the next ones.
 
     Each obsolete address is handled in its own transaction, which ends with
-    ban_update_done=True: a new run resumes where the previous one stopped.
+    ban_update_done=True: every batch only holds addresses not done yet and a
+    new run resumes where the previous one stopped.
     """
     data_fix = _get_obsolete_addresses_data_fix()
     event_origin = {"source": "data_fix", "id": data_fix.id}
     user = cast(User, data_fix.user)
 
-    last_internal_id = 0
     stats = {
         "addresses": 0,
         "replaced": 0,
@@ -775,25 +775,18 @@ def replace_obsolete_addresses_from_geocoding(batch_size: int = 1000) -> dict:
 
     while True:
         addresses = list(
-            Address.objects.filter(
-                ban_update_flag=GEOCODING_SUCCESS,
-                internal_id__gt=last_internal_id,
-            )
-            .exclude(ban_update_done=True)
-            .order_by("internal_id")[:batch_size]
+            Address.objects.filter(ban_update_flag=GEOCODING_SUCCESS).exclude(
+                ban_update_done=True
+            )[:batch_size]
         )
         if not addresses:
             break
-
-        last_internal_id = addresses[-1].internal_id
 
         for obsolete in addresses:
             with transaction.atomic():
                 _replace_obsolete_address(obsolete, user, event_origin, stats)
 
-        logger.info(
-            f"Replaced obsolete addresses up to internal_id {last_internal_id}: {stats}"
-        )
+        logger.info(f"Replaced obsolete addresses so far: {stats}")
 
     logger.info(f"Replacement of obsolete addresses done: {stats}")
     return stats
@@ -825,12 +818,15 @@ def _replace_obsolete_address(
 ) -> None:
     """Replace an obsolete address in the buildings linked to it and mark it as
     done. Must run in a transaction."""
-    fresh, created = _get_fresh_address(obsolete)
+    # the geocoding always stores the details of a success
+    details = cast(dict, obsolete.ban_update_details)
+    reliable_ban_id = _reliable_ban_id(details)
+    fresh, created = _get_fresh_address(details, reliable_ban_id)
     stats["addresses"] += 1
 
-    if fresh is None:
+    if _is_ambiguous(fresh):
         obsolete.ban_update_details = {
-            **cast(dict, obsolete.ban_update_details),
+            **details,
             "update_result": SKIPPED_AMBIGUOUS_NEW_ADDRESS,
         }
         obsolete.ban_update_done = True
@@ -839,6 +835,11 @@ def _replace_obsolete_address(
         )
         stats["skipped"] += 1
         return
+
+    if reliable_ban_id and fresh.ban_id is None:
+        # free: _get_fresh_address found no address holding this ban_id
+        fresh.ban_id = reliable_ban_id
+        fresh.save(update_fields=["ban_id", "updated_at"])
 
     buildings = (
         Building.objects.select_for_update()
@@ -868,24 +869,28 @@ def _replace_obsolete_address(
         stats["created_addresses"] += 1
 
 
-def _get_fresh_address(obsolete: Address) -> tuple[Address | None, bool]:
-    """The fresh address of an obsolete address, from its geocoding details, and
-    whether it has just been created. None when the found address is ambiguous:
-    itself obsolete or a comparison failure."""
-    # the geocoding always stores the details of a success
-    details = cast(dict, obsolete.ban_update_details)
-    reliable_ban_id = (
+def _reliable_ban_id(details: dict) -> str | None:
+    """The ban_id of geocoding details, if the BAN ids of its city are reliable."""
+    if (
         details["ban_id"]
-        if details["ban_id"]
         and details["city_insee_code"]
         and has_city_reliable_ban_ids(details["city_insee_code"])
-        else None
-    )
+    ):
+        return details["ban_id"]
+    return None
 
+
+def _get_fresh_address(
+    details: dict, reliable_ban_id: str | None
+) -> tuple[Address, bool]:
+    """The fresh address of geocoding details, and whether it has just been
+    created: the address holding the reliable ban_id, else the address holding
+    the cle_interop (case-insensitive), else a new address created from the
+    details. A found address may be ambiguous (see _is_ambiguous)."""
     if reliable_ban_id:
         fresh = Address.objects.filter(ban_id=reliable_ban_id).first()
         if fresh:
-            return (None if _is_ambiguous(fresh) else fresh), False
+            return fresh, False
 
     fresh = (
         Address.objects.filter(
@@ -895,12 +900,6 @@ def _get_fresh_address(obsolete: Address) -> tuple[Address | None, bool]:
         .first()
     )
     if fresh:
-        if _is_ambiguous(fresh):
-            return None, False
-        if reliable_ban_id and fresh.ban_id is None:
-            # free: no address holds this ban_id (looked up above)
-            fresh.ban_id = reliable_ban_id
-            fresh.save(update_fields=["ban_id", "updated_at"])
         return fresh, False
 
     point = None
@@ -924,7 +923,8 @@ def _get_fresh_address(obsolete: Address) -> tuple[Address | None, bool]:
 
 
 def _is_ambiguous(fresh: Address) -> bool:
-    """Whether a found fresh address can not replace an obsolete one."""
+    """Whether a fresh address can not replace an obsolete one: it is itself
+    obsolete or a comparison failure."""
     return fresh.still_exists is False or fresh.ban_update_flag == COMPARISON_FAILURE
 
 
