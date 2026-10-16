@@ -573,3 +573,13 @@ def update_addresses_from_ban_comparison_task(batch_size: int = 1000):
     )
 
     return update_addresses_from_ban_comparison(batch_size)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def replace_obsolete_addresses_from_geocoding_task(batch_size: int = 1000):
+    from batid.services.imports.update_addresses_ban import (
+        replace_obsolete_addresses_from_geocoding,
+    )
+
+    return replace_obsolete_addresses_from_geocoding(batch_size)
