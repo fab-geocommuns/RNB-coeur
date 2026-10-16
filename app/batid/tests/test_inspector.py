@@ -1729,3 +1729,40 @@ class GeosIntersectsBugInterception(TransactionTestCase):
 
             refusals_counts = _report_count_refusals(since)
             self.assertDictEqual(refusals_counts, {"topology_exception": 1})
+
+
+class TestInspectorMatchingStatus(TestCase):
+    COORDS = [
+        [2.349804906833981, 48.85789205519228],
+        [2.349701279442314, 48.85786369735885],
+        [2.3496535925009994, 48.85777922711969],
+        [2.349861764341199, 48.85773095834841],
+        [2.3499452164882086, 48.857847406681174],
+        [2.349804906833981, 48.85789205519228],
+    ]
+
+    def test_non_real_status_is_not_a_match(self):
+        """
+        Input: candidate overlapping a demolished and a constructed building.
+        Expected: only the constructed building matches; the candidate shape is
+        read back as a geometry.
+        """
+        create_bdg("CONSTRUCTED1", self.COORDS)
+        create_bdg("DEMOLISHED01", self.COORDS)
+        Building.objects.filter(rnb_id="DEMOLISHED01").update(status="demolished")
+        Candidate.objects.create(
+            shape=coords_to_mp_geom(self.COORDS),
+            source="bdnb",
+            source_version="7.2",
+            source_id="bdnb_1",
+            address_keys=[],
+            is_light=False,
+            created_by={"id": 46, "source": "import"},
+        )
+
+        inspector = Inspector()
+        inspector.get_candidate()
+        self.assertIsNotNone(inspector.candidate)
+        self.assertEqual(inspector.candidate.shape.geom_type, "MultiPolygon")
+        inspector.get_matching_bdgs()
+        self.assertEqual([b.rnb_id for b in inspector.matching_bdgs], ["CONSTRUCTED1"])
