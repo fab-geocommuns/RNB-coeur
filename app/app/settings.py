@@ -313,6 +313,15 @@ CELERY_TASK_DEFAULT_ROUTING_KEY = "default"
 CELERY_TASK_DEFAULT_PRIORITY = 5
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
+# Shared by every web worker and Celery process: Pro Connect one-time login
+# codes, DRF throttling counters, OIDC discovery/JWKS. DB 0 holds Celery results.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.environ.get("REDIS_CACHE_URL", "redis://redis:6379/1"),
+    }
+}
+
 
 CELERY_BEAT_SCHEDULE = get_celery_beat_schedule(ENVIRONMENT)
 
