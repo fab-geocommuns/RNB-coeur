@@ -1,5 +1,6 @@
 from .building import *  # noqa
 from .contribution import *  # noqa
+from .edition_activity import *  # noqa
 from .email_notification import *  # noqa
 from .event_annotation import *  # noqa
 from .feve import *  # noqa

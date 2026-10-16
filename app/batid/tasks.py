@@ -294,6 +294,18 @@ def compute_daily_kpis():
     return "done"
 
 
+@shared_task
+def record_edition_activity():
+    """
+    Record the recent contributor editions in the EditionActivity table,
+    used by the public edition statistics.
+    """
+    from batid.services.edition_activity import record_recent_edition_activity
+
+    inserted = record_recent_edition_activity()
+    return f"{inserted} editions recorded"
+
+
 # @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 # def delete_to_deactivation(batch_size=10000):
 #     delete_to_deactivation_job(batch_size)

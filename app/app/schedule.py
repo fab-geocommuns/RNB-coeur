@@ -11,6 +11,11 @@ common_schedule = {
         # everyday at 4am
         "schedule": crontab(hour=4, minute=0),
     },
+    "record_edition_activity": {
+        "task": "batid.tasks.record_edition_activity",
+        # every 10 minutes
+        "schedule": crontab(minute="*/10"),
+    },
 }
 
 development_schedule = {
