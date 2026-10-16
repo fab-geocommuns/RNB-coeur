@@ -1715,6 +1715,78 @@ class TestReplaceObsoleteAddressesFromGeocoding(TestCase):
             self.assertIsNone(addr.ban_id)
         self.assertEqual(Address.objects.count(), 7)
 
+    def test_fresh_address_with_another_ban_id_is_ambiguous(self):
+        """
+        Input: details holding a reliable ban_id held by no address, and the
+        cle_interop of an address holding another ban_id; a building linked to
+        the obsolete address.
+        Expected: the obsolete address is skipped: the building keeps it, its
+        details get "update_result":
+        "skipped_because_of_ambiguous_new_address", it is marked as done and
+        the found address keeps its ban_id.
+        """
+        other_ban_id = "3fbce2cc-1ad7-422a-ac99-722dd94760d3"
+        found = self._create_address("04001_0040_00001", ban_id=other_ban_id)
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        bdg = self._create_bdg("BDG1", [obsolete])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["skipped"], 1)
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [obsolete.internal_id])
+        obsolete.refresh_from_db()
+        self.assertTrue(obsolete.ban_update_done)
+        self.assertEqual(
+            obsolete.ban_update_details["update_result"],
+            "skipped_because_of_ambiguous_new_address",
+        )
+        found.refresh_from_db()
+        self.assertEqual(str(found.ban_id), other_ban_id)
+
+    def test_fresh_address_with_same_or_without_ban_id_details_is_not_ambiguous(
+        self,
+    ):
+        """
+        Input: two obsolete addresses, each linked to a building, whose fresh
+        address is found by cle_interop: one in a city with unreliable BAN ids
+        (no lookup by ban_id) whose details hold the uppercase ban_id of the
+        fresh address, the other whose details have no ban_id while the fresh
+        address has one.
+        Expected: both obsolete addresses are replaced by their fresh address,
+        none is skipped.
+        """
+        City.objects.create(
+            code_insee="04002", name="Allemagne", has_reliable_ban_ids=False
+        )
+        same = self._create_address("04002_0040_00001", ban_id=BAN_ID)
+        with_ban_id = self._create_address(
+            "04001_0040_00002", ban_id="3fbce2cc-1ad7-422a-ac99-722dd94760d3"
+        )
+        same_obsolete = self._create_obsolete(
+            "04002_old_00001",
+            _get_ban_details(
+                cle_interop="04002_0040_00001",
+                city_insee_code="04002",
+                ban_id=BAN_ID.upper(),
+            ),
+        )
+        without_obsolete = self._create_obsolete(
+            "04001_old_00002",
+            _get_ban_details(cle_interop="04001_0040_00002", ban_id=None),
+        )
+        same_bdg = self._create_bdg("BDG1", [same_obsolete])
+        without_bdg = self._create_bdg("BDG2", [without_obsolete])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["replaced"], 2)
+        self.assertEqual(result["skipped"], 0)
+        same_bdg.refresh_from_db()
+        self.assertEqual(same_bdg.addresses_internal_id, [same.internal_id])
+        without_bdg.refresh_from_db()
+        self.assertEqual(without_bdg.addresses_internal_id, [with_ban_id.internal_id])
+
     def test_fresh_address_is_created_from_details(self):
         """
         Input: details of a reliable city whose ban_id and cle_interop are held
