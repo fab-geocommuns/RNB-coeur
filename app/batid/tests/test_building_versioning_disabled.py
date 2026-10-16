@@ -4,7 +4,7 @@ from batid.models import Building, BuildingHistoryOnly
 from batid.utils.db import building_versioning_dangerously_disabled
 from django.db import connection, connections, transaction
 from django.db.transaction import TransactionManagementError
-from django.db.utils import DatabaseError, InternalError
+from django.db.utils import DatabaseError, ProgrammingError
 from django.test import TestCase, TransactionTestCase
 
 
@@ -174,7 +174,7 @@ class DisableBuildingVersioningTestCase(TestCase):
         Building.objects.create(rnb_id="VERSION0006")
 
         with building_versioning_dangerously_disabled():
-            with self.assertRaises(InternalError):
+            with self.assertRaisesMessage(ProgrammingError, "deletions are forbidden"):
                 # the failing statement is isolated in a savepoint, so that the
                 # surrounding transaction stays usable
                 with transaction.atomic():

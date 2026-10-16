@@ -136,6 +136,41 @@ class TestDataGouvPublication(TestCase):
             username="jean_doux",
         )
 
+    def test_csv_written_as_utf8_bytes(self):
+        """
+        Input: one building linked to an address on "rue de l'Église".
+        Expected: the CSV read in binary mode decodes as UTF-8 and contains
+        "Église".
+        """
+        address = Address.objects.create(
+            cle_interop="75105_0001_00001", street="rue de l'Église"
+        )
+        Department_subdivided.objects.create(
+            code="75", name="Paris", shape=get_department_75_geom()
+        )
+        geom = get_geom_paris()
+        Building.objects.create(
+            rnb_id="BDG-ACCENT01",
+            shape=geom,
+            point=geom.point_on_surface,
+            status="constructed",
+            addresses_internal_id=[address.internal_id],
+        )
+        directory_name = create_directory("75")
+        self.addCleanup(cleanup_directory, directory_name)
+
+        create_csv(directory_name, "75")
+
+        csv_path = [
+            os.path.join(directory_name, f)
+            for f in os.listdir(directory_name)
+            if f.endswith(".csv")
+        ][0]
+        with open(csv_path, "rb") as csv_file:
+            raw = csv_file.read()
+        self.assertIn("Église".encode("utf-8"), raw)
+        raw.decode("utf-8")
+
     def test_archive_creation_deletion(self):
         """
         Entrée : plusieurs bâtiments parisiens (actifs/inactif, 0/1/plusieurs
