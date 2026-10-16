@@ -563,3 +563,13 @@ def geocode_obsolete_addresses_task(batch_size: int = 1000):
     from batid.services.imports.update_addresses_ban import geocode_obsolete_addresses
 
     return geocode_obsolete_addresses(batch_size)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def update_addresses_from_ban_comparison_task(batch_size: int = 1000):
+    from batid.services.imports.update_addresses_ban import (
+        update_addresses_from_ban_comparison,
+    )
+
+    return update_addresses_from_ban_comparison(batch_size)
