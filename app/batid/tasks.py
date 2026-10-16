@@ -5,6 +5,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+import requests
 from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list, slice_dpts
 from batid.services.building import export_city as export_city_job
@@ -25,7 +26,12 @@ from batid.services.imports.import_bal import (
 from batid.services.imports.import_ban import (
     create_ban_full_import_tasks,
     import_ban_addresses,
-    update_dpt_cities_ban_ids_reliability,
+)
+from batid.services.imports.import_ban import (
+    update_all_cities_ban_ids_reliability as update_all_cities_ban_ids_reliability_job,
+)
+from batid.services.imports.import_ban import (
+    update_dpt_cities_ban_ids_reliability as update_dpt_cities_ban_ids_reliability_job,
 )
 from batid.services.imports.import_bdnb_2023_01 import (
     import_bdnd_2023_01_addresses,
@@ -321,8 +327,18 @@ def import_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def update_cities_ban_ids_reliability(dpt: str):
-    return update_dpt_cities_ban_ids_reliability(dpt)
+def update_dpt_cities_ban_ids_reliability(dpt: str):
+    return update_dpt_cities_ban_ids_reliability_job(dpt)
+
+
+# No autoretry: a retry would restart the whole multi-hour run from the first
+# department. On failure, resume it with dpt_start.
+@notify_if_error
+@shared_task
+def update_all_cities_ban_ids_reliability(
+    dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
+):
+    return update_all_cities_ban_ids_reliability_job(dpt_start, dpt_end)
 
 
 @notify_if_error
@@ -431,6 +447,28 @@ def close_irrelevant_reports():
     reject_irrelevant_arcep_reports()
 
 
+# Retries only when Brevo could not be reached: after a read timeout Brevo may
+# already have sent the email, and a retry would send it twice.
+# Other failures are reported by Sentry (Celery integration).
+@shared_task(
+    name="batid.tasks.send_report_activity_notification",
+    autoretry_for=(requests.ConnectionError,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
+def send_report_activity_notification(
+    *, report_id: int, action: str, actor_user_id: int, message_id: int
+):
+    from batid.services.reports.notifications import notify_report_author
+
+    notify_report_author(
+        report_id=report_id,
+        action=action,
+        actor_user_id=actor_user_id,
+        message_id=message_id,
+    )
+
+
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def flag_addresses_from_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
@@ -470,22 +508,23 @@ def queue_ban_address_flag_exists(
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def update_addresses_text_ban(src_params: dict, batch_size: int = 1000):  # type: ignore[assignment]
+def compare_addresses_with_ban(src_params: dict, batch_size: int = 1000):  # type: ignore[assignment]
     from batid.services.imports.update_addresses_ban import (
-        update_addresses_text_and_ban_id,
+        compare_addresses_with_ban_file,
     )
 
-    return update_addresses_text_and_ban_id(src_params, batch_size=batch_size)
+    return compare_addresses_with_ban_file(src_params, batch_size=batch_size)
 
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def queue_ban_address_text_update(
+def queue_ban_address_comparison(
     dpt_start: Optional[str] = None,
     dpt_end: Optional[str] = None,
     batch_size: int = 1000,
 ):
-    """Queue text update tasks for all departments."""
+    """Queue the comparison of the existing addresses with the BAN file for all
+    departments."""
     dpts = dpts_list(dpt_start, dpt_end)
 
     for dpt in dpts:
@@ -497,7 +536,7 @@ def queue_ban_address_text_update(
                 immutable=True,
             ),
             Signature(
-                "batid.tasks.update_addresses_text_ban",
+                "batid.tasks.compare_addresses_with_ban",
                 args=(src_params, batch_size),
                 immutable=True,
                 priority=8,
@@ -505,7 +544,7 @@ def queue_ban_address_text_update(
         ]
         chain(*tasks)()
 
-    return f"Queued text update for {len(dpts)} departments"
+    return f"Queued comparison with the BAN file for {len(dpts)} departments"
 
 
 @notify_if_error
@@ -516,3 +555,11 @@ def delete_unlinked_obsolete_addresses_task(batch_size: int = 1000):
     )
 
     return delete_unlinked_obsolete_addresses(batch_size)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def geocode_obsolete_addresses_task(batch_size: int = 1000):
+    from batid.services.imports.update_addresses_ban import geocode_obsolete_addresses
+
+    return geocode_obsolete_addresses(batch_size)

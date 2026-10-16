@@ -1,8 +1,11 @@
 import os
 
 from django.conf import settings
+from django.core import signing
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
+
+UNSUBSCRIBE_SALT = "report-notification-unsubscribe"
 
 
 def build_reset_password_email(
@@ -111,3 +114,32 @@ def build_activate_account_email(
     )
     msg.attach_alternative(html_content, "text/html")
     return msg
+
+
+def make_unsubscribe_token(email: str) -> str:
+    """Signs the (lowercased) email into a stateless, non-expiring token."""
+    return signing.dumps(email.lower(), salt=UNSUBSCRIBE_SALT)
+
+
+def read_unsubscribe_token(token: str) -> str:
+    """
+    Returns the email embedded in the token.
+    Raises signing.BadSignature if the token has been tampered with.
+    """
+    return signing.loads(token, salt=UNSUBSCRIBE_SALT)
+
+
+def report_map_url(report) -> str:
+    """
+    Builds the link to the RNB map focused on the report.
+    Format: {FRONTEND_URL}/carte?report={id}&extra_layers=reports&q={rnb_id}
+    The q parameter (rnb_id) is omitted when the report has no building.
+    """
+    url = f"{settings.FRONTEND_URL}/carte?report={report.id}&extra_layers=reports"
+    if report.building is not None:
+        url += f"&q={report.building.rnb_id}"
+    return url
+
+
+def report_unsubscribe_url(token: str) -> str:
+    return f"{settings.FRONTEND_URL}/notifications/desinscription?token={token}"

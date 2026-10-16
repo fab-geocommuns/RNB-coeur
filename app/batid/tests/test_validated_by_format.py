@@ -62,8 +62,8 @@ class ValidatedByFormatContractTest(TransactionTestCase):
     d'également mettre à jour les requêtes SQL de l'export, du endpoint
     d'historique et du endpoint de diff.
 
-    NB : `TransactionTestCase` est nécessaire car le endpoint de diff fork un
-    processus enfant qui lit les données via une connexion DB distincte ; elles
+    NB : `TransactionTestCase` est nécessaire car le endpoint de diff exporte dans un
+    thread qui lit les données via une connexion DB distincte ; elles
     doivent donc être committées.
     """
 

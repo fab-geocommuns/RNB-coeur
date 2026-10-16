@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
 from batid.models.feve import Feve
 from django.contrib.auth.models import User
@@ -11,6 +12,9 @@ from django.db.models import CheckConstraint, Q
 from taggit.managers import TaggableManager
 
 from .building import Building
+
+if TYPE_CHECKING:
+    from .report_message import ReportMessage
 
 
 class Report(models.Model):
@@ -101,10 +105,10 @@ class Report(models.Model):
         created_by_user: User | None,
         created_by_email: str | None,
         status: str | None,
-    ) -> bool:
+    ) -> tuple[ReportMessage, bool]:
         if self.is_closed():
             raise ValueError(f"{self} is closed")
-        self.messages.create(  # type: ignore[attr-defined]
+        message = self.messages.create(  # type: ignore[attr-defined]
             text=text,
             created_by_user=created_by_user,
             created_by_email=created_by_email,
@@ -122,7 +126,7 @@ class Report(models.Model):
             feve.found(created_by_user)
             feve_found = True
 
-        return feve_found
+        return message, feve_found
 
     def is_closed(self) -> bool:
         return self.status in ["fixed", "rejected"]

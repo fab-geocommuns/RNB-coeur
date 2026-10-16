@@ -13,10 +13,10 @@ from django.db import connection
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.utils.dateparse import parse_datetime
 from django.utils.html import escape
-from psycopg2 import sql
+from psycopg import sql
 from rest_framework.views import APIView
 
-# psycopg2 calls write() once per exported row (~90 bytes), so rows are
+# The COPY yields one message per exported row (~90 bytes), so rows are
 # accumulated into chunks of this size before being handed over. Without it, a
 # large diff would mean millions of queue operations and as many tiny writes on
 # the client socket.
@@ -44,9 +44,8 @@ class _ChunkQueueWriter:
     """
     File-like object bridging the export to the response.
 
-    psycopg2's COPY is push-based: it calls write() on a file object. A
-    StreamingHttpResponse is pull-based: it iterates a generator. This object is
-    what the export thread writes into, while the response generator reads the
+    The export thread writes the COPY rows into this object, while the
+    StreamingHttpResponse, which is pull-based, iterates a generator reading the
     resulting chunks out of the queue.
     """
 
@@ -57,7 +56,7 @@ class _ChunkQueueWriter:
         self.cancelled = cancelled
         self.buffer = bytearray()
 
-    def write(self, data: bytes) -> None:
+    def write(self, data: bytes | memoryview) -> None:
         self.buffer += data
         if len(self.buffer) >= CHUNK_SIZE:
             self.flush()
@@ -201,10 +200,10 @@ def _stream_diff(
     Yield the diff CSV chunk by chunk, so the client starts receiving data
     while the export is still running.
 
-    The export runs in a thread because psycopg2 pushes the COPY output while
-    the response pulls it. That thread gets its own database connection, since
-    Django's connections are thread-local, and closing it is up to us:
-    close_old_connections only ever runs on the request thread.
+    The export runs in its own thread, on its own database connection, because
+    the HTTP response pulls chunks from a queue while the export streams them
+    from the COPY. Django's connections are thread-local, and closing this one
+    is up to us: close_old_connections only ever runs on the request thread.
     """
     chunks: queue.Queue[bytes | None] = queue.Queue(maxsize=QUEUE_MAX_CHUNKS)
     cancelled = threading.Event()
@@ -222,12 +221,13 @@ def _stream_diff(
                 first_slice = True
                 while start_ts < most_recent_modification:
                     end_ts = start_ts + timedelta(days=1)
-                    cursor.copy_expert(
+                    with cursor.copy(
                         _build_copy_query(
                             start_ts, end_ts, city_shape_wkt, with_header=first_slice
-                        ),
-                        writer,
-                    )
+                        )
+                    ) as copy:
+                        for data in copy:
+                            writer.write(data)
                     first_slice = False
                     start_ts = end_ts
             writer.flush()
