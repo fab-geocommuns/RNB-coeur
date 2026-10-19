@@ -1,5 +1,6 @@
 location /admin/login {
-    proxy_pass http://web:8000/admin/login;
+    # Same upstream as the rest of the vhost (named after VIRTUAL_HOST): follows the deploy drain.
+    proxy_pass http://$host;
 
     limit_req zone=admin_login_rate_limit nodelay;
     add_header RateLimit-Limit 1;

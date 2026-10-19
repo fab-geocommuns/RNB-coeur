@@ -13,7 +13,9 @@ services:
     extends:
       file: docker-compose.common.yml
       service: web
+    container_name: web
     ports:
+      - '127.0.0.1:8000:8000'
       - '8888:8888' # Jupyter notebook
       - '5678:5678'
     command: python -m debugpy --listen 0.0.0.0:5678 manage.py runserver 0.0.0.0:8000
