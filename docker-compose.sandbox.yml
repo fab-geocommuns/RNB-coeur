@@ -25,7 +25,7 @@ services:
       - ./.env.app.sandbox
       - ./.env.rnb.sandbox
       - ./.env.sentry.sandbox
-    command: gunicorn app.wsgi:application --bind 0.0.0.0:8000 --threads 6 --workers 6
+    command: gunicorn app.wsgi:application --preload --bind 0.0.0.0:8000 --threads 6 --workers 6
     environment:
       - VIRTUAL_HOST=sandbox.rnb-api.beta.gouv.fr
       - VIRTUAL_PORT=8000
