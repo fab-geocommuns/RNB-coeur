@@ -2,10 +2,11 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from batid.models import EditionActivity
+from batid.models import BuildingWithHistory, Department, SummerChallenge
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.db.models import Count, F, Min, QuerySet
+from django.db.models import Count, Exists, F, Min, OuterRef, QuerySet
+from django.db.models.fields.json import KT
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
@@ -24,6 +25,23 @@ CACHE_TIMEOUT_SECONDS = 600
 
 # number of months returned in the monthly series
 MONTHLY_SERIES_LENGTH = 12
+
+# A contribution is one distinct event_id: a single update (eg. shape + address)
+# writes several SummerChallenge rows sharing the same event_id
+CONTRIBUTIONS = Count("event_id", distinct=True)
+
+
+def contributions() -> QuerySet:
+    """
+    SummerChallenge rows made by contributors. Imports (candidate.py) and data fixes
+    also write rows in SummerChallenge, mostly with the RNB team user: they are
+    excluded by keeping only the events whose origin is a contribution.
+    The RNB team and staff accounts are counted as any other user.
+    """
+    contribution_events = BuildingWithHistory.objects.annotate(
+        origin_source=KT("event_origin__source")
+    ).filter(event_id=OuterRef("event_id"), origin_source="contribution")
+    return SummerChallenge.objects.filter(Exists(contribution_events))
 
 
 def period_bounds(
@@ -71,8 +89,26 @@ def _with_dense_rank(rows: list[dict]) -> list[dict]:
     return rows
 
 
-def _department(code: Optional[str], name: Optional[str]) -> Optional[dict]:
-    return {"code": code, "name": name} if code else None
+def _departments(rows: list[dict]) -> dict[int, dict]:
+    """{"code", "name"} of the departments referenced by the department_ref of rows"""
+    ids = {r["department_ref"] for r in rows if r["department_ref"]}
+    return {
+        d["id"]: {"code": d["code"], "name": d["name"]}
+        for d in Department.objects.filter(id__in=ids).values("id", "code", "name")
+    }
+
+
+def _city_rows(editions: QuerySet) -> QuerySet:
+    """
+    Editions grouped by city. A city is grouped alone (not with its department) so
+    that rows whose department could not be resolved do not split it in two: its
+    department is taken from its rows.
+    """
+    return (
+        editions.exclude(city__isnull=True)
+        .values("city_id", insee_code=F("city__code_insee"), name=F("city__name"))
+        .annotate(department_ref=Min("department"))
+    )
 
 
 def _organization_short_names(user_ids: list[int]) -> dict[int, Optional[str]]:
@@ -88,11 +124,11 @@ def _organization_short_names(user_ids: list[int]) -> dict[int, Optional[str]]:
 
 
 def _top(editions: QuerySet, since, until, limit: int) -> dict[str, list[dict]]:
-    qs = _filter_dates(editions, "edited_at", since, until)
+    qs = _filter_dates(editions, "created_at", since, until)
 
     users = list(
         qs.values("user_id", username=F("user__username"))
-        .annotate(count=Count("id"))
+        .annotate(count=CONTRIBUTIONS)
         .order_by("-count", "username")[:limit]
     )
     org_names = _organization_short_names([u["user_id"] for u in users])
@@ -105,35 +141,37 @@ def _top(editions: QuerySet, since, until, limit: int) -> dict[str, list[dict]]:
         for u in users
     ]
 
-    organizations = list(
-        qs.exclude(organization__isnull=True)
-        .values(name=F("organization__name"), short_name=F("organization__short_name"))
-        .annotate(count=Count("id"))
+    # current organization of the users
+    organizations = [
+        {"name": o["name"], "short_name": o["short_name"], "count": o["count"]}
+        for o in qs.exclude(user__profile__organization__isnull=True)
+        .values(
+            "user__profile__organization_id",
+            name=F("user__profile__organization__name"),
+            short_name=F("user__profile__organization__short_name"),
+        )
+        .annotate(count=CONTRIBUTIONS)
         .order_by("-count", "name")[:limit]
-    )
+    ]
 
+    cities = list(
+        _city_rows(qs).annotate(count=CONTRIBUTIONS).order_by("-count", "name")[:limit]
+    )
+    departments_by_id = _departments(cities)
     cities = [
         {
             "insee_code": c["insee_code"],
             "name": c["name"],
-            "department": _department(c["department_code"], c["department_name"]),
+            "department": departments_by_id.get(c["department_ref"]),
             "count": c["count"],
         }
-        for c in qs.exclude(city__isnull=True)
-        .values(
-            insee_code=F("city__code_insee"),
-            name=F("city__name"),
-            department_code=F("department__code"),
-            department_name=F("department__name"),
-        )
-        .annotate(count=Count("id"))
-        .order_by("-count", "name")[:limit]
+        for c in cities
     ]
 
     departments = list(
         qs.exclude(department__isnull=True)
         .values(code=F("department__code"), name=F("department__name"))
-        .annotate(count=Count("id"))
+        .annotate(count=CONTRIBUTIONS)
         .order_by("-count", "code")[:limit]
     )
 
@@ -147,37 +185,31 @@ def _top(editions: QuerySet, since, until, limit: int) -> dict[str, list[dict]]:
 
 def _newcomers(editions: QuerySet, since, until, limit: int) -> dict[str, list[dict]]:
     """
-    Users, cities and departments whose very first edition is in the period,
+    Users, cities and departments whose very first contribution is in the period,
     the most recent first.
     """
 
     counts = {}
 
-    def first_editions(key: str, qs: QuerySet, *fields, **named_fields) -> list[dict]:
-        rows = qs.values(*fields, **named_fields).annotate(
-            first_edition_at=Min("edited_at")
-        )
+    def first_editions(key: str, rows: QuerySet) -> list[dict]:
+        rows = rows.annotate(first_edition_at=Min("created_at"))
         rows = _filter_dates(rows, "first_edition_at", since, until)
         counts[key] = rows.count()
         return list(rows.order_by("-first_edition_at")[:limit])
 
-    users = first_editions("users", editions, "user_id", username=F("user__username"))
+    users = first_editions(
+        "users", editions.values("user_id", username=F("user__username"))
+    )
     org_names = _organization_short_names([u["user_id"] for u in users])
 
-    cities = first_editions(
-        "cities",
-        editions.exclude(city__isnull=True),
-        insee_code=F("city__code_insee"),
-        name=F("city__name"),
-        department_code=F("department__code"),
-        department_name=F("department__name"),
-    )
+    cities = first_editions("cities", _city_rows(editions))
+    departments_by_id = _departments(cities)
 
     departments = first_editions(
         "departments",
-        editions.exclude(department__isnull=True),
-        code=F("department__code"),
-        name=F("department__name"),
+        editions.exclude(department__isnull=True).values(
+            "department_id", code=F("department__code"), name=F("department__name")
+        ),
     )
 
     return {
@@ -195,7 +227,7 @@ def _newcomers(editions: QuerySet, since, until, limit: int) -> dict[str, list[d
             {
                 "insee_code": c["insee_code"],
                 "name": c["name"],
-                "department": _department(c["department_code"], c["department_name"]),
+                "department": departments_by_id.get(c["department_ref"]),
                 "first_edition_at": c["first_edition_at"]
                 .astimezone(PARIS_TZ)
                 .isoformat(),
@@ -229,10 +261,10 @@ def _monthly_editions(editions: QuerySet, now: datetime) -> list[dict]:
     first_month = _add_months(current_month, -(MONTHLY_SERIES_LENGTH - 1))
 
     rows = (
-        editions.filter(edited_at__gte=first_month)
-        .annotate(month=TruncMonth("edited_at", tzinfo=PARIS_TZ))
+        editions.filter(created_at__gte=first_month)
+        .annotate(month=TruncMonth("created_at", tzinfo=PARIS_TZ))
         .values("month")
-        .annotate(count=Count("id"))
+        .annotate(count=CONTRIBUTIONS)
     )
     by_month = {row["month"].strftime("%Y-%m"): row["count"] for row in rows}
 
@@ -261,7 +293,9 @@ def _previous_period(editions: QuerySet, period: str, now: datetime) -> Optional
     else:
         return None
 
-    count = _filter_dates(editions, "edited_at", previous_since, previous_until).count()
+    count = _filter_dates(
+        editions, "created_at", previous_since, previous_until
+    ).aggregate(editions=CONTRIBUTIONS)["editions"]
     return {
         "since": previous_since.date().isoformat(),
         "until": (previous_until.astimezone(PARIS_TZ)).isoformat(),
@@ -277,17 +311,17 @@ def compute_edition_activity(
     period: str, limit: int = DEFAULT_LIMIT, now: Optional[datetime] = None
 ) -> dict:
     """
-    Edition statistics of a period, computed from the EditionActivity table:
+    Contribution statistics of a period, computed from the SummerChallenge table:
     totals, rankings (users, organizations, cities, departments) and newcomers.
     See the GET /api/alpha/editions/activity/ documentation for the output format.
     """
     now = (now or timezone.now()).astimezone(PARIS_TZ)
     since, until = period_bounds(period, now)
-    editions = EditionActivity.objects.all()
-    in_period = _filter_dates(editions, "edited_at", since, until)
+    editions = contributions()
+    in_period = _filter_dates(editions, "created_at", since, until)
 
     totals = in_period.aggregate(
-        editions=Count("id"),
+        editions=CONTRIBUTIONS,
         cities=Count("city", distinct=True),
         editors=Count("user", distinct=True),
     )

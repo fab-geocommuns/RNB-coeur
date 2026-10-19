@@ -24,13 +24,15 @@ class EditionActivityView(RNBLoggingMixin, APIView):
             "get": {
                 "summary": "Activité d'édition de la communauté",
                 "description": (
-                    "Retourne, pour une période, le nombre d'éditions faites par les "
-                    "contributeurs (une édition peut concerner plusieurs bâtiments, "
-                    "ex. une fusion), le nombre de communes éditées et de contributeurs, "
-                    "les classements des contributeurs, organisations, communes et "
-                    "départements, ainsi que ceux ayant fait leur toute première édition "
-                    "sur la période. Les mois sont des mois calendaires (heure de Paris). "
-                    "Les données sont mises à jour toutes les 10 minutes environ."
+                    "Retourne, pour une période, le nombre de contributions faites par "
+                    "les contributeurs (une contribution peut modifier plusieurs "
+                    "bâtiments ou plusieurs attributs, ex. une fusion), le nombre de "
+                    "communes concernées et de contributeurs, les classements des "
+                    "contributeurs, organisations, communes et départements, ainsi que "
+                    "ceux ayant fait leur toute première contribution sur la période. "
+                    "Les imports de données ne sont pas comptés. Les mois sont des mois "
+                    "calendaires (heure de Paris). Les données sont mises à jour toutes "
+                    "les 10 minutes environ."
                 ),
                 "operationId": "getEditionActivity",
                 "parameters": [
