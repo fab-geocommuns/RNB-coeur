@@ -129,6 +129,29 @@ Avant l'import, la commande vérifie que les points sont en France, affiche le v
 docker exec -ti web python manage.py test
 ```
 
+## Déploiement et migrations
+
+Le déploiement se fait sans coupure : les migrations sont appliquées dans un conteneur jetable pendant que l'ancien `web` continue de servir l'API. L'ancienne version du code tourne donc environ 1 min 30 sur le nouveau schéma de base.
+
+**Toute migration doit être rétrocompatible avec la version précédente du code.**
+
+Supprimer une colonne se fait en deux déploiements : d'abord un code qui n'utilise plus la colonne, ensuite la migration qui la supprime.
+
+Renommer une colonne se fait en plusieurs déploiements : ajouter la nouvelle colonne, recopier les données, basculer le code sur la nouvelle colonne, puis supprimer l'ancienne.
+
+Ajouter une colonne non nulle demande un `db_default` ou une colonne nullable, sinon les `INSERT` de l'ancienne version échouent.
+
+`POSTGRES_STATEMENT_TIMEOUT` s'applique aussi à `migrate`. Une migration plus longue lève elle-même la limite avec `SET statement_timeout = '0'; SET lock_timeout = '5s';`, comme les migrations `0148` et `0156`. Un verrou `ACCESS EXCLUSIVE` bloque l'API en service pendant toute la migration. Le `lock_timeout` borne l'attente de ce verrou, pendant laquelle les requêtes de l'API s'accumulent derrière la migration : le garder court.
+
+Une recopie de données ne se fait pas dans la migration mais dans une tâche Celery par lots, sur le modèle de `fill_empty_event_id` (`batid/services/data_fix/fill_empty_event_id.py` et `batid/tasks.py`).
+
+Sur les serveurs, le conteneur `web` n'a pas de nom fixe : `docker exec web` ne fonctionne qu'en local. Utiliser, avec `<env>` = `prod`, `staging` ou `sandbox` :
+```
+cd /srv/RNB-coeur && docker compose -f docker-compose.<env>.yml exec web python manage.py …
+```
+
+La séquence du déploiement et son comportement en cas d'échec sont décrits dans la section « Déploiement de RNB-cœur » du [README de RNB-infra](https://github.com/fab-geocommuns/RNB-infra#readme).
+
 ## Ajouter une dépendance python
 
 Nous utilisons [Poetry](https://python-poetry.org/) pour gérer nos dépendances Python.
