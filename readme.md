@@ -51,6 +51,52 @@ docker compose --profile metabase up -d
 
 Le serveur local est lancé à l'adresse http://localhost:8000
 
+#### Passage de PostgreSQL 16 à 17 (base locale existante)
+
+Le conteneur `db` utilise `postgis/postgis:17-3.5`. Une base créée en 16 ne démarre pas en 17 : après `git pull` et `docker compose up -d`, `db` redémarre en boucle et `docker compose logs db` affiche :
+
+```
+FATAL:  database files are incompatible with server
+```
+
+`docker-compose.test.yml` partage le même volume (`name: rnb-coeur`) : faire la procédure une seule fois suffit. Ne pas la rejouer avec `-f docker-compose.test.yml` : son `down -v` effacerait la base restaurée.
+
+**Option A : repartir d'une base vide**
+
+```
+docker compose down -v
+docker compose up -d
+```
+
+`down -v` supprime les volumes du projet (base et RabbitMQ local). Les migrations sont jouées au démarrage de `web`. Réimporter ensuite des données (§ 6).
+
+**Option B : garder ses données**
+
+Tant que `db` tourne encore en 16 (après le `git pull`, avant tout `up`) :
+
+```
+docker compose exec -T db pg_dump -U postgres -Fc -f /tmp/rnb_pg16.dump postgres
+docker compose cp db:/tmp/rnb_pg16.dump ./rnb_pg16.dump
+```
+
+Si `db` boucle déjà en 17 : remettre temporairement `postgis/postgis:16-3.5` dans `docker-compose.common.yml`, lancer `docker compose up -d --wait db` (les données n'ont pas été touchées), faire les deux commandes ci-dessus, puis annuler la modification.
+
+Puis :
+
+```
+docker compose down -v
+docker compose up -d --wait db
+docker compose cp ./rnb_pg16.dump db:/tmp/rnb_pg16.dump
+docker compose exec -T db psql -U postgres -d template1 -c "DROP DATABASE postgres" -c "CREATE DATABASE postgres"
+docker compose exec -T db pg_restore -U postgres -d postgres --no-owner /tmp/rnb_pg16.dump
+docker compose exec -T db psql -U postgres -c "VACUUM (ANALYZE)"
+docker compose up -d
+```
+
+La base est recréée vide depuis `template1` : l'image y crée sinon déjà les extensions PostGIS et leurs schémas (`tiger`, `topology`), et `pg_restore` échoue sur ces doublons.
+
+Garder `rnb_pg16.dump` jusqu'à ce que tout fonctionne en 17 : c'est le seul retour possible (une base 17 ne se relit pas en 16). Le supprimer ensuite.
+
 ### 5. Créer un super utilisateur
 
 ```
