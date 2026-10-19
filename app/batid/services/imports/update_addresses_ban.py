@@ -762,7 +762,7 @@ def replace_obsolete_addresses_from_geocoding(batch_size: int = 1000) -> dict:
     ban_update_done=True: every batch only holds addresses not done yet and a
     new run resumes where the previous one stopped.
     """
-    data_fix = _get_obsolete_addresses_data_fix()
+    data_fix = _get_or_create_obsolete_addresses_data_fix()
     event_origin = {"source": "data_fix", "id": data_fix.id}
     user = cast(User, data_fix.user)
 
@@ -793,7 +793,7 @@ def replace_obsolete_addresses_from_geocoding(batch_size: int = 1000) -> dict:
     return stats
 
 
-def _get_obsolete_addresses_data_fix() -> DataFix:
+def _get_or_create_obsolete_addresses_data_fix() -> DataFix:
     """The DataFix of the obsolete addresses replacement, created on the first
     run. Its user must be staff: Building.update limits the number of
     contributions of the other users."""
@@ -852,7 +852,9 @@ def _replace_obsolete_address(
     )
     for building in buildings:
         internal_ids = _replace_internal_id(
-            building.addresses_internal_id or [], obsolete.internal_id, fresh
+            building.addresses_internal_id or [],
+            obsolete.internal_id,
+            fresh.internal_id,
         )
         building.update(
             user,
@@ -893,13 +895,9 @@ def _get_fresh_address(
         if fresh:
             return fresh, False
 
-    fresh = (
-        Address.objects.filter(
-            In(Upper("cle_interop"), [details["cle_interop"].upper()])
-        )
-        .order_by("internal_id")
-        .first()
-    )
+    fresh = Address.objects.filter(
+        In(Upper("cle_interop"), [details["cle_interop"].upper()])
+    ).first()
     if fresh:
         return fresh, False
 
@@ -928,7 +926,7 @@ def _is_ambiguous(fresh: Address, details: dict) -> bool:
     obsolete, a comparison failure or holds another ban_id than the geocoding
     details of the obsolete one."""
     # ban_id is a UUID once read from db, but the str given at creation
-    other_ban_id = (
+    ban_id_mismatch = (
         fresh.ban_id is not None
         and details["ban_id"] is not None
         and str(fresh.ban_id).lower() != details["ban_id"].lower()
@@ -936,17 +934,17 @@ def _is_ambiguous(fresh: Address, details: dict) -> bool:
     return (
         fresh.still_exists is False
         or fresh.ban_update_flag == COMPARISON_FAILURE
-        or other_ban_id
+        or ban_id_mismatch
     )
 
 
 def _replace_internal_id(
-    internal_ids: list[int], obsolete_id: int, fresh: Address
+    internal_ids: list[int], obsolete_id: int, fresh_id: int
 ) -> list[int]:
     """The addresses of a building once the obsolete one is replaced by the fresh
     one, at the same position. The obsolete one is only removed when the
     building already has the fresh one."""
-    if fresh.internal_id in internal_ids:
+    if fresh_id in internal_ids:
         return [i for i in internal_ids if i != obsolete_id]
 
-    return [fresh.internal_id if i == obsolete_id else i for i in internal_ids]
+    return [fresh_id if i == obsolete_id else i for i in internal_ids]
