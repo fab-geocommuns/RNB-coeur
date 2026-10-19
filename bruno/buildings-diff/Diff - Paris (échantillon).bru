@@ -1,0 +1,21 @@
+meta {
+  name: Diff - Paris (échantillon)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/buildings/diff/?since={{since}}&insee_code={{inseeCode}}&from=monitoring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.headers["content-type"]: contains text/csv
+}
+
+docs {
+  Prérequis : une City dont le code_insee vaut `inseeCode` (75056 en local), avec une géométrie
+  (shape non nulle). Sans City, la requête renvoie 404 ; sans géométrie, 500.
+}

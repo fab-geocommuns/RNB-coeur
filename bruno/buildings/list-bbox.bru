@@ -1,0 +1,18 @@
+meta {
+  name: Liste - bbox
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/buildings/?bbox={{bbox}}&from=monitoring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.headers["content-type"]: contains application/json
+  res.body.results: isArray
+  res.body.results: isNotEmpty
+}

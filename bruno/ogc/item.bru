@@ -1,0 +1,16 @@
+meta {
+  name: Bâtiment
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/ogc/collections/buildings/items/{{rnbId}}?from=monitoring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.id: eq {{rnbId}}
+}

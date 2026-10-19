@@ -1,0 +1,21 @@
+meta {
+  name: ADS
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/ads/tiles/{{tileX}}/{{tileY}}/{{tileZ}}.pbf
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.headers["content-type"]: eq application/vnd.mapbox-vector-tile
+}
+
+docs {
+  Statut et type seulement : la zone de l'environnement `local` ne contient aucune ADS, la tuile
+  est vide et `res.body: isNotEmpty` échouerait.
+}
