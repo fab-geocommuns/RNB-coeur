@@ -5,6 +5,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+import requests
 from api_alpha.utils.sandbox_client import SandboxClient
 from batid.services.administrative_areas import dpts_list, slice_dpts
 from batid.services.building import export_city as export_city_job
@@ -25,6 +26,12 @@ from batid.services.imports.import_bal import (
 from batid.services.imports.import_ban import (
     create_ban_full_import_tasks,
     import_ban_addresses,
+)
+from batid.services.imports.import_ban import (
+    update_all_cities_ban_ids_reliability as update_all_cities_ban_ids_reliability_job,
+)
+from batid.services.imports.import_ban import (
+    update_dpt_cities_ban_ids_reliability as update_dpt_cities_ban_ids_reliability_job,
 )
 from batid.services.imports.import_bdnb_2023_01 import (
     import_bdnd_2023_01_addresses,
@@ -223,119 +230,6 @@ def backup_to_s3(self):
     return "done"
 
 
-@shared_task()
-def fill_address_internal_id():
-    from batid.services.data_fix.fill_address_internal_id import (
-        fill_address_internal_id as fill,
-    )
-
-    updated = fill()
-    return f"{updated} addresses filled"
-
-
-@shared_task()
-def fill_building_addresses_internal_id(min_id: int = 0, max_id: Optional[int] = None):
-    # min_id/max_id let several calls run in parallel over disjoint id ranges,
-    # see fill_building_addresses_internal_id()'s docstring.
-    from batid.services.data_fix.fill_building_addresses_internal_id import (
-        fill_building_addresses_internal_id as fill,
-    )
-
-    updated = fill(min_id=min_id, max_id=max_id)
-    return f"{updated} buildings filled"
-
-
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def queue_fill_building_addresses_internal_id(n_slices: int = 4):
-    # Splits [0, max(id)] into n_slices disjoint ranges and queues one
-    # fill_building_addresses_internal_id per range, so they run in parallel
-    # across available workers instead of one worker churning through the
-    # whole table sequentially (measured at ~12 days on staging otherwise).
-    from batid.services.data_fix.fill_building_addresses_internal_id import (
-        compute_id_slices,
-    )
-    from django.db import connection
-
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT max(id) FROM batid_building;")
-        max_id = cursor.fetchone()[0] or 0
-
-    slices = compute_id_slices(max_id, n_slices)
-    notify_tech(
-        f"Backfill addresses_internal_id : {n_slices} tâches en parallèle jusqu'à l'id {max_id}."
-    )
-
-    for slice_min_id, slice_max_id in slices:
-        fill_building_addresses_internal_id.delay(
-            min_id=slice_min_id, max_id=slice_max_id
-        )
-
-    return f"Queued {n_slices} parallel ranges up to id {max_id}"
-
-
-@shared_task()
-def fill_building_history_addresses_internal_id(
-    min_id: int = 0, max_id: Optional[int] = None
-):
-    # min_id/max_id let several calls run in parallel over disjoint bh_id
-    # ranges, see fill_building_history_addresses_internal_id()'s docstring.
-    from batid.services.data_fix.fill_building_history_addresses_internal_id import (
-        fill_building_history_addresses_internal_id as fill,
-    )
-
-    updated = fill(min_id=min_id, max_id=max_id)
-    return f"{updated} history rows filled"
-
-
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def queue_fill_building_history_addresses_internal_id(n_slices: int = 4):
-    # Splits the bh_id span of the rows still to fill into n_slices disjoint
-    # ranges and queues one fill_building_history_addresses_internal_id per
-    # range, so they run in parallel across available workers. Most history
-    # rows predate addresses_id and are never eligible: slicing [0, max(bh_id)]
-    # would leave all the work to the last worker.
-    from batid.services.data_fix.fill_building_addresses_internal_id import (
-        compute_id_slices,
-    )
-    from django.db import connection, transaction
-
-    with transaction.atomic(), connection.cursor() as cursor:
-        # Finding the first eligible row walks the primary key through every
-        # ineligible row before it, which exceeds the worker statement timeout.
-        cursor.execute("SET LOCAL statement_timeout = '0';")
-        cursor.execute("""
-            SELECT bh_id FROM batid_building_history
-            WHERE addresses_id IS NOT NULL AND addresses_internal_id IS NULL
-            ORDER BY bh_id LIMIT 1;
-            """)
-        first = cursor.fetchone()
-        cursor.execute("""
-            SELECT bh_id FROM batid_building_history
-            WHERE addresses_id IS NOT NULL AND addresses_internal_id IS NULL
-            ORDER BY bh_id DESC LIMIT 1;
-            """)
-        last = cursor.fetchone()
-
-    if first is None or last is None:
-        return "Nothing to fill"
-
-    first_id, last_id = first[0], last[0]
-    # min_id is exclusive: start just before the first eligible row
-    slices = compute_id_slices(last_id, n_slices, min_id=first_id - 1)
-    notify_tech(
-        f"Backfill addresses_internal_id (historique) : {n_slices} tâches en parallèle, du bh_id {first_id} au bh_id {last_id}."
-    )
-
-    for slice_min_id, slice_max_id in slices:
-        fill_building_history_addresses_internal_id.delay(
-            min_id=slice_min_id, max_id=slice_max_id
-        )
-
-    return f"Queued {n_slices} parallel ranges from bh_id {first_id} to {last_id}"
-
-
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def publish_datagouv_national():
     publish("nat")
@@ -429,6 +323,22 @@ def queue_full_ban_import(
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def import_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
     return import_ban_addresses(src_params, bulk_launch_uuid)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def update_dpt_cities_ban_ids_reliability(dpt: str):
+    return update_dpt_cities_ban_ids_reliability_job(dpt)
+
+
+# No autoretry: a retry would restart the whole multi-hour run from the first
+# department. On failure, resume it with dpt_start.
+@notify_if_error
+@shared_task
+def update_all_cities_ban_ids_reliability(
+    dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
+):
+    return update_all_cities_ban_ids_reliability_job(dpt_start, dpt_end)
 
 
 @notify_if_error
@@ -537,6 +447,28 @@ def close_irrelevant_reports():
     reject_irrelevant_arcep_reports()
 
 
+# Retries only when Brevo could not be reached: after a read timeout Brevo may
+# already have sent the email, and a retry would send it twice.
+# Other failures are reported by Sentry (Celery integration).
+@shared_task(
+    name="batid.tasks.send_report_activity_notification",
+    autoretry_for=(requests.ConnectionError,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
+def send_report_activity_notification(
+    *, report_id: int, action: str, actor_user_id: int, message_id: int
+):
+    from batid.services.reports.notifications import notify_report_author
+
+    notify_report_author(
+        report_id=report_id,
+        action=action,
+        actor_user_id=actor_user_id,
+        message_id=message_id,
+    )
+
+
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def flag_addresses_from_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
@@ -576,22 +508,23 @@ def queue_ban_address_flag_exists(
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def update_addresses_text_ban(src_params: dict, batch_size: int = 1000):  # type: ignore[assignment]
+def compare_addresses_with_ban(src_params: dict, batch_size: int = 1000):  # type: ignore[assignment]
     from batid.services.imports.update_addresses_ban import (
-        update_addresses_text_and_ban_id,
+        compare_addresses_with_ban_file,
     )
 
-    return update_addresses_text_and_ban_id(src_params, batch_size=batch_size)
+    return compare_addresses_with_ban_file(src_params, batch_size=batch_size)
 
 
 @notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
-def queue_ban_address_text_update(
+def queue_ban_address_comparison(
     dpt_start: Optional[str] = None,
     dpt_end: Optional[str] = None,
     batch_size: int = 1000,
 ):
-    """Queue text update tasks for all departments."""
+    """Queue the comparison of the existing addresses with the BAN file for all
+    departments."""
     dpts = dpts_list(dpt_start, dpt_end)
 
     for dpt in dpts:
@@ -603,7 +536,7 @@ def queue_ban_address_text_update(
                 immutable=True,
             ),
             Signature(
-                "batid.tasks.update_addresses_text_ban",
+                "batid.tasks.compare_addresses_with_ban",
                 args=(src_params, batch_size),
                 immutable=True,
                 priority=8,
@@ -611,7 +544,7 @@ def queue_ban_address_text_update(
         ]
         chain(*tasks)()
 
-    return f"Queued text update for {len(dpts)} departments"
+    return f"Queued comparison with the BAN file for {len(dpts)} departments"
 
 
 @notify_if_error
@@ -622,3 +555,31 @@ def delete_unlinked_obsolete_addresses_task(batch_size: int = 1000):
     )
 
     return delete_unlinked_obsolete_addresses(batch_size)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def geocode_obsolete_addresses_task(batch_size: int = 1000):
+    from batid.services.imports.update_addresses_ban import geocode_obsolete_addresses
+
+    return geocode_obsolete_addresses(batch_size)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def update_addresses_from_ban_comparison_task(batch_size: int = 1000):
+    from batid.services.imports.update_addresses_ban import (
+        update_addresses_from_ban_comparison,
+    )
+
+    return update_addresses_from_ban_comparison(batch_size)
+
+
+@notify_if_error
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+def replace_obsolete_addresses_from_geocoding_task(batch_size: int = 1000):
+    from batid.services.imports.update_addresses_ban import (
+        replace_obsolete_addresses_from_geocoding,
+    )
+
+    return replace_obsolete_addresses_from_geocoding(batch_size)

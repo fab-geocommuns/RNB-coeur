@@ -2,7 +2,7 @@ from django.db import migrations
 
 # check_address_is_linked() (prevent_delete_linked_address_trigger, see 0125) now
 # looks for the address in addresses_internal_id instead of addresses_id, using
-# the GIN indexes added in 0151. See specs/migration_lien_batiment_adresse.md.
+# the GIN indexes added in 0151.
 # The trigger itself is bound to the function by name: replacing the function is
 # enough. Error messages still show OLD.id, the BAN "clé d'interopérabilité".
 

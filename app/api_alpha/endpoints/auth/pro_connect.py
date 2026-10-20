@@ -52,10 +52,12 @@ logger = logging.getLogger(__name__)
 #  5. CallbackView (rnb-coeur)
 #  — verifies the state, exchanges the code for tokens, (access_token + id_token),
 #  - verifies the id_token, fetches the userinfo JWT,
-#  - creates/updates the Django user, then redirects the browser back to the site with the session token.
+#  - creates/updates the Django user, stores a one-time login code (60 s) in the cache,
+#  - redirects the browser back to the redirect_url the website provided in step 1, with ?code=...
 #
 #  6. Website (rnb-site)
-#  - user lands on the redirect_url the website provided in step 1.
+#  - POSTs the one-time code server side to ExchangeView and receives the session token.
+#  The token never appears in a URL.
 #
 # LOGOUT FLOW
 # ───────────
@@ -176,6 +178,35 @@ def fetch_userinfo(access_token):
         claims = jose_jwt.decode(resp.text, jwks)
         return dict(claims)
     return resp.json()
+
+
+# ---------------------------------------------------------------------------
+# One-time login codes
+# ---------------------------------------------------------------------------
+
+LOGIN_CODE_CACHE_PREFIX = "pro_connect_login_code:"
+LOGIN_CODE_TTL_SECONDS = 60
+LOGIN_CODE_MAX_LENGTH = 64
+
+
+def issue_login_code(user: User) -> str:
+    """Store a short-lived one-time code mapped to the user id and return it."""
+    code = secrets.token_urlsafe(32)
+    cache.set(LOGIN_CODE_CACHE_PREFIX + code, user.pk, timeout=LOGIN_CODE_TTL_SECONDS)
+    return code
+
+
+def consume_login_code(code: str) -> int | None:
+    """Return the user id of a live code and invalidate it, or None.
+
+    Concurrent calls with the same code may all read the id, but cache.delete()
+    returns True for exactly one of them (Redis DEL is atomic), so only one wins.
+    """
+    key = LOGIN_CODE_CACHE_PREFIX + code
+    user_id = cache.get(key)
+    if user_id is None or not cache.delete(key):
+        return None
+    return user_id
 
 
 # ---------------------------------------------------------------------------
@@ -343,7 +374,7 @@ class CallbackView(APIView):
             access_token, id_token = exchange_code_for_tokens(code)
             verify_id_token(id_token, nonce)
             userinfo = fetch_userinfo(access_token)
-            user, token = get_or_create_user_from_pro_connect(userinfo, id_token)
+            user, _ = get_or_create_user_from_pro_connect(userinfo, id_token)
 
             if not user.is_active:
                 # We block any user we disabled manually
@@ -363,6 +394,7 @@ class CallbackView(APIView):
 
             user.last_login = timezone.now()
             user.save(update_fields=["last_login"])
+            login_code = issue_login_code(user)
 
         except Exception:
             logger.exception("Pro Connect callback failed")
@@ -377,14 +409,41 @@ class CallbackView(APIView):
             )
 
         return HttpResponseRedirect(
-            add_params_to_url(
-                redirect_uri,
-                {
-                    "token": token.key,
-                    "user_id": user.id,
-                    "username": user.username,
-                },
+            add_params_to_url(redirect_uri, {"code": login_code})
+        )
+
+
+class ExchangeView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        # request.data is a list when the body is a JSON array
+        code = request.data.get("code") if isinstance(request.data, dict) else None
+        if not isinstance(code, str) or not code:
+            return Response(
+                {"error": "missing_code"}, status=status.HTTP_400_BAD_REQUEST
             )
+
+        user_id = (
+            consume_login_code(code) if len(code) <= LOGIN_CODE_MAX_LENGTH else None
+        )
+        user = (
+            User.objects.filter(pk=user_id, is_active=True).first() if user_id else None
+        )
+        if user is None:
+            return Response(
+                {"error": "invalid_code"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        token, _ = Token.objects.get_or_create(user=user)
+        return Response(
+            {
+                "id": user.id,
+                "token": token.key,
+                "username": user.username,
+                "groups": [group.name for group in user.groups.all()],
+            }
         )
 
 

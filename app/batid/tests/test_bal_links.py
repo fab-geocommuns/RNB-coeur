@@ -26,7 +26,7 @@ class BALImport(TransactionTestCase):
         # Building ONE
 
         old_on_one = Address.objects.create(
-            id="OLD_ON_ONE",
+            cle_interop="OLD_ON_ONE",
             source="Import BAN",
             point=Point(
                 0,
@@ -35,7 +35,7 @@ class BALImport(TransactionTestCase):
         )
 
         Address.objects.create(
-            id="GO_ON_ONE",
+            cle_interop="GO_ON_ONE",
             source="Import BAN",
             point=Point(
                 0,
@@ -88,7 +88,7 @@ class BALImport(TransactionTestCase):
         )
 
         Address.objects.create(
-            id="GO_ON_TWO",
+            cle_interop="GO_ON_TWO",
             source="Import BAN",
             point=Point(
                 0,
@@ -150,7 +150,7 @@ class BALImport(TransactionTestCase):
         )
 
         Address.objects.create(
-            id="FILTERED_CLE",
+            cle_interop="FILTERED_CLE",
             source="Import BAL",
             point=Point(0, 0),
         )
@@ -526,7 +526,7 @@ class LinkSearch(TestCase):
         """
 
         address = Address.objects.create(
-            id="1234",
+            cle_interop="1234",
             source="Import BAL",
             point=Point(
                 0,
@@ -575,7 +575,7 @@ class LinkSearch(TestCase):
         """
 
         address = Address.objects.create(
-            id="1234",
+            cle_interop="1234",
             source="Import BAL",
             point=Point(
                 0,
@@ -1151,7 +1151,7 @@ class LinkSearch(TestCase):
             ],
         }
         # We create the address in advance
-        address = Address.objects.create(id="DUMMY")
+        address = Address.objects.create(cle_interop="DUMMY")
 
         # First run : building has no address yet
         bdg = self._run_geojson_scenario(data)

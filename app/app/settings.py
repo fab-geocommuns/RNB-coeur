@@ -222,6 +222,10 @@ REST_FRAMEWORK = {
         "create_report": "20/min",
     },
     "URL_FORMAT_OVERRIDE": None,
+    # Keep the list-based error format for nested `many=True` serializers
+    # (e.g. ADS buildings_operations) to avoid breaking API clients.
+    # This format is deprecated and will be removed in DRF 3.20.
+    "LIST_SERIALIZER_ERRORS_AS_DICT": False,
 }
 
 if ENVIRONMENT in ("test", "development"):
@@ -230,7 +234,14 @@ if ENVIRONMENT in ("test", "development"):
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL")
 
-EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND")
+# Outside an explicit "true", every email (Django and Brevo) is written to the
+# server logs instead of being sent.
+EMAIL_SENDING_ENABLED = os.environ.get("EMAIL_SENDING_ENABLED") in ("true", "1", "True")
+EMAIL_BACKEND = (
+    "django.core.mail.backends.smtp.EmailBackend"
+    if EMAIL_SENDING_ENABLED
+    else "django.core.mail.backends.console.EmailBackend"
+)
 EMAIL_HOST = os.environ.get("DJANGO_EMAIL_HOST")
 EMAIL_PORT = os.environ.get("DJANGO_EMAIL_PORT")
 EMAIL_HOST_USER = os.environ.get("DJANGO_EMAIL_HOST_USER")
@@ -240,7 +251,8 @@ EMAIL_USE_SSL = os.environ.get("DJANGO_EMAIL_USE_SSL") == "1"
 
 RNB_SEND_ADDRESS = os.environ.get("RNB_SEND_ADDRESS")
 RNB_SEND_NAME = "Référentiel National des Bâtiments"
-RNB_REPLY_TO_ADDRESS = os.environ.get("RNB_REPLY_TO_ADDRESS")
+RNB_REPLY_TO_ADDRESS = os.environ.get("RNB_REPLY_TO_ADDRESS", "rnb@beta.gouv.fr")
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
 
 # Biggest building in RNB is GB97B3AYBKRN and is roughly 487,000m²
 MAX_BUILDING_AREA = 500000
@@ -300,6 +312,15 @@ CELERY_TASK_DEFAULT_EXCHANGE = "default"
 CELERY_TASK_DEFAULT_ROUTING_KEY = "default"
 CELERY_TASK_DEFAULT_PRIORITY = 5
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+# Shared by every web worker and Celery process: Pro Connect one-time login
+# codes, DRF throttling counters, OIDC discovery/JWKS. DB 0 holds Celery results.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.environ.get("REDIS_CACHE_URL", "redis://redis:6379/1"),
+    }
+}
 
 
 CELERY_BEAT_SCHEDULE = get_celery_beat_schedule(ENVIRONMENT)

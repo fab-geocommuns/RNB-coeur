@@ -18,7 +18,7 @@ def get_bdg_history(rnb_id: str) -> list[dict]:
     (
         SELECT COALESCE(json_agg(
             json_build_object(
-                'id', adr.id,
+                'id', adr.cle_interop,
                 'source', adr.source,
                 'street_number', adr.street_number,
                 'street_rep', adr.street_rep,

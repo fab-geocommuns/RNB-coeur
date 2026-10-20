@@ -186,13 +186,13 @@ def _match_bdg_intersecting(cursor, address_point: Point) -> Optional[str]:
         SELECT bdg.rnb_id
         FROM batid_building as bdg
         WHERE ST_Intersects(bdg.shape, %(address_point)s)
-        AND bdg.status IN %(status)s
+        AND bdg.status = ANY(%(status)s)
         AND bdg.is_active = TRUE
     """
 
     params = {
         "address_point": f"{address_point}",
-        "status": tuple(BuildingStatus.REAL_BUILDINGS_STATUS),
+        "status": list(BuildingStatus.REAL_BUILDINGS_STATUS),
     }
 
     rows = dictfetchall(cursor, on_bdg_sql, params)
@@ -245,7 +245,7 @@ def _match_bdg_on_plot(cursor, address_point: Point) -> Optional[str]:
         CASE WHEN ST_Area(bdg.shape) = 0 THEN 1 ELSE St_Area(ST_Intersection(bdg.shape, %(plot_shape)s)) / St_Area(bdg.shape) END AS bdg_cover_ratio
         from batid_building as bdg
         where st_intersects(bdg.shape, %(plot_shape)s)
-        AND bdg.status IN %(status)s
+        AND bdg.status = ANY(%(status)s)
         AND bdg.is_active = true
     """
 
@@ -254,7 +254,7 @@ def _match_bdg_on_plot(cursor, address_point: Point) -> Optional[str]:
         bdgs_on_plot_sql,
         {
             "plot_shape": f"{plot_shape}",
-            "status": tuple(BuildingStatus.REAL_BUILDINGS_STATUS),
+            "status": list(BuildingStatus.REAL_BUILDINGS_STATUS),
         },
     )
 
@@ -340,7 +340,7 @@ def _known_building_address_link(cle_interop: str, rnb_id: str) -> bool:
         from batid_building_with_history as bdg
         where bdg.rnb_id = %(rnb_id)s
         and (
-            select ad.internal_id from batid_address as ad where ad.id = %(cle_interop)s
+            select ad.internal_id from batid_address as ad where ad.cle_interop = %(cle_interop)s
         ) = any(bdg.addresses_internal_id)
     """
 

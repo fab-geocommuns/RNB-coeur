@@ -41,6 +41,11 @@ class RNBIdField(serializers.CharField):
 
 
 class AddressSerializer(serializers.ModelSerializer):
+    # The public contract exposes the BAN interop key as "id".
+    id = serializers.CharField(
+        source="cle_interop", read_only=True, help_text="02191_0020_00003"
+    )
+
     class Meta:
         model = Address
         fields = [
@@ -55,7 +60,6 @@ class AddressSerializer(serializers.ModelSerializer):
             "city_insee_code",
         ]
         extra_kwargs = {
-            "id": {"help_text": "02191_0020_00003"},
             "source": {"help_text": "bdnb"},
             "street_number": {"help_text": "3"},
             "street_rep": {"help_text": ""},

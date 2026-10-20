@@ -1,7 +1,7 @@
 from django.db import migrations, models
 
 # Second step of the migration of the building <-> address link towards an
-# internal key (see specs/migration_lien_batiment_adresse.md).
+# internal key.
 #
 # 0146 created batid_address.internal_id and its DEFAULT; the addresses that
 # predate it were filled by the fill_address_internal_id task. This migration

@@ -100,13 +100,13 @@ class TestGuesser(TransactionTestCase):
 
         # Add one address for testing address geocoding
         address_1 = Address.objects.create(
-            id="BAN_ID_ONE",
+            cle_interop="BAN_ID_ONE",
             point=Point(-0.5628137581613334, 44.82584611733995, srid=4326),
         )
 
         # Add one address on two buildings to test ambiguous address
         address_2 = Address.objects.create(
-            id="AMBIGUOUS_ADDRESS",
+            cle_interop="AMBIGUOUS_ADDRESS",
             point=Point(-0.562675427959789, 44.825661934374295, srid=4326),
         )
 
@@ -700,9 +700,9 @@ class TestIsolatedMatching(PartialRoofTest):
 class TestAddressGeocoding(TransactionTestCase):
     def setUp(self):
 
-        adr_one = Address.objects.create(id="BAN_ID_ONE")
-        adr_two = Address.objects.create(id="BAN_ID_TWO")
-        Address.objects.create(id="BAN_ID_THREE")
+        adr_one = Address.objects.create(cle_interop="BAN_ID_ONE")
+        adr_two = Address.objects.create(cle_interop="BAN_ID_TWO")
+        Address.objects.create(cle_interop="BAN_ID_THREE")
 
         b = create_default_bdg(rnb_id="BDG_ONE")
         b.addresses_internal_id = [adr_one.internal_id]

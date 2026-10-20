@@ -500,7 +500,7 @@ class GeocodeAddressHandler(AbstractHandler):
             else:
                 qs = Building.objects.all()
 
-            bdgs = qs.filter(addresses_internal_read_only__id=ban_id)  # type: ignore[union-attr]
+            bdgs = qs.filter(addresses_internal_read_only__cle_interop=ban_id)  # type: ignore[union-attr]
 
             if bdgs.count() > 0:
                 guess["matches"] = bdgs  # type: ignore[typeddict-item]

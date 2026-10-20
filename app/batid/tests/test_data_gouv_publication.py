@@ -1,8 +1,11 @@
 import csv
+import hashlib
+import io
 import json
 import os
 from datetime import datetime
 from unittest import mock
+from zipfile import ZipFile
 
 import boto3
 from batid.models import (
@@ -16,7 +19,6 @@ from batid.models import (
 from batid.services.data_gouv_publication import (
     cleanup_directory,
     create_archive,
-    create_csv,
     create_directory,
     data_gouv_create_resource,
     data_gouv_resource_id,
@@ -136,14 +138,46 @@ class TestDataGouvPublication(TestCase):
             username="jean_doux",
         )
 
+    def test_csv_written_as_utf8_bytes(self):
+        """
+        Input: one building linked to an address on "rue de l'Église".
+        Expected: the raw bytes of the RNB_75.csv zip entry decode as UTF-8
+        and contain "Église".
+        """
+        address = Address.objects.create(
+            cle_interop="75105_0001_00001", street="rue de l'Église"
+        )
+        Department_subdivided.objects.create(
+            code="75", name="Paris", shape=get_department_75_geom()
+        )
+        geom = get_geom_paris()
+        Building.objects.create(
+            rnb_id="BDG-ACCENT01",
+            shape=geom,
+            point=geom.point_on_surface,
+            status="constructed",
+            addresses_internal_id=[address.internal_id],
+        )
+        directory_name = create_directory("75")
+        self.addCleanup(cleanup_directory, directory_name)
+
+        archive_path, _, _ = create_archive(directory_name, "75")
+
+        with ZipFile(archive_path) as archive:
+            raw = archive.read("RNB_75.csv")
+        self.assertIn("Église".encode("utf-8"), raw)
+        raw.decode("utf-8")
+
     def test_archive_creation_deletion(self):
         """
-        Entrée : plusieurs bâtiments parisiens (actifs/inactif, 0/1/plusieurs
-        adresses, validés par 0, 1 ou 2 utilisateurs), des parcelles et les
-        départements 75 et 93 ; on génère l'export CSV de l'aire "75".
+        Input: several Parisian buildings (active/inactive, 0/1/many addresses,
+        validated by 0, 1 or 2 users), plots and the 75 and 93 departments;
+        the zip export of area "75" is generated.
 
-        Attendu : le CSV ne contient que les 3 bâtiments actifs du 75.
-        L'archive zip est ensuite créée puis le répertoire nettoyé.
+        Expected: the directory holds only RNB_75.csv.zip (no CSV on disk); the
+        zip is valid, has a single RNB_75.csv entry dated at export time, and
+        that CSV contains only the 3 active buildings of the 75. Returned size
+        and sha1 match the zip file. The directory is then cleaned up.
         """
 
         self.maxDiff = None
@@ -165,7 +199,7 @@ class TestDataGouvPublication(TestCase):
 
         # Address
         address_paris_1 = Address.objects.create(
-            id="75105_8884_00004",
+            cle_interop="75105_8884_00004",
             source="BAN",
             point=geom_bdg_paris.point_on_surface,
             street_number="4",
@@ -175,7 +209,7 @@ class TestDataGouvPublication(TestCase):
         )
 
         address_paris_2 = Address.objects.create(
-            id="75105_8884_00005",
+            cle_interop="75105_8884_00005",
             source="BAN",
             point=geom_bdg_paris.point_on_surface,
             street_number="6",
@@ -231,7 +265,7 @@ class TestDataGouvPublication(TestCase):
         )
 
         address_Montreuil = Address.objects.create(
-            id="93048_1450_00050",
+            cle_interop="93048_1450_00050",
             source="BAN",
             point=geom_bdg_montreuil.point_on_surface,
             street_number="50",
@@ -267,14 +301,27 @@ class TestDataGouvPublication(TestCase):
         area = "75"
         directory_name = create_directory(area)
 
-        create_csv(directory_name, area)
+        # even second: zip timestamps have a 2-second resolution
+        with freeze_time("2026-03-14 12:34:56"):
+            archive_path, archive_size, archive_sha1 = create_archive(
+                directory_name, area
+            )
 
         # Check if the directory exists
         self.assertTrue(os.path.exists(directory_name))
 
-        # check there is one file in the directory
-        files = os.listdir(directory_name)
-        self.assertEqual(len(files), 1)
+        # only the zip is on disk, no intermediate CSV
+        self.assertEqual(os.listdir(directory_name), ["RNB_75.csv.zip"])
+
+        with ZipFile(archive_path) as archive:
+            self.assertIsNone(archive.testzip())
+            self.assertEqual(archive.namelist(), ["RNB_75.csv"])
+            self.assertEqual(
+                archive.getinfo("RNB_75.csv").date_time, (2026, 3, 14, 12, 34, 56)
+            )
+            self.assertEqual(
+                archive.getinfo("RNB_75.csv").external_attr >> 16, 0o100644
+            )
 
         # Expected values
         expected_keys = [
@@ -370,8 +417,10 @@ class TestDataGouvPublication(TestCase):
         ]
         expected_rows = sorted(expected_rows, key=lambda x: x["rnb_id"])
 
-        # open the file and check the content
-        with open(f"{directory_name}/RNB_{area}.csv", "r") as f:
+        # open the CSV entry of the zip and check the content
+        with ZipFile(archive_path) as archive, io.TextIOWrapper(
+            archive.open(f"RNB_{area}.csv"), encoding="utf-8", newline=""
+        ) as f:
 
             # For the sake of test, we sort both rows and expected rows
             reader = csv.DictReader(f, delimiter=";")
@@ -393,13 +442,13 @@ class TestDataGouvPublication(TestCase):
             # Finally, check the content of the rows
             self.assertListEqual(rows, expected_rows)
 
-        archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
-
         # check the archive exists
         self.assertTrue(os.path.exists(archive_path))
         self.assertEqual(archive_size, os.path.getsize(archive_path))
-        # assert sha is not empty
-        self.assertTrue(archive_sha1)
+        with open(archive_path, "rb") as archive_file:
+            self.assertEqual(
+                archive_sha1, hashlib.sha1(archive_file.read()).hexdigest()
+            )
         cleanup_directory(directory_name)
 
         # check the directory has been removed
@@ -428,8 +477,6 @@ class TestDataGouvPublication(TestCase):
         )
         area = "nat"
         directory_name = create_directory(area)
-
-        create_csv(directory_name, area)
 
         archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
 

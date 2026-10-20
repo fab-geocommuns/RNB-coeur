@@ -20,8 +20,8 @@ class TestSummerChallengeRanking(APITestCase):
         user_3 = ContributorUserFactory(username="user_3", email="email_3")
         user_4 = ContributorUserFactory(username="user_4", email="email_4")
 
-        Address.objects.create(id="addr1")
-        Address.objects.create(id="addr2")
+        Address.objects.create(cle_interop="addr1")
+        Address.objects.create(cle_interop="addr2")
 
         create_city_dpt(self)
 

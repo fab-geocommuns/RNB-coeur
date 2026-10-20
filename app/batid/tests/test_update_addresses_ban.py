@@ -1,33 +1,41 @@
-from unittest.mock import patch
-from uuid import UUID
+import csv
+from io import StringIO
+from unittest.mock import Mock, patch
 
 import batid.tests.helpers as helpers
-from batid.models import Address
+from batid.models import Address, Building, City, DataFix
 from batid.services.imports.update_addresses_ban import (
     _expand_street_abbreviations,
+    _is_comparison_success,
+    _is_geocoding_success,
     _mark_existing_addresses,
-    _streets_match,
+    _split_housenumber,
+    _street_levenshtein,
+    compare_addresses_with_ban_file,
     delete_unlinked_obsolete_addresses,
     flag_addresses_from_ban_file,
+    geocode_obsolete_addresses,
     normalize_text,
-    update_addresses_text_and_ban_id,
+    replace_obsolete_addresses_from_geocoding,
+    update_addresses_from_ban_comparison,
 )
 from batid.tests.factories.users import UserFactory
 from django.contrib.gis.geos import Point
-from django.db import connection
+from django.core.cache import cache
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase, TransactionTestCase
 
 
 class TestUpdateBatch(TestCase):
     def test_update_existing_address(self):
-        Address.objects.create(id="04001_test_00001", source="ban")
+        Address.objects.create(cle_interop="04001_test_00001", source="ban")
 
         batch = ["04001_test_00001"]
 
         updated = _mark_existing_addresses(batch)
 
         self.assertEqual(updated, 1)
-        addr = Address.objects.get(id="04001_test_00001")
+        addr = Address.objects.get(cle_interop="04001_test_00001")
         self.assertTrue(addr.still_exists)
 
     def test_address_not_in_db_is_ignored(self):
@@ -36,11 +44,13 @@ class TestUpdateBatch(TestCase):
         updated = _mark_existing_addresses(batch)
 
         self.assertEqual(updated, 0)
-        self.assertFalse(Address.objects.filter(id="99999_unknown_00001").exists())
+        self.assertFalse(
+            Address.objects.filter(cle_interop="99999_unknown_00001").exists()
+        )
 
     def test_still_exists_none_by_default(self):
         addr = Address.objects.create(
-            id="04001_test_00002",
+            cle_interop="04001_test_00002",
             source="ban",
         )
         self.assertIsNone(addr.still_exists)
@@ -53,9 +63,9 @@ class TestFlagAddressesFromBanFile(TestCase):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         # Create addresses that exist in the fixture
-        Address.objects.create(id="04001_pk624e_00001", source="ban")
-        Address.objects.create(id="04001_pk624e_00002", source="ban")
-        Address.objects.create(id="04001_pk624e_00003", source="ban")
+        Address.objects.create(cle_interop="04001_pk624e_00001", source="ban")
+        Address.objects.create(cle_interop="04001_pk624e_00002", source="ban")
+        Address.objects.create(cle_interop="04001_pk624e_00003", source="ban")
 
         result = flag_addresses_from_ban_file({"dpt": "04"})
 
@@ -63,13 +73,13 @@ class TestFlagAddressesFromBanFile(TestCase):
         self.assertEqual(result["still_exist"], 3)
 
         # Check addresses have still_exists=True
-        addr1 = Address.objects.get(id="04001_pk624e_00001")
+        addr1 = Address.objects.get(cle_interop="04001_pk624e_00001")
         self.assertTrue(addr1.still_exists)
 
-        addr2 = Address.objects.get(id="04001_pk624e_00002")
+        addr2 = Address.objects.get(cle_interop="04001_pk624e_00002")
         self.assertTrue(addr2.still_exists)
 
-        addr3 = Address.objects.get(id="04001_pk624e_00003")
+        addr3 = Address.objects.get(cle_interop="04001_pk624e_00003")
         self.assertTrue(addr3.still_exists)
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
@@ -78,7 +88,7 @@ class TestFlagAddressesFromBanFile(TestCase):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         # Create only one address that exists in the fixture
-        Address.objects.create(id="04001_pk624e_00001", source="ban")
+        Address.objects.create(cle_interop="04001_pk624e_00001", source="ban")
 
         result = flag_addresses_from_ban_file({"dpt": "04"})
 
@@ -86,7 +96,9 @@ class TestFlagAddressesFromBanFile(TestCase):
         self.assertEqual(result["still_exist"], 1)
 
         # The unknown address from fixture should not be created
-        self.assertFalse(Address.objects.filter(id="04001_unknown_99999").exists())
+        self.assertFalse(
+            Address.objects.filter(cle_interop="04001_unknown_99999").exists()
+        )
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
     @patch("batid.services.imports.update_addresses_ban.os.remove")
@@ -94,17 +106,17 @@ class TestFlagAddressesFromBanFile(TestCase):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         # Create addresses: one in fixture, one not
-        Address.objects.create(id="04001_pk624e_00001", source="ban")
-        Address.objects.create(id="04001_not_in_ban_00001", source="ban")
+        Address.objects.create(cle_interop="04001_pk624e_00001", source="ban")
+        Address.objects.create(cle_interop="04001_not_in_ban_00001", source="ban")
 
         result = flag_addresses_from_ban_file({"dpt": "04"})
 
         # Address in fixture should have still_exists=True
-        addr_in_ban = Address.objects.get(id="04001_pk624e_00001")
+        addr_in_ban = Address.objects.get(cle_interop="04001_pk624e_00001")
         self.assertTrue(addr_in_ban.still_exists)
 
         # Address NOT in fixture should be marked still_exists=False
-        addr_not_in_ban = Address.objects.get(id="04001_not_in_ban_00001")
+        addr_not_in_ban = Address.objects.get(cle_interop="04001_not_in_ban_00001")
         self.assertFalse(addr_not_in_ban.still_exists)
 
         # Check obsolete count in result
@@ -118,13 +130,88 @@ class TestFlagAddressesFromBanFile(TestCase):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
         # Create an address in another department
-        other_dept_addr = Address.objects.create(id="75001_other_00001", source="ban")
+        other_dept_addr = Address.objects.create(
+            cle_interop="75001_other_00001", source="ban"
+        )
 
         flag_addresses_from_ban_file({"dpt": "04"})
 
         # Address from other department should remain untouched (still_exists=None)
         other_dept_addr.refresh_from_db()
         self.assertIsNone(other_dept_addr.still_exists)
+
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_flag_addresses_corsica_keys_any_case(self, mock_remove, mock_find):
+        """
+        Input: Corsica department "2A" (uppercase), two addresses absent from the
+        BAN file, one with a lowercase key "2a004_..." and one with an uppercase
+        key "2A004_...".
+        Expected: both addresses are marked still_exists=False, 2 obsolete reported.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+
+        Address.objects.create(cle_interop="2a004_0010_00001", source="ban")
+        Address.objects.create(cle_interop="2A004_0010_00002", source="ban")
+
+        result = flag_addresses_from_ban_file({"dpt": "2A"})
+
+        self.assertEqual(result["obsolete"], 2)
+        for cle_interop in ["2a004_0010_00001", "2A004_0010_00002"]:
+            addr = Address.objects.get(cle_interop=cle_interop)
+            self.assertFalse(addr.still_exists)
+
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_flag_addresses_keys_compared_case_insensitively(
+        self, mock_remove, mock_find
+    ):
+        """
+        Input: an address with an uppercase key "04001_PK624E_00001" whose
+        lowercase version is in the BAN file.
+        Expected: the address is marked still_exists=True, 1 still existing and
+        0 obsolete reported.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+
+        Address.objects.create(cle_interop="04001_PK624E_00001", source="ban")
+
+        result = flag_addresses_from_ban_file({"dpt": "04"})
+
+        self.assertEqual(result["still_exist"], 1)
+        self.assertEqual(result["obsolete"], 0)
+        addr = Address.objects.get(cle_interop="04001_PK624E_00001")
+        self.assertTrue(addr.still_exists)
+
+    @patch("batid.services.imports.update_addresses_ban.Source.find")
+    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    def test_flag_addresses_uppercase_file_keys_match_lowercase_db_keys(
+        self, mock_remove, mock_find
+    ):
+        """
+        Input: a BAN file holding uppercase keys ("2A004_0010_00001",
+        "2A004_0010_00002") and two addresses in db with lowercase keys:
+        "2a004_0010_00001" (in the file in uppercase) and "2a004_0010_00003"
+        (absent from the file).
+        Expected: "2a004_0010_00001" is marked still_exists=True and is not
+        marked obsolete, "2a004_0010_00003" is marked still_exists=False;
+        1 still existing and 1 obsolete reported.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_uppercase_keys.csv")
+
+        Address.objects.create(cle_interop="2a004_0010_00001", source="ban")
+        Address.objects.create(cle_interop="2a004_0010_00003", source="ban")
+
+        result = flag_addresses_from_ban_file({"dpt": "2A"})
+
+        self.assertEqual(result["still_exist"], 1)
+        self.assertEqual(result["obsolete"], 1)
+        self.assertTrue(
+            Address.objects.get(cle_interop="2a004_0010_00001").still_exists
+        )
+        self.assertFalse(
+            Address.objects.get(cle_interop="2a004_0010_00003").still_exists
+        )
 
 
 class TestNormalizeText(TestCase):
@@ -172,354 +259,408 @@ class TestExpandStreetAbbreviations(TestCase):
         )
 
 
-class TestStreetsMatch(TestCase):
-    def test_exact_match(self):
-        self.assertTrue(_streets_match("Rue des Lilas", "Rue des Lilas"))
-
-    def test_match_with_case_and_accents(self):
-        self.assertTrue(_streets_match("rue de la république", "Rue de la République"))
-
-    def test_du_vs_des(self):
-        # Levenshtein distance of 2 between "du" and "des"
-        self.assertTrue(_streets_match("Rue du Moulin", "Rue des Moulin"))
-
-    def test_abbreviation_imp(self):
-        self.assertTrue(_streets_match("Imp de la Treille", "Impasse de la Treille"))
-
-    def test_abbreviation_che(self):
-        self.assertTrue(_streets_match("Che du Pont Vieux", "Chemin du Pont Vieux"))
-
-    def test_abbreviation_plus_small_diff(self):
-        # "Imp du Moulin" → expand → "impasse du moulin"
-        # "Impasse des Moulin" → "impasse des moulin"
-        # Levenshtein("impasse du moulin", "impasse des moulin") = 2 → match
-        self.assertTrue(_streets_match("Imp du Moulin", "Impasse des Moulin"))
-
-    def test_large_difference_no_match(self):
-        self.assertFalse(_streets_match("Rue de la Gare", "Impasse de la Treille"))
-
-    def test_none_db_street(self):
-        self.assertFalse(_streets_match(None, "Rue des Lilas"))
-
-    def test_both_empty(self):
-        self.assertTrue(_streets_match("", ""))
-
-    def test_single_char_difference(self):
-        # Levenshtein distance = 1
-        self.assertTrue(_streets_match("Rue des Lilas", "Rue des Lilac"))
+class TestStreetLevenshtein(TestCase):
+    def test_street_levenshtein(self):
+        """
+        Input: pairs of street names (db, BAN) differing by their case, accents,
+        street type abbreviation, a few letters or entirely, and missing values.
+        Expected: the Levenshtein distance between the normalized names, with
+        the street type abbreviation expanded ("Imp" counts as "impasse").
+        """
+        cases = [
+            ("Rue des Lilas", "Rue des Lilas", 0),
+            ("rue de la république", "Rue de la République", 0),
+            ("Imp de la Treille", "Impasse de la Treille", 0),
+            ("Che du Pont Vieux", "Chemin du Pont Vieux", 0),
+            ("", "", 0),
+            ("Rue des Lilas", "Rue des Lilac", 1),
+            # "du" vs "des"
+            ("Rue du Moulin", "Rue des Moulin", 2),
+            # "impasse du moulin" vs "impasse des moulin" once expanded
+            ("Imp du Moulin", "Impasse des Moulin", 2),
+            ("Rue de la Gare", "Impasse de la Treille", 12),
+            # A missing db street is an empty one
+            (None, "Rue des Lilas", 13),
+        ]
+        for db_street, ban_street, expected in cases:
+            with self.subTest(db_street=db_street, ban_street=ban_street):
+                self.assertEqual(_street_levenshtein(db_street, ban_street), expected)
 
 
-class TestUpdateAddressesTextAndBanId(TestCase):
-    @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
-    def test_matching_text_updates_street_city_and_ban_id(self, mock_remove, mock_find):
-        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+@patch("batid.services.imports.update_addresses_ban.Source.find")
+@patch("batid.services.imports.update_addresses_ban.os.remove")
+class TestCompareAddressesWithBanFile(TestCase):
+    # Fixture rows (ban_with_ids_test_data.csv), all in "Impasse de la Treille
+    # 04510 Aiglun" (04001):
+    # - 04001_pk624e_00001: 1 bis, lon=6.135212, lat=44.070028, with a ban_id
+    # - 04001_pk624e_00002: 2, lon=6.135332, lat=44.069986, with a ban_id
+    # - 04001_pk624e_00003: 3, lon=6.135447, lat=44.069901, no ban_id
+    # The points *_300M are 300 m north of these positions: too far for the
+    # distance alone to make a success, close enough for matching fields.
+    ROW_1_300M = Point(6.135212, 44.072728, srid=4326)
+    ROW_2 = Point(6.135332, 44.069986, srid=4326)
+    ROW_2_300M = Point(6.135332, 44.072686, srid=4326)
+    ROW_3 = Point(6.135447, 44.069901, srid=4326)
+    ROW_3_300M = Point(6.135447, 44.072601, srid=4326)
 
-        # Fixture row 1: numero=1, rep=bis, nom_voie=Impasse de la Treille,
-        # code_postal=04510, code_insee=04001, nom_commune=Aiglun,
-        # lon=6.135212, lat=44.070028
-        # id_ban_adresse=a1b2c3d4-e5f6-7890-abcd-ef1234567890
-        # Point ~5m from BAN coordinates
-        Address.objects.create(
-            id="04001_pk624e_00001",
-            source="ban",
-            still_exists=True,
-            point=Point(6.13518, 44.07000, srid=4326),
-            street="impasse de la treille",
-            street_number="1",
-            # test de l'alias B / bis
-            street_rep="B",  # alias for "bis" in BAN fixture
-            city_name="aiglun",
-            city_zipcode="04510",
-            city_insee_code="04001",
-        )
-        # Fixture row 2: nom_voie=Impasse de la Treille
-        # DB has abbreviation "Imp" → should match via alias expansion
-        Address.objects.create(
-            id="04001_pk624e_00002",
-            source="ban",
-            still_exists=True,
-            street="Imp de la Treille",
-            street_number="2",
-            city_name="aiglun",
-            city_zipcode="04510",
-            city_insee_code="04001",
-        )
-        # Fixture row 3: nom_voie=Impasse de la Treille
-        # DB has "Impasse de las Treilles" (Levenshtein distance = 2) → should match
-        Address.objects.create(
-            id="04001_pk624e_00003",
-            source="ban",
-            still_exists=True,
-            street="Impasse de las Treilles",
-            street_number="3",
-            city_name="aiglun",
-            city_zipcode="04510",
-            city_insee_code="04001",
+    @staticmethod
+    def _existing_address(cle_interop: str, **fields):
+        values = {
+            "street": "impasse de la treille",
+            "city_name": "aiglun",
+            "city_zipcode": "04510",
+            "city_insee_code": "04001",
+        }
+        values.update(fields)
+        return Address.objects.create(
+            cle_interop=cle_interop, source="ban", still_exists=True, **values
         )
 
-        result = update_addresses_text_and_ban_id({"dpt": "04"})
-
-        self.assertEqual(result["updated"], 3)
-        self.assertEqual(result["mismatched"], 0)
-
-        # Row 1: exact match (after normalization)
-        addr = Address.objects.get(id="04001_pk624e_00001")
-        self.assertEqual(addr.street, "Impasse de la Treille")
-        self.assertEqual(addr.city_name, "Aiglun")
-        self.assertEqual(addr.street_rep, "bis")
-        self.assertEqual(addr.ban_id, UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890"))
-        self.assertEqual(addr.ban_update_flag, "update")
-        self.assertIsNone(addr.ban_update_details)
-        # Point should be updated to BAN coordinates
-        self.assertAlmostEqual(addr.point.x, 6.135212, places=5)
-        self.assertAlmostEqual(addr.point.y, 44.070028, places=5)
-
-        # Row 2: abbreviation "Imp" expanded to "impasse" → match
-        addr2 = Address.objects.get(id="04001_pk624e_00002")
-        self.assertEqual(addr2.street, "Impasse de la Treille")
-        self.assertEqual(addr2.ban_update_flag, "update")
-
-        # Row 3: Levenshtein distance = 2 → match
-        addr3 = Address.objects.get(id="04001_pk624e_00003")
-        self.assertEqual(addr3.street, "Impasse de la Treille")
-        self.assertEqual(addr3.ban_update_flag, "update")
-
-    @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
-    def test_mismatching_text_no_point_flags_mismatch_without_distance(
+    def test_matching_fields_are_a_success_with_full_details(
         self, mock_remove, mock_find
     ):
+        """
+        Input: 3 existing addresses whose fields match the BAN file once
+        normalized: lowercase text and "B" for "bis" (row 1, ~5 m away), "Imp"
+        for "Impasse" (row 2, 300 m away) and a 2-letter typo (row 3, 300 m
+        away).
+        Expected: 3 "comparison_success". The details of row 1 hold the BAN
+        address field by field, the distance, a street_lev of 0 and no diffs.
+        Row 3 has a street_lev of 2 and no diffs. The addresses themselves are
+        untouched.
+        """
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
-
-        # DB has "rue de la gare" but BAN has "Impasse de la Treille" → mismatch
-        # No point → distance_m should not appear in details
-        Address.objects.create(
-            id="04001_pk624e_00002",
-            source="ban",
-            still_exists=True,
-            street="rue de la gare",
-            street_number="2",
-            city_name="aiglun",
-            city_zipcode="04510",
-            city_insee_code="04001",
-        )
-
-        result = update_addresses_text_and_ban_id({"dpt": "04"})
-
-        self.assertEqual(result["mismatched"], 1)
-
-        addr = Address.objects.get(id="04001_pk624e_00002")
-        self.assertEqual(addr.ban_update_flag, "text_mismatch")
-        # Street should not be updated on mismatch
-        self.assertEqual(addr.street, "rue de la gare")
-        # Details should contain the mismatched field but no distance
-        self.assertIn("street", addr.ban_update_details)
-        self.assertEqual(addr.ban_update_details["street"]["db"], "rue de la gare")
-        self.assertEqual(
-            addr.ban_update_details["street"]["ban"], "Impasse de la Treille"
-        )
-        self.assertNotIn("distance_m", addr.ban_update_details)
-
-    @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
-    def test_no_ban_id_in_file_updates_text_only(self, mock_remove, mock_find):
-        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
-
-        # Fixture row 3: id_ban_adresse is empty
-        Address.objects.create(
-            id="04001_pk624e_00003",
-            source="ban",
-            still_exists=True,
-            street="impasse de la treille",
-            street_number="3",
-            city_name="aiglun",
-            city_zipcode="04510",
-            city_insee_code="04001",
-        )
-
-        result = update_addresses_text_and_ban_id({"dpt": "04"})
-
-        self.assertEqual(result["updated"], 1)
-
-        addr = Address.objects.get(id="04001_pk624e_00003")
-        self.assertEqual(addr.street, "Impasse de la Treille")
-        self.assertEqual(addr.city_name, "Aiglun")
-        self.assertIsNone(addr.ban_id)
-
-    @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
-    def test_address_not_still_exists_is_skipped(self, mock_remove, mock_find):
-        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
-
-        # Address with still_exists=False should be ignored
-        Address.objects.create(
-            id="04001_pk624e_00001",
-            source="ban",
-            still_exists=False,
-            street="impasse de la treille",
-            street_number="1",
-            street_rep="bis",
-            city_name="aiglun",
-            city_zipcode="04510",
-            city_insee_code="04001",
-        )
-
-        result = update_addresses_text_and_ban_id({"dpt": "04"})
-
-        self.assertEqual(result["updated"], 0)
-        self.assertEqual(result["mismatched"], 0)
-
-        addr = Address.objects.get(id="04001_pk624e_00001")
-        # Street should remain unchanged
-        self.assertEqual(addr.street, "impasse de la treille")
-        self.assertIsNone(addr.ban_id)
-
-    @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
-    def test_close_distance_updates_despite_field_diffs(self, mock_remove, mock_find):
-        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
-
-        # Fixture row 2: lon=6.135332, lat=44.069986, nom_voie=Impasse de la Treille
-        # DB street differs, but point is ~5m away → distance < 20m → update
-        Address.objects.create(
-            id="04001_pk624e_00002",
-            source="ban",
-            still_exists=True,
-            point=Point(6.13530, 44.06996, srid=4326),
-            street="rue de la gare",
-            street_number="2",
-            city_name="aiglun",
-            city_zipcode="04510",
-            city_insee_code="04001",
-        )
-
-        result = update_addresses_text_and_ban_id({"dpt": "04"})
-
-        self.assertEqual(result["updated"], 1)
-        self.assertEqual(result["mismatched"], 0)
-
-        addr = Address.objects.get(id="04001_pk624e_00002")
-        self.assertEqual(addr.ban_update_flag, "update")
-        # Fields should be updated to BAN values
-        self.assertEqual(addr.street, "Impasse de la Treille")
-        self.assertEqual(addr.ban_id, UUID("b2c3d4e5-f6a7-8901-bcde-f12345678901"))
-        # Point should be updated to BAN coordinates
-        self.assertAlmostEqual(addr.point.x, 6.135332, places=5)
-        self.assertAlmostEqual(addr.point.y, 44.069986, places=5)
-
-    @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
-    def test_far_distance_with_matching_fields_updates(self, mock_remove, mock_find):
-        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
-
-        # Fixture row 1: lon=6.135212, lat=44.070028
-        # Point is ~500m away but all fields match → update
-        Address.objects.create(
-            id="04001_pk624e_00001",
-            source="ban",
-            still_exists=True,
-            point=Point(6.14, 44.073, srid=4326),
-            street="impasse de la treille",
+        self._existing_address(
+            "04001_pk624e_00001",
             street_number="1",
             street_rep="B",
-            city_name="aiglun",
-            city_zipcode="04510",
-            city_insee_code="04001",
+            point=Point(6.13518, 44.07000, srid=4326),
+        )
+        self._existing_address(
+            "04001_pk624e_00002",
+            street_number="2",
+            street="Imp de la Treille",
+            point=self.ROW_2_300M,
+        )
+        self._existing_address(
+            "04001_pk624e_00003",
+            street_number="3",
+            street="Impasse de las Treilles",
+            point=self.ROW_3_300M,
         )
 
-        result = update_addresses_text_and_ban_id({"dpt": "04"})
+        result = compare_addresses_with_ban_file({"dpt": "04"})
 
-        self.assertEqual(result["updated"], 1)
-        self.assertEqual(result["mismatched"], 0)
+        self.assertEqual(result, {"dpt": "04", "successes": 3, "failures": 0})
+        self.assertEqual(
+            Address.objects.filter(ban_update_flag="comparison_success").count(), 3
+        )
 
-        addr = Address.objects.get(id="04001_pk624e_00001")
-        self.assertEqual(addr.ban_update_flag, "update")
-        self.assertEqual(addr.street, "Impasse de la Treille")
-        # Point should be updated to BAN coordinates
-        self.assertAlmostEqual(addr.point.x, 6.135212, places=5)
-        self.assertAlmostEqual(addr.point.y, 44.070028, places=5)
+        addr = Address.objects.get(cle_interop="04001_pk624e_00001")
+        details = addr.ban_update_details
+        self.assertLess(details.pop("distance_m"), 20)
+        self.assertEqual(
+            details,
+            {
+                "cle_interop": "04001_pk624e_00001",
+                "ban_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                "street_number": "1",
+                "street_rep": "bis",
+                "street": "Impasse de la Treille",
+                "city_zipcode": "04510",
+                "city_name": "Aiglun",
+                "city_insee_code": "04001",
+                "lon": 6.135212,
+                "lat": 44.070028,
+                "street_lev": 0,
+                "diffs": {},
+            },
+        )
+        self.assertEqual(addr.street, "impasse de la treille")
+        self.assertEqual(addr.street_rep, "B")
+        self.assertIsNone(addr.ban_id)
 
-    @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
-    def test_far_distance_with_field_diffs_flags_mismatch_with_distance(
+        details = Address.objects.get(
+            cle_interop="04001_pk624e_00003"
+        ).ban_update_details
+        self.assertEqual(details["street_lev"], 2)
+        self.assertEqual(details["diffs"], {})
+
+    def test_mismatching_fields_without_point_are_a_failure(
         self, mock_remove, mock_find
     ):
+        """
+        Input: an existing address without point, "rue de la gare" in db and
+        "Impasse de la Treille" in the BAN file.
+        Expected: "comparison_failure", the details hold the BAN address, a null
+        distance, the street_lev (12) and the street diff. The street is
+        untouched.
+        """
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
-
-        # Fixture row 2: lon=6.135332, lat=44.069986, nom_voie=Impasse de la Treille
-        # Point is ~500m away AND street differs → mismatch with distance_m
-        Address.objects.create(
-            id="04001_pk624e_00002",
-            source="ban",
-            still_exists=True,
-            point=Point(6.14, 44.073, srid=4326),
-            street="rue de la gare",
-            street_number="2",
-            city_name="aiglun",
-            city_zipcode="04510",
-            city_insee_code="04001",
+        self._existing_address(
+            "04001_pk624e_00002", street_number="2", street="rue de la gare"
         )
 
-        result = update_addresses_text_and_ban_id({"dpt": "04"})
+        result = compare_addresses_with_ban_file({"dpt": "04"})
 
-        self.assertEqual(result["mismatched"], 1)
-
-        addr = Address.objects.get(id="04001_pk624e_00002")
-        self.assertEqual(addr.ban_update_flag, "text_mismatch")
+        self.assertEqual(result["failures"], 1)
+        addr = Address.objects.get(cle_interop="04001_pk624e_00002")
+        self.assertEqual(addr.ban_update_flag, "comparison_failure")
+        self.assertEqual(addr.ban_update_details["street"], "Impasse de la Treille")
+        self.assertIsNone(addr.ban_update_details["distance_m"])
+        self.assertEqual(addr.ban_update_details["street_lev"], 12)
+        self.assertEqual(
+            addr.ban_update_details["diffs"],
+            {"street": {"db": "rue de la gare", "ban": "Impasse de la Treille"}},
+        )
         self.assertEqual(addr.street, "rue de la gare")
-        self.assertIn("street", addr.ban_update_details)
-        # Distance should be present and > 20m
-        self.assertIn("distance_m", addr.ban_update_details)
-        self.assertGreater(addr.ban_update_details["distance_m"], 15)
 
-
-class TestUpdateAddressesTextAndBanIdDuplicateBanId(TestCase):
-    @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
-    def test_duplicate_ban_id_second_row_is_skipped(self, _mock_remove, mock_find):
+    def test_no_ban_id_in_file(self, mock_remove, mock_find):
         """
-        This test exists because unfortunately we can have BAN files with duplicated ban_ids.
+        Input: an existing address matching row 3, which has no ban_id.
+        Expected: "comparison_success" with a null ban_id in the details.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        self._existing_address(
+            "04001_pk624e_00003", street_number="3", point=self.ROW_3
+        )
+
+        compare_addresses_with_ban_file({"dpt": "04"})
+
+        addr = Address.objects.get(cle_interop="04001_pk624e_00003")
+        self.assertEqual(addr.ban_update_flag, "comparison_success")
+        self.assertIsNone(addr.ban_update_details["ban_id"])
+
+    def test_matching_fields_without_point_are_a_failure(self, mock_remove, mock_find):
+        """
+        Input: an existing address without point, whose fields match row 3.
+        Expected: "comparison_failure" with a null distance and no diffs: without
+        a point, the address is not checkable.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        self._existing_address("04001_pk624e_00003", street_number="3")
+
+        compare_addresses_with_ban_file({"dpt": "04"})
+
+        addr = Address.objects.get(cle_interop="04001_pk624e_00003")
+        self.assertEqual(addr.ban_update_flag, "comparison_failure")
+        self.assertIsNone(addr.ban_update_details["distance_m"])
+        self.assertEqual(addr.ban_update_details["diffs"], {})
+
+    def test_obsolete_and_already_flagged_addresses_are_skipped(
+        self, mock_remove, mock_find
+    ):
+        """
+        Input: an obsolete address (still_exists=False) and an existing address
+        already flagged (a previous run), both in the BAN file.
+        Expected: nothing compared, both keep their flag.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        obsolete = self._existing_address("04001_pk624e_00001", street_number="1")
+        Address.objects.filter(internal_id=obsolete.internal_id).update(
+            still_exists=False
+        )
+        self._existing_address(
+            "04001_pk624e_00002",
+            street_number="2",
+            ban_update_flag="comparison_failure",
+        )
+
+        result = compare_addresses_with_ban_file({"dpt": "04"})
+
+        self.assertEqual(result, {"dpt": "04", "successes": 0, "failures": 0})
+        obsolete.refresh_from_db()
+        self.assertIsNone(obsolete.ban_update_flag)
+        self.assertEqual(
+            Address.objects.get(cle_interop="04001_pk624e_00002").ban_update_flag,
+            "comparison_failure",
+        )
+
+    def test_close_distance_is_a_success_despite_field_diffs(
+        self, mock_remove, mock_find
+    ):
+        """
+        Input: an existing address 40 m away from its BAN position, with another
+        street name.
+        Expected: "comparison_success", the street diff is still in the details.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        self._existing_address(
+            "04001_pk624e_00002",
+            street_number="2",
+            street="rue de la gare",
+            point=Point(6.135332, 44.070346, srid=4326),
+        )
+
+        compare_addresses_with_ban_file({"dpt": "04"})
+
+        addr = Address.objects.get(cle_interop="04001_pk624e_00002")
+        self.assertEqual(addr.ban_update_flag, "comparison_success")
+        self.assertAlmostEqual(addr.ban_update_details["distance_m"], 40, delta=1)
+        self.assertIn("street", addr.ban_update_details["diffs"])
+
+    def test_far_distance_with_matching_fields_is_a_success(
+        self, mock_remove, mock_find
+    ):
+        """
+        Input: an existing address 300 m away from its BAN position, with
+        matching fields.
+        Expected: "comparison_success" with the distance in the details.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        self._existing_address(
+            "04001_pk624e_00001",
+            street_number="1",
+            street_rep="B",
+            point=self.ROW_1_300M,
+        )
+
+        compare_addresses_with_ban_file({"dpt": "04"})
+
+        addr = Address.objects.get(cle_interop="04001_pk624e_00001")
+        self.assertEqual(addr.ban_update_flag, "comparison_success")
+        self.assertAlmostEqual(addr.ban_update_details["distance_m"], 300, delta=1)
+
+    def test_too_far_distance_with_matching_fields_is_a_failure(
+        self, mock_remove, mock_find
+    ):
+        """
+        Input: an existing address ~500 m away from its BAN position, with
+        matching fields (the interop key may now designate another place).
+        Expected: "comparison_failure" with the distance and no diffs in the
+        details.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        self._existing_address(
+            "04001_pk624e_00001",
+            street_number="1",
+            street_rep="B",
+            point=Point(6.14, 44.073, srid=4326),
+        )
+
+        compare_addresses_with_ban_file({"dpt": "04"})
+
+        addr = Address.objects.get(cle_interop="04001_pk624e_00001")
+        self.assertEqual(addr.ban_update_flag, "comparison_failure")
+        self.assertGreater(addr.ban_update_details["distance_m"], 400)
+        self.assertEqual(addr.ban_update_details["diffs"], {})
+
+    def test_far_distance_with_field_diffs_is_a_failure(self, mock_remove, mock_find):
+        """
+        Input: an existing address 100 m away from its BAN position, with
+        another street name.
+        Expected: "comparison_failure" with the distance and the street diff in
+        the details.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        self._existing_address(
+            "04001_pk624e_00002",
+            street_number="2",
+            street="rue de la gare",
+            point=Point(6.135332, 44.070886, srid=4326),
+        )
+
+        compare_addresses_with_ban_file({"dpt": "04"})
+
+        addr = Address.objects.get(cle_interop="04001_pk624e_00002")
+        self.assertEqual(addr.ban_update_flag, "comparison_failure")
+        self.assertAlmostEqual(addr.ban_update_details["distance_m"], 100, delta=1)
+        self.assertIn("street", addr.ban_update_details["diffs"])
+
+    def test_uppercase_key_is_compared_with_the_file_key(self, mock_remove, mock_find):
+        """
+        Input: an existing address with an uppercase key "04001_PK624E_00002",
+        whose lowercase version is in the BAN file.
+        Expected: "comparison_success", details["cle_interop"] is the key of the
+        BAN file (lowercase).
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        self._existing_address(
+            "04001_PK624E_00002", street_number="2", point=self.ROW_2
+        )
+
+        compare_addresses_with_ban_file({"dpt": "04"})
+
+        addr = Address.objects.get(cle_interop="04001_PK624E_00002")
+        self.assertEqual(addr.ban_update_flag, "comparison_success")
+        self.assertEqual(addr.ban_update_details["cle_interop"], "04001_pk624e_00002")
+
+    def test_null_string_rep_matches_an_empty_rep(self, mock_remove, mock_find):
+        """
+        Input: an existing address 300 m away from its BAN position, holding
+        the string "null" as street_rep, while the BAN file has no suffix.
+        Expected: "comparison_success" without diffs.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        self._existing_address(
+            "04001_pk624e_00002",
+            street_number="2",
+            street_rep="null",
+            point=self.ROW_2_300M,
+        )
+
+        compare_addresses_with_ban_file({"dpt": "04"})
+
+        addr = Address.objects.get(cle_interop="04001_pk624e_00002")
+        self.assertEqual(addr.ban_update_flag, "comparison_success")
+        self.assertEqual(addr.ban_update_details["diffs"], {})
+
+    def test_duplicate_ban_id_in_file(self, mock_remove, mock_find):
+        """
+        Input: two existing addresses whose BAN file rows share the same
+        id_ban_adresse (it happens in real BAN files).
+        Expected: both are compared and their details hold this ban_id: the
+        later update has to deal with the duplicate.
         """
         mock_find.return_value = helpers.fixture_path(
             "ban_with_ids_duplicate_ban_id.csv"
         )
+        for cle_interop, city_name, city_insee_code in [
+            ("85288_p1h9zg_02965", "talmont-saint-hilaire", "85288"),
+            ("85103_0099_02965", "grosbreuil", "85103"),
+        ]:
+            self._existing_address(
+                cle_interop,
+                street="route de la martiniere",
+                street_number="2965",
+                city_name=city_name,
+                city_zipcode="85440",
+                city_insee_code=city_insee_code,
+                point=Point(-1.606121, 46.520051, srid=4326),
+            )
 
-        # Two addresses in DB, both present in the fixture with the same id_ban_adresse
-        Address.objects.create(
-            id="85288_p1h9zg_02965",
-            source="ban",
-            still_exists=True,
-            street="route de la martiniere",
-            street_number="2965",
-            city_name="talmont-saint-hilaire",
-            city_zipcode="85440",
-            city_insee_code="85288",
+        result = compare_addresses_with_ban_file({"dpt": "85"})
+
+        self.assertEqual(result, {"dpt": "85", "successes": 2, "failures": 0})
+        self.assertEqual(
+            {addr.ban_update_details["ban_id"] for addr in Address.objects.all()},
+            {"9e63d301-1c76-4d33-a508-9ea9e39293d2"},
         )
-        Address.objects.create(
-            id="85103_0099_02965",
-            source="ban",
-            still_exists=True,
-            street="route de la martiniere",
-            street_number="2965",
-            city_name="grosbreuil",
-            city_zipcode="85440",
-            city_insee_code="85103",
-        )
 
-        result = update_addresses_text_and_ban_id({"dpt": "85"})
 
-        # Only the first row is processed; the second (duplicate ban_id) is skipped
-        self.assertEqual(result["updated"], 1)
-
-        addr1 = Address.objects.get(id="85288_p1h9zg_02965")
-        self.assertEqual(addr1.ban_id, UUID("9e63d301-1c76-4d33-a508-9ea9e39293d2"))
-        self.assertEqual(addr1.ban_update_flag, "update")
-
-        # Second address was skipped entirely: no ban_id, no update flag
-        addr2 = Address.objects.get(id="85103_0099_02965")
-        self.assertIsNone(addr2.ban_id)
-        self.assertIsNone(addr2.ban_update_flag)
+class TestIsComparisonSuccess(TestCase):
+    def test_distance_thresholds(self):
+        """
+        Input: distances on each side of the thresholds (60 m whatever the
+        fields, 400 m with matching fields), with and without field diffs, and
+        no distance (address without point).
+        Expected: a success under 60 m, or under 400 m without diffs. Never a
+        success without distance.
+        """
+        street_diff = {"street": {"db": "rue de la gare", "ban": "rue du port"}}
+        cases = [
+            (59.9, street_diff, True),
+            (60, street_diff, False),
+            (100, street_diff, False),
+            (59.9, {}, True),
+            (399.9, {}, True),
+            (400, {}, False),
+            (None, {}, False),
+            (None, street_diff, False),
+        ]
+        for distance_m, diffs, expected in cases:
+            with self.subTest(distance_m=distance_m, diffs=diffs):
+                self.assertEqual(_is_comparison_success(distance_m, diffs), expected)
 
 
 class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
@@ -546,26 +687,30 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         Input: an obsolete address (still_exists=False) referenced by no building.
         Expected: the address is deleted, 1 deletion reported.
         """
-        Address.objects.create(id="04001_old_00001", source="ban", still_exists=False)
+        Address.objects.create(
+            cle_interop="04001_old_00001", source="ban", still_exists=False
+        )
 
         deleted = delete_unlinked_obsolete_addresses()
 
         self.assertEqual(deleted, {"deleted_addresses": 1})
-        self.assertFalse(Address.objects.filter(id="04001_old_00001").exists())
+        self.assertFalse(Address.objects.filter(cle_interop="04001_old_00001").exists())
 
     def test_obsolete_address_linked_to_current_building_is_kept(self):
         """
         Input: an obsolete address referenced by a current building.
         Expected: the address is kept, 0 deletion reported.
         """
-        Address.objects.create(id="04001_old_00002", source="ban", still_exists=False)
+        Address.objects.create(
+            cle_interop="04001_old_00002", source="ban", still_exists=False
+        )
         bdg = helpers.create_default_bdg()
         self._link_addresses(bdg, ["04001_old_00002"])
 
         deleted = delete_unlinked_obsolete_addresses()
 
         self.assertEqual(deleted, {"deleted_addresses": 0})
-        self.assertTrue(Address.objects.filter(id="04001_old_00002").exists())
+        self.assertTrue(Address.objects.filter(cle_interop="04001_old_00002").exists())
 
     def test_obsolete_address_linked_to_building_history_is_kept(self):
         """
@@ -573,7 +718,9 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         building (the building was then updated to drop it).
         Expected: the address is kept, 0 deletion reported.
         """
-        Address.objects.create(id="04001_old_00003", source="ban", still_exists=False)
+        Address.objects.create(
+            cle_interop="04001_old_00003", source="ban", still_exists=False
+        )
         bdg = helpers.create_default_bdg()
         self._link_addresses(bdg, ["04001_old_00003"])
 
@@ -593,7 +740,7 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         deleted = delete_unlinked_obsolete_addresses()
 
         self.assertEqual(deleted, {"deleted_addresses": 0})
-        self.assertTrue(Address.objects.filter(id="04001_old_00003").exists())
+        self.assertTrue(Address.objects.filter(cle_interop="04001_old_00003").exists())
 
     def test_address_with_still_exists_true_is_not_touched(self):
         """
@@ -601,12 +748,14 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         referenced by no building.
         Expected: the address is kept, 0 deletion reported.
         """
-        Address.objects.create(id="04001_ok_00001", source="ban", still_exists=True)
+        Address.objects.create(
+            cle_interop="04001_ok_00001", source="ban", still_exists=True
+        )
 
         deleted = delete_unlinked_obsolete_addresses()
 
         self.assertEqual(deleted, {"deleted_addresses": 0})
-        self.assertTrue(Address.objects.filter(id="04001_ok_00001").exists())
+        self.assertTrue(Address.objects.filter(cle_interop="04001_ok_00001").exists())
 
     def test_mixed_addresses_over_several_batches(self):
         """
@@ -617,10 +766,14 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         """
         for i in range(1, 4):
             Address.objects.create(
-                id=f"04001_old_1000{i}", source="ban", still_exists=False
+                cle_interop=f"04001_old_1000{i}", source="ban", still_exists=False
             )
-        Address.objects.create(id="04001_old_10004", source="ban", still_exists=False)
-        Address.objects.create(id="04001_ok_10005", source="ban", still_exists=True)
+        Address.objects.create(
+            cle_interop="04001_old_10004", source="ban", still_exists=False
+        )
+        Address.objects.create(
+            cle_interop="04001_ok_10005", source="ban", still_exists=True
+        )
         bdg = helpers.create_default_bdg()
         self._link_addresses(bdg, ["04001_old_10004"])
 
@@ -628,8 +781,30 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
 
         self.assertEqual(deleted, {"deleted_addresses": 3})
         self.assertEqual(
-            set(Address.objects.values_list("id", flat=True)),
+            set(Address.objects.values_list("cle_interop", flat=True)),
             {"04001_old_10004", "04001_ok_10005"},
+        )
+
+    def test_batch_of_linked_addresses_does_not_stop_the_run(self):
+        """
+        Input: 2 obsolete addresses linked to a building, created first (lowest
+        internal_id), then 1 unlinked obsolete address, batch_size=2.
+        Expected: the first batch deletes nothing, the run goes on and deletes
+        the unlinked address in the second batch, 1 deletion reported.
+        """
+        for i in range(1, 4):
+            Address.objects.create(
+                cle_interop=f"04001_old_2000{i}", source="ban", still_exists=False
+            )
+        bdg = helpers.create_default_bdg()
+        self._link_addresses(bdg, ["04001_old_20001", "04001_old_20002"])
+
+        deleted = delete_unlinked_obsolete_addresses(batch_size=2)
+
+        self.assertEqual(deleted, {"deleted_addresses": 1})
+        self.assertEqual(
+            set(Address.objects.values_list("cle_interop", flat=True)),
+            {"04001_old_20001", "04001_old_20002"},
         )
 
     def test_protection_trigger_is_enabled_after_run(self):
@@ -638,7 +813,9 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         Expected: the prevent_delete_linked_address_trigger is enabled again
         after the run (tgenabled = 'O').
         """
-        Address.objects.create(id="04001_old_00004", source="ban", still_exists=False)
+        Address.objects.create(
+            cle_interop="04001_old_00004", source="ban", still_exists=False
+        )
 
         delete_unlinked_obsolete_addresses()
 
@@ -651,7 +828,9 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
         Expected: the error is propagated and the
         prevent_delete_linked_address_trigger is enabled again (tgenabled = 'O').
         """
-        Address.objects.create(id="04001_old_00005", source="ban", still_exists=False)
+        Address.objects.create(
+            cle_interop="04001_old_00005", source="ban", still_exists=False
+        )
 
         with patch(
             "batid.services.imports.update_addresses_ban.logger.info",
@@ -661,3 +840,1122 @@ class TestDeleteUnlinkedObsoleteAddresses(TransactionTestCase):
                 delete_unlinked_obsolete_addresses()
 
         self.assertEqual(self._protection_trigger_enabled_state(), "O")
+
+
+# Point of "1 Place de la Mairie 04510 Aiglun" in the geocoder results below
+GEOCODED_LON = 6.143959
+GEOCODED_LAT = 44.050963
+
+
+def _geocoder_result(**overrides) -> dict:
+    """Result columns of the BAN batch geocoder for "1 Place de la Mairie 04510
+    Aiglun", a housenumber with a high score."""
+    result = {
+        "result_id": "04001_0040_00001",
+        "result_banId": "2fbce2cc-1ad7-422a-ac99-722dd94760d3",
+        "result_type": "housenumber",
+        "result_score": "0.9",
+        "result_label": "1 Place de la Mairie 04510 Aiglun",
+        "result_housenumber": "1",
+        "result_street": "Place de la Mairie",
+        "result_postcode": "04510",
+        "result_city": "Aiglun",
+        "result_citycode": "04001",
+        "longitude": str(GEOCODED_LON),
+        "latitude": str(GEOCODED_LAT),
+    }
+    result.update(overrides)
+    return result
+
+
+@patch("batid.services.imports.update_addresses_ban.BanBatchGeocoder.geocode")
+class TestGeocodeObsoleteAddresses(TestCase):
+    @staticmethod
+    def _answer(mock_geocode, results_by_street: dict):
+        """Make the mocked geocoder answer a CSV like the real one: the sent
+        columns followed by the result columns, taken from results_by_street
+        (keyed by the sent "voie"), empty when the street is not in it."""
+
+        def geocode(data, columns, citycode_col, result_columns):
+            out = StringIO()
+            writer = csv.DictWriter(
+                out, fieldnames=list(data[0].keys()) + result_columns
+            )
+            writer.writeheader()
+            for row in data:
+                writer.writerow({**row, **results_by_street.get(row["voie"], {})})
+            return Mock(status_code=200, text=out.getvalue())
+
+        mock_geocode.side_effect = geocode
+
+    @staticmethod
+    def _obsolete_address(cle_interop: str, street: str, **fields):
+        values = {
+            "street_number": "1",
+            "street": street,
+            "city_zipcode": "04510",
+            "city_name": "Aiglun",
+            "city_insee_code": "04001",
+            "point": Point(GEOCODED_LON, GEOCODED_LAT, srid=4326),
+        }
+        values.update(fields)
+        return Address.objects.create(
+            cle_interop=cle_interop, source="ban", still_exists=False, **values
+        )
+
+    def test_success_stores_full_details(self, mock_geocode):
+        """
+        Input: an obsolete address geocoded as a housenumber with a 0.9 score,
+        at the same position.
+        Expected: flag "geocoding_success", details hold the geocoded address
+        field by field, the score, the type and a 0 m distance. The address
+        fields themselves are untouched.
+        """
+        addr = self._obsolete_address("04001_old_00001", "place de la mairie")
+        self._answer(mock_geocode, {"place de la mairie": _geocoder_result()})
+
+        result = geocode_obsolete_addresses()
+
+        self.assertEqual(result, {"geocoding_successes": 1, "geocoding_failures": 0})
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_success")
+        self.assertEqual(
+            addr.ban_update_details,
+            {
+                "cle_interop": "04001_0040_00001",
+                "ban_id": "2fbce2cc-1ad7-422a-ac99-722dd94760d3",
+                "street_number": "1",
+                "street_rep": None,
+                "street": "Place de la Mairie",
+                "city_zipcode": "04510",
+                "city_name": "Aiglun",
+                "city_insee_code": "04001",
+                "lon": GEOCODED_LON,
+                "lat": GEOCODED_LAT,
+                "label": "1 Place de la Mairie 04510 Aiglun",
+                "type": "housenumber",
+                "score": 0.9,
+                "distance_m": 0.0,
+            },
+        )
+        self.assertEqual(addr.cle_interop, "04001_old_00001")
+        self.assertEqual(addr.street, "place de la mairie")
+        self.assertFalse(addr.still_exists)
+
+    def test_low_score_but_close_is_a_success(self, mock_geocode):
+        """
+        Input: an obsolete address geocoded as a housenumber with a 0.6 score,
+        about 11 m away.
+        Expected: flag "geocoding_success".
+        """
+        addr = self._obsolete_address(
+            "04001_old_00002",
+            "place de la mairie",
+            point=Point(GEOCODED_LON, GEOCODED_LAT + 0.0001, srid=4326),
+        )
+        self._answer(
+            mock_geocode,
+            {"place de la mairie": _geocoder_result(result_score="0.6")},
+        )
+
+        geocode_obsolete_addresses()
+
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_success")
+        self.assertLess(addr.ban_update_details["distance_m"], 20)
+
+    def test_low_score_and_far_is_a_failure_with_details(self, mock_geocode):
+        """
+        Input: an obsolete address geocoded as a housenumber with a 0.6 score,
+        about 500 m away.
+        Expected: flag "geocoding_failure", details still hold the proposed
+        address, its score and the distance.
+        """
+        addr = self._obsolete_address(
+            "04001_old_00003",
+            "place de la mairie",
+            point=Point(GEOCODED_LON + 0.006, GEOCODED_LAT, srid=4326),
+        )
+        self._answer(
+            mock_geocode,
+            {"place de la mairie": _geocoder_result(result_score="0.6")},
+        )
+
+        result = geocode_obsolete_addresses()
+
+        self.assertEqual(result, {"geocoding_successes": 0, "geocoding_failures": 1})
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertEqual(addr.ban_update_details["cle_interop"], "04001_0040_00001")
+        self.assertEqual(addr.ban_update_details["score"], 0.6)
+        self.assertGreater(addr.ban_update_details["distance_m"], 400)
+
+    def test_lost_suffix_is_a_failure(self, mock_geocode):
+        """
+        Input: an obsolete address "1 bis place de la mairie" geocoded as "1
+        Place de la Mairie" (no suffix) with a 0.9 score, about 100 m away.
+        Expected: flag "geocoding_failure", although score and distance alone
+        would make it a success.
+        """
+        addr = self._obsolete_address(
+            "04001_old_00001_bis",
+            "place de la mairie",
+            street_rep="bis",
+            point=Point(GEOCODED_LON, GEOCODED_LAT + 0.0009, srid=4326),
+        )
+        self._answer(mock_geocode, {"place de la mairie": _geocoder_result()})
+
+        geocode_obsolete_addresses()
+
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertIsNone(addr.ban_update_details["street_rep"])
+
+    def test_street_result_is_a_failure(self, mock_geocode):
+        """
+        Input: an obsolete address geocoded as a street (no housenumber) with a
+        0.95 score.
+        Expected: flag "geocoding_failure".
+        """
+        addr = self._obsolete_address("04001_old_00004", "place de la mairie")
+        self._answer(
+            mock_geocode,
+            {
+                "place de la mairie": _geocoder_result(
+                    result_type="street",
+                    result_id="04001_0040",
+                    result_score="0.95",
+                    result_housenumber="",
+                )
+            },
+        )
+
+        geocode_obsolete_addresses()
+
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertEqual(addr.ban_update_details["type"], "street")
+
+    def test_no_result_is_a_failure(self, mock_geocode):
+        """
+        Input: an obsolete address the geocoder finds nothing for (empty result
+        columns).
+        Expected: flag "geocoding_failure", every details value is None.
+        """
+        addr = self._obsolete_address("04001_old_00005", "chemin inconnu")
+        self._answer(mock_geocode, {})
+
+        geocode_obsolete_addresses()
+
+        addr.refresh_from_db()
+        self.assertEqual(addr.ban_update_flag, "geocoding_failure")
+        self.assertTrue(
+            all(value is None for value in addr.ban_update_details.values())
+        )
+
+    def test_only_unprocessed_obsolete_addresses_are_geocoded(self, mock_geocode):
+        """
+        Input: an obsolete address not yet geocoded, an obsolete address already
+        geocoded (ban_update_flag set), an existing address (still_exists=True)
+        and an unchecked one (still_exists=None).
+        Expected: only the first one is sent to the geocoder, the others keep
+        their flag.
+        """
+        to_geocode = self._obsolete_address("04001_old_00006", "place de la mairie")
+        already_geocoded = self._obsolete_address(
+            "04001_old_00007", "rue deja faite", ban_update_flag="geocoding_failure"
+        )
+        existing = Address.objects.create(
+            cle_interop="04001_ok_00001", source="ban", still_exists=True
+        )
+        unchecked = Address.objects.create(cle_interop="04001_new_00001", source="ban")
+        self._answer(mock_geocode, {"place de la mairie": _geocoder_result()})
+
+        geocode_obsolete_addresses()
+
+        mock_geocode.assert_called_once()
+        sent = mock_geocode.call_args.kwargs["data"]
+        self.assertEqual([row["internal_id"] for row in sent], [to_geocode.internal_id])
+        already_geocoded.refresh_from_db()
+        self.assertEqual(already_geocoded.ban_update_flag, "geocoding_failure")
+        existing.refresh_from_db()
+        self.assertIsNone(existing.ban_update_flag)
+        unchecked.refresh_from_db()
+        self.assertIsNone(unchecked.ban_update_flag)
+
+    def test_suffix_is_sent_apart_from_the_number(self, mock_geocode):
+        """
+        Input: an obsolete address "11 bis avenue de segur".
+        Expected: the geocoder gets the number and the suffix in two columns,
+        both used to build the query, and the city code as a filter.
+        """
+        self._obsolete_address(
+            "75107_old_00011_b", "avenue de segur", street_number="11", street_rep="bis"
+        )
+        self._answer(mock_geocode, {})
+
+        geocode_obsolete_addresses()
+
+        kwargs = mock_geocode.call_args.kwargs
+        self.assertEqual(
+            kwargs["columns"], ["numero", "rep", "voie", "postcode", "city"]
+        )
+        self.assertEqual(kwargs["citycode_col"], "citycode")
+        sent = kwargs["data"][0]
+        self.assertEqual((sent["numero"], sent["rep"]), ("11", "bis"))
+
+    def test_several_batches(self, mock_geocode):
+        """
+        Input: 3 obsolete addresses, batch_size=2.
+        Expected: 2 calls to the geocoder, the 3 addresses are flagged, 3
+        successes reported.
+        """
+        for i in range(1, 4):
+            self._obsolete_address(f"04001_old_1000{i}", "place de la mairie")
+        self._answer(mock_geocode, {"place de la mairie": _geocoder_result()})
+
+        result = geocode_obsolete_addresses(batch_size=2)
+
+        self.assertEqual(mock_geocode.call_count, 2)
+        self.assertEqual(result, {"geocoding_successes": 3, "geocoding_failures": 0})
+        self.assertEqual(
+            Address.objects.filter(ban_update_flag="geocoding_success").count(), 3
+        )
+
+    def test_geocoder_error_is_raised_and_nothing_is_flagged(self, mock_geocode):
+        """
+        Input: an obsolete address, the geocoder answers an HTTP error.
+        Expected: the error is raised, the address keeps a null flag (it will be
+        geocoded by the next run).
+        """
+        addr = self._obsolete_address("04001_old_00008", "place de la mairie")
+        response = Mock(status_code=503)
+        response.raise_for_status.side_effect = RuntimeError("503")
+        mock_geocode.return_value = response
+
+        with self.assertRaises(RuntimeError):
+            geocode_obsolete_addresses()
+
+        addr.refresh_from_db()
+        self.assertIsNone(addr.ban_update_flag)
+
+
+def _details(score, distance_m, street_rep=None, result_type="housenumber") -> dict:
+    """Geocoding details of an obsolete address, as stored by
+    geocode_obsolete_addresses, with only the fields the success rule reads."""
+    return {
+        "cle_interop": "04001_0040_00001",
+        "type": result_type,
+        "score": score,
+        "distance_m": distance_m,
+        "street_rep": street_rep,
+    }
+
+
+class TestIsGeocodingSuccess(TestCase):
+    def test_distance_and_score_tiers(self):
+        """
+        Input: housenumber results without suffix on either side, on each side
+        of the tiers (< 3 m whatever the score, < 20 m and > 0.55, < 50 m and
+        > 0.7, < 150 m and > 0.85, < 300 m and > 0.9).
+        Expected: a success only when one tier is met.
+        """
+        cases = [
+            (0.3, 2, True),
+            (0.3, 4, False),
+            (0.6, 15, True),
+            (0.5, 15, False),
+            (0.75, 40, True),
+            (0.65, 40, False),
+            (0.88, 100, True),
+            (0.8, 100, False),
+            (0.95, 250, True),
+            (0.88, 250, False),
+            (0.99, 350, False),
+        ]
+        for score, distance_m, expected in cases:
+            with self.subTest(score=score, distance_m=distance_m):
+                self.assertEqual(
+                    _is_geocoding_success(Address(), _details(score, distance_m)),
+                    expected,
+                )
+
+    def test_not_a_housenumber_or_no_distance(self):
+        """
+        Input: a street result 0 m away with a 0.95 score, and a housenumber
+        result with a 0.95 score but no distance (obsolete address without
+        point).
+        Expected: both are failures.
+        """
+        self.assertFalse(
+            _is_geocoding_success(Address(), _details(0.95, 0, result_type="street"))
+        )
+        self.assertFalse(_is_geocoding_success(Address(), _details(0.95, None)))
+
+    def test_suffix_on_one_side_only(self):
+        """
+        Input: results whose repetition index is present on one side only
+        ("bis" lost, or "bis" added), at various scores and distances.
+        Expected: a failure, unless < 10 m and score > 0.85.
+        """
+        cases = [
+            ("bis", None, 0.95, 50, False),
+            ("bis", None, 0.9, 5, True),
+            ("bis", None, 0.8, 5, False),
+            ("bis", None, 0.95, 15, False),
+            (None, "bis", 0.95, 50, False),
+        ]
+        for old_rep, new_rep, score, distance_m, expected in cases:
+            with self.subTest(old_rep=old_rep, new_rep=new_rep, score=score):
+                self.assertEqual(
+                    _is_geocoding_success(
+                        Address(street_rep=old_rep),
+                        _details(score, distance_m, street_rep=new_rep),
+                    ),
+                    expected,
+                )
+
+    def test_suffix_on_both_sides_or_null_string(self):
+        """
+        Input: "B" geocoded as "bis" 50 m away with a 0.9 score, and an obsolete
+        address whose street_rep is the string "null" geocoded without suffix
+        100 m away with a 0.9 score.
+        Expected: both are successes ("B"/"bis" is a suffix on both sides,
+        "null" is not a suffix).
+        """
+        self.assertTrue(
+            _is_geocoding_success(
+                Address(street_rep="B"), _details(0.9, 50, street_rep="bis")
+            )
+        )
+        self.assertTrue(
+            _is_geocoding_success(Address(street_rep="null"), _details(0.9, 100))
+        )
+
+
+class TestSplitHousenumber(TestCase):
+    def test_split_housenumber(self):
+        """
+        Input: geocoder housenumbers "11B", "11 bis", "11", "" and None.
+        Expected: ("11", "B"), ("11", "bis"), ("11", None), (None, None) and
+        (None, None).
+        """
+        self.assertEqual(_split_housenumber("11B"), ("11", "B"))
+        self.assertEqual(_split_housenumber("11 bis"), ("11", "bis"))
+        self.assertEqual(_split_housenumber("11"), ("11", None))
+        self.assertEqual(_split_housenumber(""), (None, None))
+        self.assertEqual(_split_housenumber(None), (None, None))
+
+
+BAN_ID = "2fbce2cc-1ad7-422a-ac99-722dd94760d3"
+
+
+def _get_ban_details(**overrides) -> dict:
+    """ban_update_details of a successfully compared address."""
+    details = {
+        "cle_interop": "04001_0040_00001",
+        "ban_id": BAN_ID,
+        "street_number": "1",
+        "street_rep": "bis",
+        "street": "Place de la Mairie",
+        "city_zipcode": "04510",
+        "city_name": "Aiglun",
+        "city_insee_code": "04001",
+        "lon": GEOCODED_LON,
+        "lat": GEOCODED_LAT,
+        "distance_m": 12.3,
+    }
+    details.update(overrides)
+    return details
+
+
+class TestUpdateAddressesFromBanComparison(TestCase):
+    def setUp(self):
+        # has_city_reliable_ban_ids caches its answer
+        cache.clear()
+        City.objects.create(
+            code_insee="04001", name="Aiglun", has_reliable_ban_ids=True
+        )
+
+    @staticmethod
+    def _create_address(
+        cle_interop: str, flag: str | None, details: dict | None, **fields
+    ):
+        values = {
+            "source": "arcep",
+            "street_number": "3",
+            "street_rep": "ter",
+            "street": "rue de la gare",
+            "city_zipcode": "04000",
+            "city_name": "Digne",
+            "city_insee_code": "04070",
+            "point": Point(6.0, 44.0, srid=4326),
+            # the comparison only flags addresses that still exist
+            "still_exists": True,
+        }
+        values.update(fields)
+        return Address.objects.create(
+            cle_interop=cle_interop,
+            ban_update_flag=flag,
+            ban_update_details=details,
+            **values,
+        )
+
+    def test_comparison_success_is_updated(self):
+        """
+        Input: an address "04001_PK624E_00002" flagged "comparison_success",
+        whose details hold the lowercase key of the BAN file and a BAN address
+        of a city with reliable BAN ids.
+        Expected: every field is copied from the details, the lowercase key
+        and the point included, source is "BAN", ban_update_done is True,
+        updated_at is refreshed, the flag and the details are kept.
+        """
+        details = _get_ban_details(cle_interop="04001_pk624e_00002")
+        addr = self._create_address("04001_PK624E_00002", "comparison_success", details)
+        updated_at = addr.updated_at
+
+        result = update_addresses_from_ban_comparison()
+
+        self.assertEqual(result, {"updated": 1})
+        addr.refresh_from_db()
+        self.assertEqual(addr.cle_interop, "04001_pk624e_00002")
+        self.assertEqual(str(addr.ban_id), BAN_ID)
+        self.assertEqual(addr.street_number, "1")
+        self.assertEqual(addr.street_rep, "bis")
+        self.assertEqual(addr.street, "Place de la Mairie")
+        self.assertEqual(addr.city_zipcode, "04510")
+        self.assertEqual(addr.city_name, "Aiglun")
+        self.assertEqual(addr.city_insee_code, "04001")
+        self.assertEqual((addr.point.x, addr.point.y), (GEOCODED_LON, GEOCODED_LAT))
+        self.assertEqual(addr.source, "BAN")
+        self.assertTrue(addr.ban_update_done)
+        self.assertGreater(addr.updated_at, updated_at)
+        self.assertEqual(addr.ban_update_flag, "comparison_success")
+        self.assertEqual(addr.ban_update_details, details)
+
+    def test_ban_id_of_unreliable_city_is_not_written(self):
+        """
+        Input: two comparison successes whose details hold a ban_id, one of a
+        city with unreliable BAN ids, the other of a city never checked.
+        Expected: both addresses are updated but their ban_id stays empty.
+        """
+        City.objects.create(
+            code_insee="04002", name="Allemagne", has_reliable_ban_ids=False
+        )
+        unreliable = self._create_address(
+            "04002_0010_00001",
+            "comparison_success",
+            _get_ban_details(
+                cle_interop="04002_0010_00001",
+                city_insee_code="04002",
+                ban_id=BAN_ID,
+            ),
+        )
+        unchecked = self._create_address(
+            "04003_0010_00001",
+            "comparison_success",
+            _get_ban_details(
+                cle_interop="04003_0010_00001",
+                city_insee_code="04003",
+                ban_id="3fbce2cc-1ad7-422a-ac99-722dd94760d3",
+            ),
+        )
+
+        update_addresses_from_ban_comparison()
+
+        for addr in (unreliable, unchecked):
+            addr.refresh_from_db()
+            self.assertIsNone(addr.ban_id)
+            self.assertTrue(addr.ban_update_done)
+
+    def test_empty_details_overwrite_fields_but_not_point(self):
+        """
+        Input: a comparison success whose details have no street_rep, no
+        ban_id and no lon.
+        Expected: street_rep is overwritten with None, ban_id stays empty and
+        the point is left untouched.
+        """
+        addr = self._create_address(
+            "04001_0040_00001",
+            "comparison_success",
+            _get_ban_details(street_rep=None, ban_id=None, lon=None),
+        )
+
+        update_addresses_from_ban_comparison()
+
+        addr.refresh_from_db()
+        self.assertIsNone(addr.street_rep)
+        self.assertIsNone(addr.ban_id)
+        self.assertEqual((addr.point.x, addr.point.y), (6.0, 44.0))
+        self.assertTrue(addr.ban_update_done)
+
+    def test_only_comparison_successes_not_done_are_updated(self):
+        """
+        Input: a geocoding success, a geocoding failure, a comparison failure,
+        an address without flag and a comparison success already done, all
+        but the unflagged one with details.
+        Expected: nothing is updated, ban_update_done stays as it was.
+        """
+        geocoding_success = self._create_address(
+            "04070_old_00001",
+            "geocoding_success",
+            _get_ban_details(cle_interop="04001_0040_00001", ban_id=None),
+            still_exists=False,
+        )
+        geocoding_failure = self._create_address(
+            "04070_old_00002",
+            "geocoding_failure",
+            _get_ban_details(cle_interop="04001_0040_00002", ban_id=None),
+            still_exists=False,
+        )
+        comparison_failure = self._create_address(
+            "04070_0040_00003",
+            "comparison_failure",
+            _get_ban_details(cle_interop="04070_0040_00003", ban_id=None),
+        )
+        no_flag = self._create_address("04070_0040_00004", None, None)
+        done = self._create_address(
+            "04070_0040_00005",
+            "comparison_success",
+            _get_ban_details(cle_interop="04001_0040_00005", ban_id=None),
+            ban_update_done=True,
+        )
+
+        result = update_addresses_from_ban_comparison()
+
+        self.assertEqual(result, {"updated": 0})
+        for addr in (geocoding_success, geocoding_failure, comparison_failure, no_flag):
+            addr.refresh_from_db()
+            self.assertIsNone(addr.ban_update_done)
+            self.assertEqual(addr.street, "rue de la gare")
+        done.refresh_from_db()
+        self.assertEqual(done.cle_interop, "04070_0040_00005")
+
+    def test_addresses_are_updated_in_several_batches(self):
+        """
+        Input: 5 comparison successes, batch_size=2.
+        Expected: all of them are updated, in 3 batches.
+        """
+        for i in range(5):
+            self._create_address(
+                f"04001_0040_0000{i}",
+                "comparison_success",
+                _get_ban_details(cle_interop=f"04001_0040_0000{i}", ban_id=None),
+            )
+
+        result = update_addresses_from_ban_comparison(batch_size=2)
+
+        self.assertEqual(result, {"updated": 5})
+        self.assertEqual(Address.objects.filter(ban_update_done=True).count(), 5)
+
+    def test_cle_interop_conflict_aborts_the_batch(self):
+        """
+        Input: a comparison success whose details cle_interop is already held
+        by another address, and a comparison success without conflict in the
+        same batch.
+        Expected: an IntegrityError is raised and no address of the batch is
+        updated.
+        """
+        self._create_address("04001_0040_00001", None, None)
+        conflicting = self._create_address(
+            "04001_0040_00001_bis",
+            "comparison_success",
+            _get_ban_details(ban_id=None),
+        )
+        other = self._create_address(
+            "04001_0040_00002",
+            "comparison_success",
+            _get_ban_details(cle_interop="04001_0040_00002", ban_id=None),
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                update_addresses_from_ban_comparison()
+
+        for addr in (conflicting, other):
+            addr.refresh_from_db()
+            self.assertIsNone(addr.ban_update_done)
+
+    def test_duplicate_ban_id_aborts_the_batch(self):
+        """
+        Input: two comparison successes of a reliable city whose details hold
+        the same ban_id.
+        Expected: an IntegrityError is raised and none of them is updated.
+        """
+        first = self._create_address(
+            "04001_0040_00001", "comparison_success", _get_ban_details()
+        )
+        second = self._create_address(
+            "04001_0040_00002",
+            "comparison_success",
+            _get_ban_details(cle_interop="04001_0040_00002"),
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                update_addresses_from_ban_comparison()
+
+        for addr in (first, second):
+            addr.refresh_from_db()
+            self.assertIsNone(addr.ban_update_done)
+
+
+class TestReplaceObsoleteAddressesFromGeocoding(TestCase):
+    def setUp(self):
+        # has_city_reliable_ban_ids caches its answer
+        cache.clear()
+        City.objects.create(
+            code_insee="04001", name="Aiglun", has_reliable_ban_ids=True
+        )
+        self.user = UserFactory(username="paul", is_staff=True)
+
+    @staticmethod
+    def _create_obsolete(cle_interop: str, details: dict, **fields) -> Address:
+        values = {
+            "source": "arcep",
+            "street": "rue de la gare",
+            "still_exists": False,
+            "ban_update_flag": "geocoding_success",
+            "ban_update_details": details,
+        }
+        values.update(fields)
+        return Address.objects.create(cle_interop=cle_interop, **values)
+
+    @staticmethod
+    def _create_address(cle_interop: str, **fields) -> Address:
+        return Address.objects.create(cle_interop=cle_interop, source="BAN", **fields)
+
+    @staticmethod
+    def _create_bdg(rnb_id: str, addresses: list[Address], **fields) -> Building:
+        bdg = helpers.create_default_bdg(rnb_id)
+        # bdg.save() is Django's native save (tests only): it bypasses the
+        # business functions
+        bdg.addresses_internal_id = [a.internal_id for a in addresses]
+        for field, value in fields.items():
+            setattr(bdg, field, value)
+        bdg.save()
+        return bdg
+
+    def test_obsolete_address_replaced_by_address_found_by_ban_id(self):
+        """
+        Input: a building linked to [A, obsolete, B]; the obsolete address
+        details hold a reliable ban_id held by the address "fresh", and the
+        cle_interop of another address.
+        Expected: the building is linked to [A, fresh, B], the update is signed
+        by the DataFix (event_origin) and its user, the obsolete address is
+        marked as done, no address is created.
+        """
+        fresh = self._create_address("04001_0040_00009", ban_id=BAN_ID)
+        self._create_address("04001_0040_00001")
+        a = self._create_address("04001_0040_00002")
+        b = self._create_address("04001_0040_00003")
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        bdg = self._create_bdg("BDG1", [a, obsolete, b])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(
+            result,
+            {
+                "addresses": 1,
+                "replaced": 1,
+                "skipped": 0,
+                "created_addresses": 0,
+                "updated_buildings": 1,
+            },
+        )
+        data_fix = DataFix.objects.get()
+        self.assertEqual(
+            data_fix.text, "Retrait et remplacement des clés d'interop périmées"
+        )
+        self.assertEqual(data_fix.user, self.user)
+        bdg.refresh_from_db()
+        self.assertEqual(
+            bdg.addresses_internal_id, [a.internal_id, fresh.internal_id, b.internal_id]
+        )
+        self.assertEqual(bdg.event_type, "update")
+        self.assertEqual(bdg.event_origin, {"source": "data_fix", "id": data_fix.id})
+        self.assertEqual(bdg.event_user, self.user)
+        obsolete.refresh_from_db()
+        self.assertTrue(obsolete.ban_update_done)
+        self.assertEqual(Address.objects.count(), 5)
+
+    def test_unreliable_ban_id_falls_back_on_case_insensitive_cle_interop(self):
+        """
+        Input: details of a city with unreliable BAN ids, holding a ban_id held
+        by an address, and a lowercase cle_interop held in uppercase by
+        another address without ban_id.
+        Expected: the building is linked to the uppercase address, whose ban_id
+        stays empty; no address is created.
+        """
+        City.objects.create(
+            code_insee="04002", name="Allemagne", has_reliable_ban_ids=False
+        )
+        self._create_address("04002_0040_00009", ban_id=BAN_ID)
+        fresh = self._create_address("04002_PK624E_00002")
+        obsolete = self._create_obsolete(
+            "04002_old_00001",
+            _get_ban_details(cle_interop="04002_pk624e_00002", city_insee_code="04002"),
+        )
+        bdg = self._create_bdg("BDG1", [obsolete])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["created_addresses"], 0)
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [fresh.internal_id])
+        fresh.refresh_from_db()
+        self.assertIsNone(fresh.ban_id)
+
+    def test_reliable_ban_id_is_given_to_address_found_by_cle_interop(self):
+        """
+        Input: details holding a reliable ban_id held by no address, and the
+        cle_interop of an address without ban_id.
+        Expected: the building is linked to this address, which gets the
+        ban_id.
+        """
+        fresh = self._create_address("04001_0040_00001")
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        bdg = self._create_bdg("BDG1", [obsolete])
+
+        replace_obsolete_addresses_from_geocoding()
+
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [fresh.internal_id])
+        fresh.refresh_from_db()
+        self.assertEqual(str(fresh.ban_id), BAN_ID)
+
+    def test_details_without_ban_id_use_cle_interop(self):
+        """
+        Input: details without ban_id, holding the cle_interop of an address
+        flagged "comparison_success".
+        Expected: the building is linked to this address, whose ban_id stays
+        empty.
+        """
+        fresh = self._create_address(
+            "04001_0040_00001", ban_update_flag="comparison_success"
+        )
+        obsolete = self._create_obsolete(
+            "04001_old_00001", _get_ban_details(ban_id=None)
+        )
+        bdg = self._create_bdg("BDG1", [obsolete])
+
+        replace_obsolete_addresses_from_geocoding()
+
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [fresh.internal_id])
+        fresh.refresh_from_db()
+        self.assertIsNone(fresh.ban_id)
+
+    def test_ambiguous_fresh_address_skips_the_obsolete_address(self):
+        """
+        Input: three obsolete addresses, each linked to a building with another
+        address A; the fresh address found is, respectively, a comparison
+        failure found by cle_interop, an obsolete address (still_exists=False)
+        found by cle_interop and an obsolete address found by ban_id.
+        Expected: no building is updated, no address is created, the found
+        addresses get no ban_id, each obsolete address is marked as done and
+        its details get "update_result":
+        "skipped_because_of_ambiguous_new_address".
+        """
+        other_ban_id = "3fbce2cc-1ad7-422a-ac99-722dd94760d3"
+        failure = self._create_address(
+            "04001_0040_00001", ban_update_flag="comparison_failure"
+        )
+        not_existing = self._create_address("04001_0040_00002", still_exists=False)
+        self._create_address(
+            "04001_0040_00003", ban_id=other_ban_id, still_exists=False
+        )
+        a = self._create_address("04001_0040_00009")
+        obsoletes = [
+            self._create_obsolete("04001_old_00001", _get_ban_details()),
+            self._create_obsolete(
+                "04001_old_00002",
+                _get_ban_details(
+                    cle_interop="04001_0040_00002",
+                    ban_id="4fbce2cc-1ad7-422a-ac99-722dd94760d3",
+                ),
+            ),
+            self._create_obsolete(
+                "04001_old_00003",
+                _get_ban_details(cle_interop="04001_0040_00004", ban_id=other_ban_id),
+            ),
+        ]
+        bdgs = [
+            self._create_bdg(f"BDG{i}", [obsolete, a])
+            for i, obsolete in enumerate(obsoletes)
+        ]
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(
+            result,
+            {
+                "addresses": 3,
+                "replaced": 0,
+                "skipped": 3,
+                "created_addresses": 0,
+                "updated_buildings": 0,
+            },
+        )
+        for bdg, obsolete in zip(bdgs, obsoletes):
+            bdg.refresh_from_db()
+            self.assertEqual(
+                bdg.addresses_internal_id, [obsolete.internal_id, a.internal_id]
+            )
+            self.assertEqual(bdg.event_type, "creation")
+            obsolete.refresh_from_db()
+            self.assertTrue(obsolete.ban_update_done)
+            self.assertEqual(
+                obsolete.ban_update_details["update_result"],
+                "skipped_because_of_ambiguous_new_address",
+            )
+        for addr in (failure, not_existing):
+            addr.refresh_from_db()
+            self.assertIsNone(addr.ban_id)
+        self.assertEqual(Address.objects.count(), 7)
+
+    def test_fresh_address_with_another_ban_id_is_ambiguous(self):
+        """
+        Input: details holding a reliable ban_id held by no address, and the
+        cle_interop of an address holding another ban_id; a building linked to
+        the obsolete address.
+        Expected: the obsolete address is skipped: the building keeps it, its
+        details get "update_result":
+        "skipped_because_of_ambiguous_new_address", it is marked as done and
+        the found address keeps its ban_id.
+        """
+        other_ban_id = "3fbce2cc-1ad7-422a-ac99-722dd94760d3"
+        found = self._create_address("04001_0040_00001", ban_id=other_ban_id)
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        bdg = self._create_bdg("BDG1", [obsolete])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["skipped"], 1)
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [obsolete.internal_id])
+        obsolete.refresh_from_db()
+        self.assertTrue(obsolete.ban_update_done)
+        self.assertEqual(
+            obsolete.ban_update_details["update_result"],
+            "skipped_because_of_ambiguous_new_address",
+        )
+        found.refresh_from_db()
+        self.assertEqual(str(found.ban_id), other_ban_id)
+
+    def test_fresh_address_with_same_or_without_ban_id_details_is_not_ambiguous(
+        self,
+    ):
+        """
+        Input: two obsolete addresses, each linked to a building, whose fresh
+        address is found by cle_interop: one in a city with unreliable BAN ids
+        (no lookup by ban_id) whose details hold the uppercase ban_id of the
+        fresh address, the other whose details have no ban_id while the fresh
+        address has one.
+        Expected: both obsolete addresses are replaced by their fresh address,
+        none is skipped.
+        """
+        City.objects.create(
+            code_insee="04002", name="Allemagne", has_reliable_ban_ids=False
+        )
+        same = self._create_address("04002_0040_00001", ban_id=BAN_ID)
+        with_ban_id = self._create_address(
+            "04001_0040_00002", ban_id="3fbce2cc-1ad7-422a-ac99-722dd94760d3"
+        )
+        same_obsolete = self._create_obsolete(
+            "04002_old_00001",
+            _get_ban_details(
+                cle_interop="04002_0040_00001",
+                city_insee_code="04002",
+                ban_id=BAN_ID.upper(),
+            ),
+        )
+        without_obsolete = self._create_obsolete(
+            "04001_old_00002",
+            _get_ban_details(cle_interop="04001_0040_00002", ban_id=None),
+        )
+        same_bdg = self._create_bdg("BDG1", [same_obsolete])
+        without_bdg = self._create_bdg("BDG2", [without_obsolete])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["replaced"], 2)
+        self.assertEqual(result["skipped"], 0)
+        same_bdg.refresh_from_db()
+        self.assertEqual(same_bdg.addresses_internal_id, [same.internal_id])
+        without_bdg.refresh_from_db()
+        self.assertEqual(without_bdg.addresses_internal_id, [with_ban_id.internal_id])
+
+    def test_fresh_address_is_created_from_details(self):
+        """
+        Input: details of a reliable city whose ban_id and cle_interop are held
+        by no address.
+        Expected: an address is created from the details (fields, point,
+        reliable ban_id, source "BAN", still_exists True) and replaces the
+        obsolete one on the building.
+        """
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        bdg = self._create_bdg("BDG1", [obsolete])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["created_addresses"], 1)
+        fresh = Address.objects.get(cle_interop="04001_0040_00001")
+        self.assertEqual(str(fresh.ban_id), BAN_ID)
+        self.assertEqual(fresh.street_number, "1")
+        self.assertEqual(fresh.street_rep, "bis")
+        self.assertEqual(fresh.street, "Place de la Mairie")
+        self.assertEqual(fresh.city_zipcode, "04510")
+        self.assertEqual(fresh.city_name, "Aiglun")
+        self.assertEqual(fresh.city_insee_code, "04001")
+        self.assertEqual((fresh.point.x, fresh.point.y), (GEOCODED_LON, GEOCODED_LAT))
+        self.assertEqual(fresh.source, "BAN")
+        self.assertTrue(fresh.still_exists)
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [fresh.internal_id])
+
+    def test_created_address_of_unreliable_city_has_no_ban_id(self):
+        """
+        Input: details of a city never checked for BAN ids reliability, whose
+        cle_interop is held by no address.
+        Expected: the address is created without ban_id.
+        """
+        obsolete = self._create_obsolete(
+            "04003_old_00001",
+            _get_ban_details(cle_interop="04003_0040_00001", city_insee_code="04003"),
+        )
+        self._create_bdg("BDG1", [obsolete])
+
+        replace_obsolete_addresses_from_geocoding()
+
+        self.assertIsNone(Address.objects.get(cle_interop="04003_0040_00001").ban_id)
+
+    def test_fresh_address_already_on_building_is_not_duplicated(self):
+        """
+        Input: a building linked to [obsolete, fresh], fresh holding the
+        reliable ban_id of the details.
+        Expected: the building is linked to [fresh] only.
+        """
+        fresh = self._create_address("04001_0040_00001", ban_id=BAN_ID)
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        bdg = self._create_bdg("BDG1", [obsolete, fresh])
+
+        replace_obsolete_addresses_from_geocoding()
+
+        bdg.refresh_from_db()
+        self.assertEqual(bdg.addresses_internal_id, [fresh.internal_id])
+
+    def test_validated_buildings_are_updated_but_not_inactive_ones(self):
+        """
+        Input: an obsolete address linked to an inactive building and to a
+        validated building.
+        Expected: the inactive building keeps the obsolete address; the
+        validated building is linked to the fresh address and loses its
+        validations; the obsolete address is marked as done.
+        """
+        fresh = self._create_address("04001_0040_00001", ban_id=BAN_ID)
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        inactive = self._create_bdg("BDG1", [obsolete], is_active=False)
+        validated = self._create_bdg("BDG2", [obsolete], validated_by=[self.user.id])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["updated_buildings"], 1)
+        inactive.refresh_from_db()
+        self.assertEqual(inactive.addresses_internal_id, [obsolete.internal_id])
+        validated.refresh_from_db()
+        self.assertEqual(validated.addresses_internal_id, [fresh.internal_id])
+        self.assertEqual(validated.validated_by, [])
+        obsolete.refresh_from_db()
+        self.assertTrue(obsolete.ban_update_done)
+
+    def test_only_geocoding_successes_not_done_are_handled(self):
+        """
+        Input: a geocoding failure and a geocoding success already done, each
+        linked to a building.
+        Expected: nothing is handled, the buildings keep their address and no
+        address is created.
+        """
+        failure = self._create_obsolete(
+            "04001_old_00001",
+            _get_ban_details(),
+            ban_update_flag="geocoding_failure",
+        )
+        done = self._create_obsolete(
+            "04001_old_00002", _get_ban_details(), ban_update_done=True
+        )
+        bdg_failure = self._create_bdg("BDG1", [failure])
+        bdg_done = self._create_bdg("BDG2", [done])
+
+        result = replace_obsolete_addresses_from_geocoding()
+
+        self.assertEqual(result["addresses"], 0)
+        bdg_failure.refresh_from_db()
+        self.assertEqual(bdg_failure.addresses_internal_id, [failure.internal_id])
+        bdg_done.refresh_from_db()
+        self.assertEqual(bdg_done.addresses_internal_id, [done.internal_id])
+        self.assertEqual(Address.objects.count(), 2)
+        failure.refresh_from_db()
+        self.assertIsNone(failure.ban_update_done)
+
+    def test_data_fix_is_reused_and_addresses_handled_in_several_batches(self):
+        """
+        Input: 3 obsolete addresses, batch_size=2, then a second run with a new
+        obsolete address.
+        Expected: the 3 addresses are handled by the first run, the new one by
+        the second run, and a single DataFix is used by both runs.
+        """
+        for i in range(3):
+            self._create_obsolete(
+                f"04001_old_0000{i}",
+                _get_ban_details(cle_interop=f"04001_0040_0000{i}", ban_id=None),
+            )
+
+        result = replace_obsolete_addresses_from_geocoding(batch_size=2)
+        self.assertEqual(result["addresses"], 3)
+
+        self._create_obsolete(
+            "04001_old_00009",
+            _get_ban_details(cle_interop="04001_0040_00009", ban_id=None),
+        )
+        result = replace_obsolete_addresses_from_geocoding(batch_size=2)
+
+        self.assertEqual(result["addresses"], 1)
+        self.assertEqual(DataFix.objects.count(), 1)
+        self.assertEqual(Address.objects.filter(ban_update_done=True).count(), 4)
+
+    def test_data_fix_user_must_be_staff(self):
+        """
+        Input: the user "paul" is not staff.
+        Expected: an exception is raised before any address is handled.
+        """
+        self.user.is_staff = False
+        self.user.save()
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+
+        with self.assertRaises(Exception):
+            replace_obsolete_addresses_from_geocoding()
+
+        obsolete.refresh_from_db()
+        self.assertIsNone(obsolete.ban_update_done)
+
+    def test_failing_building_update_rolls_back_the_address(self):
+        """
+        Input: an obsolete address whose fresh address must be created, linked
+        to a building whose update fails.
+        Expected: the error is raised, the fresh address is not created and the
+        obsolete address is not marked as done.
+        """
+        obsolete = self._create_obsolete("04001_old_00001", _get_ban_details())
+        self._create_bdg("BDG1", [obsolete])
+
+        with patch.object(Building, "update", side_effect=RuntimeError("boom")):
+            with self.assertRaises(RuntimeError):
+                replace_obsolete_addresses_from_geocoding()
+
+        self.assertFalse(
+            Address.objects.filter(cle_interop="04001_0040_00001").exists()
+        )
+        obsolete.refresh_from_db()
+        self.assertIsNone(obsolete.ban_update_done)

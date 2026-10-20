@@ -9,7 +9,8 @@ def get_monthly_edit_leaderboard(year: int, month: int) -> list[dict]:
     """
     Input: year and month (e.g. 2026, 2 for February 2026).
     Returns: list of dicts sorted by edit_count desc, e.g.:
-        [{"username": "alice", "edit_count": 42}, ...]
+        [{"username": "alice", "email": "alice@example.com", "organization_name": "Mairie de Paris", "edit_count": 42}, ...]
+    organization_name is None when the user has no organization.
     A single event_id touching N buildings counts as 1 edit.
     Excludes rows with no event_user.
     """
@@ -20,12 +21,14 @@ def get_monthly_edit_leaderboard(year: int, month: int) -> list[dict]:
         cursor.execute("SET statement_timeout = 600000;")
 
         q = """
-            SELECT u.username, u.email, COUNT(DISTINCT bdg.event_id) as edit_count
+            SELECT u.username, u.email, o.name as organization_name, COUNT(DISTINCT bdg.event_id) as edit_count
             FROM batid_building_with_history bdg
             INNER JOIN auth_user u on u.id = bdg.event_user_id
+            LEFT JOIN batid_userprofile up on up.user_id = u.id
+            LEFT JOIN batid_organization o on o.id = up.organization_id
             WHERE lower(bdg.sys_period) >= %(start)s AND lower(bdg.sys_period) < %(end)s
             AND bdg.event_origin ->> 'source' = 'contribution'
-            GROUP BY u.username, u.email
+            GROUP BY u.username, u.email, o.name
             ORDER BY edit_count DESC;
         """
 
@@ -40,11 +43,15 @@ def get_monthly_new_users(year: int, month: int):
     Returns: User queryset of non-staff users who joined in the given month and have an email.
     """
     start, end = month_bounds(year, month)
-    return User.objects.filter(
-        date_joined__gte=start,
-        date_joined__lt=end,
-        is_staff=False,
-    ).exclude(email="")
+    return (
+        User.objects.filter(
+            date_joined__gte=start,
+            date_joined__lt=end,
+            is_staff=False,
+        )
+        .exclude(email="")
+        .select_related("profile__organization")
+    )
 
 
 def send_monthly_leaderboard_emails() -> str:

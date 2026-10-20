@@ -1,10 +1,13 @@
+import secrets
 from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
+from api_alpha.endpoints.auth.pro_connect import issue_login_code
 from batid.models import ProConnectIdentity
 from batid.tests.factories.users import ContributorUserFactory
 from django.core import signing
 from django.test import override_settings
+from freezegun import freeze_time
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
@@ -153,7 +156,10 @@ class CallbackTest(APITestCase):
     def test_callback_creates_new_user(
         self, mock_exchange, mock_verify, mock_userinfo, mock_siren
     ):
-        """Callback with unknown sub and email creates User + UserProfile + ProConnectIdentity + Token + Contributors group."""
+        """Input: callback with unknown sub and email, then the returned code POSTed to /exchange/.
+        Expected: User + UserProfile + ProConnectIdentity + Token + Contributors group are created,
+        the redirect carries only a one-time code (no token, user_id, username),
+        and the exchange returns the user's id, token and groups."""
         from django.contrib.auth.models import Group, User
 
         Group.objects.get_or_create(name="Contributors")
@@ -161,8 +167,12 @@ class CallbackTest(APITestCase):
         response = self._call_callback()
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn("token=", response.url)
         self.assertIn("http://localhost:3000", response.url)
+        params = parse_qs(urlparse(response.url).query)
+        self.assertIn("code", params)
+        self.assertNotIn("token", params)
+        self.assertNotIn("user_id", params)
+        self.assertNotIn("username", params)
 
         user = User.objects.get(email="agent@gouv.fr")
         self.assertTrue(user.is_active)
@@ -175,6 +185,17 @@ class CallbackTest(APITestCase):
         self.assertEqual(user.pro_connect.sub, "pro-connect-sub-123")
         self.assertEqual(user.pro_connect.siret, "13002526500013")
         self.assertTrue(Token.objects.filter(user=user).exists())
+
+        exchange = self.client.post(
+            "/api/alpha/auth/pro_connect/exchange/",
+            {"code": params["code"][0]},
+            format="json",
+        )
+        self.assertEqual(exchange.status_code, 200)
+        data = exchange.json()
+        self.assertEqual(data["id"], user.id)
+        self.assertEqual(data["groups"], ["Contributors"])
+        self.assertEqual(data["token"], Token.objects.get(user=user).key)
 
     @mock.patch(
         "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
@@ -346,6 +367,7 @@ class CallbackTest(APITestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("error=account_disabled", response.url)
         self.assertNotIn("token=", response.url)
+        self.assertNotIn("code=", response.url)
 
     def test_callback_invalid_state(self, mock_siren):
         """Callback with tampered state redirects with error."""
@@ -400,8 +422,8 @@ class CallbackTest(APITestCase):
         self, mock_exchange, mock_verify, mock_userinfo, _mock_siren
     ):
         """Input: state contains a redirect_uri with an embedded ?redirect= query param.
-        Expected: final redirect URL contains both the original redirect param and the token params,
-        with exactly one '?' and no malformed URL."""
+        Expected: final redirect URL contains both the original redirect param and the code param,
+        no token, with exactly one '?' and no malformed URL."""
         from django.contrib.auth.models import Group
 
         Group.objects.get_or_create(name="Contributors")
@@ -416,8 +438,8 @@ class CallbackTest(APITestCase):
         parsed = urlparse(final_url)
         params = parse_qs(parsed.query)
         self.assertIn("redirect", params)
-        self.assertIn("token", params)
-        self.assertIn("user_id", params)
+        self.assertIn("code", params)
+        self.assertNotIn("token", params)
 
 
 @override_settings(
@@ -624,6 +646,103 @@ class ProConnectSandboxMirroringTest(APITestCase):
             response = self._call_callback()
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn("token=", response.url)
+        self.assertIn("code=", response.url)
         self.assertTrue(User.objects.filter(email="agent@gouv.fr").exists())
         mock_delay.assert_called_once()
+
+
+class ExchangeTest(APITestCase):
+    """POST /exchange/ consumes a one-time Pro Connect login code."""
+
+    url = "/api/alpha/auth/pro_connect/exchange/"
+
+    def setUp(self):
+        self.user = ContributorUserFactory()
+
+    def _exchange(self, body):
+        return self.client.post(self.url, body, format="json")
+
+    def test_valid_code_returns_login_payload(self):
+        """Input: a freshly issued code.
+        Expected: 200 with exactly {id, token, username, groups}, as /login/ returns."""
+        code = issue_login_code(self.user)
+
+        response = self._exchange({"code": code})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "id": self.user.id,
+                "token": Token.objects.get(user=self.user).key,
+                "username": self.user.username,
+                "groups": [group.name for group in self.user.groups.all()],
+            },
+        )
+
+    def test_reused_code_is_rejected(self):
+        """Input: the same code POSTed twice.
+        Expected: second call is 400 invalid_code, without a token."""
+        code = issue_login_code(self.user)
+        self._exchange({"code": code})
+
+        response = self._exchange({"code": code})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"error": "invalid_code"})
+
+    def test_code_lost_to_concurrent_exchange_is_rejected(self):
+        """Input: a live code whose cache.delete() returns False, as when a
+        concurrent exchange deleted it first.
+        Expected: 400 invalid_code, without a token."""
+        code = issue_login_code(self.user)
+
+        with mock.patch(
+            "api_alpha.endpoints.auth.pro_connect.cache.delete", return_value=False
+        ):
+            response = self._exchange({"code": code})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"error": "invalid_code"})
+
+    def test_expired_code_is_rejected(self):
+        """Input: a code POSTed 61 seconds after being issued.
+        Expected: 400 invalid_code."""
+        with freeze_time() as frozen:
+            code = issue_login_code(self.user)
+            frozen.tick(61)
+
+            response = self._exchange({"code": code})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"error": "invalid_code"})
+
+    def test_unknown_code_is_rejected(self):
+        """Input: a well-formed code that was never issued.
+        Expected: 400 invalid_code."""
+        response = self._exchange({"code": secrets.token_urlsafe(32)})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"error": "invalid_code"})
+
+    def test_missing_code_is_rejected(self):
+        """Input: no code, an empty code, a non-string code.
+        Expected: 400 missing_code for each."""
+        for body in ({}, {"code": ""}, {"code": 123}):
+            with self.subTest(body=body):
+                response = self._exchange(body)
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json(), {"error": "missing_code"})
+
+    def test_code_of_deactivated_user_is_rejected(self):
+        """Input: a code issued for a user deactivated before the exchange.
+        Expected: 400 invalid_code, as /login/ rejects inactive users."""
+        code = issue_login_code(self.user)
+        self.user.is_active = False
+        self.user.save()
+
+        response = self._exchange({"code": code})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"error": "invalid_code"})

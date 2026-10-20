@@ -72,9 +72,9 @@ class ImportBDNB202301TestCase(TransactionTestCase):
         self.assertIsInstance(c.created_at, datetime)
 
         # We create empty addresses
-        Address.objects.create(id="38517_0345_00007")
-        Address.objects.create(id="38117_0153_02822")
-        Address.objects.create(id="38117_0153_02824")
+        Address.objects.create(cle_interop="38517_0345_00007")
+        Address.objects.create(cle_interop="38117_0153_02822")
+        Address.objects.create(cle_interop="38117_0153_02824")
 
         # ############
         # Candidates to files
@@ -130,7 +130,7 @@ class ImportBDNB202301TestCase(TransactionTestCase):
 
         self.assertEqual(Address.objects.count(), 3)
 
-        a = Address.objects.get(id="38517_0345_00007")
+        a = Address.objects.get(cle_interop="38517_0345_00007")
         self.assertEqual(a.street_number, "7")
         self.assertEqual(a.street_rep, "")
         self.assertEqual(a.street, "place jean jaures")
@@ -140,5 +140,5 @@ class ImportBDNB202301TestCase(TransactionTestCase):
         self.assertIsInstance(a.point, Point)
 
         # There is a duplicate address in the fixture. It should be imported once (without conflict)
-        addresses = Address.objects.filter(id="38117_0153_02824")
+        addresses = Address.objects.filter(cle_interop="38117_0153_02824")
         self.assertEqual(addresses.count(), 1)

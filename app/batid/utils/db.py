@@ -1,9 +1,13 @@
 from contextlib import contextmanager
+from typing import Iterable, TextIO
 
 from django.db import connection
+from django.db.backends.postgresql.psycopg_any import DateTimeTZRange
 from django.db.transaction import TransactionManagementError
 from django.utils import timezone
-from psycopg2.extras import DateTimeTZRange
+from psycopg import sql
+
+COPY_CHUNK_SIZE = 8192
 
 
 def dictfetchall(cursor, query, params=None):
@@ -16,6 +20,35 @@ def dictfetchone(cursor, query, params=None):
     cursor.execute(query, params)
     cols = [col[0] for col in cursor.description]
     return dict(zip(cols, cursor.fetchone()))
+
+
+def copy_from_file(
+    *, cursor, file: TextIO, table: str, columns: Iterable[str], sep: str
+) -> None:
+    """
+    Bulk load a text-format COPY file into a table. NULL is the text format
+    default, backslash N.
+    """
+    query = sql.SQL(
+        "COPY {table} ({columns}) FROM STDIN WITH DELIMITER AS {sep}"
+    ).format(
+        table=sql.Identifier(table),
+        columns=sql.SQL(", ").join(sql.Identifier(column) for column in columns),
+        sep=sql.Literal(sep),
+    )
+    # psycopg keeps the connection non-blocking and busy-polls on write
+    # readiness during COPY FROM, which costs about 25% wall time and 20x CPU on
+    # large files. A blocking connection avoids it; it is restored afterwards
+    # because Django reuses this connection for later queries.
+    pgconn = cursor.connection.pgconn
+    was_nonblocking = pgconn.nonblocking
+    pgconn.nonblocking = 0
+    try:
+        with cursor.copy(query) as copy:
+            while chunk := file.read(COPY_CHUNK_SIZE):
+                copy.write(chunk)
+    finally:
+        pgconn.nonblocking = was_nonblocking
 
 
 def list_to_pgarray(alist):

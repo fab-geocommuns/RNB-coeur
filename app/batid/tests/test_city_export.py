@@ -15,7 +15,7 @@ class TestCityExport(TestCase):
 
         # Create two addresses
         address_1 = Address.objects.create(
-            id="ban_id_1",
+            cle_interop="ban_id_1",
             street_number="1",
             street="rue de la paix",
             city_name="Grenoble",
@@ -23,7 +23,7 @@ class TestCityExport(TestCase):
             city_insee_code="38185",
         )
         address_2 = Address.objects.create(
-            id="ban_id_2",
+            cle_interop="ban_id_2",
             street_number="2",
             street="rue de la paix",
             city_name="Grenoble",
@@ -48,7 +48,7 @@ class TestCityExport(TestCase):
             ],
         )
 
-        bdg.addresses_internal_id = internal_ids([address_1.id])
+        bdg.addresses_internal_id = internal_ids([address_1.cle_interop])
 
         # Add some attributes
         bdg.ext_ids = Building.add_ext_id(
@@ -74,7 +74,9 @@ class TestCityExport(TestCase):
             ],
         )
 
-        bdg.addresses_internal_id = internal_ids([address_1.id, address_2.id])
+        bdg.addresses_internal_id = internal_ids(
+            [address_1.cle_interop, address_2.cle_interop]
+        )
 
         # Add some attributes
         bdg.ext_ids = Building.add_ext_id(

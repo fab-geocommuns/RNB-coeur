@@ -3,7 +3,7 @@ import logging
 import os
 import shutil
 from datetime import datetime
-from zipfile import ZIP_DEFLATED, ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 import boto3
 import requests
@@ -20,7 +20,6 @@ def publish(area: str):
 
     try:
         directory_name = create_directory(area)
-        create_csv(directory_name, area)
         archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
 
         if os.environ.get("ENABLE_DATAGOUV_PUBLICATION") == "true":
@@ -68,7 +67,7 @@ def sql_query(code_area):
         bdg.ext_ids as ext_ids,
         coalesce(json_agg(
              json_build_object(
-                    'cle_interop_ban', addr.id,
+                    'cle_interop_ban', addr.cle_interop,
                     'street_number', addr.street_number,
                     'street_rep', addr.street_rep,
                     'street', addr.street,
@@ -76,7 +75,7 @@ def sql_query(code_area):
                     'city_name', addr.city_name
                 )
 
-        ) FILTER (WHERE addr.id IS NOT NULL), '[]'::json) AS addresses,
+        ) FILTER (WHERE addr.cle_interop IS NOT NULL), '[]'::json) AS addresses,
         (
            SELECT json_agg(json_build_object('id', p.id, 'bdg_cover_ratio',
                CASE
@@ -121,19 +120,6 @@ def sql_query(code_area):
     return sql
 
 
-def create_csv(directory_name, code_area):
-    sql = sql_query(code_area)
-    local_statement_timeout = settings.DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT
-    with open(f"{file_path(directory_name, code_area)}.csv", "w") as fp:
-        with transaction.atomic():
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SET statement_timeout = %(statement_timeout)s;",
-                    {"statement_timeout": local_statement_timeout},
-                )
-                cursor.copy_expert(sql, fp)
-
-
 def sha1sum(filename):
     h = hashlib.sha1()
     b = bytearray(128 * 1024)
@@ -145,11 +131,30 @@ def sha1sum(filename):
 
 
 def create_archive(directory_name, code_area):
-    files = os.listdir(directory_name)
     archive_path = f"{file_path(directory_name, code_area)}.csv.zip"
+    sql = sql_query(code_area)
+    local_statement_timeout = settings.DATA_GOUV_POSTGRES_STATEMENT_TIMEOUT
 
-    with ZipFile(archive_path, "w", ZIP_DEFLATED) as zip:
-        zip.write(f"{file_path(directory_name, code_area)}.csv", f"RNB_{code_area}.csv")
+    # Stream the COPY output straight into the zip entry: no intermediate CSV on disk.
+    # force_zip64: the entry size is unknown upfront and exceeds 4 GB for the national export.
+    # Explicit ZipInfo: opening by name would date the entry 1980-01-01; a ZipInfo defaults to ZIP_STORED.
+    # external_attr: without it the entry would be written with mode 0o600 and extract as rw-------.
+    entry_info = ZipInfo(
+        f"RNB_{code_area}.csv", date_time=datetime.now().timetuple()[:6]
+    )
+    entry_info.compress_type = ZIP_DEFLATED
+    entry_info.external_attr = 0o100644 << 16
+    with ZipFile(archive_path, "w", ZIP_DEFLATED) as archive:
+        with archive.open(entry_info, "w", force_zip64=True) as entry:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SET statement_timeout = %(statement_timeout)s;",
+                        {"statement_timeout": local_statement_timeout},
+                    )
+                    with cursor.copy(sql) as copy:
+                        for data in copy:
+                            entry.write(data)
 
     archive_size = os.path.getsize(archive_path)
 

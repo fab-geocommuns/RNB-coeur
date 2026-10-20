@@ -57,7 +57,7 @@ class TestUnitaryRollback(TransactionTestCase):
             shape=GEOSGeometry("POLYGON((1 0, 1 1, 2 1, 2 0, 1 0))"),
             ext_ids=[],
         )
-        self.address_1 = Address.objects.create(id="1")
+        self.address_1 = Address.objects.create(cle_interop="1")
 
     def test_revert_creation(self):
         creation_event_id = self.building_1.event_id
@@ -173,7 +173,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="demolished",
-            addresses_cle_interop=[self.address_1.id],
+            addresses_cle_interop=[self.address_1.cle_interop],
             ext_ids=ext_ids,
             shape=GEOSGeometry("POINT(0 0)"),
         )
@@ -199,7 +199,9 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertNotEqual(self.building_1.event_id, update_event_id)
         self.assertEqual(self.building_1.event_origin, {"source": "rollback"})
         self.assertEqual(self.building_1.status, "demolished")
-        self.assertEqual(addresses_cle_interop(self.building_1), [self.address_1.id])
+        self.assertEqual(
+            addresses_cle_interop(self.building_1), [self.address_1.cle_interop]
+        )
         self.assertEqual(self.building_1.ext_ids, ext_ids)
         self.assertEqual(self.building_1.shape.wkt, GEOSGeometry("POINT(0 0)").wkt)
 
@@ -248,7 +250,7 @@ class TestUnitaryRollback(TransactionTestCase):
                 },
                 {
                     "status": "constructed",
-                    "addresses_cle_interop": [self.address_1.id],
+                    "addresses_cle_interop": [self.address_1.cle_interop],
                     "shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
                 },
             ],
@@ -303,7 +305,7 @@ class TestUnitaryRollback(TransactionTestCase):
                 },
                 {
                     "status": "constructed",
-                    "addresses_cle_interop": [self.address_1.id],
+                    "addresses_cle_interop": [self.address_1.cle_interop],
                     "shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
                 },
             ],
@@ -340,7 +342,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="constructed",
-            addresses_cle_interop=[self.address_1.id],
+            addresses_cle_interop=[self.address_1.cle_interop],
         )
         merge_event_id = building.event_id
 
@@ -356,7 +358,7 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertNotEqual(new_event_id, merge_event_id)
         self.assertEqual(building.event_origin, {"source": "rollback"})
         self.assertEqual(building.status, "constructed")
-        self.assertEqual(addresses_cle_interop(building), [self.address_1.id])
+        self.assertEqual(addresses_cle_interop(building), [self.address_1.cle_interop])
         self.assertAlmostEqual(building.shape.area, 2, delta=0.01)
 
         parent_1 = self.building_1
@@ -380,7 +382,7 @@ class TestUnitaryRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="constructed",
-            addresses_cle_interop=[self.address_1.id],
+            addresses_cle_interop=[self.address_1.cle_interop],
         )
         merge_event_id = building.event_id
         building.update(
@@ -576,7 +578,7 @@ class TestGlobalRollback(TransactionTestCase):
             shape=self.shape_1,
             ext_ids=[],
         )
-        self.address_1 = Address.objects.create(id="1")
+        self.address_1 = Address.objects.create(cle_interop="1")
 
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_global_rollback(self):
@@ -1006,7 +1008,7 @@ class TestGlobalRollback(TransactionTestCase):
             self.user,
             {"source": "contribution"},
             status="constructed",
-            addresses_cle_interop=[self.address_1.id],
+            addresses_cle_interop=[self.address_1.cle_interop],
         )
         merge_event_id = building.event_id
 
@@ -1020,7 +1022,7 @@ class TestGlobalRollback(TransactionTestCase):
                 },
                 {
                     "status": "constructed",
-                    "addresses_cle_interop": [self.address_1.id],
+                    "addresses_cle_interop": [self.address_1.cle_interop],
                     "shape": "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
                 },
             ],

@@ -2,13 +2,14 @@ import csv
 import io
 import json
 from datetime import timedelta
+from zipfile import ZipFile
 
 from api_alpha.serializers.public_user import PublicUserSerializer
 from batid.models import Building, Organization, UserProfile
 from batid.services.bdg_history import get_bdg_history
 from batid.services.data_gouv_publication import (
     cleanup_directory,
-    create_csv,
+    create_archive,
     create_directory,
 )
 from batid.tests.factories.users import ContributorUserFactory
@@ -62,8 +63,8 @@ class ValidatedByFormatContractTest(TransactionTestCase):
     d'également mettre à jour les requêtes SQL de l'export, du endpoint
     d'historique et du endpoint de diff.
 
-    NB : `TransactionTestCase` est nécessaire car le endpoint de diff fork un
-    processus enfant qui lit les données via une connexion DB distincte ; elles
+    NB : `TransactionTestCase` est nécessaire car le endpoint de diff exporte dans un
+    thread qui lit les données via une connexion DB distincte ; elles
     doivent donc être committées.
     """
 
@@ -117,8 +118,10 @@ class ValidatedByFormatContractTest(TransactionTestCase):
     def _export_validated_by(self):
         directory_name = create_directory("nat")
         try:
-            create_csv(directory_name, "nat")
-            with open(f"{directory_name}/RNB_nat.csv", "r") as f:
+            archive_path, _, _ = create_archive(directory_name, "nat")
+            with ZipFile(archive_path) as archive, io.TextIOWrapper(
+                archive.open("RNB_nat.csv"), encoding="utf-8", newline=""
+            ) as f:
                 reader = csv.DictReader(f, delimiter=";")
                 row = next(r for r in reader if r["rnb_id"] == "BDG-CONTRACT")
                 validated_by = json.loads(row["validated_by"])

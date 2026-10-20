@@ -1,8 +1,11 @@
 import os
 
 from django.conf import settings
+from django.core import signing
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
+
+UNSUBSCRIBE_SALT = "report-notification-unsubscribe"
 
 
 def build_reset_password_email(
@@ -59,12 +62,19 @@ def build_monthly_leaderboard_email(
         get_monthly_edit_leaderboard,
         get_monthly_new_users,
     )
+    from batid.services.user import get_user_organization_name
     from batid.utils.date import french_month_year_label
 
     leaderboard = get_monthly_edit_leaderboard(year, month)
     month_year_label = french_month_year_label(year, month)
     new_users = get_monthly_new_users(year, month)
-    new_usernames = list(new_users.values_list("username", flat=True))
+    new_users_entries = [
+        {
+            "username": user.username,
+            "organization_name": get_user_organization_name(user),
+        }
+        for user in new_users
+    ]
 
     total_contributions = sum(entry["edit_count"] for entry in leaderboard)
 
@@ -73,7 +83,9 @@ def build_monthly_leaderboard_email(
         {
             "leaderboard": leaderboard,
             "month_year_label": month_year_label,
-            "new_usernames": sorted(new_usernames, key=str.lower),
+            "new_users": sorted(
+                new_users_entries, key=lambda entry: entry["username"].lower()
+            ),
             "total_contributions": total_contributions,
         },
     )
@@ -102,3 +114,32 @@ def build_activate_account_email(
     )
     msg.attach_alternative(html_content, "text/html")
     return msg
+
+
+def make_unsubscribe_token(email: str) -> str:
+    """Signs the (lowercased) email into a stateless, non-expiring token."""
+    return signing.dumps(email.lower(), salt=UNSUBSCRIBE_SALT)
+
+
+def read_unsubscribe_token(token: str) -> str:
+    """
+    Returns the email embedded in the token.
+    Raises signing.BadSignature if the token has been tampered with.
+    """
+    return signing.loads(token, salt=UNSUBSCRIBE_SALT)
+
+
+def report_map_url(report) -> str:
+    """
+    Builds the link to the RNB map focused on the report.
+    Format: {FRONTEND_URL}/carte?report={id}&extra_layers=reports&q={rnb_id}
+    The q parameter (rnb_id) is omitted when the report has no building.
+    """
+    url = f"{settings.FRONTEND_URL}/carte?report={report.id}&extra_layers=reports"
+    if report.building is not None:
+        url += f"&q={report.building.rnb_id}"
+    return url
+
+
+def report_unsubscribe_url(token: str) -> str:
+    return f"{settings.FRONTEND_URL}/notifications/desinscription?token={token}"

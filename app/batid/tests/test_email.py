@@ -1,4 +1,10 @@
-from batid.services.email import _reset_password_url, build_reset_password_email
+from batid.services.email import (
+    _reset_password_url,
+    build_reset_password_email,
+    make_unsubscribe_token,
+    read_unsubscribe_token,
+)
+from django.core import signing
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
 from django.core.validators import URLValidator
@@ -27,6 +33,26 @@ class ResetPasswordEmail(TestCase):
             validator(url)
         except ValidationError:
             self.fail(f"{url} is not a valid URL")
+
+
+class UnsubscribeTokenTest(TestCase):
+    def test_token_roundtrip(self):
+        """
+        Input: make_unsubscribe_token("User@Example.com") then read it back.
+        Expected: read returns the lowercased email "user@example.com".
+        """
+        token = make_unsubscribe_token("User@Example.com")
+        self.assertEqual(read_unsubscribe_token(token), "user@example.com")
+
+    def test_tampered_token_raises(self):
+        """
+        Input: a valid token with its last character altered.
+        Expected: read_unsubscribe_token raises signing.BadSignature.
+        """
+        token = make_unsubscribe_token("user@example.com")
+        tampered = token[:-1] + ("a" if token[-1] != "a" else "b")
+        with self.assertRaises(signing.BadSignature):
+            read_unsubscribe_token(tampered)
 
 
 class AbsoluteStaticTagTest(TestCase):
