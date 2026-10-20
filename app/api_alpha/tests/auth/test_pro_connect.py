@@ -691,6 +691,20 @@ class ExchangeTest(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {"error": "invalid_code"})
 
+    def test_code_lost_to_concurrent_exchange_is_rejected(self):
+        """Input: a live code whose cache.delete() returns False, as when a
+        concurrent exchange deleted it first.
+        Expected: 400 invalid_code, without a token."""
+        code = issue_login_code(self.user)
+
+        with mock.patch(
+            "api_alpha.endpoints.auth.pro_connect.cache.delete", return_value=False
+        ):
+            response = self._exchange({"code": code})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"error": "invalid_code"})
+
     def test_expired_code_is_rejected(self):
         """Input: a code POSTed 61 seconds after being issued.
         Expected: 400 invalid_code."""
