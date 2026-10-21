@@ -75,11 +75,14 @@ docker compose up -d
 Tant que `db` tourne encore en 16 (après le `git pull`, avant tout `up`) :
 
 ```
+docker compose stop web worker celery_beat
 docker compose exec -T db pg_dump -U postgres -Fc -f /tmp/rnb_pg16.dump postgres
 docker compose cp db:/tmp/rnb_pg16.dump ./rnb_pg16.dump
 ```
 
-Si `db` boucle déjà en 17 : remettre temporairement `postgis/postgis:16-3.5` dans `docker-compose.common.yml`, lancer `docker compose up -d --wait db` (les données n'ont pas été touchées), faire les deux commandes ci-dessus, puis annuler la modification.
+Le `stop` évite qu'une écriture arrive après le dump : elle serait perdue au `down -v`.
+
+Si `db` boucle déjà en 17 : remettre temporairement `postgis/postgis:16-3.5` dans `docker-compose.common.yml`, lancer `docker compose up -d --wait db` (les données n'ont pas été touchées), faire les deux dernières commandes ci-dessus, puis annuler la modification.
 
 Puis :
 
@@ -93,7 +96,7 @@ docker compose exec -T db psql -U postgres -c "VACUUM (ANALYZE)"
 docker compose up -d
 ```
 
-La base est recréée vide depuis `template1` : l'image y crée sinon déjà les extensions PostGIS et leurs schémas (`tiger`, `topology`), et `pg_restore` échoue sur ces doublons.
+Comme en option A, `down -v` supprime aussi le volume RabbitMQ local. La base est recréée vide depuis `template1` : l'image y crée sinon déjà les extensions PostGIS et leurs schémas (`tiger`, `topology`), et `pg_restore` échoue sur ces doublons.
 
 Garder `rnb_pg16.dump` jusqu'à ce que tout fonctionne en 17 : c'est le seul retour possible (une base 17 ne se relit pas en 16). Le supprimer ensuite.
 
