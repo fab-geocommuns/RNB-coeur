@@ -82,7 +82,7 @@ docker compose cp db:/tmp/rnb_pg16.dump ./rnb_pg16.dump
 
 Le `stop` évite qu'une écriture arrive après le dump : elle serait perdue au `down -v`.
 
-Si `db` boucle déjà en 17 : remettre temporairement `postgis/postgis:16-3.5` dans `docker-compose.common.yml`, lancer `docker compose up -d --wait db` (les données n'ont pas été touchées), faire les deux dernières commandes ci-dessus, puis annuler la modification.
+Si `db` boucle déjà en 17 : remettre temporairement `postgis/postgis:16-3.5` dans `docker-compose.common.yml`, lancer `docker compose up -d --wait db` (les données n'ont pas été touchées), faire les trois commandes ci-dessus, `stop` compris, puis annuler la modification.
 
 Puis :
 
