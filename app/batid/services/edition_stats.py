@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -10,19 +10,17 @@ from django.db.models.fields.json import KT
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
-# Months are calendar months in the French metropolitan timezone
+# The months of the monthly series are calendar months in the French
+# metropolitan timezone
 PARIS_TZ = ZoneInfo("Europe/Paris")
 
-PERIOD_CURRENT_MONTH = "current_month"
-PERIOD_LAST_MONTH = "last_month"
+# A period is either a rolling window of the last N days, or the whole history
+DEFAULT_DAYS = 30
+MAX_DAYS = 365
 PERIOD_ALL = "all"
-PERIODS = [PERIOD_CURRENT_MONTH, PERIOD_LAST_MONTH, PERIOD_ALL]
 
 DEFAULT_LIMIT = 5
 MAX_LIMIT = 20
-
-# Rolling windows of N days (?days=N), an alternative to calendar periods
-MAX_DAYS = 365
 
 CACHE_TIMEOUT_SECONDS = 600
 
@@ -47,55 +45,9 @@ def contributions() -> QuerySet:
     return SummerChallenge.objects.filter(Exists(contribution_events))
 
 
-def period_bounds(
-    period: str, now: Optional[datetime] = None
-) -> tuple[Optional[datetime], Optional[datetime]]:
-    """
-    Returns the (since, until) datetimes of a period, until being exclusive.
-    None means unbounded.
-    """
-    now = (now or timezone.now()).astimezone(PARIS_TZ)
-    month_start = datetime(now.year, now.month, 1, tzinfo=PARIS_TZ)
-
-    if period == PERIOD_CURRENT_MONTH:
-        return month_start, None
-    if period == PERIOD_LAST_MONTH:
-        if now.month == 1:
-            last_month_start = datetime(now.year - 1, 12, 1, tzinfo=PARIS_TZ)
-        else:
-            last_month_start = datetime(now.year, now.month - 1, 1, tzinfo=PARIS_TZ)
-        return last_month_start, month_start
-    if period == PERIOD_ALL:
-        return None, None
-    raise ValueError(f"Unknown period: {period}")
-
-
-def rolling_period_key(days: int) -> str:
-    return f"last_{days}_days"
-
-
-def previous_bounds(
-    period: str, now: datetime, days: Optional[int] = None
-) -> Optional[tuple[datetime, datetime]]:
-    """
-    (since, until) of the period used to show a trend, until being exclusive:
-    - rolling window of N days: the N days before
-    - current_month: last month, from its first day up to the same elapsed time
-      (so that a partial month is compared with a partial month)
-    - last_month: the whole month before
-    - all: no comparison (None)
-    """
-    if days:
-        since = now - timedelta(days=days)
-        return since - timedelta(days=days), since
-
-    since, until = period_bounds(period, now)
-    if period == PERIOD_CURRENT_MONTH:
-        previous_since = _add_months(since, -1)
-        return previous_since, previous_since + (now - since)
-    if period == PERIOD_LAST_MONTH:
-        return _add_months(since, -1), since
-    return None
+def period_key(days: Optional[int]) -> str:
+    """ "last_30_days" for a rolling window, "all" for the whole history"""
+    return f"last_{days}_days" if days else PERIOD_ALL
 
 
 def _filter_dates(
@@ -154,8 +106,8 @@ def _organization_short_names(user_ids: list[int]) -> dict[int, Optional[str]]:
     }
 
 
-def _top(editions: QuerySet, since, until, limit: int) -> dict[str, list[dict]]:
-    qs = _filter_dates(editions, "created_at", since, until)
+def _top(qs: QuerySet, limit: int) -> dict[str, list[dict]]:
+    """Rankings of the contributions of qs"""
 
     users = list(
         qs.values("user_id", username=F("user__username"))
@@ -214,7 +166,9 @@ def _top(editions: QuerySet, since, until, limit: int) -> dict[str, list[dict]]:
     }
 
 
-def _newcomers(editions: QuerySet, since, until, limit: int) -> dict[str, list[dict]]:
+def _newcomers(
+    editions: QuerySet, since: datetime, limit: int
+) -> dict[str, list[dict]]:
     """
     Users, cities and departments whose very first contribution is in the period,
     the most recent first.
@@ -224,7 +178,7 @@ def _newcomers(editions: QuerySet, since, until, limit: int) -> dict[str, list[d
     """
 
     counts = {}
-    in_period = _filter_dates(editions, "created_at", since, until)
+    in_period = editions.filter(created_at__gte=since)
 
     def first_editions(key: str, rows: QuerySet, group_field: str) -> list[dict]:
         earlier = editions.filter(
@@ -319,19 +273,16 @@ def _monthly_editions(editions: QuerySet, now: datetime) -> list[dict]:
     return [{"month": m, "editions": by_month.get(m, 0)} for m in months]
 
 
-def _previous_period(
-    editions: QuerySet, bounds: Optional[tuple[datetime, datetime]]
-) -> Optional[dict]:
-    """Number of editions of the period used to show a trend"""
-    if bounds is None:
-        return None
-    previous_since, previous_until = bounds
-    count = _filter_dates(
-        editions, "created_at", previous_since, previous_until
-    ).aggregate(editions=CONTRIBUTIONS)["editions"]
+def _previous_period(editions: QuerySet, days: int, now: datetime) -> dict:
+    """Number of editions of the `days` days before the window, to show a trend"""
+    until = now - timedelta(days=days)
+    since = until - timedelta(days=days)
+    count = _filter_dates(editions, "created_at", since, until).aggregate(
+        editions=CONTRIBUTIONS
+    )["editions"]
     return {
-        "since": previous_since.date().isoformat(),
-        "until": (previous_until.astimezone(PARIS_TZ)).isoformat(),
+        "since": since.date().isoformat(),
+        "until": until.isoformat(),
         "editions": count,
     }
 
@@ -341,26 +292,20 @@ def _date_or_none(dt: Optional[datetime]) -> Optional[str]:
 
 
 def compute_edition_activity(
-    period: str = PERIOD_CURRENT_MONTH,
+    days: Optional[int] = DEFAULT_DAYS,
     limit: int = DEFAULT_LIMIT,
     now: Optional[datetime] = None,
-    days: Optional[int] = None,
 ) -> dict:
     """
-    Contribution statistics of a period, computed from the SummerChallenge table:
-    totals, rankings (users, organizations, cities, departments) and newcomers.
-    When days is given, the period is the rolling window of the last `days` days
-    and `period` is ignored.
+    Contribution statistics of the last `days` days (whole history when days is
+    None), computed from the SummerChallenge table: totals, rankings (users,
+    organizations, cities, departments) and newcomers.
     See the GET /api/alpha/editions/activity/ documentation for the output format.
     """
     now = (now or timezone.now()).astimezone(PARIS_TZ)
-    if days:
-        period = rolling_period_key(days)
-        since, until = now - timedelta(days=days), None
-    else:
-        since, until = period_bounds(period, now)
+    since = now - timedelta(days=days) if days else None
     editions = contributions()
-    in_period = _filter_dates(editions, "created_at", since, until)
+    in_period = _filter_dates(editions, "created_at", since, None)
 
     totals = in_period.aggregate(
         editions=CONTRIBUTIONS,
@@ -368,48 +313,30 @@ def compute_edition_activity(
         editors=Count("user", distinct=True),
     )
 
-    if period == PERIOD_ALL:
-        newcomers: dict = {
-            "users": [],
-            "cities": [],
-            "departments": [],
-            "count": None,
-        }
+    if since:
+        newcomers = _newcomers(editions, since, limit)
     else:
-        newcomers = _newcomers(editions, since, until, limit)
-
-    # until is exclusive: the last day of the period is the day before
-    last_day: Optional[date] = None
-    if until:
-        last_day = (until.astimezone(PARIS_TZ) - timedelta(days=1)).date()
+        # everybody is a newcomer of the whole history
+        newcomers = {"users": [], "cities": [], "departments": [], "count": None}
 
     return {
-        "period": {
-            "key": period,
-            "since": _date_or_none(since),
-            "until": last_day.isoformat() if last_day else None,
-        },
-        "available_periods": PERIODS,
+        "period": {"key": period_key(days), "since": _date_or_none(since)},
         "updated_at": timezone.now().astimezone(PARIS_TZ).isoformat(),
         "totals": totals,
-        "previous_period": _previous_period(
-            editions, previous_bounds(period, now, days)
-        ),
+        "previous_period": _previous_period(editions, days, now) if days else None,
         "monthly": _monthly_editions(editions, now),
-        "top": _top(editions, since, until, limit),
+        "top": _top(in_period, limit),
         "newcomers": newcomers,
     }
 
 
 def get_edition_activity(
-    period: str = PERIOD_CURRENT_MONTH,
-    limit: int = DEFAULT_LIMIT,
-    days: Optional[int] = None,
+    days: Optional[int] = DEFAULT_DAYS, limit: int = DEFAULT_LIMIT
 ) -> dict:
     """Cached version of compute_edition_activity"""
-    key = f"edition_activity:{rolling_period_key(days) if days else period}:{limit}"
+    key = f"edition_activity:{period_key(days)}:{limit}"
     data = cache.get(key)
     if data is None:
-        data = compute_edition_activity(period, limit, days=days)
+        data = compute_edition_activity(days, limit)
         cache.set(key, data, CACHE_TIMEOUT_SECONDS)
     return data

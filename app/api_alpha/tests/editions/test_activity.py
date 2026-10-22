@@ -10,7 +10,7 @@ from batid.models import (
     Organization,
     SummerChallenge,
 )
-from batid.services.edition_stats import compute_edition_activity, period_bounds
+from batid.services.edition_stats import compute_edition_activity
 from batid.tests.factories.users import ContributorUserFactory, UserFactory
 from django.contrib.gis.geos import Polygon
 from django.core.cache import cache
@@ -69,39 +69,6 @@ def edition(
     return building
 
 
-class PeriodBoundsTest(TestCase):
-    def test_current_month_starts_at_midnight_paris_time(self):
-        """
-        Input: current_month, now = 15 October 2026.
-        Expected: since = 1 October 2026 00:00 Paris time, no end.
-        """
-        since, until = period_bounds("current_month", NOW)
-
-        self.assertEqual(since, datetime(2026, 10, 1, tzinfo=PARIS))
-        self.assertIsNone(until)
-
-    def test_last_month_in_january_is_december_of_previous_year(self):
-        """
-        Input: last_month, now = 10 January 2027.
-        Expected: from 1 December 2026 (inclusive) to 1 January 2027 (exclusive), Paris time.
-        """
-        since, until = period_bounds("last_month", datetime(2027, 1, 10, tzinfo=PARIS))
-
-        self.assertEqual(since, datetime(2026, 12, 1, tzinfo=PARIS))
-        self.assertEqual(until, datetime(2027, 1, 1, tzinfo=PARIS))
-
-    def test_month_boundary_uses_paris_time_not_utc(self):
-        """
-        Input: now = 1 November 2026 00:30 Paris time (still 31 October in UTC).
-        Expected: current_month starts on 1 November.
-        """
-        now = datetime(2026, 11, 1, 0, 30, tzinfo=PARIS)
-
-        since, _ = period_bounds("current_month", now)
-
-        self.assertEqual(since, datetime(2026, 11, 1, tzinfo=PARIS))
-
-
 @override_settings(MAX_BUILDING_AREA=float("inf"))
 class ComputeEditionActivityTest(TestCase):
     def setUp(self):
@@ -116,25 +83,23 @@ class ComputeEditionActivityTest(TestCase):
         self.city_a = City.objects.create(code_insee="99001", name="Ville A")
         self.city_b = City.objects.create(code_insee="99002", name="Ville B")
 
-    def test_totals_and_rankings_of_the_current_month(self):
+    def test_totals_and_rankings_of_the_last_30_days(self):
         """
-        Input: in October, alice (member of an organization) makes 2 editions in
-        Ville A and bob 1 edition in Ville B; bob also made 1 edition in September.
-        Expected: current_month counts 3 editions, 2 cities, 2 editors; alice ranks
+        Input: on 5 October, alice (member of an organization) makes 2 editions in
+        Ville A and bob 1 edition in Ville B; bob also made 1 edition on 1 September,
+        before the window.
+        Expected: the last 30 days count 3 editions, 2 cities, 2 editors; alice ranks
         first among users, Ville A first among cities, the organization has 2 editions.
         """
         october = datetime(2026, 10, 5, tzinfo=PARIS)
         for _ in range(2):
             edition(self.alice, october, self.city_a, self.dpt)
         edition(self.bob, october, self.city_b, self.dpt)
-        edition(self.bob, datetime(2026, 9, 20, tzinfo=PARIS), self.city_b)
+        edition(self.bob, datetime(2026, 9, 1, tzinfo=PARIS), self.city_b)
 
-        data = compute_edition_activity("current_month", now=NOW)
+        data = compute_edition_activity(days=30, now=NOW)
 
-        self.assertEqual(
-            data["period"],
-            {"key": "current_month", "since": "2026-10-01", "until": None},
-        )
+        self.assertEqual(data["period"], {"key": "last_30_days", "since": "2026-09-15"})
         self.assertEqual(data["totals"], {"editions": 3, "cities": 2, "editors": 2})
         self.assertEqual(
             data["top"]["users"],
@@ -179,21 +144,6 @@ class ComputeEditionActivityTest(TestCase):
             [{"rank": 1, "code": "99", "name": "Département Test", "count": 3}],
         )
 
-    def test_last_month_period(self):
-        """
-        Input: 1 edition on 30 September at 23:30 Paris time, 1 on 1 October.
-        Expected: last_month (September) counts only the first one,
-        with since/until = 2026-09-01 / 2026-09-30.
-        """
-        edition(self.alice, datetime(2026, 9, 30, 23, 30, tzinfo=PARIS))
-        edition(self.alice, datetime(2026, 10, 1, 0, 10, tzinfo=PARIS))
-
-        data = compute_edition_activity("last_month", now=NOW)
-
-        self.assertEqual(data["totals"]["editions"], 1)
-        self.assertEqual(data["period"]["since"], "2026-09-01")
-        self.assertEqual(data["period"]["until"], "2026-09-30")
-
     def test_equal_counts_share_the_same_rank(self):
         """
         Input: alice and bob make 2 editions each, carol 1.
@@ -203,7 +153,7 @@ class ComputeEditionActivityTest(TestCase):
         for user in [self.alice, self.alice, self.bob, self.bob, carol]:
             edition(user, NOW)
 
-        data = compute_edition_activity("current_month", now=NOW)
+        data = compute_edition_activity(days=30, now=NOW)
 
         self.assertEqual(
             [(u["username"], u["rank"]) for u in data["top"]["users"]],
@@ -219,7 +169,7 @@ class ComputeEditionActivityTest(TestCase):
         for user in [self.alice, self.bob, carol]:
             edition(user, NOW)
 
-        data = compute_edition_activity("current_month", limit=2, now=NOW)
+        data = compute_edition_activity(days=30, limit=2, now=NOW)
 
         self.assertEqual(len(data["top"]["users"]), 2)
         self.assertEqual(data["totals"]["editors"], 3)
@@ -228,14 +178,14 @@ class ComputeEditionActivityTest(TestCase):
         """
         Input: alice edited Ville A in September and again in October;
         bob edits Ville B for the first time in October.
-        Expected: current_month newcomers = bob, Ville B; the department, first edited
-        in September, is not a newcomer.
+        Expected: newcomers of the last 30 days = bob, Ville B; the department, first
+        edited on 10 September, is not a newcomer.
         """
         edition(self.alice, datetime(2026, 9, 10, tzinfo=PARIS), self.city_a, self.dpt)
         edition(self.alice, datetime(2026, 10, 2, tzinfo=PARIS), self.city_a, self.dpt)
         edition(self.bob, datetime(2026, 10, 3, tzinfo=PARIS), self.city_b, self.dpt)
 
-        newcomers = compute_edition_activity("current_month", now=NOW)["newcomers"]
+        newcomers = compute_edition_activity(days=30, now=NOW)["newcomers"]
 
         self.assertEqual([u["username"] for u in newcomers["users"]], ["bob"])
         self.assertEqual([c["name"] for c in newcomers["cities"]], ["Ville B"])
@@ -249,8 +199,8 @@ class ComputeEditionActivityTest(TestCase):
         """
         Input: Ville B was touched by an import of the RNB team in September, then
         contributed by bob for the first time in October.
-        Expected: Ville B and its department are current_month newcomers, their first
-        contribution being bob's; the RNB team user is not a newcomer.
+        Expected: Ville B and its department are newcomers of the last 30 days, their
+        first contribution being bob's; the RNB team user is not a newcomer.
         """
         rnb_team = UserFactory(username="RNB")
         edition(
@@ -262,7 +212,7 @@ class ComputeEditionActivityTest(TestCase):
         )
         edition(self.bob, datetime(2026, 10, 3, tzinfo=PARIS), self.city_b, self.dpt)
 
-        newcomers = compute_edition_activity("current_month", now=NOW)["newcomers"]
+        newcomers = compute_edition_activity(days=30, now=NOW)["newcomers"]
 
         self.assertEqual([u["username"] for u in newcomers["users"]], ["bob"])
         self.assertEqual(
@@ -291,7 +241,7 @@ class ComputeEditionActivityTest(TestCase):
         edition(self.alice, NOW, self.city_a, self.dpt)
         edition(self.alice, NOW, self.city_a, None)
 
-        cities = compute_edition_activity("current_month", now=NOW)["top"]["cities"]
+        cities = compute_edition_activity(days=30, now=NOW)["top"]["cities"]
 
         self.assertEqual(
             cities,
@@ -306,18 +256,18 @@ class ComputeEditionActivityTest(TestCase):
             ],
         )
 
-    def test_period_all_has_no_newcomers(self):
+    def test_whole_history_has_no_newcomers(self):
         """
-        Input: 1 edition, period = all.
-        Expected: the edition is counted, newcomer lists are empty, newcomers count
-        and previous_period are None, since/until are None.
+        Input: 1 edition, days = None (whole history).
+        Expected: the edition is counted, key all, newcomer lists are empty,
+        newcomers count and previous_period are None.
         """
         edition(self.alice, NOW)
 
-        data = compute_edition_activity("all", now=NOW)
+        data = compute_edition_activity(days=None, now=NOW)
 
         self.assertEqual(data["totals"]["editions"], 1)
-        self.assertEqual(data["period"], {"key": "all", "since": None, "until": None})
+        self.assertEqual(data["period"], {"key": "all", "since": None})
         self.assertEqual(
             data["newcomers"],
             {"users": [], "cities": [], "departments": [], "count": None},
@@ -326,48 +276,17 @@ class ComputeEditionActivityTest(TestCase):
 
     def test_newcomers_count_is_not_limited(self):
         """
-        Input: 3 users make their first edition in October, limit = 2.
+        Input: 3 users make their first edition now, limit = 2.
         Expected: 2 users listed, newcomers count = 3 users.
         """
         carol = ContributorUserFactory(username="carol")
         for user in [self.alice, self.bob, carol]:
             edition(user, NOW)
 
-        newcomers = compute_edition_activity("current_month", limit=2, now=NOW)[
-            "newcomers"
-        ]
+        newcomers = compute_edition_activity(days=30, limit=2, now=NOW)["newcomers"]
 
         self.assertEqual(len(newcomers["users"]), 2)
         self.assertEqual(newcomers["count"]["users"], 3)
-
-    def test_current_month_is_compared_with_the_same_elapsed_time_last_month(self):
-        """
-        Input: now = 15 October noon; editions on 10 September and 20 September.
-        Expected: previous_period covers 1–15 September noon and counts 1 edition.
-        """
-        edition(self.alice, datetime(2026, 9, 10, tzinfo=PARIS))
-        edition(self.alice, datetime(2026, 9, 20, tzinfo=PARIS))
-
-        previous = compute_edition_activity("current_month", now=NOW)["previous_period"]
-
-        self.assertEqual(previous["since"], "2026-09-01")
-        self.assertEqual(
-            previous["until"], datetime(2026, 9, 15, 12, 0, tzinfo=PARIS).isoformat()
-        )
-        self.assertEqual(previous["editions"], 1)
-
-    def test_last_month_is_compared_with_the_whole_month_before(self):
-        """
-        Input: now = 15 October; editions on 10 August and 20 August.
-        Expected: last_month (September) is compared with all of August: 2 editions.
-        """
-        edition(self.alice, datetime(2026, 8, 10, tzinfo=PARIS))
-        edition(self.alice, datetime(2026, 8, 20, tzinfo=PARIS))
-
-        previous = compute_edition_activity("last_month", now=NOW)["previous_period"]
-
-        self.assertEqual(previous["since"], "2026-08-01")
-        self.assertEqual(previous["editions"], 2)
 
     def test_rolling_window_covers_the_last_n_days(self):
         """
@@ -382,9 +301,7 @@ class ComputeEditionActivityTest(TestCase):
 
         data = compute_edition_activity(days=30, now=NOW)
 
-        self.assertEqual(data["period"]["key"], "last_30_days")
-        self.assertEqual(data["period"]["since"], "2026-09-15")
-        self.assertIsNone(data["period"]["until"])
+        self.assertEqual(data["period"], {"key": "last_30_days", "since": "2026-09-15"})
         self.assertEqual(data["totals"]["editions"], 1)
         self.assertEqual(data["previous_period"]["since"], "2026-08-16")
         self.assertEqual(
@@ -419,7 +336,7 @@ class ComputeEditionActivityTest(TestCase):
         edition(self.alice, datetime(2025, 11, 1, 0, 30, tzinfo=PARIS))
         edition(self.alice, datetime(2025, 10, 20, tzinfo=PARIS))
 
-        monthly = compute_edition_activity("all", now=NOW)["monthly"]
+        monthly = compute_edition_activity(days=None, now=NOW)["monthly"]
 
         self.assertEqual(len(monthly), 12)
         self.assertEqual(monthly[0], {"month": "2025-11", "editions": 1})
@@ -429,18 +346,14 @@ class ComputeEditionActivityTest(TestCase):
     def test_month_boundary_of_editions_uses_paris_time(self):
         """
         Input: 1 edition on 1 October 2026 at 00:30 Paris time (30 September 22:30 UTC).
-        Expected: it belongs to October: counted by current_month and in the "2026-10"
-        month of the series, not by last_month.
+        Expected: it belongs to the "2026-10" month of the series, not to "2026-09".
         """
         edition(self.alice, datetime(2026, 10, 1, 0, 30, tzinfo=PARIS))
 
-        current = compute_edition_activity("current_month", now=NOW)
-        last = compute_edition_activity("last_month", now=NOW)
+        monthly = compute_edition_activity(now=NOW)["monthly"]
 
-        self.assertEqual(current["totals"]["editions"], 1)
-        self.assertEqual(current["monthly"][-1], {"month": "2026-10", "editions": 1})
-        self.assertEqual(current["monthly"][-2], {"month": "2026-09", "editions": 0})
-        self.assertEqual(last["totals"]["editions"], 0)
+        self.assertEqual(monthly[-1], {"month": "2026-10", "editions": 1})
+        self.assertEqual(monthly[-2], {"month": "2026-09", "editions": 0})
 
 
 @override_settings(MAX_BUILDING_AREA=float("inf"))
@@ -454,14 +367,14 @@ class ContributionFilterTest(TestCase):
     def test_rnb_team_imports_are_excluded_but_its_contributions_count(self):
         """
         Input: the RNB team user makes an import (origin "import") and a manual
-        contribution (origin "contribution") in October; both write SummerChallenge rows.
+        contribution (origin "contribution") now; both write SummerChallenge rows.
         Expected: only the contribution is counted; the RNB team user is ranked
         with 1 contribution.
         """
         edition(self.rnb_team, NOW, origin=IMPORT)
         edition(self.rnb_team, NOW)
 
-        data = compute_edition_activity("current_month", now=NOW)
+        data = compute_edition_activity(days=30, now=NOW)
 
         self.assertEqual(SummerChallenge.objects.count(), 2)
         self.assertEqual(data["totals"]["editions"], 1)
@@ -477,7 +390,7 @@ class ContributionFilterTest(TestCase):
         staff = UserFactory(username="staff", is_staff=True)
         edition(staff, NOW)
 
-        data = compute_edition_activity("current_month", now=NOW)
+        data = compute_edition_activity(days=30, now=NOW)
 
         self.assertEqual(data["totals"], {"editions": 1, "cities": 0, "editors": 1})
 
@@ -486,14 +399,14 @@ class ContributionFilterTest(TestCase):
         Input: alice creates a building with an address: one event writing 2
         SummerChallenge rows ("creation" and "set_address") with the same event_id.
         Expected: 1 contribution in the totals, the user ranking, the monthly series
-        and the previous_period of next month.
+        and the previous_period of a window 36 days later.
         """
         Address.objects.create(cle_interop="addr1")
         edition(self.alice, NOW, addresses=["addr1"])
 
-        data = compute_edition_activity("current_month", now=NOW)
+        data = compute_edition_activity(days=30, now=NOW)
         next_month = compute_edition_activity(
-            "current_month", now=datetime(2026, 11, 20, tzinfo=PARIS)
+            days=30, now=datetime(2026, 11, 20, tzinfo=PARIS)
         )
 
         self.assertEqual(SummerChallenge.objects.count(), 2)
@@ -517,7 +430,7 @@ class ContributionFilterTest(TestCase):
         )
         set_rows(building.event_id, NOW)
 
-        data = compute_edition_activity("current_month", now=NOW)
+        data = compute_edition_activity(days=30, now=NOW)
 
         self.assertEqual(data["totals"]["editions"], 2)
 
@@ -527,10 +440,10 @@ class EditionActivityApiTest(APITestCase):
     def setUp(self):
         cache.clear()
 
-    def test_default_period_is_current_month(self):
+    def test_default_period_is_the_last_30_days(self):
         """
         Input: 1 edition made now, no query parameter.
-        Expected: 200, period = current_month, 1 edition, the 3 available periods.
+        Expected: 200, period key last_30_days, 1 edition.
         """
         edition(ContributorUserFactory(), timezone.now())
 
@@ -538,11 +451,8 @@ class EditionActivityApiTest(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["period"]["key"], "current_month")
+        self.assertEqual(data["period"]["key"], "last_30_days")
         self.assertEqual(data["totals"]["editions"], 1)
-        self.assertEqual(
-            data["available_periods"], ["current_month", "last_month", "all"]
-        )
 
     def test_response_is_cached(self):
         """
@@ -556,15 +466,28 @@ class EditionActivityApiTest(APITestCase):
 
         self.assertEqual(response.json()["totals"]["editions"], 0)
 
-    def test_invalid_period_returns_400(self):
+    def test_period_all_returns_the_whole_history(self):
         """
-        Input: period = last_year.
-        Expected: 400 mentioning the period parameter.
+        Input: 1 edition made 2 years ago, period = all.
+        Expected: 200, period key all, 1 edition.
         """
-        response = self.client.get("/api/alpha/editions/activity/?period=last_year")
+        edition(ContributorUserFactory(), datetime(2024, 10, 1, tzinfo=PARIS))
 
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("period", response.json()["detail"])
+        response = self.client.get("/api/alpha/editions/activity/?period=all")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["period"]["key"], "all")
+        self.assertEqual(response.json()["totals"]["editions"], 1)
+
+    def test_calendar_periods_return_400(self):
+        """
+        Input: period = current_month, period = last_month.
+        Expected: 400 mentioning the period parameter: only all is accepted.
+        """
+        for period in ["current_month", "last_month"]:
+            response = self.client.get(f"/api/alpha/editions/activity/?period={period}")
+            self.assertEqual(response.status_code, 400, period)
+            self.assertIn("period", response.json()["detail"])
 
     def test_days_returns_a_rolling_window(self):
         """

@@ -2,11 +2,11 @@ from api_alpha.exceptions import BadRequest
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import rnb_doc
 from batid.services.edition_stats import (
+    DEFAULT_DAYS,
     DEFAULT_LIMIT,
     MAX_DAYS,
     MAX_LIMIT,
-    PERIOD_CURRENT_MONTH,
-    PERIODS,
+    PERIOD_ALL,
     get_edition_activity,
 )
 from rest_framework.request import Request
@@ -16,8 +16,8 @@ from rest_framework.views import APIView
 
 class EditionActivityView(RNBLoggingMixin, APIView):
     """
-    GET /api/alpha/editions/activity/?period=current_month&limit=5
     GET /api/alpha/editions/activity/?days=30&limit=5
+    GET /api/alpha/editions/activity/?period=all&limit=5
     Statistiques publiques des éditions de la communauté sur une période.
     """
 
@@ -32,9 +32,9 @@ class EditionActivityView(RNBLoggingMixin, APIView):
                     "communes concernées et de contributeurs, les classements des "
                     "contributeurs, organisations, communes et départements, ainsi que "
                     "ceux ayant fait leur toute première contribution sur la période. "
-                    "La période est soit une fenêtre glissante des N derniers jours "
-                    "(paramètre days), comparée aux N jours précédents, soit une période "
-                    "calendaire (paramètre period, mois calendaires en heure de Paris). "
+                    "La période est une fenêtre glissante des N derniers jours "
+                    "(paramètre days, 30 par défaut), comparée aux N jours précédents, "
+                    "ou tout l'historique (period=all). "
                     "Les imports de données ne sont pas comptés. Les données sont mises à jour toutes "
                     "les 10 minutes environ."
                 ),
@@ -44,28 +44,25 @@ class EditionActivityView(RNBLoggingMixin, APIView):
                         "name": "period",
                         "in": "query",
                         "description": (
-                            "Période calendaire : current_month, last_month ou all. "
-                            "Ne peut pas être combiné avec days."
+                            "all pour tout l'historique, au lieu d'une fenêtre "
+                            "glissante. Ne peut pas être combiné avec days."
                         ),
                         "required": False,
-                        "schema": {
-                            "type": "string",
-                            "enum": PERIODS,
-                            "default": PERIOD_CURRENT_MONTH,
-                        },
+                        "schema": {"type": "string", "enum": [PERIOD_ALL]},
                     },
                     {
                         "name": "days",
                         "in": "query",
                         "description": (
                             "Fenêtre glissante des N derniers jours, entre 1 et "
-                            f"{MAX_DAYS}. La clé de la période vaut alors last_N_days."
+                            f"{MAX_DAYS}. La clé de la période vaut last_N_days."
                         ),
                         "required": False,
                         "schema": {
                             "type": "integer",
                             "minimum": 1,
                             "maximum": MAX_DAYS,
+                            "default": DEFAULT_DAYS,
                         },
                         "example": 30,
                     },
@@ -86,14 +83,20 @@ class EditionActivityView(RNBLoggingMixin, APIView):
         }
     )
     def get(self, request: Request) -> Response:
-        days = None
-        if "days" in request.query_params:
-            if "period" in request.query_params:
+        params = request.query_params
+        if "period" in params:
+            if "days" in params:
                 raise BadRequest(
                     detail="Les paramètres period et days ne peuvent pas être combinés."
                 )
+            if params["period"] != PERIOD_ALL:
+                raise BadRequest(
+                    detail=f"Le paramètre period doit valoir {PERIOD_ALL}."
+                )
+            days = None
+        else:
             try:
-                days = int(request.query_params["days"])
+                days = int(params.get("days", DEFAULT_DAYS))
             except ValueError:
                 days = 0
             if not 1 <= days <= MAX_DAYS:
@@ -101,14 +104,8 @@ class EditionActivityView(RNBLoggingMixin, APIView):
                     detail=f"Le paramètre days doit être un entier entre 1 et {MAX_DAYS}."
                 )
 
-        period = request.query_params.get("period", PERIOD_CURRENT_MONTH)
-        if period not in PERIODS:
-            raise BadRequest(
-                detail=f"Le paramètre period doit valoir {', '.join(PERIODS)}."
-            )
-
         try:
-            limit = int(request.query_params.get("limit", DEFAULT_LIMIT))
+            limit = int(params.get("limit", DEFAULT_LIMIT))
         except ValueError:
             limit = 0
         if not 1 <= limit <= MAX_LIMIT:
@@ -116,4 +113,4 @@ class EditionActivityView(RNBLoggingMixin, APIView):
                 detail=f"Le paramètre limit doit être un entier entre 1 et {MAX_LIMIT}."
             )
 
-        return Response(get_edition_activity(period, limit, days))
+        return Response(get_edition_activity(days, limit))
