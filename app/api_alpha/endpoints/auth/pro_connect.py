@@ -1,3 +1,4 @@
+import json
 import logging
 import secrets
 from urllib.parse import urlencode, urlparse
@@ -52,6 +53,8 @@ logger = logging.getLogger(__name__)
 #  5. CallbackView (rnb-coeur)
 #  — verifies the state, exchanges the code for tokens, (access_token + id_token),
 #  - verifies the id_token, fetches the userinfo JWT,
+#  - when PRO_CONNECT_REQUIRE_MFA is on, refuses an id_token whose acr is not
+#    a two-factor level (?error=mfa_required), before any user is written,
 #  - creates/updates the Django user, stores a one-time login code (60 s) in the cache,
 #  - redirects the browser back to the redirect_url the website provided in step 1, with ?code=...
 #
@@ -161,6 +164,15 @@ def verify_id_token(id_token, nonce):
     return claims
 
 
+# acr values ProConnect accepts as two-factor. Not limited to eidas2/eidas3:
+# ProConnect Identité caps at eidas1-mfa (eidas0-mfa without FranceConnect).
+MFA_ACR_VALUES = ("eidas0-mfa", "eidas1-mfa", "eidas2", "eidas3")
+MFA_CLAIMS = json.dumps(
+    {"id_token": {"acr": {"essential": True, "values": list(MFA_ACR_VALUES)}}},
+    separators=(",", ":"),
+)
+
+
 def fetch_userinfo(access_token):
     """Fetch user claims from the userinfo endpoint.
 
@@ -188,6 +200,13 @@ def fetch_userinfo(access_token):
 LOGIN_CODE_CACHE_PREFIX = "pro_connect_login_code:"
 LOGIN_CODE_TTL_SECONDS = 60
 LOGIN_CODE_MAX_LENGTH = 64
+# Matches Pro Connect's own interaction lifetime and its 1 h email code, so a
+# second-factor enrollment during the authorize round trip fits; the nonce and
+# the single-use login code still guard against replay.
+LOGIN_STATE_MAX_AGE_SECONDS = 3600
+# error_description sent by Pro Connect with access_denied when the essential
+# acr values requested through `claims` cannot be satisfied.
+ACR_NOT_SATISFIED_DESCRIPTION = "requested ACRs could not be satisfied"
 
 
 def issue_login_code(user: User) -> str:
@@ -333,18 +352,21 @@ class AuthorizeView(APIView):
         )
 
         oidc_config = get_oidc_config()
-        params = urlencode(
-            {
-                "response_type": "code",
-                "client_id": settings.PRO_CONNECT_CLIENT_ID,
-                "redirect_uri": settings.PRO_CONNECT_REDIRECT_URI,
-                "scope": settings.PRO_CONNECT_SCOPES,
-                "state": state,
-                "nonce": nonce,
-                "acr_values": "eidas1",
-            }
+        params = {
+            "response_type": "code",
+            "client_id": settings.PRO_CONNECT_CLIENT_ID,
+            "redirect_uri": settings.PRO_CONNECT_REDIRECT_URI,
+            "scope": settings.PRO_CONNECT_SCOPES,
+            "state": state,
+            "nonce": nonce,
+        }
+        if settings.PRO_CONNECT_REQUIRE_MFA:
+            params["claims"] = MFA_CLAIMS
+        else:
+            params["acr_values"] = "eidas1"
+        authorization_url = (
+            f"{oidc_config['authorization_endpoint']}?{urlencode(params)}"
         )
-        authorization_url = f"{oidc_config['authorization_endpoint']}?{params}"
 
         return Response({"authorization_url": authorization_url})
 
@@ -356,24 +378,54 @@ class CallbackView(APIView):
     def get(self, request):
         code = request.query_params.get("code")
         state_str = request.query_params.get("state")
+        idp_error = request.query_params.get("error")
 
         fallback_uri = getattr(settings, "FRONTEND_URL", "/") or "/"
 
-        if not code or not state_str:
+        if not state_str or not (code or idp_error):
             return HttpResponseRedirect(f"{fallback_uri}?error=missing_parameters")
 
         # Decode and verify state
         try:
-            state = signing.loads(state_str, salt="pro_connect", max_age=300)
+            state = signing.loads(
+                state_str, salt="pro_connect", max_age=LOGIN_STATE_MAX_AGE_SECONDS
+            )
         except signing.BadSignature:
             return HttpResponseRedirect(f"{fallback_uri}?error=invalid_state")
 
         redirect_uri = state["redirect_uri"]
         nonce = state["nonce"]
 
+        if idp_error:
+            idp_error_description = request.query_params.get("error_description")
+            logger.warning(
+                "Pro Connect returned error %r, description %r",
+                idp_error,
+                idp_error_description,
+            )
+            if idp_error != "access_denied":
+                error = "authentication_failed"
+            elif idp_error_description == ACR_NOT_SATISFIED_DESCRIPTION:
+                error = "mfa_required"
+            else:
+                error = "access_denied"
+            return HttpResponseRedirect(
+                add_params_to_url(redirect_uri, {"error": error})
+            )
+
         try:
             access_token, id_token = exchange_code_for_tokens(code)
-            verify_id_token(id_token, nonce)
+            id_claims = verify_id_token(id_token, nonce)
+            if (
+                settings.PRO_CONNECT_REQUIRE_MFA
+                and id_claims.get("acr") not in MFA_ACR_VALUES
+            ):
+                logger.warning(
+                    "Pro Connect login refused, acr=%s", id_claims.get("acr")
+                )
+                return HttpResponseRedirect(
+                    add_params_to_url(redirect_uri, {"error": "mfa_required"})
+                )
             userinfo = fetch_userinfo(access_token)
             user, _ = get_or_create_user_from_pro_connect(userinfo, id_token)
 
