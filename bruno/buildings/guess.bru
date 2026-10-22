@@ -1,0 +1,15 @@
+meta {
+  name: Guess (retiré)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/buildings/guess/?address={{guessQuery}}&point={{closestPoint}}&from=monitoring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 410
+}

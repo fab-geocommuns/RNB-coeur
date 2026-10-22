@@ -1,0 +1,17 @@
+meta {
+  name: Parcelles
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/plots/tiles/{{tileX}}/{{tileY}}/{{tileZ}}.pbf
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.headers["content-type"]: eq application/vnd.mapbox-vector-tile
+  res.body: isNotEmpty
+}

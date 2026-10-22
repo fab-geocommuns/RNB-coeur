@@ -1,0 +1,19 @@
+meta {
+  name: Plus proches
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/buildings/closest/?point={{closestPoint}}&radius={{closestRadius}}&from=monitoring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.results: isNotEmpty
+  res.body.results[0].rnb_id: isString
+  res.body.results[0].distance: isNumber
+  res.body.results[0].distance: lte {{closestRadius}}
+}

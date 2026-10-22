@@ -1,0 +1,17 @@
+meta {
+  name: Bâtiments - bbox
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/ogc/collections/buildings/items?bbox={{bbox}}&from=monitoring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.type: eq FeatureCollection
+  res.body.features: isNotEmpty
+}

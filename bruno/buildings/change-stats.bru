@@ -1,0 +1,26 @@
+meta {
+  name: Statistiques de modification
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/buildings/change_stats/?since={{changeStatsSince}}&until={{changeStatsUntil}}&from=monitoring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body[0].date: eq {{changeStatsSince}}
+  res.body[0].events_count.import_bdtopo: isNumber
+  res.body[0].events_count.import_bal: isNumber
+  res.body[0].events_count.contributions: isNumber
+}
+
+docs {
+  L'endpoint renvoie une entrée par jour de la période, même sans donnée : seuls la forme de la
+  réponse et le premier jour sont vérifiés. Les compteurs viennent des KPI quotidiens et valent
+  souvent 0 sur une base locale.
+}

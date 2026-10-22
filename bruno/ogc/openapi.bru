@@ -1,0 +1,16 @@
+meta {
+  name: OpenAPI
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/ogc/openapi?from=monitoring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.headers["content-type"]: contains application/vnd.oai.openapi+json
+}
