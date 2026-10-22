@@ -6,3 +6,10 @@ limit_req zone=api_rate_limit burst=20 nodelay;
 add_header RateLimit-Limit 20;
 add_header RateLimit-Policy "q=20;w=1";
 limit_req_status 429;
+
+# Compress API responses (JSON, GeoJSON, vector tiles) and admin HTML, also via proxies.
+# gzip_types replaces the http-level list (text/html is implicit), so JSON is listed again.
+gzip on;
+gzip_proxied any;
+gzip_vary on;
+gzip_types application/json application/geo+json application/vnd.mapbox-vector-tile;
