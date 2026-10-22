@@ -11,8 +11,8 @@ from batid.services.local_seed import (
     parse_points,
 )
 from django.conf import settings
-from django.core.management.base import CommandError
 from django.contrib.gis.geos import MultiPolygon, Point, Polygon
+from django.core.management.base import CommandError
 from django.db import connection
 from django.test import SimpleTestCase, TestCase, override_settings
 
