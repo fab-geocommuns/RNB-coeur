@@ -369,6 +369,44 @@ class ComputeEditionActivityTest(TestCase):
         self.assertEqual(previous["since"], "2026-08-01")
         self.assertEqual(previous["editions"], 2)
 
+    def test_rolling_window_covers_the_last_n_days(self):
+        """
+        Input: now = 15 October noon, days = 30; editions on 15 September 13:00
+        (inside the window), 15 September 11:00 (just before) and 20 August.
+        Expected: key last_30_days, 1 edition; the previous 30 days
+        (16 August noon – 15 September noon) count 2 editions.
+        """
+        edition(self.alice, datetime(2026, 9, 15, 13, 0, tzinfo=PARIS))
+        edition(self.alice, datetime(2026, 9, 15, 11, 0, tzinfo=PARIS))
+        edition(self.bob, datetime(2026, 8, 20, tzinfo=PARIS))
+
+        data = compute_edition_activity(days=30, now=NOW)
+
+        self.assertEqual(data["period"]["key"], "last_30_days")
+        self.assertEqual(data["period"]["since"], "2026-09-15")
+        self.assertIsNone(data["period"]["until"])
+        self.assertEqual(data["totals"]["editions"], 1)
+        self.assertEqual(data["previous_period"]["since"], "2026-08-16")
+        self.assertEqual(
+            data["previous_period"]["until"],
+            datetime(2026, 9, 15, 12, 0, tzinfo=PARIS).isoformat(),
+        )
+        self.assertEqual(data["previous_period"]["editions"], 2)
+
+    def test_rolling_window_newcomers(self):
+        """
+        Input: now = 15 October, days = 7; alice edited in August and on 12 October,
+        bob for the first time on 12 October.
+        Expected: only bob is a newcomer of the last 7 days.
+        """
+        edition(self.alice, datetime(2026, 8, 10, tzinfo=PARIS))
+        edition(self.alice, datetime(2026, 10, 12, tzinfo=PARIS))
+        edition(self.bob, datetime(2026, 10, 12, tzinfo=PARIS))
+
+        newcomers = compute_edition_activity(days=7, now=NOW)["newcomers"]
+
+        self.assertEqual([u["username"] for u in newcomers["users"]], ["bob"])
+
     def test_monthly_series_covers_the_last_12_months(self):
         """
         Input: now = 15 October 2026; 2 editions in October 2026, 1 in November 2025,
@@ -527,6 +565,38 @@ class EditionActivityApiTest(APITestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("period", response.json()["detail"])
+
+    def test_days_returns_a_rolling_window(self):
+        """
+        Input: 1 edition made now, days = 30.
+        Expected: 200, period key last_30_days, 1 edition.
+        """
+        edition(ContributorUserFactory(), timezone.now())
+
+        response = self.client.get("/api/alpha/editions/activity/?days=30")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["period"]["key"], "last_30_days")
+        self.assertEqual(response.json()["totals"]["editions"], 1)
+
+    def test_invalid_days_returns_400(self):
+        """
+        Input: days = 0, days = 366, days = abc.
+        Expected: 400 mentioning the days parameter for each of them.
+        """
+        for days in ["0", "366", "abc"]:
+            response = self.client.get(f"/api/alpha/editions/activity/?days={days}")
+            self.assertEqual(response.status_code, 400, days)
+            self.assertIn("days", response.json()["detail"])
+
+    def test_days_and_period_cannot_be_combined(self):
+        """
+        Input: days = 30 and period = all.
+        Expected: 400.
+        """
+        response = self.client.get("/api/alpha/editions/activity/?days=30&period=all")
+
+        self.assertEqual(response.status_code, 400)
 
     def test_invalid_limit_returns_400(self):
         """

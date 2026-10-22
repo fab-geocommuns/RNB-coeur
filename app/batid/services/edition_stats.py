@@ -21,6 +21,9 @@ PERIODS = [PERIOD_CURRENT_MONTH, PERIOD_LAST_MONTH, PERIOD_ALL]
 DEFAULT_LIMIT = 5
 MAX_LIMIT = 20
 
+# Rolling windows of N days (?days=N), an alternative to calendar periods
+MAX_DAYS = 365
+
 CACHE_TIMEOUT_SECONDS = 600
 
 # number of months returned in the monthly series
@@ -65,6 +68,34 @@ def period_bounds(
     if period == PERIOD_ALL:
         return None, None
     raise ValueError(f"Unknown period: {period}")
+
+
+def rolling_period_key(days: int) -> str:
+    return f"last_{days}_days"
+
+
+def previous_bounds(
+    period: str, now: datetime, days: Optional[int] = None
+) -> Optional[tuple[datetime, datetime]]:
+    """
+    (since, until) of the period used to show a trend, until being exclusive:
+    - rolling window of N days: the N days before
+    - current_month: last month, from its first day up to the same elapsed time
+      (so that a partial month is compared with a partial month)
+    - last_month: the whole month before
+    - all: no comparison (None)
+    """
+    if days:
+        since = now - timedelta(days=days)
+        return since - timedelta(days=days), since
+
+    since, until = period_bounds(period, now)
+    if period == PERIOD_CURRENT_MONTH:
+        previous_since = _add_months(since, -1)
+        return previous_since, previous_since + (now - since)
+    if period == PERIOD_LAST_MONTH:
+        return _add_months(since, -1), since
+    return None
 
 
 def _filter_dates(
@@ -187,29 +218,42 @@ def _newcomers(editions: QuerySet, since, until, limit: int) -> dict[str, list[d
     """
     Users, cities and departments whose very first contribution is in the period,
     the most recent first.
+    Candidates are taken among the period's editions only, then those having a
+    contribution before the period are excluded: computing the first edition of
+    every user, city and department over the whole history is far too slow.
     """
 
     counts = {}
+    in_period = _filter_dates(editions, "created_at", since, until)
 
-    def first_editions(key: str, rows: QuerySet) -> list[dict]:
-        rows = rows.annotate(first_edition_at=Min("created_at"))
-        rows = _filter_dates(rows, "first_edition_at", since, until)
-        counts[key] = rows.count()
-        return list(rows.order_by("-first_edition_at")[:limit])
+    def first_editions(key: str, rows: QuerySet, group_field: str) -> list[dict]:
+        earlier = editions.filter(
+            **{group_field: OuterRef(group_field)}, created_at__lt=since
+        )
+        rows = (
+            rows.filter(~Exists(earlier))
+            .annotate(first_edition_at=Min("created_at"))
+            .order_by("-first_edition_at")
+        )
+        # few candidates in a period: fetch them all to count them in one query
+        rows = list(rows)
+        counts[key] = len(rows)
+        return rows[:limit]
 
     users = first_editions(
-        "users", editions.values("user_id", username=F("user__username"))
+        "users", in_period.values("user_id", username=F("user__username")), "user_id"
     )
     org_names = _organization_short_names([u["user_id"] for u in users])
 
-    cities = first_editions("cities", _city_rows(editions))
+    cities = first_editions("cities", _city_rows(in_period), "city_id")
     departments_by_id = _departments(cities)
 
     departments = first_editions(
         "departments",
-        editions.exclude(department__isnull=True).values(
+        in_period.exclude(department__isnull=True).values(
             "department_id", code=F("department__code"), name=F("department__name")
         ),
+        "department_id",
     )
 
     return {
@@ -275,24 +319,13 @@ def _monthly_editions(editions: QuerySet, now: datetime) -> list[dict]:
     return [{"month": m, "editions": by_month.get(m, 0)} for m in months]
 
 
-def _previous_period(editions: QuerySet, period: str, now: datetime) -> Optional[dict]:
-    """
-    Number of editions of the period used to show a trend:
-    - current_month: last month, from its first day up to the same elapsed time
-      (so that a partial month is compared with a partial month)
-    - last_month: the whole month before
-    - all: no comparison
-    """
-    since, until = period_bounds(period, now)
-    if period == PERIOD_CURRENT_MONTH:
-        previous_since = _add_months(since, -1)
-        previous_until = previous_since + (now - since)
-    elif period == PERIOD_LAST_MONTH:
-        previous_since = _add_months(since, -1)
-        previous_until = since
-    else:
+def _previous_period(
+    editions: QuerySet, bounds: Optional[tuple[datetime, datetime]]
+) -> Optional[dict]:
+    """Number of editions of the period used to show a trend"""
+    if bounds is None:
         return None
-
+    previous_since, previous_until = bounds
     count = _filter_dates(
         editions, "created_at", previous_since, previous_until
     ).aggregate(editions=CONTRIBUTIONS)["editions"]
@@ -308,15 +341,24 @@ def _date_or_none(dt: Optional[datetime]) -> Optional[str]:
 
 
 def compute_edition_activity(
-    period: str, limit: int = DEFAULT_LIMIT, now: Optional[datetime] = None
+    period: str = PERIOD_CURRENT_MONTH,
+    limit: int = DEFAULT_LIMIT,
+    now: Optional[datetime] = None,
+    days: Optional[int] = None,
 ) -> dict:
     """
     Contribution statistics of a period, computed from the SummerChallenge table:
     totals, rankings (users, organizations, cities, departments) and newcomers.
+    When days is given, the period is the rolling window of the last `days` days
+    and `period` is ignored.
     See the GET /api/alpha/editions/activity/ documentation for the output format.
     """
     now = (now or timezone.now()).astimezone(PARIS_TZ)
-    since, until = period_bounds(period, now)
+    if days:
+        period = rolling_period_key(days)
+        since, until = now - timedelta(days=days), None
+    else:
+        since, until = period_bounds(period, now)
     editions = contributions()
     in_period = _filter_dates(editions, "created_at", since, until)
 
@@ -350,18 +392,24 @@ def compute_edition_activity(
         "available_periods": PERIODS,
         "updated_at": timezone.now().astimezone(PARIS_TZ).isoformat(),
         "totals": totals,
-        "previous_period": _previous_period(editions, period, now),
+        "previous_period": _previous_period(
+            editions, previous_bounds(period, now, days)
+        ),
         "monthly": _monthly_editions(editions, now),
         "top": _top(editions, since, until, limit),
         "newcomers": newcomers,
     }
 
 
-def get_edition_activity(period: str, limit: int = DEFAULT_LIMIT) -> dict:
+def get_edition_activity(
+    period: str = PERIOD_CURRENT_MONTH,
+    limit: int = DEFAULT_LIMIT,
+    days: Optional[int] = None,
+) -> dict:
     """Cached version of compute_edition_activity"""
-    key = f"edition_activity:{period}:{limit}"
+    key = f"edition_activity:{rolling_period_key(days) if days else period}:{limit}"
     data = cache.get(key)
     if data is None:
-        data = compute_edition_activity(period, limit)
+        data = compute_edition_activity(period, limit, days=days)
         cache.set(key, data, CACHE_TIMEOUT_SECONDS)
     return data
