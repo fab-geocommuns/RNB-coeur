@@ -166,9 +166,7 @@ def _top(qs: QuerySet, limit: int) -> dict[str, list[dict]]:
     }
 
 
-def _newcomers(
-    editions: QuerySet, since: datetime, limit: int
-) -> dict[str, list[dict]]:
+def _newcomers(editions: QuerySet, since: datetime, limit: int) -> dict:
     """
     Users, cities and departments whose very first contribution is in the period,
     the most recent first.
@@ -184,15 +182,14 @@ def _newcomers(
         earlier = editions.filter(
             **{group_field: OuterRef(group_field)}, created_at__lt=since
         )
-        rows = (
+        # few candidates in a period: fetch them all to count them in one query
+        firsts = list(
             rows.filter(~Exists(earlier))
             .annotate(first_edition_at=Min("created_at"))
             .order_by("-first_edition_at")
         )
-        # few candidates in a period: fetch them all to count them in one query
-        rows = list(rows)
-        counts[key] = len(rows)
-        return rows[:limit]
+        counts[key] = len(firsts)
+        return firsts[:limit]
 
     users = first_editions(
         "users", in_period.values("user_id", username=F("user__username")), "user_id"
@@ -313,6 +310,7 @@ def compute_edition_activity(
         editors=Count("user", distinct=True),
     )
 
+    newcomers: dict
     if since:
         newcomers = _newcomers(editions, since, limit)
     else:
