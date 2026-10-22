@@ -1,0 +1,16 @@
+meta {
+  name: Parcelle
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/buildings/plot/{{plotId}}/?from=monitoring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.results: isNotEmpty
+}

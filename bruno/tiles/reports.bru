@@ -1,0 +1,16 @@
+meta {
+  name: Signalements
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/reports/tiles/{{tileX}}/{{tileY}}/{{tileZ}}.pbf
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.headers["content-type"]: eq application/vnd.mapbox-vector-tile
+}

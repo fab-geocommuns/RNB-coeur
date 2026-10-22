@@ -46,7 +46,7 @@ services:
     container_name: web
 
   db:
-    image: postgis/postgis:16-3.5
+    image: postgis/postgis:17-3.5
     platform: linux/amd64
     shm_size: 1gb
     restart: unless-stopped
@@ -58,7 +58,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      # Over TCP: while the image runs its init scripts, a temporary server
+      # listens on the unix socket only, so a socket check reports ready too early
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost"]
       start_period: 20s
       interval: 5s
       timeout: 5s

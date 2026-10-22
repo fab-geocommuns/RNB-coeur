@@ -36,3 +36,14 @@ class AddParamsToUrlTest(SimpleTestCase):
         """Input: empty params dict. Expected: URL returned as-is."""
         new_url = add_params_to_url("http://localhost:3000/callback", {})
         self.assertEqual(new_url, "http://localhost:3000/callback")
+
+    def test_existing_key_is_replaced(self):
+        """
+        Input: URL already containing ?code=junk, params {"code": "real"}.
+        Expected: a single code param, equal to "real".
+        """
+        new_url = add_params_to_url(
+            "http://localhost:3000/callback?code=junk", {"code": "real"}
+        )
+
+        self.assertEqual(parse_qs(urlparse(new_url).query)["code"], ["real"])

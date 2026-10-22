@@ -1,0 +1,17 @@
+meta {
+  name: Historique
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/buildings/{{rnbId}}/history/?from=monitoring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body: isNotEmpty
+  res.body[0].rnb_id: eq {{rnbId}}
+}
