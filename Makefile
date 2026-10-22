@@ -10,3 +10,4 @@ env-local:
 	test -f .env.worker.dev || cp .env.worker.example .env.worker.dev
 	test -f .env.metabase.dev || cp .env.metabase.example .env.metabase.dev
 	test -f .env.rabbitmq.dev || cp .env.rabbitmq.example .env.rabbitmq.dev
+	test -f .env.seed.dev || cp .env.seed.example .env.seed.dev

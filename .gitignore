@@ -54,6 +54,8 @@
 .env.rabbitmq.staging
 .env.rabbitmq.sandbox
 
+.env.seed.dev
+
 # Jupyter notebooks trash
 app/.Trash-0/*
 
