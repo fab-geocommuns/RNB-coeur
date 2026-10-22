@@ -500,14 +500,62 @@ class LogoutCallbackTest(APITestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, "http://localhost:3000")
 
+    @override_settings(FRONTEND_URL="http://localhost:3000")
+    def test_logout_callback_without_redirect_uri_goes_to_frontend(self):
+        """Input: logout callback with a valid state holding an empty post_logout_redirect_uri.
+        Expected: redirect 302 to FRONTEND_URL."""
+        state = signing.dumps(
+            {"post_logout_redirect_uri": ""},
+            salt="pro_connect_logout",
+        )
+
+        response = self.client.get(
+            "/api/alpha/auth/pro_connect/logout/callback/",
+            {"state": state},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000")
+
+    @override_settings(FRONTEND_URL="http://localhost:3000")
     def test_logout_callback_invalid_state(self):
-        """Logout callback with tampered state → 400."""
+        """Input: logout callback with a tampered state.
+        Expected: redirect 302 to FRONTEND_URL, never to a URI from the request."""
         response = self.client.get(
             "/api/alpha/auth/pro_connect/logout/callback/",
             {"state": "tampered"},
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000")
+
+    @override_settings(FRONTEND_URL="http://localhost:3000")
+    def test_logout_callback_expired_state(self):
+        """Input: logout callback with a valid state signed more than 300 s ago.
+        Expected: redirect 302 to FRONTEND_URL, not to the redirect URI of the state."""
+        with freeze_time("2026-01-01 12:00:00"):
+            state = signing.dumps(
+                {"post_logout_redirect_uri": "http://elsewhere.example.test"},
+                salt="pro_connect_logout",
+            )
+
+        with freeze_time("2026-01-01 12:05:01"):
+            response = self.client.get(
+                "/api/alpha/auth/pro_connect/logout/callback/",
+                {"state": state},
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000")
+
+    @override_settings(FRONTEND_URL="http://localhost:3000")
+    def test_logout_callback_missing_state(self):
+        """Input: logout callback without any state parameter.
+        Expected: redirect 302 to FRONTEND_URL."""
+        response = self.client.get("/api/alpha/auth/pro_connect/logout/callback/")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000")
 
 
 @override_settings(
