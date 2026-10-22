@@ -63,7 +63,7 @@ logger = logging.getLogger(__name__)
 # ───────────
 #  1. Website (rnb-site)
 #  - user clicks "Logout".
-#  - the site calls LogoutView with the token and a post_logout_redirect_uri.
+#  - the site calls LogoutView with the token and an optional post_logout_redirect_uri.
 #
 #  2. LogoutView (rnb-coeur)
 #  - builds a signed state containing the post_logout_redirect_uri.
@@ -75,10 +75,11 @@ logger = logging.getLogger(__name__)
 #    PRO_CONNECT_POST_LOGOUT_REDIRECT_URI with ?state=...
 #
 #  4. LogoutCallbackView (rnb-coeur)
-#  - verifies the state, then redirects the browser to the post_logout_redirect_uri.
+#  - verifies the state, then redirects the browser to the post_logout_redirect_uri,
+#    or to FRONTEND_URL when none was provided in step 1.
 #
 #  5. Website (rnb-site)
-#  - user lands on the post_logout_redirect_uri provided in step 1.
+#  - user lands on that redirect.
 #
 # KEY CONCEPTS
 # ────────────
@@ -495,12 +496,12 @@ class LogoutCallbackView(APIView):
 
     def get(self, request):
         state_str = request.query_params.get("state")
+        fallback_uri = settings.FRONTEND_URL or "/"
         try:
             state = signing.loads(state_str, salt="pro_connect_logout", max_age=300)
         except (signing.BadSignature, TypeError):
-            return Response(
-                {"error": "invalid_state"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            # The ProConnect session is already closed at this point: send the
+            # user home rather than show a JSON error on the API host.
+            return HttpResponseRedirect(fallback_uri)
 
-        return HttpResponseRedirect(state["post_logout_redirect_uri"])
+        return HttpResponseRedirect(state["post_logout_redirect_uri"] or fallback_uri)
