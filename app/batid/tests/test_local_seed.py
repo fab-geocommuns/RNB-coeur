@@ -1,5 +1,6 @@
 from unittest import mock
 
+from batid.management.commands.seed_local_db import Command as SeedCommand
 from batid.models import Address, Building, City, Department
 from batid.services.local_seed import (
     SeedConfigError,
@@ -10,6 +11,7 @@ from batid.services.local_seed import (
     parse_points,
 )
 from django.conf import settings
+from django.core.management.base import CommandError
 from django.contrib.gis.geos import MultiPolygon, Point, Polygon
 from django.db import connection
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -107,6 +109,29 @@ def square(lat, lon, half_side_deg):
             lat + half_side_deg,
         )
     )
+
+
+class SeedPromptTestCase(SimpleTestCase):
+    def setUp(self):
+        self.command = SeedCommand()
+        self.command.interactive = True
+
+    @mock.patch("builtins.input", side_effect=EOFError)
+    def test_confirm_closed_input(self, _):
+        """
+        Input: stdin closed (Ctrl-D) while asking a yes/no confirmation.
+        Expected: the answer is treated as a refusal (False), no exception.
+        """
+        self.assertFalse(self.command._confirm("Lancer l'import ?"))
+
+    @mock.patch("builtins.input", side_effect=EOFError)
+    def test_ask_closed_input(self, _):
+        """
+        Input: stdin closed (Ctrl-D) while asking for a parameter.
+        Expected: a CommandError is raised instead of a raw EOFError.
+        """
+        with self.assertRaises(CommandError):
+            self.command._ask("Rayon en km : ")
 
 
 class SeedSelectionTestCase(TestCase):

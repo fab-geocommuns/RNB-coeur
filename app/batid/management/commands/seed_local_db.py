@@ -90,6 +90,9 @@ class Command(BaseCommand):
 
         self.stdout.write("Estimation du volume sur la source…")
         counts = count_rows(source_conn, zones)
+        # end the read transaction so no lock is held on the source while
+        # waiting for the user's confirmation
+        source_conn.rollback()
         for table, count in counts.items():
             self.stdout.write(f"  {table} : {count} lignes")
 
@@ -158,9 +161,17 @@ class Command(BaseCommand):
     def _ask(self, prompt):
         if not self.interactive:
             raise CommandError(f"Paramètre manquant ({prompt.strip(' :')})")
-        return input(prompt).strip()
+        try:
+            return input(prompt).strip()
+        except EOFError:
+            raise CommandError("Entrée fermée : commande interrompue")
 
     def _confirm(self, question):
         if not self.interactive:
             return False
-        return input(f"{question} [y/N] ").strip().lower() in ("y", "yes", "o", "oui")
+        try:
+            answer = input(f"{question} [y/N] ")
+        except EOFError:
+            # closed input is treated as a refusal
+            return False
+        return answer.strip().lower() in ("y", "yes", "o", "oui")
