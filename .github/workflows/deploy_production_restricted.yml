@@ -20,6 +20,7 @@ jobs:
                   username: ${{ secrets.SSH_USERNAME }}
                   key: ${{ secrets.SSH_PRIVATE_KEY_RESTRICTED }}
                   port: ${{ secrets.SSH_PORT }}
+                  command_timeout: 30m
                   script: main
             - name: SSH to sandbox server and trigger deploy for branch main
               uses: appleboy/ssh-action@v1.0.0
@@ -28,4 +29,5 @@ jobs:
                   username: ${{ secrets.SSH_USERNAME }}
                   key: ${{ secrets.SSH_PRIVATE_KEY_RESTRICTED }}
                   port: ${{ secrets.SSH_PORT }}
+                  command_timeout: 30m
                   script: main

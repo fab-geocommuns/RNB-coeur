@@ -51,7 +51,10 @@ RUN groupadd -r -g 999 app && \
 
 COPY --chown=999:999 . /app
 RUN mkdir /app/data
-RUN chown 999:999 /app/data
+# /app belongs to root: collectstatic (entrypoint, run as app) needs STATIC_ROOT to exist,
+# also when the build context has no app/static (CI, fresh clone).
+RUN mkdir -p /app/static
+RUN chown 999:999 /app/data /app/static
 
 USER app
 
