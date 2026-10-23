@@ -141,6 +141,8 @@ Renommer une colonne se fait en plusieurs déploiements : ajouter la nouvelle co
 
 Ajouter une colonne non nulle demande un `db_default` ou une colonne nullable, sinon les `INSERT` de l'ancienne version échouent.
 
+Pendant environ 30 s, l'ancienne et la nouvelle version répondent toutes les deux : un changement d'API qui casse les clients (par exemple l'échange de code ProConnect de #1107) doit rester compatible le temps d'un déploiement, sinon accepter quelques erreurs.
+
 `POSTGRES_STATEMENT_TIMEOUT` s'applique aussi à `migrate`. Une migration plus longue lève elle-même la limite avec `SET statement_timeout = '0'; SET lock_timeout = '5s';`, comme les migrations `0148` et `0156`. Un verrou `ACCESS EXCLUSIVE` bloque l'API en service pendant toute la migration. Le `lock_timeout` borne l'attente de ce verrou, pendant laquelle les requêtes de l'API s'accumulent derrière la migration : le garder court.
 
 Une recopie de données ne se fait pas dans la migration mais dans une tâche Celery par lots, sur le modèle de `fill_empty_event_id` (`batid/services/data_fix/fill_empty_event_id.py` et `batid/tasks.py`).
