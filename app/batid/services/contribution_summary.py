@@ -262,22 +262,6 @@ def compute_contribution_summary(
             "total": contributing["organizations"],
             "new": new_organizations,
         },
-        # the window itself, and the contributions of the window of the same
-        # length just before, to show a trend
-        "activity": {
-            **in_window.aggregate(
-                contributions=CONTRIBUTIONS,
-                cities=Count("city", distinct=True),
-                contributors=Count("user", distinct=True),
-            ),
-            "new_contributors": len(new_user_ids),
-            "previous_contributions": contributions()
-            .filter(
-                created_at__gte=since - timedelta(days=days),
-                created_at__lt=since,
-            )
-            .aggregate(n=CONTRIBUTIONS)["n"],
-        },
         "building_changes": _building_changes(now.date(), days),
         "top": {
             "users": _top_users(in_window),

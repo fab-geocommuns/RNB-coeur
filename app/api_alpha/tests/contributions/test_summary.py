@@ -213,38 +213,11 @@ class ContributionSummaryTest(TestCase):
             data["newcomers"]["users"], [{"username": "carol"}, {"username": "alice"}]
         )
 
-    def test_activity_of_the_window(self):
-        """
-        Input: in the window, alice makes 2 contributions in Talence, bob 1 in
-        Mérignac (his first one, bob had none before); 3 contributions in the 30
-        days before the window, by alice.
-        Expected: 3 contributions in 2 cities by 2 contributors, 1 new
-        contributor (bob), 3 contributions in the previous 30 days.
-        """
-        edition(self.alice, IN_WINDOW, self.talence, self.gironde)
-        edition(self.alice, IN_WINDOW, self.talence, self.gironde)
-        edition(self.bob, IN_WINDOW, self.merignac, self.gironde)
-        for _ in range(3):
-            edition(self.alice, datetime(2026, 9, 1, tzinfo=PARIS), self.talence)
-
-        data = compute_contribution_summary(now=NOW)
-
-        self.assertEqual(
-            data["activity"],
-            {
-                "contributions": 3,
-                "cities": 2,
-                "contributors": 2,
-                "new_contributors": 1,
-                "previous_contributions": 3,
-            },
-        )
-
     def test_7_day_window(self):
         """
         Input: alice contributes 10 days ago and 3 days ago, bob 3 days ago.
-        Expected: with days=7, only the 2 contributions of 3 days ago are in the
-        window; the one of 10 days ago is in the 7 days before.
+        Expected: with days=7, only the contributions of 3 days ago are ranked:
+        alice and bob have 1 each.
         """
         edition(self.alice, datetime(2026, 10, 5, tzinfo=PARIS), self.talence)
         edition(self.alice, datetime(2026, 10, 12, tzinfo=PARIS), self.talence)
@@ -253,10 +226,9 @@ class ContributionSummaryTest(TestCase):
         data = compute_contribution_summary(now=NOW, days=7)
 
         self.assertEqual(data["window_days"], 7)
-        self.assertEqual(data["activity"]["contributions"], 2)
-        self.assertEqual(data["activity"]["previous_contributions"], 1)
         self.assertEqual(
-            sorted(u["username"] for u in data["top"]["users"]), ["alice", "bob"]
+            sorted((u["username"], u["count"]) for u in data["top"]["users"]),
+            [("alice", 1), ("bob", 1)],
         )
 
     def test_an_event_counts_once(self):

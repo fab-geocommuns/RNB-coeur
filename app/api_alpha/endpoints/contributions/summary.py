@@ -26,10 +26,8 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                 "summary": "Synthèse des contributions de la communauté",
                 "description": (
                     "Retourne en une seule réponse, pour une fenêtre glissante des "
-                    "N derniers jours (paramètre days) : l'activité de la fenêtre "
-                    "(contributions, communes, contributeurs, nouveaux "
-                    "contributeurs, contributions des N jours précédents), le "
-                    "nombre de communes et d'organisations ayant déjà contribué (et "
+                    "N derniers jours (paramètre days) : le nombre de communes et "
+                    "d'organisations ayant déjà contribué (et "
                     "celles qui l'ont fait pour la première fois dans la fenêtre), "
                     "les modifications de bâtiments des N derniers jours complets "
                     f"(toutes sources, dont les contributions), les {TOP_LIMIT} "
