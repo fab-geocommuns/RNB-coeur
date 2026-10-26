@@ -28,12 +28,9 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db.models import (
     Count,
-    Exists,
     F,
     Min,
-    OuterRef,
     QuerySet,
-    Subquery,
     Sum,
 )
 from django.utils import timezone
@@ -115,16 +112,25 @@ def _city_rows(editions: QuerySet) -> QuerySet:
     )
 
 
-def _first_time(rows: QuerySet, group_field: str, since: datetime) -> QuerySet:
+def _first_time_ids(in_window: QuerySet, field: str, since: datetime) -> set:
     """
-    rows are the window's contributions grouped by group_field: keeps the groups
-    with no contribution before the window, ie. whose very first one is in it.
-    Candidates come from the window only, so the whole history is never grouped.
+    Values of `field` (city_id, user_id…) whose very first contribution is in
+    the window. Two indexed queries: the candidates of the window, then those of
+    them that contributed before. An anti-join row by row (NOT EXISTS) takes
+    minutes for the contributors with a long history.
     """
-    earlier = contributions().filter(
-        **{group_field: OuterRef(group_field)}, created_at__lt=since
+    candidates = set(
+        in_window.exclude(**{f"{field}__isnull": True})
+        .values_list(field, flat=True)
+        .distinct()
     )
-    return rows.filter(~Exists(earlier))
+    earlier = set(
+        contributions()
+        .filter(**{f"{field}__in": candidates}, created_at__lt=since)
+        .values_list(field, flat=True)
+        .distinct()
+    )
+    return candidates - earlier
 
 
 def _total(kpi_name: str) -> Optional[int]:
@@ -188,30 +194,29 @@ def _top_organizations(in_window: QuerySet) -> list[dict]:
     organization has no department: the one where it contributed the most in the
     window is shown.
     """
-    main_department = (
-        in_window.filter(
-            user__profile__organization_id=OuterRef("user__profile__organization_id")
-        )
-        .exclude(department__isnull=True)
-        .values("department_id")
-        .annotate(count=CONTRIBUTIONS)
-        .order_by("-count", "department_id")
-        .values("department_id")[:1]
-    )
+    org_field = "user__profile__organization_id"
     organizations = list(
         in_window.exclude(user__profile__organization__isnull=True)
-        .values(
-            "user__profile__organization_id",
-            name=F("user__profile__organization__name"),
-        )
-        .annotate(count=CONTRIBUTIONS, department_ref=Subquery(main_department))
+        .values(org_field, name=F("user__profile__organization__name"))
+        .annotate(count=CONTRIBUTIONS)
         .order_by("-count", "name")[:TOP_LIMIT]
     )
-    departments = _departments({o["department_ref"] for o in organizations})
+    # department of each ranked organization, in one grouped query (a
+    # correlated subquery per organization is far slower)
+    main_department: dict[int, int] = {}
+    for row in (
+        in_window.filter(**{f"{org_field}__in": [o[org_field] for o in organizations]})
+        .exclude(department__isnull=True)
+        .values(org_field, "department_id")
+        .annotate(count=CONTRIBUTIONS)
+        .order_by(org_field, "-count", "department_id")
+    ):
+        main_department.setdefault(row[org_field], row["department_id"])
+    departments = _departments(set(main_department.values()))
     return [
         {
             "name": o["name"],
-            "department": departments.get(o["department_ref"]),
+            "department": departments.get(main_department.get(o[org_field], 0)),
             "count": o["count"],
         }
         for o in organizations
@@ -244,30 +249,24 @@ def compute_contribution_summary(
     since = now - timedelta(days=days)
     in_window = contributions().filter(created_at__gte=since, created_at__lt=now)
 
-    # few cities contribute for the first time in a window: all fetched, to
-    # count them in the same query
+    new_city_ids = _first_time_ids(in_window, "city_id", since)
+    new_user_ids = _first_time_ids(in_window, "user_id", since)
+    new_organizations = len(
+        _first_time_ids(in_window, "user__profile__organization_id", since)
+    )
+    # the latest first contributions first
     new_cities = list(
-        _first_time(_city_rows(in_window), "city_id", since)
+        _city_rows(in_window.filter(city_id__in=new_city_ids))
         .annotate(first_contribution_at=Min("created_at"))
-        .order_by("-first_contribution_at")
+        .order_by("-first_contribution_at")[:NEWCOMERS_LIMIT]
     )
     new_cities_departments = _departments({c["department_ref"] for c in new_cities})
     new_users = list(
-        _first_time(
-            in_window.values("user_id", username=F("user__username")),
-            "user_id",
-            since,
-        )
+        in_window.filter(user_id__in=new_user_ids)
+        .values("user_id", username=F("user__username"))
         .annotate(first_contribution_at=Min("created_at"))
-        .order_by("-first_contribution_at")
+        .order_by("-first_contribution_at")[:NEWCOMERS_LIMIT]
     )
-    new_organizations = _first_time(
-        in_window.exclude(user__profile__organization__isnull=True)
-        .values("user__profile__organization_id")
-        .distinct(),
-        "user__profile__organization_id",
-        since,
-    ).count()
 
     return {
         "updated_at": now.isoformat(),
@@ -275,7 +274,7 @@ def compute_contribution_summary(
         # total: None until the nightly KPIs are computed for the first time
         "cities": {
             "total": _total(KPI_CONTRIBUTING_CITIES_COUNT),
-            "new": len(new_cities),
+            "new": len(new_city_ids),
         },
         "organizations": {
             "total": _total(KPI_CONTRIBUTING_ORGANIZATIONS_COUNT),
@@ -289,7 +288,7 @@ def compute_contribution_summary(
                 cities=Count("city", distinct=True),
                 contributors=Count("user", distinct=True),
             ),
-            "new_contributors": len(new_users),
+            "new_contributors": len(new_user_ids),
             "previous_contributions": contributions()
             .filter(
                 created_at__gte=since - timedelta(days=days),
@@ -305,13 +304,8 @@ def compute_contribution_summary(
         },
         # very first contribution in the window, the latest first
         "newcomers": {
-            "cities": [
-                _city(c, new_cities_departments) for c in new_cities[:NEWCOMERS_LIMIT]
-            ],
-            "users": [
-                {"username": public_username(u["username"])}
-                for u in new_users[:NEWCOMERS_LIMIT]
-            ],
+            "cities": [_city(c, new_cities_departments) for c in new_cities],
+            "users": [{"username": public_username(u["username"])} for u in new_users],
         },
     }
 
