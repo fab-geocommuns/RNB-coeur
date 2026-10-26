@@ -28,6 +28,10 @@ KPI_BUILDING_CHANGES_IMPORT_BDTOPO = "building_changes_import_bdtopo"
 KPI_BUILDING_CHANGES_IMPORT_BAL = "building_changes_import_bal"
 KPI_BUILDING_CHANGES_CONTRIBUTIONS = "building_changes_contributions"
 
+# Home page contribution summary (see batid.services.contribution_summary)
+KPI_CONTRIBUTING_CITIES_COUNT = "contributing_cities_count"
+KPI_CONTRIBUTING_ORGANIZATIONS_COUNT = "contributing_organizations_count"
+
 
 def get_kpi(name: str, since: Optional[date] = None, until: Optional[date] = None):
 
@@ -162,6 +166,24 @@ def compute_daily_kpis(external_calls=True):
                 value_date=today,
                 defaults={"value": downloads_count},
             )
+
+    # Cities and organizations that ever contributed, for the home page: they
+    # read the whole contribution history, too long for a request
+    from batid.services.contribution_summary import count_contributing
+
+    with connection.cursor() as cursor:
+        cursor.execute("SET statement_timeout = '0';")
+    contributing = count_contributing()
+    KPI.objects.update_or_create(
+        name=KPI_CONTRIBUTING_CITIES_COUNT,
+        value_date=today,
+        defaults={"value": contributing["cities"]},
+    )
+    KPI.objects.update_or_create(
+        name=KPI_CONTRIBUTING_ORGANIZATIONS_COUNT,
+        value_date=today,
+        defaults={"value": contributing["organizations"]},
+    )
 
     # Building change stats (import_bdtopo, import_bal, contributions)
     # Contrairement aux autres KPI ci-dessus (des stocks ou des cumuls depuis
