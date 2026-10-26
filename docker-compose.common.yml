@@ -35,15 +35,25 @@ services:
       context: ./app
       dockerfile: ./Dockerfile
       target: app_web
-    ports:
-      - "127.0.0.1:8000:8000"
     command: python manage.py runserver 0.0.0.0:8000
     depends_on:
       rabbitmq:
         condition: service_healthy
       redis:
         condition: service_healthy
-    container_name: web
+    healthcheck:
+      # Fails once /tmp/drain exists (created by the deploy hook below): nginx then stops sending traffic here.
+      # $$VIRTUAL_HOST is read inside the container; empty in dev, hence localhost.
+      test: ["CMD-SHELL", "test ! -e /tmp/drain && curl -fsS -o /dev/null -H \"Host: $${VIRTUAL_HOST:-localhost}\" http://localhost:8000/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 30s
+    labels:
+      com.github.nginx-proxy.nginx-proxy.keepalive: "disabled"
+      # Run in the old container during a deploy, before it is stopped: turn unhealthy, then wait 25 s for nginx to stop using it.
+      docker-rollout.pre-stop-hook: "touch /tmp/drain && sleep 25"
 
   db:
     image: postgis/postgis:17-3.5

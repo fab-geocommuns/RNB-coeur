@@ -51,7 +51,9 @@ RUN groupadd -r -g 999 app && \
 
 COPY --chown=999:999 . /app
 RUN mkdir /app/data
-RUN chown 999:999 /app/data
+# collectstatic writes to /app/static at startup as the app user: create the folder, the repo may not have it.
+RUN mkdir -p /app/static
+RUN chown 999:999 /app/data /app/static
 
 USER app
 

@@ -129,6 +129,30 @@ Avant l'import, la commande vérifie que les points sont en France, affiche le v
 docker exec -ti web python manage.py test
 ```
 
+## Déploiement et migrations
+
+Le déploiement se fait sans coupure : les migrations passent dans un conteneur jetable, puis le nouveau `web` remplace l'ancien. Pendant environ 1 min 30, l'ancien code tourne donc sur le nouveau schéma. C'est le cas de tout déploiement sans coupure (release phase de Heroku, Job Kubernetes…).
+
+**Toute migration doit fonctionner avec la version précédente du code.** En pratique :
+
+* ajouter une table, un index, une colonne nullable ou avec `db_default` : rien de particulier ;
+* renommer un champ : le renommer côté Python en gardant `db_column="ancien_nom"`, aucune migration en base ;
+* supprimer un champ : le retirer du code avec une migration `SeparateDatabaseAndState` qui ne change que l'état Django (et rend la colonne nullable si elle est `NOT NULL`), puis faire le `DROP COLUMN` dans un déploiement suivant ;
+* autre changement cassant (type de colonne, contrainte) : le découper, ou accepter environ 1 min 30 d'erreurs sur les routes concernées, à une heure calme.
+
+Pendant environ 30 s, l'ancienne et la nouvelle version répondent toutes les deux : un changement d'API qui casse les clients (par exemple l'échange de code ProConnect de #1107) doit rester compatible le temps d'un déploiement, sinon accepter quelques erreurs.
+
+`POSTGRES_STATEMENT_TIMEOUT` s'applique aussi à `migrate`. Une migration plus longue lève elle-même la limite avec `SET statement_timeout = '0'; SET lock_timeout = '5s';`, comme les migrations `0148` et `0156`. Un verrou `ACCESS EXCLUSIVE` bloque l'API en service pendant toute la migration. Le `lock_timeout` borne l'attente de ce verrou, pendant laquelle les requêtes de l'API s'accumulent derrière la migration : le garder court.
+
+Une recopie de données ne se fait pas dans la migration mais dans une tâche Celery par lots, sur le modèle de `fill_empty_event_id` (`batid/services/data_fix/fill_empty_event_id.py` et `batid/tasks.py`).
+
+Sur les serveurs, le conteneur `web` n'a pas de nom fixe : `docker exec web` ne fonctionne qu'en local. Utiliser, avec `<env>` = `prod`, `staging` ou `sandbox` :
+```
+cd /srv/RNB-coeur && docker compose -f docker-compose.<env>.yml exec web python manage.py …
+```
+
+La séquence du déploiement et son comportement en cas d'échec sont décrits dans la section « Déploiement de RNB-cœur » du [README de RNB-infra](https://github.com/fab-geocommuns/RNB-infra#readme).
+
 ## Ajouter une dépendance python
 
 Nous utilisons [Poetry](https://python-poetry.org/) pour gérer nos dépendances Python.

@@ -1,5 +1,6 @@
 location /admin/login {
-    proxy_pass http://web:8000/admin/login;
+    # Same backend as the other routes, so this route also switches to the new container during a deploy.
+    proxy_pass http://$host;
 
     limit_req zone=admin_login_rate_limit nodelay;
     add_header RateLimit-Limit 1;

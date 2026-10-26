@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 : "${POSTGRES_HOST:?is not set}"
 : "${POSTGRES_PORT:?is not set}"
