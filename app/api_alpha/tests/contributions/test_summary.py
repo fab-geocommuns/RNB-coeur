@@ -110,33 +110,40 @@ class ContributionSummaryTest(TestCase):
         self.assertEqual(count_contributing(), {"cities": 0, "organizations": 0})
         self.assertEqual(data["building_changes"], {"total": 0, "contributions": 0})
         self.assertEqual(data["top"], {"users": [], "organizations": [], "cities": []})
-        self.assertEqual(data["new_cities"], [])
+        self.assertEqual(data["newcomers"], {"cities": [], "users": []})
         self.assertEqual(data["window_days"], 30)
 
-    def test_rnb_team_and_staff_are_left_out(self):
+    def test_rnb_team_counts_but_not_its_technical_account(self):
         """
-        Input: in the window, a member of the RNB team organization and a staff
-        account (without organization) contribute in Verrens-Arvey; alice in Talence.
-        Expected: neither appears in the rankings; Verrens-Arvey is neither counted
-        nor a new city; the RNB team is not counted as an organization.
+        Input: in the window, a member of the RNB team organization contributes
+        in Verrens-Arvey, a staff account and alice in Talence; the technical RNB
+        account (which runs the imports) writes a row in Mérignac.
+        Expected: the team member and the staff account are ranked like anyone;
+        the technical account and Mérignac appear nowhere.
         """
         team_member = member_of(UserFactory(username="equipe"), self.rnb_team)
         staff = UserFactory(username="staff", is_staff=True)
+        technical = member_of(UserFactory(username="RNB"), self.rnb_team)
         edition(team_member, IN_WINDOW, self.verrens, self.savoie)
-        edition(staff, IN_WINDOW, self.verrens, self.savoie)
+        edition(staff, IN_WINDOW, self.talence, self.gironde)
         edition(self.alice, IN_WINDOW, self.talence, self.gironde)
+        edition(technical, IN_WINDOW, self.merignac, self.gironde, origin=IMPORT)
 
         data = compute_contribution_summary(now=NOW)
 
-        self.assertEqual([u["username"] for u in data["top"]["users"]], ["alice"])
         self.assertEqual(
-            [o["name"] for o in data["top"]["organizations"]], ["Commune de Talence"]
+            sorted(u["username"] for u in data["top"]["users"]),
+            ["alice", "equipe", "staff"],
         )
-        self.assertEqual([c["name"] for c in data["top"]["cities"]], ["Talence"])
-        self.assertEqual(data["cities"]["new"], 1)
-        self.assertEqual(data["organizations"]["new"], 1)
-        self.assertEqual([c["name"] for c in data["new_cities"]], ["Talence"])
-        self.assertEqual(count_contributing(), {"cities": 1, "organizations": 1})
+        self.assertEqual(
+            sorted(o["name"] for o in data["top"]["organizations"]),
+            ["Commune de Talence", settings.RNB_TEAM_ORG_NAME],
+        )
+        self.assertEqual(
+            sorted(c["name"] for c in data["top"]["cities"]),
+            ["Talence", "Verrens-Arvey"],
+        )
+        self.assertEqual(count_contributing(), {"cities": 2, "organizations": 2})
 
     def test_rankings_cover_the_last_30_days(self):
         """
@@ -173,7 +180,7 @@ class ContributionSummaryTest(TestCase):
         """
         Input: Mérignac contributed before the window and again in it; Talence for
         the first time in the window; Verrens-Arvey touched by an import before
-        the window (run as the RNB team user, like every import), then
+        the window (run as the technical RNB account, like every import), then
         contributed for the first time in it.
         Expected: new cities = Talence and Verrens-Arvey (an import is not a
         contribution), not Mérignac.
@@ -189,9 +196,75 @@ class ContributionSummaryTest(TestCase):
 
         # the latest first contribution first
         self.assertEqual(
-            [c["name"] for c in data["new_cities"]], ["Verrens-Arvey", "Talence"]
+            [c["name"] for c in data["newcomers"]["cities"]],
+            ["Verrens-Arvey", "Talence"],
         )
         self.assertEqual(data["cities"]["new"], 2)
+
+    def test_newcomers_include_first_time_contributors(self):
+        """
+        Input: bob contributed before the window and again in it; alice and carol
+        (whose username is an email) contribute for the first time in it, carol
+        last.
+        Expected: newcomers users = carol (local part only), then alice; not bob.
+        """
+        carol = ContributorUserFactory(username="carol@mairie.fr")
+        edition(self.bob, BEFORE_WINDOW, self.merignac, self.gironde)
+        edition(self.bob, IN_WINDOW, self.merignac, self.gironde)
+        edition(self.alice, datetime(2026, 10, 1, tzinfo=PARIS), self.talence)
+        edition(carol, datetime(2026, 10, 10, tzinfo=PARIS), self.talence)
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(
+            data["newcomers"]["users"], [{"username": "carol"}, {"username": "alice"}]
+        )
+
+    def test_activity_of_the_window(self):
+        """
+        Input: in the window, alice makes 2 contributions in Talence, bob 1 in
+        Mérignac (his first one, bob had none before); 3 contributions in the 30
+        days before the window, by alice.
+        Expected: 3 contributions in 2 cities by 2 contributors, 1 new
+        contributor (bob), 3 contributions in the previous 30 days.
+        """
+        edition(self.alice, IN_WINDOW, self.talence, self.gironde)
+        edition(self.alice, IN_WINDOW, self.talence, self.gironde)
+        edition(self.bob, IN_WINDOW, self.merignac, self.gironde)
+        for _ in range(3):
+            edition(self.alice, datetime(2026, 9, 1, tzinfo=PARIS), self.talence)
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(
+            data["activity"],
+            {
+                "contributions": 3,
+                "cities": 2,
+                "contributors": 2,
+                "new_contributors": 1,
+                "previous_contributions": 3,
+            },
+        )
+
+    def test_7_day_window(self):
+        """
+        Input: alice contributes 10 days ago and 3 days ago, bob 3 days ago.
+        Expected: with days=7, only the 2 contributions of 3 days ago are in the
+        window; the one of 10 days ago is in the 7 days before.
+        """
+        edition(self.alice, datetime(2026, 10, 5, tzinfo=PARIS), self.talence)
+        edition(self.alice, datetime(2026, 10, 12, tzinfo=PARIS), self.talence)
+        edition(self.bob, datetime(2026, 10, 12, tzinfo=PARIS), self.merignac)
+
+        data = compute_contribution_summary(now=NOW, days=7)
+
+        self.assertEqual(data["window_days"], 7)
+        self.assertEqual(data["activity"]["contributions"], 2)
+        self.assertEqual(data["activity"]["previous_contributions"], 1)
+        self.assertEqual(
+            sorted(u["username"] for u in data["top"]["users"]), ["alice", "bob"]
+        )
 
     def test_an_event_counts_once(self):
         """
@@ -307,6 +380,21 @@ class ContributionSummaryApiTest(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["top"]["users"][0]["username"], "alice")
+
+    def test_days_selects_the_window(self):
+        """
+        Input: days=7, then days=30, then days=15.
+        Expected: 200 with the matching window_days, then 400 for 15.
+        """
+        for days in [7, 30]:
+            response = self.client.get(f"{self.URL}?days={days}")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["window_days"], days)
+
+        response = self.client.get(f"{self.URL}?days=15")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("days", response.json()["detail"])
 
     def test_response_is_cached(self):
         """

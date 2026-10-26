@@ -5,7 +5,8 @@ Summary of the community contributions shown on the home page of the website
 - The cumulative counts (cities and organizations that ever contributed) read
   the whole history: they are daily KPIs, computed every night by
   compute_daily_kpis.
-- Everything about the last WINDOW_DAYS days is computed during the request,
+- Everything about the window (the last 7 or 30 days) is computed during the
+  request,
   then cached for an hour (about 2 s on a busy window of the staging data).
 """
 
@@ -22,7 +23,7 @@ from batid.services.kpi import (
     KPI_CONTRIBUTING_ORGANIZATIONS_COUNT,
     get_kpi_most_recent,
 )
-from django.conf import settings
+from batid.services.RNB_team_user import RNB_TEAM_USERNAME
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db.models import (
@@ -31,7 +32,6 @@ from django.db.models import (
     F,
     Min,
     OuterRef,
-    Q,
     QuerySet,
     Subquery,
     Sum,
@@ -40,11 +40,13 @@ from django.utils import timezone
 
 PARIS_TZ = ZoneInfo("Europe/Paris")
 
-# "This month" on the home page is a rolling window of 30 days, so that the
-# figures do not drop to zero on the 1st of the month
-WINDOW_DAYS = 30
+# The window is a rolling one, so that the figures do not drop to zero on the
+# 1st of the month: the last 7 or 30 days
+WINDOWS_DAYS = [7, 30]
+DEFAULT_WINDOW_DAYS = 30
 TOP_LIMIT = 5
-NEW_CITIES_LIMIT = 8
+# cities and contributors listed as newcomers, for each of them
+NEWCOMERS_LIMIT = 8
 
 CACHE_KEY = "contribution_summary"
 CACHE_TIMEOUT_SECONDS = 3600
@@ -56,18 +58,14 @@ CONTRIBUTIONS = Count("event_id", distinct=True)
 
 def contributions() -> QuerySet:
     """
-    SummerChallenge rows of the community contributions. A row is written for
-    every building change made by a user, whatever its origin: imports and data
-    fixes write rows too, but they are run as the RNB team user. Leaving out
-    the RNB team (its organization, and the staff accounts which all belong to
-    it) leaves them out as well, without checking the origin of each event in
-    the building history, which is far too slow.
+    SummerChallenge rows of the contributions, the RNB team members counted as
+    any other contributor. A row is written for every building change made by
+    a user, whatever its origin: imports write rows too, but they all run as
+    the technical RNB account, which is left out. This avoids checking the
+    origin of each event in the building history, which is far too slow. Data
+    fixes write no row (deactivate() only scores contributions).
     """
-    return SummerChallenge.objects.exclude(
-        Q(user__is_staff=True)
-        | Q(user__is_superuser=True)
-        | Q(user__profile__organization__name=settings.RNB_TEAM_ORG_NAME)
-    )
+    return SummerChallenge.objects.exclude(user__username=RNB_TEAM_USERNAME)
 
 
 def count_contributing() -> dict[str, int]:
@@ -135,9 +133,9 @@ def _total(kpi_name: str) -> Optional[int]:
     return int(kpi.value) if kpi else None
 
 
-def _building_changes(today: date) -> dict:
+def _building_changes(today: date, days: int) -> dict:
     """
-    Building changes of the last WINDOW_DAYS complete days, from the daily KPIs
+    Building changes of the last `days` complete days, from the daily KPIs
     (computed every night for the day before): a building changed twice counts
     twice. The contributions include the RNB team ones, the KPIs do not split them.
     """
@@ -149,7 +147,7 @@ def _building_changes(today: date) -> dict:
                 KPI_BUILDING_CHANGES_IMPORT_BAL,
                 KPI_BUILDING_CHANGES_CONTRIBUTIONS,
             ],
-            value_date__gte=today - timedelta(days=WINDOW_DAYS),
+            value_date__gte=today - timedelta(days=days),
             value_date__lt=today,
         )
         .values("name")
@@ -238,10 +236,12 @@ def _top_cities(in_window: QuerySet) -> list[dict]:
     return [{**_city(c, departments), "count": c["count"]} for c in cities]
 
 
-def compute_contribution_summary(now: Optional[datetime] = None) -> dict:
+def compute_contribution_summary(
+    now: Optional[datetime] = None, days: int = DEFAULT_WINDOW_DAYS
+) -> dict:
     """See the GET /api/alpha/contributions/summary/ documentation for the format"""
     now = (now or timezone.now()).astimezone(PARIS_TZ)
-    since = now - timedelta(days=WINDOW_DAYS)
+    since = now - timedelta(days=days)
     in_window = contributions().filter(created_at__gte=since, created_at__lt=now)
 
     # few cities contribute for the first time in a window: all fetched, to
@@ -252,6 +252,15 @@ def compute_contribution_summary(now: Optional[datetime] = None) -> dict:
         .order_by("-first_contribution_at")
     )
     new_cities_departments = _departments({c["department_ref"] for c in new_cities})
+    new_users = list(
+        _first_time(
+            in_window.values("user_id", username=F("user__username")),
+            "user_id",
+            since,
+        )
+        .annotate(first_contribution_at=Min("created_at"))
+        .order_by("-first_contribution_at")
+    )
     new_organizations = _first_time(
         in_window.exclude(user__profile__organization__isnull=True)
         .values("user__profile__organization_id")
@@ -262,7 +271,7 @@ def compute_contribution_summary(now: Optional[datetime] = None) -> dict:
 
     return {
         "updated_at": now.isoformat(),
-        "window_days": WINDOW_DAYS,
+        "window_days": days,
         # total: None until the nightly KPIs are computed for the first time
         "cities": {
             "total": _total(KPI_CONTRIBUTING_CITIES_COUNT),
@@ -272,22 +281,46 @@ def compute_contribution_summary(now: Optional[datetime] = None) -> dict:
             "total": _total(KPI_CONTRIBUTING_ORGANIZATIONS_COUNT),
             "new": new_organizations,
         },
-        "building_changes": _building_changes(now.date()),
+        # the window itself, and the contributions of the window of the same
+        # length just before, to show a trend
+        "activity": {
+            **in_window.aggregate(
+                contributions=CONTRIBUTIONS,
+                cities=Count("city", distinct=True),
+                contributors=Count("user", distinct=True),
+            ),
+            "new_contributors": len(new_users),
+            "previous_contributions": contributions()
+            .filter(
+                created_at__gte=since - timedelta(days=days),
+                created_at__lt=since,
+            )
+            .aggregate(n=CONTRIBUTIONS)["n"],
+        },
+        "building_changes": _building_changes(now.date(), days),
         "top": {
             "users": _top_users(in_window),
             "organizations": _top_organizations(in_window),
             "cities": _top_cities(in_window),
         },
-        "new_cities": [
-            _city(c, new_cities_departments) for c in new_cities[:NEW_CITIES_LIMIT]
-        ],
+        # very first contribution in the window, the latest first
+        "newcomers": {
+            "cities": [
+                _city(c, new_cities_departments) for c in new_cities[:NEWCOMERS_LIMIT]
+            ],
+            "users": [
+                {"username": public_username(u["username"])}
+                for u in new_users[:NEWCOMERS_LIMIT]
+            ],
+        },
     }
 
 
-def get_contribution_summary() -> dict:
+def get_contribution_summary(days: int = DEFAULT_WINDOW_DAYS) -> dict:
     """Cached version of compute_contribution_summary"""
-    data = cache.get(CACHE_KEY)
+    key = f"{CACHE_KEY}:{days}"
+    data = cache.get(key)
     if data is None:
-        data = compute_contribution_summary()
-        cache.set(CACHE_KEY, data, CACHE_TIMEOUT_SECONDS)
+        data = compute_contribution_summary(days=days)
+        cache.set(key, data, CACHE_TIMEOUT_SECONDS)
     return data
