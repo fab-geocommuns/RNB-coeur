@@ -34,11 +34,11 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                     "les modifications de bâtiments des N derniers jours complets "
                     f"(toutes sources, dont les contributions), les {TOP_LIMIT} "
                     "contributeurs, organisations et communes les plus actifs, et "
-                    f"jusqu'à {NEWCOMERS_LIMIT} communes et {NEWCOMERS_LIMIT} "
-                    "contributeurs ayant fait leur toute première contribution "
+                    f"jusqu'à {NEWCOMERS_LIMIT} contributeurs ayant fait leur "
+                    "toute première contribution "
                     "dans la fenêtre. Les imports ne sont pas comptés comme des "
-                    "contributions. Les cumuls sont mis à jour chaque nuit, le "
-                    "reste environ toutes les heures."
+                    "contributions. Les données sont mises à jour environ "
+                    "toutes les heures."
                 ),
                 "operationId": "getContributionSummary",
                 "parameters": [

@@ -18,8 +18,6 @@ from batid.services.kpi import (
     KPI_BUILDING_CHANGES_CONTRIBUTIONS,
     KPI_BUILDING_CHANGES_IMPORT_BAL,
     KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
-    KPI_CONTRIBUTING_CITIES_COUNT,
-    KPI_CONTRIBUTING_ORGANIZATIONS_COUNT,
 )
 from batid.tests.factories.users import ContributorUserFactory, UserFactory
 from django.conf import settings
@@ -100,17 +98,16 @@ class ContributionSummaryTest(TestCase):
     def test_empty(self):
         """
         Input: no contribution, no KPI.
-        Expected: zeros and empty lists, no error; the totals are None until the
-        nightly KPIs are computed.
+        Expected: zeros and empty lists, no error.
         """
         data = compute_contribution_summary(now=NOW)
 
-        self.assertEqual(data["cities"], {"total": None, "new": 0})
-        self.assertEqual(data["organizations"], {"total": None, "new": 0})
+        self.assertEqual(data["cities"], {"total": 0, "new": 0})
+        self.assertEqual(data["organizations"], {"total": 0, "new": 0})
         self.assertEqual(count_contributing(), {"cities": 0, "organizations": 0})
         self.assertEqual(data["building_changes"], {"total": 0, "contributions": 0})
         self.assertEqual(data["top"], {"users": [], "organizations": [], "cities": []})
-        self.assertEqual(data["newcomers"], {"cities": [], "users": []})
+        self.assertEqual(data["newcomers"], {"users": []})
         self.assertEqual(data["window_days"], 30)
 
     def test_rnb_team_counts_but_not_its_technical_account(self):
@@ -143,7 +140,8 @@ class ContributionSummaryTest(TestCase):
             sorted(c["name"] for c in data["top"]["cities"]),
             ["Talence", "Verrens-Arvey"],
         )
-        self.assertEqual(count_contributing(), {"cities": 2, "organizations": 2})
+        self.assertEqual(data["cities"], {"total": 2, "new": 2})
+        self.assertEqual(data["organizations"], {"total": 2, "new": 2})
 
     def test_rankings_cover_the_last_30_days(self):
         """
@@ -194,11 +192,6 @@ class ContributionSummaryTest(TestCase):
 
         data = compute_contribution_summary(now=NOW)
 
-        # the latest first contribution first
-        self.assertEqual(
-            [c["name"] for c in data["newcomers"]["cities"]],
-            ["Verrens-Arvey", "Talence"],
-        )
         self.assertEqual(data["cities"]["new"], 2)
 
     def test_newcomers_include_first_time_contributors(self):
@@ -314,29 +307,6 @@ class ContributionSummaryTest(TestCase):
         data = compute_contribution_summary(now=NOW)
 
         self.assertEqual(data["top"]["users"][0]["username"], "l.martin")
-
-    def test_totals_are_the_latest_nightly_kpis(self):
-        """
-        Input: contributing cities and organizations KPIs on two days.
-        Expected: the latest values.
-        """
-        for day, cities, organizations in [
-            (date(2026, 10, 13), 1200, 80),
-            (date(2026, 10, 14), 1248, 86),
-        ]:
-            KPI.objects.create(
-                name=KPI_CONTRIBUTING_CITIES_COUNT, value_date=day, value=cities
-            )
-            KPI.objects.create(
-                name=KPI_CONTRIBUTING_ORGANIZATIONS_COUNT,
-                value_date=day,
-                value=organizations,
-            )
-
-        data = compute_contribution_summary(now=NOW)
-
-        self.assertEqual(data["cities"]["total"], 1248)
-        self.assertEqual(data["organizations"]["total"], 86)
 
     def test_building_changes_sum_the_last_30_complete_days(self):
         """

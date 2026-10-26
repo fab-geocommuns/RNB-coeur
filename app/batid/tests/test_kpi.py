@@ -74,8 +74,6 @@ class KPIDailyRun(TestCase):
             "fixed_reports_count",
             "refused_reports_count",
             "api_requests_count",
-            "contributing_cities_count",
-            "contributing_organizations_count",
         ]
         previous_day_kpis = [
             "building_changes_import_bdtopo",

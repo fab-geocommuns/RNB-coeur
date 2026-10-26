@@ -2,12 +2,9 @@
 Summary of the community contributions shown on the home page of the website
 (GET /api/alpha/contributions/summary/).
 
-- The cumulative counts (cities and organizations that ever contributed) read
-  the whole history: they are daily KPIs, computed every night by
-  compute_daily_kpis.
-- Everything about the window (the last 7 or 30 days) is computed during the
-  request,
-  then cached for an hour (about 2 s on a busy window of the staging data).
+Everything is computed during the request, then cached for an hour: on a
+clone of the production data, about 2.5 s for a 30-day window, of which 0.3 s
+for the cumulative counts (cities and organizations that ever contributed).
 """
 
 from datetime import date, datetime, timedelta
@@ -19,9 +16,6 @@ from batid.services.kpi import (
     KPI_BUILDING_CHANGES_CONTRIBUTIONS,
     KPI_BUILDING_CHANGES_IMPORT_BAL,
     KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
-    KPI_CONTRIBUTING_CITIES_COUNT,
-    KPI_CONTRIBUTING_ORGANIZATIONS_COUNT,
-    get_kpi_most_recent,
 )
 from batid.services.RNB_team_user import RNB_TEAM_USERNAME
 from django.contrib.auth.models import User
@@ -42,7 +36,7 @@ PARIS_TZ = ZoneInfo("Europe/Paris")
 WINDOWS_DAYS = [7, 30]
 DEFAULT_WINDOW_DAYS = 30
 TOP_LIMIT = 5
-# cities and contributors listed as newcomers, for each of them
+# contributors listed as newcomers
 NEWCOMERS_LIMIT = 8
 
 CACHE_KEY = "contribution_summary"
@@ -68,8 +62,8 @@ def contributions() -> QuerySet:
 def count_contributing() -> dict[str, int]:
     """
     Cities where a contribution was ever made, and organizations whose
-    (current) members ever contributed. Reads the whole history: computed
-    every night as KPIs, not during a request.
+    (current) members ever contributed. Two distinct counts over the whole
+    history, fast enough for a request (0.3 s on the production data).
     """
     editions = contributions()
     return {
@@ -131,12 +125,6 @@ def _first_time_ids(in_window: QuerySet, field: str, since: datetime) -> set:
         .distinct()
     )
     return candidates - earlier
-
-
-def _total(kpi_name: str) -> Optional[int]:
-    """Latest value of a nightly KPI, None before its first computation"""
-    kpi = get_kpi_most_recent(kpi_name)
-    return int(kpi.value) if kpi else None
 
 
 def _building_changes(today: date, days: int) -> dict:
@@ -249,18 +237,13 @@ def compute_contribution_summary(
     since = now - timedelta(days=days)
     in_window = contributions().filter(created_at__gte=since, created_at__lt=now)
 
+    contributing = count_contributing()
     new_city_ids = _first_time_ids(in_window, "city_id", since)
     new_user_ids = _first_time_ids(in_window, "user_id", since)
     new_organizations = len(
         _first_time_ids(in_window, "user__profile__organization_id", since)
     )
     # the latest first contributions first
-    new_cities = list(
-        _city_rows(in_window.filter(city_id__in=new_city_ids))
-        .annotate(first_contribution_at=Min("created_at"))
-        .order_by("-first_contribution_at")[:NEWCOMERS_LIMIT]
-    )
-    new_cities_departments = _departments({c["department_ref"] for c in new_cities})
     new_users = list(
         in_window.filter(user_id__in=new_user_ids)
         .values("user_id", username=F("user__username"))
@@ -271,13 +254,12 @@ def compute_contribution_summary(
     return {
         "updated_at": now.isoformat(),
         "window_days": days,
-        # total: None until the nightly KPIs are computed for the first time
         "cities": {
-            "total": _total(KPI_CONTRIBUTING_CITIES_COUNT),
+            "total": contributing["cities"],
             "new": len(new_city_ids),
         },
         "organizations": {
-            "total": _total(KPI_CONTRIBUTING_ORGANIZATIONS_COUNT),
+            "total": contributing["organizations"],
             "new": new_organizations,
         },
         # the window itself, and the contributions of the window of the same
@@ -302,9 +284,9 @@ def compute_contribution_summary(
             "organizations": _top_organizations(in_window),
             "cities": _top_cities(in_window),
         },
-        # very first contribution in the window, the latest first
+        # contributors whose very first contribution is in the window, the
+        # latest first
         "newcomers": {
-            "cities": [_city(c, new_cities_departments) for c in new_cities],
             "users": [{"username": public_username(u["username"])} for u in new_users],
         },
     }
