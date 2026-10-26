@@ -1,5 +1,5 @@
 location /admin/login {
-    # Same upstream as the rest of the vhost (named after VIRTUAL_HOST): follows the deploy drain.
+    # Same backend as the other routes, so this route also switches to the new container during a deploy.
     proxy_pass http://$host;
 
     limit_req zone=admin_login_rate_limit nodelay;

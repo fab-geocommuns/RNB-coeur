@@ -1,5 +1,5 @@
-# Copied into the nginx image as /etc/nginx/vhost.d/default_location (see nginx/Dockerfile):
-# nginx-proxy includes it in every location block it generates, so editing it rebuilds nginx-proxy.
+# Built into the nginx image (see nginx/Dockerfile) and applied to every API route.
+# Changing it restarts nginx-proxy on the next deploy: a few seconds of downtime.
 
 limit_req zone=api_rate_limit burst=20 nodelay;
 add_header RateLimit-Limit 20;
