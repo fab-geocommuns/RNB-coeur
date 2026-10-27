@@ -1,0 +1,22 @@
+meta {
+  name: Adresse - clé BAN
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/buildings/address/?cle_interop_ban={{cleInteropBan}}&from=monitoring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.cle_interop_ban: eq {{cleInteropBan}}
+  res.body.results: isArray
+}
+
+docs {
+  `results` peut être vide sur une base peuplée depuis la sandbox : elle n'a aucun lien
+  bâtiment-adresse. La requête vérifie alors seulement que l'endpoint répond.
+}

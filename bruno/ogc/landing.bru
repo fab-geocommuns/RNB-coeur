@@ -1,0 +1,16 @@
+meta {
+  name: Racine
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/alpha/ogc/?from=monitoring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.links: isNotEmpty
+}

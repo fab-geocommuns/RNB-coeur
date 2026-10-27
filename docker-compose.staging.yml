@@ -6,8 +6,6 @@ services:
     extends:
       file: docker-compose.common.yml
       service: nginx-proxy
-    volumes:
-      - "./nginx/vhost.d/web_location_additions:/etc/nginx/vhost.d/staging.rnb-api.beta.gouv.fr_location:ro"
 
   nginx-letsencrypt:
     extends:
@@ -25,7 +23,7 @@ services:
       - ./.env.app.staging
       - ./.env.rnb.staging
       - ./.env.sentry.staging
-    command: gunicorn app.wsgi:application --bind 0.0.0.0:8000 --threads 6 --workers 6
+    command: gunicorn app.wsgi:application --preload --bind 0.0.0.0:8000 --threads 6 --workers 6
     environment:
       - VIRTUAL_HOST=staging.rnb-api.beta.gouv.fr
       - VIRTUAL_PORT=8000

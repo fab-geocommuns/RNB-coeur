@@ -18,4 +18,5 @@ jobs:
                   username: ${{ secrets.SSH_USERNAME }}
                   key: ${{ secrets.SSH_PRIVATE_KEY_RESTRICTED }}
                   port: ${{ secrets.SSH_PORT }}
+                  command_timeout: 30m
                   script: ${{ github.ref_name }}

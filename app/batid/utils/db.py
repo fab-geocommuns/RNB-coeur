@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Iterable, TextIO
+from typing import BinaryIO, Iterable, TextIO
 
 from django.db import connection
 from django.db.backends.postgresql.psycopg_any import DateTimeTZRange
@@ -23,7 +23,7 @@ def dictfetchone(cursor, query, params=None):
 
 
 def copy_from_file(
-    *, cursor, file: TextIO, table: str, columns: Iterable[str], sep: str
+    *, cursor, file: TextIO | BinaryIO, table: str, columns: Iterable[str], sep: str
 ) -> None:
     """
     Bulk load a text-format COPY file into a table. NULL is the text format

@@ -51,6 +51,55 @@ docker compose --profile metabase up -d
 
 Le serveur local est lancé à l'adresse http://localhost:8000
 
+#### Passage de PostgreSQL 16 à 17 (base locale existante)
+
+Le conteneur `db` utilise `postgis/postgis:17-3.5`. Une base créée en 16 ne démarre pas en 17 : après `git pull` et `docker compose up -d`, `db` redémarre en boucle et `docker compose logs db` affiche :
+
+```
+FATAL:  database files are incompatible with server
+```
+
+`docker-compose.test.yml` partage le même volume (`name: rnb-coeur`) : faire la procédure une seule fois suffit. Ne pas la rejouer avec `-f docker-compose.test.yml` : son `down -v` effacerait la base restaurée.
+
+**Option A : repartir d'une base vide**
+
+```
+docker compose down -v
+docker compose up -d
+```
+
+`down -v` supprime les volumes du projet (base et RabbitMQ local). Les migrations sont jouées au démarrage de `web`. Réimporter ensuite des données (§ 6).
+
+**Option B : garder ses données**
+
+Tant que `db` tourne encore en 16 (après le `git pull`, avant tout `up`) :
+
+```
+docker compose stop web worker celery_beat
+docker compose exec -T db pg_dump -U postgres -Fc -f /tmp/rnb_pg16.dump postgres
+docker compose cp db:/tmp/rnb_pg16.dump ./rnb_pg16.dump
+```
+
+Le `stop` évite qu'une écriture arrive après le dump : elle serait perdue au `down -v`.
+
+Si `db` boucle déjà en 17 : remettre temporairement `postgis/postgis:16-3.5` dans `docker-compose.common.yml`, lancer `docker compose up -d --wait db` (les données n'ont pas été touchées), faire les trois commandes ci-dessus, `stop` compris, puis annuler la modification.
+
+Puis :
+
+```
+docker compose down -v
+docker compose up -d --wait db
+docker compose cp ./rnb_pg16.dump db:/tmp/rnb_pg16.dump
+docker compose exec -T db psql -U postgres -d template1 -c "DROP DATABASE postgres" -c "CREATE DATABASE postgres"
+docker compose exec -T db pg_restore -U postgres -d postgres --no-owner /tmp/rnb_pg16.dump
+docker compose exec -T db psql -U postgres -c "VACUUM (ANALYZE)"
+docker compose up -d
+```
+
+Comme en option A, `down -v` supprime aussi le volume RabbitMQ local. La base est recréée vide depuis `template1` : l'image y crée sinon déjà les extensions PostGIS et leurs schémas (`tiger`, `topology`), et `pg_restore` échoue sur ces doublons.
+
+Garder `rnb_pg16.dump` jusqu'à ce que tout fonctionne en 17 : c'est le seul retour possible (une base 17 ne se relit pas en 16). Le supprimer ensuite.
+
 ### 5. Créer un super utilisateur
 
 ```
@@ -59,23 +108,50 @@ docker exec -it web python manage.py createsuperuser
 
 ### 6. Importer des données de travail
 
-Pour importer des données de travail, il faut se connecter à une base de donnée existante et extraire un périmètre autour d'un point de référence.
+La commande `seed_local_db` remplit la base locale avec les bâtiments situés autour d'un ou plusieurs points GPS, extraits d'une base existante (typiquement la sandbox, copie de la prod). Elle importe aussi les adresses liées à ces bâtiments ainsi que les communes et départements concernés. Aucun utilisateur n'est copié.
 
-Voici un exemple des requêtes SQL qui permet d'extraire les bâtiments et les adresses autour de la tour Eiffel.
+Renseigner les paramètres dans `.env.seed.dev` (créé par `make env-local`, puis `docker compose up -d` pour le prendre en compte), puis :
 
-```sql
-SELECT * FROM batid_building bb WHERE st_dwithin(bb.shape, st_geomfromewkt('SRID=4326;POINT (2.294492349179413 48.85837023573654)'), 0.001);
-
-
-WITH addresses AS (SELECT unnest(addresses_internal_id) AS internal_id FROM batid_building bb WHERE st_dwithin(bb.shape, st_geomfromewkt('SRID=4326;POINT (2.294492349179413 48.85837023573654)'), 0.001))
-SELECT * FROM batid_address ba WHERE internal_id IN (SELECT internal_id FROM addresses);
+```
+docker exec -it web python manage.py seed_local_db
 ```
 
-L'insertion en base des adresses doit se faire avant celle des bâtiments, pour respecter les contraintes SQL de ForeignKeys.
+Chaque paramètre peut aussi être passé en ligne de commande, et est demandé de façon interactive s'il manque :
+
+```
+docker exec -it web python manage.py seed_local_db --point 48.8584,2.2945 --point 45.7640,4.8357 --radius-km 2
+```
+
+Avant l'import, la commande vérifie que les points sont en France, affiche le volume à importer et demande confirmation. `--truncate` vide d'abord les tables locales concernées, pour repartir de zéro.
+
 ## Lancer les tests
 ```
 docker exec -ti web python manage.py test
 ```
+
+## Déploiement et migrations
+
+Le déploiement se fait sans coupure : les migrations passent dans un conteneur jetable, puis le nouveau `web` remplace l'ancien. Pendant environ 1 min 30, l'ancien code tourne donc sur le nouveau schéma. C'est le cas de tout déploiement sans coupure (release phase de Heroku, Job Kubernetes…).
+
+**Toute migration doit fonctionner avec la version précédente du code.** En pratique :
+
+* ajouter une table, un index, une colonne nullable ou avec `db_default` : rien de particulier ;
+* renommer un champ : le renommer côté Python en gardant `db_column="ancien_nom"`, aucune migration en base ;
+* supprimer un champ : le retirer du code avec une migration `SeparateDatabaseAndState` qui ne change que l'état Django (et rend la colonne nullable si elle est `NOT NULL`), puis faire le `DROP COLUMN` dans un déploiement suivant ;
+* autre changement cassant (type de colonne, contrainte) : le découper, ou accepter environ 1 min 30 d'erreurs sur les routes concernées, à une heure calme.
+
+Pendant environ 30 s, l'ancienne et la nouvelle version répondent toutes les deux : un changement d'API qui casse les clients (par exemple l'échange de code ProConnect de #1107) doit rester compatible le temps d'un déploiement, sinon accepter quelques erreurs.
+
+`POSTGRES_STATEMENT_TIMEOUT` s'applique aussi à `migrate`. Une migration plus longue lève elle-même la limite avec `SET statement_timeout = '0'; SET lock_timeout = '5s';`, comme les migrations `0148` et `0156`. Un verrou `ACCESS EXCLUSIVE` bloque l'API en service pendant toute la migration. Le `lock_timeout` borne l'attente de ce verrou, pendant laquelle les requêtes de l'API s'accumulent derrière la migration : le garder court.
+
+Une recopie de données ne se fait pas dans la migration mais dans une tâche Celery par lots, sur le modèle de `fill_empty_event_id` (`batid/services/data_fix/fill_empty_event_id.py` et `batid/tasks.py`).
+
+Sur les serveurs, le conteneur `web` n'a pas de nom fixe : `docker exec web` ne fonctionne qu'en local. Utiliser, avec `<env>` = `prod`, `staging` ou `sandbox` :
+```
+cd /srv/RNB-coeur && docker compose -f docker-compose.<env>.yml exec web python manage.py …
+```
+
+La séquence du déploiement et son comportement en cas d'échec sont décrits dans la section « Déploiement de RNB-cœur » du [README de RNB-infra](https://github.com/fab-geocommuns/RNB-infra#readme).
 
 ## Ajouter une dépendance python
 

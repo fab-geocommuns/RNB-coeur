@@ -4,10 +4,17 @@ WORKDIR /app
 
 RUN apt-get update && \
     apt-get install --yes libgdal-dev && \
-    apt-get install --no-install-suggests --no-install-recommends --yes pipx
+    apt-get install --no-install-suggests --no-install-recommends --yes pipx ca-certificates
+
+# pip < 26.2.2 trusts the compromised eMudhra/emSign CA through its vendored certifi.
+# Install the fixed wheel pinned by hash, so a MITM cannot tamper with it.
+RUN python3 -m pip install --no-cache-dir \
+    "pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    # make pip (including the one used by pipx) verify TLS against the up-to-date system CA store
+    PIP_CERT=/etc/ssl/certs/ca-certificates.crt \
     POETRY_VERSION=2.2.1 \
     # by default venv path would be set in /root folder and that would creates permission issues
     POETRY_VIRTUALENVS_PATH="/python_venv" \
@@ -44,7 +51,9 @@ RUN groupadd -r -g 999 app && \
 
 COPY --chown=999:999 . /app
 RUN mkdir /app/data
-RUN chown 999:999 /app/data
+# collectstatic writes to /app/static at startup as the app user: create the folder, the repo may not have it.
+RUN mkdir -p /app/static
+RUN chown 999:999 /app/data /app/static
 
 USER app
 

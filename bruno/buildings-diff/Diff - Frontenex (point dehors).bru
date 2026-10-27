@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/alpha/buildings/diff/?since={{since}}&insee_code=73121
+  url: {{baseUrl}}/api/alpha/buildings/diff/?since={{since}}&insee_code=73121&from=monitoring
   body: none
   auth: none
 }
@@ -13,6 +13,7 @@ get {
 params:query {
   since: {{since}}
   insee_code: 73121
+  from: monitoring
 }
 
 docs {

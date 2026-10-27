@@ -313,6 +313,15 @@ CELERY_TASK_DEFAULT_ROUTING_KEY = "default"
 CELERY_TASK_DEFAULT_PRIORITY = 5
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
+# Shared by every web worker and Celery process: Pro Connect one-time login
+# codes, DRF throttling counters, OIDC discovery/JWKS. DB 0 holds Celery results.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.environ.get("REDIS_CACHE_URL", "redis://redis:6379/1"),
+    }
+}
+
 
 CELERY_BEAT_SCHEDULE = get_celery_beat_schedule(ENVIRONMENT)
 
@@ -322,11 +331,9 @@ BLOCKED_IPS = os.environ.get("BLOCKED_IPS", "").split(",")
 URL = os.environ.get("URL")
 
 
-# Mattermost
-MATTERMOST_NOTIFICATIONS = (
-    True
-    if os.environ.get("MATTERMOST_NOTIFICATIONS") in ("true", "1", "True")
-    else False
+# Tchap (tech team notifications, see batid/services/tchap.py)
+TCHAP_NOTIFICATIONS = (
+    True if os.environ.get("TCHAP_NOTIFICATIONS") in ("true", "1", "True") else False
 )
 
 sentry_dsn = os.environ.get("SENTRY_DSN", None)

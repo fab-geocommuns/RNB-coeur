@@ -54,6 +54,8 @@
 .env.rabbitmq.staging
 .env.rabbitmq.sandbox
 
+.env.seed.dev
+
 # Jupyter notebooks trash
 app/.Trash-0/*
 
@@ -85,6 +87,9 @@ app/.Trash-0/*
 
 # Remove files in data folder since they are used for importing default data
 source_data/
+
+# Database dumps
+*.dump
 
 # Virtual environment
 venv/

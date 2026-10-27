@@ -3,6 +3,7 @@ from api_alpha.endpoints.auth.create_user import CreateUserView
 from api_alpha.endpoints.auth.pro_connect import (
     AuthorizeView,
     CallbackView,
+    ExchangeView,
     LogoutCallbackView,
     LogoutView,
 )
@@ -146,6 +147,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     ),
     path("auth/pro_connect/authorize/", AuthorizeView.as_view()),
     path("auth/pro_connect/callback/", CallbackView.as_view()),
+    path("auth/pro_connect/exchange/", ExchangeView.as_view()),
     path("auth/pro_connect/logout/callback/", LogoutCallbackView.as_view()),
     path("auth/pro_connect/logout/", LogoutView.as_view()),
     path("contributions/summary/", ContributionSummaryView.as_view()),
