@@ -93,6 +93,14 @@ def public_username(username: str) -> str:
     return username.split("@")[0]
 
 
+def organization_label(short_name: Optional[str], name: str) -> str:
+    """
+    Name under which an organization is shown, the same in every ranking: its
+    short name if any, else its name
+    """
+    return short_name or name
+
+
 def _departments(ids: set[Optional[int]]) -> dict[int, dict]:
     """{"code", "name"} of departments, by id"""
     return {
@@ -179,8 +187,14 @@ def _top_users(in_window: QuerySet) -> list[dict]:
         .order_by("-count", "username")[:TOP_LIMIT]
     )
     organizations = {
-        u["id"]: u["profile__organization__short_name"]
-        or u["profile__organization__name"]
+        u["id"]: (
+            organization_label(
+                u["profile__organization__short_name"],
+                u["profile__organization__name"],
+            )
+            if u["profile__organization__name"]
+            else None
+        )
         for u in User.objects.filter(id__in=[u["user_id"] for u in users]).values(
             "id", "profile__organization__short_name", "profile__organization__name"
         )
@@ -204,7 +218,11 @@ def _top_organizations(in_window: QuerySet) -> list[dict]:
     org_field = "user__profile__organization_id"
     organizations = list(
         in_window.exclude(user__profile__organization__isnull=True)
-        .values(org_field, name=F("user__profile__organization__name"))
+        .values(
+            org_field,
+            name=F("user__profile__organization__name"),
+            short_name=F("user__profile__organization__short_name"),
+        )
         .annotate(count=CONTRIBUTIONS)
         .order_by("-count", "name")[:TOP_LIMIT]
     )
@@ -222,7 +240,7 @@ def _top_organizations(in_window: QuerySet) -> list[dict]:
     departments = _departments(set(main_department.values()))
     return [
         {
-            "name": o["name"],
+            "name": organization_label(o["short_name"], o["name"]),
             "department": departments.get(main_department.get(o[org_field], 0)),
             "count": o["count"],
         }

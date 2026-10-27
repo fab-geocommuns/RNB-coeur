@@ -138,7 +138,7 @@ class ContributionSummaryTest(TestCase):
         )
         self.assertEqual(
             sorted(o["name"] for o in data["top"]["organizations"]),
-            ["Commune de Talence", settings.RNB_TEAM_ORG_NAME],
+            sorted(["Talence", settings.RNB_TEAM_ORG_NAME]),
         )
         self.assertEqual(
             sorted(c["name"] for c in data["top"]["cities"]),
@@ -245,6 +245,8 @@ class ContributionSummaryTest(TestCase):
         row.pk = None
         row.action = "set_address"
         row.save()
+        # created_at is set on save: put the row back in the window
+        SummerChallenge.objects.filter(pk=row.pk).update(created_at=IN_WINDOW)
 
         data = compute_contribution_summary(now=NOW)
 
@@ -254,7 +256,7 @@ class ContributionSummaryTest(TestCase):
         """
         Input: alice (Commune de Talence) contributes twice in Gironde and once
         in Savoie.
-        Expected: the organization is shown with Gironde.
+        Expected: the organization is shown under its short name, with Gironde.
         """
         edition(self.alice, IN_WINDOW, self.talence, self.gironde)
         edition(self.alice, IN_WINDOW, self.talence, self.gironde)
@@ -266,12 +268,26 @@ class ContributionSummaryTest(TestCase):
             data["top"]["organizations"],
             [
                 {
-                    "name": "Commune de Talence",
+                    "name": "Talence",
                     "department": {"code": "33", "name": "Gironde"},
                     "count": 3,
                 }
             ],
         )
+
+    def test_organization_has_the_same_name_in_every_ranking(self):
+        """
+        Input: alice, member of "Commune de Talence" (short name "Talence"),
+        contributes in the window.
+        Expected: the organization is "Talence" both next to alice and in the
+        organizations ranking.
+        """
+        edition(self.alice, IN_WINDOW, self.talence, self.gironde)
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(data["top"]["users"][0]["organization"], "Talence")
+        self.assertEqual(data["top"]["organizations"][0]["name"], "Talence")
 
     def test_email_usernames_are_not_published(self):
         """
@@ -331,7 +347,11 @@ class ContributionSummaryTest(TestCase):
         self.assertEqual(data["building_changes"], {"total": 15, "contributions": 15})
 
 
-@override_settings(MAX_BUILDING_AREA=float("inf"))
+# a cache of its own, so that the tests never touch the Redis one
+@override_settings(
+    MAX_BUILDING_AREA=float("inf"),
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
+)
 class ContributionSummaryApiTest(APITestCase):
     URL = "/api/alpha/contributions/summary/"
 
