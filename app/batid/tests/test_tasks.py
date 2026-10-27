@@ -9,6 +9,8 @@ from batid.services.source import delete_files_older_than
 from batid.tasks import create_sandbox_user
 from django.test import SimpleTestCase, TestCase
 
+from app.celery import app as celery_app
+
 
 class TestCreateSandboxUserTask(TestCase):
     @mock.patch("batid.tasks.make_random_password")
@@ -45,6 +47,40 @@ class TestCreateSandboxUserTask(TestCase):
             self.assertEqual(
                 json.dumps(call_args[1]["json"]), json.dumps(expected_json_params)
             )
+
+
+class TestAcksLateTasks(SimpleTestCase):
+    def test_acks_late_tasks(self):
+        """
+        Input: every Celery task registered under batid.tasks.
+        Expected: the tasks with acks_late=True are exactly the 12 import tasks of #1144;
+        sending tasks and update_all_cities_ban_ids_reliability stay acked on start.
+        """
+        acks_late_tasks = {
+            name
+            for name, task in celery_app.tasks.items()
+            if name.startswith("batid.tasks.") and task.acks_late
+        }
+        self.assertSetEqual(
+            acks_late_tasks,
+            {
+                f"batid.tasks.{name}"
+                for name in [
+                    "dl_source",
+                    "convert_bdtopo",
+                    "import_plots",
+                    "import_ban",
+                    "import_cities",
+                    "inspect_candidates",
+                    "flag_addresses_from_ban",
+                    "compare_addresses_with_ban",
+                    "create_dpt_bal_rnb_links",
+                    "geocode_obsolete_addresses_task",
+                    "update_addresses_from_ban_comparison_task",
+                    "replace_obsolete_addresses_from_geocoding_task",
+                ]
+            },
+        )
 
 
 class TestDeleteFilesOlderThan(SimpleTestCase):

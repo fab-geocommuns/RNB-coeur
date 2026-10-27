@@ -74,8 +74,14 @@ def heartbeat() -> None:
     print("Test celery_beat heartbeat")
 
 
+# acks_late: the message is acked when the task ends, not when it starts. If a deploy
+# kills the worker mid-task, RabbitMQ redelivers it to the new worker. Only set on
+# tasks safe to run twice: never on sending tasks (an email would be sent twice).
 @shared_task(
-    autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 5}
+    acks_late=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 5},
 )
 def dl_source(src_name: str, src_params: dict):
 
@@ -105,7 +111,9 @@ def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
 
 
 @notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    acks_late=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def convert_bdtopo(src_params, bulk_launch_uuid=None):
 
     create_candidate_from_bdtopo(src_params, bulk_launch_uuid)
@@ -144,7 +152,9 @@ def queue_full_bdtopo_import(
 
 
 @notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    acks_late=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def import_plots(dpt: str, release_date: str):
     import_etalab_plots_job(dpt, release_date)
     return "done"
@@ -178,7 +188,9 @@ def queue_full_plots_import(
     return f"Queued {len(tasks)} tasks"
 
 
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    acks_late=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def import_cities(dpt):
     import_etalab_cities(dpt)
     return "done"
@@ -205,7 +217,9 @@ def import_dpts():
     import_etalab_dpts()
 
 
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    acks_late=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def inspect_candidates():
     vacuum_analyze_candidates_if_needed()
     i = Inspector()
@@ -322,7 +336,9 @@ def queue_full_ban_import(
 
 
 @notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    acks_late=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def import_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
     return import_ban_addresses(src_params, bulk_launch_uuid)
 
@@ -364,7 +380,9 @@ def queue_full_bal_rnb_links(
 
 
 @notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    acks_late=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid: Optional[str] = None):
 
     return create_dpt_bal_rnb_links_job(src_params, bulk_launch_uuid)
@@ -472,7 +490,9 @@ def send_report_activity_notification(
 
 
 @notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    acks_late=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def flag_addresses_from_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
     from batid.services.imports.update_addresses_ban import flag_addresses_from_ban_file
 
@@ -509,7 +529,9 @@ def queue_ban_address_flag_exists(
 
 
 @notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    acks_late=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def compare_addresses_with_ban(src_params: dict, batch_size: int = 1000):  # type: ignore[assignment]
     from batid.services.imports.update_addresses_ban import (
         compare_addresses_with_ban_file,
@@ -560,7 +582,9 @@ def delete_unlinked_obsolete_addresses_task(batch_size: int = 1000):
 
 
 @notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    acks_late=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def geocode_obsolete_addresses_task(batch_size: int = 1000):
     from batid.services.imports.update_addresses_ban import geocode_obsolete_addresses
 
@@ -568,7 +592,9 @@ def geocode_obsolete_addresses_task(batch_size: int = 1000):
 
 
 @notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    acks_late=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def update_addresses_from_ban_comparison_task(batch_size: int = 1000):
     from batid.services.imports.update_addresses_ban import (
         update_addresses_from_ban_comparison,
@@ -578,7 +604,9 @@ def update_addresses_from_ban_comparison_task(batch_size: int = 1000):
 
 
 @notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    acks_late=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def replace_obsolete_addresses_from_geocoding_task(batch_size: int = 1000):
     from batid.services.imports.update_addresses_ban import (
         replace_obsolete_addresses_from_geocoding,
