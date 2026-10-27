@@ -4,10 +4,14 @@ Summary of the community contributions shown on the home page of the website
 
 Everything is computed during the request, then cached for an hour: on a
 clone of the production data, about 2.5 s for a 30-day window, of which 0.3 s
-for the cumulative counts (cities and organizations that ever contributed).
+for the cumulative counts (cities and organizations that ever contributed),
+cached once for both windows.
 """
 
-from datetime import date, datetime, timedelta
+import time
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
+from typing import Callable
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -23,6 +27,7 @@ from django.core.cache import cache
 from django.db.models import (
     Count,
     F,
+    Max,
     Min,
     QuerySet,
     Sum,
@@ -40,7 +45,13 @@ TOP_LIMIT = 5
 NEWCOMERS_LIMIT = 8
 
 CACHE_KEY = "contribution_summary"
-CACHE_TIMEOUT_SECONDS = 3600
+# An entry is recomputed after an hour, but kept a day: while one request
+# recomputes it, the others get the previous one instead of all running the
+# same queries at once
+CACHE_FRESH_SECONDS = 3600
+CACHE_TIMEOUT_SECONDS = 24 * 3600
+# longest expected computation; past it, another request may try again
+REFRESH_LOCK_SECONDS = 60
 
 # A contribution is one distinct event_id: a single update (eg. shape + address)
 # writes several SummerChallenge rows sharing the same event_id
@@ -127,22 +138,31 @@ def _first_time_ids(in_window: QuerySet, field: str, since: datetime) -> set:
     return candidates - earlier
 
 
-def _building_changes(today: date, days: int) -> dict:
+def _building_changes(now: datetime, days: int) -> dict:
     """
-    Building changes of the last `days` complete days, from the daily KPIs
-    (computed every night for the day before): a building changed twice counts
-    twice. The contributions include the RNB team ones, the KPIs do not split them.
+    Building changes of the last `days` complete days, from the daily KPIs: a
+    building changed twice counts twice. A KPI covers a UTC day and is computed
+    at 3 am UTC for the day before, so the window ends on the latest computed
+    day: a day not computed yet would otherwise be missing from the sum. The
+    contributions include the RNB team ones, the KPIs do not split them.
     """
+    kpis = KPI.objects.filter(
+        name__in=[
+            KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
+            KPI_BUILDING_CHANGES_IMPORT_BAL,
+            KPI_BUILDING_CHANGES_CONTRIBUTIONS,
+        ],
+    )
+    last_day = kpis.filter(
+        value_date__lt=now.astimezone(dt_timezone.utc).date()
+    ).aggregate(last=Max("value_date"))["last"]
+    if last_day is None:
+        return {"total": 0, "contributions": 0}
     sums = {
         row["name"]: row["value"]
-        for row in KPI.objects.filter(
-            name__in=[
-                KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
-                KPI_BUILDING_CHANGES_IMPORT_BAL,
-                KPI_BUILDING_CHANGES_CONTRIBUTIONS,
-            ],
-            value_date__gte=today - timedelta(days=days),
-            value_date__lt=today,
+        for row in kpis.filter(
+            value_date__gt=last_day - timedelta(days=days),
+            value_date__lte=last_day,
         )
         .values("name")
         .annotate(value=Sum("value"))
@@ -230,14 +250,20 @@ def _top_cities(in_window: QuerySet) -> list[dict]:
 
 
 def compute_contribution_summary(
-    now: Optional[datetime] = None, days: int = DEFAULT_WINDOW_DAYS
+    now: Optional[datetime] = None,
+    days: int = DEFAULT_WINDOW_DAYS,
+    contributing: Optional[dict[str, int]] = None,
 ) -> dict:
-    """See the GET /api/alpha/contributions/summary/ documentation for the format"""
+    """
+    See the GET /api/alpha/contributions/summary/ documentation for the format.
+    `contributing` is the output of count_contributing(), computed if not given.
+    """
     now = (now or timezone.now()).astimezone(PARIS_TZ)
     since = now - timedelta(days=days)
     in_window = contributions().filter(created_at__gte=since, created_at__lt=now)
 
-    contributing = count_contributing()
+    if contributing is None:
+        contributing = count_contributing()
     new_city_ids = _first_time_ids(in_window, "city_id", since)
     new_user_ids = _first_time_ids(in_window, "user_id", since)
     new_organizations = len(
@@ -262,7 +288,7 @@ def compute_contribution_summary(
             "total": contributing["organizations"],
             "new": new_organizations,
         },
-        "building_changes": _building_changes(now.date(), days),
+        "building_changes": _building_changes(now, days),
         "top": {
             "users": _top_users(in_window),
             "organizations": _top_organizations(in_window),
@@ -276,11 +302,37 @@ def compute_contribution_summary(
     }
 
 
-def get_contribution_summary(days: int = DEFAULT_WINDOW_DAYS) -> dict:
-    """Cached version of compute_contribution_summary"""
-    key = f"{CACHE_KEY}:{days}"
-    data = cache.get(key)
-    if data is None:
-        data = compute_contribution_summary(days=days)
-        cache.set(key, data, CACHE_TIMEOUT_SECONDS)
+def _cached(key: str, compute: Callable[[], dict]) -> dict:
+    """
+    Value of `compute` cached under `key`. Once an entry is outdated, a single
+    request recomputes it (it holds a lock) and the others get the outdated
+    one meanwhile. Only an empty cache makes concurrent requests compute.
+    """
+    entry = cache.get(key)
+    if entry is not None:
+        if entry["fresh_until"] > time.time():
+            return entry["data"]
+        if not cache.add(f"{key}:refreshing", True, REFRESH_LOCK_SECONDS):
+            return entry["data"]
+    data = compute()
+    cache.set(
+        key,
+        {"data": data, "fresh_until": time.time() + CACHE_FRESH_SECONDS},
+        CACHE_TIMEOUT_SECONDS,
+    )
+    cache.delete(f"{key}:refreshing")
     return data
+
+
+def get_contribution_summary(days: int = DEFAULT_WINDOW_DAYS) -> dict:
+    """
+    Cached version of compute_contribution_summary. The counts over the whole
+    history do not depend on the window: they are cached once for all windows.
+    """
+    return _cached(
+        f"{CACHE_KEY}:{days}",
+        lambda: compute_contribution_summary(
+            days=days,
+            contributing=_cached(f"{CACHE_KEY}:contributing", count_contributing),
+        ),
+    )

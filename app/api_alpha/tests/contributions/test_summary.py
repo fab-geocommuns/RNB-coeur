@@ -1,5 +1,7 @@
 import itertools
+import time
 from datetime import date, datetime
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from batid.models import (
@@ -10,7 +12,9 @@ from batid.models import (
     Organization,
     SummerChallenge,
 )
+from batid.services import contribution_summary
 from batid.services.contribution_summary import (
+    CACHE_KEY,
     compute_contribution_summary,
     count_contributing,
 )
@@ -303,6 +307,29 @@ class ContributionSummaryTest(TestCase):
 
         self.assertEqual(data["building_changes"], {"total": 167, "contributions": 7})
 
+    def test_building_changes_end_on_the_latest_computed_day(self):
+        """
+        Input: at 2 am in Paris on 15 October, the KPIs of 14 October are not
+        computed yet (the cron runs at 3 am UTC); KPIs on 13 October and on
+        14 and 13 September.
+        Expected: the 30 days end on 13 October: 13 October and 14 September
+        are summed, 13 September is not.
+        """
+        for day, value in [
+            (date(2026, 10, 13), 10),
+            (date(2026, 9, 14), 5),
+            (date(2026, 9, 13), 999),
+        ]:
+            KPI.objects.create(
+                name=KPI_BUILDING_CHANGES_CONTRIBUTIONS, value_date=day, value=value
+            )
+
+        data = compute_contribution_summary(
+            now=datetime(2026, 10, 15, 2, 0, tzinfo=PARIS)
+        )
+
+        self.assertEqual(data["building_changes"], {"total": 15, "contributions": 15})
+
 
 @override_settings(MAX_BUILDING_AREA=float("inf"))
 class ContributionSummaryApiTest(APITestCase):
@@ -349,3 +376,56 @@ class ContributionSummaryApiTest(APITestCase):
         response = self.client.get(self.URL)
 
         self.assertEqual(response.json()["top"]["users"], [])
+
+    def test_outdated_summary_is_served_while_another_request_refreshes_it(self):
+        """
+        Input: an outdated cached summary, and the refresh lock already taken
+        by another request.
+        Expected: the outdated summary is returned, without computing.
+        """
+        stale = {"window_days": 30, "stale": True}
+        cache.set(
+            f"{CACHE_KEY}:30", {"data": stale, "fresh_until": time.time() - 1}, 60
+        )
+        cache.add(f"{CACHE_KEY}:30:refreshing", True, 60)
+
+        with patch.object(
+            contribution_summary, "compute_contribution_summary"
+        ) as compute:
+            response = self.client.get(self.URL)
+
+        self.assertEqual(response.json(), stale)
+        compute.assert_not_called()
+
+    def test_outdated_summary_is_recomputed(self):
+        """
+        Input: an outdated cached summary, nobody refreshing it, then a
+        contribution.
+        Expected: the summary is recomputed and the lock released.
+        """
+        cache.set(
+            f"{CACHE_KEY}:30",
+            {"data": {"stale": True}, "fresh_until": time.time() - 1},
+            60,
+        )
+        edition(ContributorUserFactory(username="alice"), timezone.now())
+
+        response = self.client.get(self.URL)
+
+        self.assertEqual(response.json()["top"]["users"][0]["username"], "alice")
+        self.assertIsNone(cache.get(f"{CACHE_KEY}:30:refreshing"))
+
+    def test_counts_over_the_whole_history_are_shared_by_the_windows(self):
+        """
+        Input: a call with days=7, then one with days=30.
+        Expected: the counts over the whole history are computed once.
+        """
+        with patch.object(
+            contribution_summary,
+            "count_contributing",
+            wraps=contribution_summary.count_contributing,
+        ) as count:
+            self.client.get(f"{self.URL}?days=7")
+            self.client.get(f"{self.URL}?days=30")
+
+        self.assertEqual(count.call_count, 1)
