@@ -74,12 +74,16 @@ services:
     env_file:
       - ./.env.worker.staging
 
+  # Not started by deploys, start on demand with:
+  # docker compose -f docker-compose.staging.yml --profile metabase up -d metabase
   metabase:
     extends:
       file: docker-compose.common.yml
       service: metabase
     env_file:
       - ./.env.metabase.staging
+    profiles:
+      - metabase
 
 volumes:
   certs:
