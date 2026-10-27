@@ -113,11 +113,11 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
         if batch:
             still_exists_count += _mark_existing_addresses(batch)
 
-    # Clean up the file
-    os.remove(file_path)
-
     # Mark addresses not in BAN as still_exists=False
     obsolete_count = _mark_obsolete_addresses(dpt, seen_cle_interops)
+
+    # Clean up the file
+    os.remove(file_path)
 
     logger.info(
         f"[{dpt}] Confirmed existence of {still_exists_count} addresses, marked {obsolete_count} as obsolete"

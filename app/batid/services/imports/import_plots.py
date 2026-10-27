@@ -49,8 +49,8 @@ def import_etalab_plots(dpt: str, release_date: str, batch_size: int = 100_000):
         if batch:
             _save_plots(batch)
 
-        # remove the file
-        os.remove(src.path)
+    # remove the file
+    os.remove(src.path)
 
 
 def _save_plots(rows):
