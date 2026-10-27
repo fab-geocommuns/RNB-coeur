@@ -11,8 +11,7 @@ cached once for both windows.
 import time
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
-from typing import Callable
-from typing import Optional
+from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
 from batid.models import KPI, Department, SummerChallenge
