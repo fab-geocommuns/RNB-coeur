@@ -1,4 +1,5 @@
 import logging
+import time
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -61,10 +62,11 @@ from batid.services.reports.arcep import (
     reject_irrelevant_arcep_reports,
 )
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
-from batid.services.source import Source
+from batid.services.source import Source, delete_files_older_than
 from batid.services.tchap import notify_if_error, notify_tech
 from batid.utils.auth import make_random_password
 from celery import Signature, chain, shared_task
+from django.conf import settings
 
 
 @shared_task
@@ -583,3 +585,10 @@ def replace_obsolete_addresses_from_geocoding_task(batch_size: int = 1000):
     )
 
     return replace_obsolete_addresses_from_geocoding(batch_size)
+
+
+@shared_task
+def delete_old_data_files() -> int:
+    # Files older than 7 days are leftovers from failed or abandoned runs.
+    cutoff = time.time() - 7 * 24 * 3600
+    return delete_files_older_than(root_dir=settings.WRITABLE_DATA_DIR, cutoff=cutoff)

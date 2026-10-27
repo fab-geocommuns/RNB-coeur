@@ -43,6 +43,8 @@ services:
       - ./.env.rnb.prod
       - ./.env.sentry.prod
       - ./.env.s3_backup.prod
+    volumes:
+      - worker_data:/app/data
 
   celery_beat:
     extends:
@@ -88,3 +90,4 @@ volumes:
   vhost:
   acme:
   html:
+  worker_data:

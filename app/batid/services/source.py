@@ -1,9 +1,11 @@
 import csv
 import gzip
+import logging
 import os
 import shutil
 import tarfile
 import zipfile
+from datetime import datetime, timezone
 
 import nanoid
 import py7zr
@@ -11,12 +13,58 @@ import requests
 
 from app.settings import WRITABLE_DATA_DIR
 
+logger = logging.getLogger(__name__)
+
 
 def source_data_directory() -> str:
     directory_name = "source_data"
     directory_path = os.path.join(WRITABLE_DATA_DIR, directory_name)
     os.makedirs(directory_path, exist_ok=True)
     return directory_path
+
+
+def _raise_unless_not_found(error: OSError) -> None:
+    if not isinstance(error, FileNotFoundError):
+        raise error
+
+
+def delete_files_older_than(*, root_dir: str, cutoff: float) -> int:
+    """Delete the files and the empty directories under root_dir last modified or
+    created before cutoff (epoch seconds). root_dir itself is kept. Returns the number
+    of deleted files."""
+    # Extraction keeps the archive mtime, so ctime is what tells a fresh file apart.
+    # A fresh empty directory may be filled by a running extraction: kept too.
+    deleted_count = 0
+    for dir_path, dir_names, file_names in os.walk(
+        root_dir, topdown=False, onerror=_raise_unless_not_found
+    ):
+        for file_name in file_names:
+            file_path = os.path.join(dir_path, file_name)
+            try:
+                stat = os.lstat(file_path)
+                if max(stat.st_mtime, stat.st_ctime) < cutoff:
+                    os.remove(file_path)
+                    deleted_count += 1
+            except FileNotFoundError:
+                # A running import task may remove its own files meanwhile.
+                continue
+
+        if dir_path == root_dir:
+            continue
+        try:
+            stat = os.lstat(dir_path)
+            if not os.listdir(dir_path) and max(stat.st_mtime, stat.st_ctime) < cutoff:
+                os.rmdir(dir_path)
+        except FileNotFoundError:
+            continue
+
+    logger.info(
+        "Deleted %s files older than %s in %s",
+        deleted_count,
+        datetime.fromtimestamp(cutoff, tz=timezone.utc).isoformat(),
+        root_dir,
+    )
+    return deleted_count
 
 
 class Source:
