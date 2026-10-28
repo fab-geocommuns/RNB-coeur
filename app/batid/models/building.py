@@ -508,9 +508,20 @@ class Building(BuildingAbstract):
         self.event_origin = event_origin
         self.revert_event_id = None
 
+        # Summer Challenge! Only contributions are scored: update() is also
+        # called by imports and data fixes (eg. the replacement of obsolete BAN
+        # addresses), which must not count as contributions
+        is_contribution = (
+            isinstance(event_origin, dict)
+            and event_origin.get("source") == "contribution"
+        )
+
         if status is not None and self.status != status:
             self.status = status
-            SummerChallenge.score_status(user, self.point, self.rnb_id, self.event_id)
+            if is_contribution:
+                SummerChallenge.score_status(
+                    user, self.point, self.rnb_id, self.event_id
+                )
 
         if ext_ids is not None:
             self.ext_ids = ext_ids
@@ -518,8 +529,10 @@ class Building(BuildingAbstract):
         if shape is not None and self.shape != shape:
             self.shape = shape
             self.point = shape.point_on_surface
-            # Summer Challenge!
-            SummerChallenge.score_shape(user, self.point, self.rnb_id, self.event_id)
+            if is_contribution:
+                SummerChallenge.score_shape(
+                    user, self.point, self.rnb_id, self.event_id
+                )
 
         if addresses_cle_interop is not None:
             Address.add_addresses_to_db_if_needed(addresses_cle_interop)
@@ -527,16 +540,14 @@ class Building(BuildingAbstract):
                 addresses_cle_interop
             )
 
-            # Summer Challenge!
-            if self.addresses_internal_id != addresses_internal_id:
+            if is_contribution and self.addresses_internal_id != addresses_internal_id:
                 SummerChallenge.score_address(
                     user, self.point, self.rnb_id, self.event_id
                 )
 
             self.addresses_internal_id = addresses_internal_id
 
-        # Summer Challenge!
-        if newly_validated:
+        if is_contribution and newly_validated:
             SummerChallenge.score_validation(
                 user, self.point, self.rnb_id, self.event_id
             )
