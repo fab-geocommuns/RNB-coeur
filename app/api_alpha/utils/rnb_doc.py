@@ -238,6 +238,18 @@ def _get_components() -> dict:
                     },
                 },
             },
+            "BuildingPoint": {
+                "type": "object",
+                "description": "Coordonnées géographiques du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84.",
+                "properties": {
+                    "type": {"type": "string", "example": "Point"},
+                    "coordinates": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "example": [-0.570505392116188, 44.841034137099996],
+                    },
+                },
+            },
             "BuildingShape": {
                 "type": "object",
                 "description": "Géométrie représentative du bâtiment. Elle peut être un multipolygone, un polygone ou un point et correspond à notre meilleure connaissance de la réalité.",
@@ -245,7 +257,7 @@ def _get_components() -> dict:
                     "type": {
                         "type": "string",
                         "enum": ["Point", "Polygon", "MultiPolygon"],
-                        "example": "Point",
+                        "example": "MultiPolygon",
                     },
                     "coordinates": {
                         "oneOf": [
@@ -253,7 +265,10 @@ def _get_components() -> dict:
                                 "type": "array",
                                 "description": "Coordonnées pour un Point",
                                 "items": {"type": "number"},
-                                "example": [-0.570505392116188, 44.841034137099996],
+                                "example": [
+                                    -0.570505392116188,
+                                    44.841034137099996,
+                                ],
                             },
                             {
                                 "type": "array",
@@ -267,8 +282,14 @@ def _get_components() -> dict:
                                 },
                                 "example": [
                                     [
-                                        [-0.570505392116188, 44.841034137099996],
-                                        [-0.570505392116188, 44.841034137099996],
+                                        [
+                                            -0.570505392116188,
+                                            44.841034137099996,
+                                        ],
+                                        [
+                                            -0.570505392116188,
+                                            44.841034137099996,
+                                        ],
                                     ]
                                 ],
                             },
@@ -288,13 +309,33 @@ def _get_components() -> dict:
                                 "example": [
                                     [
                                         [
-                                            [-0.570505392116188, 44.841034137099996],
-                                            [-0.570505392116188, 44.841034137099996],
+                                            [
+                                                -0.570505392116188,
+                                                44.841034137099996,
+                                            ],
+                                            [
+                                                -0.570505392116188,
+                                                44.841034137099996,
+                                            ],
                                         ]
                                     ]
                                 ],
                             },
-                        ]
+                        ],
+                        "example":[
+                            [
+                                [
+                                    [
+                                        -0.570505392116188,
+                                        44.841034137099996,
+                                    ],
+                                    [
+                                        -0.570505392116188,
+                                        44.841034137099996,
+                                    ],
+                                ]
+                            ]
+                        ],
                     },
                 },
             },
@@ -400,24 +441,8 @@ def _get_components() -> dict:
                 "properties": {
                     "rnb_id": {"$ref": "#/components/schemas/RNBID"},
                     "status": {"$ref": "#/components/schemas/BuildingStatus"},
-                    "point": {
-                        "type": "object",
-                        "description": "Coordonnées géographiques du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84.",
-                        "properties": {
-                            "type": {"type": "string", "example": "Point"},
-                            "coordinates": {
-                                "type": "array",
-                                "items": {"type": "number"},
-                                "example": [-0.570505392116188, 44.841034137099996],
-                            },
-                        },
-                    },
-                    "shape": {
-                        "oneOf": [
-                            {"$ref": "#/components/schemas/BuildingShape"},
-                            {"type": "null"},
-                        ]
-                    },
+                    "point": {"$ref": "#/components/schemas/BuildingPoint"},
+                    "shape": {"$ref": "#/components/schemas/BuildingShape"},
                     "addresses": {
                         "type": "array",
                         "description": "Liste des adresses du bâtiment",
