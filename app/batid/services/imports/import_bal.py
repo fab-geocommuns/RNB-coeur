@@ -1,6 +1,5 @@
 import csv
 import logging
-import os
 import uuid
 from typing import Optional
 
@@ -14,11 +13,12 @@ from batid.models import Address, Building, BuildingImport
 from batid.services.bdg_status import BuildingStatus
 from batid.services.imports import building_import_history
 from batid.services.RNB_team_user import get_RNB_team_user
-from batid.services.source import Source
+from batid.services.source import Source, remove_after_task_success
 from batid.utils.db import dictfetchall
 from celery import Signature
 from django.contrib.gis.geos import Point
 from django.db import connection, transaction
+from django.db.models import F
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +135,13 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
         total_refused += refused
 
     # We remove the source file
-    os.remove(src.find(src.filename))
+    # A replay refuses the rows of the batches already done again: the refusals are
+    # those of the last complete run, set once instead of added up.
+    BuildingImport.objects.filter(id=building_import.id).update(
+        building_refused_count=total_refused
+    )
+
+    remove_after_task_success(src.find(src.filename))
 
     logger.info(
         "BAL import dpt %s done: %d batches, %d links created, %d refused",
@@ -319,9 +325,11 @@ def process_batch(batch: list, bdg_import: BuildingImport) -> tuple[int, int]:
                 refused_count += 1
                 continue
 
-        bdg_import.building_refused_count += refused_count  # type: ignore
-        bdg_import.building_updated_count += updated_count  # type: ignore
-        bdg_import.save()
+        # Links of a batch are committed with their count. A replay skips them (see
+        # _known_building_address_link), so the count stays exact.
+        BuildingImport.objects.filter(id=bdg_import.id).update(
+            building_updated_count=F("building_updated_count") + updated_count
+        )
 
     logger.info(
         "Batch done: size=%d, links_created=%d, refused=%d",

@@ -1,7 +1,7 @@
 from datetime import datetime
 from unittest.mock import patch
 
-from batid.models import Building, Candidate
+from batid.models import Building, BuildingImport, Candidate
 from batid.services.candidate import Inspector
 from batid.services.imports.import_bdtopo import (
     bdtopo_dpts_list,
@@ -92,6 +92,48 @@ class ImportBDTopoGeopackage(TransactionTestCase):
 
         # Expect 4 buildings: one from setUp and 3 from the import (candidate BATIMENT0000000312141318 should be rejected since it is too small)
         self.assertEqual(Building.objects.count(), 4)
+
+    @patch("batid.services.imports.import_bdtopo._known_bdtopo_id")
+    @patch("batid.services.imports.import_bdtopo.Source.find")
+    @patch("batid.services.imports.import_bdtopo.Source.remove_uncompressed_folder")
+    def test_convert_without_new_building(
+        self, sourceRemoveFolderMock, sourceFindMock, knownBdtopoIdMock
+    ):
+        """
+        Input: the fixture, every building of it already known in the RNB.
+        Expected: no candidate, no error, the extracted folder removed.
+        """
+        sourceFindMock.return_value = helpers.fixture_path("bdtopo_for_test.gpkg")
+        knownBdtopoIdMock.return_value = True
+
+        create_candidate_from_bdtopo(bdtopo_src_params("02", "2025-09-15"))
+
+        self.assertEqual(Candidate.objects.count(), 0)
+        sourceRemoveFolderMock.assert_called_once()
+
+    @patch("batid.services.imports.import_bdtopo.Source.find")
+    @patch("batid.services.imports.import_bdtopo.Source.remove_uncompressed_folder")
+    def test_replayed_convert_creates_no_duplicate(
+        self, sourceRemoveFolderMock, sourceFindMock
+    ):
+        """
+        Input: the fixture converted twice with the same bulk launch uuid (a Celery
+        replay), then once with another uuid.
+        Expected: 3 candidates and a single import row after the replay, 6
+        candidates after the new launch.
+        """
+        sourceFindMock.return_value = helpers.fixture_path("bdtopo_for_test.gpkg")
+        src_params = bdtopo_src_params("02", "2025-09-15")
+        bulk_launch_uuid = "5f0c2d1e-8a3b-4c6d-9e7f-102938475600"
+
+        create_candidate_from_bdtopo(src_params, bulk_launch_uuid)
+        create_candidate_from_bdtopo(src_params, bulk_launch_uuid)
+        self.assertEqual(Candidate.objects.count(), 3)
+        building_import = BuildingImport.objects.get(bulk_launch_uuid=bulk_launch_uuid)
+        self.assertEqual(building_import.candidate_created_count, 3)
+
+        create_candidate_from_bdtopo(src_params, "7a1b2c3d-4e5f-4061-8293-a4b5c6d7e8f9")
+        self.assertEqual(Candidate.objects.count(), 6)
 
 
 class TestImportTasks(TestCase):
