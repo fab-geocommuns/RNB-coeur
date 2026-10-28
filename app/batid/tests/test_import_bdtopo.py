@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from batid.models import Building, BuildingImport, Candidate
 from batid.services.candidate import Inspector
+from batid.services.imports import building_import_history
 from batid.services.imports.import_bdtopo import (
     bdtopo_dpts_list,
     bdtopo_src_params,
@@ -13,6 +14,7 @@ from batid.tests import helpers
 from batid.tests.factories.users import UserFactory
 from batid.tests.helpers import create_default_bdg
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
+from django.db import connection, transaction
 from django.test import TestCase, TransactionTestCase
 
 
@@ -148,3 +150,22 @@ class TestImportTasks(TestCase):
         for dpt_chain in all_tasks:
 
             self.assertEqual(len(dpt_chain.tasks), 2)
+
+
+class TestLockBuildingImport(TestCase):
+    def test_lock_wait_is_not_cut_by_the_statement_timeout(self):
+        """
+        Input: the lock of a department import taken in a transaction, on a
+        connection with a statement_timeout (15 s on the worker).
+        Expected: the statement_timeout is 0 until the end of the transaction, so a
+        run waiting for another one's COPY is not cancelled.
+        """
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL statement_timeout = 15000")
+            building_import_history.lock_building_import(
+                source="bdtopo", bulk_launch_uuid="test", dpt="02"
+            )
+            with connection.cursor() as cursor:
+                cursor.execute("SHOW statement_timeout")
+                self.assertEqual(cursor.fetchone()[0], "0")

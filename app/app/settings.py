@@ -318,9 +318,10 @@ CELERY_TASK_DEFAULT_EXCHANGE = "default"
 CELERY_TASK_DEFAULT_ROUTING_KEY = "default"
 CELERY_TASK_DEFAULT_PRIORITY = 5
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
-# acks_late tasks only: on broker connection loss, terminate and redeliver once
-# instead of running twice (Celery 6 default).
-CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS = True
+# acks_late tasks, on broker connection loss: the running task goes on to the end, as
+# before acks_late. Its message is redelivered, then ignored by ReplayableTask once
+# the task succeeded. Explicit: Celery 6 will default to cancel and rerun it.
+CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS = False
 
 # Shared by every web worker and Celery process: Pro Connect one-time login
 # codes, DRF throttling counters, OIDC discovery/JWKS. DB 0 holds Celery results.

@@ -21,15 +21,24 @@ class ReplayableTask(Task):
     acks_late = True
 
     def before_start(self, task_id, args, kwargs):
-        db = connections["default"]
-        lock_connection = db.get_new_connection(db.get_connection_params())
-        lock_connection.autocommit = True
-        setattr(self.request, "replayable_task_lock", lock_connection)
-        lock_connection.execute(
-            "SELECT pg_advisory_lock(hashtext(%s))", [f"celery_task:{task_id}"]
-        )
+        try:
+            db = connections["default"]
+            lock_connection = db.get_new_connection(db.get_connection_params())
+            setattr(self.request, "replayable_task_lock", lock_connection)
+            lock_connection.autocommit = True
+            # The worker statement_timeout would cancel the wait for a run that
+            # lasts hours
+            lock_connection.execute("SET statement_timeout = 0")
+            lock_connection.execute(
+                "SELECT pg_advisory_lock(hashtext(%s))", [f"celery_task:{task_id}"]
+            )
+            already_successful = self.AsyncResult(task_id).state == states.SUCCESS
+        except Exception as exc:
+            # autoretry_for only covers the task body: a database or Redis outage
+            # must not ack and lose the message
+            raise self.retry(exc=exc)
 
-        if self.AsyncResult(task_id).state == states.SUCCESS:
+        if already_successful:
             raise Ignore()
 
 

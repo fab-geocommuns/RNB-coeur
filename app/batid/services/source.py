@@ -11,6 +11,7 @@ from typing import Callable
 import nanoid
 import py7zr
 import requests
+from batid.services.replayable_task import ReplayableTask
 from celery import current_task, states
 
 from app.settings import WRITABLE_DATA_DIR
@@ -30,18 +31,26 @@ def source_data_directory() -> str:
 # instead of a truncated one.
 def _write_file_atomically(*, path: str, content: bytes) -> None:
     tmp_path = f"{path}.{nanoid.generate(size=10)}.tmp"
-    with open(tmp_path, "wb") as file:
-        file.write(content)
-    os.replace(tmp_path, path)
+    try:
+        with open(tmp_path, "wb") as file:
+            file.write(content)
+        os.replace(tmp_path, path)
+    except BaseException:
+        _remove_path(tmp_path)
+        raise
 
 
 def remove_after_task_success(path: str) -> None:
-    """Remove a consumed source file or folder. Inside a Celery task, wait until the
-    task success is stored (see remove_paths_of_successful_task): a task killed before
-    is redelivered and needs the file again, one killed after is skipped as already
-    successful. Outside a task, remove it now."""
-    # current_task is a proxy, falsy outside a task
-    if not current_task or current_task.request.called_directly:
+    """Remove a consumed source file or folder. Inside a ReplayableTask, wait until
+    the task success is stored (see remove_paths_of_successful_task): a task killed
+    before is redelivered and needs the file again, one killed after is skipped as
+    already successful. Anywhere else, remove it now: a task that loops over
+    departments must not keep every extracted folder until its end."""
+    # current_task is a proxy: isinstance sees the running task, if any
+    if (
+        not isinstance(current_task, ReplayableTask)
+        or current_task.request.called_directly
+    ):
         _remove_path(path)
         return
     # the Celery request accepts any attribute; it lives until the task ends
@@ -294,10 +303,14 @@ class Source:
     def _extract_atomically(self, extract: Callable[[str], None]) -> None:
         # Same reason as _write_file_atomically. Extracted outside abs_dir, so that
         # find() never returns a partially extracted file.
-        extracting_dir = os.path.join(self._dl_dir, "extracting")
-        os.makedirs(extracting_dir, exist_ok=True)
-        tmp_dir = os.path.join(extracting_dir, nanoid.generate(size=10))
-        extract(tmp_dir)
+        tmp_dir = os.path.join(self._dl_dir, "extracting", nanoid.generate(size=10))
+        # An empty archive creates nothing: the folder must exist anyway
+        os.makedirs(tmp_dir)
+        try:
+            extract(tmp_dir)
+        except BaseException:
+            _remove_path(tmp_dir)
+            raise
 
         target_dir = self.uncompress_abs_dir.rstrip("/")
         if os.path.isdir(target_dir):

@@ -4,8 +4,9 @@ from batid.services.replayable_task import (
     ReplayableTask,
     release_replayable_task_lock,
 )
+from batid.tasks import end_replayable_task
 from celery import states
-from celery.exceptions import Ignore
+from celery.exceptions import Ignore, Retry
 from django.db import connections
 from django.test import TestCase
 
@@ -70,3 +71,45 @@ class TestReplayableTask(TestCase):
         Expected: its message is acked when it ends, not when it starts.
         """
         self.assertTrue(noop.acks_late)
+
+    def test_lock_wait_is_not_cut_by_the_statement_timeout(self):
+        """
+        Input: a worker whose connections have a statement_timeout (15 s in prod).
+        Expected: the lock connection waits without limit (statement_timeout 0).
+        """
+        self._start_with_state(states.STARTED)
+
+        lock_connection = noop.request.replayable_task_lock
+        row = lock_connection.execute("SHOW statement_timeout").fetchone()
+        self.assertEqual(row[0], "0")
+
+    def test_redis_outage_retries_instead_of_failing(self):
+        """
+        Input: the task state cannot be read (Redis down) when the task starts.
+        Expected: the task is retried (Retry raised), not failed and acked.
+        """
+        with mock.patch.object(noop, "AsyncResult") as async_result:
+            type(async_result.return_value).state = mock.PropertyMock(
+                side_effect=ConnectionError("redis down")
+            )
+            with mock.patch.object(noop, "retry", side_effect=Retry()) as retry:
+                with self.assertRaises(Retry):
+                    noop.before_start(self.TASK_ID, (), {})
+
+        self.assertIsInstance(retry.call_args.kwargs["exc"], ConnectionError)
+
+    def test_lock_released_even_if_file_removal_fails(self):
+        """
+        Input: the removal of the consumed files raises at the end of the task.
+        Expected: the lock is released anyway.
+        """
+        self._start_with_state(states.STARTED)
+
+        with mock.patch(
+            "batid.tasks.remove_paths_of_successful_task",
+            side_effect=PermissionError("denied"),
+        ):
+            with self.assertRaises(PermissionError):
+                end_replayable_task(task=noop, state=states.SUCCESS)
+
+        self.assertTrue(self._lock_is_free())

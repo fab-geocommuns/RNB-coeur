@@ -18,7 +18,6 @@ from batid.utils.db import dictfetchall
 from celery import Signature
 from django.contrib.gis.geos import Point
 from django.db import connection, transaction
-from django.db.models import F
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +98,11 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
     building_import = building_import_history.insert_building_import(
         "bal", bulk_launch_uuid, dpt
     )
+    # A replay (Celery retry or redelivery) reuses the row and goes through every row
+    # of the file again: refusals are counted from zero. Links already created are
+    # skipped (see _known_building_address_link), so their count is kept.
+    building_import.building_refused_count = 0
+    building_import.save()
 
     total_updated = 0
     total_refused = 0
@@ -135,12 +139,6 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
         total_refused += refused
 
     # We remove the source file
-    # A replay refuses the rows of the batches already done again: the refusals are
-    # those of the last complete run, set once instead of added up.
-    BuildingImport.objects.filter(id=building_import.id).update(
-        building_refused_count=total_refused
-    )
-
     remove_after_task_success(src.find(src.filename))
 
     logger.info(
@@ -325,11 +323,9 @@ def process_batch(batch: list, bdg_import: BuildingImport) -> tuple[int, int]:
                 refused_count += 1
                 continue
 
-        # Links of a batch are committed with their count. A replay skips them (see
-        # _known_building_address_link), so the count stays exact.
-        BuildingImport.objects.filter(id=bdg_import.id).update(
-            building_updated_count=F("building_updated_count") + updated_count
-        )
+        bdg_import.building_refused_count += refused_count  # type: ignore
+        bdg_import.building_updated_count += updated_count  # type: ignore
+        bdg_import.save()
 
     logger.info(
         "Batch done: size=%d, links_created=%d, refused=%d",

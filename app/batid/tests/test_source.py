@@ -5,22 +5,30 @@ import tempfile
 import zipfile
 from unittest import mock
 
-import batid.tasks  # noqa: F401 connects remove_consumed_source_files
+import batid.tasks  # noqa: F401 connects end_replayable_task
+from batid.services.replayable_task import ReplayableTask
 from batid.services.source import Source, remove_after_task_success
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
 from app.celery import app as celery_app
 
 
-@celery_app.task(name="batid.tests.test_source.consume_file")
-def consume_file(path: str, fail: bool) -> bool:
+def _consume(path: str, fail: bool) -> bool:
     remove_after_task_success(path)
     if fail:
         raise RuntimeError("task failed")
     return os.path.exists(path)
 
 
-class TestRemoveAfterTaskSuccess(SimpleTestCase):
+consume_in_replayable_task = celery_app.task(
+    base=ReplayableTask, name="batid.tests.test_source.consume_in_replayable_task"
+)(_consume)
+consume_in_plain_task = celery_app.task(
+    name="batid.tests.test_source.consume_in_plain_task"
+)(_consume)
+
+
+class TestRemoveAfterTaskSuccess(TestCase):
     def setUp(self):
         handle, self.path = tempfile.mkstemp()
         os.close(handle)
@@ -30,26 +38,36 @@ class TestRemoveAfterTaskSuccess(SimpleTestCase):
         if os.path.exists(self.path):
             os.remove(self.path)
 
-    def test_task_success_removes_the_file_after_storing_it(self):
+    def test_replayable_task_success_removes_the_file_after_storing_it(self):
         """
-        Input: a task that consumes a file and succeeds.
+        Input: a ReplayableTask that consumes a file and succeeds.
         Expected: the file still exists while the task runs, it is removed once
         the task is over.
         """
-        result = consume_file.apply(args=[self.path, False])
+        result = consume_in_replayable_task.apply(args=[self.path, False])
 
         self.assertTrue(result.get())
         self.assertFalse(os.path.exists(self.path))
 
-    def test_task_failure_keeps_the_file(self):
+    def test_replayable_task_failure_keeps_the_file(self):
         """
-        Input: a task that consumes a file and fails.
+        Input: a ReplayableTask that consumes a file and fails.
         Expected: the file is kept for the retry.
         """
-        result = consume_file.apply(args=[self.path, True])
+        result = consume_in_replayable_task.apply(args=[self.path, True])
 
         self.assertEqual(result.state, "FAILURE")
         self.assertTrue(os.path.exists(self.path))
+
+    def test_plain_task_removes_now(self):
+        """
+        Input: a task that is not a ReplayableTask (list_light_buildings_france loops
+        over every department) consumes a file.
+        Expected: the file is removed at once, not kept until the task ends.
+        """
+        result = consume_in_plain_task.apply(args=[self.path, False])
+
+        self.assertFalse(result.get())
 
     def test_outside_a_task_removes_now(self):
         """
@@ -122,3 +140,46 @@ class TestRewriteKeepsOpenReader(SimpleTestCase):
         no leftover in the extracting folder.
         """
         self._assert_reader_keeps_old_file("a.zip")
+
+    def test_empty_zip_gives_an_empty_folder(self):
+        """
+        Input: an empty .zip extracted twice.
+        Expected: no error, an empty extracted folder, nothing left aside.
+        """
+        src = Source(
+            "test", {"folder": "test", "dl_filename": "a.zip", "filename": "x"}
+        )
+        with zipfile.ZipFile(src.dl_path, "w"):
+            pass
+
+        src.uncompress()
+        src.uncompress()
+
+        self.assertEqual(os.listdir(src.uncompress_abs_dir), [])
+        self.assertEqual(os.listdir(os.path.join(self.dl_dir, "extracting")), [])
+
+    def test_failed_writes_leave_nothing_aside(self):
+        """
+        Input: a corrupted .gz, then a corrupted .zip.
+        Expected: both raise, no temporary file or folder is left.
+        """
+        gz = Source(
+            "test", {"folder": "test", "dl_filename": "a.csv.gz", "filename": "a.csv"}
+        )
+        with open(gz.dl_path, "wb") as f:
+            f.write(b"not a gzip")
+        with self.assertRaises(OSError):
+            gz.uncompress()
+        self.assertEqual(sorted(os.listdir(gz.abs_dir)), ["a.csv.gz"])
+
+        zipped = Source(
+            "test", {"folder": "test", "dl_filename": "b.zip", "filename": "b.csv"}
+        )
+        with zipfile.ZipFile(zipped.dl_path, "w") as archive:
+            archive.writestr("b.csv", b"x" * 1000)
+        with open(zipped.dl_path, "r+b") as f:
+            f.seek(40)
+            f.write(bytes([0xFF]) * 20)
+        with self.assertRaises(Exception):
+            zipped.uncompress()
+        self.assertEqual(os.listdir(os.path.join(self.dl_dir, "extracting")), [])

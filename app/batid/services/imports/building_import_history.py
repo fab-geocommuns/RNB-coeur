@@ -33,6 +33,8 @@ def lock_building_import(*, source: str, bulk_launch_uuid, dpt: str | None) -> N
     """Serialize, until the end of the current transaction, the runs of an import of
     a department within a bulk launch."""
     with connection.cursor() as cursor:
+        # The worker statement_timeout would cancel the wait for a COPY of hours
+        cursor.execute("SET LOCAL statement_timeout = 0")
         cursor.execute(
             "SELECT pg_advisory_xact_lock(hashtext(%s))",
             [f"building_import:{source}:{bulk_launch_uuid}:{dpt}"],

@@ -81,8 +81,12 @@ from django.conf import settings
 # Sent once the task state is stored, before the ack of acks_late tasks.
 @task_postrun.connect
 def end_replayable_task(task, state, **_kwargs) -> None:
-    remove_paths_of_successful_task(request=task.request, state=state)
-    release_replayable_task_lock(task.request)
+    if not isinstance(task, ReplayableTask):
+        return
+    try:
+        remove_paths_of_successful_task(request=task.request, state=state)
+    finally:
+        release_replayable_task_lock(task.request)
 
 
 @shared_task
