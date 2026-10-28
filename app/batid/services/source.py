@@ -6,10 +6,12 @@ import shutil
 import tarfile
 import zipfile
 from datetime import datetime, timezone
+from typing import Callable
 
 import nanoid
 import py7zr
 import requests
+from celery import current_task, states
 
 from app.settings import WRITABLE_DATA_DIR
 
@@ -21,6 +23,47 @@ def source_data_directory() -> str:
     directory_path = os.path.join(WRITABLE_DATA_DIR, directory_name)
     os.makedirs(directory_path, exist_ok=True)
     return directory_path
+
+
+# A task replayed by Celery may rewrite a file that the next task of its chain is
+# reading. Writing aside then renaming keeps the reader on the previous, complete file
+# instead of a truncated one.
+def _write_file_atomically(*, path: str, content: bytes) -> None:
+    tmp_path = f"{path}.{nanoid.generate(size=10)}.tmp"
+    with open(tmp_path, "wb") as file:
+        file.write(content)
+    os.replace(tmp_path, path)
+
+
+def remove_after_task_success(path: str) -> None:
+    """Remove a consumed source file or folder. Inside a Celery task, wait until the
+    task success is stored (see remove_paths_of_successful_task): a task killed before
+    is redelivered and needs the file again, one killed after is skipped as already
+    successful. Outside a task, remove it now."""
+    # current_task is a proxy, falsy outside a task
+    if not current_task or current_task.request.called_directly:
+        _remove_path(path)
+        return
+    # the Celery request accepts any attribute; it lives until the task ends
+    paths = getattr(current_task.request, "paths_to_remove", [])
+    setattr(current_task.request, "paths_to_remove", [*paths, path])
+
+
+def remove_paths_of_successful_task(*, request, state: str) -> None:
+    if state != states.SUCCESS:
+        return
+    for path in getattr(request, "paths_to_remove", []):
+        _remove_path(path)
+
+
+def _remove_path(path: str) -> None:
+    # Already removed by another run of the same task: the goal is reached.
+    if not os.path.lexists(path):
+        return
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+    else:
+        os.remove(path)
 
 
 def _raise_unless_not_found(error: OSError) -> None:
@@ -183,14 +226,10 @@ class Source:
     def download(self):
         self.create_abs_dir()
 
-        # open in binary mode
-        with open(self.dl_path, "wb") as file:
-            # get request
-            response = requests.get(self.url, allow_redirects=True)
-            response.raise_for_status()
+        response = requests.get(self.url, allow_redirects=True)
+        response.raise_for_status()
 
-            # write to file
-            file.write(response.content)
+        _write_file_atomically(path=self.dl_path, content=response.content)
 
     @property
     def is_archive(self):
@@ -238,20 +277,32 @@ class Source:
 
     def uncompress_zip(self):
         with zipfile.ZipFile(self.dl_path, "r") as zip_ref:
-            zip_ref.extractall(self.uncompress_abs_dir)
+            self._extract_atomically(zip_ref.extractall)
 
     def uncompress_7z(self):
         with py7zr.SevenZipFile(self.dl_path, "r") as archive:
-            archive.extractall(self.uncompress_abs_dir)
+            self._extract_atomically(archive.extractall)
 
     def uncompress_tar_gz(self):
         with tarfile.open(self.dl_path, "r:gz") as tar:
-            tar.extractall(self.uncompress_abs_dir)
+            self._extract_atomically(tar.extractall)
 
     def uncompress_gz(self):
         with gzip.open(self.dl_path, "rb") as f_in:
-            with open(self.path, "wb") as f_out:
-                f_out.write(f_in.read())
+            _write_file_atomically(path=self.path, content=f_in.read())
+
+    def _extract_atomically(self, extract: Callable[[str], None]) -> None:
+        # Same reason as _write_file_atomically. Extracted outside abs_dir, so that
+        # find() never returns a partially extracted file.
+        extracting_dir = os.path.join(self._dl_dir, "extracting")
+        os.makedirs(extracting_dir, exist_ok=True)
+        tmp_dir = os.path.join(extracting_dir, nanoid.generate(size=10))
+        extract(tmp_dir)
+
+        target_dir = self.uncompress_abs_dir.rstrip("/")
+        if os.path.isdir(target_dir):
+            shutil.rmtree(target_dir)
+        os.replace(tmp_dir, target_dir)
 
     def remove_archive(self):
         if not self.is_archive:
@@ -261,7 +312,7 @@ class Source:
 
     def remove_uncompressed_folder(self):
         if self.is_archive:
-            shutil.rmtree(self.uncompress_abs_dir)
+            remove_after_task_success(self.uncompress_abs_dir)
 
     def find(self, filename):
         root_dir = self.abs_dir

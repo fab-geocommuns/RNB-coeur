@@ -1,6 +1,5 @@
 import csv
 import logging
-import os
 import re
 import unicodedata
 from datetime import datetime, timezone
@@ -10,7 +9,7 @@ from typing import cast
 from batid.models import Address, Building, DataFix
 from batid.services.geocoders import BanBatchGeocoder
 from batid.services.imports.import_ban import has_city_reliable_ban_ids
-from batid.services.source import Source
+from batid.services.source import Source, remove_after_task_success
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
 from django.db import connection, transaction
@@ -117,7 +116,7 @@ def flag_addresses_from_ban_file(src_params: dict, batch_size: int = 10000) -> d
     obsolete_count = _mark_obsolete_addresses(dpt, seen_cle_interops)
 
     # Clean up the file
-    os.remove(file_path)
+    remove_after_task_success(file_path)
 
     logger.info(
         f"[{dpt}] Confirmed existence of {still_exists_count} addresses, marked {obsolete_count} as obsolete"
@@ -219,7 +218,7 @@ def compare_addresses_with_ban_file(src_params: dict, batch_size: int = 10000) -
             successes += counts["successes"]
             failures += counts["failures"]
 
-    os.remove(file_path)
+    remove_after_task_success(file_path)
 
     logger.info(
         f"[{dpt}] Comparison with the BAN file: {successes} successes, {failures} failures"
