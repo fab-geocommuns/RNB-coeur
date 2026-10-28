@@ -7,13 +7,17 @@ from batid.services.replayable_task import (
 from batid.tasks import end_replayable_task
 from celery import states
 from celery.exceptions import Ignore, Retry
-from django.db import connections
+from django.db import OperationalError, connections
 from django.test import TestCase
 
 from app.celery import app as celery_app
 
 
-@celery_app.task(base=ReplayableTask, name="batid.tests.test_replayable_task.noop")
+@celery_app.task(
+    base=ReplayableTask,
+    name="batid.tests.test_replayable_task.noop",
+    retry_kwargs={"max_retries": 5},
+)
 def noop() -> None:
     pass
 
@@ -83,20 +87,37 @@ class TestReplayableTask(TestCase):
         row = lock_connection.execute("SHOW statement_timeout").fetchone()
         self.assertEqual(row[0], "0")
 
-    def test_redis_outage_retries_instead_of_failing(self):
+    def test_redis_outage_runs_the_task(self):
         """
         Input: the task state cannot be read (Redis down) when the task starts.
-        Expected: the task is retried (Retry raised), not failed and acked.
+        Expected: the task runs, as before ReplayableTask, and holds the lock.
         """
         with mock.patch.object(noop, "AsyncResult") as async_result:
             type(async_result.return_value).state = mock.PropertyMock(
                 side_effect=ConnectionError("redis down")
             )
+            with mock.patch.object(noop, "retry") as retry:
+                noop.before_start(self.TASK_ID, (), {})
+
+        retry.assert_not_called()
+        self.assertFalse(self._lock_is_free())
+
+    def test_database_outage_retries_with_the_task_limit(self):
+        """
+        Input: the lock connection cannot be opened (Postgres down) when a task with
+        retry_kwargs max_retries=5 starts.
+        Expected: the task is retried (Retry raised) with max_retries=5, not failed
+        and acked, and not limited to the Celery default of 3.
+        """
+        db = mock.Mock()
+        db.get_new_connection.side_effect = OperationalError("postgres down")
+        with mock.patch("batid.services.replayable_task.connections", {"default": db}):
             with mock.patch.object(noop, "retry", side_effect=Retry()) as retry:
                 with self.assertRaises(Retry):
                     noop.before_start(self.TASK_ID, (), {})
 
-        self.assertIsInstance(retry.call_args.kwargs["exc"], ConnectionError)
+        self.assertIsInstance(retry.call_args.kwargs["exc"], OperationalError)
+        self.assertEqual(retry.call_args.kwargs["max_retries"], 5)
 
     def test_lock_released_even_if_file_removal_fails(self):
         """

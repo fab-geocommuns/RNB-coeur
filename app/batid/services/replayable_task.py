@@ -1,6 +1,10 @@
+import logging
+
 from celery import Task, states
 from celery.exceptions import Ignore
 from django.db import connections
+
+logger = logging.getLogger(__name__)
 
 
 class ReplayableTask(Task):
@@ -32,11 +36,22 @@ class ReplayableTask(Task):
             lock_connection.execute(
                 "SELECT pg_advisory_lock(hashtext(%s))", [f"celery_task:{task_id}"]
             )
-            already_successful = self.AsyncResult(task_id).state == states.SUCCESS
         except Exception as exc:
-            # autoretry_for only covers the task body: a database or Redis outage
-            # must not ack and lose the message
-            raise self.retry(exc=exc)
+            # autoretry_for only covers the task body: a database outage must not
+            # ack and lose the message. Same retry limit as the body.
+            raise self.retry(exc=exc, **getattr(self, "retry_kwargs", {}))
+
+        try:
+            already_successful = self.AsyncResult(task_id).state == states.SUCCESS
+        except Exception:
+            # Redis down: run anyway, as before this base. The task is safe to run
+            # again and the lock still serializes its runs.
+            logger.warning(
+                "Task %s state unreadable, run without the success check",
+                task_id,
+                exc_info=True,
+            )
+            already_successful = False
 
         if already_successful:
             raise Ignore()
