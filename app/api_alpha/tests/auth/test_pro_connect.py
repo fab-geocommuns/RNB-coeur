@@ -1,4 +1,6 @@
+import json
 import secrets
+from datetime import timedelta
 from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
@@ -100,6 +102,51 @@ class AuthorizeTest(APITestCase):
         payload = signing.loads(state, salt="pro_connect", max_age=300)
         self.assertEqual(payload["redirect_uri"], full_redirect_uri)
 
+    def _authorize_params(self):
+        response = self.client.get(
+            "/api/alpha/auth/pro_connect/authorize/",
+            {"redirect_uri": "http://localhost:3000"},
+        )
+        self.assertEqual(response.status_code, 200)
+        return parse_qs(urlparse(response.json()["authorization_url"]).query)
+
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.get_oidc_config",
+        return_value=FAKE_OIDC_CONFIG,
+    )
+    @override_settings(PRO_CONNECT_REQUIRE_MFA=True)
+    def test_authorize_requests_mfa_claims_when_enabled(self, mock_config):
+        """Input: authorize with PRO_CONNECT_REQUIRE_MFA on.
+        Expected: the URL carries a claims param requiring an essential two-factor acr,
+        and no acr_values."""
+        params = self._authorize_params()
+
+        self.assertEqual(
+            json.loads(params["claims"][0]),
+            {
+                "id_token": {
+                    "acr": {
+                        "essential": True,
+                        "values": ["eidas0-mfa", "eidas1-mfa", "eidas2", "eidas3"],
+                    }
+                }
+            },
+        )
+        self.assertNotIn("acr_values", params)
+
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.get_oidc_config",
+        return_value=FAKE_OIDC_CONFIG,
+    )
+    @override_settings(PRO_CONNECT_REQUIRE_MFA=False)
+    def test_authorize_keeps_eidas1_when_mfa_disabled(self, mock_config):
+        """Input: authorize with PRO_CONNECT_REQUIRE_MFA off.
+        Expected: the URL carries acr_values=eidas1 and no claims param."""
+        params = self._authorize_params()
+
+        self.assertEqual(params["acr_values"], ["eidas1"])
+        self.assertNotIn("claims", params)
+
 
 FAKE_JWKS = {"keys": [{"kty": "RSA", "kid": "test-key", "n": "fake", "e": "AQAB"}]}
 
@@ -127,6 +174,7 @@ def _make_state(redirect_uri="http://localhost:3000", nonce="test-nonce"):
     PRO_CONNECT_ALLOWED_REDIRECT_URIS=["http://localhost:3000"],
     CONTRIBUTORS_GROUP_NAME="Contributors",
     FRONTEND_URL="http://localhost:3000",
+    PRO_CONNECT_REQUIRE_MFA=False,
 )
 @mock.patch(
     "batid.services.organization.fetch_siren_data",
@@ -441,6 +489,220 @@ class CallbackTest(APITestCase):
         self.assertIn("code", params)
         self.assertNotIn("token", params)
 
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
+        return_value=FAKE_USERINFO,
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+        return_value={"nonce": "test-nonce", "acr": "eidas1-mfa"},
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+        return_value=("fake-access-token", "fake-id-token"),
+    )
+    @override_settings(PRO_CONNECT_REQUIRE_MFA=True)
+    def test_callback_accepts_mfa_acr(
+        self, mock_exchange, mock_verify, mock_userinfo, mock_siren
+    ):
+        """Input: MFA required, id_token with acr=eidas1-mfa.
+        Expected: redirect carries a login code and the user is created."""
+        from django.contrib.auth.models import User
+
+        response = self._call_callback()
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("code", parse_qs(urlparse(response.url).query))
+        self.assertTrue(User.objects.filter(email="agent@gouv.fr").exists())
+
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
+        return_value=FAKE_USERINFO,
+    )
+    @mock.patch("api_alpha.endpoints.auth.pro_connect.verify_id_token")
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+        return_value=("fake-access-token", "fake-id-token"),
+    )
+    @override_settings(PRO_CONNECT_REQUIRE_MFA=True)
+    def test_callback_rejects_non_mfa_acr(
+        self, mock_exchange, mock_verify, mock_userinfo, mock_siren
+    ):
+        """Input: MFA required, id_token with acr=eidas1, then with no acr at all.
+        Expected: redirect to the site with error=mfa_required and no code,
+        userinfo never fetched, no user created."""
+        from django.contrib.auth.models import User
+
+        for id_claims in (
+            {"nonce": "test-nonce", "acr": "eidas1"},
+            {"nonce": "test-nonce"},
+        ):
+            with self.subTest(id_claims=id_claims):
+                mock_verify.return_value = id_claims
+
+                response = self._call_callback()
+
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(
+                    response.url, "http://localhost:3000?error=mfa_required"
+                )
+                mock_userinfo.assert_not_called()
+                self.assertFalse(User.objects.filter(email="agent@gouv.fr").exists())
+
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
+        return_value=FAKE_USERINFO,
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+        return_value={"nonce": "test-nonce", "acr": "eidas1"},
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+        return_value=("fake-access-token", "fake-id-token"),
+    )
+    def test_callback_ignores_acr_when_mfa_disabled(
+        self, mock_exchange, mock_verify, mock_userinfo, mock_siren
+    ):
+        """Input: MFA not required, id_token with acr=eidas1.
+        Expected: login goes through, redirect carries a login code."""
+        response = self._call_callback()
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("code", parse_qs(urlparse(response.url).query))
+
+    @mock.patch("api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens")
+    def test_callback_relays_access_denied(self, mock_exchange, mock_siren):
+        """Input: Pro Connect returns error=access_denied with an error_description
+        other than the unsatisfied-ACR one, a valid state and no code.
+        Expected: redirect to the redirect_uri of the state with error=access_denied,
+        no token exchange attempted."""
+        response = self.client.get(
+            "/api/alpha/auth/pro_connect/callback/",
+            {
+                "error": "access_denied",
+                "error_description": "account blocked",
+                "state": _make_state(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000?error=access_denied")
+        mock_exchange.assert_not_called()
+
+    @mock.patch("api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens")
+    def test_callback_maps_unsatisfied_acr_to_mfa_required(
+        self, mock_exchange, mock_siren
+    ):
+        """Input: Pro Connect returns error=access_denied with
+        error_description="requested ACRs could not be satisfied" and a valid state.
+        Expected: redirect to the redirect_uri of the state with error=mfa_required,
+        no token exchange attempted."""
+        response = self.client.get(
+            "/api/alpha/auth/pro_connect/callback/",
+            {
+                "error": "access_denied",
+                "error_description": "requested ACRs could not be satisfied",
+                "state": _make_state(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000?error=mfa_required")
+        mock_exchange.assert_not_called()
+
+    def test_callback_maps_other_idp_error_to_authentication_failed(self, mock_siren):
+        """Input: Pro Connect returns error=server_error with a valid state.
+        Expected: redirect to the redirect_uri of the state with error=authentication_failed.
+        """
+        response = self.client.get(
+            "/api/alpha/auth/pro_connect/callback/",
+            {"error": "server_error", "state": _make_state()},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url, "http://localhost:3000?error=authentication_failed"
+        )
+
+    def test_callback_logs_idp_error_escaped(self, mock_siren):
+        """Input: Pro Connect returns access_denied with an error_description containing
+        a newline and a forged log line.
+        Expected: one warning holding the error and the escaped description, no raw newline.
+        """
+        with self.assertLogs(
+            "api_alpha.endpoints.auth.pro_connect", level="WARNING"
+        ) as logs:
+            self.client.get(
+                "/api/alpha/auth/pro_connect/callback/",
+                {
+                    "error": "access_denied",
+                    "error_description": "x\nCRITICAL forged",
+                    "state": _make_state(),
+                },
+            )
+
+        self.assertEqual(len(logs.records), 1)
+        message = logs.records[0].getMessage()
+        self.assertNotIn("\n", message)
+        self.assertIn("'access_denied'", message)
+        self.assertIn("'x\\nCRITICAL forged'", message)
+
+    def test_callback_idp_error_with_tampered_state(self, mock_siren):
+        """Input: error=access_denied with a tampered state.
+        Expected: redirect to FRONTEND_URL with error=invalid_state, never to a URI from the request.
+        """
+        response = self.client.get(
+            "/api/alpha/auth/pro_connect/callback/",
+            {"error": "access_denied", "state": "tampered"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000?error=invalid_state")
+
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.fetch_userinfo",
+        return_value=FAKE_USERINFO,
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.verify_id_token",
+        return_value={"nonce": "test-nonce"},
+    )
+    @mock.patch(
+        "api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens",
+        return_value=("fake-access-token", "fake-id-token"),
+    )
+    def test_callback_accepts_state_issued_fifty_nine_minutes_ago(
+        self, mock_exchange, mock_verify, mock_userinfo, mock_siren
+    ):
+        """Input: callback with a state signed 59 minutes earlier (time spent enrolling a second factor).
+        Expected: state still valid, redirect carries a login code."""
+        with freeze_time() as frozen:
+            state = _make_state()
+            frozen.tick(timedelta(minutes=59))
+
+            response = self._call_callback(state=state)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("code", parse_qs(urlparse(response.url).query))
+
+    @mock.patch("api_alpha.endpoints.auth.pro_connect.exchange_code_for_tokens")
+    def test_callback_rejects_state_issued_sixty_one_minutes_ago(
+        self, mock_exchange, mock_siren
+    ):
+        """Input: callback with a state signed 61 minutes earlier.
+        Expected: redirect to FRONTEND_URL with error=invalid_state, no token exchange attempted.
+        """
+        with freeze_time() as frozen:
+            state = _make_state()
+            frozen.tick(timedelta(minutes=61))
+
+            response = self._call_callback(state=state)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000?error=invalid_state")
+        mock_exchange.assert_not_called()
+
 
 @override_settings(
     PRO_CONNECT_POST_LOGOUT_REDIRECT_URI="http://localhost:8000/api/alpha/auth/pro_connect/logout/callback/",
@@ -500,14 +762,62 @@ class LogoutCallbackTest(APITestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, "http://localhost:3000")
 
+    @override_settings(FRONTEND_URL="http://localhost:3000")
+    def test_logout_callback_without_redirect_uri_goes_to_frontend(self):
+        """Input: logout callback with a valid state holding an empty post_logout_redirect_uri.
+        Expected: redirect 302 to FRONTEND_URL."""
+        state = signing.dumps(
+            {"post_logout_redirect_uri": ""},
+            salt="pro_connect_logout",
+        )
+
+        response = self.client.get(
+            "/api/alpha/auth/pro_connect/logout/callback/",
+            {"state": state},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000")
+
+    @override_settings(FRONTEND_URL="http://localhost:3000")
     def test_logout_callback_invalid_state(self):
-        """Logout callback with tampered state → 400."""
+        """Input: logout callback with a tampered state.
+        Expected: redirect 302 to FRONTEND_URL, never to a URI from the request."""
         response = self.client.get(
             "/api/alpha/auth/pro_connect/logout/callback/",
             {"state": "tampered"},
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000")
+
+    @override_settings(FRONTEND_URL="http://localhost:3000")
+    def test_logout_callback_expired_state(self):
+        """Input: logout callback with a valid state signed more than 300 s ago.
+        Expected: redirect 302 to FRONTEND_URL, not to the redirect URI of the state."""
+        with freeze_time("2026-01-01 12:00:00"):
+            state = signing.dumps(
+                {"post_logout_redirect_uri": "http://elsewhere.example.test"},
+                salt="pro_connect_logout",
+            )
+
+        with freeze_time("2026-01-01 12:05:01"):
+            response = self.client.get(
+                "/api/alpha/auth/pro_connect/logout/callback/",
+                {"state": state},
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000")
+
+    @override_settings(FRONTEND_URL="http://localhost:3000")
+    def test_logout_callback_missing_state(self):
+        """Input: logout callback without any state parameter.
+        Expected: redirect 302 to FRONTEND_URL."""
+        response = self.client.get("/api/alpha/auth/pro_connect/logout/callback/")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "http://localhost:3000")
 
 
 @override_settings(
@@ -520,6 +830,7 @@ class LogoutCallbackTest(APITestCase):
     FRONTEND_URL="http://localhost:3000",
     HAS_SANDBOX=True,
     SANDBOX_URL="https://sandbox.example.test",
+    PRO_CONNECT_REQUIRE_MFA=False,
 )
 @mock.patch("batid.services.organization.fetch_siren_data", return_value=None)
 @mock.patch(
