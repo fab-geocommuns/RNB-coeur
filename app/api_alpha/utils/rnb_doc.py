@@ -322,7 +322,7 @@ def _get_components() -> dict:
                                 ],
                             },
                         ],
-                        "example":[
+                        "example": [
                             [
                                 [
                                     [
