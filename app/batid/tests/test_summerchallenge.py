@@ -171,7 +171,7 @@ class TestSummerChallenge(TestCase):
 
         building.update(
             self.user,
-            event_origin=None,
+            event_origin={"source": "contribution", "contribution_id": 1},
             status="demolished",
             addresses_cle_interop=["addr1", "addr2"],
             shape=GEOSGeometry(

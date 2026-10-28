@@ -275,6 +275,39 @@ class ContributionSummaryTest(TestCase):
             ],
         )
 
+    def test_data_fix_updates_are_not_contributions(self):
+        """
+        Input: alice creates a building; a data fix (eg. the replacement of
+        obsolete BAN addresses) run by paul updates it, then alice updates it
+        as a contribution.
+        Expected: paul writes no SummerChallenge row and is neither ranked nor
+        a newcomer; alice's update is still scored.
+        """
+        paul = UserFactory(username="paul")
+        building = edition(self.alice, IN_WINDOW, self.talence, self.gironde)
+        building.update(
+            user=paul,
+            event_origin={"source": "data_fix", "id": 1},
+            status="demolished",
+            addresses_cle_interop=None,
+        )
+        building.update(
+            user=self.alice,
+            event_origin=CONTRIBUTION,
+            status="constructed",
+            addresses_cle_interop=None,
+        )
+
+        self.assertFalse(SummerChallenge.objects.filter(user=paul).exists())
+        self.assertTrue(
+            SummerChallenge.objects.filter(
+                user=self.alice, action="update_status"
+            ).exists()
+        )
+        data = compute_contribution_summary()
+        self.assertEqual([u["username"] for u in data["top"]["users"]], ["alice"])
+        self.assertNotIn("paul", [u["username"] for u in data["newcomers"]["users"]])
+
     def test_organization_has_the_same_name_in_every_ranking(self):
         """
         Input: alice, member of "Commune de Talence" (short name "Talence"),
