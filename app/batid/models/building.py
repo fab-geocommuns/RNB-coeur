@@ -508,8 +508,9 @@ class Building(BuildingAbstract):
         self.event_origin = event_origin
         self.revert_event_id = None
 
-        # Summer Challenge! Only contributions are scored: data fixes (eg. the
-        # replacement of obsolete BAN addresses) update buildings too
+        # Summer Challenge! Only contributions are scored: update() is also
+        # called by imports and data fixes (eg. the replacement of obsolete BAN
+        # addresses), which must not count as contributions
         is_contribution = (
             isinstance(event_origin, dict)
             and event_origin.get("source") == "contribution"
