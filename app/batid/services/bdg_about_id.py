@@ -1,5 +1,3 @@
-from typing import Any
-
 from batid.models.building import EventType
 from batid.utils.db import dictfetchall
 from django.db import connection
@@ -113,7 +111,7 @@ def get_active_children(rnb_id: str) -> list[str]:
     ORDER BY rnb_id
     """
 
-    params: dict[str, Any] = {"rnb_id": rnb_id, "event_types": LINEAGE_EVENT_TYPES}
+    params: dict[str, str | list[str]] = {"rnb_id": rnb_id, "event_types": LINEAGE_EVENT_TYPES}
 
     with connection.cursor() as cursor:
         cursor.execute(q, params)
