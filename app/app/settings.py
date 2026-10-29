@@ -16,6 +16,7 @@ import sentry_sdk
 from kombu import Exchange, Queue
 from sentry_sdk.integrations.django import DjangoIntegration
 
+from app.mfa_enforcement import MFAEnforcement
 from app.schedule import get_celery_beat_schedule
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -104,6 +105,9 @@ INSTALLED_APPS = [
     "xp",
     "django_extensions",
     "revproxy",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
+    "django_otp.plugins.otp_static",
 ]
 
 MIDDLEWARE = [
@@ -183,6 +187,17 @@ CONTRIBUTORS_GROUP_NAME = "Contributors"
 # any user part of this group can annotate (review) RNB events
 REVIEWERS_GROUP_NAME = "Reviewers"
 
+# users in this group must configure an authenticator app, unless MFA_ENFORCEMENT is OFF
+MFA_REQUIRED_GROUP_NAME = "MFA required"
+
+# Invalid values crash at boot. Defaults to the strictest policy.
+MFA_ENFORCEMENT = MFAEnforcement(
+    os.environ.get("MFA_ENFORCEMENT", MFAEnforcement.REQUIRED)
+)
+
+# Name shown in the authenticator app, with the environment outside production
+OTP_TOTP_ISSUER = "RNB" if ENVIRONMENT == "production" else f"RNB ({ENVIRONMENT})"
+
 AUTHENTICATION_BACKENDS = [
     "app.authentication.UsernameOrEmailBackend",
 ]
@@ -220,7 +235,11 @@ REST_FRAMEWORK = {
         "change_password": "10/day",  # nosec
         "create_user": "10/day",
         "create_report": "20/min",
+        "login": "20/min",
     },
+    # nginx-proxy is the only proxy in front of the app: the client IP is the last
+    # X-Forwarded-For entry, the one it appends. Earlier entries are client-controlled.
+    "NUM_PROXIES": 1,
     "URL_FORMAT_OVERRIDE": None,
     # Keep the list-based error format for nested `many=True` serializers
     # (e.g. ADS buildings_operations) to avoid breaking API clients.
@@ -230,6 +249,7 @@ REST_FRAMEWORK = {
 
 if ENVIRONMENT in ("test", "development"):
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["create_user"] = "1000/day"  # type: ignore[index]
+    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["login"] = "1000/min"  # type: ignore[index]
 
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL")

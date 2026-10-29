@@ -1295,6 +1295,26 @@ files = [
 packaging = "*"
 
 [[package]]
+name = "django-otp"
+version = "1.7.5"
+description = "A pluggable framework for adding two-factor authentication to Django using one-time passwords."
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "django_otp-1.7.5-py3-none-any.whl", hash = "sha256:475d4111e07d61616996f098d08d29884da6397273a11f53c1b8e8c75d27e1dc"},
+    {file = "django_otp-1.7.5.tar.gz", hash = "sha256:7f554d21dcd035550c3b8e3f154b1f422fee71fdc75c8a3bf96e42a2ea6dafcc"},
+]
+
+[package.dependencies]
+django = ">=4.2"
+segno = {version = "*", optional = true, markers = "extra == \"segno\""}
+
+[package.extras]
+qrcode = ["qrcode"]
+segno = ["segno"]
+
+[[package]]
 name = "django-revproxy"
 version = "0.13.0"
 description = "Yet another Django reverse proxy application"
@@ -5162,6 +5182,18 @@ botocore = ">=1.37.4,<2.0a0"
 crt = ["botocore[crt] (>=1.37.4,<2.0a0)"]
 
 [[package]]
+name = "segno"
+version = "1.6.6"
+description = "QR Code and Micro QR Code generator for Python"
+optional = false
+python-versions = ">=3.5"
+groups = ["main"]
+files = [
+    {file = "segno-1.6.6-py3-none-any.whl", hash = "sha256:28c7d081ed0cf935e0411293a465efd4d500704072cdb039778a2ab8736190c7"},
+    {file = "segno-1.6.6.tar.gz", hash = "sha256:e60933afc4b52137d323a4434c8340e0ce1e58cec71439e46680d4db188f11b3"},
+]
+
+[[package]]
 name = "send2trash"
 version = "2.1.0"
 description = "Send file to trash natively under Mac OS X, Windows and Linux"
@@ -5824,4 +5856,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.1"
 python-versions = "3.14.5"
-content-hash = "7663c57f402da5ec1eba466986829305c971fc9bdc6553ab4e74305698cf0b7c"
+content-hash = "004f16891866106b1f5d1e50777b1717925bd0bfd59d747206cd079ce4ff3d32"

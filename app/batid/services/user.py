@@ -1,6 +1,7 @@
 import base64
 
 from django.contrib.auth.models import User
+from rest_framework.authtoken.models import Token
 
 
 def get_user_id_b64(user: User) -> str:
@@ -27,6 +28,17 @@ def get_user_organization_name(user: User) -> str | None:
     if profile is None or profile.organization is None:
         return None
     return profile.organization.name
+
+
+def login_response_body(user: User) -> dict:
+    """Body returned to a client that just logged in: its API token and identity."""
+    token, _ = Token.objects.get_or_create(user=user)
+    return {
+        "id": user.id,  # type: ignore[attr-defined]
+        "token": token.key,
+        "username": user.username,
+        "groups": [group.name for group in user.groups.all()],
+    }
 
 
 def check_and_increment_contribution_count(user: User | None) -> None:
