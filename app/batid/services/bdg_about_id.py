@@ -69,9 +69,7 @@ def get_about_id(rnb_id: str) -> dict | None:
     # An active RNB ID has not been replaced: it has no active children by definition.
     # Skipping the lineage query also prevents an incoherent response if the building
     # is merged or split between the two queries.
-    about["active_children"] = (
-        [] if about["is_active"] else get_active_children(rnb_id)
-    )
+    about["active_children"] = [] if about["is_active"] else get_active_children(rnb_id)
 
     return about
 
