@@ -8,7 +8,6 @@ from batid.services.contributions import export_format as contrib_export_format
 from batid.services.rollback import rollback as rollback_service
 from batid.services.rollback import rollback_dry_run
 from django.contrib import messages
-from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
@@ -33,7 +32,6 @@ def worker(request):
     )
 
 
-@staff_member_required
 def export_ads(request):
 
     data = ads_export_format()
@@ -52,7 +50,6 @@ def export_ads(request):
     )
 
 
-@staff_member_required
 def export_contributions(request):
 
     data = contrib_export_format()
@@ -82,7 +79,7 @@ class FlowerProxyView(UserPassesTestMixin, ProxyView):
     rewrite = ((r"^/{}$".format(url_prefix), r"/{}/".format(url_prefix)),)
 
     def test_func(self):
-        return self.request.user.is_superuser
+        return is_verified_superuser(self.request.user)
 
     @classmethod
     def as_url(cls):
@@ -107,11 +104,11 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
             for allowed_url in self.allowed_urls
         ):
             return True
-        return self.request.user.is_superuser
+        return is_verified_superuser(self.request.user)
 
     def get_request_headers(self):
         headers = super().get_request_headers()
-        if self.request.user.is_authenticated:
+        if is_verified_superuser(self.request.user):
             headers["X-Remote-User"] = self.request.user.email
         return headers
 
@@ -124,6 +121,10 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
     @classmethod
     def as_url(cls):
         return re_path(r"^metabase(?P<path>/.*)?$", cls.as_view())
+
+
+def is_verified_superuser(user) -> bool:
+    return user.is_superuser and user.is_verified()
 
 
 def can_rollback(user):
