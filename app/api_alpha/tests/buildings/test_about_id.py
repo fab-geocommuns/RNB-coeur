@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from batid.models import (
     Building,
     BuildingImport,
@@ -86,7 +88,8 @@ class BuildingAboutIdTest(APITestCase):
         """
         Input: a freshly created building, queried with its dashed RNB ID.
         Expected: the ID is active, has no active children and the response describes
-        its creation (status, event type, ISO date with timezone, origin, author).
+        its creation (status, event type, ISO date with timezone matching the creation
+        date, origin, author).
         """
         bdg = self._create(square(0))
         dashed_id = f"{bdg.rnb_id[:4]}-{bdg.rnb_id[4:8]}-{bdg.rnb_id[8:]}"
@@ -98,6 +101,10 @@ class BuildingAboutIdTest(APITestCase):
         self.assertEqual(data["status"], "constructed")
         self.assertEqual(data["event_type"], "creation")
         self.assertTrue(data["updated_at"].endswith("Z"))
+        bdg.refresh_from_db()
+        self.assertEqual(
+            datetime.fromisoformat(data["updated_at"]), bdg.sys_period.lower
+        )
         self.assertEqual(data["event_origin"], {"type": "contribution", "id": 1})
         self.assertEqual(
             data["author"],

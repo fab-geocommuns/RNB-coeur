@@ -117,8 +117,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                                             "$ref": "#/components/schemas/BuildingStatus"
                                         },
                                         "event_type": {
-                                            "type": "string",
-                                            "nullable": True,
+                                            "type": ["string", "null"],
                                             "description": "Type du dernier événement subi par l'identifiant.",
                                             "example": "merge",
                                         },
@@ -133,24 +132,22 @@ NB : l'URL se termine nécessairement par un slash (/).
                                             "description": "Origine du dernier événement : contribution, import, correction de données (data_fix), etc.",
                                             "properties": {
                                                 "type": {
-                                                    "type": "string",
-                                                    "nullable": True,
+                                                    "type": ["string", "null"],
                                                     "example": "contribution",
                                                 },
                                                 "id": {
-                                                    "type": "integer",
-                                                    "nullable": True,
+                                                    "type": ["integer", "null"],
                                                     "example": 1234,
                                                 },
                                             },
                                         },
                                         "author": {
-                                            "allOf": [
+                                            "anyOf": [
                                                 {
                                                     "$ref": "#/components/schemas/PublicUser"
-                                                }
+                                                },
+                                                {"type": "null"},
                                             ],
-                                            "nullable": True,
                                             "description": "Auteur du dernier événement, s'il est connu.",
                                         },
                                         "active_children": {
