@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from batid.services.tchap import notify_if_error, notify_tech
+from batid.tasks import import_cities, import_plots
 from django.test import TestCase, override_settings
 
 
@@ -33,6 +34,78 @@ class Decorator(TestCase):
         self.assertTrue("Forced error" in str(context.exception))
 
         notify.assert_called_once_with("Error while executing test_func: Forced error")
+
+
+class NotifyTaskFailure(TestCase):
+    @patch("batid.services.tchap.notify_tech")
+    @patch("batid.tasks.import_etalab_plots_job", side_effect=Exception("boom"))
+    def test_final_failure_notifies_once(self, job, notify):
+        """
+        Input: import_plots (max_retries=3) raises on every attempt, run through
+        Celery with its retries.
+        Expected: 4 attempts, the task ends in FAILURE and one single notification
+        is sent, naming the task and the error.
+        """
+        result = import_plots.apply(args=["75", "2026-01-01"])
+
+        self.assertEqual(result.state, "FAILURE")
+        self.assertEqual(job.call_count, 4)
+        notify.assert_called_once()
+        self.assertIn("batid.tasks.import_plots", notify.call_args.args[0])
+        self.assertIn("boom", notify.call_args.args[0])
+
+    @patch("batid.services.tchap.notify_tech")
+    @patch("batid.tasks.import_etalab_plots_job", side_effect=[Exception("boom"), None])
+    def test_success_after_retry_does_not_notify(self, job, notify):
+        """
+        Input: import_plots fails on its first attempt and succeeds on the retry.
+        Expected: the task ends in SUCCESS and no notification is sent.
+        """
+        result = import_plots.apply(args=["75", "2026-01-01"])
+
+        self.assertEqual(result.state, "SUCCESS")
+        notify.assert_not_called()
+
+    @patch("batid.services.tchap.notify_tech")
+    @patch("batid.tasks.import_etalab_cities", side_effect=Exception("boom"))
+    def test_any_task_notifies(self, job, notify):
+        """
+        Input: import_cities, a task that never carried a notification decorator,
+        fails for good.
+        Expected: the task ends in FAILURE and one notification is sent.
+        """
+        result = import_cities.apply(args=["75"])
+
+        self.assertEqual(result.state, "FAILURE")
+        notify.assert_called_once()
+
+    @patch("batid.services.tchap.notify_tech", side_effect=Exception("tchap down"))
+    @patch("batid.tasks.import_etalab_plots_job", side_effect=Exception("boom"))
+    def test_tchap_down_does_not_change_task_state(self, job, notify):
+        """
+        Input: import_plots fails for good and sending the notification raises.
+        Expected: the task still ends in FAILURE with its own error, the notification
+        was attempted once and Celery logs the receiver error.
+        """
+        with self.assertLogs("celery.utils.dispatch.signal", level="ERROR") as logs:
+            result = import_plots.apply(args=["75", "2026-01-01"])
+
+        self.assertEqual(result.state, "FAILURE")
+        self.assertEqual(str(result.result), "boom")
+        notify.assert_called_once()
+        self.assertEqual(len(logs.records), 1)
+
+    def test_delay_on_former_decorated_task(self):
+        """
+        Input: .delay on import_plots, a task that used to carry @notify_if_error
+        above @shared_task.
+        Expected: the call is sent to Celery through apply_async with the task
+        arguments.
+        """
+        with patch.object(import_plots, "apply_async") as apply_async:
+            import_plots.delay("75", "2026-01-01")
+
+        apply_async.assert_called_once_with(("75", "2026-01-01"), {})
 
 
 class NotifyTech(TestCase):
