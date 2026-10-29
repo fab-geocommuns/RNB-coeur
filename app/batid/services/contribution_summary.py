@@ -238,7 +238,8 @@ def _top_cities(in_window: QuerySet) -> list[dict]:
         {
             "insee_code": details[c["id"]]["code_insee"],
             "name": details[c["id"]]["name"],
-            "department": departments.get(department_refs.get(c["id"])),
+            # 0 is no department id: the city has no department
+            "department": departments.get(department_refs.get(c["id"]) or 0),
             "count": c["count"],
         }
         for c in cities
