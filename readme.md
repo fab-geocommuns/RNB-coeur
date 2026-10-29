@@ -106,6 +106,14 @@ Garder `rnb_pg16.dump` jusqu'à ce que tout fonctionne en 17 : c'est le seul ret
 docker exec -it web python manage.py createsuperuser
 ```
 
+L'admin (`/admin/`) demande un code de double authentification, quel que soit `MFA_ENFORCEMENT`. Pour une première connexion, générer un code à usage unique :
+
+```
+docker exec -it web python manage.py addstatictoken <username>
+```
+
+Sur la page de connexion de l'admin, saisir l'identifiant et le mot de passe puis valider : la page revient avec « Veuillez saisir votre jeton OTP. » et un champ « Appareil OTP ». Y choisir « Backup Code », saisir le code affiché dans « Jeton OTP » (identifiant et mot de passe à nouveau), puis valider. Pour un accès durable, configurer une application d'authentification depuis la page de connexion de RNB-site.
+
 ### 6. Importer des données de travail
 
 La commande `seed_local_db` remplit la base locale avec les bâtiments situés autour d'un ou plusieurs points GPS, extraits d'une base existante (typiquement la sandbox, copie de la prod). Elle importe aussi les adresses liées à ces bâtiments ainsi que les communes et départements concernés. Aucun utilisateur n'est copié.

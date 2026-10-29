@@ -85,7 +85,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 INSTALLED_APPS = [
     "debug_toolbar",
     "jsoneditor",
-    "django.contrib.admin",
+    "app.apps.RNBAdminConfig",
     "batid",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -119,6 +119,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "batid.middlewares.BlockIPMiddleware",
@@ -197,6 +198,9 @@ MFA_ENFORCEMENT = MFAEnforcement(
 
 # Name shown in the authenticator app, with the environment outside production
 OTP_TOTP_ISSUER = "RNB" if ENVIRONMENT == "production" else f"RNB ({ENVIRONMENT})"
+
+# Staff never see the TOTP keys, QR codes or backup codes of existing devices
+OTP_ADMIN_HIDE_SENSITIVE_DATA = True
 
 AUTHENTICATION_BACKENDS = [
     "app.authentication.UsernameOrEmailBackend",
