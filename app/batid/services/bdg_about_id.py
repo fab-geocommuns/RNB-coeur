@@ -111,7 +111,10 @@ def get_active_children(rnb_id: str) -> list[str]:
     ORDER BY rnb_id
     """
 
-    params: dict[str, str | list[str]] = {"rnb_id": rnb_id, "event_types": LINEAGE_EVENT_TYPES}
+    params: dict[str, str | list[str]] = {
+        "rnb_id": rnb_id,
+        "event_types": LINEAGE_EVENT_TYPES,
+    }
 
     with connection.cursor() as cursor:
         cursor.execute(q, params)
