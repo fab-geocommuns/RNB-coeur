@@ -1,6 +1,7 @@
 import csv
 import os
 from io import StringIO
+from urllib.parse import unquote
 
 from batid.forms import RollbackForm
 from batid.services.ads import export_format as ads_export_format
@@ -99,6 +100,10 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
     ]
 
     def test_func(self):
+        # The upstream resolves dot segments: "/public/dashboard/../../api/..." would
+        # escape the public prefix it starts with.
+        if ".." in fully_unquoted(self.request.path):
+            return False
         if any(
             self.request.path.startswith(allowed_url)
             for allowed_url in self.allowed_urls
@@ -107,7 +112,12 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
         return is_verified_superuser(self.request.user)
 
     def get_request_headers(self):
-        headers = super().get_request_headers()
+        # Metabase logs in whoever X-Remote-User names: never forward the client's.
+        headers = {
+            name: value
+            for name, value in super().get_request_headers().items()
+            if name.lower() != "x-remote-user"
+        }
         if is_verified_superuser(self.request.user):
             headers["X-Remote-User"] = self.request.user.email
         return headers
@@ -125,6 +135,14 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
 
 def is_verified_superuser(user) -> bool:
     return user.is_superuser and user.is_verified()
+
+
+def fully_unquoted(path: str) -> str:
+    """Percent-decode until stable, so that "%252e%252e" reads as ".." too."""
+    decoded = unquote(path)
+    while decoded != path:
+        path, decoded = decoded, unquote(decoded)
+    return decoded
 
 
 def can_rollback(user):

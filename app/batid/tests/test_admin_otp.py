@@ -101,6 +101,42 @@ class AdminOTPTest(TestCase):
                     self.client.get(url, headers=headers)
         return captured
 
+    def test_metabase_refuses_dot_segments(self):
+        """Anonymous GET on a public Metabase prefix followed by "..", "%2e%2e",
+        "..%2f" or "%252e%252e" towards /api/user/current: never proxied, the
+        client is sent to the login page."""
+        for url in (
+            "/metabase/public/dashboard/../../api/user/current",
+            "/metabase/public/dashboard/%2e%2e/%2e%2e/api/user/current",
+            "/metabase/public/dashboard/..%2f..%2fapi/user/current",
+            "/metabase/public/dashboard/%252e%252e/%252e%252e/api/user/current",
+        ):
+            with self.subTest(url=url):
+                with mock.patch.object(
+                    MetabaseProxyView, "_created_proxy_response"
+                ) as upstream:
+                    response = self.client.get(url, headers={"X-Remote-User": "x"})
+
+                upstream.assert_not_called()
+                self.assertEqual(response.status_code, 302)
+
+    def test_metabase_never_forwards_client_remote_user(self):
+        """Public Metabase URL with a forged X-Remote-User header, sent anonymously,
+        then by an unverified superuser: proxied without X-Remote-User. Sent by a
+        verified superuser: X-Remote-User is its own email, not the forged one."""
+        url = "/metabase/public/dashboard/abc"
+        forged = {"X-Remote-User": "victim@rnb.fr"}
+
+        self.assertNotIn("X-Remote-User", self.proxied_headers(url, **forged))
+
+        self.client.force_login(self.superuser)
+        self.assertNotIn("X-Remote-User", self.proxied_headers(url, **forged))
+
+        login_with_otp(client=self.client, user=self.superuser)
+        self.assertEqual(
+            self.proxied_headers(url, **forged)["X-Remote-User"], "admin@rnb.fr"
+        )
+
     def test_metabase_remote_user_only_when_verified(self):
         """Public Metabase URL: still proxied for an unverified superuser, without
         X-Remote-User; a verified superuser gets X-Remote-User set to its email."""
