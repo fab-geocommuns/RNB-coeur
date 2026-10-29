@@ -33,7 +33,7 @@ class Decorator(TestCase):
 
         self.assertTrue("Forced error" in str(context.exception))
 
-        notify.assert_called_once_with("Error while executing test_func: Forced error")
+        notify.assert_called_once_with("Échec de test_func : Forced error")
 
 
 class NotifyTaskFailure(TestCase):
@@ -43,16 +43,17 @@ class NotifyTaskFailure(TestCase):
         """
         Input: import_plots (max_retries=3) raises on every attempt, run through
         Celery with its retries.
-        Expected: 4 attempts, the task ends in FAILURE and one single notification
-        is sent, naming the task and the error.
+        Expected: 4 attempts, the task ends in FAILURE and one single French
+        notification is sent, naming the task and the error.
         """
         result = import_plots.apply(args=["75", "2026-01-01"])
 
         self.assertEqual(result.state, "FAILURE")
         self.assertEqual(job.call_count, 4)
         notify.assert_called_once()
-        self.assertIn("batid.tasks.import_plots", notify.call_args.args[0])
-        self.assertIn("boom", notify.call_args.args[0])
+        msg = notify.call_args.args[0]
+        self.assertTrue(msg.startswith("Échec de la tâche batid.tasks.import_plots ("))
+        self.assertTrue(msg.endswith(") : boom"))
 
     @patch("batid.services.tchap.notify_tech")
     @patch("batid.tasks.import_etalab_plots_job", side_effect=[Exception("boom"), None])
