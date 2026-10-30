@@ -263,16 +263,35 @@ def backup_to_s3(self):
     return "done"
 
 
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def publish_area_or_report(area: str) -> str:
+    """
+    Publish one area and never raise: a failed area must not stop the
+    publish_datagouv_all chain. The failure goes to Sentry (logger.exception)
+    and to the tech Tchap room.
+    """
+    try:
+        publish(area)
+    except Exception:
+        logger.exception(f"data.gouv.fr publication failed for area {area}")
+        try:
+            notify_tech(
+                f"Échec de la publication data.gouv.fr pour la zone {area}, voir Sentry."
+            )
+        except Exception:
+            # Tchap down must not stop the chain either; Sentry already has the publication error.
+            logger.exception("Tchap notification failed")
+        return "failed"
+    return "done"
+
+
+@shared_task
 def publish_datagouv_national():
-    publish("nat")
-    return "done"
+    return publish_area_or_report("nat")
 
 
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+@shared_task
 def publish_datagouv_dpt(dept: str):
-    publish(dept)
-    return "done"
+    return publish_area_or_report(dept)
 
 
 @notify_if_error

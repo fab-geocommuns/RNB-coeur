@@ -2,6 +2,7 @@ import hashlib
 import logging
 import os
 import shutil
+import time
 from datetime import datetime
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
@@ -18,18 +19,18 @@ from app.settings import WRITABLE_DATA_DIR
 def publish(area: str):
     print(f"Processing area: {area}")
 
+    directory_name = create_directory(area)
     try:
-        directory_name = create_directory(area)
         archive_path, archive_size, archive_sha1 = create_archive(directory_name, area)
 
         if os.environ.get("ENABLE_DATAGOUV_PUBLICATION") == "true":
             public_url = upload_to_s3(archive_path)
-            publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
-    except Exception as e:
-        logging.error(
-            f"Error while publishing the RNB for area {area} on data.gouv.fr: {e}"
-        )
-        raise
+            publish_on_data_gouv_with_retries(
+                area=area,
+                public_url=public_url,
+                archive_size=archive_size,
+                archive_sha1=archive_sha1,
+            )
     finally:
         # we always cleanup the directory, no matter what happens
         cleanup_directory(directory_name)
@@ -209,6 +210,30 @@ def upload_to_s3(archive_path):
     return public_url
 
 
+DATA_GOUV_TIMEOUT_S = 30
+
+# Waits between the 5 attempts: 1, 2, 4 then 8 minutes (15 minutes covered).
+DATA_GOUV_RETRY_DELAYS_S = (60, 120, 240, 480)
+
+
+def publish_on_data_gouv_with_retries(*, area, public_url, archive_size, archive_sha1):
+    """
+    Publish on data.gouv.fr, retrying on requests errors (network errors and non-JSON bodies).
+    Replayable: each attempt starts with a GET, so a resource created by a previous
+    attempt is updated, not created twice. Other errors (non 2xx answers) are raised
+    at once.
+    """
+    for delay in DATA_GOUV_RETRY_DELAYS_S:
+        try:
+            return publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
+        except requests.RequestException as e:
+            logging.warning(
+                f"data.gouv.fr publication failed for area {area}, retrying in {delay} s: {e}"
+            )
+            time.sleep(delay)
+    return publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
+
+
 def publish_on_data_gouv(area, public_url, archive_size, archive_sha1, format="zip"):
     # publish the archive on data.gouv.fr
     dataset_id = os.environ.get("DATA_GOUV_DATASET_ID")
@@ -274,6 +299,7 @@ def data_gouv_create_resource(
             "checksum": {"type": "sha1", "value": archive_sha1},
             "created_at": str(datetime.now()),
         },
+        timeout=DATA_GOUV_TIMEOUT_S,
     )
 
     if response.status_code != 201:
@@ -287,7 +313,7 @@ def data_gouv_resource_id(dataset_id, area):
     DATA_GOUV_BASE_URL = os.environ.get("DATA_GOUV_BASE_URL")
     dataset_url = f"{DATA_GOUV_BASE_URL}/api/1/datasets/{dataset_id}/"
 
-    response = requests.get(dataset_url)
+    response = requests.get(dataset_url, timeout=DATA_GOUV_TIMEOUT_S)
 
     if response.status_code != 200:
         raise Exception("Error while fetching the dataset")
@@ -348,6 +374,7 @@ def update_resource_metadata(
                 "analysis:last-modified-at": str(datetime.now())
             },
         },
+        timeout=DATA_GOUV_TIMEOUT_S,
     )
 
     if response.status_code != 200:

@@ -8,6 +8,7 @@ from unittest import mock
 from zipfile import ZipFile
 
 import boto3
+import requests
 from batid.models import (
     Address,
     Building,
@@ -17,16 +18,21 @@ from batid.models import (
     UserProfile,
 )
 from batid.services.data_gouv_publication import (
+    DATA_GOUV_TIMEOUT_S,
     cleanup_directory,
     create_archive,
     create_directory,
     data_gouv_create_resource,
     data_gouv_resource_id,
+    get_area_publish_task,
+    publish,
     publish_on_data_gouv,
+    publish_on_data_gouv_with_retries,
     update_resource_metadata,
     upload_to_s3,
 )
 from batid.tests.factories.users import ContributorUserFactory
+from celery import chain
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
 from freezegun import freeze_time
@@ -522,6 +528,10 @@ class TestDataGouvPublication(TestCase):
         },
     )
     def test_update_resource_on_data_gouv(self, put_mock):
+        """
+        Update of an existing resource metadata.
+        Expected: one PUT on the resource URL with the metadata and the data.gouv.fr timeout.
+        """
         put_mock.return_value.status_code = 200
         title = "Export du RNB"
         description = "Export du RNB au format csv pour un territoire français."
@@ -556,6 +566,7 @@ class TestDataGouvPublication(TestCase):
                 "checksum": {"type": "sha1", "value": archive_sha1},
                 "extras": {"analysis:last-modified-at": str(datetime.now())},
             },
+            timeout=DATA_GOUV_TIMEOUT_S,
         )
 
     @freeze_time("2021-02-23")
@@ -568,6 +579,10 @@ class TestDataGouvPublication(TestCase):
         },
     )
     def test_create_resource_on_data_gouv(self, post_mock):
+        """
+        Creation of a new resource in the dataset.
+        Expected: one POST on the resources URL with the metadata and the data.gouv.fr timeout.
+        """
         post_mock.return_value.status_code = 201
         title = "Export du RNB"
         description = "Export du RNB au format csv pour un territoire français."
@@ -602,6 +617,7 @@ class TestDataGouvPublication(TestCase):
                 "checksum": {"type": "sha1", "value": archive_sha1},
                 "created_at": str(datetime.now()),
             },
+            timeout=DATA_GOUV_TIMEOUT_S,
         )
 
     # Test publication de ressources existantes
@@ -617,6 +633,10 @@ class TestDataGouvPublication(TestCase):
     @mock.patch("batid.services.data_gouv_publication.requests.put")
     @mock.patch("batid.services.data_gouv_publication.requests.get")
     def test_publishing_existing_dept_resource_on_data_gouv(self, get_mock, put_mock):
+        """
+        Publication of department 33, whose zip resource already exists (id 2).
+        Expected: PUT on resource 2 with the department title and the data.gouv.fr timeout.
+        """
         get_mock.return_value.status_code = 200
         get_mock.return_value.json.return_value = get_resources()
 
@@ -647,6 +667,7 @@ class TestDataGouvPublication(TestCase):
                 "checksum": {"type": "sha1", "value": archive_sha1},
                 "extras": {"analysis:last-modified-at": str(datetime.now())},
             },
+            timeout=DATA_GOUV_TIMEOUT_S,
         )
 
     @freeze_time("2021-02-23")
@@ -663,6 +684,10 @@ class TestDataGouvPublication(TestCase):
     def test_publishing_existing_national_resource_on_data_gouv(
         self, get_mock, put_mock
     ):
+        """
+        Publication of the national export, whose zip resource already exists (id 4).
+        Expected: PUT on resource 4 with the national title and the data.gouv.fr timeout.
+        """
         get_mock.return_value.status_code = 200
         get_mock.return_value.json.return_value = get_resources()
 
@@ -694,6 +719,7 @@ class TestDataGouvPublication(TestCase):
                 "checksum": {"type": "sha1", "value": archive_sha1},
                 "extras": {"analysis:last-modified-at": str(datetime.now())},
             },
+            timeout=DATA_GOUV_TIMEOUT_S,
         )
 
     # Test publication d'une ressource inexistante
@@ -709,6 +735,10 @@ class TestDataGouvPublication(TestCase):
     @mock.patch("batid.services.data_gouv_publication.requests.get")
     @mock.patch("batid.services.data_gouv_publication.requests.post")
     def test_publishing_non_existing_resource_on_data_gouv(self, post_mock, get_mock):
+        """
+        Publication of department 45, which has no resource yet.
+        Expected: POST of a new resource with the department title and the data.gouv.fr timeout.
+        """
         post_mock.return_value.status_code = 201
         post_mock.return_value.json.return_value = 4
 
@@ -741,4 +771,162 @@ class TestDataGouvPublication(TestCase):
                 "checksum": {"type": "sha1", "value": archive_sha1},
                 "created_at": str(datetime.now()),
             },
+            timeout=DATA_GOUV_TIMEOUT_S,
         )
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "DATA_GOUV_API_KEY": "DATA_GOUV_API_KEY",
+            "DATA_GOUV_BASE_URL": "https://data.gouv.fr",
+            "DATA_GOUV_DATASET_ID": "some-dataset-id",
+        },
+    )
+    @mock.patch("batid.services.data_gouv_publication.time.sleep")
+    @mock.patch("batid.services.data_gouv_publication.requests.put")
+    @mock.patch("batid.services.data_gouv_publication.requests.get")
+    def test_publish_retries_network_error_then_succeeds(
+        self, get_mock, put_mock, sleep_mock
+    ):
+        """
+        Department 33: the first GET raises a network error, the second one succeeds.
+        Expected: the resource is updated once (one PUT) after a single 60 s wait.
+        """
+        get_mock.side_effect = [
+            requests.ConnectionError(),
+            mock.Mock(status_code=200, json=mock.Mock(return_value=get_resources())),
+        ]
+        put_mock.return_value.status_code = 200
+
+        publish_on_data_gouv_with_retries(
+            area="33",
+            public_url="some-url",
+            archive_size=1234,
+            archive_sha1="some-sha1",
+        )
+
+        put_mock.assert_called_once()
+        sleep_mock.assert_called_once_with(60)
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "DATA_GOUV_BASE_URL": "https://data.gouv.fr",
+            "DATA_GOUV_DATASET_ID": "some-dataset-id",
+        },
+    )
+    @mock.patch("batid.services.data_gouv_publication.time.sleep")
+    @mock.patch("batid.services.data_gouv_publication.requests.get")
+    def test_publish_gives_up_after_five_network_errors(self, get_mock, sleep_mock):
+        """
+        Department 33: every GET raises a network error.
+        Expected: 5 attempts with waits of 60, 120, 240 and 480 s, then the network
+        error is raised.
+        """
+        get_mock.side_effect = requests.ConnectionError()
+
+        with self.assertRaises(requests.ConnectionError):
+            publish_on_data_gouv_with_retries(
+                area="33",
+                public_url="some-url",
+                archive_size=1234,
+                archive_sha1="some-sha1",
+            )
+
+        self.assertEqual(get_mock.call_count, 5)
+        self.assertEqual(
+            sleep_mock.call_args_list,
+            [mock.call(60), mock.call(120), mock.call(240), mock.call(480)],
+        )
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "DATA_GOUV_BASE_URL": "https://data.gouv.fr",
+            "DATA_GOUV_DATASET_ID": "some-dataset-id",
+        },
+    )
+    @mock.patch("batid.services.data_gouv_publication.time.sleep")
+    @mock.patch("batid.services.data_gouv_publication.requests.get")
+    def test_publish_does_not_retry_on_http_error_status(self, get_mock, sleep_mock):
+        """
+        Department 33: the GET answers with an HTTP 500 status.
+        Expected: the error is raised at once, one GET and no wait.
+        """
+        get_mock.return_value.status_code = 500
+
+        with self.assertRaises(Exception):
+            publish_on_data_gouv_with_retries(
+                area="33",
+                public_url="some-url",
+                archive_size=1234,
+                archive_sha1="some-sha1",
+            )
+
+        get_mock.assert_called_once()
+        sleep_mock.assert_not_called()
+
+    @mock.patch(
+        "batid.services.data_gouv_publication.create_directory",
+        side_effect=OSError(28, "No space left on device"),
+    )
+    def test_publish_raises_directory_creation_error(self, create_directory_mock):
+        """
+        Department 33: creating the working directory raises OSError 28 (disk full).
+        Expected: publish raises that OSError, not an UnboundLocalError from the cleanup.
+        """
+        with self.assertRaises(OSError) as ctx:
+            publish("33")
+
+        self.assertEqual(ctx.exception.errno, 28)
+
+
+def fail_on_49(area):
+    if area == "49":
+        raise Exception("boom")
+    return True
+
+
+class TestDataGouvPublishTasks(TestCase):
+    @mock.patch("batid.tasks.notify_tech")
+    @mock.patch("batid.tasks.publish", side_effect=fail_on_49)
+    def test_failing_department_does_not_stop_the_chain(
+        self, publish_mock, notify_tech_mock
+    ):
+        """
+        Chain of departments 49 then 50, the publication of 49 raises.
+        Expected: 50 is still published and the chain ends with "done"; one Tchap
+        message mentions 49 and one ERROR record with the stack trace is logged.
+        """
+        with self.assertLogs("batid.tasks", level="ERROR") as logs:
+            result = chain(
+                get_area_publish_task("49"), get_area_publish_task("50")
+            ).apply()
+
+        self.assertEqual(
+            publish_mock.call_args_list, [mock.call("49"), mock.call("50")]
+        )
+        self.assertEqual(result.get(), "done")
+        notify_tech_mock.assert_called_once()
+        self.assertIn("49", notify_tech_mock.call_args.args[0])
+        self.assertEqual(len(logs.records), 1)
+        self.assertIsNotNone(logs.records[0].exc_info)
+
+    @mock.patch("batid.tasks.notify_tech", side_effect=Exception("tchap down"))
+    @mock.patch("batid.tasks.publish", side_effect=fail_on_49)
+    def test_tchap_failure_does_not_stop_the_chain(
+        self, publish_mock, notify_tech_mock
+    ):
+        """
+        Chain of departments 49 then 50, the publication of 49 and the Tchap
+        notification both raise.
+        Expected: 50 is still published; two ERROR records are logged (publication,
+        then Tchap).
+        """
+        with self.assertLogs("batid.tasks", level="ERROR") as logs:
+            chain(get_area_publish_task("49"), get_area_publish_task("50")).apply()
+
+        self.assertEqual(
+            publish_mock.call_args_list, [mock.call("49"), mock.call("50")]
+        )
+        self.assertEqual(len(logs.records), 2)
