@@ -113,6 +113,11 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
         headers = super().get_request_headers()
         if self.request.user.is_authenticated:
             headers["X-Remote-User"] = self.request.user.email
+        # revproxy strips Accept-Encoding; forwarding it is safe because revproxy
+        # reads the upstream body undecoded and copies Content-Encoding to the client.
+        accept_encoding = self.request.headers.get("Accept-Encoding")
+        if accept_encoding:
+            headers["Accept-Encoding"] = accept_encoding
         return headers
 
     def dispatch(self, request, *args, **kwargs):
