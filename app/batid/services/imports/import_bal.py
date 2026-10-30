@@ -1,6 +1,5 @@
 import csv
 import logging
-import os
 import uuid
 from typing import Optional
 
@@ -14,7 +13,7 @@ from batid.models import Address, Building, BuildingImport
 from batid.services.bdg_status import BuildingStatus
 from batid.services.imports import building_import_history
 from batid.services.RNB_team_user import get_RNB_team_user
-from batid.services.source import Source
+from batid.services.source import Source, remove_after_task_success
 from batid.utils.db import dictfetchall
 from celery import Signature
 from django.contrib.gis.geos import Point
@@ -99,6 +98,11 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
     building_import = building_import_history.insert_building_import(
         "bal", bulk_launch_uuid, dpt
     )
+    # A replay (Celery retry or redelivery) reuses the row and goes through every row
+    # of the file again: refusals are counted from zero. Links already created are
+    # skipped (see _known_building_address_link), so their count is kept.
+    building_import.building_refused_count = 0
+    building_import.save()
 
     total_updated = 0
     total_refused = 0
@@ -135,7 +139,7 @@ def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid=None):
         total_refused += refused
 
     # We remove the source file
-    os.remove(src.find(src.filename))
+    remove_after_task_success(src.find(src.filename))
 
     logger.info(
         "BAL import dpt %s done: %d batches, %d links created, %d refused",

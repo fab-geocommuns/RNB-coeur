@@ -1,6 +1,5 @@
 import csv
 import json
-import os
 from datetime import date, datetime, timezone
 from io import StringIO
 from typing import Optional
@@ -8,7 +7,7 @@ from typing import Optional
 import ijson  # type: ignore[import-untyped]
 from batid.models import Plot
 from batid.services.administrative_areas import dpt_list_metropole, drom_list
-from batid.services.source import Source
+from batid.services.source import Source, remove_after_task_success
 from batid.utils.db import copy_from_file
 from celery import Signature
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
@@ -49,8 +48,8 @@ def import_etalab_plots(dpt: str, release_date: str, batch_size: int = 100_000):
         if batch:
             _save_plots(batch)
 
-        # remove the file
-        os.remove(src.path)
+    # remove the file
+    remove_after_task_success(src.path)
 
 
 def _save_plots(rows):

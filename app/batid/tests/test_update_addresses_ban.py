@@ -3,7 +3,8 @@ from io import StringIO
 from unittest.mock import Mock, patch
 
 import batid.tests.helpers as helpers
-from batid.models import Address, Building, City, DataFix
+from batid.models import Address, Building, BuildingHistoryOnly, City, DataFix
+from batid.services.imports import update_addresses_ban
 from batid.services.imports.update_addresses_ban import (
     _expand_street_abbreviations,
     _is_comparison_success,
@@ -58,7 +59,7 @@ class TestUpdateBatch(TestCase):
 
 class TestFlagAddressesFromBanFile(TestCase):
     @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    @patch("batid.services.imports.update_addresses_ban.remove_after_task_success")
     def test_flag_addresses_updates_existing(self, mock_remove, mock_find):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
@@ -83,7 +84,7 @@ class TestFlagAddressesFromBanFile(TestCase):
         self.assertTrue(addr3.still_exists)
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    @patch("batid.services.imports.update_addresses_ban.remove_after_task_success")
     def test_flag_addresses_ignores_unknown(self, mock_remove, mock_find):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
@@ -101,7 +102,7 @@ class TestFlagAddressesFromBanFile(TestCase):
         )
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    @patch("batid.services.imports.update_addresses_ban.remove_after_task_success")
     def test_flag_addresses_not_in_ban_marked_false(self, mock_remove, mock_find):
         mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
 
@@ -123,7 +124,7 @@ class TestFlagAddressesFromBanFile(TestCase):
         self.assertEqual(result["obsolete"], 1)
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    @patch("batid.services.imports.update_addresses_ban.remove_after_task_success")
     def test_flag_addresses_does_not_touch_other_departments(
         self, mock_remove, mock_find
     ):
@@ -141,7 +142,7 @@ class TestFlagAddressesFromBanFile(TestCase):
         self.assertIsNone(other_dept_addr.still_exists)
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    @patch("batid.services.imports.update_addresses_ban.remove_after_task_success")
     def test_flag_addresses_corsica_keys_any_case(self, mock_remove, mock_find):
         """
         Input: Corsica department "2A" (uppercase), two addresses absent from the
@@ -162,7 +163,7 @@ class TestFlagAddressesFromBanFile(TestCase):
             self.assertFalse(addr.still_exists)
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    @patch("batid.services.imports.update_addresses_ban.remove_after_task_success")
     def test_flag_addresses_keys_compared_case_insensitively(
         self, mock_remove, mock_find
     ):
@@ -184,7 +185,7 @@ class TestFlagAddressesFromBanFile(TestCase):
         self.assertTrue(addr.still_exists)
 
     @patch("batid.services.imports.update_addresses_ban.Source.find")
-    @patch("batid.services.imports.update_addresses_ban.os.remove")
+    @patch("batid.services.imports.update_addresses_ban.remove_after_task_success")
     def test_flag_addresses_uppercase_file_keys_match_lowercase_db_keys(
         self, mock_remove, mock_find
     ):
@@ -288,7 +289,7 @@ class TestStreetLevenshtein(TestCase):
 
 
 @patch("batid.services.imports.update_addresses_ban.Source.find")
-@patch("batid.services.imports.update_addresses_ban.os.remove")
+@patch("batid.services.imports.update_addresses_ban.remove_after_task_success")
 class TestCompareAddressesWithBanFile(TestCase):
     # Fixture rows (ban_with_ids_test_data.csv), all in "Impasse de la Treille
     # 04510 Aiglun" (04001):
@@ -1959,3 +1960,219 @@ class TestReplaceObsoleteAddressesFromGeocoding(TestCase):
         )
         obsolete.refresh_from_db()
         self.assertIsNone(obsolete.ban_update_done)
+
+
+class WorkerKilled(Exception):
+    """Stands for a worker killed by a deploy in the middle of a task."""
+
+
+def _kill_on_call(*, target: str, call: int):
+    """Patch a function of update_addresses_ban: its call-th call does its work,
+    then the worker is killed (WorkerKilled is raised)."""
+    original = getattr(update_addresses_ban, target)
+    calls = {"count": 0}
+
+    def run_then_kill(*args, **kwargs):
+        calls["count"] += 1
+        result = original(*args, **kwargs)
+        if calls["count"] == call:
+            raise WorkerKilled()
+        return result
+
+    return patch.object(update_addresses_ban, target, side_effect=run_then_kill)
+
+
+@patch("batid.services.imports.update_addresses_ban.remove_after_task_success")
+@patch("batid.services.imports.update_addresses_ban.Source.find")
+class TestReplayOfFileTasks(TestCase):
+    """acks_late: a task killed mid-run is redelivered and runs again from the
+    start, on a database holding the batches the killed run already committed."""
+
+    def setUp(self):
+        for cle_interop in [
+            "04001_pk624e_00001",
+            "04001_pk624e_00002",
+            "04001_pk624e_00003",
+            "04001_gone_00001",
+        ]:
+            TestCompareAddressesWithBanFile._existing_address(cle_interop)
+
+    @staticmethod
+    def _state() -> dict:
+        return {
+            a.cle_interop: (a.still_exists, a.ban_update_flag, a.ban_update_details)
+            for a in Address.objects.all()
+        }
+
+    @staticmethod
+    def _reset():
+        Address.objects.update(
+            still_exists=True, ban_update_flag=None, ban_update_details=None
+        )
+
+    def test_flag_replay_gives_the_single_run_result(self, mock_find, _mock_remove):
+        """
+        Input: 3 addresses of the BAN file and one absent from it; a run with
+        batch_size=1 killed after its 2nd batch, then a complete run.
+        Expected: same still_exists values as a single complete run.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        flag_addresses_from_ban_file({"dpt": "04"}, batch_size=1)
+        single_run = self._state()
+        self._reset()
+
+        with _kill_on_call(target="_mark_existing_addresses", call=2):
+            with self.assertRaises(WorkerKilled):
+                flag_addresses_from_ban_file({"dpt": "04"}, batch_size=1)
+        flag_addresses_from_ban_file({"dpt": "04"}, batch_size=1)
+
+        self.assertEqual(self._state(), single_run)
+        self.assertFalse(single_run["04001_gone_00001"][0])
+
+    def test_compare_replay_gives_the_single_run_result(self, mock_find, _mock_remove):
+        """
+        Input: the same addresses; a comparison with batch_size=1 killed after
+        its 2nd batch, then a complete run.
+        Expected: same flags and details as a single complete run; the replay only
+        compares the address left by the killed run.
+        """
+        mock_find.return_value = helpers.fixture_path("ban_with_ids_test_data.csv")
+        compare_addresses_with_ban_file({"dpt": "04"}, batch_size=1)
+        single_run = self._state()
+        self._reset()
+
+        with _kill_on_call(target="_compare_batch", call=2):
+            with self.assertRaises(WorkerKilled):
+                compare_addresses_with_ban_file({"dpt": "04"}, batch_size=1)
+        result = compare_addresses_with_ban_file({"dpt": "04"}, batch_size=1)
+
+        self.assertEqual(self._state(), single_run)
+        self.assertEqual(result["successes"] + result["failures"], 1)
+
+
+@patch("batid.services.imports.update_addresses_ban.BanBatchGeocoder.geocode")
+class TestReplayOfGeocoding(TestCase):
+    def test_geocoding_replay_gives_the_single_run_result(self, mock_geocode):
+        """
+        Input: 3 obsolete addresses; a geocoding with batch_size=1 killed after
+        its 2nd batch, then a complete run.
+        Expected: same flags and details as a single complete run; the replay
+        geocodes again the batch killed before being stored, and the last one.
+        """
+        for i in range(3):
+            TestGeocodeObsoleteAddresses._obsolete_address(
+                f"04001_old_0000{i}", "place de la mairie"
+            )
+        TestGeocodeObsoleteAddresses._answer(
+            mock_geocode, {"place de la mairie": _geocoder_result()}
+        )
+
+        def state() -> dict:
+            return {
+                a.cle_interop: (a.ban_update_flag, a.ban_update_details)
+                for a in Address.objects.all()
+            }
+
+        geocode_obsolete_addresses(batch_size=1)
+        single_run = state()
+        Address.objects.update(ban_update_flag=None, ban_update_details=None)
+        mock_geocode.reset_mock()
+
+        with _kill_on_call(target="_geocode_addresses", call=2):
+            with self.assertRaises(WorkerKilled):
+                geocode_obsolete_addresses(batch_size=1)
+        result = geocode_obsolete_addresses(batch_size=1)
+
+        self.assertEqual(state(), single_run)
+        self.assertEqual(result, {"geocoding_successes": 2, "geocoding_failures": 0})
+        # 2 calls for the killed run, 2 for the replay
+        self.assertEqual(mock_geocode.call_count, 4)
+
+
+class TestReplayOfUpdate(TestCase):
+    def setUp(self):
+        cache.clear()
+        City.objects.create(
+            code_insee="04001", name="Aiglun", has_reliable_ban_ids=True
+        )
+
+    def test_update_replay_updates_each_address_once(self):
+        """
+        Input: 3 comparison successes; an update with batch_size=1 killed while
+        applying the 2nd batch (before its bulk_update), then a complete run.
+        Expected: every address is updated from its details and done; the replay
+        only updates the 2 addresses left by the killed run.
+        """
+        for i in range(3):
+            TestUpdateAddressesFromBanComparison._create_address(
+                f"04001_old_0000{i}",
+                "comparison_success",
+                _get_ban_details(cle_interop=f"04001_0040_0000{i}", ban_id=None),
+            )
+
+        with _kill_on_call(target="_apply_ban_details", call=2):
+            with self.assertRaises(WorkerKilled):
+                update_addresses_from_ban_comparison(batch_size=1)
+        result = update_addresses_from_ban_comparison(batch_size=1)
+
+        self.assertEqual(result, {"updated": 2})
+        self.assertEqual(
+            sorted(
+                Address.objects.filter(ban_update_done=True, source="BAN").values_list(
+                    "cle_interop", flat=True
+                )
+            ),
+            ["04001_0040_00000", "04001_0040_00001", "04001_0040_00002"],
+        )
+
+
+class TestReplayOfReplacement(TestCase):
+    def setUp(self):
+        cache.clear()
+        City.objects.create(
+            code_insee="04001", name="Aiglun", has_reliable_ban_ids=True
+        )
+        UserFactory(username="paul", is_staff=True)
+
+    def test_replacement_replay_replaces_each_address_once(self):
+        """
+        Input: 3 obsolete addresses, each linked to its building; a replacement
+        killed inside the transaction of the 2nd address, then a complete run.
+        Expected: each building is updated once and linked to its fresh address
+        only; the replay handles the 2 addresses left by the killed run.
+        """
+        buildings = []
+        for i in range(3):
+            obsolete = TestReplaceObsoleteAddressesFromGeocoding._create_obsolete(
+                f"04001_old_0000{i}",
+                _get_ban_details(cle_interop=f"04001_0040_0000{i}", ban_id=None),
+            )
+            buildings.append(
+                TestReplaceObsoleteAddressesFromGeocoding._create_bdg(
+                    f"BDG{i}", [obsolete]
+                )
+            )
+
+        history_before = {
+            bdg.rnb_id: BuildingHistoryOnly.objects.filter(rnb_id=bdg.rnb_id).count()
+            for bdg in buildings
+        }
+
+        with _kill_on_call(target="_replace_obsolete_address", call=2):
+            with self.assertRaises(WorkerKilled):
+                replace_obsolete_addresses_from_geocoding(batch_size=1)
+        result = replace_obsolete_addresses_from_geocoding(batch_size=1)
+
+        self.assertEqual(result["addresses"], 2)
+        self.assertEqual(
+            Address.objects.filter(still_exists=False, ban_update_done=True).count(),
+            3,
+        )
+        for i, bdg in enumerate(buildings):
+            bdg.refresh_from_db()
+            fresh = Address.objects.get(cle_interop=f"04001_0040_0000{i}")
+            self.assertEqual(bdg.addresses_internal_id, [fresh.internal_id])
+            self.assertEqual(
+                BuildingHistoryOnly.objects.filter(rnb_id=bdg.rnb_id).count(),
+                history_before[bdg.rnb_id] + 1,
+            )
