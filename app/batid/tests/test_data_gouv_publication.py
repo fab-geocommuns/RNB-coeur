@@ -24,12 +24,15 @@ from batid.services.data_gouv_publication import (
     create_directory,
     data_gouv_create_resource,
     data_gouv_resource_id,
+    get_area_publish_task,
+    publish,
     publish_on_data_gouv,
     publish_on_data_gouv_with_retries,
     update_resource_metadata,
     upload_to_s3,
 )
 from batid.tests.factories.users import ContributorUserFactory
+from celery import chain
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
 from freezegun import freeze_time
@@ -862,3 +865,68 @@ class TestDataGouvPublication(TestCase):
 
         get_mock.assert_called_once()
         sleep_mock.assert_not_called()
+
+    @mock.patch(
+        "batid.services.data_gouv_publication.create_directory",
+        side_effect=OSError(28, "No space left on device"),
+    )
+    def test_publish_raises_directory_creation_error(self, create_directory_mock):
+        """
+        Department 33: creating the working directory raises OSError 28 (disk full).
+        Expected: publish raises that OSError, not an UnboundLocalError from the cleanup.
+        """
+        with self.assertRaises(OSError) as ctx:
+            publish("33")
+
+        self.assertEqual(ctx.exception.errno, 28)
+
+
+def fail_on_49(area):
+    if area == "49":
+        raise Exception("boom")
+    return True
+
+
+class TestDataGouvPublishTasks(TestCase):
+    @mock.patch("batid.tasks.notify_tech")
+    @mock.patch("batid.tasks.publish", side_effect=fail_on_49)
+    def test_failing_department_does_not_stop_the_chain(
+        self, publish_mock, notify_tech_mock
+    ):
+        """
+        Chain of departments 49 then 50, the publication of 49 raises.
+        Expected: 50 is still published and the chain ends with "done"; one Tchap
+        message mentions 49 and one ERROR record with the stack trace is logged.
+        """
+        with self.assertLogs("batid.tasks", level="ERROR") as logs:
+            result = chain(
+                get_area_publish_task("49"), get_area_publish_task("50")
+            ).apply()
+
+        self.assertEqual(
+            publish_mock.call_args_list, [mock.call("49"), mock.call("50")]
+        )
+        self.assertEqual(result.get(), "done")
+        notify_tech_mock.assert_called_once()
+        self.assertIn("49", notify_tech_mock.call_args.args[0])
+        self.assertEqual(len(logs.records), 1)
+        self.assertIsNotNone(logs.records[0].exc_info)
+
+    @mock.patch("batid.tasks.notify_tech", side_effect=Exception("tchap down"))
+    @mock.patch("batid.tasks.publish", side_effect=fail_on_49)
+    def test_tchap_failure_does_not_stop_the_chain(
+        self, publish_mock, notify_tech_mock
+    ):
+        """
+        Chain of departments 49 then 50, the publication of 49 and the Tchap
+        notification both raise.
+        Expected: 50 is still published; two ERROR records are logged (publication,
+        then Tchap).
+        """
+        with self.assertLogs("batid.tasks", level="ERROR") as logs:
+            chain(get_area_publish_task("49"), get_area_publish_task("50")).apply()
+
+        self.assertEqual(
+            publish_mock.call_args_list, [mock.call("49"), mock.call("50")]
+        )
+        self.assertEqual(len(logs.records), 2)
