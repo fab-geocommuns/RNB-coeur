@@ -39,6 +39,7 @@ django-taggit = "^6.1.0"
 private-captcha = "^0.0.6"
 rapidfuzz = "^3.14.6"
 authlib = "~1.8"
+django-otp = {version = "~1.7.5", extras = ["segno"]}
 
 [tool.poetry.group.dev.dependencies]
 moto = "^5.2.3"
@@ -93,7 +94,7 @@ plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 mypy_path = "stubs"
 
 [[tool.mypy.overrides]]
-module = ["boto3.*", "rest_framework", "rest_framework.*", "rest_framework_tracking.*", "rest_framework_gis.*", "geopandas", "taggit.*", "fiona", "authlib.*"]
+module = ["boto3.*", "rest_framework", "rest_framework.*", "rest_framework_tracking.*", "rest_framework_gis.*", "geopandas", "taggit.*", "fiona", "authlib.*", "django_otp.*", "segno"]
 follow_untyped_imports = true
 
 [tool.django-stubs]

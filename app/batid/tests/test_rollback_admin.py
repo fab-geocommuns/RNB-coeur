@@ -1,5 +1,6 @@
 from batid.models.building import Building
 from batid.models.others import DataFix, UserProfile
+from batid.tests.helpers import login_with_otp
 from django.contrib.auth.models import Group, User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase, override_settings
@@ -74,14 +75,14 @@ class RollbackAdminPermissionsTest(RollbackAdminTestCase):
 
     def test_rollback_view_staff_without_group_forbidden(self):
         """A staff user without Rollback group receives 302 (redirect to login)"""
-        self.client.force_login(self.staff_no_group)
+        login_with_otp(client=self.client, user=self.staff_no_group)
         response = self.client.get("/admin/rollback/")
         self.assertEqual(response.status_code, 302)
         self.assertIn("login", response.url)
 
     def test_rollback_view_staff_with_rollback_group_access(self):
         """A staff user with Rollback group can access the page"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
         response = self.client.get("/admin/rollback/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Utilisateur")
@@ -101,7 +102,7 @@ class RollbackAdminPermissionsTest(RollbackAdminTestCase):
 
     def test_rollback_confirm_staff_without_group_forbidden(self):
         """A staff user without Rollback group receives 302 (redirect to login)"""
-        self.client.force_login(self.staff_no_group)
+        login_with_otp(client=self.client, user=self.staff_no_group)
         response = self.client.get("/admin/rollback/confirm/")
         self.assertEqual(response.status_code, 302)
         self.assertIn("login", response.url)
@@ -110,7 +111,7 @@ class RollbackAdminPermissionsTest(RollbackAdminTestCase):
 class RollbackFormTest(RollbackAdminTestCase):
     def test_rollback_form_displays_fields(self):
         """Verify presence of user, start_time, end_time fields"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
         response = self.client.get("/admin/rollback/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Utilisateur")
@@ -119,14 +120,14 @@ class RollbackFormTest(RollbackAdminTestCase):
 
     def test_rollback_form_has_dry_run_button(self):
         """Verify Dry Run button"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
         response = self.client.get("/admin/rollback/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "dry_run")
 
     def test_rollback_form_has_rollback_button(self):
         """Verify Rollback button"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
         response = self.client.get("/admin/rollback/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "rollback")
@@ -135,7 +136,7 @@ class RollbackFormTest(RollbackAdminTestCase):
 class RollbackDryRunTest(RollbackAdminTestCase):
     def test_dry_run_without_dates(self):
         """Dry run returns results without modifying the database"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         # Count buildings before
         buildings_count_before = Building.objects.count()
@@ -164,7 +165,7 @@ class RollbackDryRunTest(RollbackAdminTestCase):
 
     def test_dry_run_with_date_range(self):
         """Dry run correctly filters by time period"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         self.building.refresh_from_db()
         start_time = self.building.sys_period.lower
@@ -184,7 +185,7 @@ class RollbackDryRunTest(RollbackAdminTestCase):
 
     def test_dry_run_no_database_changes(self):
         """Verify no database modifications are made"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         # Save initial state
         self.building.refresh_from_db()
@@ -204,7 +205,7 @@ class RollbackDryRunTest(RollbackAdminTestCase):
 
     def test_dry_run_user_not_found(self):
         """Non-existent user selected - validation error"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         response = self.client.post(
             "/admin/rollback/",
@@ -229,7 +230,7 @@ class RollbackDryRunTest(RollbackAdminTestCase):
 class RollbackConfirmTest(RollbackAdminTestCase):
     def test_rollback_redirects_to_confirm(self):
         """Rollback button redirects to confirmation page"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         response = self.client.post(
             "/admin/rollback/",
@@ -245,7 +246,7 @@ class RollbackConfirmTest(RollbackAdminTestCase):
 
     def test_confirm_page_requires_session(self):
         """Confirmation page without session redirects to form"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         response = self.client.get("/admin/rollback/confirm/")
 
@@ -254,7 +255,7 @@ class RollbackConfirmTest(RollbackAdminTestCase):
 
     def test_confirm_cancel_returns_to_form(self):
         """Cancel button returns to form"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         # Configure session
         session = self.client.session
@@ -277,7 +278,7 @@ class RollbackConfirmTest(RollbackAdminTestCase):
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_confirm_executes_rollback(self):
         """Confirmation executes the rollback"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         # Configure session with rollback parameters
         session = self.client.session
@@ -303,7 +304,7 @@ class RollbackConfirmTest(RollbackAdminTestCase):
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_rollback_creates_datafix(self):
         """Rollback creates a DataFix"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         datafix_count_before = DataFix.objects.count()
 
@@ -330,7 +331,7 @@ class RollbackFlowTest(RollbackAdminTestCase):
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_full_rollback_flow(self):
         """Test complete flow: form -> confirmation -> execution"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         # Step 1: Submit form with rollback action
         response = self.client.post(
@@ -367,7 +368,7 @@ class RollbackFlowTest(RollbackAdminTestCase):
     @override_settings(BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_dry_run_then_rollback(self):
         """Test: dry run then actual rollback"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         # Step 1: Dry run
         response = self.client.post(
@@ -411,7 +412,7 @@ class RollbackWithDatesTest(RollbackAdminTestCase):
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_rollback_with_start_date(self):
         """Rollback with start date"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         # Create a second building after
         building_2 = Building.create_new(
@@ -453,7 +454,7 @@ class RollbackWithDatesTest(RollbackAdminTestCase):
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_rollback_with_end_date(self):
         """Rollback with end date (excludes events after)"""
-        self.client.force_login(self.rollback_user)
+        login_with_otp(client=self.client, user=self.rollback_user)
 
         self.building.refresh_from_db()
         end_time = self.building.sys_period.lower
