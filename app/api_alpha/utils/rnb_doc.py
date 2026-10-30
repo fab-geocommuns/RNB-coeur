@@ -125,7 +125,7 @@ def _get_components() -> dict:
             "RNBID": {
                 "type": "string",
                 "description": "Identifiant unique du bâtiment dans le RNB",
-                "example": "PG46YY6YWCX8",
+                "example": "MFD5CFNA7GX5",
             },
             "BuildingIsActive": {
                 "type": "boolean",
@@ -157,51 +157,70 @@ def _get_components() -> dict:
                     },
                 },
             },
+            "BuildingPoint": {
+                "type": "object",
+                "description": "Coordonnées géographiques du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84.",
+                "properties": {
+                    "type": {"type": "string", "example": "Point"},
+                    "coordinates": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "example": [-0.280536093341573, 47.18791226741607],
+                    },
+                },
+            },
             "BuildingShape": {
                 "type": "object",
-                "description": "Géométrie représentative du bâtiment. Elle peut être un multipolygone, un polygone ou un point et correspond notre meilleure connaissance de la réalité:",
+                "description": "Géométrie représentative du bâtiment. Elle peut être un multipolygone, un polygone ou un point et correspond à notre meilleure connaissance de la réalité.",
                 "properties": {
                     "type": {
                         "type": "string",
                         "enum": ["Point", "Polygon", "MultiPolygon"],
-                        "example": "Point",
+                        "example": "MultiPolygon",
                     },
                     "coordinates": {
-                        "type": "array",
-                        "items": {
-                            "oneOf": [
-                                {
+                        "oneOf": [
+                            {
+                                "type": "array",
+                                "description": "Coordonnées pour un Point",
+                                "items": {"type": "number"},
+                                "example": [
+                                    -0.280536093341573,
+                                    47.18791226741607,
+                                ],
+                            },
+                            {
+                                "type": "array",
+                                "description": "Coordonnées pour un Polygon",
+                                "items": {
                                     "type": "array",
-                                    "description": "Coordonnées pour un Point",
-                                    "items": {"type": "number"},
-                                    "example": [
-                                        -0.570505392116188,
-                                        44.841034137099996,
-                                    ],
-                                },
-                                {
-                                    "type": "array",
-                                    "description": "Coordonnées pour un Polygon",
                                     "items": {
                                         "type": "array",
                                         "items": {"type": "number"},
                                     },
-                                    "example": [
-                                        [
-                                            [
-                                                -0.570505392116188,
-                                                44.841034137099996,
-                                            ],
-                                            [
-                                                -0.570505392116188,
-                                                44.841034137099996,
-                                            ],
-                                        ]
-                                    ],
                                 },
-                                {
+                                "example": [
+                                    [
+                                        [-0.280580994183435, 47.18781451259896],
+                                        [-0.280518618884989, 47.18802712764387],
+                                        [-0.280312563687183, 47.18800773707939],
+                                        [-0.280354544338391, 47.18778578845762],
+                                        [-0.280580994183435, 47.18781451259896],
+                                    ],
+                                    [
+                                        [-0.28053964857276, 47.187830101194784],
+                                        [-0.280374443008843, 47.18780865208074],
+                                        [-0.28033686595634, 47.18799443363734],
+                                        [-0.280496410208815, 47.18800973584818],
+                                        [-0.28053964857276, 47.187830101194784],
+                                    ],
+                                ],
+                            },
+                            {
+                                "type": "array",
+                                "description": "Coordonnées pour un MultiPolygon",
+                                "items": {
                                     "type": "array",
-                                    "description": "Coordonnées pour un MultiPolygon",
                                     "items": {
                                         "type": "array",
                                         "items": {
@@ -209,23 +228,45 @@ def _get_components() -> dict:
                                             "items": {"type": "number"},
                                         },
                                     },
-                                    "example": [
-                                        [
-                                            [
-                                                [
-                                                    -0.570505392116188,
-                                                    44.841034137099996,
-                                                ],
-                                                [
-                                                    -0.570505392116188,
-                                                    44.841034137099996,
-                                                ],
-                                            ]
-                                        ]
-                                    ],
                                 },
+                                "example": [
+                                    [
+                                        [
+                                            [-0.280580994183435, 47.18781451259896],
+                                            [-0.280518618884989, 47.18802712764387],
+                                            [-0.280312563687183, 47.18800773707939],
+                                            [-0.280354544338391, 47.18778578845762],
+                                            [-0.280580994183435, 47.18781451259896],
+                                        ],
+                                        [
+                                            [-0.28053964857276, 47.187830101194784],
+                                            [-0.280374443008843, 47.18780865208074],
+                                            [-0.28033686595634, 47.18799443363734],
+                                            [-0.280496410208815, 47.18800973584818],
+                                            [-0.28053964857276, 47.187830101194784],
+                                        ],
+                                    ]
+                                ],
+                            },
+                        ],
+                        "example": [
+                            [
+                                [
+                                    [-0.280580994183435, 47.18781451259896],
+                                    [-0.280518618884989, 47.18802712764387],
+                                    [-0.280312563687183, 47.18800773707939],
+                                    [-0.280354544338391, 47.18778578845762],
+                                    [-0.280580994183435, 47.18781451259896],
+                                ],
+                                [
+                                    [-0.28053964857276, 47.187830101194784],
+                                    [-0.280374443008843, 47.18780865208074],
+                                    [-0.28033686595634, 47.18799443363734],
+                                    [-0.280496410208815, 47.18800973584818],
+                                    [-0.28053964857276, 47.187830101194784],
+                                ],
                             ]
-                        },
+                        ],
                     },
                 },
             },
@@ -326,18 +367,7 @@ def _get_components() -> dict:
                 "properties": {
                     "rnb_id": {"$ref": "#/components/schemas/RNBID"},
                     "status": {"$ref": "#/components/schemas/BuildingStatus"},
-                    "point": {
-                        "type": "object",
-                        "description": "Coordonnées géographiques du bâtiment au format GeoJSON. Le système de référence géodésique est le WGS84.",
-                        "properties": {
-                            "type": {"type": "string", "example": "Point"},
-                            "coordinates": {
-                                "type": "array",
-                                "items": {"type": "number"},
-                                "example": [-0.570505392116188, 44.841034137099996],
-                            },
-                        },
-                    },
+                    "point": {"$ref": "#/components/schemas/BuildingPoint"},
                     "shape": {"$ref": "#/components/schemas/BuildingShape"},
                     "addresses": {
                         "type": "array",
