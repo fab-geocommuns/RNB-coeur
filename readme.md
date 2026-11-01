@@ -132,6 +132,26 @@ docker exec -it web python manage.py seed_local_db --point 48.8584,2.2945 --poin
 
 Avant l'import, la commande vérifie que les points sont en France, affiche le volume à importer et demande confirmation. `--truncate` vide d'abord les tables locales concernées, pour repartir de zéro.
 
+## Double authentification (2FA)
+
+La connexion par mot de passe (`POST /api/alpha/login/`) et l'admin acceptent un code d'application d'authentification (TOTP) ou un code de secours. Les clés API (`Authorization: Token`) et ProConnect ne sont pas concernés.
+
+`MFA_ENFORCEMENT`, dans `.env.app.<env>`, règle `/login/` :
+
+| Valeur | Effet |
+|---|---|
+| `OFF` | aucun code demandé, même aux comptes qui ont une application |
+| `OPTIONAL` | code demandé aux comptes qui ont une application ; les autres doivent en configurer une s'ils sont staff, superuser ou membres du groupe « MFA required », sinon elle leur est proposée (`mfa_setup_suggested: true`) |
+| `REQUIRED` | tout compte doit avoir une application ; valeur appliquée si la variable est absente |
+
+Une autre valeur fait échouer le démarrage. Dans le vault Ansible de RNB-infra, la mettre entre guillemets (`"OFF"`) : sans guillemets, YAML la lit comme un booléen. La règle est dans `login_mfa_outcome` (`app/batid/services/mfa.py`). L'admin exige le code quel que soit le mode.
+
+Depuis l'admin :
+
+* imposer la 2FA à un compte : l'ajouter au groupe « MFA required », à créer dans l'admin s'il n'existe pas ;
+* téléphone perdu : action « Réinitialiser la double authentification » sur l'utilisateur, qui reconfigure son application à la connexion suivante. Un utilisateur ne peut pas remplacer lui-même une application déjà confirmée ;
+* premier accès à l'admin : `addstatictoken`, voir « Créer un super utilisateur ».
+
 ## Lancer les tests
 ```
 docker exec -ti web python manage.py test
