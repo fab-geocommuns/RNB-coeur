@@ -106,7 +106,7 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
     def test_func(self):
         # The upstream resolves dot segments: "/public/dashboard/../../api/..." would
         # escape the public prefix it starts with.
-        if ".." in fully_unquoted(self.request.path):
+        if has_dot_segment(self.request.path):
             return False
         if any(
             self.request.path.startswith(allowed_url)
@@ -147,12 +147,22 @@ def is_verified_superuser(user) -> bool:
     return user.is_superuser and user.is_verified()
 
 
-def fully_unquoted(path: str) -> str:
-    """Percent-decode until stable, so that "%252e%252e" reads as ".." too."""
-    decoded = unquote(path)
-    while decoded != path:
-        path, decoded = decoded, unquote(decoded)
-    return decoded
+# Real paths need one or two decoding passes. Deeper nesting is only an evasion
+# attempt, and decoding it layer by layer costs quadratic time on an anonymous route.
+MAX_UNQUOTE_PASSES = 3
+
+
+def has_dot_segment(path: str) -> bool:
+    """Whether ".." appears once percent-decoded, "%252e%252e" included. A path still
+    changing after MAX_UNQUOTE_PASSES counts as having one: it is refused unread."""
+    for _ in range(MAX_UNQUOTE_PASSES):
+        if ".." in path:
+            return True
+        decoded = unquote(path)
+        if decoded == path:
+            return False
+        path = decoded
+    return True
 
 
 def can_rollback(user):
