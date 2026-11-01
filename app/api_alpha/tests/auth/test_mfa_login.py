@@ -303,6 +303,23 @@ class LoginThrottleTest(MFALoginTestCase):
             self.post(path="/api/alpha/login/", username="other").status_code, 400
         )
 
+    def test_username_and_email_of_one_account_share_a_counter(self):
+        """2/min: a /login/ call with the username "jdupont", then one with its email
+        "JDupont@exemple.fr", fill the same account bucket: the 3rd call, by
+        username, gets 429."""
+        self.assertEqual(
+            self.post(path="/api/alpha/login/", username="jdupont").status_code, 400
+        )
+        self.assertEqual(
+            self.post(
+                path="/api/alpha/login/", username="JDupont@exemple.fr"
+            ).status_code,
+            400,
+        )
+        self.assertEqual(
+            self.post(path="/api/alpha/login/", username="jdupont").status_code, 429
+        )
+
     def test_ip_fallback_without_identifier(self):
         """2/min, no username submitted: counted on the client IP, 3rd call 429."""
         self.assertEqual(
