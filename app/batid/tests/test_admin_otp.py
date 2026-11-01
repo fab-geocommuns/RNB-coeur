@@ -26,7 +26,8 @@ class AdminOTPTest(TestCase):
 
     def test_staff_without_otp_is_sent_to_login(self):
         """Superuser logged in without a second factor: /admin/ and the custom
-        admin pages (worker, rollback, ADS export) redirect to the login page."""
+        admin pages (worker, rollback, ADS and contributions exports) redirect to
+        the login page."""
         self.client.force_login(self.superuser)
 
         for url in (
@@ -34,6 +35,7 @@ class AdminOTPTest(TestCase):
             "/admin/worker/",
             "/admin/rollback/",
             "/admin/export_ads/",
+            "/admin/export_contributions/",
         ):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 302, url)
@@ -103,13 +105,14 @@ class AdminOTPTest(TestCase):
 
     def test_metabase_refuses_dot_segments(self):
         """Anonymous GET on a public Metabase prefix followed by "..", "%2e%2e",
-        "..%2f" or "%252e%252e" towards /api/user/current: never proxied, the
+        "..%2f", "%252e%252e" or a dot encoded 50 times over: never proxied, the
         client is sent to the login page."""
         for url in (
             "/metabase/public/dashboard/../../api/user/current",
             "/metabase/public/dashboard/%2e%2e/%2e%2e/api/user/current",
             "/metabase/public/dashboard/..%2f..%2fapi/user/current",
             "/metabase/public/dashboard/%252e%252e/%252e%252e/api/user/current",
+            "/metabase/public/dashboard/%" + "25" * 50 + "2e/api/user/current",
         ):
             with self.subTest(url=url):
                 with mock.patch.object(

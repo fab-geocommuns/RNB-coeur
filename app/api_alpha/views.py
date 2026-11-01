@@ -725,7 +725,7 @@ Si le compte a configuré une application d'authentification, le champ `otp` est
                 ),
                 "operationId": "login",
                 "requestBody": credentials_body_doc(
-                    {
+                    properties={
                         **CREDENTIALS_PROPERTIES,
                         "otp": {
                             "type": "string",
@@ -780,6 +780,29 @@ class CurrentUserView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Utilisateur connecté",
+                "description": "Renvoie l'identité et le jeton du compte authentifié par l'en-tête `Authorization: Token <jeton>`.",
+                "operationId": "currentUser",
+                "responses": {
+                    "200": {
+                        "description": "Compte authentifié.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": LOGIN_BODY_PROPERTIES,
+                                }
+                            }
+                        },
+                    },
+                    "401": {"description": "Jeton absent ou invalide."},
+                },
+            }
+        }
+    )
     def get(self, request):
         return Response(login_response_body(request.user))
 

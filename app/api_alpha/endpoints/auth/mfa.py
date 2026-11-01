@@ -89,7 +89,9 @@ LOGIN_BODY_PROPERTIES = {
 BAD_CREDENTIALS_DOC = {"description": "Identifiant ou mot de passe incorrect."}
 
 
-def credentials_body_doc(properties: dict) -> dict:
+def credentials_body_doc(
+    *, properties: dict, required: tuple[str, ...] = ("username", "password")
+) -> dict:
     return {
         "required": True,
         "content": {
@@ -97,7 +99,7 @@ def credentials_body_doc(properties: dict) -> dict:
                 "schema": {
                     "type": "object",
                     "properties": properties,
-                    "required": ["username", "password"],
+                    "required": list(required),
                 }
             }
         },
@@ -114,7 +116,7 @@ class MFASetupView(ObtainAuthToken):
                 "summary": "Configuration de la double authentification",
                 "description": "Génère une nouvelle application d'authentification (TOTP) non confirmée pour le compte, à confirmer avec `/auth/mfa/confirm/`. Refusé si une application est déjà confirmée.",
                 "operationId": "setupMFA",
-                "requestBody": credentials_body_doc(CREDENTIALS_PROPERTIES),
+                "requestBody": credentials_body_doc(properties=CREDENTIALS_PROPERTIES),
                 "responses": {
                     "200": {
                         "description": "Données à saisir dans l'application d'authentification.",
@@ -178,14 +180,15 @@ class MFAConfirmView(ObtainAuthToken):
                 "description": "Confirme l'application d'authentification avec son premier code, connecte l'utilisateur et renvoie 10 codes de secours, affichés une seule fois.",
                 "operationId": "confirmMFA",
                 "requestBody": credentials_body_doc(
-                    {
+                    properties={
                         **CREDENTIALS_PROPERTIES,
                         "otp": {
                             "type": "string",
                             "description": "Code à 6 chiffres affiché par l'application.",
                             "example": "123456",
                         },
-                    }
+                    },
+                    required=("username", "password", "otp"),
                 ),
                 "responses": {
                     "200": {
