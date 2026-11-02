@@ -285,14 +285,14 @@ class LoginThrottleTest(MFALoginTestCase):
 
     def test_counted_per_identifier_across_login_and_setup(self):
         """2/min: a /login/ call for "jdupont" and a /auth/mfa/setup/ call for
-        " JDupont " fill the same bucket, the 3rd call for "jdupont" gets 429.
+        " jdupont " fill the same bucket, the 3rd call for "jdupont" gets 429.
         Another identifier from the same IP still gets through (400)."""
         self.assertEqual(
             self.post(path="/api/alpha/login/", username="jdupont").status_code, 400
         )
         self.assertEqual(
             self.post(
-                path="/api/alpha/auth/mfa/setup/", username=" JDupont "
+                path="/api/alpha/auth/mfa/setup/", username=" jdupont "
             ).status_code,
             400,
         )
@@ -304,15 +304,18 @@ class LoginThrottleTest(MFALoginTestCase):
         )
 
     def test_username_and_email_of_one_account_share_a_counter(self):
-        """2/min: a /login/ call with the username "jdupont", then one with its email
-        "JDupont@exemple.fr", fill the same account bucket: the 3rd call, by
-        username, gets 429."""
+        """2/min, with another account whose email is "JDupont" (same letters as the
+        username, other case): a /login/ call with the username "jdupont", then one
+        with its email "jdupont@exemple.fr", fill the same account bucket: the 3rd
+        call, by username, gets 429."""
+        User.objects.create_user(username="other", email="JDupont")
+
         self.assertEqual(
             self.post(path="/api/alpha/login/", username="jdupont").status_code, 400
         )
         self.assertEqual(
             self.post(
-                path="/api/alpha/login/", username="JDupont@exemple.fr"
+                path="/api/alpha/login/", username="jdupont@exemple.fr"
             ).status_code,
             400,
         )
