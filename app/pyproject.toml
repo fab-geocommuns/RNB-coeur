@@ -41,23 +41,23 @@ rapidfuzz = "^3.14.6"
 authlib = "~1.8"
 
 [tool.poetry.group.dev.dependencies]
-moto = "^5.2.3"
+moto = "^5.2.5"
 freezegun = "^1.5.5"
 notebook = "==6.5.7"
 jupyter = "^1.0.0"
 openpyxl = "^3.1.5"
 tqdm = "^4.70.1"
 mypy = "==2.3.1"
-django-stubs = {extras = ["compatible-mypy"], version = "^6.1.1"}
+django-stubs = {extras = ["compatible-mypy"], version = "^6.1.2"}
 djangorestframework-stubs = {extras = ["compatible-mypy"], version = "^3.18.1"}
 types-nanoid = "^2.0.0.20260508"
 celery-types = "^0.26.0"
 pandas-stubs = "^3.0.5.260914"
-types-requests = "^2.33.0.20260906"
+types-requests = "^2.33.0.20261006"
 pyproj = "^3.8.0"
 types-shapely = "^2.1.0.20260728"
 factory_boy = "^3.3.3"
-coverage = "^7.16"
+coverage = "^7.17"
 mapbox-vector-tile = "^2.2.0"
 
 
