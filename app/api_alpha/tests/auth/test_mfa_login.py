@@ -1,6 +1,10 @@
+import threading
+import time
 from datetime import timedelta
 from unittest import mock
 
+from api_alpha.utils.login_throttle import LoginRateThrottle
+from api_alpha.views import RNBAuthToken
 from batid.tests.helpers import current_code, wrong_code
 from batid.utils.constants import ADS_GROUP_NAME
 from django.conf import settings
@@ -11,7 +15,9 @@ from django.utils import timezone
 from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from rest_framework.authtoken.models import Token
-from rest_framework.test import APITestCase
+from rest_framework.parsers import JSONParser
+from rest_framework.request import Request
+from rest_framework.test import APIRequestFactory, APITestCase
 from rest_framework.throttling import ScopedRateThrottle
 
 from app.mfa_enforcement import MFAEnforcement
@@ -66,8 +72,15 @@ class LoginWithAppTest(MFALoginTestCase):
 
     def test_wrong_code_then_growing_delay(self):
         """Wrong otp: 401 mfa_invalid and one recorded failure. The right code sent
-        right after is refused too (throttle delay), then accepted once the delay
-        has passed."""
+        right after is refused too (1 s delay). A second wrong code once the delay
+        has passed: the right code is still refused 1 s later (2 s delay), then
+        accepted 3 s later."""
+
+        def last_failure_ago(seconds):
+            TOTPDevice.objects.filter(pk=self.device.pk).update(
+                throttling_failure_timestamp=timezone.now() - timedelta(seconds=seconds)
+            )
+
         response = self.login(otp=wrong_code(self.device))
 
         self.assertEqual(response.status_code, 401)
@@ -79,9 +92,18 @@ class LoginWithAppTest(MFALoginTestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["error"], "mfa_invalid")
 
-        TOTPDevice.objects.filter(pk=self.device.pk).update(
-            throttling_failure_timestamp=timezone.now() - timedelta(seconds=10)
-        )
+        last_failure_ago(10)
+        response = self.login(otp=wrong_code(self.device))
+        self.assertEqual(response.status_code, 401)
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.throttling_failure_count, 2)
+
+        last_failure_ago(1)
+        response = self.login(otp=current_code(self.device))
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["error"], "mfa_invalid")
+
+        last_failure_ago(3)
         response = self.login(otp=current_code(self.device))
         self.assertEqual(response.status_code, 200)
 
@@ -212,6 +234,19 @@ class LoginWithoutAppTest(MFALoginTestCase):
         self.assertEqual(response.json()["error"], "mfa_setup_required")
         self.assertNotIn("token", response.json())
 
+    @override_settings(MFA_ENFORCEMENT=MFAEnforcement.REQUIRED)
+    def test_required_backup_codes_alone_are_not_an_app(self):
+        """REQUIRED, user with only a static device: 401 mfa_setup_required, no
+        token."""
+        device = StaticDevice.objects.create(user=self.user, name="token")
+        StaticToken.objects.create(device=device, token="k3m7qz2a")
+
+        response = self.login()
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["error"], "mfa_setup_required")
+        self.assertNotIn("token", response.json())
+
     @override_settings(MFA_ENFORCEMENT=MFAEnforcement.OPTIONAL)
     def test_optional_in_mfa_required_group(self):
         """OPTIONAL, user without app in the "MFA required" group: 401
@@ -277,6 +312,8 @@ class LoginWithoutAppTest(MFALoginTestCase):
 
 # THROTTLE_RATES is bound to the settings dict at import time: patch the rate dict itself.
 @mock.patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"login": "2/min"})
+# Fixed clock: the calls of a test never straddle two counting windows.
+@mock.patch.object(LoginRateThrottle, "timer", mock.Mock(return_value=30.0))
 class LoginThrottleTest(MFALoginTestCase):
     def post(self, *, path, username):
         return self.client.post(
@@ -322,6 +359,51 @@ class LoginThrottleTest(MFALoginTestCase):
         self.assertEqual(
             self.post(path="/api/alpha/login/", username="jdupont").status_code, 429
         )
+
+    def test_valid_password_and_wrong_otp_share_the_limit(self):
+        """2/min, right password and wrong otp: each call counts, the 3rd gets 429."""
+        device = self.add_app()
+        for _ in range(2):
+            self.assertEqual(self.login(otp=wrong_code(device)).status_code, 401)
+        self.assertEqual(self.login(otp=wrong_code(device)).status_code, 429)
+
+    def test_concurrent_attempts_cannot_exceed_the_limit(self):
+        """2/min, cache with 10 ms of network latency, 20 attempts from one IP
+        released at the same instant: exactly 2 are allowed."""
+
+        class SlowCache:
+            def __getattr__(self, name):
+                method = getattr(cache, name)
+
+                def slow(*args, **kwargs):
+                    time.sleep(0.01)
+                    return method(*args, **kwargs)
+
+                return slow
+
+        factory = APIRequestFactory()
+        barrier = threading.Barrier(20)
+        allowed = []
+
+        def attempt():
+            request = Request(
+                factory.post("/api/alpha/login/", {}, format="json"),
+                parsers=[JSONParser()],
+            )
+            request.data
+            throttle = LoginRateThrottle()
+            barrier.wait()
+            if throttle.allow_request(request, RNBAuthToken()):
+                allowed.append(True)
+
+        threads = [threading.Thread(target=attempt) for _ in range(20)]
+        with mock.patch.object(LoginRateThrottle, "cache", SlowCache()):
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+        self.assertEqual(len(allowed), 2)
 
     def test_ip_fallback_without_identifier(self):
         """2/min, no username submitted: counted on the client IP, 3rd call 429."""

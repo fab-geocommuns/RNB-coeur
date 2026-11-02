@@ -12,6 +12,28 @@ class LoginRateThrottle(ScopedRateThrottle):
     one counter. Falls back to the client IP when no identifier is submitted.
     """
 
+    def allow_request(self, request, view):
+        """Count with an atomic increment over a fixed window.
+
+        ScopedRateThrottle reads the attempt history from the cache, then writes it
+        back: concurrent attempts read the same history and all get through.
+        """
+        self.scope = getattr(view, self.scope_attr, None)
+        if not self.scope:
+            return True
+        self.rate = self.get_rate()
+        self.num_requests, self.duration = self.parse_rate(self.rate)
+        self.now = self.timer()
+        window = int(self.now // self.duration)
+        key = f"{self.get_cache_key(request, view)}_{window}"
+        # The key outlives its window, so incr never meets an expired key.
+        self.cache.add(key, 0, 2 * self.duration)
+        return self.cache.incr(key) <= self.num_requests
+
+    def wait(self):
+        """Seconds until the current window ends."""
+        return self.duration - self.now % self.duration
+
     def get_cache_key(self, request, view):
         data = request.data if isinstance(request.data, dict) else {}
         identifier = str(data.get("username", "")).strip()
