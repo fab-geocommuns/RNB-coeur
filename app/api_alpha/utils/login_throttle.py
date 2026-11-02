@@ -25,11 +25,12 @@ class LoginRateThrottle(ScopedRateThrottle):
     def account_key(identifier: str) -> str:
         """The account's id when the identifier names exactly one account, so that its
         username and its email share a counter. Otherwise the hashed identifier."""
-        # Same lookup as UsernameOrEmailBackend, case-insensitive so that case
-        # variants of one identifier never get a counter of their own
+        # Same exact lookup as UsernameOrEmailBackend: every identifier that can log
+        # an account in gets its counter. A case variant matches no account, cannot
+        # log in, and its own counter grants nothing.
         account_ids = list(
             User.objects.filter(
-                Q(username__iexact=identifier) | Q(email__iexact=identifier)
+                Q(username=identifier) | Q(email=identifier)
             ).values_list("id", flat=True)[:2]
         )
         if len(account_ids) == 1:
