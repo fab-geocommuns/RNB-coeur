@@ -236,12 +236,12 @@ class LoginWithoutAppTest(MFALoginTestCase):
 
     @override_settings(MFA_ENFORCEMENT=MFAEnforcement.REQUIRED)
     def test_required_backup_codes_alone_are_not_an_app(self):
-        """REQUIRED, user with only a static device: 401 mfa_setup_required, no
-        token."""
+        """REQUIRED, user with only a static device, its backup code sent: 401
+        mfa_setup_required, no token."""
         device = StaticDevice.objects.create(user=self.user, name="token")
         StaticToken.objects.create(device=device, token="k3m7qz2a")
 
-        response = self.login()
+        response = self.login(otp="k3m7qz2a")
 
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["error"], "mfa_setup_required")
@@ -382,7 +382,8 @@ class LoginThrottleTest(MFALoginTestCase):
                 return slow
 
         factory = APIRequestFactory()
-        barrier = threading.Barrier(20)
+        # A thread failing before wait() breaks the barrier instead of hanging the suite.
+        barrier = threading.Barrier(20, timeout=5)
         allowed = []
 
         def attempt():
