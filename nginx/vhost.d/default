@@ -3,7 +3,10 @@ location /admin/login {
     proxy_pass http://$host;
 
     limit_req zone=admin_login_rate_limit nodelay;
-    add_header RateLimit-Limit 1;
-    add_header RateLimit-Policy "q=1;w=1";
+    add_header RateLimit-Limit 1 always;
+    add_header RateLimit-Policy "q=1;w=1" always;
     limit_req_status 429;
+
+    # Set again: the add_header above drops HSTS inherited from the server block (see web_location_additions).
+    add_header Strict-Transport-Security "max-age=31536000" always;
 }
