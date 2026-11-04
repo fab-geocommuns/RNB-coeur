@@ -178,6 +178,22 @@ class SingleBuildingTest(APITestCase):
 
         self.assertNotIn("plots", r.data["properties"])
 
+    def test_single_bdg_geojson_without_shape(self):
+        """
+        Input: GET /buildings/{rnb_id}/?format=geojson on a building whose shape is NULL.
+        Expected: 200 with a GeoJSON Feature whose "geometry" is null, instead of a
+        500 from the GeoJSON serializer.
+        """
+        Building.objects.create(rnb_id="NOSHAPENOSHA", shape=None, status="constructed")
+
+        r = self.client.get("/api/alpha/buildings/NOSHAPENOSHA/?format=geojson")
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["type"], "Feature")
+        self.assertEqual(r.data["id"], "NOSHAPENOSHA")
+        self.assertIn("geometry", r.data)
+        self.assertIsNone(r.data["geometry"])
+
     def test_single_bdg_geojson_w_plots(self):
 
         r = self.client.get(

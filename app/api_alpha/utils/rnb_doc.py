@@ -404,7 +404,12 @@ def _get_components() -> dict:
                 "description": "Représentation GeoJSON du bâtiment",
                 "properties": {
                     "type": {"type": "string", "example": "Feature"},
-                    "geometry": {"$ref": "#/components/schemas/BuildingShape"},
+                    "geometry": {
+                        "oneOf": [
+                            {"$ref": "#/components/schemas/BuildingShape"},
+                            {"type": "null"},
+                        ]
+                    },
                     "id": {"$ref": "#/components/schemas/RNBID"},
                     "properties": {
                         "type": "object",

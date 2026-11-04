@@ -539,3 +539,37 @@ class OGCEndpointsTest(APITestCase):
                 },
             },
         )
+
+    def test_ogc_single_building_item_without_shape(self):
+        """
+        Input: GET on the OGC item of an active building whose shape is NULL.
+        Expected: 200 with a GeoJSON Feature whose "geometry" is null (valid
+        GeoJSON) instead of a 500 from the GeoJSON serializer.
+        """
+        Building.objects.create(rnb_id="NOSHAPENOSHA", shape=None, status="constructed")
+
+        r = self.client.get("/api/alpha/ogc/collections/buildings/items/NOSHAPENOSHA")
+
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["type"], "Feature")
+        self.assertEqual(data["id"], "NOSHAPENOSHA")
+        self.assertIn("geometry", data)
+        self.assertIsNone(data["geometry"])
+        self.assertEqual(data["properties"]["status"], "constructed")
+
+    def test_ogc_buildings_items_with_building_without_shape(self):
+        """
+        Input: GET on the OGC items listing while an active building has a NULL shape.
+        Expected: 200; the shapeless building is listed as a Feature with
+        "geometry": null and the other buildings keep their geometry.
+        """
+        Building.objects.create(rnb_id="NOSHAPENOSHA", shape=None, status="constructed")
+
+        r = self.client.get("/api/alpha/ogc/collections/buildings/items?limit=100")
+
+        self.assertEqual(r.status_code, 200)
+        features = {f["id"]: f for f in r.json()["features"]}
+        self.assertIn("NOSHAPENOSHA", features)
+        self.assertIsNone(features["NOSHAPENOSHA"]["geometry"])
+        self.assertEqual(features["BDGSRNBBIDID"]["geometry"]["type"], "MultiPolygon")

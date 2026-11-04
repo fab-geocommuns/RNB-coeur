@@ -243,15 +243,14 @@ class SchemaMatchesAPITest(APITestCase):
 
     def test_ogc_item_matches_documented_response(self):
         """
-        Input: GET on the OGC item of the complete building and of the building with
-        a point shape, with withPlots=1.
+        Input: GET on the OGC item of the complete building, of the building with
+        a point shape and of the building without shape, with withPlots=1.
         Expected: each response validates against the documented BuildingGeoJSON
         schema and returns no field missing from the documentation.
         """
         schema = {"$ref": "#/components/schemas/BuildingGeoJSON"}
 
-        # The building without shape is left out: the GeoJSON serializer crashes on it
-        for rnb_id in ("FULLFULLFULL", "POINTPOINTPO"):
+        for rnb_id in ("FULLFULLFULL", "POINTPOINTPO", "NOSHAPENOSHA"):
             with self.subTest(rnb_id=rnb_id):
                 r = self.client.get(
                     f"/api/alpha/ogc/collections/buildings/items/{rnb_id}?withPlots=1"

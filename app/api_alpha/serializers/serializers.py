@@ -214,6 +214,14 @@ class ListBuildingQuerySerializer(serializers.Serializer):
 
 
 class BuildingGeoJSONSerializer(BuildingSerializer, GeoFeatureModelSerializer):
+    # GeoFeatureModelSerializer calls to_representation on the geo field even when
+    # its value is None, which DictField does not support. JSONField passes None
+    # through, giving a valid GeoJSON Feature with "geometry": null.
+    shape = serializers.JSONField(
+        source="shape_geojson",
+        read_only=True,
+    )
+
     class Meta:
         model = Building
         fields = (
