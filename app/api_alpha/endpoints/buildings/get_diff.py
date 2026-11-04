@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import rnb_doc
 from batid.models import City
-from dateutil.relativedelta import relativedelta  # type: ignore
 from django.conf import settings
 from django.db import connection
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
@@ -32,8 +31,12 @@ QUEUE_TIMEOUT_SECONDS = 0.2
 THREAD_JOIN_TIMEOUT_SECONDS = 10
 
 
-def get_datetime_months_ago(months: int) -> datetime:
-    return datetime.now(timezone.utc) - relativedelta(days=months * 30)
+# Oldest point in time a diff can start from, in sliding days.
+MAX_DIFF_DAYS = 180
+# Date used as `since` in the doc examples: recent enough to be accepted.
+SINCE_EXAMPLE = (datetime.now(timezone.utc) - timedelta(days=7)).strftime(
+    "%Y-%m-%dT00:00:00Z"
+)
 
 
 class _DownloadCancelled(Exception):
@@ -281,15 +284,49 @@ class DiffView(RNBLoggingMixin, APIView):
             "get": {
                 "summary": "Différences depuis une date donnée",
                 "description": (
-                    "Liste l'ensemble des modifications apportées au RNB depuis une date données. Génère un fichier CSV. Voici les points importants à retenir : <br />"
+                    "Liste l'ensemble des modifications apportées au RNB depuis une date donnée, sous forme de fichier CSV. "
+                    "Chaque ligne correspond à une version d'un bâtiment. Voici les points importants à retenir : <br />"
                     "<ul>"
-                    "<li>La colonne action correspond à l'action à mener sur une base local pour la garder synchronisée avec le RNB. Il existe 3 types d'actions : create, update et delete</li>"
-                    "<li>Les modifications sont triées par date de modification croissante</li>"
-                    "<li>Il est possible qu'un même bâtiment ait plusieurs modifications dans la période considérée. Par exemple, une création (create) suivie d'une mise à jour (update)</li>"
-                    "<li>La colonne `event_type` correspond à l'opération réalisée sur le bâtiment (création, désactivation, mise à jour, fusion, scission)</li>"
+                    "<li>Les modifications sont triées par date de modification croissante.</li>"
+                    "<li>Un même bâtiment peut apparaître plusieurs fois dans la période considérée. Par exemple, une création (`create`) suivie d'une mise à jour (`update`). Appliquez les lignes dans l'ordre du fichier.</li>"
+                    "<li>La colonne `action` indique l'opération à mener sur une base locale pour la garder synchronisée avec le RNB. Il existe 4 actions : `create`, `update`, `deactivate` et `reactivate`.</li>"
+                    "<li>La colonne `event_type` indique l'opération réalisée sur le bâtiment dans le RNB. Les lignes produites par une même opération partagent le même `event_id`.</li>"
                     "</ul>"
-                    "Par exemple, une fusion de deux bâtiments fera apparaître 3 lignes qui partageront la même action (merge) et le même `event_id`. Les deux bâtiments parents auront l'action `delete` tandis que le bâtiment enfant aura l'action `create`."
-                    f"Voici un exemple de requête permettant d'obtenir les modifications du RNB ayant eu lieu depuis une date déterminée : `https://rnb-api.beta.gouv.fr/api/alpha/buildings/diff/?since={datetime.now(timezone.utc) - timedelta(days=1)}`"
+                    "Correspondance entre `event_type` et `action` :"
+                    "<ul>"
+                    "<li>`creation` (création d'un bâtiment) : `create`</li>"
+                    "<li>`update` (modification d'un bâtiment, y compris un changement de statut comme une démolition) : `update`</li>"
+                    "<li>`deactivation` (désactivation d'un identifiant ne correspondant pas à un bâtiment) : `deactivate`</li>"
+                    "<li>`reactivation` (réactivation d'un identifiant désactivé) : `reactivate`</li>"
+                    "<li>`merge` (fusion de plusieurs bâtiments en un seul) : `deactivate` pour les bâtiments parents, `create` pour le bâtiment issu de la fusion</li>"
+                    "<li>`split` (scission d'un bâtiment en plusieurs) : `deactivate` pour le bâtiment scindé, `create` pour les bâtiments issus de la scission</li>"
+                    "<li>`revert_creation` (annulation d'une création) : `deactivate`</li>"
+                    "<li>`revert_update` (annulation d'une modification, le bâtiment retrouve ses valeurs précédentes) : `update`</li>"
+                    "<li>`revert_merge` (annulation d'une fusion) : `deactivate` pour le bâtiment issu de la fusion, `reactivate` pour les bâtiments parents</li>"
+                    "<li>`revert_split` (annulation d'une scission) : `deactivate` pour les bâtiments issus de la scission, `reactivate` pour le bâtiment scindé</li>"
+                    "</ul>"
+                    "Par exemple, une fusion de deux bâtiments fait apparaître 3 lignes avec l'`event_type` `merge` et le même `event_id` : "
+                    "les deux bâtiments parents ont l'action `deactivate` et le bâtiment issu de la fusion a l'action `create`. "
+                    "Ce dernier liste les identifiants des parents dans la colonne `parent_buildings`.<br /><br />"
+                    "Format des colonnes :"
+                    "<ul>"
+                    "<li>`action` : action à mener (voir ci-dessus)</li>"
+                    "<li>`rnb_id` : identifiant RNB du bâtiment</li>"
+                    "<li>`status` : statut du bâtiment (`constructed`, `notUsable` ou `demolished`)</li>"
+                    "<li>`is_active` : `1` si l'identifiant est actif, `0` s'il est désactivé</li>"
+                    '<li>`sys_period` : période de validité de cette version, au format plage de dates PostgreSQL : `["début",fin)`. La date de début est la date de la modification. La fin est vide tant que la version est la version courante</li>'
+                    "<li>`point` : point représentatif du bâtiment au format EWKT, en WGS84 (ex : `SRID=4326;POINT(2.35 48.85)`)</li>"
+                    "<li>`shape` : géométrie du bâtiment au format EWKT, en WGS84 (point, polygone ou multipolygone)</li>"
+                    "<li>`addresses_id` : tableau JSON des clés d'interopérabilité BAN des adresses du bâtiment. Vide ou `[]` si le bâtiment n'a pas d'adresse</li>"
+                    "<li>`ext_ids` : tableau JSON des identifiants du bâtiment dans d'autres bases (BD Topo, BDNB…). Vaut `[]` s'il n'y en a pas</li>"
+                    "<li>`parent_buildings` : tableau JSON des identifiants RNB des bâtiments dont est issu ce bâtiment (fusion, scission). Vide si le bâtiment n'est issu d'aucune fusion ou scission</li>"
+                    "<li>`event_id` : identifiant (UUID) de l'opération</li>"
+                    "<li>`event_type` : type d'opération (voir ci-dessus)</li>"
+                    "<li>`username` : nom de l'utilisateur à l'origine de l'opération. Vaut `RNB` quand l'opération n'est rattachée à aucun utilisateur (imports, traitements automatiques)</li>"
+                    "<li>`user_organization_name` et `user_organization_id` : nom et identifiant de l'organisation de cet utilisateur. Vides s'il n'en a pas</li>"
+                    '<li>`validated_by` : tableau JSON des utilisateurs ayant validé le bâtiment, chacun sous la forme `{"id", "username", "organization_name", "organization_short_name"}`. Vaut `[]` s\'il n\'y en a pas</li>'
+                    "</ul>"
+                    f"Exemple de requête : `https://rnb-api.beta.gouv.fr/api/alpha/buildings/diff/?since={SINCE_EXAMPLE}`"
                 ),
                 "operationId": "getDiff",
                 "parameters": [
@@ -298,12 +335,12 @@ class DiffView(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": (
                             "Date et heure à partir de laquelle les modifications sont retournées. Le format est ISO 8601. <br />"
-                            "La période maximale proposée est de 6 mois.<br/>"
+                            f"Cette date doit être comprise dans les {MAX_DIFF_DAYS} derniers jours.<br/>"
                             "Pour récupérer le RNB dans son intégralité, téléchargez la base de données (l'ensemble de la base est <a href='https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/'>disponible ici</a>). "
                         ),
                         "required": True,
-                        "schema": {"type": "string"},
-                        "example": "2024-04-02T00:00:00Z",
+                        "schema": {"type": "string", "format": "date-time"},
+                        "example": SINCE_EXAMPLE,
                     },
                     {
                         "name": "insee_code",
@@ -330,7 +367,19 @@ class DiffView(RNBLoggingMixin, APIView):
                                 ),
                             }
                         },
-                    }
+                    },
+                    "400": {
+                        "description": (
+                            f"Le paramètre `since` est absent, mal formaté ou antérieur aux {MAX_DIFF_DAYS} derniers jours. "
+                            "Le message d'erreur est une phrase en texte brut."
+                        ),
+                    },
+                    "404": {
+                        "description": (
+                            "Le code INSEE indiqué ne correspond à aucune commune. "
+                            "Le message d'erreur est une phrase en texte brut."
+                        ),
+                    },
                 },
             }
         }
@@ -342,7 +391,9 @@ class DiffView(RNBLoggingMixin, APIView):
         since_input = re.sub(r" (\d{2}:\d{2})$", r"+\1", since_input)
         # parse since to a timestamp
         since = parse_datetime(since_input)
-        last_available_modification = get_datetime_months_ago(6)
+        last_available_modification = datetime.now(timezone.utc) - timedelta(
+            days=MAX_DIFF_DAYS
+        )
 
         if since is None:
             return HttpResponse(
@@ -355,7 +406,7 @@ class DiffView(RNBLoggingMixin, APIView):
         # nobody should download the whole database
         if since < last_available_modification:
             return HttpResponse(
-                f"Maximum diff period is currently 6 months ({last_available_modification}). Please let us know if you need more.",
+                f"Maximum diff period is currently {MAX_DIFF_DAYS} days ({last_available_modification}). Please let us know if you need more.",
                 status=400,
             )
 
