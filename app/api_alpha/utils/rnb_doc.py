@@ -10,17 +10,41 @@ from rest_framework.viewsets import ViewSetMixin
 COMMON_RESPONSES = {
     "400": {"description": "Requête invalide (données mal formatées ou incomplètes)."},
     "429": {
-        "description": "Le quota de requêtes a été atteint. Un quota maximal de 20 requêtes par secondes est appliqué, mais celui-ci peut varier par requête.\nVeuillez consulter les headers HTTP de la réponse pour plus d'informations concernant le quota."
+        "description": "Le quota de requêtes a été atteint : 20 requêtes par seconde et par adresse IP. Les en-têtes `RateLimit-Limit` et `RateLimit-Policy` de la réponse indiquent le quota appliqué."
     },
 }
 
+TOKEN_REQUIRED_RESPONSE = {
+    "description": "Token absent ou invalide. Le token doit être envoyé dans l'en-tête `Authorization: Token <votre token>`."
+}
 
-def rnb_doc(path_desc, schemes=[]):
-    for _, desc in path_desc.items():
+# Public URL of the sandbox, listed as a second server in the schema.
+SANDBOX_PUBLIC_URL = "https://sandbox.rnb-api.beta.gouv.fr"
+
+# HTTP methods that only read data: they never require a token.
+READ_ONLY_METHODS = ("get", "head", "options")
+
+
+def rnb_doc(path_desc, schemes=[], with_400=True):
+    """
+    Attach an OpenAPI description to an endpoint method.
+
+    The common responses are added to each method, the 400 only if with_400 is True
+    (set it to False on endpoints that never return one). Methods writing data
+    require a token unless their description declares its own "security".
+    """
+    for method, desc in path_desc.items():
         method_responses = desc.get("responses", {})
         for code, response in COMMON_RESPONSES.items():
+            if code == "400" and not with_400:
+                continue
             if code not in method_responses:
                 method_responses[code] = response
+
+        if method.lower() not in READ_ONLY_METHODS and "security" not in desc:
+            desc["security"] = [{"tokenAuth": []}]
+            method_responses.setdefault("401", TOKEN_REQUIRED_RESPONSE)
+
         desc["responses"] = method_responses
 
     def decorator(fn):
@@ -46,12 +70,7 @@ def build_schema_all_endpoints() -> dict:
             "title": "API du Référentiel National des Bâtiments",
             "version": "alpha",
         },
-        "servers": [
-            {
-                "url": settings.URL,
-                "description": "API du Référentiel National des Bâtiments",
-            }
-        ],
+        "servers": _get_servers(),
         "paths": _get_paths("all"),
         "components": _get_components(),
     }
@@ -105,6 +124,23 @@ def build_schema_ogc_endpoints(request=None) -> dict:
     return schema
 
 
+def _get_servers() -> list[dict]:
+    servers = [
+        {
+            "url": settings.URL,
+            "description": "API du Référentiel National des Bâtiments",
+        }
+    ]
+    if settings.ENVIRONMENT != "sandbox":
+        servers.append(
+            {
+                "url": SANDBOX_PUBLIC_URL,
+                "description": "Bac à sable, pour tester l'API sans modifier le RNB. Il demande son propre compte et son propre token.",
+            }
+        )
+    return servers
+
+
 def get_status_html_list():
     all_stats = [(status["key"], status["label"]) for status in BuildingStatus.TYPES]
     html_list = "<ul>"
@@ -121,6 +157,14 @@ def get_status_list():
 
 def _get_components() -> dict:
     return {
+        "securitySchemes": {
+            "tokenAuth": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "Authorization",
+                "description": "Token d'authentification, envoyé sous la forme `Token <votre token>`. Il est nécessaire pour modifier le RNB.",
+            }
+        },
         "schemas": {
             "RNBID": {
                 "type": "string",
@@ -139,8 +183,8 @@ def _get_components() -> dict:
                 "example": BuildingStatus.DEFAULT_STATUS,
             },
             "BuildingPlots": {
-                "type": "array",
-                "description": "Liste des parcelles cadastrales intersectant le bâtiment. Disponible si le paramètre <pre>withPlots=1</pre> est intégré à l'URL de requête. NB: il s'agit d'un croisement géométrique et non d'une donnée fiscale. Il arrive parfois qu'un bâtiment intersecte une mauvaise parcelle du fait d'un décalage géographique entre les bâtiments du cadastre et ceux du RNB. Nous fournissons avec chaque parcelle cadastrale le taux d'intersection du bâtiment avec celle-ci. Les parcelles intersectant largement un bâtiment sont plus susceptibles d'être réellement associées à ce bâtiment d'un point de vue fiscal.",
+                "type": ["array", "null"],
+                "description": "Liste des parcelles cadastrales intersectant le bâtiment. Disponible si le paramètre <pre>withPlots=1</pre> est intégré à l'URL de requête. Vaut `null` si aucune parcelle n'intersecte le bâtiment. NB: il s'agit d'un croisement géométrique et non d'une donnée fiscale. Il arrive parfois qu'un bâtiment intersecte une mauvaise parcelle du fait d'un décalage géographique entre les bâtiments du cadastre et ceux du RNB. Nous fournissons avec chaque parcelle cadastrale le taux d'intersection du bâtiment avec celle-ci. Les parcelles intersectant largement un bâtiment sont plus susceptibles d'être réellement associées à ce bâtiment d'un point de vue fiscal.",
                 "items": {
                     "type": "object",
                     "properties": {
@@ -159,7 +203,7 @@ def _get_components() -> dict:
             },
             "BuildingShape": {
                 "type": "object",
-                "description": "Géométrie représentative du bâtiment. Elle peut être un multipolygone, un polygone ou un point et correspond notre meilleure connaissance de la réalité:",
+                "description": "Géométrie représentative du bâtiment. Elle peut être un multipolygone, un polygone ou un point et correspond à notre meilleure connaissance de la réalité.",
                 "properties": {
                     "type": {
                         "type": "string",
@@ -167,41 +211,35 @@ def _get_components() -> dict:
                         "example": "Point",
                     },
                     "coordinates": {
-                        "type": "array",
-                        "items": {
-                            "oneOf": [
-                                {
+                        "oneOf": [
+                            {
+                                "type": "array",
+                                "description": "Coordonnées pour un Point",
+                                "items": {"type": "number"},
+                                "example": [-0.570505392116188, 44.841034137099996],
+                            },
+                            {
+                                "type": "array",
+                                "description": "Coordonnées pour un Polygon",
+                                "items": {
                                     "type": "array",
-                                    "description": "Coordonnées pour un Point",
-                                    "items": {"type": "number"},
-                                    "example": [
-                                        -0.570505392116188,
-                                        44.841034137099996,
-                                    ],
-                                },
-                                {
-                                    "type": "array",
-                                    "description": "Coordonnées pour un Polygon",
                                     "items": {
                                         "type": "array",
                                         "items": {"type": "number"},
                                     },
-                                    "example": [
-                                        [
-                                            [
-                                                -0.570505392116188,
-                                                44.841034137099996,
-                                            ],
-                                            [
-                                                -0.570505392116188,
-                                                44.841034137099996,
-                                            ],
-                                        ]
-                                    ],
                                 },
-                                {
+                                "example": [
+                                    [
+                                        [-0.570505392116188, 44.841034137099996],
+                                        [-0.570505392116188, 44.841034137099996],
+                                    ]
+                                ],
+                            },
+                            {
+                                "type": "array",
+                                "description": "Coordonnées pour un MultiPolygon",
+                                "items": {
                                     "type": "array",
-                                    "description": "Coordonnées pour un MultiPolygon",
                                     "items": {
                                         "type": "array",
                                         "items": {
@@ -209,23 +247,17 @@ def _get_components() -> dict:
                                             "items": {"type": "number"},
                                         },
                                     },
-                                    "example": [
-                                        [
-                                            [
-                                                [
-                                                    -0.570505392116188,
-                                                    44.841034137099996,
-                                                ],
-                                                [
-                                                    -0.570505392116188,
-                                                    44.841034137099996,
-                                                ],
-                                            ]
-                                        ]
-                                    ],
                                 },
-                            ]
-                        },
+                                "example": [
+                                    [
+                                        [
+                                            [-0.570505392116188, 44.841034137099996],
+                                            [-0.570505392116188, 44.841034137099996],
+                                        ]
+                                    ]
+                                ],
+                            },
+                        ]
                     },
                 },
             },
@@ -249,7 +281,7 @@ def _get_components() -> dict:
                     },
                     "created_at": {
                         "type": "string",
-                        "description": "Date de création du lien entre l'identifiant RNB et l'identfiant externe",
+                        "description": "Date de création du lien entre l'identifiant RNB et l'identifiant externe",
                         "example": "2023-12-07T13:20:58.310444+00:00",
                     },
                 },
@@ -260,9 +292,14 @@ def _get_components() -> dict:
                     "id": {"type": "integer", "example": 1},
                     "username": {"type": "string", "example": "n.martin"},
                     "organization_name": {
-                        "type": "string",
-                        "description": "Nom de l'organisation à laquelle appartient l'utilisateur. Cette information est gérée et vérifiée par l'équipe du RNB.",
+                        "type": ["string", "null"],
+                        "description": "Nom de l'organisation à laquelle appartient l'utilisateur. Cette information est gérée et vérifiée par l'équipe du RNB. Vaut `null` si l'utilisateur n'est rattaché à aucune organisation.",
                         "example": "Mairie de Dreux",
+                    },
+                    "organization_short_name": {
+                        "type": ["string", "null"],
+                        "description": "Nom court de l'organisation de l'utilisateur. Vaut `null` si l'utilisateur n'est rattaché à aucune organisation ou si l'organisation n'a pas de nom court.",
+                        "example": "Dreux",
                     },
                 },
             },
@@ -301,17 +338,17 @@ def _get_components() -> dict:
                         "example": "rue de l'église",
                     },
                     "city_name": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "description": "Nom de la commune",
                         "example": "Chivy-lès-Étouvelles",
                     },
                     "city_zipcode": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "description": "Code postal de la commune",
                         "example": "02000",
                     },
                     "city_insee_code": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "description": "Code INSEE de la commune",
                         "example": "02191",
                     },
@@ -338,7 +375,12 @@ def _get_components() -> dict:
                             },
                         },
                     },
-                    "shape": {"$ref": "#/components/schemas/BuildingShape"},
+                    "shape": {
+                        "oneOf": [
+                            {"$ref": "#/components/schemas/BuildingShape"},
+                            {"type": "null"},
+                        ]
+                    },
                     "addresses": {
                         "type": "array",
                         "description": "Liste des adresses du bâtiment",
@@ -350,8 +392,8 @@ def _get_components() -> dict:
                         "items": {"$ref": "#/components/schemas/PublicUser"},
                     },
                     "ext_ids": {
-                        "type": "array",
-                        "description": "Le ou les identifiants de ce bâtiments au sein de la BD Topo et de la BDNB",
+                        "type": ["array", "null"],
+                        "description": "Le ou les identifiants de ce bâtiment au sein de la BD Topo et de la BDNB",
                         "items": {"$ref": "#/components/schemas/ExtId"},
                     },
                     "is_active": {"$ref": "#/components/schemas/BuildingIsActive"},
@@ -375,18 +417,23 @@ def _get_components() -> dict:
                                 },
                             },
                             "ext_ids": {
-                                "type": "array",
+                                "type": ["array", "null"],
                                 "items": {"$ref": "#/components/schemas/ExtId"},
                             },
                             "is_active": {
                                 "$ref": "#/components/schemas/BuildingIsActive"
                             },
                             "plots": {"$ref": "#/components/schemas/BuildingPlots"},
+                            "validated_by": {
+                                "type": "array",
+                                "description": "Liste des utilisateurs ayant validé ce bâtiment.",
+                                "items": {"$ref": "#/components/schemas/PublicUser"},
+                            },
                         },
                     },
                 },
             },
-        }
+        },
     }
 
 
