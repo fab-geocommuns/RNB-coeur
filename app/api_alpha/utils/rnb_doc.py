@@ -14,6 +14,31 @@ COMMON_RESPONSES = {
     },
 }
 
+# Responses shared by the endpoints editing the RNB (token required).
+EDITION_AUTH_RESPONSES = {
+    "401": {
+        "description": "Token absent ou invalide. Le token doit être envoyé dans l'en-tête `Authorization: Token <votre token>`."
+    },
+    "403": {
+        "description": "L'utilisateur n'a pas les droits d'édition du RNB, ou il a atteint son quota de contributions (500 par défaut, pas de quota dans le bac à sable)."
+    },
+}
+
+
+def get_shape_rules(max_move_meters: int | None = None) -> str:
+    """Markdown list of the rules a building geometry must follow to be accepted."""
+    overlap_percent = round(settings.BUILDING_OVERLAP_THRESHOLD * 100)
+    rules = [
+        "être valide, en 2D (les géométries avec une coordonnée Z sont refusées) et en WGS84",
+        f"pour un polygone ou un multipolygone, avoir une surface comprise entre {settings.MIN_BUILDING_AREA} m² et {settings.MAX_BUILDING_AREA} m²",
+        f"ne pas recouvrir un bâtiment actif à plus de {overlap_percent} %, ni être recouverte par lui à plus de {overlap_percent} %",
+    ]
+    if max_move_meters is not None:
+        rules.append(
+            f"toucher la géométrie actuelle du bâtiment ou en être à moins de {max_move_meters} m"
+        )
+    return " ;\n".join(f"* {rule}" for rule in rules) + "."
+
 
 def rnb_doc(path_desc, schemes=[]):
     for _, desc in path_desc.items():
@@ -129,7 +154,7 @@ def _get_components() -> dict:
             },
             "BuildingIsActive": {
                 "type": "boolean",
-                "description": "Indique si l'identifiant RNB est actif (True) ou inactif (False). Un identifiant inactif désigne un objet ne correspondant pas à la définition d'un bâtiment.",
+                "description": "Indique si l'identifiant RNB est actif (`true`) ou inactif (`false`). Un identifiant inactif désigne un objet ne correspondant pas à la définition d'un bâtiment.",
                 "example": True,
             },
             "BuildingStatus": {

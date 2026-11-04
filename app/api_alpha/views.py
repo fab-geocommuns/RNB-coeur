@@ -26,7 +26,13 @@ from api_alpha.serializers.serializers import (
 )
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.rnb_doc import build_schema_all_endpoints, get_status_list, rnb_doc
+from api_alpha.utils.rnb_doc import (
+    EDITION_AUTH_RESPONSES,
+    build_schema_all_endpoints,
+    get_shape_rules,
+    get_status_list,
+    rnb_doc,
+)
 from api_alpha.utils.sandbox_client import (
     SandboxClient,
     SandboxClientError,
@@ -348,7 +354,19 @@ class MergeBuildings(RNBLoggingMixin, APIView):
                 "description": LiteralStr("""\
 Permet de corriger le RNB en fusionnant plusieurs bâtiments existants, donnant lieu à la création d'un nouveau bâtiment.
 
-Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB.
+Cet endpoint nécessite d'être identifié (en-tête `Authorization: Token <votre token>`) et d'avoir des droits d'édition du RNB.
+
+Les adresses du nouveau bâtiment sont définies par l'un des deux champs suivants, obligatoirement, mais pas les deux à la fois :
+* `merge_existing_addresses` à `true` : le nouveau bâtiment reprend les adresses des bâtiments fusionnés ;
+* `addresses_cle_interop` : liste des adresses du nouveau bâtiment, éventuellement vide (`[]`).
+
+La fusion est refusée (400) si :
+* `rnb_ids` contient moins de 2 identifiants, ou un identifiant qui ne fait pas 12 caractères (les identifiants s'écrivent sans tirets) ;
+* `merge_existing_addresses` et `addresses_cle_interop` sont tous les deux absents, ou tous les deux renseignés ;
+* une clé d'interopérabilité ne fait pas entre 5 et 30 caractères ;
+* l'un des bâtiments est inactif ;
+* la géométrie de l'un des bâtiments n'est pas un polygone ou un multipolygone ;
+* les bâtiments ne sont pas contigus : leurs géométries doivent se toucher pour former un seul polygone.
                 """),
                 "operationId": "mergeBuildings",
                 "parameters": [],
@@ -365,20 +383,21 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                     },
                                     "rnb_ids": {
                                         "type": "array",
-                                        "description": "Liste des ID-RNB des bâtiments à fusionner",
+                                        "description": "Liste des ID-RNB des bâtiments à fusionner : au moins 2 identifiants de 12 caractères, sans tirets.",
+                                        "minItems": 2,
                                         "example": ["XXXXYYYYZZZZ", "AAAABBBBCCCC"],
                                     },
                                     "merge_existing_addresses": {
                                         "type": "boolean",
                                         "description": LiteralStr(
                                             """\
-- `True`, le bâtiment nouvellement créé hérite des adresses des bâtiments dont il est issu.
-- `False` ou non rempli, le champ `addresses_cle_interop` est utilisé pour déterminer les adresses du bâtiment."""
+- `true` : le bâtiment nouvellement créé hérite des adresses des bâtiments dont il est issu. `addresses_cle_interop` ne doit alors pas être renseigné.
+- `false` ou absent : le champ `addresses_cle_interop` est obligatoire et détermine les adresses du bâtiment."""
                                         ),
                                     },
                                     "addresses_cle_interop": {
                                         "type": "array",
-                                        "description": "Liste des clés d'interopérabilité BAN liées au nouveau bâtiment créé. Si une liste vide est passée, le bâtiment ne sera lié à aucune adresse.",
+                                        "description": "Liste des clés d'interopérabilité BAN liées au nouveau bâtiment créé, chacune entre 5 et 30 caractères. Si une liste vide est passée, le bâtiment ne sera lié à aucune adresse. Obligatoire si `merge_existing_addresses` n'est pas à `true`.",
                                         "example": [
                                             "75105_8884_00004",
                                             "75105_8884_00006",
@@ -409,10 +428,13 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                             }
                         },
                     },
-                    "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour fusionner des bâtiments."
+                    "400": {
+                        "description": "Requête invalide ou fusion refusée (voir les cas de refus dans la description)."
                     },
-                    "503": {"description": "Service temporairement indisponible"},
+                    **EDITION_AUTH_RESPONSES,
+                    "503": {
+                        "description": "Service temporairement indisponible (API de la BAN injoignable)"
+                    },
                     "404": {
                         "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
                     },
@@ -492,10 +514,18 @@ class SplitBuildings(RNBLoggingMixin, APIView):
         {
             "post": {
                 "summary": "Scission de bâtiments",
-                "description": LiteralStr("""\
+                "description": LiteralStr(
+                    """\
 Permet de corriger le RNB en scindant un bâtiment existant, donnant lieu à la création de plusieurs nouveaux bâtiments.
 
-Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du RNB."""),
+Cet endpoint nécessite d'être identifié (en-tête `Authorization: Token <votre token>`) et d'avoir des droits d'édition du RNB.
+
+La scission est refusée (400) si :
+* `created_buildings` contient moins de 2 bâtiments ;
+* le bâtiment à scinder est inactif ;
+* une clé d'interopérabilité ne fait pas entre 5 et 30 caractères ;
+* la géométrie de l'un des bâtiments créés ne respecte pas les règles décrites pour le champ `shape`."""
+                ),
                 "operationId": "splitBuildings",
                 "parameters": [
                     {
@@ -520,7 +550,8 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                     },
                                     "created_buildings": {
                                         "type": "array",
-                                        "description": "Liste des bâtiments issus de la scission.",
+                                        "description": "Liste des bâtiments issus de la scission (au moins 2).",
+                                        "minItems": 2,
                                         "items": {
                                             "type": "object",
                                             "properties": {
@@ -532,12 +563,17 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                                 },
                                                 "shape": {
                                                     "type": "string",
-                                                    "description": "Géométrie du bâtiment au format WKT ou HEX, en WGS84.",
+                                                    "description": LiteralStr(
+                                                        "Géométrie du bâtiment au format WKT ou HEX, en WGS84.\n\nLa géométrie doit :\n"
+                                                        + get_shape_rules(
+                                                            max_move_meters=100
+                                                        )
+                                                    ),
                                                     "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
                                                 },
                                                 "addresses_cle_interop": {
                                                     "type": "array",
-                                                    "description": "Liste des clés interopérables des adresses associées",
+                                                    "description": "Liste des clés d'interopérabilité BAN des adresses associées, chacune entre 5 et 30 caractères. Peut être vide (`[]`).",
                                                     # "items": {"type": "string"},
                                                     "example": [
                                                         "75105_8884_00004",
@@ -570,10 +606,13 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                             }
                         },
                     },
-                    "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour scinder un bâtiment."
+                    "400": {
+                        "description": "Requête invalide ou scission refusée (voir les cas de refus dans la description)."
                     },
-                    "503": {"description": "Service temporairement indisponible"},
+                    **EDITION_AUTH_RESPONSES,
+                    "503": {
+                        "description": "Service temporairement indisponible (API de la BAN injoignable)"
+                    },
                     "404": {
                         "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
                     },
