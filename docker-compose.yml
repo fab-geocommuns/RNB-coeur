@@ -101,6 +101,9 @@ services:
     extends:
       file: docker-compose.common.yml
       service: rabbitmq
+    # rabbitmq-diagnostics boots a full Erlang VM on every check, which spikes all CPU cores.
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 5672"]
     env_file:
       - ./.env.rabbitmq.dev
     volumes:
