@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 from datetime import timedelta
@@ -43,6 +44,12 @@ class MFALoginTestCase(APITestCase):
             format="json",
         )
 
+    def post_raw_json(self, *, path, body):
+        """Post a body the test client's own JSON encoder refuses (lone surrogate)."""
+        return self.client.generic(
+            "POST", path, json.dumps(body), content_type="application/json"
+        )
+
 
 @override_settings(MFA_ENFORCEMENT=MFAEnforcement.OPTIONAL)
 class LoginWithAppTest(MFALoginTestCase):
@@ -75,37 +82,55 @@ class LoginWithAppTest(MFALoginTestCase):
         right after is refused too (1 s delay). A second wrong code once the delay
         has passed: the right code is still refused 1 s later (2 s delay), then
         accepted 3 s later."""
+        start = timezone.now()
 
-        def last_failure_ago(seconds):
-            TOTPDevice.objects.filter(pk=self.device.pk).update(
-                throttling_failure_timestamp=timezone.now() - timedelta(seconds=seconds)
-            )
+        # Fixed clock: the time a login takes must not eat into the delay under test.
+        with mock.patch("django.utils.timezone.now") as now:
 
-        response = self.login(otp=wrong_code(self.device))
+            def seconds_later(seconds):
+                now.return_value = start + timedelta(seconds=seconds)
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.json()["error"], "mfa_invalid")
-        self.device.refresh_from_db()
-        self.assertEqual(self.device.throttling_failure_count, 1)
+            seconds_later(0)
+            response = self.login(otp=wrong_code(self.device))
 
-        response = self.login(otp=current_code(self.device))
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.json()["error"], "mfa_invalid")
+            self.assertEqual(response.status_code, 401)
+            self.assertEqual(response.json()["error"], "mfa_invalid")
+            self.device.refresh_from_db()
+            self.assertEqual(self.device.throttling_failure_count, 1)
 
-        last_failure_ago(10)
-        response = self.login(otp=wrong_code(self.device))
-        self.assertEqual(response.status_code, 401)
-        self.device.refresh_from_db()
-        self.assertEqual(self.device.throttling_failure_count, 2)
+            response = self.login(otp=current_code(self.device))
+            self.assertEqual(response.status_code, 401)
+            self.assertEqual(response.json()["error"], "mfa_invalid")
 
-        last_failure_ago(1)
-        response = self.login(otp=current_code(self.device))
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.json()["error"], "mfa_invalid")
+            seconds_later(10)
+            response = self.login(otp=wrong_code(self.device))
+            self.assertEqual(response.status_code, 401)
+            self.device.refresh_from_db()
+            self.assertEqual(self.device.throttling_failure_count, 2)
 
-        last_failure_ago(3)
-        response = self.login(otp=current_code(self.device))
-        self.assertEqual(response.status_code, 200)
+            seconds_later(11)
+            response = self.login(otp=current_code(self.device))
+            self.assertEqual(response.status_code, 401)
+            self.assertEqual(response.json()["error"], "mfa_invalid")
+
+            seconds_later(13)
+            response = self.login(otp=current_code(self.device))
+            self.assertEqual(response.status_code, 200)
+
+    def test_code_with_forbidden_characters(self):
+        """Right password, user with an app and backup codes, a code holding a null
+        or a surrogate character: 401 mfa_invalid, like any other wrong code."""
+        StaticDevice.objects.create(user=self.user, name="backup")
+
+        for otp in ("abc\x00", "\ud800"):
+            with self.subTest(otp=ascii(otp)):
+                response = self.post_raw_json(
+                    path="/api/alpha/login/",
+                    body={"username": "jdupont", "password": PASSWORD, "otp": otp},
+                )
+
+                self.assertEqual(response.status_code, 401)
+                self.assertEqual(response.json()["error"], "mfa_invalid")
 
     def test_valid_code_cannot_be_replayed(self):
         """Valid TOTP code: 200 with the token. The same code sent again: 401
@@ -405,6 +430,28 @@ class LoginThrottleTest(MFALoginTestCase):
                 thread.join()
 
         self.assertEqual(len(allowed), 2)
+
+    def test_identifier_refused_by_the_serializer(self):
+        """2/min, identifier holding a null or a surrogate character, on /login/,
+        /auth/mfa/setup/ and /auth/mfa/confirm/: 400 on the username field, as without
+        the limit, counted on the client IP: the 3rd call gets 429."""
+        for path in (
+            "/api/alpha/login/",
+            "/api/alpha/auth/mfa/setup/",
+            "/api/alpha/auth/mfa/confirm/",
+        ):
+            for username in ("a\x00b", "\ud800"):
+                with self.subTest(path=path, username=ascii(username)):
+                    cache.clear()
+                    body = {"username": username, "password": "wrong"}
+
+                    for _ in range(2):
+                        response = self.post_raw_json(path=path, body=body)
+                        self.assertEqual(response.status_code, 400)
+                        self.assertIn("username", response.json())
+
+                    response = self.post_raw_json(path=path, body=body)
+                    self.assertEqual(response.status_code, 429)
 
     def test_ip_fallback_without_identifier(self):
         """2/min, no username submitted: counted on the client IP, 3rd call 429."""

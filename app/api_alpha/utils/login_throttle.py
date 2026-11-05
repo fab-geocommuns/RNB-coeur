@@ -2,6 +2,8 @@ import hashlib
 
 from django.contrib.auth.models import User
 from django.db.models import Q
+from rest_framework.authtoken.serializers import AuthTokenSerializer
+from rest_framework.exceptions import ValidationError
 from rest_framework.throttling import ScopedRateThrottle
 
 
@@ -9,7 +11,7 @@ class LoginRateThrottle(ScopedRateThrottle):
     """Count password attempts per account, not per IP.
 
     RNB-site calls /login/ from its server: keyed by IP, every site login would share
-    one counter. Falls back to the client IP when no identifier is submitted.
+    one counter. Falls back to the client IP when no valid identifier is submitted.
     """
 
     def allow_request(self, request, view):
@@ -35,13 +37,26 @@ class LoginRateThrottle(ScopedRateThrottle):
         return self.duration - self.now % self.duration
 
     def get_cache_key(self, request, view):
-        data = request.data if isinstance(request.data, dict) else {}
-        identifier = str(data.get("username", "")).strip()
+        identifier = self.submitted_identifier(request)
         if identifier:
             ident = self.account_key(identifier)
         else:
             ident = self.get_ident(request)
         return self.cache_format % {"scope": self.scope, "ident": ident}
+
+    @staticmethod
+    def submitted_identifier(request) -> str:
+        """The username as the login serializer reads it, empty if it refuses it.
+
+        The throttle runs before the serializer: what it refuses, such as a null
+        character, must not reach the database lookup of account_key.
+        """
+        data = request.data if isinstance(request.data, dict) else {}
+        username_field = AuthTokenSerializer().fields["username"]
+        try:
+            return username_field.run_validation(data.get("username", ""))
+        except ValidationError:
+            return ""
 
     @staticmethod
     def account_key(identifier: str) -> str:
