@@ -49,6 +49,9 @@ def verify_otp(*, user: User, otp) -> bool:
     accepted code proves the user and clears the throttling of all their devices.
     """
     token = _normalize_otp(otp)
+    # No code holds a control or surrogate character, and the database refuses them.
+    if not token.isprintable():
+        return False
     models = (
         (TOTPDevice, StaticDevice)
         if TOTP_CODE_PATTERN.fullmatch(token)
