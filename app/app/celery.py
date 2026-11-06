@@ -31,4 +31,4 @@ def notify_task_failure(*, sender, task_id, exception, **_kwargs) -> None:
     # Imported here: this module is loaded with the settings, before Django apps are ready.
     from batid.services.tchap import notify_tech
 
-    notify_tech(f"Error while executing {sender.name} ({task_id}): {exception}")
+    notify_tech(f"Échec de la tâche {sender.name} ({task_id}) : {exception}")
