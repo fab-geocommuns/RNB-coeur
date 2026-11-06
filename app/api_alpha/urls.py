@@ -14,6 +14,7 @@ from api_alpha.endpoints.buildings.list_create_buildings import ListCreateBuildi
 from api_alpha.endpoints.buildings.plot import BuildingPlotView
 from api_alpha.endpoints.buildings.single_building import (
     SingleBuilding,
+    SingleBuildingAboutId,
     SingleBuildingHistory,
 )
 from api_alpha.endpoints.contributions.summary import ContributionSummaryView
@@ -119,6 +120,10 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path(
         "buildings/<str:rnb_id>/history/",
         SingleBuildingHistory.as_view(),
+    ),
+    path(
+        "buildings/<str:rnb_id>/about_id/",
+        SingleBuildingAboutId.as_view(),
     ),
     re_path(
         r"buildings/(?P<rnb_id>[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4})/",
