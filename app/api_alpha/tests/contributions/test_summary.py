@@ -14,7 +14,7 @@ from batid.models import (
 )
 from batid.services import contribution_summary
 from batid.services.contribution_summary import (
-    CACHE_KEY,
+    SUMMARIES_CACHE_KEY,
     compute_contribution_summary,
 )
 from batid.services.kpi import (
@@ -477,13 +477,13 @@ class ContributionSummaryApiTest(APITestCase):
         """
         stale = {"window_days": 30, "stale": True}
         cache.set(
-            f"{CACHE_KEY}:30", {"data": stale, "fresh_until": time.time() - 1}, 60
+            SUMMARIES_CACHE_KEY,
+            {"data": {"30": stale}, "fresh_until": time.time() - 1},
+            60,
         )
-        cache.add(f"{CACHE_KEY}:30:refreshing", True, 60)
+        cache.add(f"{SUMMARIES_CACHE_KEY}:refreshing", True, 60)
 
-        with patch.object(
-            contribution_summary, "compute_contribution_summary"
-        ) as compute:
+        with patch.object(contribution_summary, "compute_all_summaries") as compute:
             response = self.client.get(self.URL)
 
         self.assertEqual(response.json(), stale)
@@ -496,8 +496,8 @@ class ContributionSummaryApiTest(APITestCase):
         Expected: the summary is recomputed and the lock released.
         """
         cache.set(
-            f"{CACHE_KEY}:30",
-            {"data": {"stale": True}, "fresh_until": time.time() - 1},
+            SUMMARIES_CACHE_KEY,
+            {"data": {"30": {"stale": True}}, "fresh_until": time.time() - 1},
             60,
         )
         edition(ContributorUserFactory(username="alice"), timezone.now())
@@ -505,4 +505,39 @@ class ContributionSummaryApiTest(APITestCase):
         response = self.client.get(self.URL)
 
         self.assertEqual(response.json()["top"]["users"][0]["username"], "alice")
-        self.assertIsNone(cache.get(f"{CACHE_KEY}:30:refreshing"))
+        self.assertIsNone(cache.get(f"{SUMMARIES_CACHE_KEY}:refreshing"))
+
+    def test_periods_are_computed_together(self):
+        """
+        Input: a call with days=7, then with days=30 and days=all.
+        Expected: the first call computes the 3 periods, the next ones compute
+        nothing.
+        """
+        with patch.object(
+            contribution_summary,
+            "compute_contribution_summary",
+            wraps=contribution_summary.compute_contribution_summary,
+        ) as compute:
+            self.client.get(f"{self.URL}?days=7")
+            self.assertEqual(compute.call_count, 3)
+
+            for days in ["30", "all"]:
+                self.client.get(f"{self.URL}?days={days}")
+
+        self.assertEqual(compute.call_count, 3)
+
+    def test_shorter_period_never_counts_more_cities(self):
+        """
+        Input: a call with days=30, then a contribution in a new city, then a
+        call with days=7.
+        Expected: the 7-day period counts no more cities than the 30-day one
+        (it is not computed later, with the new city).
+        """
+        response_30 = self.client.get(f"{self.URL}?days=30").json()
+        city = City.objects.create(code_insee="33063", name="Bordeaux")
+        edition(ContributorUserFactory(), timezone.now(), city=city)
+
+        response_7 = self.client.get(f"{self.URL}?days=7").json()
+
+        self.assertEqual(response_7["cities"], response_30["cities"])
+        self.assertEqual(response_7["updated_at"], response_30["updated_at"])

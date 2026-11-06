@@ -2,9 +2,10 @@
 Summary of the community contributions shown on the home page of the website
 (GET /api/alpha/contributions/summary/).
 
-Everything is computed during the request for one period (the last 7 or 30
-days, or since the opening of the collaborative edition), then cached for an
-hour: on a clone of the production data, about 2.5 s for a 30-day window.
+Everything is computed during the request, for every period at once (the last
+7 or 30 days, and since the opening of the collaborative edition), then cached
+for an hour: on a clone of the production data, about 2.5 s for a 30-day
+window.
 """
 
 import time
@@ -47,6 +48,11 @@ TOP_LIMIT = 5
 NEWCOMERS_LIMIT = 8
 
 CACHE_KEY = "contribution_summary"
+# days parameter of every period, all cached in a single entry
+PERIOD_KEYS = [*(str(d) for d in WINDOWS_DAYS), ALL_PERIOD]
+# The key names the periods: an entry cached before a period was added (by the
+# previous code during a deploy, or until it expires) is never read
+SUMMARIES_CACHE_KEY = f"{CACHE_KEY}:{','.join(PERIOD_KEYS)}"
 # An entry is recomputed after an hour, but kept a day: while one request
 # recomputes it, the others get the previous one instead of all running the
 # same queries at once
@@ -321,9 +327,24 @@ def _cached(key: str, compute: Callable[[], dict]) -> dict:
     return data
 
 
+def compute_all_summaries(now: Optional[datetime] = None) -> dict[str, dict]:
+    """
+    Summaries of every period, keyed by their days parameter ("7", "30",
+    "all"), all computed at the same instant: computed at different times, a
+    shorter period could count more cities or organizations than a longer one
+    """
+    now = now or timezone.now()
+    return {
+        key: compute_contribution_summary(
+            now=now, days=None if key == ALL_PERIOD else int(key)
+        )
+        for key in PERIOD_KEYS
+    }
+
+
 def get_contribution_summary(days: Optional[int] = DEFAULT_WINDOW_DAYS) -> dict:
-    """Cached version of compute_contribution_summary, one entry per period"""
-    return _cached(
-        f"{CACHE_KEY}:{days or ALL_PERIOD}",
-        lambda: compute_contribution_summary(days=days),
-    )
+    """
+    Cached version of compute_contribution_summary. All the periods share a
+    single entry and are recomputed together, so that they stay consistent.
+    """
+    return _cached(SUMMARIES_CACHE_KEY, compute_all_summaries)[str(days or ALL_PERIOD)]
