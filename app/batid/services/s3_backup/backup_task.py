@@ -32,7 +32,11 @@ def notify_tchap_error(error, task_id):
 def notify_tchap(backup_name):
 
     msg = f"Un nouveau backup de la base de production du RNB a été créé chez OVH : {backup_name}."
-    notify_tech(msg)
+    try:
+        notify_tech(msg)
+    except Exception:
+        # A retry would start the whole backup again
+        logging.exception("Tchap report of the S3 backup failed")
 
 
 def scaleway_headers():

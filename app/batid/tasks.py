@@ -461,7 +461,11 @@ def send_monthly_leaderboard_emails():
     )
 
     result = send_emails()
-    notify_tech(result)
+    try:
+        notify_tech(result)
+    except Exception:
+        # A retry would send all the emails again
+        logger.exception("Tchap report of the leaderboard emails failed")
     return result
 
 

@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from batid.services.tchap import notify_if_error, notify_tech
-from batid.tasks import import_cities, import_plots
+from batid.tasks import import_cities, import_plots, send_monthly_leaderboard_emails
 from django.test import TestCase, override_settings
 
 
@@ -94,6 +94,29 @@ class NotifyTaskFailure(TestCase):
         self.assertEqual(str(result.result), "boom")
         notify.assert_called_once()
         self.assertEqual(len(logs.records), 1)
+
+    @patch("batid.services.tchap.notify_tech")
+    @patch("batid.tasks.notify_tech", side_effect=Exception("tchap down"))
+    @patch(
+        "batid.services.leaderboard.send_monthly_leaderboard_emails",
+        return_value="Sent 3 emails for octobre 2026",
+    )
+    def test_tchap_down_does_not_resend_leaderboard_emails(
+        self, send, notify, receiver_notify
+    ):
+        """
+        Input: the leaderboard emails are sent, then the Tchap report raises.
+        Expected: the task ends in SUCCESS with the send summary, the emails are
+        sent once, the error is logged and no failure alert is sent.
+        """
+        with self.assertLogs("batid.tasks", level="ERROR"):
+            result = send_monthly_leaderboard_emails.apply()
+
+        self.assertEqual(result.state, "SUCCESS")
+        self.assertEqual(result.result, "Sent 3 emails for octobre 2026")
+        send.assert_called_once()
+        notify.assert_called_once()
+        receiver_notify.assert_not_called()
 
     def test_delay_on_former_decorated_task(self):
         """
