@@ -22,12 +22,22 @@ development_schedule = {
     },
 }
 
+data_cleanup_schedule = {
+    "delete_old_data_files": {
+        "task": "batid.tasks.delete_old_data_files",
+        # sunday at 5am UTC
+        "schedule": crontab(hour=5, minute=0, day_of_week=0),
+    },
+}
+
 staging_and_sandbox_schedule = {
     **common_schedule,
+    **data_cleanup_schedule,
 }
 
 production_schedule = {
     **common_schedule,
+    **data_cleanup_schedule,
     "backup_to_s3": {
         "task": "batid.tasks.backup_to_s3",
         # saturday at 7am

@@ -41,6 +41,8 @@ services:
       - ./.env.worker.staging
       - ./.env.rnb.staging
       - ./.env.sentry.staging
+    volumes:
+      - worker_data:/app/data
 
   celery_beat:
     extends:
@@ -86,3 +88,4 @@ volumes:
   vhost:
   acme:
   html:
+  worker_data:

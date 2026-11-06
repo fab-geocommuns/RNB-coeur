@@ -1,4 +1,5 @@
 import logging
+import time
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -56,15 +57,36 @@ from batid.services.imports.import_plots import (
 from batid.services.imports.import_plots import (
     import_etalab_plots as import_etalab_plots_job,
 )
+from batid.services.replayable_task import (
+    ReplayableTask,
+    release_replayable_task_lock,
+)
 from batid.services.reports.arcep import (
     dl_and_create_arcep_reports,
     reject_irrelevant_arcep_reports,
 )
 from batid.services.s3_backup.backup_task import backup_to_s3 as backup_to_s3_job
-from batid.services.source import Source
-from batid.services.tchap import notify_if_error, notify_tech
+from batid.services.source import (
+    Source,
+    delete_files_older_than,
+    remove_paths_of_successful_task,
+)
+from batid.services.tchap import notify_tech
 from batid.utils.auth import make_random_password
 from celery import Signature, chain, shared_task
+from celery.signals import task_postrun
+from django.conf import settings
+
+
+# Sent once the task state is stored, before the ack of acks_late tasks.
+@task_postrun.connect
+def end_replayable_task(task, state, **_kwargs) -> None:
+    if not isinstance(task, ReplayableTask):
+        return
+    try:
+        remove_paths_of_successful_task(request=task.request, state=state)
+    finally:
+        release_replayable_task_lock(task.request)
 
 
 @shared_task
@@ -73,7 +95,10 @@ def heartbeat() -> None:
 
 
 @shared_task(
-    autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 5}
+    base=ReplayableTask,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 5},
 )
 def dl_source(src_name: str, src_params: dict):
 
@@ -102,15 +127,15 @@ def import_bdnb_bdgs(dpt, bulk_launch_uuid=None):
     return "done"
 
 
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def convert_bdtopo(src_params, bulk_launch_uuid=None):
 
     create_candidate_from_bdtopo(src_params, bulk_launch_uuid)
     return "done"
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_full_bdtopo_import(
     dpt_start: Optional[str] = None,
@@ -141,14 +166,14 @@ def queue_full_bdtopo_import(
     return f"Queued {len(all_chains)} departments import"
 
 
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def import_plots(dpt: str, release_date: str):
     import_etalab_plots_job(dpt, release_date)
     return "done"
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_full_plots_import(
     dpt_start: Optional[str] = None,
@@ -176,13 +201,14 @@ def queue_full_plots_import(
     return f"Queued {len(tasks)} tasks"
 
 
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def import_cities(dpt):
     import_etalab_cities(dpt)
     return "done"
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_full_cities_import():
     dpts = dpts_list()
@@ -203,7 +229,9 @@ def import_dpts():
     import_etalab_dpts()
 
 
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def inspect_candidates():
     vacuum_analyze_candidates_if_needed()
     i = Inspector()
@@ -242,7 +270,6 @@ def publish_datagouv_dpt(dept: str):
     return "done"
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
 def publish_datagouv_all():
     notify_tech(
@@ -300,7 +327,6 @@ def compute_daily_kpis():
 #     return "done"
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_full_ban_import(
     dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
@@ -319,13 +345,13 @@ def queue_full_ban_import(
     return f"Queued {len(tasks)} tasks"
 
 
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def import_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
     return import_ban_addresses(src_params, bulk_launch_uuid)
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def update_dpt_cities_ban_ids_reliability(dpt: str):
     return update_dpt_cities_ban_ids_reliability_job(dpt)
@@ -333,7 +359,6 @@ def update_dpt_cities_ban_ids_reliability(dpt: str):
 
 # No autoretry: a retry would restart the whole multi-hour run from the first
 # department. On failure, resume it with dpt_start.
-@notify_if_error
 @shared_task
 def update_all_cities_ban_ids_reliability(
     dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
@@ -341,7 +366,6 @@ def update_all_cities_ban_ids_reliability(
     return update_all_cities_ban_ids_reliability_job(dpt_start, dpt_end)
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_full_bal_rnb_links(
     dpt_start: Optional[str] = None, dpt_end: Optional[str] = None
@@ -361,8 +385,9 @@ def queue_full_bal_rnb_links(
     return f"Queued BAL tasks"
 
 
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def create_dpt_bal_rnb_links(src_params: dict, bulk_launch_uuid: Optional[str] = None):
 
     return create_dpt_bal_rnb_links_job(src_params, bulk_launch_uuid)
@@ -419,7 +444,6 @@ def fill_empty_event_type(batch_size: int) -> int:
     return f"Total updated rows: {total}"  # type: ignore[return-value]
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 0})
 def manual_raise():
     raise Exception("Manual raise for testing purposes")
@@ -430,7 +454,6 @@ def create_arcep_reports() -> uuid.UUID:
     return dl_and_create_arcep_reports()
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def send_monthly_leaderboard_emails():
     from batid.services.leaderboard import (
@@ -438,7 +461,11 @@ def send_monthly_leaderboard_emails():
     )
 
     result = send_emails()
-    notify_tech(result)
+    try:
+        notify_tech(result)
+    except Exception:
+        # A retry would send all the emails again
+        logger.exception("Tchap report of the leaderboard emails failed")
     return result
 
 
@@ -469,15 +496,15 @@ def send_report_activity_notification(
     )
 
 
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def flag_addresses_from_ban(src_params: dict, bulk_launch_uuid: str = None):  # type: ignore[assignment]
     from batid.services.imports.update_addresses_ban import flag_addresses_from_ban_file
 
     return flag_addresses_from_ban_file(src_params)
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_ban_address_flag_exists(
     dpt_start: Optional[str] = None,
@@ -506,8 +533,9 @@ def queue_ban_address_flag_exists(
     return f"Queued {len(dpts)} departments"
 
 
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def compare_addresses_with_ban(src_params: dict, batch_size: int = 1000):  # type: ignore[assignment]
     from batid.services.imports.update_addresses_ban import (
         compare_addresses_with_ban_file,
@@ -516,7 +544,6 @@ def compare_addresses_with_ban(src_params: dict, batch_size: int = 1000):  # typ
     return compare_addresses_with_ban_file(src_params, batch_size=batch_size)
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def queue_ban_address_comparison(
     dpt_start: Optional[str] = None,
@@ -547,7 +574,6 @@ def queue_ban_address_comparison(
     return f"Queued comparison with the BAN file for {len(dpts)} departments"
 
 
-@notify_if_error
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
 def delete_unlinked_obsolete_addresses_task(batch_size: int = 1000):
     from batid.services.imports.update_addresses_ban import (
@@ -557,16 +583,18 @@ def delete_unlinked_obsolete_addresses_task(batch_size: int = 1000):
     return delete_unlinked_obsolete_addresses(batch_size)
 
 
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def geocode_obsolete_addresses_task(batch_size: int = 1000):
     from batid.services.imports.update_addresses_ban import geocode_obsolete_addresses
 
     return geocode_obsolete_addresses(batch_size)
 
 
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def update_addresses_from_ban_comparison_task(batch_size: int = 1000):
     from batid.services.imports.update_addresses_ban import (
         update_addresses_from_ban_comparison,
@@ -575,11 +603,19 @@ def update_addresses_from_ban_comparison_task(batch_size: int = 1000):
     return update_addresses_from_ban_comparison(batch_size)
 
 
-@notify_if_error
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@shared_task(
+    base=ReplayableTask, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}
+)
 def replace_obsolete_addresses_from_geocoding_task(batch_size: int = 1000):
     from batid.services.imports.update_addresses_ban import (
         replace_obsolete_addresses_from_geocoding,
     )
 
     return replace_obsolete_addresses_from_geocoding(batch_size)
+
+
+@shared_task
+def delete_old_data_files() -> int:
+    # Files older than 7 days are leftovers from failed or abandoned runs.
+    cutoff = time.time() - 7 * 24 * 3600
+    return delete_files_older_than(root_dir=settings.WRITABLE_DATA_DIR, cutoff=cutoff)

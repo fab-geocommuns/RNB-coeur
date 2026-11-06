@@ -266,6 +266,12 @@ PRO_CONNECT_DISCOVERY_URL = os.environ.get(
     "https://fca.integ01.dev-agentconnect.fr/api/v2/.well-known/openid-configuration",
 )
 PRO_CONNECT_SCOPES = "openid email given_name usual_name siret"
+# Require two-factor authentication on Pro Connect logins (acr check).
+# Off by default until the switch is tested and announced; must be on in
+# production by 28/02/2027, when every identity provider must support it.
+PRO_CONNECT_REQUIRE_MFA = (
+    os.environ.get("PRO_CONNECT_REQUIRE_MFA", default="false").lower() == "true"
+)
 PRO_CONNECT_REDIRECT_URI = os.environ.get("PRO_CONNECT_REDIRECT_URI")
 PRO_CONNECT_POST_LOGOUT_REDIRECT_URI = os.environ.get(
     "PRO_CONNECT_POST_LOGOUT_REDIRECT_URI"
@@ -312,6 +318,10 @@ CELERY_TASK_DEFAULT_EXCHANGE = "default"
 CELERY_TASK_DEFAULT_ROUTING_KEY = "default"
 CELERY_TASK_DEFAULT_PRIORITY = 5
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+# acks_late tasks, on broker connection loss: the running task goes on to the end, as
+# before acks_late. Its message is redelivered, then ignored by ReplayableTask once
+# the task succeeded. Explicit: Celery 6 will default to cancel and rerun it.
+CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS = False
 
 # Shared by every web worker and Celery process: Pro Connect one-time login
 # codes, DRF throttling counters, OIDC discovery/JWKS. DB 0 holds Celery results.
