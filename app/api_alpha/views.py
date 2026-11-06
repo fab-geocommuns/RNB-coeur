@@ -504,7 +504,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                         "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
                         "required": True,
                         "schema": {"type": "string"},
-                        "example": "PG46YY6YWCX8",
+                        "example": "MFD5CFNA7GX5",
                     },
                 ],
                 "requestBody": {
@@ -533,7 +533,7 @@ Cet endpoint nécessite d'être identifié et d'avoir des droits d'édition du R
                                                 "shape": {
                                                     "type": "string",
                                                     "description": "Géométrie du bâtiment au format WKT ou HEX, en WGS84.",
-                                                    "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
+                                                    "example": "POLYGON((-0.280581 47.187815, -0.280519 47.188027, -0.280313 47.188008, -0.280355 47.187786, -0.280581 47.187815))",
                                                 },
                                                 "addresses_cle_interop": {
                                                     "type": "array",

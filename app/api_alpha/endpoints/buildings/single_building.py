@@ -86,7 +86,7 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                         "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
                         "required": True,
                         "schema": {"type": "string"},
-                        "example": "PG46YY6YWCX8",
+                        "example": "MFD5CFNA7GX5",
                     },
                     {
                         "name": "withPlots",
@@ -178,7 +178,7 @@ Exemples valides:
                         "description": "Identifiant unique du bâtiment dans le RNB (ID-RNB)",
                         "required": True,
                         "schema": {"type": "string"},
-                        "example": "PG46YY6YWCX8",
+                        "example": "MFD5CFNA7GX5",
                     }
                 ],
                 "requestBody": {
@@ -227,6 +227,7 @@ Si ce paramêtre est :
                                     "shape": {
                                         "type": "string",
                                         "description": """Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géometrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point. La géométrie doit être en 2D : les géométries 3D (avec une coordonnée Z) sont refusées.""",
+                                        "example": "POLYGON((-0.280581 47.187815, -0.280519 47.188027, -0.280313 47.188008, -0.280355 47.187786, -0.280581 47.187815))",
                                     },
                                     "is_valid": {
                                         "type": "boolean",
