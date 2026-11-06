@@ -8,6 +8,7 @@ from batid.models import (
     Organization,
     UserProfile,
 )
+from batid.services import mfa
 from batid.views import (
     export_ads,
     export_contributions,
@@ -294,6 +295,7 @@ admin.site.register(UserProfile, UserProfileAdmin)
 class CustomUserAdmin(BaseUserAdmin):
     inlines = (UserProfileInline,)
     list_display = [*BaseUserAdmin.list_display, "get_organization_name"]  # type: ignore[misc]
+    actions = ["reset_mfa"]
 
     @admin.display(description="Organisation", ordering="profile__organization__name")
     def get_organization_name(self, obj):
@@ -302,6 +304,22 @@ class CustomUserAdmin(BaseUserAdmin):
             return "-"
 
         return obj.profile.organization.name
+
+    @admin.action(
+        description="Réinitialiser la double authentification", permissions=["change"]
+    )
+    def reset_mfa(self, request, queryset):
+        """Delete the authenticator app and backup codes of the selected users (support)."""
+        with transaction.atomic():
+            # Locks taken in pk order: two overlapping resets cannot deadlock.
+            for user in queryset.order_by("pk"):
+                mfa.reset_mfa(user)
+                self.log_change(request, user, "Double authentification réinitialisée.")
+        self.message_user(
+            request,
+            f"Double authentification réinitialisée pour {queryset.count()} utilisateur(s).",
+            messages.SUCCESS,
+        )
 
 
 # Unregister the default User admin and register the custom one
@@ -313,8 +331,8 @@ def get_admin_urls(get_urls):
     def wrapped_get_urls():
         my_urls = [
             path(r"worker/", admin.site.admin_view(worker)),
-            path(r"export_ads/", export_ads),
-            path(r"export_contributions/", export_contributions),
+            path(r"export_ads/", admin.site.admin_view(export_ads)),
+            path(r"export_contributions/", admin.site.admin_view(export_contributions)),
             path(
                 r"rollback/",
                 admin.site.admin_view(rollback_view),
