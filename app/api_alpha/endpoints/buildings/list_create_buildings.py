@@ -1,5 +1,6 @@
 from typing import Any, cast
 
+from api_alpha.apps import LiteralStr
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.pagination import BuildingListingCursorPagination, OGCApiPagination
 from api_alpha.permissions import ReadOnly, RNBContributorPermission
@@ -10,7 +11,13 @@ from api_alpha.serializers.serializers import (
     ListBuildingQuerySerializer,
 )
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.rnb_doc import get_status_html_list, get_status_list, rnb_doc
+from api_alpha.utils.rnb_doc import (
+    EDITION_AUTH_RESPONSES,
+    get_shape_rules,
+    get_status_html_list,
+    get_status_list,
+    rnb_doc,
+)
 from batid.exceptions import (
     BANAPIDown,
     BANBadResultType,
@@ -215,7 +222,12 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
         {
             "post": {
                 "summary": "Création d'un bâtiment",
-                "description": "Cet endpoint permet de créer un bâtiment dans le RNB. Lors de la création, un identifiant RNB (ID-RNB) est généré. L'utilisateur doit être identifié et disposer des droits nécessaires pour écrire dans le RNB.",
+                "description": LiteralStr(
+                    "Cet endpoint permet de créer un bâtiment dans le RNB. Lors de la création, un identifiant RNB (ID-RNB) est généré. "
+                    "L'utilisateur doit être identifié (en-tête `Authorization: Token <votre token>`) et disposer des droits nécessaires pour écrire dans le RNB.\n\n"
+                    "La requête est refusée (400) si un champ obligatoire manque, si une clé d'interopérabilité ne fait pas entre 5 et 30 caractères "
+                    "ou si la géométrie ne respecte pas les règles décrites pour le champ `shape`."
+                ),
                 "operationId": "postBuilding",
                 "requestBody": {
                     "required": True,
@@ -239,7 +251,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                         "type": "array",
                                         # currently a bug in gitbook, addding info on items hides the description
                                         # "items": {"type": "string"},
-                                        "description": "Liste des clés d'interopérabilité BAN liées au bâtiment, éventuellement vide (`[]`) en l'absence d'adresse à attribuer.",
+                                        "description": "Liste des clés d'interopérabilité BAN liées au bâtiment, éventuellement vide (`[]`) en l'absence d'adresse à attribuer. Chaque clé fait entre 5 et 30 caractères.",
                                         "example": [
                                             "75105_8884_00004",
                                             "75105_8884_00006",
@@ -247,13 +259,16 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                     },
                                     "shape": {
                                         "type": "string",
-                                        "description": "Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.",
+                                        "description": LiteralStr(
+                                            "Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.\n\nLa géométrie doit :\n"
+                                            + get_shape_rules()
+                                        ),
                                         "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
                                     },
                                     "is_valid": {
                                         "type": "boolean",
                                         "default": False,
-                                        "description": "Optionnel. Si `True`, le bâtiment est marqué comme valide dès sa création. L'utilisateur déclare ainsi que l'ensemble des informations liées aux bâtiments (statut, adresse, géométrie) sont valides. Vaut 'False' par défaut, ce qui revient à simplement créer le bâtiment sans le valider.",
+                                        "description": "Optionnel. Si `true`, le bâtiment est marqué comme valide dès sa création. L'utilisateur déclare ainsi que l'ensemble des informations liées aux bâtiments (statut, adresse, géométrie) sont valides. Vaut `false` par défaut, ce qui revient à simplement créer le bâtiment sans le valider.",
                                     },
                                 },
                                 "required": [
@@ -279,12 +294,15 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                             }
                         },
                     },
-                    "403": {
-                        "description": "L'utilisateur n'a pas les droits nécessaires pour créer un bâtiment."
+                    "400": {
+                        "description": "Requête invalide ou création refusée (voir les cas de refus dans la description)."
                     },
-                    "503": {"description": "Service temporairement indisponible"},
+                    **EDITION_AUTH_RESPONSES,
                     "404": {
                         "description": "Une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
+                    },
+                    "503": {
+                        "description": "Service temporairement indisponible (API de la BAN injoignable)"
                     },
                 },
             }
