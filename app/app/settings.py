@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 import os
 
 import sentry_sdk
+from django.utils.csp import CSP
 from kombu import Exchange, Queue
 from sentry_sdk.integrations.django import DjangoIntegration
 
@@ -117,6 +118,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django.middleware.csp.ContentSecurityPolicyMiddleware",
     "batid.middlewares.BlockIPMiddleware",
     "batid.middlewares.SimpleRequestLoggerMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
@@ -283,6 +285,21 @@ PRO_CONNECT_ALLOWED_REDIRECT_URIS = [
 ]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Content-Security-Policy of every response, except the Flower and Metabase proxies (see batid/views.py).
+# The only HTML pages are the home page and the admin, whose scripts are all static files.
+SECURE_CSP = {
+    "default-src": [CSP.SELF],
+    # Inline style attributes of the admin templates.
+    "style-src": [CSP.SELF, CSP.UNSAFE_INLINE],
+    "img-src": [CSP.SELF, "data:"],
+    # The admin JSON editor (ace) checks the syntax in a worker created from a blob.
+    "worker-src": [CSP.SELF, "blob:"],
+    "object-src": [CSP.NONE],
+    "base-uri": [CSP.SELF],
+    "form-action": [CSP.SELF],
+    "frame-ancestors": [CSP.NONE],
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
