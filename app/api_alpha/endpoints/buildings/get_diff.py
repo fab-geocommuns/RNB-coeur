@@ -299,11 +299,11 @@ class DiffView(RNBLoggingMixin, APIView):
                     "<li>`deactivation` (désactivation d'un identifiant ne correspondant pas à un bâtiment) : `deactivate`</li>"
                     "<li>`reactivation` (réactivation d'un identifiant désactivé) : `reactivate`</li>"
                     "<li>`merge` (fusion de plusieurs bâtiments en un seul) : `deactivate` pour les bâtiments parents, `create` pour le bâtiment issu de la fusion</li>"
-                    "<li>`split` (scission d'un bâtiment en plusieurs) : `deactivate` pour le bâtiment scindé, `create` pour les bâtiments issus de la scission</li>"
+                    "<li>`split` (scission d'un bâtiment en plusieurs) : `deactivate` pour le bâtiment parent, `create` pour les bâtiments issus de la scission</li>"
                     "<li>`revert_creation` (annulation d'une création) : `deactivate`</li>"
                     "<li>`revert_update` (annulation d'une modification, le bâtiment retrouve ses valeurs précédentes) : `update`</li>"
                     "<li>`revert_merge` (annulation d'une fusion) : `deactivate` pour le bâtiment issu de la fusion, `reactivate` pour les bâtiments parents</li>"
-                    "<li>`revert_split` (annulation d'une scission) : `deactivate` pour les bâtiments issus de la scission, `reactivate` pour le bâtiment scindé</li>"
+                    "<li>`revert_split` (annulation d'une scission) : `deactivate` pour les bâtiments issus de la scission, `reactivate` pour le bâtiment parent</li>"
                     "</ul>"
                     "Par exemple, une fusion de deux bâtiments fait apparaître 3 lignes avec l'`event_type` `merge` et le même `event_id` : "
                     "les deux bâtiments parents ont l'action `deactivate` et le bâtiment issu de la fusion a l'action `create`. "
@@ -314,16 +314,17 @@ class DiffView(RNBLoggingMixin, APIView):
                     "<li>`rnb_id` : identifiant RNB du bâtiment</li>"
                     "<li>`status` : statut du bâtiment (`constructed`, `notUsable` ou `demolished`)</li>"
                     "<li>`is_active` : `1` si l'identifiant est actif, `0` s'il est désactivé</li>"
-                    '<li>`sys_period` : période de validité de cette version, au format plage de dates PostgreSQL : `["début",fin)`. La date de début est la date de la modification. La fin est vide tant que la version est la version courante</li>'
+                    '<li>`sys_period` : période de validité de cette version, au format plage de dates PostgreSQL : `["début","fin")`, ou `["début",)` pour la version courante. La date de début est la date de la modification</li>'
                     "<li>`point` : point représentatif du bâtiment au format EWKT, en WGS84 (ex : `SRID=4326;POINT(2.35 48.85)`)</li>"
                     "<li>`shape` : géométrie du bâtiment au format EWKT, en WGS84 (point, polygone ou multipolygone)</li>"
                     "<li>`addresses_id` : tableau JSON des clés d'interopérabilité BAN des adresses du bâtiment. Vide ou `[]` si le bâtiment n'a pas d'adresse</li>"
-                    "<li>`ext_ids` : tableau JSON des identifiants du bâtiment dans d'autres bases (BD Topo, BDNB…). Vaut `[]` s'il n'y en a pas</li>"
+                    '<li>`ext_ids` : identifiants du bâtiment dans d\'autres bases (BD Topo, BDNB…), sous forme de tableau JSON d\'objets `{"id", "source", "source_version", "created_at"}`. Vaut `[]` s\'il n\'y en a pas</li>'
                     "<li>`parent_buildings` : tableau JSON des identifiants RNB des bâtiments dont est issu ce bâtiment (fusion, scission). Vide si le bâtiment n'est issu d'aucune fusion ou scission</li>"
                     "<li>`event_id` : identifiant (UUID) de l'opération</li>"
                     "<li>`event_type` : type d'opération (voir ci-dessus)</li>"
-                    "<li>`username` : nom de l'utilisateur à l'origine de l'opération. Vaut `RNB` quand l'opération n'est rattachée à aucun utilisateur (imports, traitements automatiques)</li>"
-                    "<li>`user_organization_name` et `user_organization_id` : nom et identifiant de l'organisation de cet utilisateur. Vides s'il n'en a pas</li>"
+                    "<li>`username` : nom de l'utilisateur à l'origine de l'opération. Vaut `RNB` pour les imports, rattachés au compte de l'équipe</li>"
+                    "<li>`user_organization_name` : nom de l'organisation de cet utilisateur. Vide s'il n'en a pas</li>"
+                    "<li>`user_organization_id` : identifiant de l'organisation de cet utilisateur. Vide s'il n'en a pas</li>"
                     '<li>`validated_by` : tableau JSON des utilisateurs ayant validé le bâtiment, chacun sous la forme `{"id", "username", "organization_name", "organization_short_name"}`. Vaut `[]` s\'il n\'y en a pas</li>'
                     "</ul>"
                     f"Exemple de requête : `https://rnb-api.beta.gouv.fr/api/alpha/buildings/diff/?since={SINCE_EXAMPLE}`"
@@ -335,7 +336,8 @@ class DiffView(RNBLoggingMixin, APIView):
                         "in": "query",
                         "description": (
                             "Date et heure à partir de laquelle les modifications sont retournées. Le format est ISO 8601. <br />"
-                            f"Cette date doit être comprise dans les {MAX_DIFF_DAYS} derniers jours.<br/>"
+                            f"Cette date ne doit pas être antérieure aux {MAX_DIFF_DAYS} derniers jours. "
+                            "Si aucune modification du RNB n'est postérieure à cette date, le fichier est vide, sans en-tête.<br/>"
                             "Pour récupérer le RNB dans son intégralité, téléchargez la base de données (l'ensemble de la base est <a href='https://www.data.gouv.fr/fr/datasets/referentiel-national-des-batiments/'>disponible ici</a>). "
                         ),
                         "required": True,
@@ -370,7 +372,7 @@ class DiffView(RNBLoggingMixin, APIView):
                     },
                     "400": {
                         "description": (
-                            f"Le paramètre `since` est absent, mal formaté ou antérieur aux {MAX_DIFF_DAYS} derniers jours. "
+                            f"Le paramètre `since` est absent, mal formaté, n'est pas une date existante ou est antérieur aux {MAX_DIFF_DAYS} derniers jours. "
                             "Le message d'erreur est une phrase en texte brut."
                         ),
                     },
@@ -390,7 +392,13 @@ class DiffView(RNBLoggingMixin, APIView):
         # Fix timezone offsets like " 00:00" → "+00:00" at end of string.
         since_input = re.sub(r" (\d{2}:\d{2})$", r"+\1", since_input)
         # parse since to a timestamp
-        since = parse_datetime(since_input)
+        try:
+            since = parse_datetime(since_input)
+            if since is not None and since.tzinfo is None:
+                since = since.astimezone(timezone.utc)
+        except (ValueError, OverflowError):
+            # well formatted but not a real date, e.g. 2026-02-30
+            since = None
         last_available_modification = datetime.now(timezone.utc) - timedelta(
             days=MAX_DIFF_DAYS
         )
@@ -399,9 +407,6 @@ class DiffView(RNBLoggingMixin, APIView):
             return HttpResponse(
                 "The 'since' parameter is missing or incorrect", status=400
             )
-
-        if since.tzinfo is None:
-            since = since.astimezone(timezone.utc)
 
         # nobody should download the whole database
         if since < last_available_modification:
