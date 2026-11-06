@@ -269,7 +269,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                             "Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.\n\nLa géométrie doit :\n"
                                             + get_shape_rules()
                                         ),
-                                        "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
+                                        "example": "POLYGON((-0.280581 47.187815, -0.280519 47.188027, -0.280313 47.188008, -0.280355 47.187786, -0.280581 47.187815))",
                                     },
                                     "is_valid": {
                                         "type": "boolean",
