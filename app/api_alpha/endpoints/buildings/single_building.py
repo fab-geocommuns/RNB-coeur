@@ -77,7 +77,7 @@ class SingleBuilding(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Consultation d'un bâtiment",
-                "description": "Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet de récupérer l'ensemble des attributs d'un bâtiment à partir de son identifiant RNB. Contrairement à la liste des bâtiments, il renvoie aussi les bâtiments désactivés (`is_active` à `false`) et tous les statuts, démolis compris. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "getBuilding",
                 "parameters": [
                     {
@@ -116,9 +116,18 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                                         {"$ref": "#/components/schemas/BuildingWPlots"},
                                     ]
                                 }
-                            }
+                            },
+                            "application/geo+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BuildingGeoJSON",
+                                    "description": "Réponse avec le paramètre `format=geojson`",
+                                }
+                            },
                         },
-                    }
+                    },
+                    "404": {
+                        "description": "Aucun bâtiment ne correspond à cet identifiant RNB."
+                    },
                 },
             }
         }
