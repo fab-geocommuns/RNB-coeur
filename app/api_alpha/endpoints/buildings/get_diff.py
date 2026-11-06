@@ -373,13 +373,13 @@ class DiffView(RNBLoggingMixin, APIView):
                     "400": {
                         "description": (
                             f"Le paramètre `since` est absent, mal formaté, n'est pas une date existante ou est antérieur aux {MAX_DIFF_DAYS} derniers jours. "
-                            "Le message d'erreur est une phrase en texte brut."
+                            "Le corps de la réponse est une phrase, pas un objet JSON."
                         ),
                     },
                     "404": {
                         "description": (
                             "Le code INSEE indiqué ne correspond à aucune commune. "
-                            "Le message d'erreur est une phrase en texte brut."
+                            "Le corps de la réponse est une phrase, pas un objet JSON."
                         ),
                     },
                 },
