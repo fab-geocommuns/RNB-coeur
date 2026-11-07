@@ -216,6 +216,17 @@ DATA_GOUV_TIMEOUT_S = 30
 DATA_GOUV_RETRY_DELAYS_S = (60, 120, 240, 480)
 
 
+class DataGouvAccessDenied(Exception):
+    """401 or 403 from data.gouv.fr: the key is refused for the whole dataset, every other area would fail the same way."""
+
+
+def data_gouv_error(*, message: str, response: requests.Response) -> Exception:
+    error = f"{message}: HTTP {response.status_code} {response.text[:200]}"
+    if response.status_code in (401, 403):
+        return DataGouvAccessDenied(error)
+    return Exception(error)
+
+
 def publish_on_data_gouv_with_retries(*, area, public_url, archive_size, archive_sha1):
     """
     Publish on data.gouv.fr, retrying on requests errors (network errors and non-JSON bodies).
@@ -303,7 +314,9 @@ def data_gouv_create_resource(
     )
 
     if response.status_code != 201:
-        raise Exception("Error while creating the resource")
+        raise data_gouv_error(
+            message="Error while creating the resource", response=response
+        )
 
     return True
 
@@ -316,7 +329,9 @@ def data_gouv_resource_id(dataset_id, area):
     response = requests.get(dataset_url, timeout=DATA_GOUV_TIMEOUT_S)
 
     if response.status_code != 200:
-        raise Exception("Error while fetching the dataset")
+        raise data_gouv_error(
+            message="Error while fetching the dataset", response=response
+        )
     else:
         res = response.json()
         resources = res["resources"]
@@ -378,7 +393,9 @@ def update_resource_metadata(
     )
 
     if response.status_code != 200:
-        raise Exception("Error while updating the resource url")
+        raise data_gouv_error(
+            message="Error while updating the resource url", response=response
+        )
     else:
         return True
 

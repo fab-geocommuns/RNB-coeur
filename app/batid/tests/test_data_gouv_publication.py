@@ -19,6 +19,7 @@ from batid.models import (
 )
 from batid.services.data_gouv_publication import (
     DATA_GOUV_TIMEOUT_S,
+    DataGouvAccessDenied,
     cleanup_directory,
     create_archive,
     create_directory,
@@ -887,6 +888,12 @@ def fail_on_49(area):
     return True
 
 
+def deny_on_49(area):
+    if area == "49":
+        raise DataGouvAccessDenied("Error while updating the resource url: HTTP 403")
+    return True
+
+
 class TestDataGouvPublishTasks(TestCase):
     @mock.patch("batid.tasks.notify_tech")
     @mock.patch("batid.tasks.publish", side_effect=fail_on_49)
@@ -930,3 +937,17 @@ class TestDataGouvPublishTasks(TestCase):
             publish_mock.call_args_list, [mock.call("49"), mock.call("50")]
         )
         self.assertEqual(len(logs.records), 2)
+
+    @mock.patch("batid.tasks.notify_tech")
+    @mock.patch("batid.tasks.publish", side_effect=deny_on_49)
+    def test_access_denied_stops_the_chain(self, publish_mock, notify_tech_mock):
+        """
+        Chain of departments 49 then 50, data.gouv.fr refuses the key (403) on 49.
+        Expected: the chain raises DataGouvAccessDenied, 50 is not published and no
+        per-area Tchap message is sent.
+        """
+        with self.assertRaises(DataGouvAccessDenied):
+            chain(get_area_publish_task("49"), get_area_publish_task("50")).apply()
+
+        self.assertEqual(publish_mock.call_args_list, [mock.call("49")])
+        notify_tech_mock.assert_not_called()
