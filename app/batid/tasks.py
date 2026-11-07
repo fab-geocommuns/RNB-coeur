@@ -17,7 +17,11 @@ from batid.services.data_fix.remove_light_buildings import (
 from batid.services.data_fix.remove_light_buildings import (
     remove_light_buildings as remove_light_buildings_job,
 )
-from batid.services.data_gouv_publication import get_area_publish_task, publish
+from batid.services.data_gouv_publication import (
+    DataGouvAccessDenied,
+    get_area_publish_task,
+    publish,
+)
 from batid.services.imports.import_bal import (
     create_all_bal_links_tasks,
 )
@@ -258,16 +262,39 @@ def backup_to_s3():
     return "done"
 
 
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def publish_area_or_report(area: str) -> str:
+    """
+    Publish one area and never raise, so that a failed area does not stop the
+    publish_datagouv_all chain. Exception: a key refused by data.gouv.fr (401/403)
+    is raised, since every other area would fail the same way; task_failure then
+    alerts once. Other failures go to Sentry (logger.exception) and to the tech
+    Tchap room.
+    """
+    try:
+        publish(area)
+    except DataGouvAccessDenied:
+        raise
+    except Exception as e:
+        logger.exception(f"data.gouv.fr publication failed for area {area}")
+        try:
+            notify_tech(
+                f"Échec de la publication data.gouv.fr pour la zone {area} : {e}"
+            )
+        except Exception:
+            # Tchap down must not stop the chain either; Sentry already has the publication error.
+            logger.exception("Tchap notification failed")
+        return "failed"
+    return "done"
+
+
+@shared_task
 def publish_datagouv_national():
-    publish("nat")
-    return "done"
+    return publish_area_or_report("nat")
 
 
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+@shared_task
 def publish_datagouv_dpt(dept: str):
-    publish(dept)
-    return "done"
+    return publish_area_or_report(dept)
 
 
 @shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
