@@ -141,14 +141,13 @@ La connexion par mot de passe (`POST /api/alpha/login/`) et l'admin acceptent un
 | Valeur | Effet |
 |---|---|
 | `OFF` | aucun code demandé, même aux comptes qui ont une application |
-| `OPTIONAL` | code demandé aux comptes qui ont une application ; les autres doivent en configurer une s'ils sont staff, superuser ou membres du groupe « MFA required », sinon elle leur est proposée (`mfa_setup_suggested: true`) |
+| `OPTIONAL` | code demandé aux comptes qui ont une application ; les autres doivent en configurer une s'ils sont staff ou superuser, sinon elle leur est proposée (`mfa_setup_suggested: true`) |
 | `REQUIRED` | tout compte doit avoir une application ; valeur appliquée si la variable est absente |
 
 Une autre valeur fait échouer le démarrage. Dans le vault Ansible de RNB-infra, la mettre entre guillemets (`"OFF"`) : sans guillemets, YAML la lit comme un booléen. La règle est dans `login_mfa_outcome` (`app/batid/services/mfa.py`). L'admin exige le code quel que soit le mode.
 
 Depuis l'admin :
 
-* imposer la 2FA à un compte : l'ajouter au groupe « MFA required », à créer dans l'admin s'il n'existe pas ;
 * téléphone perdu : action « Réinitialiser la double authentification » sur l'utilisateur, qui reconfigure son application à la connexion suivante. Un utilisateur ne peut pas remplacer lui-même une application déjà confirmée ;
 * premier accès à l'admin : `addstatictoken`, voir « Créer un super utilisateur ».
 

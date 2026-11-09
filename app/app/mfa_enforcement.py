@@ -6,8 +6,8 @@ class MFAEnforcement(StrEnum):
 
     # the code is never asked, even for users who configured an app
     OFF = "OFF"
-    # asked to users with an app; staff, superusers and the "MFA required" group must
-    # enroll, others are offered enrollment
+    # asked to users with an app; staff and superusers must enroll, others are
+    # offered enrollment
     OPTIONAL = "OPTIONAL"
     # every user must have an app to log in
     REQUIRED = "REQUIRED"
