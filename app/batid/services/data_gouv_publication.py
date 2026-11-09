@@ -221,6 +221,7 @@ DATA_GOUV_RETRYABLE_ERRORS = (
     requests.ConnectionError,
     requests.Timeout,
     requests.exceptions.ChunkedEncodingError,
+    requests.exceptions.ContentDecodingError,
     requests.exceptions.JSONDecodeError,
 )
 
