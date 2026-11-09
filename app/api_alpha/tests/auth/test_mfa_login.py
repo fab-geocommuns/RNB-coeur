@@ -8,7 +8,6 @@ from api_alpha.utils.login_throttle import LoginRateThrottle
 from api_alpha.views import RNBAuthToken
 from batid.tests.helpers import current_code, wrong_code
 from batid.utils.constants import ADS_GROUP_NAME
-from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.test import override_settings
@@ -273,21 +272,9 @@ class LoginWithoutAppTest(MFALoginTestCase):
         self.assertNotIn("token", response.json())
 
     @override_settings(MFA_ENFORCEMENT=MFAEnforcement.OPTIONAL)
-    def test_optional_in_mfa_required_group(self):
-        """OPTIONAL, user without app in the "MFA required" group: 401
-        mfa_setup_required."""
-        group = Group.objects.create(name=settings.MFA_REQUIRED_GROUP_NAME)
-        self.user.groups.add(group)
-
-        response = self.login()
-
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.json()["error"], "mfa_setup_required")
-
-    @override_settings(MFA_ENFORCEMENT=MFAEnforcement.OPTIONAL)
     def test_optional_staff_and_superuser(self):
         """OPTIONAL, user without app flagged is_staff, then is_superuser only: 401
-        mfa_setup_required and no token, like the "MFA required" group."""
+        mfa_setup_required and no token."""
         for flag in ("is_staff", "is_superuser"):
             with self.subTest(flag=flag):
                 User.objects.filter(pk=self.user.pk).update(

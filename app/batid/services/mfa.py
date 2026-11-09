@@ -87,7 +87,6 @@ def login_mfa_outcome(*, user: User, otp) -> LoginMFAOutcome | MFAError:
         settings.MFA_ENFORCEMENT == MFAEnforcement.REQUIRED
         or user.is_staff
         or user.is_superuser
-        or user.groups.filter(name=settings.MFA_REQUIRED_GROUP_NAME).exists()
     ):
         return MFAError.SETUP_REQUIRED
     return LoginMFAOutcome.SETUP_SUGGESTED

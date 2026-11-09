@@ -190,9 +190,6 @@ CONTRIBUTORS_GROUP_NAME = "Contributors"
 # any user part of this group can annotate (review) RNB events
 REVIEWERS_GROUP_NAME = "Reviewers"
 
-# users in this group must configure an authenticator app, unless MFA_ENFORCEMENT is OFF
-MFA_REQUIRED_GROUP_NAME = "MFA required"
-
 # Invalid values crash at boot. Defaults to the strictest policy.
 MFA_ENFORCEMENT = MFAEnforcement(
     os.environ.get("MFA_ENFORCEMENT", MFAEnforcement.REQUIRED)
