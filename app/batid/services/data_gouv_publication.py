@@ -215,6 +215,15 @@ DATA_GOUV_TIMEOUT_S = 30
 # Waits between the 5 attempts: 1, 2, 4 then 8 minutes (15 minutes covered).
 DATA_GOUV_RETRY_DELAYS_S = (60, 120, 240, 480)
 
+# Transient requests errors only: an invalid URL or header (missing DATA_GOUV_BASE_URL
+# for instance) fails the same way on every attempt and is raised at once.
+DATA_GOUV_RETRYABLE_ERRORS = (
+    requests.ConnectionError,
+    requests.Timeout,
+    requests.exceptions.ChunkedEncodingError,
+    requests.exceptions.JSONDecodeError,
+)
+
 
 class DataGouvAccessDenied(Exception):
     """401 or 403 from data.gouv.fr: the key is refused for the whole dataset, every other area would fail the same way."""
@@ -229,15 +238,16 @@ def data_gouv_error(*, message: str, response: requests.Response) -> Exception:
 
 def publish_on_data_gouv_with_retries(*, area, public_url, archive_size, archive_sha1):
     """
-    Publish on data.gouv.fr, retrying on requests errors (network errors and non-JSON bodies).
+    Publish on data.gouv.fr, retrying on transient requests errors (network errors,
+    timeouts, cut or non-JSON bodies).
     Replayable: each attempt starts with a GET, so a resource created by a previous
-    attempt is updated, not created twice. Other errors (non 2xx answers) are raised
-    at once.
+    attempt is updated, not created twice. Other errors (non 2xx answers, invalid
+    URL) are raised at once.
     """
     for delay in DATA_GOUV_RETRY_DELAYS_S:
         try:
             return publish_on_data_gouv(area, public_url, archive_size, archive_sha1)
-        except requests.RequestException as e:
+        except DATA_GOUV_RETRYABLE_ERRORS as e:
             logging.warning(
                 f"data.gouv.fr publication failed for area {area}, retrying in {delay} s: {e}"
             )

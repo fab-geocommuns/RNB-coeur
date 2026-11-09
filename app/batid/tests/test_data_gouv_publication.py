@@ -867,6 +867,30 @@ class TestDataGouvPublication(TestCase):
         get_mock.assert_called_once()
         sleep_mock.assert_not_called()
 
+    @mock.patch.dict(
+        os.environ,
+        {
+            "DATA_GOUV_BASE_URL": "data.gouv.fr",
+            "DATA_GOUV_DATASET_ID": "some-dataset-id",
+        },
+    )
+    @mock.patch("batid.services.data_gouv_publication.time.sleep")
+    def test_publish_does_not_retry_on_invalid_url(self, sleep_mock):
+        """
+        Department 33: DATA_GOUV_BASE_URL has no scheme, requests raises MissingSchema
+        before sending anything.
+        Expected: MissingSchema is raised at once, with no wait.
+        """
+        with self.assertRaises(requests.exceptions.MissingSchema):
+            publish_on_data_gouv_with_retries(
+                area="33",
+                public_url="some-url",
+                archive_size=1234,
+                archive_sha1="some-sha1",
+            )
+
+        sleep_mock.assert_not_called()
+
     @mock.patch(
         "batid.services.data_gouv_publication.create_directory",
         side_effect=OSError(28, "No space left on device"),
