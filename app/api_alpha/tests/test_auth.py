@@ -355,6 +355,25 @@ class GetCurrentUserTokensOutsideContributorsTest(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["production_token"], self.token.key)
 
+    @override_settings(HAS_SANDBOX=True)
+    @mock.patch("api_alpha.utils.sandbox_client.SandboxClient.get_user_token")
+    def test_response_is_scoped_to_the_caller(self, mock_get_token):
+        """Two accounts, the first one asks for its tokens: 200 with its own
+        production token, and the sandbox is queried with its own email only."""
+        other_user = ContributorUserFactory(
+            username="other_user", email="other_user@example.test"
+        )
+        other_token = Token.objects.get(user=other_user)
+        mock_get_token.return_value = "sandbox_token"
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+
+        response = self.client.get("/api/alpha/auth/users/me/tokens")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["production_token"], self.token.key)
+        self.assertNotEqual(response.data["production_token"], other_token.key)
+        mock_get_token.assert_called_once_with(self.user.email)
+
     def test_anonymous_request_is_refused(self):
         """Request without credentials: 401."""
         response = self.client.get("/api/alpha/auth/users/me/tokens")
