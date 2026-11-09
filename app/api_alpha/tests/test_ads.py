@@ -985,6 +985,12 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(len(password), 15)
 
     def test_ads_create_user_ok(self):
+        """
+        Input: superuser posts two new users (john_doe, jane_doe) for new org TempOrg on 38185.
+        Expected: 200, both users returned with their own email and a token, both in DB with
+        the ADS group and an unusable password, TempOrg manages ["38185"], john_doe's token
+        can create an ADS.
+        """
         username = "john_doe"
         email = "test@exemple.fr"
         organization_name = "TempOrg"
@@ -1001,8 +1007,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "organization_managed_cities": organization_managed_cities,
                     },
                     {
-                        "username": "johndoe",
-                        "email": email,
+                        "username": "jane_doe",
+                        "email": "jane@exemple.fr",
                         "organization_name": organization_name,
                         "organization_managed_cities": organization_managed_cities,
                     },
@@ -1024,9 +1030,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 "email": email,
             },
             {
-                "username": "johndoe",
+                "username": "jane_doe",
                 "organization_name": organization_name,
-                "email": "",  # This user is already created in the setUp() function without an email. If the user already exists it is returned without being updated.
+                "email": "jane@exemple.fr",
             },
         ]
 
@@ -1042,6 +1048,12 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(email, john.email)
         self.assertTrue(john.groups.filter(name="ADS").exists())
         self.assertFalse(john.has_usable_password())
+
+        jane = User.objects.get(username="jane_doe")
+        self.assertEqual("jane@exemple.fr", jane.email)
+        self.assertTrue(jane.groups.filter(name="ADS").exists())
+        self.assertFalse(jane.has_usable_password())
+        self.assertEqual(r_data[1]["token"], Token.objects.get(user=jane).key)
 
         # Check Organization in DB
         temp_org = Organization.objects.get(name=organization_name)
@@ -1071,6 +1083,101 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 201)
+
+    def _post_ads_users(self, json_users):
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token_superuser.key)
+        return self.client.post(
+            "/api/alpha/ads/token/",
+            data=json.dumps(json_users),
+            content_type="application/json",
+        )
+
+    @staticmethod
+    def _ads_user(*, username, managed_cities=("38185",)):
+        return {
+            "username": username,
+            "email": f"{username}@exemple.fr",
+            "organization_name": "TempOrg",
+            "organization_managed_cities": list(managed_cities),
+        }
+
+    def test_ads_create_user_existing_username(self):
+        """
+        Input: batch with a new valid user (alice) and an existing one (johndoe).
+        Expected: 400 listing johndoe in existing_usernames; nothing written: alice and
+        TempOrg do not exist, johndoe keeps its token and its organization Test Org.
+        """
+        r = self._post_ads_users(
+            [self._ads_user(username="alice"), self._ads_user(username="johndoe")]
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json(), {"errors": {"existing_usernames": ["johndoe"]}})
+        self.assertFalse(User.objects.filter(username="alice").exists())
+        self.assertFalse(Organization.objects.filter(name="TempOrg").exists())
+        self.assertEqual(Token.objects.get(user=self.user).key, self.token.key)
+        self.assertEqual(
+            UserProfile.objects.get(user=self.user).organization.name, "Test Org"
+        )
+
+    def test_ads_create_user_unknown_insee_code(self):
+        """
+        Input: alice manages ["38185", "99999"], bob manages ["00000"] (99999 and 00000
+        are not in City).
+        Expected: 400 listing both unknown codes at once, sorted; neither user nor TempOrg
+        is created.
+        """
+        r = self._post_ads_users(
+            [
+                self._ads_user(username="alice", managed_cities=["38185", "99999"]),
+                self._ads_user(username="bob", managed_cities=["00000"]),
+            ]
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json(), {"errors": {"unknown_insee_codes": ["00000", "99999"]}}
+        )
+        self.assertFalse(User.objects.filter(username__in=["alice", "bob"]).exists())
+        self.assertFalse(Organization.objects.filter(name="TempOrg").exists())
+
+    def test_ads_create_user_int_insee_code(self):
+        """
+        Input: INSEE codes sent as JSON integers: alice manages [38185] (in City), then
+        bob manages [99999, "00000"] (int and string, neither in City).
+        Expected: alice gets 200 and TempOrg stores ["38185"]; bob gets 400 listing
+        both unknown codes as strings, sorted.
+        """
+        r = self._post_ads_users(
+            [self._ads_user(username="alice", managed_cities=[38185])]
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(
+            Organization.objects.get(name="TempOrg").managed_cities, ["38185"]
+        )
+
+        r = self._post_ads_users(
+            [self._ads_user(username="bob", managed_cities=[99999, "00000"])]
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json(), {"errors": {"unknown_insee_codes": ["00000", "99999"]}}
+        )
+
+    def test_ads_create_user_duplicate_username(self):
+        """
+        Input: the same valid alice payload twice in one batch.
+        Expected: 400 listing alice in duplicate_usernames; alice is not created.
+        """
+        r = self._post_ads_users(
+            [self._ads_user(username="alice"), self._ads_user(username="alice")]
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json(), {"errors": {"duplicate_usernames": ["alice"]}})
+        self.assertFalse(User.objects.filter(username="alice").exists())
 
     # def test_batch_create(self):
     #     data = [
