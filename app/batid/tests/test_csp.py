@@ -2,6 +2,7 @@ import io
 from unittest import mock
 
 import revproxy.views  # type: ignore[import-untyped]
+from batid.tests.helpers import login_with_otp
 from django.contrib.auth.models import User
 from django.test import TestCase
 from urllib3.response import HTTPResponse
@@ -72,13 +73,15 @@ class CspProxyTest(TestCase):
 
     def test_flower_gets_no_csp(self, urlopen):
         """
-        Input: a superuser opens Flower, whose upstream response has no CSP.
-        Expected: no CSP header is added.
+        Input: a superuser verified by a second factor opens Flower, whose upstream
+        response has no CSP.
+        Expected: Flower's page is served, without a CSP header.
         """
         user = User.objects.create_superuser("admin", "admin@example.com", "pwd")
-        self.client.force_login(user)
+        login_with_otp(client=self.client, user=user)
         urlopen.return_value = upstream_response()
 
         response = self.client.get("/flower/")
 
+        self.assertEqual(response.status_code, 200)
         self.assertNotIn(CSP_HEADER, response)
