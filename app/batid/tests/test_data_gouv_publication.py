@@ -856,7 +856,7 @@ class TestDataGouvPublication(TestCase):
         """
         get_mock.return_value.status_code = 500
 
-        with self.assertRaises(Exception):
+        with self.assertRaisesRegex(Exception, "HTTP 500"):
             publish_on_data_gouv_with_retries(
                 area="33",
                 public_url="some-url",
