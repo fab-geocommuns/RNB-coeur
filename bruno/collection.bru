@@ -3,6 +3,9 @@ docs {
   diff, OGC API Features et tuiles vectorielles. Les assertions ne vérifient ni nombre exact ni
   contenu précis : la collection se rejoue sur n'importe quelle base qui contient la zone.
 
+  Exception : le dossier `ads/` écrit en base et demande `superuserToken`, un secret que Bruno garde
+  sur le poste. Ses requêtes portent le tag `ecriture` : à envoyer une par une, jamais en lot.
+
   Les valeurs de l'environnement `local` (rnbId, plotId, bbox, tuile...) supposent la zone chargée
   par `seed_local_db` (PR #1080) sur le centre de Paris (48.8566,2.3522, rayon 3 km), pas les données
   importées au § 6 du readme. Une base peuplée depuis la sandbox n'a ni ADS ni lien
@@ -12,5 +15,5 @@ docs {
   n'écrit pas dans le journal des appels API (indicateur api_requests_count).
 
   Autre cible : un autre fichier dans `environments/`, ou en ligne de commande
-  `npx @usebruno/cli@4.2.1 run -r --env local --env-var baseUrl=https://...`.
+  `npx @usebruno/cli@4.2.1 run -r --exclude-tags=ecriture --env local --env-var baseUrl=https://...`.
 }
