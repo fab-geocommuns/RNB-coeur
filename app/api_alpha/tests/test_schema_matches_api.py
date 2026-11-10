@@ -224,7 +224,9 @@ class SchemaMatchesAPITest(APITestCase):
         """
         for path, method, operation in self._operations():
             with self.subTest(path=path, method=method):
-                self.assertIn(operation.get("tags"), (["OGC"], ["Bâtiments"], ["Édition"]))
+                self.assertIn(
+                    operation.get("tags"), (["OGC"], ["Bâtiments"], ["Édition"])
+                )
 
     def test_operations_without_400_never_answer_400(self):
         """
