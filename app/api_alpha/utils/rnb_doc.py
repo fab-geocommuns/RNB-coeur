@@ -22,6 +22,29 @@ INVALID_TOKEN_RESPONSE = {
     "description": "Token invalide. Une lecture peut se faire sans token, mais un en-tête `Authorization: Token <…>` invalide est refusé."
 }
 
+# Response shared by the endpoints editing the RNB (rnb_doc adds their 401).
+EDITION_AUTH_RESPONSES = {
+    "403": {
+        "description": "L'utilisateur n'a pas les droits d'édition du RNB, ou il a atteint son quota de contributions (500 par défaut, pas de quota dans le bac à sable)."
+    },
+}
+
+
+def get_shape_rules(max_move_meters: int | None = None) -> str:
+    """Markdown list of the rules a building geometry must follow to be accepted."""
+    overlap_percent = round(settings.BUILDING_OVERLAP_THRESHOLD * 100)
+    rules = [
+        "être valide, en 2D (les géométries avec une coordonnée Z sont refusées) et en WGS84",
+        f"pour un polygone ou un multipolygone, avoir une surface comprise entre {settings.MIN_BUILDING_AREA} m² et {settings.MAX_BUILDING_AREA} m²",
+        f"ne pas recouvrir à plus de {overlap_percent} % un autre bâtiment actif au statut `constructed` ou `notUsable`, ni être recouverte par lui à plus de {overlap_percent} % (un point situé dans un tel bâtiment est refusé)",
+    ]
+    if max_move_meters is not None:
+        rules.append(
+            f"toucher la géométrie actuelle du bâtiment ou en être à moins de {max_move_meters} m"
+        )
+    return " ;\n".join(f"* {rule}" for rule in rules) + "."
+
+
 # Public URL of the sandbox, listed as a second server in the schema.
 SANDBOX_PUBLIC_URL = "https://sandbox.rnb-api.beta.gouv.fr"
 
@@ -187,7 +210,7 @@ def _get_components() -> dict:
             },
             "BuildingIsActive": {
                 "type": "boolean",
-                "description": "Indique si l'identifiant RNB est actif (True) ou inactif (False). Un identifiant inactif désigne un objet ne correspondant pas à la définition d'un bâtiment, un bâtiment remplacé par une fusion ou une scission, ou un bâtiment dont la création a été annulée.",
+                "description": "Indique si l'identifiant RNB est actif (`true`) ou inactif (`false`). Un identifiant inactif désigne un objet ne correspondant pas à la définition d'un bâtiment, un bâtiment remplacé par une fusion ou une scission, ou un bâtiment dont la création a été annulée.",
                 "example": True,
             },
             "BuildingStatus": {
