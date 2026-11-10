@@ -109,3 +109,18 @@ class EditionDocMatchesSerializersTest(SimpleTestCase):
                 self.assertLessEqual(set(body), documented_fields)
                 serializer = BuildingUpdateSerializer(data=body)
                 self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_request_body_examples_are_accepted(self):
+        """
+        Input: the request body example of each editing endpoint, the one GitBook
+        shows first (it ignores minItems and mutually exclusive fields otherwise).
+        Expected: every endpoint has one and its serializer accepts it.
+        """
+        for (path, method), serializer_class in EDITION_ENDPOINTS.items():
+            with self.subTest(path=path, method=method):
+                operation = build_schema_all_endpoints()["paths"][path][method]
+                example = operation["requestBody"]["content"]["application/json"][
+                    "example"
+                ]
+                serializer = serializer_class(data=example)
+                self.assertTrue(serializer.is_valid(), serializer.errors)

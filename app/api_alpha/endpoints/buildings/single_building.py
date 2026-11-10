@@ -176,11 +176,12 @@ Exemples valides:
 * ```{"comment": "je valide ce bâtiment", "is_valid": true}```
 
 La requête est refusée (400) si :
-* le corps est vide, ou combine `is_active` avec `status`, `addresses_cle_interop`, `shape` ou `is_valid` ;
-* le bâtiment est inactif et la requête ne demande pas sa réactivation ;
+* le corps est vide ou ne contient que `comment`, ou combine `is_active` avec `status`, `addresses_cle_interop`, `shape` ou `is_valid` ;
+* le bâtiment est inactif et la requête ne demande pas sa réactivation (une requête qui ne change rien peut répondre 204) ;
 * `is_active` vaut `false` alors que le bâtiment est déjà inactif ;
 * `is_active` vaut `true` alors que la dernière opération sur le bâtiment n'est pas une désactivation (par exemple un bâtiment désactivé par une fusion ou une scission) ;
 * une clé d'interopérabilité ne fait pas entre 5 et 30 caractères ;
+* une clé d'interopérabilité désigne autre chose qu'un numéro (voie, lieu-dit ou commune) ;
 * la nouvelle géométrie ne respecte pas les règles décrites pour le champ `shape`.
 """),
                 "operationId": "patchBuilding",
@@ -198,6 +199,10 @@ La requête est refusée (400) si :
                     "required": True,
                     "content": {
                         "application/json": {
+                            "example": {
+                                "comment": "bâtiment démoli",
+                                "status": "demolished",
+                            },
                             "schema": {
                                 "type": "object",
                                 "properties": {
@@ -258,7 +263,7 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`true`) ou de re
                                     },
                                 },
                                 "required": [],
-                            }
+                            },
                         }
                     },
                 },
@@ -274,7 +279,7 @@ Permet à l'utilisateur de valider l'état actuel du bâtiment (`true`) ou de re
                         "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
                     },
                     "503": {
-                        "description": "Service temporairement indisponible (API de la BAN injoignable)"
+                        "description": "Service temporairement indisponible (l'API de la BAN répond en erreur)"
                     },
                 },
             }

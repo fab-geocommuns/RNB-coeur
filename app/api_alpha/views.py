@@ -356,14 +356,15 @@ Permet de corriger le RNB en fusionnant plusieurs bâtiments existants, donnant 
 
 Cet endpoint nécessite d'être identifié (en-tête `Authorization: Token <votre token>`) et d'avoir des droits d'édition du RNB.
 
-Les adresses du nouveau bâtiment sont définies par l'un des deux champs suivants, obligatoirement, mais pas les deux à la fois :
+Les adresses du nouveau bâtiment sont définies par l'un des deux champs suivants, obligatoirement :
 * `merge_existing_addresses` à `true` : le nouveau bâtiment reprend les adresses des bâtiments fusionnés ;
 * `addresses_cle_interop` : liste des adresses du nouveau bâtiment, éventuellement vide (`[]`).
 
 La fusion est refusée (400) si :
 * `rnb_ids` contient moins de 2 identifiants, ou un identifiant qui ne fait pas 12 caractères (les identifiants s'écrivent sans tirets) ;
-* `merge_existing_addresses` et `addresses_cle_interop` sont tous les deux absents, ou tous les deux renseignés ;
+* `addresses_cle_interop` est absent alors que `merge_existing_addresses` n'est pas à `true`, ou contient des adresses alors que `merge_existing_addresses` est à `true` ;
 * une clé d'interopérabilité ne fait pas entre 5 et 30 caractères ;
+* une clé d'interopérabilité désigne autre chose qu'un numéro (voie, lieu-dit ou commune) ;
 * l'un des bâtiments est inactif ;
 * la géométrie de l'un des bâtiments n'est pas un polygone ou un multipolygone ;
 * les bâtiments ne sont pas contigus : leurs géométries doivent se toucher pour former un seul polygone.
@@ -374,6 +375,12 @@ La fusion est refusée (400) si :
                     "required": True,
                     "content": {
                         "application/json": {
+                            "example": {
+                                "comment": "un seul et même bâtiment",
+                                "rnb_ids": ["XXXXYYYYZZZZ", "AAAABBBBCCCC"],
+                                "merge_existing_addresses": True,
+                                "status": "constructed",
+                            },
                             "schema": {
                                 "type": "object",
                                 "properties": {
@@ -391,13 +398,13 @@ La fusion est refusée (400) si :
                                         "type": "boolean",
                                         "description": LiteralStr(
                                             """\
-- `true` : le bâtiment nouvellement créé hérite des adresses des bâtiments dont il est issu. `addresses_cle_interop` ne doit alors pas être renseigné.
+- `true` : le bâtiment nouvellement créé hérite des adresses des bâtiments dont il est issu. `addresses_cle_interop` ne doit alors contenir aucune adresse.
 - `false` ou absent : le champ `addresses_cle_interop` est obligatoire et détermine les adresses du bâtiment."""
                                         ),
                                     },
                                     "addresses_cle_interop": {
                                         "type": "array",
-                                        "description": "Liste des clés d'interopérabilité BAN liées au nouveau bâtiment créé, chacune entre 5 et 30 caractères. Si une liste vide est passée, le bâtiment ne sera lié à aucune adresse. Obligatoire si `merge_existing_addresses` n'est pas à `true`.",
+                                        "description": "Liste des clés d'interopérabilité BAN liées au nouveau bâtiment créé, chacune entre 5 et 30 caractères. Si une liste vide est passée sans `merge_existing_addresses` à `true`, le bâtiment ne sera lié à aucune adresse. Obligatoire si `merge_existing_addresses` n'est pas à `true`.",
                                         "example": [
                                             "75105_8884_00004",
                                             "75105_8884_00006",
@@ -411,7 +418,7 @@ La fusion est refusée (400) si :
                                     },
                                 },
                                 "required": ["rnb_ids", "status"],
-                            }
+                            },
                         }
                     },
                 },
@@ -433,7 +440,7 @@ La fusion est refusée (400) si :
                     },
                     **EDITION_AUTH_RESPONSES,
                     "503": {
-                        "description": "Service temporairement indisponible (API de la BAN injoignable)"
+                        "description": "Service temporairement indisponible (l'API de la BAN répond en erreur)"
                     },
                     "404": {
                         "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
@@ -514,8 +521,7 @@ class SplitBuildings(RNBLoggingMixin, APIView):
         {
             "post": {
                 "summary": "Scission de bâtiments",
-                "description": LiteralStr(
-                    """\
+                "description": LiteralStr("""\
 Permet de corriger le RNB en scindant un bâtiment existant, donnant lieu à la création de plusieurs nouveaux bâtiments.
 
 Cet endpoint nécessite d'être identifié (en-tête `Authorization: Token <votre token>`) et d'avoir des droits d'édition du RNB.
@@ -524,8 +530,9 @@ La scission est refusée (400) si :
 * `created_buildings` contient moins de 2 bâtiments ;
 * le bâtiment à scinder est inactif ;
 * une clé d'interopérabilité ne fait pas entre 5 et 30 caractères ;
-* la géométrie de l'un des bâtiments créés ne respecte pas les règles décrites pour le champ `shape`."""
-                ),
+* une clé d'interopérabilité désigne autre chose qu'un numéro (voie, lieu-dit ou commune) ;
+* la géométrie de l'un des bâtiments créés ne respecte pas les règles décrites pour le champ `shape` ;
+* deux bâtiments créés se recouvrent l'un l'autre à plus de 80 %."""),
                 "operationId": "splitBuildings",
                 "parameters": [
                     {
@@ -541,6 +548,21 @@ La scission est refusée (400) si :
                     "required": True,
                     "content": {
                         "application/json": {
+                            "example": {
+                                "comment": "deux bâtiments distincts",
+                                "created_buildings": [
+                                    {
+                                        "status": "constructed",
+                                        "shape": "POLYGON((-0.5706 44.841, -0.5706 44.8411, -0.5705 44.8411, -0.5705 44.841, -0.5706 44.841))",
+                                        "addresses_cle_interop": ["33063_1155_00002"],
+                                    },
+                                    {
+                                        "status": "constructed",
+                                        "shape": "POLYGON((-0.5705 44.841, -0.5705 44.8411, -0.5704 44.8411, -0.5704 44.841, -0.5705 44.841))",
+                                        "addresses_cle_interop": ["33063_1155_00008"],
+                                    },
+                                ],
+                            },
                             "schema": {
                                 "type": "object",
                                 "properties": {
@@ -611,7 +633,7 @@ La scission est refusée (400) si :
                     },
                     **EDITION_AUTH_RESPONSES,
                     "503": {
-                        "description": "Service temporairement indisponible (API de la BAN injoignable)"
+                        "description": "Service temporairement indisponible (l'API de la BAN répond en erreur)"
                     },
                     "404": {
                         "description": "ID-RNB inconnu ou une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"

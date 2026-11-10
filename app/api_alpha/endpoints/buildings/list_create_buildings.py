@@ -226,13 +226,19 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                     "Cet endpoint permet de créer un bâtiment dans le RNB. Lors de la création, un identifiant RNB (ID-RNB) est généré. "
                     "L'utilisateur doit être identifié (en-tête `Authorization: Token <votre token>`) et disposer des droits nécessaires pour écrire dans le RNB.\n\n"
                     "La requête est refusée (400) si un champ obligatoire manque, si une clé d'interopérabilité ne fait pas entre 5 et 30 caractères "
-                    "ou si la géométrie ne respecte pas les règles décrites pour le champ `shape`."
+                    "ou désigne autre chose qu'un numéro (voie, lieu-dit ou commune), ou si la géométrie ne respecte pas les règles décrites pour le champ `shape`."
                 ),
                 "operationId": "postBuilding",
                 "requestBody": {
                     "required": True,
                     "content": {
                         "application/json": {
+                            "example": {
+                                "comment": "nouveau bâtiment",
+                                "status": "constructed",
+                                "addresses_cle_interop": ["75105_8884_00004"],
+                                "shape": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
+                            },
                             "schema": {
                                 "type": "object",
                                 "properties": {
@@ -276,7 +282,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                                     "shape",
                                     "addresses_cle_interop",
                                 ],
-                            }
+                            },
                         }
                     },
                 },
@@ -285,12 +291,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "description": "Détails du bâtiment nouvellement créé dans le RNB",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "allOf": [
-                                        {"$ref": "#/components/schemas/Building"},
-                                        {"$ref": "#/components/schemas/BuildingWPlots"},
-                                    ]
-                                }
+                                "schema": {"$ref": "#/components/schemas/Building"}
                             }
                         },
                     },
@@ -302,7 +303,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
                         "description": "Une clé d'interopérabilité n'a pas été trouvée auprès de la BAN"
                     },
                     "503": {
-                        "description": "Service temporairement indisponible (API de la BAN injoignable)"
+                        "description": "Service temporairement indisponible (l'API de la BAN répond en erreur)"
                     },
                 },
             }
@@ -362,7 +363,7 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             contribution.rnb_id = created_building.rnb_id
             contribution.save()
 
-        output_serializer = BuildingSerializer(created_building, with_plots=True)
+        output_serializer = BuildingSerializer(created_building)
         response_data = dict(output_serializer.data)
         # a validation may unlock new trophies; they are awarded in the database but
         # not returned here. The user retrieves them via the user trophies endpoint.
