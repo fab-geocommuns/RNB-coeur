@@ -18,6 +18,10 @@ TOKEN_REQUIRED_RESPONSE = {
     "description": "Token absent ou invalide. Le token doit être envoyé dans l'en-tête `Authorization: Token <votre token>`."
 }
 
+INVALID_TOKEN_RESPONSE = {
+    "description": "Token invalide. Une lecture peut se faire sans token, mais un en-tête `Authorization: Token <…>` invalide est refusé."
+}
+
 # Public URL of the sandbox, listed as a second server in the schema.
 SANDBOX_PUBLIC_URL = "https://sandbox.rnb-api.beta.gouv.fr"
 
@@ -44,8 +48,11 @@ def rnb_doc(path_desc, schemes=[], with_400=True):
         if method.lower() not in READ_ONLY_METHODS and "security" not in desc:
             desc["security"] = [{"tokenAuth": []}]
             method_responses.setdefault("401", TOKEN_REQUIRED_RESPONSE)
+        else:
+            method_responses.setdefault("401", INVALID_TOKEN_RESPONSE)
 
         desc["responses"] = method_responses
+        desc.setdefault("tags", [_get_tag(method, schemes)])
 
     def decorator(fn):
         fn._in_rnb_doc = True
@@ -57,6 +64,12 @@ def rnb_doc(path_desc, schemes=[], with_400=True):
         return fn
 
     return decorator
+
+
+def _get_tag(method: str, schemes: list[str]) -> str:
+    if "ogc" in schemes:
+        return "OGC"
+    return "Bâtiments" if method.lower() in READ_ONLY_METHODS else "Édition"
 
 
 def build_schema_all_endpoints() -> dict:
@@ -135,7 +148,7 @@ def _get_servers() -> list[dict]:
         servers.append(
             {
                 "url": SANDBOX_PUBLIC_URL,
-                "description": "Bac à sable, pour tester l'API sans modifier le RNB. Il demande son propre compte et son propre token.",
+                "description": "Bac à sable, pour tester l'API sans modifier le RNB. Les écritures y demandent la clé bac à sable, affichée sur la page Mes clés d'API du site du RNB.",
             }
         )
     return servers
@@ -162,6 +175,7 @@ def _get_components() -> dict:
                 "type": "apiKey",
                 "in": "header",
                 "name": "Authorization",
+                "x-gitbook-prefix": "Token",
                 "description": "Token d'authentification, envoyé sous la forme `Token <votre token>`. Il est nécessaire pour modifier le RNB.",
             }
         },
@@ -173,7 +187,7 @@ def _get_components() -> dict:
             },
             "BuildingIsActive": {
                 "type": "boolean",
-                "description": "Indique si l'identifiant RNB est actif (True) ou inactif (False). Un identifiant inactif désigne un objet ne correspondant pas à la définition d'un bâtiment.",
+                "description": "Indique si l'identifiant RNB est actif (True) ou inactif (False). Un identifiant inactif désigne un objet ne correspondant pas à la définition d'un bâtiment, un bâtiment remplacé par une fusion ou une scission, ou un bâtiment dont la création a été annulée.",
                 "example": True,
             },
             "BuildingStatus": {

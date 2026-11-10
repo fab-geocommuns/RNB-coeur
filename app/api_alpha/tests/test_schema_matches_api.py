@@ -200,7 +200,8 @@ class SchemaMatchesAPITest(APITestCase):
         """
         Input: every documented read operation (GET).
         Expected: it declares no security requirement, and the API never answers 401
-        or 403 to an anonymous call.
+        or 403 to an anonymous call. It documents a 401, which the API returns when
+        an invalid token is sent.
         """
         for path, method, operation in self._operations():
             if method not in READ_ONLY_METHODS:
@@ -209,6 +210,21 @@ class SchemaMatchesAPITest(APITestCase):
                 self.assertNotIn("security", operation)
                 r = self.client.get(_fill_path_params(path))
                 self.assertNotIn(r.status_code, (401, 403))
+
+                self.assertIn("401", operation["responses"])
+                r = self.client.get(
+                    _fill_path_params(path), HTTP_AUTHORIZATION="Token invalide"
+                )
+                self.assertEqual(r.status_code, 401)
+
+    def test_every_operation_has_a_tag(self):
+        """
+        Input: every documented operation.
+        Expected: it is tagged OGC, Bâtiments (reads) or Édition (writes).
+        """
+        for path, method, operation in self._operations():
+            with self.subTest(path=path, method=method):
+                self.assertIn(operation.get("tags"), (["OGC"], ["Bâtiments"], ["Édition"]))
 
     def test_operations_without_400_never_answer_400(self):
         """
