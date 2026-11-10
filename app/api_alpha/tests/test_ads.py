@@ -1184,9 +1184,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
     def test_ads_create_user_invalid_payload(self):
         """
         Input: a batch whose second entry only has a username, then a JSON object
-        instead of a list.
-        Expected: 400 with the missing fields of the second entry, then 400 on the
-        root type; no user is created.
+        instead of a list, then a body that is not valid UTF-8.
+        Expected: 400 with the missing fields of the second entry, 400 on the root
+        type, then 400 "Invalid JSON"; no user is created.
         """
         r = self._post_ads_users(
             [self._ads_user(username="alice"), {"username": "bob"}]
@@ -1204,6 +1204,13 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         self.assertEqual(r.status_code, 400)
         self.assertIn("non_field_errors", r.json()["errors"])
+
+        r = self.client.post(
+            "/api/alpha/ads/token/", data=b"\xff[]", content_type="application/json"
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.content, b"Invalid JSON")
         self.assertFalse(User.objects.filter(username__in=["alice", "bob"]).exists())
 
     def test_ads_create_user_concurrent_creation(self):

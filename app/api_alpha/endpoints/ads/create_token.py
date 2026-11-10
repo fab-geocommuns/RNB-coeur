@@ -92,7 +92,8 @@ class CreateAdsTokenView(APIView):
     def post(self, request: Request, *args: Any, **kwargs: Any) -> HttpResponse:
         try:
             json_users = json.loads(request.body)
-        except json.JSONDecodeError:
+        # ValueError covers both JSONDecodeError and a body that is not valid UTF-8.
+        except ValueError:
             return HttpResponse("Invalid JSON", status=400)
 
         serializer = _AdsUserSerializer(data=json_users, many=True)
