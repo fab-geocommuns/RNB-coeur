@@ -322,7 +322,7 @@ class DiffView(RNBLoggingMixin, APIView):
                     "<li>`parent_buildings` : tableau JSON des identifiants RNB des bâtiments dont est issu ce bâtiment (fusion, scission). Vide si le bâtiment n'est issu d'aucune fusion ou scission</li>"
                     "<li>`event_id` : identifiant (UUID) de l'opération</li>"
                     "<li>`event_type` : type d'opération (voir ci-dessus)</li>"
-                    "<li>`username` : nom de l'utilisateur à l'origine de l'opération. Vaut `RNB` pour les imports, rattachés au compte de l'équipe</li>"
+                    "<li>`username` : nom de l'utilisateur à l'origine de l'opération.</li>"
                     "<li>`user_organization_name` : nom de l'organisation de cet utilisateur. Vide s'il n'en a pas</li>"
                     "<li>`user_organization_id` : identifiant de l'organisation de cet utilisateur. Vide s'il n'en a pas</li>"
                     '<li>`validated_by` : tableau JSON des utilisateurs ayant validé le bâtiment, chacun sous la forme `{"id", "username", "organization_name", "organization_short_name"}`. Vaut `[]` s\'il n\'y en a pas</li>'
