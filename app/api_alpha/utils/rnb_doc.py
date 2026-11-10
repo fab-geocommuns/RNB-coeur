@@ -30,7 +30,7 @@ def get_shape_rules(max_move_meters: int | None = None) -> str:
     overlap_percent = round(settings.BUILDING_OVERLAP_THRESHOLD * 100)
     rules = [
         "être valide, en 2D (les géométries avec une coordonnée Z sont refusées) et en WGS84",
-        f"être un point, ou avoir une surface comprise entre {settings.MIN_BUILDING_AREA} m² et {settings.MAX_BUILDING_AREA} m² (les lignes sont donc refusées)",
+        f"pour un polygone ou un multipolygone, avoir une surface comprise entre {settings.MIN_BUILDING_AREA} m² et {settings.MAX_BUILDING_AREA} m²",
         f"ne pas recouvrir à plus de {overlap_percent} % un autre bâtiment actif au statut `constructed` ou `notUsable`, ni être recouverte par lui à plus de {overlap_percent} % (un point situé dans un tel bâtiment est refusé)",
     ]
     if max_move_meters is not None:

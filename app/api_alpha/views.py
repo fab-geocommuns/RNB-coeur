@@ -531,8 +531,7 @@ La scission est refusée (400) si :
 * le bâtiment à scinder est inactif ;
 * une clé d'interopérabilité ne fait pas entre 5 et 30 caractères ;
 * une clé d'interopérabilité désigne autre chose qu'un numéro (voie, lieu-dit ou commune) ;
-* la géométrie de l'un des bâtiments créés ne respecte pas les règles décrites pour le champ `shape` ;
-* deux bâtiments créés se recouvrent l'un l'autre à plus de 80 %."""),
+* la géométrie de l'un des bâtiments créés ne respecte pas les règles décrites pour le champ `shape`."""),
                 "operationId": "splitBuildings",
                 "parameters": [
                     {
