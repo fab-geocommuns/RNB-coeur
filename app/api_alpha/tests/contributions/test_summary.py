@@ -26,6 +26,7 @@ from batid.tests.factories.users import ContributorUserFactory, UserFactory
 from django.conf import settings
 from django.contrib.gis.geos import Polygon
 from django.core.cache import cache
+from django.db import DatabaseError
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
@@ -541,3 +542,108 @@ class ContributionSummaryApiTest(APITestCase):
 
         self.assertEqual(response_7["cities"], response_30["cities"])
         self.assertEqual(response_7["updated_at"], response_30["updated_at"])
+
+    def test_empty_cache_waits_for_the_request_computing_it(self):
+        """
+        Input: an empty cache, the lock held by another request, which stores
+        the summary while this one waits.
+        Expected: the stored summary is returned, without computing.
+        """
+        lock_key = f"{SUMMARIES_CACHE_KEY}:refreshing"
+        cache.add(lock_key, True, 60)
+        computed = {"30": {"window_days": 30, "computed_elsewhere": True}}
+
+        def other_request_stores_it(_seconds):
+            cache.set(
+                SUMMARIES_CACHE_KEY,
+                {"data": computed, "fresh_until": time.time() + 60},
+                60,
+            )
+
+        with patch.object(
+            contribution_summary.time, "sleep", side_effect=other_request_stores_it
+        ), patch.object(contribution_summary, "compute_all_summaries") as compute:
+            response = self.client.get(self.URL)
+
+        self.assertEqual(response.json(), computed["30"])
+        compute.assert_not_called()
+        # the lock is still the other request's
+        self.assertTrue(cache.get(lock_key))
+
+    def test_empty_cache_is_computed_when_the_other_request_failed(self):
+        """
+        Input: an empty cache, the lock held by another request, which fails
+        (releases the lock without storing anything) while this one waits.
+        Expected: this request takes the lock, computes the summary and
+        releases the lock.
+        """
+        lock_key = f"{SUMMARIES_CACHE_KEY}:refreshing"
+        cache.add(lock_key, True, 60)
+        edition(ContributorUserFactory(username="alice"), timezone.now())
+
+        with patch.object(
+            contribution_summary.time,
+            "sleep",
+            side_effect=lambda _seconds: cache.delete(lock_key),
+        ):
+            response = self.client.get(self.URL)
+
+        self.assertEqual(response.json()["top"]["users"][0]["username"], "alice")
+        self.assertIsNone(cache.get(lock_key))
+
+    def test_empty_cache_is_computed_after_the_wait(self):
+        """
+        Input: an empty cache, the lock held by another request during the
+        whole wait (shortened to nothing).
+        Expected: this request computes the summary anyway and leaves the
+        other request's lock.
+        """
+        lock_key = f"{SUMMARIES_CACHE_KEY}:refreshing"
+        cache.add(lock_key, True, 60)
+        edition(ContributorUserFactory(username="alice"), timezone.now())
+
+        with patch.object(contribution_summary, "EMPTY_CACHE_WAIT_SECONDS", 0):
+            response = self.client.get(self.URL)
+
+        self.assertEqual(response.json()["top"]["users"][0]["username"], "alice")
+        self.assertTrue(cache.get(lock_key))
+
+    def test_outdated_summary_is_served_when_the_refresh_fails(self):
+        """
+        Input: an outdated cached summary, and a refresh that raises a
+        database error.
+        Expected: 200 with the outdated summary, the error logged and the lock
+        released.
+        """
+        stale = {"window_days": 30, "stale": True}
+        cache.set(
+            SUMMARIES_CACHE_KEY,
+            {"data": {"30": stale}, "fresh_until": time.time() - 1},
+            60,
+        )
+
+        with patch.object(
+            contribution_summary,
+            "compute_all_summaries",
+            side_effect=DatabaseError("connection lost"),
+        ), self.assertLogs(contribution_summary.logger, level="ERROR"):
+            response = self.client.get(self.URL)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), stale)
+        self.assertIsNone(cache.get(f"{SUMMARIES_CACHE_KEY}:refreshing"))
+
+    def test_failure_with_an_empty_cache_is_raised(self):
+        """
+        Input: an empty cache, and a computation that raises a database error.
+        Expected: the error is raised (nothing to serve instead) and the lock
+        released.
+        """
+        with patch.object(
+            contribution_summary,
+            "compute_all_summaries",
+            side_effect=DatabaseError("connection lost"),
+        ), self.assertRaises(DatabaseError):
+            contribution_summary.get_contribution_summary(30)
+
+        self.assertIsNone(cache.get(f"{SUMMARIES_CACHE_KEY}:refreshing"))

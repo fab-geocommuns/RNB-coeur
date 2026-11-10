@@ -8,12 +8,14 @@ for an hour: on a clone of the production data, about 2.5 s for a 30-day
 window.
 """
 
+import logging
 import time
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
 from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
+import sentry_sdk
 from batid.models import KPI, City, Department, Organization, SummerChallenge
 from batid.services.kpi import (
     KPI_BUILDING_CHANGES_CONTRIBUTIONS,
@@ -32,6 +34,8 @@ from django.db.models import (
     Sum,
 )
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 PARIS_TZ = ZoneInfo("Europe/Paris")
 
@@ -60,6 +64,10 @@ CACHE_FRESH_SECONDS = 3600
 CACHE_TIMEOUT_SECONDS = 24 * 3600
 # longest expected computation; past it, another request may try again
 REFRESH_LOCK_SECONDS = 60
+# With an empty cache, how long the requests wait for the one computing it
+# (below the 60 s nginx proxy timeout), and how often they check
+EMPTY_CACHE_WAIT_SECONDS = 20
+EMPTY_CACHE_POLL_SECONDS = 0.5
 
 # A contribution is one distinct event_id: a single update (eg. shape + address)
 # writes several SummerChallenge rows sharing the same event_id
@@ -307,24 +315,45 @@ def compute_contribution_summary(
 
 def _cached(key: str, compute: Callable[[], dict]) -> dict:
     """
-    Value of `compute` cached under `key`. Once an entry is outdated, a single
-    request recomputes it (it holds a lock) and the others get the outdated
-    one meanwhile. Only an empty cache makes concurrent requests compute.
+    Value of `compute` cached under `key`, computed by a single request at a
+    time (it holds a lock):
+    - an outdated entry is served to the other requests meanwhile;
+    - with no entry at all (after a deploy, or a cache flush), the others
+      wait for it, then compute it themselves if it still is not there;
+    - if the computation fails, the outdated entry is served, if any.
     """
     entry = cache.get(key)
-    if entry is not None:
-        if entry["fresh_until"] > time.time():
+    if entry is not None and entry["fresh_until"] > time.time():
+        return entry["data"]
+    lock_key = f"{key}:refreshing"
+    locked = cache.add(lock_key, True, REFRESH_LOCK_SECONDS)
+    if not locked and entry is not None:
+        return entry["data"]
+    deadline = time.monotonic() + EMPTY_CACHE_WAIT_SECONDS
+    while not locked and time.monotonic() < deadline:
+        time.sleep(EMPTY_CACHE_POLL_SECONDS)
+        entry = cache.get(key)
+        if entry is not None:
             return entry["data"]
-        if not cache.add(f"{key}:refreshing", True, REFRESH_LOCK_SECONDS):
-            return entry["data"]
-    data = compute()
-    cache.set(
-        key,
-        {"data": data, "fresh_until": time.time() + CACHE_FRESH_SECONDS},
-        CACHE_TIMEOUT_SECONDS,
-    )
-    cache.delete(f"{key}:refreshing")
-    return data
+        # the request computing it may have failed: take over
+        locked = cache.add(lock_key, True, REFRESH_LOCK_SECONDS)
+    try:
+        data = compute()
+        cache.set(
+            key,
+            {"data": data, "fresh_until": time.time() + CACHE_FRESH_SECONDS},
+            CACHE_TIMEOUT_SECONDS,
+        )
+        return data
+    except Exception:
+        if entry is None:
+            raise
+        logger.exception("Contribution summary refresh failed, outdated one served")
+        sentry_sdk.capture_exception()
+        return entry["data"]
+    finally:
+        if locked:
+            cache.delete(lock_key)
 
 
 def compute_all_summaries(now: Optional[datetime] = None) -> dict[str, dict]:
