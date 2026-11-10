@@ -137,6 +137,7 @@ class OGCIndexView(OGCAPIBaseView):
             }
         },
         schemes=["ogc"],
+        with_400=False,
     )
     def get(self, request: Request, *args, **kwargs):
 
@@ -180,6 +181,7 @@ class OGCConformanceView(OGCAPIBaseView):
             }
         },
         schemes=["ogc"],
+        with_400=False,
     )
     def get(self, request, *args, **kwargs):
         data = {
@@ -205,6 +207,7 @@ class OGCCollectionsView(OGCAPIBaseView):
             }
         },
         schemes=["ogc"],
+        with_400=False,
     )
     def get(self, request: Request, *args, **kwargs):
 
@@ -237,6 +240,7 @@ class OGCBuildingsCollectionView(OGCAPIBaseView):
             }
         },
         schemes=["ogc"],
+        with_400=False,
     )
     def get(self, request: Request, *args, **kwargs):
         # MODIFIED: Pass request to the helper
@@ -387,6 +391,7 @@ class OGCSingleBuildingItemView(OGCAPIBaseView):
             }
         },
         schemes=["ogc"],
+        with_400=False,
     )
     def get(self, request, featureId):
 
