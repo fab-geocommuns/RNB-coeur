@@ -4,8 +4,8 @@ Summary of the community contributions shown on the home page of the website
 
 Everything is computed during the request, for every period at once (the last
 7 or 30 days, and since the opening of the collaborative edition), then cached
-for an hour: on a clone of the production data, about 2.5 s for a 30-day
-window.
+for an hour. On the production data (November 2026), about 8 s in database
+time: 2 s for each rolling window, 3.7 s since the opening.
 """
 
 import logging
