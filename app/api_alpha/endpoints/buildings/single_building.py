@@ -126,7 +126,8 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                     }
                 },
             }
-        }
+        },
+        with_400=False,
     )
     def get(self, request, rnb_id):
 

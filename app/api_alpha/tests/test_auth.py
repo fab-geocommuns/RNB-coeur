@@ -1,10 +1,12 @@
 import base64
+import json
 from unittest import mock
 
 from api_alpha.utils.sandbox_client import SandboxClientError
 from batid.services.user import _b64_to_int, _int_to_b64, get_user_id_b64
-from batid.tests.factories.users import ContributorUserFactory
-from django.contrib.auth.models import User
+from batid.tests.factories.users import ContributorUserFactory, UserFactory
+from batid.utils.constants import ADS_GROUP_NAME
+from django.contrib.auth.models import Group, User
 from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
 from django.test import override_settings
@@ -320,6 +322,89 @@ class GetCurrentUserTokensTest(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["production_token"], self.token.key)
         self.assertEqual(response.data["sandbox_token"], None)
+
+
+class GetCurrentUserTokensOutsideContributorsTest(APITestCase):
+    """Any authenticated account can read its own tokens, whatever its groups.
+    Write routes keep their own group checks."""
+
+    def setUp(self):
+        self.user = UserFactory()
+        self.token = Token.objects.get(user=self.user)
+
+    @override_settings(HAS_SANDBOX=False)
+    def test_account_without_group_gets_its_token(self):
+        """Account in no group asks for its tokens: 200 with its production token."""
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+
+        response = self.client.get("/api/alpha/auth/users/me/tokens")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["production_token"], self.token.key)
+        self.assertEqual(response.data["sandbox_token"], None)
+
+    @override_settings(HAS_SANDBOX=False)
+    def test_ads_only_account_gets_its_token(self):
+        """Account in the ADS group only asks for its tokens: 200 with its token."""
+        ads_group, _ = Group.objects.get_or_create(name=ADS_GROUP_NAME)
+        self.user.groups.add(ads_group)
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+
+        response = self.client.get("/api/alpha/auth/users/me/tokens")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["production_token"], self.token.key)
+
+    @override_settings(HAS_SANDBOX=True)
+    @mock.patch("api_alpha.utils.sandbox_client.SandboxClient.get_user_token")
+    def test_response_is_scoped_to_the_caller(self, mock_get_token):
+        """Two accounts, the first one asks for its tokens: 200 with its own
+        production token, and the sandbox is queried with its own email only."""
+        other_user = ContributorUserFactory(
+            username="other_user", email="other_user@example.test"
+        )
+        other_token = Token.objects.get(user=other_user)
+        mock_get_token.return_value = "sandbox_token"
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+
+        response = self.client.get("/api/alpha/auth/users/me/tokens")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["production_token"], self.token.key)
+        self.assertNotEqual(response.data["production_token"], other_token.key)
+        mock_get_token.assert_called_once_with(self.user.email)
+
+    def test_anonymous_request_is_refused(self):
+        """Request without credentials: 401."""
+        response = self.client.get("/api/alpha/auth/users/me/tokens")
+
+        self.assertEqual(response.status_code, 401)
+
+    @override_settings(HAS_SANDBOX=True)
+    @mock.patch("api_alpha.utils.sandbox_client.SandboxClient.get_user_token")
+    def test_account_missing_from_sandbox_gets_no_sandbox_token(self, mock_get_token):
+        """Account unknown to the sandbox (404): 200 without a sandbox token."""
+        mock_get_token.side_effect = SandboxClientError(
+            "not found", status_code=404, body=""
+        )
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+
+        response = self.client.get("/api/alpha/auth/users/me/tokens")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["sandbox_token"], None)
+
+    def test_account_without_group_still_cannot_edit_a_building(self):
+        """Account in no group patches a building: 403."""
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token.key)
+
+        response = self.client.patch(
+            "/api/alpha/buildings/AAAABBBBCCCC/",
+            data=json.dumps({"is_active": False, "comment": "x"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
 
 
 class GetUserTokenTest(APITestCase):
