@@ -15,7 +15,6 @@ from datetime import timezone as dt_timezone
 from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
-import sentry_sdk
 from batid.models import KPI, City, Department, Organization, SummerChallenge
 from batid.services.kpi import (
     KPI_BUILDING_CHANGES_CONTRIBUTIONS,
@@ -349,7 +348,6 @@ def _cached(key: str, compute: Callable[[], dict]) -> dict:
         if entry is None:
             raise
         logger.exception("Contribution summary refresh failed, outdated one served")
-        sentry_sdk.capture_exception()
         return entry["data"]
     finally:
         if locked:
