@@ -1,5 +1,7 @@
 import json
+from unittest import mock
 
+from api_alpha.endpoints.ads import create_token
 from batid.models import ADS, Building, BuildingADS, Organization, UserProfile
 from batid.tests.helpers import (
     create_cenac,
@@ -1177,6 +1179,51 @@ class ADSEndpointsWithAuthTest(APITestCase):
 
         self.assertEqual(r.status_code, 400)
         self.assertEqual(r.json(), {"errors": {"duplicate_usernames": ["alice"]}})
+        self.assertFalse(User.objects.filter(username="alice").exists())
+
+    def test_ads_create_user_invalid_payload(self):
+        """
+        Input: a batch whose second entry only has a username, then a JSON object
+        instead of a list.
+        Expected: 400 with the missing fields of the second entry, then 400 on the
+        root type; no user is created.
+        """
+        r = self._post_ads_users(
+            [self._ads_user(username="alice"), {"username": "bob"}]
+        )
+
+        self.assertEqual(r.status_code, 400)
+        errors = r.json()["errors"]
+        self.assertEqual(errors[0], {})
+        self.assertEqual(
+            set(errors[1]),
+            {"email", "organization_name", "organization_managed_cities"},
+        )
+
+        r = self._post_ads_users(self._ads_user(username="alice"))
+
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("non_field_errors", r.json()["errors"])
+        self.assertFalse(User.objects.filter(username__in=["alice", "bob"]).exists())
+
+    def test_ads_create_user_concurrent_creation(self):
+        """
+        Input: alice and johndoe, as if a concurrent request created johndoe right after
+        the batch check (the first check is forced to pass).
+        Expected: the insert fails on the unique username, the batch is rolled back and
+        the second check answers 400 listing johndoe; alice is not created.
+        """
+        with mock.patch(
+            "api_alpha.endpoints.ads.create_token._batch_errors",
+            wraps=create_token._batch_errors,
+            side_effect=[{}, mock.DEFAULT],
+        ):
+            r = self._post_ads_users(
+                [self._ads_user(username="alice"), self._ads_user(username="johndoe")]
+            )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json(), {"errors": {"existing_usernames": ["johndoe"]}})
         self.assertFalse(User.objects.filter(username="alice").exists())
 
     # def test_batch_create(self):
