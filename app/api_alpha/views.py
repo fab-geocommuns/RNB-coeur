@@ -522,7 +522,8 @@ class SplitBuildings(RNBLoggingMixin, APIView):
         {
             "post": {
                 "summary": "Scission de bâtiments",
-                "description": LiteralStr("""\
+                "description": LiteralStr(
+                    """\
 Permet de corriger le RNB en scindant un bâtiment existant, donnant lieu à la création de plusieurs nouveaux bâtiments.
 
 Cet endpoint nécessite d'être identifié (en-tête `Authorization: Token <votre token>`) et d'avoir des droits d'édition du RNB.
@@ -532,7 +533,8 @@ La scission est refusée (400) si :
 * le bâtiment à scinder est inactif ;
 * une clé d'interopérabilité ne fait pas entre 5 et 30 caractères ;
 * une clé d'interopérabilité désigne autre chose qu'un numéro (voie, lieu-dit ou commune) ;
-* la géométrie de l'un des bâtiments créés ne respecte pas les règles décrites pour le champ `shape`."""),
+* la géométrie de l'un des bâtiments créés ne respecte pas les règles décrites pour le champ `shape`."""
+                ),
                 "operationId": "splitBuildings",
                 "parameters": [
                     {
