@@ -16,7 +16,6 @@ from batid.services import contribution_summary
 from batid.services.contribution_summary import (
     CACHE_KEY,
     compute_contribution_summary,
-    count_contributing,
 )
 from batid.services.kpi import (
     KPI_BUILDING_CHANGES_CONTRIBUTIONS,
@@ -108,7 +107,6 @@ class ContributionSummaryTest(TestCase):
 
         self.assertEqual(data["cities"], {"total": 0, "new": 0})
         self.assertEqual(data["organizations"], {"total": 0, "new": 0})
-        self.assertEqual(count_contributing(), {"cities": 0, "organizations": 0})
         self.assertEqual(data["building_changes"], {"total": 0, "contributions": 0})
         self.assertEqual(data["top"], {"users": [], "organizations": [], "cities": []})
         self.assertEqual(data["newcomers"], {"users": []})
@@ -151,8 +149,7 @@ class ContributionSummaryTest(TestCase):
         """
         Input: bob contributes twice in Mérignac before the window (1 September),
         alice once in Talence in the window.
-        Expected: rankings only show alice and Talence; the cumulative count of
-        cities still includes Mérignac.
+        Expected: rankings and counts only show alice and Talence.
         """
         edition(self.bob, BEFORE_WINDOW, self.merignac, self.gironde)
         edition(self.bob, BEFORE_WINDOW, self.merignac, self.gironde)
@@ -175,8 +172,7 @@ class ContributionSummaryTest(TestCase):
                 }
             ],
         )
-        self.assertEqual(data["cities"]["new"], 1)
-        self.assertEqual(count_contributing()["cities"], 2)
+        self.assertEqual(data["cities"], {"total": 1, "new": 1})
 
     def test_new_cities_are_those_first_contributed_in_the_window(self):
         """
@@ -235,6 +231,34 @@ class ContributionSummaryTest(TestCase):
             [("alice", 1), ("bob", 1)],
         )
 
+    def test_whole_period_starts_at_the_edition_opening(self):
+        """
+        Input: bob contributes in Verrens-Arvey during the 2024 summer game,
+        alice in Talence in June 2025, bob in Mérignac in the window.
+        Expected: with days=None, the period starts on 1 April 2025: alice and
+        bob are ranked with 1 contribution each, Talence and Mérignac are the
+        cities of the period, both new; alice is the only newcomer, bob
+        contributed before.
+        """
+        edition(self.bob, datetime(2024, 7, 1, tzinfo=PARIS), self.verrens)
+        edition(self.alice, datetime(2025, 6, 1, tzinfo=PARIS), self.talence)
+        edition(self.bob, IN_WINDOW, self.merignac)
+
+        data = compute_contribution_summary(now=NOW, days=None)
+
+        self.assertIsNone(data["window_days"])
+        self.assertEqual(data["since"], "2025-04-01T00:00:00+02:00")
+        self.assertEqual(
+            sorted((u["username"], u["count"]) for u in data["top"]["users"]),
+            [("alice", 1), ("bob", 1)],
+        )
+        self.assertEqual(
+            sorted(c["name"] for c in data["top"]["cities"]),
+            ["Mérignac", "Talence"],
+        )
+        self.assertEqual(data["cities"], {"total": 2, "new": 2})
+        self.assertEqual(data["newcomers"]["users"], [{"username": "alice"}])
+
     def test_an_event_counts_once(self):
         """
         Input: one contribution writing 2 SummerChallenge rows (same event_id).
@@ -252,11 +276,12 @@ class ContributionSummaryTest(TestCase):
 
         self.assertEqual(data["top"]["users"][0]["count"], 1)
 
-    def test_organization_department_is_where_it_contributed_the_most(self):
+    def test_organizations_have_no_department(self):
         """
         Input: alice (Commune de Talence) contributes twice in Gironde and once
         in Savoie.
-        Expected: the organization is shown under its short name, with Gironde.
+        Expected: the organization is shown under its short name, without
+        department.
         """
         edition(self.alice, IN_WINDOW, self.talence, self.gironde)
         edition(self.alice, IN_WINDOW, self.talence, self.gironde)
@@ -266,13 +291,7 @@ class ContributionSummaryTest(TestCase):
 
         self.assertEqual(
             data["top"]["organizations"],
-            [
-                {
-                    "name": "Talence",
-                    "department": {"code": "33", "name": "Gironde"},
-                    "count": 3,
-                }
-            ],
+            [{"name": "Talence", "count": 3}],
         )
 
     def test_data_fix_updates_are_not_contributions(self):
@@ -379,6 +398,25 @@ class ContributionSummaryTest(TestCase):
 
         self.assertEqual(data["building_changes"], {"total": 15, "contributions": 15})
 
+    def test_building_changes_of_the_whole_period(self):
+        """
+        Input: daily KPIs on 31 March 2025, 1 April 2025 and 14 October 2026
+        (yesterday).
+        Expected: with days=None, the KPIs from 1 April 2025 are summed.
+        """
+        for day, value in [
+            (date(2025, 3, 31), 999),
+            (date(2025, 4, 1), 10),
+            (date(2026, 10, 14), 5),
+        ]:
+            KPI.objects.create(
+                name=KPI_BUILDING_CHANGES_CONTRIBUTIONS, value_date=day, value=value
+            )
+
+        data = compute_contribution_summary(now=NOW, days=None)
+
+        self.assertEqual(data["building_changes"], {"total": 15, "contributions": 15})
+
 
 # a cache of its own, so that the tests never touch the Redis one
 @override_settings(
@@ -405,13 +443,14 @@ class ContributionSummaryApiTest(APITestCase):
 
     def test_days_selects_the_window(self):
         """
-        Input: days=7, then days=30, then days=15.
-        Expected: 200 with the matching window_days, then 400 for 15.
+        Input: days=7, days=30, days=all, then days=15.
+        Expected: 200 with the matching window_days (null for all), then 400
+        for 15.
         """
-        for days in [7, 30]:
+        for days, window_days in [("7", 7), ("30", 30), ("all", None)]:
             response = self.client.get(f"{self.URL}?days={days}")
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json()["window_days"], days)
+            self.assertEqual(response.json()["window_days"], window_days)
 
         response = self.client.get(f"{self.URL}?days=15")
 
@@ -467,18 +506,3 @@ class ContributionSummaryApiTest(APITestCase):
 
         self.assertEqual(response.json()["top"]["users"][0]["username"], "alice")
         self.assertIsNone(cache.get(f"{CACHE_KEY}:30:refreshing"))
-
-    def test_counts_over_the_whole_history_are_shared_by_the_windows(self):
-        """
-        Input: a call with days=7, then one with days=30.
-        Expected: the counts over the whole history are computed once.
-        """
-        with patch.object(
-            contribution_summary,
-            "count_contributing",
-            wraps=contribution_summary.count_contributing,
-        ) as count:
-            self.client.get(f"{self.URL}?days=7")
-            self.client.get(f"{self.URL}?days=30")
-
-        self.assertEqual(count.call_count, 1)

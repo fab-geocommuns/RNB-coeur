@@ -2,9 +2,14 @@
 # Changing it restarts nginx-proxy on the next deploy: a few seconds of downtime.
 
 limit_req zone=api_rate_limit burst=20 nodelay;
-add_header RateLimit-Limit 20;
-add_header RateLimit-Policy "q=20;w=1";
+# "always" also sends them on errors, 429 included.
+add_header RateLimit-Limit 20 always;
+add_header RateLimit-Policy "q=20;w=1" always;
 limit_req_status 429;
+
+# Any add_header in a location drops the ones inherited from the server block,
+# so HSTS set by nginx-proxy is set again here, with its default value.
+add_header Strict-Transport-Security "max-age=31536000" always;
 
 # Compress API responses (JSON, GeoJSON, vector tiles) and admin HTML, also via proxies.
 # gzip_types replaces the http-level list (text/html is implicit), so JSON is listed again.
