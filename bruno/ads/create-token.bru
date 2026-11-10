@@ -1,0 +1,54 @@
+meta {
+  name: Créer un token ADS
+  type: http
+  seq: 1
+  tags: [
+    ecriture
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/alpha/ads/token/
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Token {{superuserToken}}
+}
+
+body:json {
+  []
+}
+
+assert {
+  res.status: eq 200
+  res.body.created_users[0].token: isString
+}
+
+docs {
+  Le corps enregistré est vide : envoyé tel quel, l'appel ne crée rien. Le remplir avant chaque
+  envoi sans l'enregistrer, aucune donnée de demandeur dans le dépôt :
+
+  ```json
+  [
+    {
+      "username": "prenom.nom@collectivite.fr",
+      "email": "prenom.nom@collectivite.fr",
+      "organization_name": "Nom de la collectivité",
+      "organization_managed_cities": ["38185"]
+    }
+  ]
+  ```
+
+  Le token est dans `created_users[0].token`.
+
+  Avant l'envoi, dans l'admin Django :
+
+  1. Le compte ne doit pas exister (Utilisateurs) : l'appel désactiverait son mot de passe et
+     remplacerait son organisation.
+  2. Si l'organisation existe déjà (Organisations), ses communes ne changent pas : les codes envoyés
+     sont ignorés. Comparer ses communes à celles demandées.
+  3. Les codes INSEE ne sont pas contrôlés : un code faux crée un compte qui ne pourra pas déclarer
+     d'ADS dans la commune voulue.
+}
