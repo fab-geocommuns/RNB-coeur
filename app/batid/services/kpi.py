@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
@@ -6,7 +8,7 @@ from batid.models import KPI, Building, Contribution
 from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
 from batid.utils.db import dictfetchone
-from django.db import connection
+from django.db import connection, transaction
 from rest_framework_tracking.models import APIRequestLog
 
 KPI_ACTIVE_BUILDINGS_COUNT = "active_buildings_count"
@@ -27,6 +29,20 @@ KPI_DATA_GOUV_DOWNLOADS = "data_gouv_downloads_count"
 KPI_BUILDING_CHANGES_IMPORT_BDTOPO = "building_changes_import_bdtopo"
 KPI_BUILDING_CHANGES_IMPORT_BAL = "building_changes_import_bal"
 KPI_BUILDING_CHANGES_CONTRIBUTIONS = "building_changes_contributions"
+
+
+@contextmanager
+def long_query_timeout() -> Iterator[None]:
+    """
+    Give the queries of the block a one-hour timeout, whatever the worker default is.
+    SET LOCAL lasts until the outermost transaction ends: the block's own one when
+    called outside a transaction, otherwise the enclosing one (the block is then
+    only a savepoint).
+    """
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute("SET LOCAL statement_timeout = 3600000;")
+        yield
 
 
 def get_kpi(name: str, since: Optional[date] = None, until: Optional[date] = None):
@@ -68,20 +84,20 @@ def compute_daily_kpis(external_calls=True):
         defaults={"value": real_bdgs_count},
     )
 
+    address_kpis = count_address_kpis()
+
     # Real buildings without addresses
-    real_bdgs_wo_addresses_count = count_real_buildings_wo_addresses()
     KPI.objects.update_or_create(
         name=KPI_REAL_BUILDINGS_WO_ADDRESSES_COUNT,
         value_date=today,
-        defaults={"value": real_bdgs_wo_addresses_count},
+        defaults={"value": address_kpis["real_wo_addresses"]},
     )
 
     # Building - address links
-    building_address_links_count = count_building_address_links()
     KPI.objects.update_or_create(
         name=KPI_BUILDING_ADDRESS_COUNT,
         value_date=today,
-        defaults={"value": building_address_links_count},
+        defaults={"value": address_kpis["links"]},
     )
 
     # Editors
@@ -220,8 +236,7 @@ def count_building_changes_daily(for_date: date) -> dict[str, int]:
         WHERE lower(b.sys_period) >= %(day_start)s
           AND lower(b.sys_period) < %(day_end)s
     """
-    with connection.cursor() as cursor:
-        cursor.execute("SET statement_timeout = '0';")
+    with long_query_timeout(), connection.cursor() as cursor:
         row = dictfetchone(cursor, sql, {"day_start": day_start, "day_end": day_end})
     return {
         "import_bdtopo": int(row.get("import_bdtopo") or 0),
@@ -289,7 +304,8 @@ def count_active_buildings():
     Count the number of active buildings
     """
 
-    return Building.objects.filter(is_active=True).count()
+    with long_query_timeout():
+        return Building.objects.filter(is_active=True).count()
 
 
 def count_real_buildings():
@@ -302,31 +318,26 @@ def count_real_buildings():
     ).count()
 
 
-def count_real_buildings_wo_addresses():
+def count_address_kpis() -> dict[str, int]:
     """
-    Count the number of real (active + physical status) buildings without addresses
+    Count, in a single pass over the active buildings, the building - address
+    links and the real buildings without addresses.
+    Read from addresses_internal_id: building_addresses_trigger rebuilds the link
+    table from this array on every write, so both give the same counts.
     """
-
-    return Building.objects.filter(
-        is_active=True,
-        status__in=BuildingStatus.REAL_BUILDINGS_STATUS,
-        addresses_internal_read_only=None,
-    ).count()
-
-
-def count_building_address_links():
+    sql = """
+        SELECT
+            COALESCE(SUM(cardinality(addresses_internal_id)), 0) AS links,
+            COUNT(*) FILTER (
+                WHERE status = ANY(%(real_statuses)s)
+                  AND COALESCE(cardinality(addresses_internal_id), 0) = 0
+            ) AS real_wo_addresses
+        FROM batid_building
+        WHERE is_active
     """
-    Count the number of building - address links
-    """
-    with connection.cursor() as cursor:
-        cursor.execute("SET statement_timeout = 3600000;")
-        cursor.execute(
-            "SELECT COUNT(*) FROM batid_buildingaddressesinternalidreadonly ba"
-            " JOIN batid_building b ON ba.building_id = b.id"
-            " WHERE b.is_active = TRUE"
-        )
-        row = cursor.fetchone()
-        return row[0] if row else 0
+    params = {"real_statuses": BuildingStatus.REAL_BUILDINGS_STATUS}
+    with long_query_timeout(), connection.cursor() as cursor:
+        return dictfetchone(cursor, sql, params)
 
 
 def count_editors():
@@ -337,9 +348,9 @@ def count_edits():
     """Total d'événements contribution (toutes dates)"""
     sql = """
         SELECT COUNT(*) FROM batid_building_with_history
-        WHERE event_origin->>'source' = 'contribution'
+        WHERE event_origin @> '{"source": "contribution"}'
     """
-    with connection.cursor() as cursor:
+    with long_query_timeout(), connection.cursor() as cursor:
         cursor.execute(sql)
         row = cursor.fetchone()
     return row[0] if row else 0
@@ -365,8 +376,7 @@ def count_api_requests():
     """
     Count the total number of API requests logged in rest_framework_tracking_apirequestlog
     """
-    with connection.cursor() as cursor:
-        cursor.execute("SET statement_timeout = 3600000;")
+    with long_query_timeout(), connection.cursor() as cursor:
         cursor.execute("SELECT COUNT(*) FROM rest_framework_tracking_apirequestlog")
         row = cursor.fetchone()
         return row[0] if row else 0
@@ -419,6 +429,6 @@ def count_edits_by_department():
             LEFT JOIN batid_department_subdivided d ON ST_Contains(d.shape, b.point)
         GROUP BY d.code
     """
-    with connection.cursor() as cursor:
+    with long_query_timeout(), connection.cursor() as cursor:
         cursor.execute(sql)
         return {row[0]: row[1] for row in cursor.fetchall()}

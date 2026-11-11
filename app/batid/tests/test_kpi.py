@@ -17,6 +17,7 @@ from batid.services.kpi import (
     backfill_api_requests_kpi,
     compute_daily_kpis,
     count_active_buildings,
+    count_address_kpis,
     count_api_requests,
     count_building_changes_daily,
     count_editors,
@@ -25,16 +26,18 @@ from batid.services.kpi import (
     count_fixed_reports,
     count_pending_reports,
     count_real_buildings,
-    count_real_buildings_wo_addresses,
     count_refused_reports,
     count_reports,
     get_building_change_stats,
     get_kpi,
     get_kpi_most_recent,
+    long_query_timeout,
 )
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry, Point
-from django.test import TestCase
+from django.db import connection
+from django.test import TestCase, TransactionTestCase
+from django.test.utils import CaptureQueriesContext
 from rest_framework_tracking.models import APIRequestLog
 
 
@@ -206,7 +209,7 @@ class CountRealBuildingsWithoutAddress(TestCase):
         # Addresses
         one = Address.objects.create(cle_interop="one")
         two = Address.objects.create(cle_interop="two")
-        Address.objects.create(cle_interop="three")
+        three = Address.objects.create(cle_interop="three")
 
         # Real buildings
         Building.objects.create(
@@ -234,17 +237,111 @@ class CountRealBuildingsWithoutAddress(TestCase):
             is_active=False,
             addresses_internal_id=[one.internal_id],
         )
-        Building.objects.create(rnb_id="4", status="demolished", is_active=True)
+        Building.objects.create(
+            rnb_id="4",
+            status="demolished",
+            is_active=True,
+            addresses_internal_id=[three.internal_id],
+        )
 
     def test(self):
         """
         Input: 3 real buildings (one with 2 addresses, one with an empty address
-        array, one with NULL addresses) and 2 non-real buildings.
-        Expected: 2 real buildings without addresses (empty array and NULL).
+        array, one with NULL addresses), an inactive building with 1 address and
+        an active demolished building with 1 address.
+        Expected: 3 links (every active building counts, the inactive one does not),
+        2 real buildings without addresses (empty array and NULL).
         """
 
-        value = count_real_buildings_wo_addresses()
-        self.assertEqual(value, 2)
+        self.assertEqual(count_address_kpis(), {"links": 3, "real_wo_addresses": 2})
+
+
+class CountEdits(TestCase):
+    def setUp(self):
+        contribution = Building.objects.create(
+            rnb_id="CONTRIB",
+            status="constructed",
+            event_origin={"source": "contribution"},
+        )
+        contribution.status = "demolished"
+        contribution.save()
+
+        Building.objects.create(
+            rnb_id="IMPORT",
+            status="constructed",
+            event_origin={"source": "import", "id": 1},
+        )
+        Building.objects.create(
+            rnb_id="NOORIGIN", status="constructed", event_origin=None
+        )
+
+    def test(self):
+        """
+        Input: a contribution building updated once (current row + 1 history row),
+        an import building and a building without event_origin.
+        Expected: 2 edits, both rows of the contribution building.
+        """
+        self.assertEqual(count_edits(), 2)
+
+
+class LongQueryTimeout(TransactionTestCase):
+    # A TestCase would keep SET LOCAL alive after the block: releasing the
+    # savepoint does not end the wrapping test transaction.
+
+    SESSION_TIMEOUT = "12345ms"
+
+    def setUp(self):
+        with connection.cursor() as cursor:
+            cursor.execute("SET statement_timeout = 12345;")
+
+    def tearDown(self):
+        with connection.cursor() as cursor:
+            cursor.execute("RESET statement_timeout;")
+
+    def session_timeout(self) -> str:
+        with connection.cursor() as cursor:
+            cursor.execute("SHOW statement_timeout;")
+            return cursor.fetchone()[0]
+
+    def test_timeout_is_scoped_to_the_block(self):
+        """
+        Input: session timeout of 12345 ms, then a long_query_timeout block.
+        Expected: 1h inside the block, 12345ms again after it.
+        """
+        with long_query_timeout():
+            self.assertEqual(self.session_timeout(), "1h")
+        self.assertEqual(self.session_timeout(), self.SESSION_TIMEOUT)
+
+    def test_heavy_queries_run_under_the_local_timeout(self):
+        """
+        Input: session timeout of 12345 ms, each heavy KPI query called once.
+        Expected: a SET LOCAL statement_timeout is sent before the query's SELECT,
+        and the session timeout is still 12345ms after the call.
+        """
+        queries = {
+            "count_active_buildings": count_active_buildings,
+            "count_address_kpis": count_address_kpis,
+            "count_edits": count_edits,
+            "count_api_requests": count_api_requests,
+            "count_edits_by_department": count_edits_by_department,
+            "count_building_changes_daily": lambda: count_building_changes_daily(
+                date.today()
+            ),
+        }
+        for name, query in queries.items():
+            with self.subTest(query=name):
+                with CaptureQueriesContext(connection) as ctx:
+                    query()
+                sqls = [q["sql"] for q in ctx.captured_queries]
+                set_local = next(
+                    i
+                    for i, sql in enumerate(sqls)
+                    if "SET LOCAL statement_timeout" in sql
+                )
+                self.assertTrue(
+                    any("SELECT" in sql.upper() for sql in sqls[set_local + 1 :])
+                )
+                self.assertEqual(self.session_timeout(), self.SESSION_TIMEOUT)
 
 
 class TestKPI(TestCase):
