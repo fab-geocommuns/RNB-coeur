@@ -412,12 +412,7 @@ def _get_components() -> dict:
                             },
                         },
                     },
-                    "shape": {
-                        "oneOf": [
-                            {"$ref": "#/components/schemas/BuildingShape"},
-                            {"type": "null"},
-                        ]
-                    },
+                    "shape": {"$ref": "#/components/schemas/BuildingShape"},
                     "addresses": {
                         "type": "array",
                         "description": "Liste des adresses du bâtiment",
