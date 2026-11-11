@@ -1,6 +1,7 @@
 """
 Summary of the community contributions shown on the home page of the website
-(GET /api/alpha/contributions/summary/).
+(GET /api/alpha/contributions/summary/ for one period,
+GET /api/alpha/contributions/summaries/ for all of them).
 
 Everything is computed during the request, for every period at once (the last
 7 or 30 days, and since the opening of the collaborative edition), then cached
@@ -396,3 +397,14 @@ def get_contribution_summary(days: Optional[int] = DEFAULT_WINDOW_DAYS) -> dict:
     return _cached(summaries_cache_key(), compute_all_summaries)[
         str(days or ALL_PERIOD)
     ]
+
+
+def get_all_contribution_summaries() -> list[dict]:
+    """
+    Summaries of every period, shortest first, read from the cache at once:
+    they always come from the same computation. Separate calls to
+    get_contribution_summary may not (one may get the outdated entry served
+    during a refresh, the next the new one).
+    """
+    summaries = _cached(summaries_cache_key(), compute_all_summaries)
+    return [summaries[key] for key in PERIOD_KEYS]

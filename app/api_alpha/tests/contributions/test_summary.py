@@ -46,6 +46,7 @@ PARIS = ZoneInfo("Europe/Paris")
 # The 30-day window starts on 15 September noon.
 NOW = datetime(2026, 10, 15, 12, 0, tzinfo=PARIS)
 SUMMARIES_CACHE_KEY = summaries_cache_key()
+SUMMARIES_URL = "/api/alpha/contributions/summaries/"
 IN_WINDOW = datetime(2026, 10, 5, tzinfo=PARIS)
 BEFORE_WINDOW = datetime(2026, 9, 1, tzinfo=PARIS)
 
@@ -843,6 +844,73 @@ class ContributionSummaryApiTest(APITestCase):
             events[0]["exception"]["values"][-1]["value"], "connection lost"
         )
 
+    def test_summaries_returns_every_period_shortest_first(self):
+        """
+        Input: a contribution, then a call to the all-periods endpoint, the
+        clock frozen.
+        Expected: 200 with the 7-day, 30-day and whole-period summaries, in
+        that order, each exactly what compute_contribution_summary returns
+        for that instant.
+        """
+        edition(ContributorUserFactory(username="alice"), timezone.now())
+        frozen = timezone.now()
+
+        with patch.object(contribution_summary.timezone, "now", return_value=frozen):
+            response = self.client.get(SUMMARIES_URL)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "summaries": [
+                    json.loads(
+                        json.dumps(compute_contribution_summary(now=frozen, days=d))
+                    )
+                    for d in [7, 30, None]
+                ]
+            },
+        )
+
+    def test_summaries_and_summary_share_the_cache(self):
+        """
+        Input: a call to the all-periods endpoint, then one per period.
+        Expected: the 3 periods are computed once in all, and each period
+        endpoint returns the matching summary of the first response.
+        """
+        with patch.object(
+            contribution_summary,
+            "compute_contribution_summary",
+            wraps=contribution_summary.compute_contribution_summary,
+        ) as compute:
+            summaries = self.client.get(SUMMARIES_URL).json()["summaries"]
+            for days, summary in zip(["7", "30", "all"], summaries):
+                response = self.client.get(f"{self.URL}?days={days}")
+                self.assertEqual(response.json(), summary)
+
+        self.assertEqual(compute.call_count, 3)
+
+    def test_summaries_come_from_one_entry_while_refreshing(self):
+        """
+        Input: an outdated cached entry, its refresh lock held by another
+        request.
+        Expected: the 3 outdated summaries of that entry, served together.
+        """
+        outdated = {
+            key: {"window_days": key, "updated_at": "outdated"} for key in PERIOD_KEYS
+        }
+        cache.set(
+            SUMMARIES_CACHE_KEY,
+            {"data": outdated, "fresh_until": time.time() - 1},
+            60,
+        )
+        cache.add(f"{SUMMARIES_CACHE_KEY}:refreshing", True, 60)
+
+        response = self.client.get(SUMMARIES_URL)
+
+        self.assertEqual(
+            response.json(), {"summaries": [outdated[key] for key in PERIOD_KEYS]}
+        )
+
 
 # Real Redis, as in production (Django's RedisCache): cache.add is an atomic
 # SET NX there. Own key prefix, so that the tests only touch their own keys.
@@ -942,4 +1010,42 @@ class ContributionSummaryConcurrencyTest(SimpleTestCase):
         self.release.set()
         self.assertEqual(
             computing.pop().result(timeout=self.MAX_SECONDS), {"fresh": True}
+        )
+
+    def test_periods_requested_together_during_a_refresh_match(self):
+        """
+        Input: an outdated cached entry, then the 3 periods requested at the
+        same time as the site does, one call to the all-periods endpoint per
+        request, while the refresh is blocked.
+        Expected: each response holds 3 summaries of the same computation
+        (one gets the new ones, the others the outdated ones), never a mix.
+        """
+        cache.set(
+            SUMMARIES_CACHE_KEY,
+            {
+                "data": {key: {"stale": True} for key in PERIOD_KEYS},
+                "fresh_until": time.time() - 1,
+            },
+            60,
+        )
+        start = threading.Barrier(3)
+
+        def site_request():
+            start.wait()
+            return contribution_summary.get_all_contribution_summaries()
+
+        requests = [self.pool.submit(site_request) for _ in range(3)]
+        served, refreshing = wait(
+            requests, timeout=self.MAX_SECONDS, return_when=FIRST_COMPLETED
+        )
+        deadline = time.monotonic() + self.MAX_SECONDS
+        while len(refreshing) > 1 and time.monotonic() < deadline:
+            served, refreshing = wait(requests, timeout=0.1)
+        self.release.set()
+
+        responses = [r.result(timeout=self.MAX_SECONDS) for r in requests]
+        self.assertEqual(self.computations, 1)
+        self.assertCountEqual(
+            responses,
+            [[{"fresh": True}] * 3, [{"stale": True}] * 3, [{"stale": True}] * 3],
         )

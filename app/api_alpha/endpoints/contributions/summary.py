@@ -8,6 +8,7 @@ from batid.services.contribution_summary import (
     NEWCOMERS_LIMIT,
     TOP_LIMIT,
     WINDOWS_DAYS,
+    get_all_contribution_summaries,
     get_contribution_summary,
 )
 from rest_framework.request import Request
@@ -39,7 +40,11 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                     "toute première contribution sur la période, les derniers "
                     "arrivés d'abord. Les imports ne sont pas comptés comme des "
                     "contributions. Les données sont mises à jour environ "
-                    "toutes les heures."
+                    "toutes les heures. Pour afficher plusieurs périodes "
+                    "côte à côte, utilisez plutôt "
+                    "GET /api/alpha/contributions/summaries/ : des appels "
+                    "séparés pendant une mise à jour peuvent renvoyer des "
+                    "périodes calculées à des moments différents."
                 ),
                 "operationId": "getContributionSummary",
                 "parameters": [
@@ -76,3 +81,42 @@ class ContributionSummaryView(RNBLoggingMixin, APIView):
                 + f" ou {ALL_PERIOD}."
             )
         return Response(get_contribution_summary(int(days_param)))
+
+
+class ContributionSummariesView(RNBLoggingMixin, APIView):
+    """
+    GET /api/alpha/contributions/summaries/
+    Every period of the contribution summary in one response, all computed at
+    the same instant, so that they can be shown side by side.
+    """
+
+    @rnb_doc(
+        {
+            "get": {
+                "summary": "Synthèses des contributions, toutes périodes",
+                "description": (
+                    "Retourne en une seule réponse la synthèse de chaque "
+                    "période ("
+                    + ", ".join(f"{d} derniers jours" for d in WINDOWS_DAYS)
+                    + ", puis depuis l'ouverture de l'édition collaborative), "
+                    "au même format que GET /api/alpha/contributions/summary/. "
+                    "Les périodes sont toujours calculées au même instant "
+                    "(même updated_at) : une période courte ne compte jamais "
+                    "plus de communes ou d'organisations qu'une période plus "
+                    "longue. Les données sont mises à jour environ toutes les "
+                    "heures."
+                ),
+                "operationId": "getContributionSummaries",
+                "responses": {
+                    "200": {
+                        "description": (
+                            "Les synthèses, de la période la plus courte à la "
+                            "plus longue."
+                        ),
+                    }
+                },
+            }
+        }
+    )
+    def get(self, request: Request) -> Response:
+        return Response({"summaries": get_all_contribution_summaries()})
