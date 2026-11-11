@@ -51,6 +51,36 @@ SANDBOX_PUBLIC_URL = "https://sandbox.rnb-api.beta.gouv.fr"
 # HTTP methods that only read data: they never require a token.
 READ_ONLY_METHODS = ("get", "head", "options")
 
+# Query parameters of the endpoints paginated with BuildingCursorPagination
+PAGINATION_PARAMETERS = [
+    {
+        "name": "limit",
+        "in": "query",
+        "description": "Nombre maximum de bâtiments par page. Une valeur hors de l'intervalle renvoie une erreur 400.",
+        "required": False,
+        "schema": {"type": "integer", "default": 20, "minimum": 1, "maximum": 100},
+        "example": 50,
+    },
+    {
+        "name": "cursor",
+        "in": "query",
+        "description": "Page de résultats à récupérer. Inutile de le construire : utilisez les URL des attributs `next` et `previous` de la réponse.",
+        "required": False,
+        "schema": {"type": "string"},
+    },
+]
+
+
+def building_fields_schema(*fields: str) -> dict:
+    """Object schema declaring only the given properties of the Building component."""
+    return {
+        "type": "object",
+        "properties": {
+            field: {"$ref": f"#/components/schemas/Building/properties/{field}"}
+            for field in fields
+        },
+    }
+
 
 def rnb_doc(path_desc, schemes=[], with_400=True):
     """

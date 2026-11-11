@@ -46,6 +46,52 @@ class BuildingChangeStatsView(RNBLoggingMixin, APIView):
                         "example": "2024-01-31",
                     },
                 ],
+                "responses": {
+                    "200": {
+                        "description": "Une entrée par jour entre since et until inclus, y compris les jours sans modification.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "date": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "example": "2024-01-01",
+                                            },
+                                            "events_count": {
+                                                "type": "object",
+                                                "description": "Nombre de bâtiments créés ou modifiés ce jour-là, par origine.",
+                                                "properties": {
+                                                    "import_bdtopo": {
+                                                        "type": "number",
+                                                        "description": "Par un import de la BD Topo",
+                                                        "example": 1200,
+                                                    },
+                                                    "import_bal": {
+                                                        "type": "number",
+                                                        "description": "Par un import de Bases Adresses Locales",
+                                                        "example": 35,
+                                                    },
+                                                    "contributions": {
+                                                        "type": "number",
+                                                        "description": "Par des contributions d'utilisateurs",
+                                                        "example": 80,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "400": {
+                        "description": "since ou until absent ou mal formaté, since postérieur à until, ou since antérieur au 2024-01-01."
+                    },
+                },
             }
         }
     )
