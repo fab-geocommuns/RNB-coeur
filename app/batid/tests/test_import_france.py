@@ -1,4 +1,6 @@
 from collections import Counter
+from datetime import date
+from unittest import mock
 
 from batid.management.commands.import_france import (
     create_tasks_list_france,
@@ -26,11 +28,26 @@ class ImportFranceTestCase(TestCase):
         # expected tasks for 1 departement (90)
         self.assertEqual(len(tasks), 1)
 
-    def test_create_tasks_from_1_plots(self):
-        # create tasks for plots import
-        # there are 2 tasks per departement : dl_source and import_plots
+    @mock.patch(
+        "batid.services.imports.import_plots.fetch_etalab_release_dates",
+        return_value=[date(2026, 6, 1), date(2026, 9, 1)],
+    )
+    def test_create_tasks_from_1_plots(self, fetch_mock):
+        """
+        Input: plots import over all metropolitan departements, Etalab index
+        mocked to list the 2026-06-01 and 2026-09-01 releases.
+        Expected: the index is read once for the whole run, 2 tasks per
+        departement (dl_source then import_plots), every task carrying
+        "2026-09-01".
+        """
         tasks = create_tasks_list_france("01", "95", "plots")
+        fetch_mock.assert_called_once()
         self.assertEqual(len(tasks), len(dpt_list_metropole()) * 2)
+
+        for dl_task, import_task in zip(tasks[::2], tasks[1::2]):
+            dpt = import_task.args[0]
+            self.assertEqual(dl_task.args, ("plot", {"dpt": dpt, "date": "2026-09-01"}))
+            self.assertEqual(import_task.args, (dpt, "2026-09-01"))
 
         tasks = create_tasks_list_france("", "", "plots")
         self.assertEqual(len(tasks), len(dpt_list_metropole()) * 2)
