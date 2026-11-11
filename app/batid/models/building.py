@@ -13,6 +13,7 @@ from batid.exceptions import (
     NotEnoughBuildings,
     OperationOnInactiveBuilding,
     RevertNotAllowed,
+    RevertToVersionWithoutShape,
 )
 from batid.services.bdg_status import BuildingStatus as BuildingStatusModel
 from batid.services.building_overlap import check_building_overlap
@@ -152,6 +153,10 @@ class Building(BuildingAbstract):
     # (app.test_runner.RNBTestRunner) sets this flag to True. The only exception
     # is delete(), forbidden everywhere including in tests.
     _native_functions_allowed = False
+
+    # A current building always has a shape (NOT NULL in the database). The
+    # history tables keep the nullable field of BuildingAbstract.
+    shape = models.GeometryField(spatial_index=True, srid=4326)
 
     # We define a custom object manager to lock bulk_create, bulk_update functions
     objects = BuildingQuerySet.as_manager()
@@ -578,6 +583,11 @@ class Building(BuildingAbstract):
             .filter(sys_period__lt=building_to_revert.sys_period)
         )
         building_prior_version = building_prior_versions[0]
+
+        # batid_building.shape is NOT NULL but the history may hold versions
+        # without shape: restoring one would fail on the constraint.
+        if building_prior_version.shape is None:
+            raise RevertToVersionWithoutShape()
 
         # lock the current version BEFORE checking the event history (see revert_creation)
         building_to_revert = Building._get_locked(building_prior_version.rnb_id)
