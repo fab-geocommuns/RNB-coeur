@@ -342,3 +342,13 @@ class BuildingAboutIdTest(APITestCase):
         """
         r = self.client.get("/api/alpha/buildings/AAAABBBBCCCC/about_id/")
         self.assertEqual(r.status_code, 404)
+
+    def test_malformed_rnb_id(self):
+        """
+        Input: malformed RNB IDs (too short, NUL byte).
+        Expected: a 404 error, not a server error.
+        """
+        for rnb_id in ["ABC", "%00"]:
+            with self.subTest(rnb_id=rnb_id):
+                r = self.client.get(f"/api/alpha/buildings/{rnb_id}/about_id/")
+                self.assertEqual(r.status_code, 404)

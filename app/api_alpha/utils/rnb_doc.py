@@ -260,9 +260,14 @@ def _get_components() -> dict:
                     "id": {"type": "integer", "example": 1},
                     "username": {"type": "string", "example": "n.martin"},
                     "organization_name": {
-                        "type": "string",
-                        "description": "Nom de l'organisation à laquelle appartient l'utilisateur. Cette information est gérée et vérifiée par l'équipe du RNB.",
+                        "type": ["string", "null"],
+                        "description": "Nom de l'organisation à laquelle appartient l'utilisateur. Cette information est gérée et vérifiée par l'équipe du RNB. Vaut null si l'utilisateur n'est rattaché à aucune organisation.",
                         "example": "Mairie de Dreux",
+                    },
+                    "organization_short_name": {
+                        "type": ["string", "null"],
+                        "description": "Nom court de l'organisation à laquelle appartient l'utilisateur. Vaut null si l'utilisateur n'est rattaché à aucune organisation ou si l'organisation n'a pas de nom court.",
+                        "example": "Dreux",
                     },
                 },
             },

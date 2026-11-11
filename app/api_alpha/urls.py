@@ -70,6 +70,9 @@ from django.conf import settings
 from django.urls import URLPattern, URLResolver, include, path, re_path
 from rest_framework import routers
 
+# An RNB ID, with or without dashes
+RNB_ID_PATTERN = r"(?P<rnb_id>[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4})"
+
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
 router.register(r"ads", ADSViewSet)
@@ -113,19 +116,19 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("buildings/change_stats/", BuildingChangeStatsView.as_view()),
     path("buildings/merge/", MergeBuildings.as_view()),
     re_path(
-        r"buildings/(?P<rnb_id>[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4})/split/",
+        rf"buildings/{RNB_ID_PATTERN}/split/",
         SplitBuildings.as_view(),
     ),
     path(
         "buildings/<str:rnb_id>/history/",
         SingleBuildingHistory.as_view(),
     ),
-    path(
-        "buildings/<str:rnb_id>/about_id/",
+    re_path(
+        rf"buildings/{RNB_ID_PATTERN}/about_id/",
         SingleBuildingAboutId.as_view(),
     ),
     re_path(
-        r"buildings/(?P<rnb_id>[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4}-?[0-9a-zA-Z]{4})/",
+        rf"buildings/{RNB_ID_PATTERN}/",
         SingleBuilding.as_view(),
     ),
     # ADS
