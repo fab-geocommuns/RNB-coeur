@@ -5,6 +5,7 @@ import django_otp
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import QuerySet
 from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
 
@@ -14,7 +15,7 @@ APP_DEVICE_NAME = "Application d'authentification"
 BACKUP_DEVICE_NAME = "Codes de secours"
 BACKUP_CODES_COUNT = 10
 
-TOTP_CODE_PATTERN = re.compile(r"[0-9]{6}")
+NUMERIC_CODE_PATTERN = re.compile(r"[0-9]+")
 
 
 class MFAError(StrEnum):
@@ -39,26 +40,29 @@ def has_confirmed_app(user: User) -> bool:
 
 def verify_otp(*, user: User, otp) -> bool:
     """Check a code against the user's confirmed devices, oldest first, until one
-    accepts it: a 6-digit code goes to the authenticator apps, then to the backup
-    codes (staff can add numeric ones with `addstatictoken`); any other code goes
-    to the backup codes only.
+    accepts it: a numeric code goes to the authenticator apps expecting its length
+    (6 digits, or 8 if set in the admin), then to the backup codes (staff can add
+    numeric ones with `addstatictoken`); any other code goes to the backup codes
+    only.
 
     Each device keeps its own throttling, so wrong backup codes never delay TOTP
     codes. A code refused by every device tried counts as a failure on each of
-    them: a wrong or throttled 6-digit code also delays the backup codes. An
+    them: a wrong or throttled app code also delays the backup codes. An
     accepted code proves the user and clears the throttling of all their devices.
     """
     token = _normalize_otp(otp)
     # No code holds a control or surrogate character, and the database refuses them.
     if not token.isprintable():
         return False
-    models = (
-        (TOTPDevice, StaticDevice)
-        if TOTP_CODE_PATTERN.fullmatch(token)
-        else (StaticDevice,)
+    confirmed = {"user": user, "confirmed": True}
+    backup_devices = StaticDevice.objects.filter(**confirmed)
+    candidates: tuple[QuerySet, ...] = (
+        (TOTPDevice.objects.filter(**confirmed, digits=len(token)), backup_devices)
+        if NUMERIC_CODE_PATTERN.fullmatch(token)
+        else (backup_devices,)
     )
-    for model in models:
-        for device in model.objects.filter(user=user, confirmed=True).order_by("id"):
+    for devices in candidates:
+        for device in devices.order_by("id"):
             if django_otp.verify_token(user, device.persistent_id, token) is not None:
                 _clear_throttling(user)
                 return True

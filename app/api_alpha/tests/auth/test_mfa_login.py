@@ -181,6 +181,19 @@ class LoginWithAppTest(MFALoginTestCase):
             device.refresh_from_db()
             self.assertEqual(device.throttling_failure_count, 0)
 
+    def test_code_of_an_eight_digit_app(self):
+        """Second app set to 8 digits in the admin: its current 8-digit code gives
+        200 and records no failure on the 6-digit app."""
+        eight_digit_app = TOTPDevice.objects.create(
+            user=self.user, name="app 8", confirmed=True, digits=8
+        )
+
+        response = self.login(otp=current_code(eight_digit_app))
+
+        self.assertEqual(response.status_code, 200)
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.throttling_failure_count, 0)
+
     def test_code_of_a_second_backup_device(self):
         """Two static devices (e.g. an addstatictoken one kept by hand): a code of
         the second one gives 200 and is used up; the first one keeps its code and
