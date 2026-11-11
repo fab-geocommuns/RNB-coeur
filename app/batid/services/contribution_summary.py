@@ -52,9 +52,6 @@ NEWCOMERS_LIMIT = 8
 CACHE_KEY = "contribution_summary"
 # days parameter of every period, all cached in a single entry
 PERIOD_KEYS = [*(str(d) for d in WINDOWS_DAYS), ALL_PERIOD]
-# The key names the periods: an entry cached before a period was added (by the
-# previous code during a deploy, or until it expires) is never read
-SUMMARIES_CACHE_KEY = f"{CACHE_KEY}:{','.join(PERIOD_KEYS)}"
 # An entry is recomputed after an hour, but kept a day: while one request
 # recomputes it, the others get the previous one instead of all running the
 # same queries at once
@@ -327,6 +324,8 @@ def _cached(key: str, compute: Callable[[], dict]) -> dict:
     locked = cache.add(lock_key, True, REFRESH_LOCK_SECONDS)
     if not locked and entry is not None:
         return entry["data"]
+    # past the wait, the request computes without the lock: slower for the
+    # database if the computing request is stuck, but never an error
     deadline = time.monotonic() + EMPTY_CACHE_WAIT_SECONDS
     while not locked and time.monotonic() < deadline:
         time.sleep(EMPTY_CACHE_POLL_SECONDS)
@@ -335,6 +334,14 @@ def _cached(key: str, compute: Callable[[], dict]) -> dict:
             return entry["data"]
         # the request computing it may have failed: take over
         locked = cache.add(lock_key, True, REFRESH_LOCK_SECONDS)
+    if locked:
+        # another request may have stored it and released the lock between
+        # our read and our lock: read it again before computing
+        latest = cache.get(key)
+        if latest is not None and latest["fresh_until"] > time.time():
+            cache.delete(lock_key)
+            return latest["data"]
+        entry = latest if latest is not None else entry
     try:
         data = compute()
         cache.set(
@@ -357,7 +364,11 @@ def compute_all_summaries(now: Optional[datetime] = None) -> dict[str, dict]:
     """
     Summaries of every period, keyed by their days parameter ("7", "30",
     "all"), all computed at the same instant: computed at different times, a
-    shorter period could count more cities or organizations than a longer one
+    shorter period could count more cities or organizations than a longer one.
+    Shortest period first: a contribution committed during the computation is
+    then only counted by longer periods. Still not covered: a daily KPI written
+    meanwhile (building_changes) or a row updated meanwhile (a user changing
+    organization), until the next refresh.
     """
     now = now or timezone.now()
     return {
@@ -368,9 +379,20 @@ def compute_all_summaries(now: Optional[datetime] = None) -> dict[str, dict]:
     }
 
 
+def summaries_cache_key() -> str:
+    """
+    Key of the single entry holding every period. It names the periods: an
+    entry cached before a period was added (by the previous code during a
+    deploy, or until it expires) is never read.
+    """
+    return f"{CACHE_KEY}:{','.join(PERIOD_KEYS)}"
+
+
 def get_contribution_summary(days: Optional[int] = DEFAULT_WINDOW_DAYS) -> dict:
     """
     Cached version of compute_contribution_summary. All the periods share a
     single entry and are recomputed together, so that they stay consistent.
     """
-    return _cached(SUMMARIES_CACHE_KEY, compute_all_summaries)[str(days or ALL_PERIOD)]
+    return _cached(summaries_cache_key(), compute_all_summaries)[
+        str(days or ALL_PERIOD)
+    ]

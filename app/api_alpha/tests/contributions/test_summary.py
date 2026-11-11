@@ -1,9 +1,14 @@
 import itertools
+import json
+import os
+import threading
 import time
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from datetime import date, datetime
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
+import sentry_sdk
 from batid.models import (
     KPI,
     Building,
@@ -14,8 +19,11 @@ from batid.models import (
 )
 from batid.services import contribution_summary
 from batid.services.contribution_summary import (
-    SUMMARIES_CACHE_KEY,
+    CACHE_KEY,
+    PERIOD_KEYS,
+    compute_all_summaries,
     compute_contribution_summary,
+    summaries_cache_key,
 )
 from batid.services.kpi import (
     KPI_BUILDING_CHANGES_CONTRIBUTIONS,
@@ -27,14 +35,17 @@ from django.conf import settings
 from django.contrib.gis.geos import Polygon
 from django.core.cache import cache
 from django.db import DatabaseError
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.transport import Transport
 
 PARIS = ZoneInfo("Europe/Paris")
 # "now" used by the service tests: 15 October 2026, noon in Paris.
 # The 30-day window starts on 15 September noon.
 NOW = datetime(2026, 10, 15, 12, 0, tzinfo=PARIS)
+SUMMARIES_CACHE_KEY = summaries_cache_key()
 IN_WINDOW = datetime(2026, 10, 5, tzinfo=PARIS)
 BEFORE_WINDOW = datetime(2026, 9, 1, tzinfo=PARIS)
 
@@ -259,6 +270,43 @@ class ContributionSummaryTest(TestCase):
         )
         self.assertEqual(data["cities"], {"total": 2, "new": 2})
         self.assertEqual(data["newcomers"]["users"], [{"username": "alice"}])
+
+    def test_periods_computed_together_are_nested(self):
+        """
+        Input: alice (Talence's town hall) in Talence 3 days ago, bob (no
+        organization) in Mérignac 2 weeks ago, alice in Mérignac in May 2025,
+        carol (RNB team) in Verrens-Arvey in June 2025, bob in Talence during
+        the 2024 summer game; the 3 periods computed together.
+        Expected: each shorter period is included in the longer one, for the
+        totals and the first-time counts of cities and organizations, with the
+        exact figures below and the same updated_at.
+        """
+        carol = member_of(ContributorUserFactory(username="carol"), self.rnb_team)
+        edition(self.alice, datetime(2026, 10, 12, tzinfo=PARIS), self.talence)
+        edition(self.bob, datetime(2026, 10, 1, tzinfo=PARIS), self.merignac)
+        edition(self.alice, datetime(2025, 5, 1, tzinfo=PARIS), self.merignac)
+        edition(carol, datetime(2025, 6, 1, tzinfo=PARIS), self.verrens)
+        edition(self.bob, datetime(2024, 7, 1, tzinfo=PARIS), self.talence)
+
+        data = compute_all_summaries(now=NOW)
+
+        self.assertEqual(
+            {key: data[key]["cities"] for key in PERIOD_KEYS},
+            {
+                "7": {"total": 1, "new": 0},
+                "30": {"total": 2, "new": 0},
+                "all": {"total": 3, "new": 2},
+            },
+        )
+        self.assertEqual(
+            {key: data[key]["organizations"] for key in PERIOD_KEYS},
+            {
+                "7": {"total": 1, "new": 0},
+                "30": {"total": 1, "new": 0},
+                "all": {"total": 2, "new": 2},
+            },
+        )
+        self.assertEqual(len({data[key]["updated_at"] for key in PERIOD_KEYS}), 1)
 
     def test_an_event_counts_once(self):
         """
@@ -633,6 +681,39 @@ class ContributionSummaryApiTest(APITestCase):
         self.assertEqual(response.json(), stale)
         self.assertIsNone(cache.get(f"{SUMMARIES_CACHE_KEY}:refreshing"))
 
+    def test_summary_stored_just_before_the_lock_is_not_recomputed(self):
+        """
+        Input: an empty cache when read; another request stores the summary
+        and releases the lock just before this one takes the lock.
+        Expected: the stored summary is returned, without computing, and the
+        lock released.
+        """
+        lock_key = f"{SUMMARIES_CACHE_KEY}:refreshing"
+        stored = {"30": {"window_days": 30, "computed_elsewhere": True}}
+        real_add = cache.add
+
+        def other_request_finishes_first(key, *args, **kwargs):
+            if key == lock_key:
+                cache.set(
+                    SUMMARIES_CACHE_KEY,
+                    {"data": stored, "fresh_until": time.time() + 60},
+                    60,
+                )
+            return real_add(key, *args, **kwargs)
+
+        with patch.object(
+            cache, "add", side_effect=other_request_finishes_first
+        ), patch.object(
+            contribution_summary,
+            "compute_all_summaries",
+            return_value={"30": {"recomputed": True}},
+        ) as compute:
+            response = self.client.get(self.URL)
+
+        self.assertEqual(response.json(), stored["30"])
+        compute.assert_not_called()
+        self.assertIsNone(cache.get(lock_key))
+
     def test_failure_with_an_empty_cache_is_raised(self):
         """
         Input: an empty cache, and a computation that raises a database error.
@@ -647,3 +728,218 @@ class ContributionSummaryApiTest(APITestCase):
             contribution_summary.get_contribution_summary(30)
 
         self.assertIsNone(cache.get(f"{SUMMARIES_CACHE_KEY}:refreshing"))
+
+    def test_each_period_is_the_summary_computed_before(self):
+        """
+        Input: a contribution, then a call for each period, the clock frozen.
+        Expected: no format or figure change: each response is exactly what
+        compute_contribution_summary returns for that instant and period.
+        """
+        edition(ContributorUserFactory(username="alice"), timezone.now())
+        frozen = timezone.now()
+
+        with patch.object(contribution_summary.timezone, "now", return_value=frozen):
+            for days, window_days in [("7", 7), ("30", 30), ("all", None)]:
+                response = self.client.get(f"{self.URL}?days={days}")
+                expected = compute_contribution_summary(now=frozen, days=window_days)
+                self.assertEqual(response.json(), json.loads(json.dumps(expected)))
+
+    def test_entries_of_the_previous_code_are_left_alone(self):
+        """
+        Input: fresh entries and held refresh locks under the keys of the
+        previous code (one per period), as during a deploy, when both codes
+        share the cache.
+        Expected: the new code neither reads them (it computes its summary,
+        not blocked by their locks) nor changes them (the previous code still
+        reads its own).
+        """
+        old = {"data": {"from_previous_code": True}, "fresh_until": time.time() + 600}
+        old_entries = {f"{CACHE_KEY}:{key}": old for key in PERIOD_KEYS}
+        old_entries.update(
+            {f"{CACHE_KEY}:{key}:refreshing": True for key in PERIOD_KEYS}
+        )
+        cache.set_many(old_entries, 600)
+
+        response = self.client.get(f"{self.URL}?days=30")
+
+        self.assertEqual(response.json()["window_days"], 30)
+        self.assertEqual(cache.get_many(list(old_entries)), old_entries)
+
+    def test_entry_without_a_new_period_is_not_read(self):
+        """
+        Input: a fresh entry holding the 7, 30 and all periods, then a 90-day
+        period added to the periods served.
+        Expected: the 90-day summary is computed (the entry is under another
+        key), instead of a KeyError on the entry missing it.
+        """
+        cache.set(
+            SUMMARIES_CACHE_KEY,
+            {
+                "data": {key: {"cached": True} for key in PERIOD_KEYS},
+                "fresh_until": time.time() + 600,
+            },
+            600,
+        )
+
+        with patch.object(
+            contribution_summary, "PERIOD_KEYS", ["7", "30", "90", "all"]
+        ), patch.object(
+            contribution_summary,
+            "compute_all_summaries",
+            return_value={"90": {"window_days": 90}},
+        ) as compute:
+            data = contribution_summary.get_contribution_summary(90)
+
+        self.assertEqual(data, {"window_days": 90})
+        compute.assert_called_once()
+
+    def test_failed_refresh_is_sent_to_sentry_once(self):
+        """
+        Input: Sentry set up as in the settings (Django integration, default
+        ones kept), an outdated cached summary, and a refresh that raises.
+        Expected: the error reaches Sentry through logger.exception, as a
+        single event (no explicit capture needed).
+        """
+
+        class CapturingTransport(Transport):
+            def __init__(self, options=None):
+                super().__init__(options)
+                self.envelopes = []
+
+            def capture_envelope(self, envelope):
+                self.envelopes.append(envelope)
+
+        transport = CapturingTransport()
+        previous_client = sentry_sdk.get_client()
+        sentry_sdk.init(
+            dsn="https://public@sentry.invalid/1",
+            integrations=[DjangoIntegration()],
+            transport=transport,
+        )
+        self.addCleanup(sentry_sdk.get_global_scope().set_client, previous_client)
+        self.addCleanup(sentry_sdk.get_client().close)
+        cache.set(
+            SUMMARIES_CACHE_KEY,
+            {"data": {"30": {"stale": True}}, "fresh_until": time.time() - 1},
+            60,
+        )
+
+        with patch.object(
+            contribution_summary,
+            "compute_all_summaries",
+            side_effect=DatabaseError("connection lost"),
+        ):
+            contribution_summary.get_contribution_summary(30)
+        sentry_sdk.flush()
+
+        events = [
+            item.payload.json
+            for envelope in transport.envelopes
+            for item in envelope.items
+            if item.type == "event"
+        ]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(
+            events[0]["exception"]["values"][-1]["value"], "connection lost"
+        )
+
+
+# Real Redis, as in production (Django's RedisCache): cache.add is an atomic
+# SET NX there. Own key prefix, so that the tests only touch their own keys.
+REDIS_CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.environ.get("REDIS_CACHE_URL", "redis://redis:6379/1"),
+        "KEY_PREFIX": "test_contribution_summary",
+    }
+}
+
+
+@override_settings(CACHES=REDIS_CACHES)
+class ContributionSummaryConcurrencyTest(SimpleTestCase):
+    THREADS = 10
+    # long enough for every thread to reach the cache, never reached when the
+    # tests pass: the computations are released by the tests
+    MAX_SECONDS = 10
+
+    def setUp(self):
+        self._delete_keys()
+        self.addCleanup(self._delete_keys)
+        self.computations = 0
+        self.release = threading.Event()
+        computations_lock = threading.Lock()
+
+        def blocked_compute(now=None):
+            with computations_lock:
+                self.computations += 1
+            self.release.wait(self.MAX_SECONDS)
+            return {key: {"fresh": True} for key in PERIOD_KEYS}
+
+        compute_patch = patch.object(
+            contribution_summary, "compute_all_summaries", side_effect=blocked_compute
+        )
+        compute_patch.start()
+        self.addCleanup(compute_patch.stop)
+        self.pool = ThreadPoolExecutor(self.THREADS)
+        self.addCleanup(self.pool.shutdown)
+        # never leave a thread blocked, even when an assertion fails
+        self.addCleanup(self.release.set)
+
+    def _delete_keys(self):
+        cache.delete_many([SUMMARIES_CACHE_KEY, f"{SUMMARIES_CACHE_KEY}:refreshing"])
+
+    def _simultaneous_requests(self) -> list[Future]:
+        """THREADS calls for the 30-day summary, started at the same time"""
+        start = threading.Barrier(self.THREADS)
+
+        def request():
+            start.wait()
+            return contribution_summary.get_contribution_summary(30)
+
+        return [self.pool.submit(request) for _ in range(self.THREADS)]
+
+    def test_empty_cache_is_computed_once(self):
+        """
+        Input: an empty cache (as right after the deploy), 10 simultaneous
+        requests, the computation released once they all wait.
+        Expected: a single computation, and every request gets its result.
+        """
+        requests = self._simultaneous_requests()
+        # the 9 others are polling the cache meanwhile
+        time.sleep(1)
+        self.release.set()
+
+        results = [r.result(timeout=self.MAX_SECONDS) for r in requests]
+
+        self.assertEqual(self.computations, 1)
+        self.assertEqual(results, [{"fresh": True}] * self.THREADS)
+
+    def test_outdated_summary_is_computed_once_and_served_meanwhile(self):
+        """
+        Input: an outdated cached summary, 10 simultaneous requests, the
+        computation kept blocked.
+        Expected: a single computation; while it is blocked, the 9 other
+        requests already got the outdated summary; once released, the request
+        computing it gets the new one.
+        """
+        cache.set(
+            SUMMARIES_CACHE_KEY,
+            {"data": {"30": {"stale": True}}, "fresh_until": time.time() - 1},
+            60,
+        )
+
+        requests = self._simultaneous_requests()
+        done, computing = wait(
+            requests, timeout=self.MAX_SECONDS, return_when=FIRST_COMPLETED
+        )
+        deadline = time.monotonic() + self.MAX_SECONDS
+        while len(computing) > 1 and time.monotonic() < deadline:
+            done, computing = wait(requests, timeout=0.1)
+
+        self.assertEqual(self.computations, 1)
+        self.assertEqual(len(computing), 1)
+        self.assertEqual([r.result() for r in done], [{"stale": True}] * 9)
+        self.release.set()
+        self.assertEqual(
+            computing.pop().result(timeout=self.MAX_SECONDS), {"fresh": True}
+        )
