@@ -7,12 +7,15 @@ import sentry_sdk
 import yaml
 from api_alpha.apps import LiteralStr
 from api_alpha.endpoints.auth.mfa import (
+    AUTH_TAGS,
     BAD_CREDENTIALS_DOC,
     CREDENTIALS_PROPERTIES,
     LOGIN_BODY_PROPERTIES,
+    LOGIN_THROTTLE_DOC,
+    PASSWORD_AUTH_DOC,
     credentials_body_doc,
-    mfa_error_doc,
     mfa_error_response,
+    password_auth_401_doc,
 )
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.pagination import (
@@ -724,6 +727,7 @@ Si le compte a configuré une application d'authentification, le champ `otp` est
                 """
                 ),
                 "operationId": "login",
+                **PASSWORD_AUTH_DOC,
                 "requestBody": credentials_body_doc(
                     properties={
                         **CREDENTIALS_PROPERTIES,
@@ -753,9 +757,10 @@ Si le compte a configuré une application d'authentification, le champ `otp` est
                         },
                     },
                     "400": BAD_CREDENTIALS_DOC,
-                    "401": mfa_error_doc(
+                    "401": password_auth_401_doc(
                         MFAError.REQUIRED, MFAError.INVALID, MFAError.SETUP_REQUIRED
                     ),
+                    "429": LOGIN_THROTTLE_DOC,
                 },
             }
         }
@@ -786,6 +791,8 @@ class CurrentUserView(APIView):
                 "summary": "Utilisateur connecté",
                 "description": "Renvoie l'identité et le jeton du compte authentifié par l'en-tête `Authorization: Token <jeton>`.",
                 "operationId": "currentUser",
+                "tags": AUTH_TAGS,
+                "security": [{"tokenAuth": []}],
                 "responses": {
                     "200": {
                         "description": "Compte authentifié.",
@@ -801,7 +808,8 @@ class CurrentUserView(APIView):
                     "401": {"description": "Jeton absent ou invalide."},
                 },
             }
-        }
+        },
+        with_400=False,
     )
     def get(self, request):
         return Response(login_response_body(request.user))
