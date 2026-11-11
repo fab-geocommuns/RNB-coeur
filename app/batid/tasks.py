@@ -199,7 +199,7 @@ def queue_full_plots_import(
     msg = f"Import du cadastre Etalab. Départements: {dpts[0]} à {dpts[-1]}. Date de sortie: {release_date}"
     notify_tech(msg)
 
-    tasks = create_plots_full_import_tasks(dpts, release_date)
+    tasks = create_plots_full_import_tasks(dpt_list=dpts, release_date=release_date)
 
     chain(*tasks)()
     return f"Queued {len(tasks)} tasks"
