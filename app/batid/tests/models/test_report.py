@@ -17,6 +17,7 @@ class TestReport(TestCase):
             rnb_id="TEST123",
             point=self.point,
             status="constructed",
+            shape=self.point,
         )
 
     def test_report_creation_without_point_fails(self):

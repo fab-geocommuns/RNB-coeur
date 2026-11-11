@@ -1,5 +1,6 @@
 from batid.models import Address, Building, BuildingHistoryOnly, BuildingWithHistory
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.db.utils import ProgrammingError
 from django.test import TransactionTestCase
@@ -8,7 +9,9 @@ from django.test import TransactionTestCase
 class TemporalTableCase(TransactionTestCase):
     def test_update_building(self):
         user = User.objects.create_user("alice", email="alice@example.com")
-        building = Building.objects.create(rnb_id="XYZ")
+        building = Building.objects.create(
+            rnb_id="XYZ", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
         # We now update the building (and so create a new version of it)
         building.parent_buildings = [1]
         building.validated_by = [user.id]
@@ -80,7 +83,9 @@ class TemporalTableCase(TransactionTestCase):
         a1 = Address.objects.create(cle_interop="address_1")
         a2 = Address.objects.create(cle_interop="address_2")
 
-        building = Building.objects.create(rnb_id="XYZ")
+        building = Building.objects.create(
+            rnb_id="XYZ", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
         building.addresses_internal_id = [a1.internal_id, a2.internal_id]
         building.save()
 
@@ -149,7 +154,9 @@ class TemporalTableCase(TransactionTestCase):
         a raw SQL DELETE (blocked by the prevent_delete_building_history_trigger
         Postgres trigger), and the history row remains in the table.
         """
-        building = Building.objects.create(rnb_id="XYZ")
+        building = Building.objects.create(
+            rnb_id="XYZ", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
         building.parent_buildings = [1]
         building.save()
 

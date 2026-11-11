@@ -1,4 +1,5 @@
 from batid.models import Address, Building, BuildingAddressesInternalIdReadOnly
+from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase
 
 
@@ -18,7 +19,9 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         a2 = Address.objects.create(cle_interop="address_2")
 
         b = Building.objects.create(
-            rnb_id="1", addresses_internal_id=[a1.internal_id, a2.internal_id]
+            rnb_id="1",
+            addresses_internal_id=[a1.internal_id, a2.internal_id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
 
         links = BuildingAddressesInternalIdReadOnly.objects.order_by("address_id")
@@ -38,7 +41,9 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         a1 = Address.objects.create(cle_interop="address_1")
         a2 = Address.objects.create(cle_interop="address_2")
 
-        b = Building.objects.create(rnb_id="1")
+        b = Building.objects.create(
+            rnb_id="1", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
         links_n = BuildingAddressesInternalIdReadOnly.objects.count()
         self.assertEqual(links_n, 0)
@@ -63,7 +68,9 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         a2 = Address.objects.create(cle_interop="address_2")
 
         b = Building.objects.create(
-            rnb_id="1", addresses_internal_id=[a1.internal_id, a2.internal_id]
+            rnb_id="1",
+            addresses_internal_id=[a1.internal_id, a2.internal_id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
 
         self.assertEqual(BuildingAddressesInternalIdReadOnly.objects.count(), 2)
@@ -88,7 +95,9 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         a2 = Address.objects.create(cle_interop="address_2")
 
         Building.objects.create(
-            rnb_id="1", addresses_internal_id=[a1.internal_id, a2.internal_id]
+            rnb_id="1",
+            addresses_internal_id=[a1.internal_id, a2.internal_id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
 
         links_n = BuildingAddressesInternalIdReadOnly.objects.count()
@@ -107,7 +116,9 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
         derived from addresses_internal_id: a row written by hand would be erased by
         the next update of the building."""
         a1 = Address.objects.create(cle_interop="address_1")
-        b = Building.objects.create(rnb_id="1")
+        b = Building.objects.create(
+            rnb_id="1", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
         with self.assertRaisesMessage(Exception, "read only"):
             BuildingAddressesInternalIdReadOnly.objects.create(building=b, address=a1)
@@ -125,5 +136,7 @@ class BuildingAddressesInternalIdReadOnlyLinkCase(TransactionTestCase):
 
         with self.assertRaises(IntegrityError):
             Building.objects.create(
-                rnb_id="1", addresses_internal_id=[a1.internal_id, 999999999]
+                rnb_id="1",
+                addresses_internal_id=[a1.internal_id, 999999999],
+                shape=GEOSGeometry("POINT(0 0)", srid=4326),
             )

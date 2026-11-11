@@ -124,6 +124,7 @@ class DiffTest(TransactionTestCase):
             ],
             addresses_internal_id=internal_ids(["ADDRESS_ID_1"]),
             event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         # reload the buildings to get the sys_period
         treshold = Building.objects.get(rnb_id="1").sys_period.lower
@@ -268,7 +269,11 @@ class DiffTest(TransactionTestCase):
         )
         UserProfile.objects.create(user=no_org_user)
 
-        Building.objects.create(rnb_id="t", event_type="creation")
+        Building.objects.create(
+            rnb_id="t",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         threshold = Building.objects.get(rnb_id="t").sys_period.lower
 
         Building.objects.create(
@@ -276,12 +281,14 @@ class DiffTest(TransactionTestCase):
             status="constructed",
             event_type="creation",
             event_user=no_profile_user,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         Building.objects.create(
             rnb_id="2",
             status="constructed",
             event_type="creation",
             event_user=no_org_user,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
 
         params = urlencode({"since": threshold.isoformat()})
@@ -341,7 +348,11 @@ class DiffTest(TransactionTestCase):
             shape=geom,
             point=geom.point_on_surface,
         )
-        Building.objects.create(rnb_id="t", event_type="creation")
+        Building.objects.create(
+            rnb_id="t",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         # reload the buildings to get the sys_period
         treshold = Building.objects.get(rnb_id="t").sys_period.lower
 
@@ -423,7 +434,11 @@ class DiffTest(TransactionTestCase):
             event_type="creation",
             shape=GEOSGeometry("POLYGON((0 0, 0 0.5, 0.5 0.5, 0.5 0, 0 0))"),
         )
-        Building.objects.create(rnb_id="t", event_type="creation")
+        Building.objects.create(
+            rnb_id="t",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         # reload the buildings to get the sys_period
         treshold = Building.objects.get(rnb_id="t").sys_period.lower
 
@@ -507,7 +522,11 @@ class DiffTest(TransactionTestCase):
         self.assertEqual(r.status_code, 400)
 
     def test_since_without_timezone(self):
-        b = Building.objects.create(rnb_id="t", event_type="creation")
+        b = Building.objects.create(
+            rnb_id="t",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         threshold = Building.objects.get(rnb_id="t").sys_period.lower
 
         user = User.objects.get(username="marcella")
@@ -527,7 +546,11 @@ class DiffTest(TransactionTestCase):
         get_content_from_streaming_response(r)
 
     def test_since_only_date(self):
-        b = Building.objects.create(rnb_id="t", event_type="creation")
+        b = Building.objects.create(
+            rnb_id="t",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         threshold = Building.objects.get(rnb_id="t").sys_period.lower
 
         user = User.objects.get(username="marcella")
@@ -567,7 +590,11 @@ class DiffTest(TransactionTestCase):
         Input: a `since` later than the last modification of the RNB.
         Expected: a 200 with an empty file, without the CSV header.
         """
-        Building.objects.create(rnb_id="t", event_type="creation")
+        Building.objects.create(
+            rnb_id="t",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
         r = self.client.get("/api/alpha/buildings/diff/?since=2099-01-01T00:00:00Z")
 
@@ -588,6 +615,7 @@ class DiffTest(TransactionTestCase):
             event_type="creation",
             event_id=creation_event_id,
             event_user=user,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         threshold = Building.objects.get(rnb_id="1").sys_period.lower
 
@@ -627,6 +655,7 @@ class DiffTest(TransactionTestCase):
             event_type="creation",
             event_id=uuid.uuid4(),
             event_user=user,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         b1.update(
             user=user,
@@ -838,6 +867,7 @@ class DiffTest(TransactionTestCase):
             ],
             status="constructed",
             event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
 
         threshold = Building.objects.get(rnb_id="1").sys_period.lower
@@ -887,7 +917,11 @@ class DiffTest(TransactionTestCase):
             Address.objects.values_list("cle_interop", "internal_id")
         )
 
-        Building.objects.create(rnb_id="t", event_type="creation")
+        Building.objects.create(
+            rnb_id="t",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         threshold = Building.objects.get(rnb_id="t").sys_period.lower
 
         Building.objects.create(
@@ -897,16 +931,19 @@ class DiffTest(TransactionTestCase):
                 internal_id_by_cle["ADDRESS_ID_3"],
                 internal_id_by_cle["ADDRESS_ID_1"],
             ],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         Building.objects.create(
             rnb_id="2",
             event_type="creation",
             addresses_internal_id=[],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         Building.objects.create(
             rnb_id="3",
             event_type="creation",
             addresses_internal_id=None,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
 
         params = urlencode({"since": threshold.isoformat()})
@@ -929,9 +966,17 @@ class DiffTest(TransactionTestCase):
         whole life of the worker, since close_old_connections only ever runs on the
         request thread.
         """
-        Building.objects.create(rnb_id="B1", event_type="creation")
+        Building.objects.create(
+            rnb_id="B1",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         threshold = Building.objects.get(rnb_id="B1").sys_period.lower
-        Building.objects.create(rnb_id="B2", event_type="creation")
+        Building.objects.create(
+            rnb_id="B2",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
         params = urlencode({"since": threshold.isoformat()})
         r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
@@ -954,10 +999,18 @@ class DiffTest(TransactionTestCase):
         Expected: closing the response ends the export thread, instead of leaving it
         blocked there forever while holding a database connection.
         """
-        Building.objects.create(rnb_id="B1", event_type="creation")
+        Building.objects.create(
+            rnb_id="B1",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         threshold = Building.objects.get(rnb_id="B1").sys_period.lower
         for rnb_id in ("B2", "B3", "B4"):
-            Building.objects.create(rnb_id=rnb_id, event_type="creation")
+            Building.objects.create(
+                rnb_id=rnb_id,
+                event_type="creation",
+                shape=GEOSGeometry("POINT(0 0)", srid=4326),
+            )
 
         params = urlencode({"since": threshold.isoformat()})
         r = self.client.get(f"/api/alpha/buildings/diff/?{params}")
@@ -992,9 +1045,10 @@ class DiffTest(TransactionTestCase):
             cursor.execute("SET LOCAL statement_timeout = 0")
             cursor.execute(
                 "INSERT INTO batid_building "
-                "(rnb_id, created_at, updated_at, sys_period, status, is_active, event_type) "
+                "(rnb_id, created_at, updated_at, sys_period, status, is_active, event_type, shape) "
                 "SELECT 'S' || lpad(g::text, 11, '0'), now(), now(), "
-                "tstzrange(now(), NULL), 'constructed', true, 'creation' "
+                "tstzrange(now(), NULL), 'constructed', true, 'creation', "
+                "'SRID=4326;POINT(0 0)'::geometry "
                 "FROM generate_series(1, 50000) g"
             )
         # Connections of previous tests' export threads may still be shutting down
@@ -1228,7 +1282,11 @@ class DiffInseeCodeTest(TransactionTestCase):
         self.assertIn("OVERLAP_IN", rnb_ids)
 
     def test_diff_city_with_null_shape(self):
-        Building.objects.create(rnb_id="B1", event_type="creation")
+        Building.objects.create(
+            rnb_id="B1",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         threshold = Building.objects.get(rnb_id="B1").sys_period.lower
 
         params = urlencode({"since": threshold.isoformat(), "insee_code": "99998"})
@@ -1239,7 +1297,11 @@ class DiffInseeCodeTest(TransactionTestCase):
         self.assertIn("99998", r.content.decode())
 
     def test_diff_with_missing_plus(self):
-        Building.objects.create(rnb_id="B1", event_type="creation")
+        Building.objects.create(
+            rnb_id="B1",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         threshold = Building.objects.get(rnb_id="B1").sys_period.lower
 
         # mimic the brower behavior that replaces "+" by a space

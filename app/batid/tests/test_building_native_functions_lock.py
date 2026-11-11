@@ -4,6 +4,7 @@ from batid.exceptions import ForbiddenDjangoNativeFunction
 from batid.models import Building
 from batid.tests.factories.users import ContributorUserFactory
 from batid.tests.helpers import coords_to_mp_geom, create_default_bdg
+from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase, override_settings
 
 
@@ -53,7 +54,9 @@ class NativeFunctionsLockedTestCase(TestCase):
         """Building.objects.create() with the lock active: raises, because it relies on save()."""
         with native_functions_locked():
             with self.assertRaises(ForbiddenDjangoNativeFunction):
-                Building.objects.create(rnb_id="FORBIDDEN01")
+                Building.objects.create(
+                    rnb_id="FORBIDDEN01", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+                )
 
     def test_queryset_update_is_forbidden(self):
         """QuerySet.update() on buildings with the lock active: raises ForbiddenDjangoNativeFunction."""

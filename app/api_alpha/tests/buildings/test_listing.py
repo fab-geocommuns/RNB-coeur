@@ -308,14 +308,20 @@ class BuildingsEndpointsTest(APITestCase):
             rnb_id="XXX",
             point=GEOSGeometry("POINT(0 0)"),
             addresses_internal_id=[adr.internal_id],
+            shape=GEOSGeometry("POINT(0 0)"),
         )
 
         # other buildings
         Building.objects.create(
             rnb_id="YYY",
             addresses_internal_id=[other_adr.internal_id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
-        Building.objects.create(rnb_id="ZZZ", addresses_internal_id=[])
+        Building.objects.create(
+            rnb_id="ZZZ",
+            addresses_internal_id=[],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
         r = self.client.get(f"/api/alpha/buildings/?cle_interop_ban={cle_interop_ban}")
         self.assertEqual(r.status_code, 200)
@@ -344,7 +350,10 @@ class BuildingsEndpointsTest(APITestCase):
                         "coordinates": [0.0, 0.0],
                         "type": "Point",
                     },
-                    "shape": None,
+                    "shape": {
+                        "coordinates": [0.0, 0.0],
+                        "type": "Point",
+                    },
                     "rnb_id": "XXX",
                     "is_active": True,
                     "validated_by": [],
@@ -580,7 +589,10 @@ class BuildingsEndpointsTest(APITestCase):
 
     def test_non_active_building_individual_request_ok(self):
         Building.objects.create(
-            rnb_id="XXXXYYYYZZZZ", point=GEOSGeometry("POINT (0 0)"), is_active=False
+            rnb_id="XXXXYYYYZZZZ",
+            point=GEOSGeometry("POINT (0 0)"),
+            is_active=False,
+            shape=GEOSGeometry("POINT (0 0)"),
         )
         r = self.client.get("/api/alpha/buildings/XXXXYYYYZZZZ/")
         self.assertEqual(r.status_code, 200)
@@ -925,6 +937,7 @@ class BuildingsWithPlots(APITestCase):
             rnb_id="A",
             addresses_internal_id=[add_1.internal_id],
             point="POINT(0 0)",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
 
         add_2 = Address.objects.create(cle_interop="add_2")
@@ -932,6 +945,7 @@ class BuildingsWithPlots(APITestCase):
             rnb_id="B",
             addresses_internal_id=[add_2.internal_id],
             point="POINT(0 0)",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
 
         def list_buildings():

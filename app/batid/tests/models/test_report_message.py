@@ -16,6 +16,7 @@ class TestReportMessage(TestCase):
             rnb_id="TEST123",
             point=self.point,
             status="constructed",
+            shape=self.point,
         )
 
         self.report = Report.objects.create(

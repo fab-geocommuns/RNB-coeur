@@ -1,5 +1,6 @@
 from batid.models import Building, BuildingValidatedByReadOnly
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSGeometry
 from django.test import TransactionTestCase
 
 
@@ -16,7 +17,11 @@ class BuildingValidatedByLinkCase(TransactionTestCase):
         u1 = User.objects.create_user("alice", email="alice@example.com")
         u2 = User.objects.create_user("bob", email="bob@example.com")
 
-        b = Building.objects.create(rnb_id="1", validated_by=[u1.id, u2.id])
+        b = Building.objects.create(
+            rnb_id="1",
+            validated_by=[u1.id, u2.id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
         links = BuildingValidatedByReadOnly.objects.order_by("user_id")
 
@@ -32,7 +37,9 @@ class BuildingValidatedByLinkCase(TransactionTestCase):
         Input: a building is created with an empty validated_by list (the default).
         Expected: no link is created in BuildingValidatedByReadOnly.
         """
-        b = Building.objects.create(rnb_id="1")
+        b = Building.objects.create(
+            rnb_id="1", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
         self.assertEqual(b.validated_by, [])
         self.assertEqual(BuildingValidatedByReadOnly.objects.count(), 0)
@@ -45,7 +52,9 @@ class BuildingValidatedByLinkCase(TransactionTestCase):
         u1 = User.objects.create_user("alice", email="alice@example.com")
         u2 = User.objects.create_user("bob", email="bob@example.com")
 
-        b = Building.objects.create(rnb_id="1")
+        b = Building.objects.create(
+            rnb_id="1", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
         self.assertEqual(BuildingValidatedByReadOnly.objects.count(), 0)
 
         b.validated_by = [u1.id, u2.id]
@@ -69,7 +78,11 @@ class BuildingValidatedByLinkCase(TransactionTestCase):
         u1 = User.objects.create_user("alice", email="alice@example.com")
         u2 = User.objects.create_user("bob", email="bob@example.com")
 
-        b = Building.objects.create(rnb_id="1", validated_by=[u1.id, u2.id])
+        b = Building.objects.create(
+            rnb_id="1",
+            validated_by=[u1.id, u2.id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         self.assertEqual(BuildingValidatedByReadOnly.objects.count(), 2)
 
         b.validated_by = [u1.id]
@@ -88,7 +101,11 @@ class BuildingValidatedByLinkCase(TransactionTestCase):
         u1 = User.objects.create_user("alice", email="alice@example.com")
         u2 = User.objects.create_user("bob", email="bob@example.com")
 
-        b = Building.objects.create(rnb_id="1", validated_by=[u1.id, u2.id])
+        b = Building.objects.create(
+            rnb_id="1",
+            validated_by=[u1.id, u2.id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         self.assertEqual(BuildingValidatedByReadOnly.objects.count(), 2)
 
         b.validated_by = []
@@ -103,7 +120,11 @@ class BuildingValidatedByLinkCase(TransactionTestCase):
         """
         u1 = User.objects.create_user("alice", email="alice@example.com")
 
-        b = Building.objects.create(rnb_id="1", validated_by=[u1.id])
+        b = Building.objects.create(
+            rnb_id="1",
+            validated_by=[u1.id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         self.assertEqual(BuildingValidatedByReadOnly.objects.count(), 1)
 
         b.validated_by = None
@@ -122,7 +143,11 @@ class BuildingValidatedByLinkCase(TransactionTestCase):
         u1 = User.objects.create_user("alice", email="alice@example.com")
 
         with self.assertRaises(IntegrityError):
-            Building.objects.create(rnb_id="1", validated_by=[u1.id, 99999999])
+            Building.objects.create(
+                rnb_id="1",
+                validated_by=[u1.id, 99999999],
+                shape=GEOSGeometry("POINT(0 0)", srid=4326),
+            )
 
     def test_update_building_with_non_existing_user(self):
         """
@@ -133,7 +158,11 @@ class BuildingValidatedByLinkCase(TransactionTestCase):
         from django.db.utils import IntegrityError
 
         u1 = User.objects.create_user("alice", email="alice@example.com")
-        b = Building.objects.create(rnb_id="1", validated_by=[u1.id])
+        b = Building.objects.create(
+            rnb_id="1",
+            validated_by=[u1.id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
         with self.assertRaises(IntegrityError):
             b.validated_by = [u1.id, 99999999]
@@ -151,7 +180,11 @@ class BuildingValidatedByLinkCase(TransactionTestCase):
         u1 = User.objects.create_user("alice", email="alice@example.com")
 
         with self.assertRaises(IntegrityError):
-            Building.objects.create(rnb_id="1", validated_by=[u1.id, u1.id])
+            Building.objects.create(
+                rnb_id="1",
+                validated_by=[u1.id, u1.id],
+                shape=GEOSGeometry("POINT(0 0)", srid=4326),
+            )
 
     def test_update_building_with_duplicate_user(self):
         """
@@ -163,7 +196,9 @@ class BuildingValidatedByLinkCase(TransactionTestCase):
         from django.db.utils import IntegrityError
 
         u1 = User.objects.create_user("alice", email="alice@example.com")
-        b = Building.objects.create(rnb_id="1")
+        b = Building.objects.create(
+            rnb_id="1", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
         with self.assertRaises(IntegrityError):
             b.validated_by = [u1.id, u1.id]
@@ -177,7 +212,11 @@ class BuildingValidatedByLinkCase(TransactionTestCase):
         """
         u1 = User.objects.create_user("alice", email="alice@example.com")
 
-        b = Building.objects.create(rnb_id="1", validated_by=[u1.id])
+        b = Building.objects.create(
+            rnb_id="1",
+            validated_by=[u1.id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         original_link_id = BuildingValidatedByReadOnly.objects.get(
             building_id=b.id, user_id=u1.id
         ).id
@@ -200,7 +239,11 @@ class UserValidatedByDeletionCase(TransactionTestCase):
         from django.db.models import ProtectedError
 
         u1 = User.objects.create_user("alice", email="alice@example.com")
-        Building.objects.create(rnb_id="1", validated_by=[u1.id])
+        Building.objects.create(
+            rnb_id="1",
+            validated_by=[u1.id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
         with self.assertRaises(ProtectedError):
             u1.delete()
@@ -224,7 +267,11 @@ class UserValidatedByDeletionCase(TransactionTestCase):
         Expected: the user can now be deleted because no through-row references them.
         """
         u1 = User.objects.create_user("alice", email="alice@example.com")
-        b = Building.objects.create(rnb_id="1", validated_by=[u1.id])
+        b = Building.objects.create(
+            rnb_id="1",
+            validated_by=[u1.id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
         b.validated_by = []
         b.save()

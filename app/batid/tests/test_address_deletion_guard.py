@@ -1,4 +1,5 @@
 from batid.models import Address, Building
+from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection, transaction
 from django.db.utils import ProgrammingError
 from django.test import TransactionTestCase
@@ -39,7 +40,9 @@ class AddressDeletionGuardTestCase(TransactionTestCase):
         """
         address = Address.objects.create(cle_interop="01001_0001_00001")
         Building.objects.create(
-            rnb_id="XYZ", addresses_internal_id=[address.internal_id]
+            rnb_id="XYZ",
+            addresses_internal_id=[address.internal_id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
 
         with self.assertRaisesMessage(
@@ -60,7 +63,9 @@ class AddressDeletionGuardTestCase(TransactionTestCase):
         """
         address = Address.objects.create(cle_interop="01001_0001_00001")
         building = Building.objects.create(
-            rnb_id="XYZ", addresses_internal_id=[address.internal_id]
+            rnb_id="XYZ",
+            addresses_internal_id=[address.internal_id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         building.addresses_internal_id = []
         building.save()

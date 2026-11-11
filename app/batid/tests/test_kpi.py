@@ -103,7 +103,12 @@ class KPIDailyRunIdempotent(TestCase):
     """
 
     def test_second_run_updates_without_duplicate(self):
-        Building.objects.create(rnb_id="idem1", status="constructed", is_active=True)
+        Building.objects.create(
+            rnb_id="idem1",
+            status="constructed",
+            is_active=True,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
         compute_daily_kpis(external_calls=False)
         first_count = KPI.objects.count()
@@ -113,7 +118,12 @@ class KPIDailyRunIdempotent(TestCase):
         self.assertEqual(first_active, 1)
 
         # New active building before the (re)run
-        Building.objects.create(rnb_id="idem2", status="constructed", is_active=True)
+        Building.objects.create(
+            rnb_id="idem2",
+            status="constructed",
+            is_active=True,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
         # Should not raise IntegrityError on the duplicate (name, value_date)
         compute_daily_kpis(external_calls=False)
@@ -128,10 +138,25 @@ class KPIDailyRunIdempotent(TestCase):
 class CountActiveBuildings(TestCase):
     def setUp(self):
 
-        Building.objects.create(rnb_id="one", status="constructed", is_active=True)
-        Building.objects.create(rnb_id="two", status="demolished", is_active=True)
+        Building.objects.create(
+            rnb_id="one",
+            status="constructed",
+            is_active=True,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
+        Building.objects.create(
+            rnb_id="two",
+            status="demolished",
+            is_active=True,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
-        Building.objects.create(rnb_id="three", status="constructed", is_active=False)
+        Building.objects.create(
+            rnb_id="three",
+            status="constructed",
+            is_active=False,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
     def test(self):
         value = count_active_buildings()
@@ -142,12 +167,32 @@ class CountRealBuildings(TestCase):
     def setUp(self):
 
         # Real buildings
-        Building.objects.create(rnb_id="1", status="constructed", is_active=True)
-        Building.objects.create(rnb_id="2", status="notUsable", is_active=True)
+        Building.objects.create(
+            rnb_id="1",
+            status="constructed",
+            is_active=True,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
+        Building.objects.create(
+            rnb_id="2",
+            status="notUsable",
+            is_active=True,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
         # Not real buildings
-        Building.objects.create(rnb_id="3", status="constructed", is_active=False)
-        Building.objects.create(rnb_id="4", status="demolished", is_active=True)
+        Building.objects.create(
+            rnb_id="3",
+            status="constructed",
+            is_active=False,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
+        Building.objects.create(
+            rnb_id="4",
+            status="demolished",
+            is_active=True,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
     def test(self):
 
@@ -186,6 +231,7 @@ class CountContributions(TestCase):
                 rnb_id=f"EDITS{i:02d}",
                 status="constructed",
                 event_origin={"source": "contribution"},
+                shape=GEOSGeometry("POINT(0 0)", srid=4326),
             )
 
     def test_count(self):
@@ -213,18 +259,21 @@ class CountRealBuildingsWithoutAddress(TestCase):
             rnb_id="r1",
             status="constructed",
             addresses_internal_id=[one.internal_id, two.internal_id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         # test empty array
         Building.objects.create(
             rnb_id="r2",
             status="notUsable",
             addresses_internal_id=[],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         # test None
         Building.objects.create(
             rnb_id="r3",
             status="notUsable",
             addresses_internal_id=None,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
 
         # Not real buildings
@@ -233,8 +282,14 @@ class CountRealBuildingsWithoutAddress(TestCase):
             status="constructed",
             is_active=False,
             addresses_internal_id=[one.internal_id],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
-        Building.objects.create(rnb_id="4", status="demolished", is_active=True)
+        Building.objects.create(
+            rnb_id="4",
+            status="demolished",
+            is_active=True,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
     def test(self):
         """
@@ -351,17 +406,29 @@ class CountEditsByDepartment(TestCase):
         )
 
         Building.objects.create(
-            rnb_id="BDG75A", point=Point(2.5, 48.5, srid=4326), is_active=True
+            rnb_id="BDG75A",
+            point=Point(2.5, 48.5, srid=4326),
+            is_active=True,
+            shape=Point(2.5, 48.5, srid=4326),
         )
         Building.objects.create(
-            rnb_id="BDG75B", point=Point(2.6, 48.6, srid=4326), is_active=True
+            rnb_id="BDG75B",
+            point=Point(2.6, 48.6, srid=4326),
+            is_active=True,
+            shape=Point(2.6, 48.6, srid=4326),
         )
         # Building in the second subdivision of Paris
         Building.objects.create(
-            rnb_id="BDG75C", point=Point(2.5, 49.5, srid=4326), is_active=True
+            rnb_id="BDG75C",
+            point=Point(2.5, 49.5, srid=4326),
+            is_active=True,
+            shape=Point(2.5, 49.5, srid=4326),
         )
         Building.objects.create(
-            rnb_id="BDG69A", point=Point(4.5, 45.5, srid=4326), is_active=True
+            rnb_id="BDG69A",
+            point=Point(4.5, 45.5, srid=4326),
+            is_active=True,
+            shape=Point(4.5, 45.5, srid=4326),
         )
 
         Contribution.objects.create(rnb_id="BDG75A")
@@ -482,16 +549,19 @@ class CountBuildingChangesDaily(TestCase):
             rnb_id="BDGBDTOPO01",
             status="constructed",
             event_origin={"source": "import", "id": self.bdtopo_import.id},
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         Building.objects.create(
             rnb_id="BDGBAL00001",
             status="constructed",
             event_origin={"source": "import", "id": self.bal_import.id},
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         Building.objects.create(
             rnb_id="BDGCONTRIB01",
             status="constructed",
             event_origin={"source": "contribution"},
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
 
     def test_returns_counts_per_source_for_the_day(self):
@@ -538,6 +608,7 @@ class CountBuildingChangesDaily(TestCase):
             rnb_id="BDGIMP00001",
             status="constructed",
             event_origin={"source": "import", "id": other_import.id},
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         result = count_building_changes_daily(date.today())
         self.assertEqual(

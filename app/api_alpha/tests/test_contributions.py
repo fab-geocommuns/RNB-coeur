@@ -1,5 +1,5 @@
 from batid.models import Building, Report
-from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import GEOSGeometry, Point
 from rest_framework.test import APITestCase
 
 
@@ -11,7 +11,9 @@ class TestContribution(APITestCase):
 
     def test_contribution_permissions_read(self):
         building = Building.objects.create(
-            rnb_id="xxx", point=Point(2.3522, 48.8566, srid=4326)
+            rnb_id="xxx",
+            point=Point(2.3522, 48.8566, srid=4326),
+            shape=Point(2.3522, 48.8566, srid=4326),
         )
         report = Report.objects.create(
             point=Point(2.3522, 48.8566, srid=4326),
@@ -28,7 +30,9 @@ class TestContribution(APITestCase):
     def test_contribution(self):
 
         building = Building.objects.create(
-            rnb_id="1", point=Point(2.3522, 48.8566, srid=4326)
+            rnb_id="1",
+            point=Point(2.3522, 48.8566, srid=4326),
+            shape=Point(2.3522, 48.8566, srid=4326),
         )
         report = Report.objects.create(
             point=Point(2.3522, 48.8566, srid=4326),
@@ -50,7 +54,11 @@ class TestContribution(APITestCase):
         """"""
 
         # Create a building
-        Building.objects.create(rnb_id="111", point=Point(2.3522, 48.8566, srid=4326))
+        Building.objects.create(
+            rnb_id="111",
+            point=Point(2.3522, 48.8566, srid=4326),
+            shape=Point(2.3522, 48.8566, srid=4326),
+        )
 
         # Post a contribution about it
         r = self.client.post(
@@ -71,7 +79,9 @@ class TestContribution(APITestCase):
         """
 
         # The inactive building
-        Building.objects.create(rnb_id="AAA", is_active=False)
+        Building.objects.create(
+            rnb_id="AAA", is_active=False, shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
         # Post a contribution about it
         r = self.client.post(

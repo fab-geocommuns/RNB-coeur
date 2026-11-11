@@ -32,17 +32,12 @@ class TestBuilding(TestCase):
             shape="POLYGON((1 0, 1 1, 2 1, 2 0, 1 0))",
             ext_ids=[{"source": "bdtopo", "id": "1"}, {"source": "bdtopo", "id": "2"}],
         )
-        building_3 = Building.objects.create(
-            rnb_id="CCC"
-            # no shape, to check the function does not crash in that case
-            # even that case is unexpected
-        )
 
         address = Address.objects.create()
 
         # merge the two buildings
         merged_building = Building.merge(
-            [building_1, building_2, building_3],
+            [building_1, building_2],
             user,
             {"source": "contribution", "contribution_id": 1},
             "constructed",
@@ -86,7 +81,7 @@ class TestBuilding(TestCase):
         )
         self.assertEqual(
             merged_building.parent_buildings,
-            [building_1.rnb_id, building_2.rnb_id, building_3.rnb_id],
+            [building_1.rnb_id, building_2.rnb_id],
         )
         self.assertEqual(merged_building.status, "constructed")
         self.assertEqual(merged_building.event_type, "merge")
@@ -154,10 +149,18 @@ class TestBuilding(TestCase):
     def test_building_event_types(self):
         # you can't save whatever imaginary event type in the DB
         with self.assertRaises(IntegrityError):
-            Building.objects.create(rnb_id="XYZ", event_type="new!")
+            Building.objects.create(
+                rnb_id="XYZ",
+                event_type="new!",
+                shape=GEOSGeometry("POINT(0 0)", srid=4326),
+            )
 
     def test_update_building_event_types(self):
-        b = Building.objects.create(rnb_id="XYZ", event_type="creation")
+        b = Building.objects.create(
+            rnb_id="XYZ",
+            event_type="creation",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
 
         with self.assertRaises(IntegrityError):
             # that type does not exist
@@ -553,7 +556,11 @@ class TestSplitBuilding(TestCase):
 
     def test_split_a_building_raise(self):
         # create building
-        b1 = Building.objects.create(rnb_id="1", status="constructed")
+        b1 = Building.objects.create(
+            rnb_id="1",
+            status="constructed",
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         event_origin = {"source": "xxx"}
 
         with self.assertRaises(NotEnoughBuildings):
@@ -572,7 +579,12 @@ class TestSplitBuilding(TestCase):
 
     def test_split_a_building_inactive(self):
         # create building
-        b1 = Building.objects.create(rnb_id="1", status="constructed", is_active=False)
+        b1 = Building.objects.create(
+            rnb_id="1",
+            status="constructed",
+            is_active=False,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
+        )
         event_origin = {"source": "xxx"}
 
         with self.assertRaisesRegex(
