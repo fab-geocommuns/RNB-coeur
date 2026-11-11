@@ -94,7 +94,8 @@ class BuildingSerializer(serializers.ModelSerializer):
         source="point_geojson",
         read_only=True,
     )
-    shape = serializers.DictField(
+    # Typed as Field so that BuildingGeoJSONSerializer can override it with a JSONField
+    shape: serializers.Field = serializers.DictField(
         source="shape_geojson",
         read_only=True,
     )

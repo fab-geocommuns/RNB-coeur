@@ -136,6 +136,29 @@ class BuildingsEndpointsTest(APITestCase):
         r = self.client.get("/api/alpha/buildings/?bbox=-1.0,45.845782,-0.5,46.0")
         self.assertEqual(r.status_code, 200)
 
+    def test_bdg_in_bbox_geojson_without_shape(self):
+        """
+        Input: GET /buildings/?bbox=...&format=geojson where an active building has
+        a NULL shape and a point inside the bbox.
+        Expected: 200; the shapeless building is listed as a Feature with
+        "geometry": null instead of a 500 from the GeoJSON serializer.
+        """
+        Building.objects.create(
+            rnb_id="NOSHAPENOSHA",
+            shape=None,
+            point=GEOSGeometry("POINT(2.35 48.85)", srid=4326),
+            status="constructed",
+        )
+
+        r = self.client.get(
+            "/api/alpha/buildings/?bbox=2.34,48.84,2.36,48.86&format=geojson"
+        )
+
+        self.assertEqual(r.status_code, 200)
+        features = {f["id"]: f for f in r.json()["features"]}
+        self.assertIn("NOSHAPENOSHA", features)
+        self.assertIsNone(features["NOSHAPENOSHA"]["geometry"])
+
     def test_bdg_in_bbox_invalid_lat(self):
         r = self.client.get("/api/alpha/buildings/?bbox=-1.0,45.845782,-0.5,coucou")
         self.assertEqual(r.status_code, 400)
