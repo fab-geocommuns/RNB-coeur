@@ -97,16 +97,16 @@ LOGIN_THROTTLE_DOC = {
     "description": "Plus de 20 tentatives en une minute sur le même compte (sur la même adresse IP si aucun identifiant valide n'est envoyé). L'en-tête `Retry-After` indique le délai à attendre, en secondes. Le quota général de 20 requêtes par seconde et par adresse IP s'applique aussi."
 }
 
-INVALID_TOKEN_DETAIL = "Un en-tête `Authorization: Token <…>` invalide est refusé, bien que cet endpoint n'ait pas besoin de token."
+INVALID_AUTH_HEADER_DETAIL = "Un en-tête `Authorization: Token <…>` invalide est refusé, bien que cet endpoint n'ait pas besoin de token."
 
 
 def password_auth_401_doc(*errors: MFAError) -> dict:
     """401 of an endpoint authenticated by password: the given MFA errors, and an
     invalid token header, which DRF rejects before the view runs."""
     if not errors:
-        return {"description": INVALID_TOKEN_DETAIL}
+        return {"description": INVALID_AUTH_HEADER_DETAIL}
     doc = mfa_error_doc(*errors)
-    return {**doc, "description": f"{doc['description']} {INVALID_TOKEN_DETAIL}"}
+    return {**doc, "description": f"{doc['description']} {INVALID_AUTH_HEADER_DETAIL}"}
 
 
 def credentials_body_doc(
