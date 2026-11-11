@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 import requests
-from batid.models import KPI, Building, Contribution
+from batid.models import KPI, Contribution
 from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
 from batid.utils.db import dictfetchone
@@ -68,23 +68,21 @@ def compute_daily_kpis(external_calls=True):
 
     today = date.today()
 
+    address_kpis = count_address_kpis()
+
     # Active buildings
-    active_bdgs_count = count_active_buildings()
     KPI.objects.update_or_create(
         name=KPI_ACTIVE_BUILDINGS_COUNT,
         value_date=today,
-        defaults={"value": active_bdgs_count},
+        defaults={"value": address_kpis["active"]},
     )
 
     # Real buildings
-    real_bdgs_count = count_real_buildings()
     KPI.objects.update_or_create(
         name=KPI_REAL_BUILDINGS_COUNT,
         value_date=today,
-        defaults={"value": real_bdgs_count},
+        defaults={"value": address_kpis["real"]},
     )
-
-    address_kpis = count_address_kpis()
 
     # Real buildings without addresses
     KPI.objects.update_or_create(
@@ -299,34 +297,18 @@ def get_data_gouv_stats() -> tuple:
         return (None, None)
 
 
-def count_active_buildings():
-    """
-    Count the number of active buildings
-    """
-
-    with long_query_timeout():
-        return Building.objects.filter(is_active=True).count()
-
-
-def count_real_buildings():
-    """
-    Count the number of real (active + physical status) buildings
-    """
-
-    return Building.objects.filter(
-        is_active=True, status__in=BuildingStatus.REAL_BUILDINGS_STATUS
-    ).count()
-
-
 def count_address_kpis() -> dict[str, int]:
     """
-    Count, in a single pass over the active buildings, the building - address
-    links and the real buildings without addresses.
+    Count, in a single pass over the active buildings, the active buildings, the
+    real buildings, the building - address links and the real buildings without
+    addresses.
     Read from addresses_internal_id: building_addresses_trigger rebuilds the link
     table from this array on every write, so both give the same counts.
     """
     sql = """
         SELECT
+            COUNT(*) AS active,
+            COUNT(*) FILTER (WHERE status = ANY(%(real_statuses)s)) AS real,
             COALESCE(SUM(cardinality(addresses_internal_id)), 0) AS links,
             COUNT(*) FILTER (
                 WHERE status = ANY(%(real_statuses)s)

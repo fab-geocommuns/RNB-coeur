@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime, timedelta, timezone
 from unittest import mock
 
@@ -16,7 +17,6 @@ from batid.services.kpi import (
     KPI_DATA_GOUV_VIEWS,
     backfill_api_requests_kpi,
     compute_daily_kpis,
-    count_active_buildings,
     count_address_kpis,
     count_api_requests,
     count_building_changes_daily,
@@ -25,7 +25,6 @@ from batid.services.kpi import (
     count_edits_by_department,
     count_fixed_reports,
     count_pending_reports,
-    count_real_buildings,
     count_refused_reports,
     count_reports,
     get_building_change_stats,
@@ -128,34 +127,37 @@ class KPIDailyRunIdempotent(TestCase):
         self.assertEqual(updated_active, 2)
 
 
-class CountActiveBuildings(TestCase):
-    def setUp(self):
+class KPIDailyRunBuildingCounts(TestCase):
+    def test_building_kpis_share_one_scan(self):
+        """
+        Input: an active constructed building, an active demolished building and an
+        inactive constructed building, then one compute_daily_kpis run.
+        Expected: exactly one query has batid_building as its FROM table (the JOIN
+        of the edits-by-department query is not counted), today's
+        active_buildings_count is 2 and real_buildings_count is 1.
+        """
+        Building.objects.create(rnb_id="active", status="constructed", is_active=True)
+        Building.objects.create(rnb_id="demol", status="demolished", is_active=True)
+        Building.objects.create(
+            rnb_id="inactive", status="constructed", is_active=False
+        )
 
-        Building.objects.create(rnb_id="one", status="constructed", is_active=True)
-        Building.objects.create(rnb_id="two", status="demolished", is_active=True)
+        with CaptureQueriesContext(connection) as ctx:
+            compute_daily_kpis(external_calls=False)
 
-        Building.objects.create(rnb_id="three", status="constructed", is_active=False)
+        from_building = re.compile(r'\bFROM\s+"?batid_building\b')
+        building_scans = [
+            q["sql"] for q in ctx.captured_queries if from_building.search(q["sql"])
+        ]
+        self.assertEqual(len(building_scans), 1)
 
-    def test(self):
-        value = count_active_buildings()
-        self.assertEqual(value, 2)
-
-
-class CountRealBuildings(TestCase):
-    def setUp(self):
-
-        # Real buildings
-        Building.objects.create(rnb_id="1", status="constructed", is_active=True)
-        Building.objects.create(rnb_id="2", status="notUsable", is_active=True)
-
-        # Not real buildings
-        Building.objects.create(rnb_id="3", status="constructed", is_active=False)
-        Building.objects.create(rnb_id="4", status="demolished", is_active=True)
-
-    def test(self):
-
-        value = count_real_buildings()
-        self.assertEqual(value, 2)
+        today = date.today()
+        self.assertEqual(
+            KPI.objects.get(name="active_buildings_count", value_date=today).value, 2
+        )
+        self.assertEqual(
+            KPI.objects.get(name="real_buildings_count", value_date=today).value, 1
+        )
 
 
 class CountContributions(TestCase):
@@ -203,7 +205,7 @@ class CountContributions(TestCase):
         self.assertEqual(count_edits(), 3)
 
 
-class CountRealBuildingsWithoutAddress(TestCase):
+class CountAddressKpis(TestCase):
     def setUp(self):
 
         # Addresses
@@ -249,11 +251,16 @@ class CountRealBuildingsWithoutAddress(TestCase):
         Input: 3 real buildings (one with 2 addresses, one with an empty address
         array, one with NULL addresses), an inactive building with 1 address and
         an active demolished building with 1 address.
-        Expected: 3 links (every active building counts, the inactive one does not),
-        2 real buildings without addresses (empty array and NULL).
+        Expected: 4 active buildings, 3 real buildings, 3 links, 2 real buildings
+        without addresses (empty array and NULL). The inactive constructed building
+        is counted nowhere (not active, not real, no link); the active demolished
+        building counts in active and links, not in real nor real_wo_addresses.
         """
 
-        self.assertEqual(count_address_kpis(), {"links": 3, "real_wo_addresses": 2})
+        self.assertEqual(
+            count_address_kpis(),
+            {"links": 3, "real_wo_addresses": 2, "active": 4, "real": 3},
+        )
 
 
 class CountEdits(TestCase):
@@ -319,7 +326,6 @@ class LongQueryTimeout(TransactionTestCase):
         and the session timeout is still 12345ms after the call.
         """
         queries = {
-            "count_active_buildings": count_active_buildings,
             "count_address_kpis": count_address_kpis,
             "count_edits": count_edits,
             "count_api_requests": count_api_requests,
