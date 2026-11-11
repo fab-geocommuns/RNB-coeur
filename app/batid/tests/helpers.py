@@ -1224,7 +1224,7 @@ def login_with_otp(*, client, user):
 
 def current_code(device: TOTPDevice) -> str:
     """Code shown right now by the authenticator app of this device."""
-    return f"{totp(device.bin_key):06d}"
+    return f"{totp(device.bin_key, digits=device.digits):0{device.digits}d}"
 
 
 def wrong_code(device: TOTPDevice) -> str:
