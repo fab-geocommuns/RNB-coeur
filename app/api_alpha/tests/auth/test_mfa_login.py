@@ -348,7 +348,8 @@ class LoginThrottleTest(MFALoginTestCase):
     def test_counted_per_identifier_across_login_and_setup(self):
         """2/min: a /login/ call for "jdupont" and a /auth/mfa/setup/ call for
         " jdupont " fill the same bucket, the 3rd call for "jdupont" gets 429.
-        Another identifier from the same IP still gets through (400)."""
+        Another identifier from the same IP still gets through (400). The 429 gives
+        the seconds left in the window in Retry-After (30, at 30 s on the clock)."""
         self.assertEqual(
             self.post(path="/api/alpha/login/", username="jdupont").status_code, 400
         )
@@ -358,9 +359,9 @@ class LoginThrottleTest(MFALoginTestCase):
             ).status_code,
             400,
         )
-        self.assertEqual(
-            self.post(path="/api/alpha/login/", username="jdupont").status_code, 429
-        )
+        response = self.post(path="/api/alpha/login/", username="jdupont")
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response["Retry-After"], "30")
         self.assertEqual(
             self.post(path="/api/alpha/login/", username="other").status_code, 400
         )

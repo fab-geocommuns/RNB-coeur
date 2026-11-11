@@ -88,6 +88,26 @@ LOGIN_BODY_PROPERTIES = {
 
 BAD_CREDENTIALS_DOC = {"description": "Identifiant ou mot de passe incorrect."}
 
+AUTH_TAGS = ["Authentification"]
+
+# Endpoints authenticated by password: no token required.
+PASSWORD_AUTH_DOC = {"tags": AUTH_TAGS, "security": []}
+
+LOGIN_THROTTLE_DOC = {
+    "description": "Plus de 20 tentatives en une minute sur le même compte (sur la même adresse IP si aucun identifiant valide n'est envoyé). L'en-tête `Retry-After` indique le délai à attendre, en secondes. Le quota général de 20 requêtes par seconde et par adresse IP s'applique aussi."
+}
+
+INVALID_TOKEN_DETAIL = "Un en-tête `Authorization: Token <…>` invalide est refusé, bien que cet endpoint n'ait pas besoin de token."
+
+
+def password_auth_401_doc(*errors: MFAError) -> dict:
+    """401 of an endpoint authenticated by password: the given MFA errors, and an
+    invalid token header, which DRF rejects before the view runs."""
+    if not errors:
+        return {"description": INVALID_TOKEN_DETAIL}
+    doc = mfa_error_doc(*errors)
+    return {**doc, "description": f"{doc['description']} {INVALID_TOKEN_DETAIL}"}
+
 
 def credentials_body_doc(
     *, properties: dict, required: tuple[str, ...] = ("username", "password")
@@ -116,6 +136,7 @@ class MFASetupView(ObtainAuthToken):
                 "summary": "Configuration de la double authentification",
                 "description": "Génère une nouvelle application d'authentification (TOTP) non confirmée pour le compte, à confirmer avec `/auth/mfa/confirm/`. Refusé si une application est déjà confirmée.",
                 "operationId": "setupMFA",
+                **PASSWORD_AUTH_DOC,
                 "requestBody": credentials_body_doc(properties=CREDENTIALS_PROPERTIES),
                 "responses": {
                     "200": {
@@ -144,7 +165,9 @@ class MFASetupView(ObtainAuthToken):
                         },
                     },
                     "400": BAD_CREDENTIALS_DOC,
+                    "401": password_auth_401_doc(),
                     "409": mfa_error_doc(MFAError.ALREADY_CONFIGURED),
+                    "429": LOGIN_THROTTLE_DOC,
                 },
             }
         }
@@ -179,6 +202,7 @@ class MFAConfirmView(ObtainAuthToken):
                 "summary": "Confirmation de la double authentification",
                 "description": "Confirme l'application d'authentification avec son premier code, connecte l'utilisateur et renvoie 10 codes de secours, affichés une seule fois.",
                 "operationId": "confirmMFA",
+                **PASSWORD_AUTH_DOC,
                 "requestBody": credentials_body_doc(
                     properties={
                         **CREDENTIALS_PROPERTIES,
@@ -213,8 +237,9 @@ class MFAConfirmView(ObtainAuthToken):
                     "400": {
                         "description": f"Identifiant ou mot de passe incorrect, ou `{MFAError.SETUP_NOT_STARTED}` : {MFA_ERRORS[MFAError.SETUP_NOT_STARTED][1]}"
                     },
-                    "401": mfa_error_doc(MFAError.INVALID),
+                    "401": password_auth_401_doc(MFAError.INVALID),
                     "409": mfa_error_doc(MFAError.ALREADY_CONFIGURED),
+                    "429": LOGIN_THROTTLE_DOC,
                 },
             }
         }
