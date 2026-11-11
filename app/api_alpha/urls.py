@@ -17,6 +17,7 @@ from api_alpha.endpoints.buildings.single_building import (
     SingleBuildingAboutId,
     SingleBuildingHistory,
 )
+from api_alpha.endpoints.contributions.summary import ContributionSummaryView
 from api_alpha.endpoints.debug import RaiseExceptionView
 from api_alpha.endpoints.editions.annotations import EventAnnotationView
 from api_alpha.endpoints.editions.rollback import RollbackEventView
@@ -157,6 +158,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("auth/pro_connect/exchange/", ExchangeView.as_view()),
     path("auth/pro_connect/logout/callback/", LogoutCallbackView.as_view()),
     path("auth/pro_connect/logout/", LogoutView.as_view()),
+    path("contributions/summary/", ContributionSummaryView.as_view()),
     path("editions/ranking/", LeaderboardView.as_view()),
     path("validation/ranking/", ValidationRankingView.as_view()),
     path("feves/", FevesView.as_view()),

@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 import os
 
 import sentry_sdk
+from django.utils.csp import CSP
 from kombu import Exchange, Queue
 from sentry_sdk.integrations.django import DjangoIntegration
 
@@ -117,6 +118,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django.middleware.csp.ContentSecurityPolicyMiddleware",
     "batid.middlewares.BlockIPMiddleware",
     "batid.middlewares.SimpleRequestLoggerMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
@@ -266,6 +268,12 @@ PRO_CONNECT_DISCOVERY_URL = os.environ.get(
     "https://fca.integ01.dev-agentconnect.fr/api/v2/.well-known/openid-configuration",
 )
 PRO_CONNECT_SCOPES = "openid email given_name usual_name siret"
+# Require two-factor authentication on Pro Connect logins (acr check).
+# Off by default until the switch is tested and announced; must be on in
+# production by 28/02/2027, when every identity provider must support it.
+PRO_CONNECT_REQUIRE_MFA = (
+    os.environ.get("PRO_CONNECT_REQUIRE_MFA", default="false").lower() == "true"
+)
 PRO_CONNECT_REDIRECT_URI = os.environ.get("PRO_CONNECT_REDIRECT_URI")
 PRO_CONNECT_POST_LOGOUT_REDIRECT_URI = os.environ.get(
     "PRO_CONNECT_POST_LOGOUT_REDIRECT_URI"
@@ -277,6 +285,21 @@ PRO_CONNECT_ALLOWED_REDIRECT_URIS = [
 ]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Content-Security-Policy of every response, except the Flower and Metabase proxies (see batid/views.py).
+# The only HTML pages are the home page and the admin, whose scripts are all static files.
+SECURE_CSP = {
+    "default-src": [CSP.SELF],
+    # Inline style attributes of the admin templates.
+    "style-src": [CSP.SELF, CSP.UNSAFE_INLINE],
+    "img-src": [CSP.SELF, "data:"],
+    # The admin JSON editor (ace) checks the syntax in a worker created from a blob.
+    "worker-src": [CSP.SELF, "blob:"],
+    "object-src": [CSP.NONE],
+    "base-uri": [CSP.SELF],
+    "form-action": [CSP.SELF],
+    "frame-ancestors": [CSP.NONE],
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
@@ -312,6 +335,10 @@ CELERY_TASK_DEFAULT_EXCHANGE = "default"
 CELERY_TASK_DEFAULT_ROUTING_KEY = "default"
 CELERY_TASK_DEFAULT_PRIORITY = 5
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+# acks_late tasks, on broker connection loss: the running task goes on to the end, as
+# before acks_late. Its message is redelivered, then ignored by ReplayableTask once
+# the task succeeded. Explicit: Celery 6 will default to cancel and rerun it.
+CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS = False
 
 # Shared by every web worker and Celery process: Pro Connect one-time login
 # codes, DRF throttling counters, OIDC discovery/JWKS. DB 0 holds Celery results.

@@ -60,6 +60,11 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
     building_import = building_import_history.insert_building_import(
         "bdtopo", bulk_launch_uuid, src_params["dpt"]
     )
+    if (building_import.candidate_created_count or 0) > 0:
+        # A replay of a run that already committed: its source folder may be gone
+        print("-- candidates already created for this launch, skipped --")
+        src.remove_uncompressed_folder()
+        return
 
     path = src.find(src.filename)
 
@@ -96,36 +101,71 @@ def create_candidate_from_bdtopo(src_params, bulk_launch_uuid=None):
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
 
+    if candidates:
+        _save_candidates(candidates=candidates, building_import=building_import)
+    else:
+        # Every building of the department is already known
+        print("-- no new candidate --")
+
+    print(f"- remove {src.uncompress_folder} folder")
+    src.remove_uncompressed_folder()
+
+
+def _save_candidates(*, candidates: list, building_import: BuildingImport) -> None:
     buffer = BufferToCopy()
     buffer.write_data(candidates)
 
-    cols = candidates[0].keys()
-
     with open(buffer.path, "r") as f:
         with transaction.atomic():
-            print("-- transfer buffer to db --")
-            with connection.cursor() as cursor:
-
-                # Allow for a long COPY operation
-                timeout = 5 * 3600 * 1000  # 5 hours in milliseconds
-                cursor.execute(f"SET statement_timeout = {timeout};")
-
-                copy_from_file(
-                    cursor=cursor,
+            if _candidates_already_created(building_import):
+                print("-- candidates already created for this launch, skipped --")
+            else:
+                print("-- transfer buffer to db --")
+                _copy_candidates(
                     file=f,
-                    table=Candidate._meta.db_table,
-                    columns=cols,
-                    sep=";",
+                    columns=candidates[0].keys(),
+                    candidates_count=len(candidates),
+                    building_import=building_import,
                 )
-
-            building_import_history.increment_created_candidates(
-                building_import, len(candidates)
-            )
 
     print("- remove buffer")
     os.remove(buffer.path)
-    print(f"- remove {src.uncompress_folder} folder")
-    src.remove_uncompressed_folder()
+
+
+def _candidates_already_created(building_import: BuildingImport) -> bool:
+    """Tell whether another run of this department already committed its candidates.
+    Celery may replay convert_bdtopo after its COMMIT (acks_late), or run it twice at
+    once when the download before it is replayed: both runs share the BuildingImport
+    row. Must be called inside the COPY transaction: the lock serializes the runs."""
+    building_import_history.lock_building_import(
+        source="bdtopo",
+        bulk_launch_uuid=building_import.bulk_launch_uuid,
+        dpt=building_import.departement,
+    )
+    building_import.refresh_from_db(fields=["candidate_created_count"])
+    return (building_import.candidate_created_count or 0) > 0
+
+
+def _copy_candidates(
+    *, file, columns, candidates_count: int, building_import: BuildingImport
+) -> None:
+    with connection.cursor() as cursor:
+
+        # Allow for a long COPY operation
+        timeout = 5 * 3600 * 1000  # 5 hours in milliseconds
+        cursor.execute(f"SET statement_timeout = {timeout};")
+
+        copy_from_file(
+            cursor=cursor,
+            file=file,
+            table=Candidate._meta.db_table,
+            columns=columns,
+            sep=";",
+        )
+
+    building_import_history.increment_created_candidates(
+        building_import, candidates_count
+    )
 
 
 def _known_bdtopo_id(bdtopo_id: str) -> bool:

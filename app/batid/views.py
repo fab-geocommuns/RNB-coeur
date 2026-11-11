@@ -15,6 +15,7 @@ from django.contrib.auth.models import User
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import re_path
+from django.views.decorators.csp import csp_override
 from revproxy.views import ProxyView  # type: ignore[import-untyped]
 
 from app.celery import app as celery_app
@@ -86,7 +87,10 @@ class FlowerProxyView(UserPassesTestMixin, ProxyView):
 
     @classmethod
     def as_url(cls):
-        return re_path(r"^(?P<path>{}.*)$".format(cls.url_prefix), cls.as_view())
+        # Flower serves its own pages and scripts: the API CSP would break them.
+        return re_path(
+            r"^(?P<path>{}.*)$".format(cls.url_prefix), csp_override({})(cls.as_view())
+        )
 
 
 class MetabaseProxyView(UserPassesTestMixin, ProxyView):
@@ -113,6 +117,11 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
         headers = super().get_request_headers()
         if self.request.user.is_authenticated:
             headers["X-Remote-User"] = self.request.user.email
+        # revproxy strips Accept-Encoding; forwarding it is safe because revproxy
+        # reads the upstream body undecoded and copies Content-Encoding to the client.
+        accept_encoding = self.request.headers.get("Accept-Encoding")
+        if accept_encoding:
+            headers["Accept-Encoding"] = accept_encoding
         return headers
 
     def dispatch(self, request, *args, **kwargs):
@@ -123,7 +132,8 @@ class MetabaseProxyView(UserPassesTestMixin, ProxyView):
 
     @classmethod
     def as_url(cls):
-        return re_path(r"^metabase(?P<path>/.*)?$", cls.as_view())
+        # Metabase serves its own pages and scripts, with its own CSP: keep it.
+        return re_path(r"^metabase(?P<path>/.*)?$", csp_override({})(cls.as_view()))
 
 
 def can_rollback(user):

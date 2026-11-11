@@ -98,6 +98,12 @@ class BALImport(TransactionTestCase):
 
     @patch("batid.services.imports.import_bal.Source.find")
     def test_bal_import(self, source_mock):
+        """
+        Input: the BAL test file, run twice with the same bulk launch uuid (the
+        second run is a Celery replay).
+        Expected: ONE and TWO get their address, a single import row counts 2
+        links and 0 refusals after both runs.
+        """
 
         source_mock.return_value = helpers.copy_fixture(
             "bal_import_test_data.csv", "bal_import_test_data_COPY.csv"
@@ -115,6 +121,15 @@ class BALImport(TransactionTestCase):
         self.assertEqual(report.import_source, "bal")
         self.assertEqual(report.bulk_launch_uuid, bulk_launch_uuid)
         self.assertEqual(report.departement, "01")
+        self.assertEqual(report.building_updated_count, 2)
+        self.assertEqual(report.building_refused_count, 0)
+
+        # A Celery replay (acks_late) of the same launch: same row, exact counts
+        helpers.copy_fixture(
+            "bal_import_test_data.csv", "bal_import_test_data_COPY.csv"
+        )
+        create_dpt_bal_rnb_links({"dpt": "01"}, bulk_launch_uuid)
+        report = BuildingImport.objects.get(bulk_launch_uuid=bulk_launch_uuid)
         self.assertEqual(report.building_updated_count, 2)
         self.assertEqual(report.building_refused_count, 0)
 
@@ -218,6 +233,11 @@ class BALImportWithUnknownCleInterop(TestCase):
     @patch("batid.models.Address.add_new_address_from_ban_api")
     @patch("batid.services.imports.import_bal.Source.find")
     def test_bal_import(self, source_mock, new_address_mock):
+        """
+        Input: the BAL test file with an unknown cle_interop, run twice with the
+        same bulk launch uuid (the second run is a Celery replay).
+        Expected: a single import row counts 0 links and 1 refusal after both runs.
+        """
 
         source_mock.return_value = helpers.copy_fixture(
             "bal_import_test_data.csv", "bal_import_test_data_COPY.csv"
@@ -259,6 +279,15 @@ class BALImportWithUnknownCleInterop(TestCase):
         self.assertEqual(report.import_source, "bal")
         self.assertEqual(report.bulk_launch_uuid, bulk_launch_uuid)
         self.assertEqual(report.departement, "01")
+        self.assertEqual(report.building_updated_count, 0)
+        self.assertEqual(report.building_refused_count, 1)
+
+        # A Celery replay (acks_late) of the same launch: same row, exact counts
+        helpers.copy_fixture(
+            "bal_import_test_data.csv", "bal_import_test_data_COPY.csv"
+        )
+        create_dpt_bal_rnb_links({"dpt": "01"}, bulk_launch_uuid)
+        report = BuildingImport.objects.get(bulk_launch_uuid=bulk_launch_uuid)
         self.assertEqual(report.building_updated_count, 0)
         self.assertEqual(report.building_refused_count, 1)
 

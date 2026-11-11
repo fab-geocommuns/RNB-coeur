@@ -53,7 +53,7 @@ class TestSummerChallengeRanking(APITestCase):
         # user_2 udpates the building with addresses
         building_1.update(
             user_2,
-            event_origin=None,
+            event_origin={"source": "contribution", "contribution_id": 1},
             status=None,
             addresses_cle_interop=["addr1", "addr2"],
             shape=None,
@@ -87,7 +87,7 @@ class TestSummerChallengeRanking(APITestCase):
         # user_3 updates the status
         building_2.update(
             user_3,
-            event_origin=None,
+            event_origin={"source": "contribution", "contribution_id": 1},
             status="demolished",
             addresses_cle_interop=None,
             shape=None,

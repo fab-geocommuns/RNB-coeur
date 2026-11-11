@@ -1,5 +1,7 @@
 import json
+from unittest import mock
 
+from api_alpha.endpoints.ads import create_token
 from batid.models import ADS, Building, BuildingADS, Organization, UserProfile
 from batid.tests.helpers import (
     create_cenac,
@@ -985,6 +987,12 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(len(password), 15)
 
     def test_ads_create_user_ok(self):
+        """
+        Input: superuser posts two new users (john_doe, jane_doe) for new org TempOrg on 38185.
+        Expected: 200, both users returned with their own email and a token, both in DB with
+        the ADS group and an unusable password, TempOrg manages ["38185"], john_doe's token
+        can create an ADS.
+        """
         username = "john_doe"
         email = "test@exemple.fr"
         organization_name = "TempOrg"
@@ -1001,8 +1009,8 @@ class ADSEndpointsWithAuthTest(APITestCase):
                         "organization_managed_cities": organization_managed_cities,
                     },
                     {
-                        "username": "johndoe",
-                        "email": email,
+                        "username": "jane_doe",
+                        "email": "jane@exemple.fr",
                         "organization_name": organization_name,
                         "organization_managed_cities": organization_managed_cities,
                     },
@@ -1024,9 +1032,9 @@ class ADSEndpointsWithAuthTest(APITestCase):
                 "email": email,
             },
             {
-                "username": "johndoe",
+                "username": "jane_doe",
                 "organization_name": organization_name,
-                "email": "",  # This user is already created in the setUp() function without an email. If the user already exists it is returned without being updated.
+                "email": "jane@exemple.fr",
             },
         ]
 
@@ -1042,6 +1050,12 @@ class ADSEndpointsWithAuthTest(APITestCase):
         self.assertEqual(email, john.email)
         self.assertTrue(john.groups.filter(name="ADS").exists())
         self.assertFalse(john.has_usable_password())
+
+        jane = User.objects.get(username="jane_doe")
+        self.assertEqual("jane@exemple.fr", jane.email)
+        self.assertTrue(jane.groups.filter(name="ADS").exists())
+        self.assertFalse(jane.has_usable_password())
+        self.assertEqual(r_data[1]["token"], Token.objects.get(user=jane).key)
 
         # Check Organization in DB
         temp_org = Organization.objects.get(name=organization_name)
@@ -1071,6 +1085,153 @@ class ADSEndpointsWithAuthTest(APITestCase):
         )
 
         self.assertEqual(r.status_code, 201)
+
+    def _post_ads_users(self, json_users):
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + self.token_superuser.key)
+        return self.client.post(
+            "/api/alpha/ads/token/",
+            data=json.dumps(json_users),
+            content_type="application/json",
+        )
+
+    @staticmethod
+    def _ads_user(*, username, managed_cities=("38185",)):
+        return {
+            "username": username,
+            "email": f"{username}@exemple.fr",
+            "organization_name": "TempOrg",
+            "organization_managed_cities": list(managed_cities),
+        }
+
+    def test_ads_create_user_existing_username(self):
+        """
+        Input: batch with a new valid user (alice) and an existing one (johndoe).
+        Expected: 400 listing johndoe in existing_usernames; nothing written: alice and
+        TempOrg do not exist, johndoe keeps its token and its organization Test Org.
+        """
+        r = self._post_ads_users(
+            [self._ads_user(username="alice"), self._ads_user(username="johndoe")]
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json(), {"errors": {"existing_usernames": ["johndoe"]}})
+        self.assertFalse(User.objects.filter(username="alice").exists())
+        self.assertFalse(Organization.objects.filter(name="TempOrg").exists())
+        self.assertEqual(Token.objects.get(user=self.user).key, self.token.key)
+        self.assertEqual(
+            UserProfile.objects.get(user=self.user).organization.name, "Test Org"
+        )
+
+    def test_ads_create_user_unknown_insee_code(self):
+        """
+        Input: alice manages ["38185", "99999"], bob manages ["00000"] (99999 and 00000
+        are not in City).
+        Expected: 400 listing both unknown codes at once, sorted; neither user nor TempOrg
+        is created.
+        """
+        r = self._post_ads_users(
+            [
+                self._ads_user(username="alice", managed_cities=["38185", "99999"]),
+                self._ads_user(username="bob", managed_cities=["00000"]),
+            ]
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json(), {"errors": {"unknown_insee_codes": ["00000", "99999"]}}
+        )
+        self.assertFalse(User.objects.filter(username__in=["alice", "bob"]).exists())
+        self.assertFalse(Organization.objects.filter(name="TempOrg").exists())
+
+    def test_ads_create_user_int_insee_code(self):
+        """
+        Input: INSEE codes sent as JSON integers: alice manages [38185] (in City), then
+        bob manages [99999, "00000"] (int and string, neither in City).
+        Expected: alice gets 200 and TempOrg stores ["38185"]; bob gets 400 listing
+        both unknown codes as strings, sorted.
+        """
+        r = self._post_ads_users(
+            [self._ads_user(username="alice", managed_cities=[38185])]
+        )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(
+            Organization.objects.get(name="TempOrg").managed_cities, ["38185"]
+        )
+
+        r = self._post_ads_users(
+            [self._ads_user(username="bob", managed_cities=[99999, "00000"])]
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json(), {"errors": {"unknown_insee_codes": ["00000", "99999"]}}
+        )
+
+    def test_ads_create_user_duplicate_username(self):
+        """
+        Input: the same valid alice payload twice in one batch.
+        Expected: 400 listing alice in duplicate_usernames; alice is not created.
+        """
+        r = self._post_ads_users(
+            [self._ads_user(username="alice"), self._ads_user(username="alice")]
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json(), {"errors": {"duplicate_usernames": ["alice"]}})
+        self.assertFalse(User.objects.filter(username="alice").exists())
+
+    def test_ads_create_user_invalid_payload(self):
+        """
+        Input: a batch whose second entry only has a username, then a JSON object
+        instead of a list, then a body that is not valid UTF-8.
+        Expected: 400 with the missing fields of the second entry, 400 on the root
+        type, then 400 "Invalid JSON"; no user is created.
+        """
+        r = self._post_ads_users(
+            [self._ads_user(username="alice"), {"username": "bob"}]
+        )
+
+        self.assertEqual(r.status_code, 400)
+        errors = r.json()["errors"]
+        self.assertEqual(errors[0], {})
+        self.assertEqual(
+            set(errors[1]),
+            {"email", "organization_name", "organization_managed_cities"},
+        )
+
+        r = self._post_ads_users(self._ads_user(username="alice"))
+
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("non_field_errors", r.json()["errors"])
+
+        r = self.client.post(
+            "/api/alpha/ads/token/", data=b"\xff[]", content_type="application/json"
+        )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.content, b"Invalid JSON")
+        self.assertFalse(User.objects.filter(username__in=["alice", "bob"]).exists())
+
+    def test_ads_create_user_concurrent_creation(self):
+        """
+        Input: alice and johndoe, as if a concurrent request created johndoe right after
+        the batch check (the first check is forced to pass).
+        Expected: the insert fails on the unique username, the batch is rolled back and
+        the second check answers 400 listing johndoe; alice is not created.
+        """
+        with mock.patch(
+            "api_alpha.endpoints.ads.create_token._batch_errors",
+            wraps=create_token._batch_errors,
+            side_effect=[{}, mock.DEFAULT],
+        ):
+            r = self._post_ads_users(
+                [self._ads_user(username="alice"), self._ads_user(username="johndoe")]
+            )
+
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json(), {"errors": {"existing_usernames": ["johndoe"]}})
+        self.assertFalse(User.objects.filter(username="alice").exists())
 
     # def test_batch_create(self):
     #     data = [

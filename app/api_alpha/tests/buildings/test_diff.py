@@ -553,6 +553,27 @@ class DiffTest(TransactionTestCase):
 
         self.assertEqual(r.status_code, 400)
 
+    def test_since_is_a_nonexistent_date(self):
+        """
+        Input: a well formatted `since` that is not a real date (February 30th).
+        Expected: a 400, not a 500.
+        """
+        r = self.client.get("/api/alpha/buildings/diff/?since=2026-02-30T00:00:00Z")
+
+        self.assertEqual(r.status_code, 400)
+
+    def test_since_in_the_future(self):
+        """
+        Input: a `since` later than the last modification of the RNB.
+        Expected: a 200 with an empty file, without the CSV header.
+        """
+        Building.objects.create(rnb_id="t", event_type="creation")
+
+        r = self.client.get("/api/alpha/buildings/diff/?since=2099-01-01T00:00:00Z")
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(get_content_from_streaming_response(r), "")
+
     def test_diff_revert_creation(self):
         """
         Input: a building is created, then its creation is reverted.

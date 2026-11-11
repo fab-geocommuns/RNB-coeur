@@ -64,7 +64,7 @@ def notify_if_error(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            notify_tech(f"Error while executing {func.__name__}: {e}")
+            notify_tech(f"Échec de {func.__name__} : {e}")
             raise e
 
     return wrapper

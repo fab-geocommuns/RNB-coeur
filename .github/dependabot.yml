@@ -20,6 +20,9 @@ updates:
     target-branch: "main"
     ignore:
       - dependency-name: "notebook"
+      # 0.0.7 ships a SyntaxError (keyword argument repeated: timestamp): Django cannot load its URLs
+      - dependency-name: "private-captcha"
+        versions: ["0.0.7"]
     groups:
       production:
         dependency-type: 'production'
