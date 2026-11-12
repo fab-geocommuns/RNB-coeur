@@ -17,7 +17,9 @@ from django.db import migrations
 # by-hand operation, at a quiet time:
 #   CREATE INDEX CONCURRENTLY IF NOT EXISTS batid_building_shape_geog ON batid_building USING GIST (geography(shape));
 #   CREATE INDEX CONCURRENTLY IF NOT EXISTS batid_plot_shape_geog ON batid_plot USING GIST (geography(shape));
-# then check pg_index.indisvalid for both.
+# then check pg_index.indisvalid for both. IF NOT EXISTS skips an INVALID index
+# (left by an interrupted DROP or CREATE): drop it with DROP INDEX CONCURRENTLY,
+# then run its CREATE again.
 
 
 class Migration(migrations.Migration):
@@ -43,6 +45,12 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             "DROP INDEX CONCURRENTLY IF EXISTS batid_plot_shape_geog;",
+            reverse_sql=migrations.RunSQL.noop,
+        ),
+        # The SETs above last for the whole connection: the migrations applied
+        # after this one in the same migrate must get the app timeouts back.
+        migrations.RunSQL(
+            "RESET statement_timeout; RESET lock_timeout;",
             reverse_sql=migrations.RunSQL.noop,
         ),
     ]
