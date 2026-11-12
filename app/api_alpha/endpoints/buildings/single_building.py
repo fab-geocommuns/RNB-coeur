@@ -210,7 +210,7 @@ La requête est refusée (400) si :
                                     "comment": {
                                         "type": "string",
                                         "description": "Texte associé à la modification et la justifiant.",
-                                        "example": "Ce n'est pas un bâtiment mais un arbre.",
+                                        "example": "Le bâtiment est démoli.",
                                     },
                                     "is_active": {
                                         "type": "boolean",
@@ -241,8 +241,8 @@ Si ce paramètre est :
 * présent et que sa valeur est une liste vide (`[]`), alors le bâtiment ne sera plus lié à aucune adresse."""
                                         ),
                                         "example": [
-                                            "75105_8884_00004",
-                                            "75105_8884_00006",
+                                            "49125_0355_00024",
+                                            "49125_0355_00030",
                                         ],
                                     },
                                     "shape": {
@@ -251,7 +251,7 @@ Si ce paramètre est :
                                             "Géométrie du bâtiment au format WKT ou HEX, en WGS84. La géométrie attendue est idéalement un polygone représentant le bâtiment, mais il est également possible de ne donner qu'un point.\n\nLa géométrie doit :\n"
                                             + get_shape_rules(max_move_meters=20)
                                         ),
-                                        "example": "POLYGON((2.3522 48.8566, 2.3532 48.8567, 2.3528 48.857, 2.3522 48.8566))",
+                                        "example": "POLYGON((-0.2805 47.1880, -0.2803 47.1880, -0.2803 47.1878, -0.2805 47.1880))",
                                     },
                                     "is_valid": {
                                         "type": "boolean",
