@@ -101,10 +101,8 @@ class ContributionSummariesView(RNBLoggingMixin, APIView):
                     + ", puis depuis l'ouverture de l'édition collaborative), "
                     "au même format que GET /api/alpha/contributions/summary/. "
                     "Les périodes sont toujours calculées au même instant "
-                    "(même updated_at) : une période courte ne compte jamais "
-                    "plus de communes ou d'organisations qu'une période plus "
-                    "longue. Les données sont mises à jour environ toutes les "
-                    "heures."
+                    "(même updated_at). Les données sont mises à jour environ "
+                    "toutes les heures."
                 ),
                 "operationId": "getContributionSummaries",
                 "responses": {
