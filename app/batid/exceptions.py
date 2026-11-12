@@ -69,6 +69,13 @@ class RevertNotAllowed(InvalidOperation):
         return "Le retour en arrière de l'opération n'est pas possible, car les bâtiments concernés ont été modifiés depuis"
 
 
+class RevertToVersionWithoutShape(RevertNotAllowed):
+    """The version to restore has no shape, which a current building must have"""
+
+    def api_message(self):
+        return "Le retour en arrière de l'opération n'est pas possible, car la version précédente du bâtiment n'a pas de géométrie"
+
+
 class EventAlreadyReverted(InvalidOperation):
     """The event has already been reverted, reverting it again would be a no-op"""
 

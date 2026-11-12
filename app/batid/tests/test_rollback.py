@@ -5,10 +5,12 @@ from batid.exceptions import (
     EventAlreadyReverted,
     EventIsARevert,
     RevertNotAllowed,
+    RevertToVersionWithoutShape,
 )
 from batid.models.building import (
     Address,
     Building,
+    BuildingHistoryOnly,
     BuildingWithHistory,
     Event,
     EventType,
@@ -18,6 +20,7 @@ from batid.services.rollback import rollback, rollback_dry_run, rollback_event
 from batid.tests.helpers import addresses_cle_interop
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry
+from django.db import connection
 from django.test import TransactionTestCase, override_settings
 
 
@@ -238,6 +241,45 @@ class TestUnitaryRollback(TransactionTestCase):
         self.assertEqual(
             str(e.exception), "The event_id does not correspond to an update."
         )
+
+    def test_revert_update_to_version_without_shape(self):
+        """
+        Input: a building updated once, whose prior version in the history table has
+        a NULL shape (possible in old history rows, not in batid_building); the
+        update is reverted.
+        Expected: RevertToVersionWithoutShape (a RevertNotAllowed) is raised and the
+        building keeps its current version (event, status, shape).
+        """
+        self.building_1.update(
+            self.user,
+            {"source": "contribution"},
+            status="demolished",
+            addresses_cle_interop=None,
+            ext_ids=None,
+            shape=None,
+        )
+        self.building_1.refresh_from_db()
+        update_event_id = self.building_1.event_id
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"UPDATE {BuildingHistoryOnly._meta.db_table} SET shape = NULL WHERE rnb_id = %s",
+                [self.building_1.rnb_id],
+            )
+
+        with self.assertRaises(RevertToVersionWithoutShape) as e:
+            Event.revert_event(
+                {"source": "rollback"},
+                update_event_id,
+                user_making_revert=self.team_rnb,
+            )
+        self.assertIsInstance(e.exception, RevertNotAllowed)
+        self.assertIn("n'a pas de géométrie", e.exception.api_message())
+
+        self.building_1.refresh_from_db()
+        self.assertEqual(self.building_1.event_id, update_event_id)
+        self.assertEqual(self.building_1.status, "demolished")
+        self.assertEqual(self.building_1.shape.wkt, self.shape_1.wkt)
 
     @override_settings(MAX_BUILDING_AREA=float("inf"), BUILDING_OVERLAP_THRESHOLD=1.1)
     def test_revert_split(self):

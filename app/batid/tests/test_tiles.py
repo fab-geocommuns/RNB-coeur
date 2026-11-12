@@ -1,6 +1,7 @@
 import mapbox_vector_tile
 from batid.models import Building
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import GEOSGeometry
 from django.test import TestCase
 
 
@@ -15,6 +16,7 @@ class TestVectorTiles(TestCase):
             point="POINT (2.6000591402070654 48.814763140563656)",
             is_active=True,
             validated_by=[user.pk],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         Building.objects.create(
             rnb_id="BDG-EMPTY",
@@ -22,6 +24,7 @@ class TestVectorTiles(TestCase):
             point="POINT (2.6001591402070654 48.814863140563656)",
             is_active=True,
             validated_by=[],
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
         Building.objects.create(
             rnb_id="BDG-NULL",
@@ -29,6 +32,7 @@ class TestVectorTiles(TestCase):
             point="POINT (2.6002591402070654 48.814963140563656)",
             is_active=True,
             validated_by=None,
+            shape=GEOSGeometry("POINT(0 0)", srid=4326),
         )
 
     def _features_by_rnb_id(self, tile_bytes):

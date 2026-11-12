@@ -2,6 +2,7 @@ from contextlib import contextmanager
 
 from batid.models import Building, BuildingHistoryOnly
 from batid.utils.db import building_versioning_dangerously_disabled
+from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection, connections, transaction
 from django.db.transaction import TransactionManagementError
 from django.db.utils import DatabaseError, ProgrammingError
@@ -39,7 +40,9 @@ class DisableBuildingVersioningTestCase(TestCase):
         Expected: the new value is written, no history row is created and the
         building stays the current version (open sys_period).
         """
-        building = Building.objects.create(rnb_id="VERSION0001")
+        building = Building.objects.create(
+            rnb_id="VERSION0001", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
         with building_versioning_dangerously_disabled():
             building.parent_buildings = [1]
@@ -57,7 +60,9 @@ class DisableBuildingVersioningTestCase(TestCase):
         Expected: the sys_period keeps the exact value it had before the
         update, since the trigger no longer maintains it.
         """
-        Building.objects.create(rnb_id="VERSION0008")
+        Building.objects.create(
+            rnb_id="VERSION0008", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
         sys_period_before = Building.objects.get(rnb_id="VERSION0008").sys_period
 
         with building_versioning_dangerously_disabled():
@@ -75,7 +80,9 @@ class DisableBuildingVersioningTestCase(TestCase):
         default, since the trigger did not set it) and no history row.
         """
         with building_versioning_dangerously_disabled():
-            building = Building.objects.create(rnb_id="VERSION0002")
+            building = Building.objects.create(
+                rnb_id="VERSION0002", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+            )
 
         building.refresh_from_db()
         self.assertIsNotNone(building.sys_period.lower)
@@ -88,7 +95,9 @@ class DisableBuildingVersioningTestCase(TestCase):
         manager.
         Expected: none of them is historicized, only the last value is kept.
         """
-        building = Building.objects.create(rnb_id="VERSION0003")
+        building = Building.objects.create(
+            rnb_id="VERSION0003", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
         with building_versioning_dangerously_disabled():
             for i in range(3):
@@ -106,7 +115,9 @@ class DisableBuildingVersioningTestCase(TestCase):
         Expected: only the update made after the context manager is
         historicized.
         """
-        building = Building.objects.create(rnb_id="VERSION0004")
+        building = Building.objects.create(
+            rnb_id="VERSION0004", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
         with building_versioning_dangerously_disabled():
             building.parent_buildings = [1]
@@ -128,7 +139,9 @@ class DisableBuildingVersioningTestCase(TestCase):
         outside of it, then a new update.
         Expected: the setting is restored, so the new update is historicized.
         """
-        building = Building.objects.create(rnb_id="VERSION0005")
+        building = Building.objects.create(
+            rnb_id="VERSION0005", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
         with self.assertRaises(ValueError):
             with building_versioning_dangerously_disabled():
@@ -148,7 +161,9 @@ class DisableBuildingVersioningTestCase(TestCase):
         Expected: the inner context manager does not turn the versioning back
         on, so nothing is historicized before the outer one is closed.
         """
-        building = Building.objects.create(rnb_id="VERSION0009")
+        building = Building.objects.create(
+            rnb_id="VERSION0009", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
         with building_versioning_dangerously_disabled():
             with building_versioning_dangerously_disabled():
@@ -171,7 +186,9 @@ class DisableBuildingVersioningTestCase(TestCase):
         Expected: only the versioning trigger is skipped, the trigger
         forbidding building deletions still fires.
         """
-        Building.objects.create(rnb_id="VERSION0006")
+        Building.objects.create(
+            rnb_id="VERSION0006", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
         with building_versioning_dangerously_disabled():
             with self.assertRaisesMessage(ProgrammingError, "deletions are forbidden"):
@@ -191,7 +208,9 @@ class DisableBuildingVersioningTestCase(TestCase):
         Expected: writing a building fails, rather than silently skipping (or
         performing) the historisation.
         """
-        Building.objects.create(rnb_id="VERSION0007")
+        Building.objects.create(
+            rnb_id="VERSION0007", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
         with self.assertRaises(DatabaseError):
             with transaction.atomic():
@@ -211,8 +230,12 @@ class ConcurrentBuildingVersioningTestCase(TransactionTestCase):
     """
 
     def setUp(self):
-        Building.objects.create(rnb_id="CONCURRENT01")
-        Building.objects.create(rnb_id="CONCURRENT02")
+        Building.objects.create(
+            rnb_id="CONCURRENT01", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
+        Building.objects.create(
+            rnb_id="CONCURRENT02", shape=GEOSGeometry("POINT(0 0)", srid=4326)
+        )
 
     def test_other_session_still_historicizes_and_is_not_blocked(self):
         """

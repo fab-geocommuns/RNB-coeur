@@ -169,7 +169,9 @@ class SeedSelectionTestCase(TestCase):
         )
         # no shape, point 300 m south
         Building.objects.create(
-            rnb_id="NOSHAPE0001", point=Point(LON, LAT - 3 * DEG_100M, srid=4326)
+            rnb_id="NOSHAPE0001",
+            point=Point(LON, LAT - 3 * DEG_100M, srid=4326),
+            shape=Point(LON, LAT - 3 * DEG_100M, srid=4326),
         )
         # 5 km north
         Building.objects.create(

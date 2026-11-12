@@ -144,15 +144,6 @@ class SchemaMatchesAPITest(APITestCase):
             ext_ids=None,
         )
 
-        # A building without any shape
-        Building.objects.create(
-            rnb_id="NOSHAPENOSHA",
-            shape=None,
-            point=point,
-            status="notUsable",
-            is_active=False,
-        )
-
     def _operations(self):
         for path, path_item in self.schema["paths"].items():
             for method, operation in path_item.items():
@@ -246,14 +237,14 @@ class SchemaMatchesAPITest(APITestCase):
 
     def test_single_building_matches_documented_response(self):
         """
-        Input: GET /buildings/{rnb_id}/?withPlots=1 on a complete building, a building
-        with a point shape and no plot, and a building with no shape.
+        Input: GET /buildings/{rnb_id}/?withPlots=1 on a complete building and on a
+        building with a point shape and no plot.
         Expected: each response validates against the documented 200 schema (null
         values included) and returns no field missing from the documentation.
         """
         schema = self._response_schema("/api/alpha/buildings/{rnb_id}/", "get", "200")
 
-        for rnb_id in ("FULLFULLFULL", "POINTPOINTPO", "NOSHAPENOSHA"):
+        for rnb_id in ("FULLFULLFULL", "POINTPOINTPO"):
             with self.subTest(rnb_id=rnb_id):
                 r = self.client.get(f"/api/alpha/buildings/{rnb_id}/?withPlots=1")
                 self.assertEqual(r.status_code, 200)
@@ -268,7 +259,6 @@ class SchemaMatchesAPITest(APITestCase):
         """
         schema = {"$ref": "#/components/schemas/BuildingGeoJSON"}
 
-        # The building without shape is left out: the GeoJSON serializer crashes on it
         for rnb_id in ("FULLFULLFULL", "POINTPOINTPO"):
             with self.subTest(rnb_id=rnb_id):
                 r = self.client.get(
