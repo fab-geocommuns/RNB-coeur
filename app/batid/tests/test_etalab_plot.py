@@ -2,11 +2,13 @@ from datetime import date
 from unittest import mock
 
 import requests
+from batid.management.commands.import_plots_dpt import create_tasks_list
 from batid.services.imports.import_plots import (
     ETALAB_CADASTRE_URL,
     etalab_recent_release_date,
     pick_release_date,
 )
+from batid.tasks import queue_full_plots_import
 from django.test import SimpleTestCase
 
 RELEASE_DATES = [
@@ -109,3 +111,49 @@ class EtalabRecentReleaseDateTestCase(SimpleTestCase):
 
         with self.assertRaises(requests.HTTPError):
             etalab_recent_release_date()
+
+
+@mock.patch(
+    "batid.services.imports.import_plots.fetch_etalab_release_dates",
+    return_value=[date(2026, 6, 1), date(2026, 9, 1)],
+)
+class PlotsImportReleaseDateTestCase(SimpleTestCase):
+    def test_import_plots_dpt_without_release_reads_etalab_index(self, fetch_mock):
+        """
+        Input: import_plots_dpt task list for departement "01" without a
+        release date, Etalab index mocked to list 2026-06-01 and 2026-09-01.
+        Expected: dl_source then import_plots, both carrying "2026-09-01".
+        """
+        dl_task, import_task = create_tasks_list("01")
+
+        fetch_mock.assert_called_once()
+        self.assertEqual(dl_task.args, ("plot", {"dpt": "01", "date": "2026-09-01"}))
+        self.assertEqual(import_task.args, ("01", "2026-09-01"))
+
+    @mock.patch("batid.tasks.notify_tech")
+    @mock.patch("batid.tasks.chain")
+    def test_scheduled_import_uses_release_before_bound(
+        self, chain_mock, notify_mock, fetch_mock
+    ):
+        """
+        Input: queue_full_plots_import over departements "01" to "02",
+        released_before="2026-09-01", Etalab index mocked to list 2026-06-01
+        and 2026-09-01.
+        Expected: 4 chained tasks (dl_source then import_plots per
+        departement), every one carrying "2026-06-01".
+        """
+        queue_full_plots_import.run(
+            dpt_start="01", dpt_end="02", released_before="2026-09-01"
+        )
+
+        tasks = chain_mock.call_args.args
+        self.assertEqual(
+            [t.args for t in tasks],
+            [
+                ("plot", {"dpt": "01", "date": "2026-06-01"}),
+                ("01", "2026-06-01"),
+                ("plot", {"dpt": "02", "date": "2026-06-01"}),
+                ("02", "2026-06-01"),
+            ],
+        )
+        chain_mock.return_value.assert_called_once_with()
