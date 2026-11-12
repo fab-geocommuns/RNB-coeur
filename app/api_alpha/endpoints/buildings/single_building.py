@@ -87,7 +87,7 @@ Cet endpoint permet de savoir ce qu'est devenu un identifiant RNB que vous conna
 * Si l'identifiant est toujours actif, `active_children` est vide.
 * Si l'identifiant a été fusionné ou scindé, `active_children` contient les identifiants actifs qui en sont issus. La filiation est suivie jusqu'au bout : si un bâtiment issu de la fusion ou de la scission a lui-même été fusionné, scindé ou désactivé, ce sont ses descendants actifs qui sont indiqués.
 * Si une fusion ou une scission a été annulée, les identifiants d'origine, réactivés, sont indiqués à la place de ceux qui avaient été créés.
-* Un identifiant inactif dont `active_children` est vide n'a plus de descendant actif.
+* Si l'identifiant a été désactivé, ou si aucun descendant actif n'a été retrouvé, `active_children` est vide.
 
 `event_type`, `updated_at`, `event_origin` et `author` décrivent le dernier événement subi par l'identifiant interrogé.
 
@@ -157,7 +157,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                                         },
                                         "active_children": {
                                             "type": "array",
-                                            "description": "Identifiants RNB actifs au bout de la filiation de l'identifiant interrogé. Vide si l'identifiant est actif ou s'il n'a plus de descendant actif.",
+                                            "description": "Identifiants RNB actifs au bout de la filiation de l'identifiant interrogé. Vide si l'identifiant est actif ou si aucun descendant actif n'a été retrouvé.",
                                             "items": {
                                                 "$ref": "#/components/schemas/RNBID"
                                             },

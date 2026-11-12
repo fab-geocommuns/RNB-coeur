@@ -100,10 +100,24 @@ def get_active_children(rnb_id: str) -> list[str]:
 
         SELECT next_bdg.rnb_id, next_bdg.is_active, next_bdg.event_id, next_bdg.event_type
         FROM lineage AS l
-        JOIN batid_building_with_history AS linked
-            ON linked.event_id = l.event_id
-            AND linked.is_active
-            AND linked.rnb_id <> l.rnb_id
+        -- Query both tables instead of the batid_building_with_history view: Postgres
+        -- has no statistics on event_id through the UNION ALL view, so it estimates
+        -- millions of rows instead of a few, which triggers a costly JIT compilation.
+        CROSS JOIN LATERAL (
+            SELECT cur.rnb_id
+            FROM batid_building AS cur
+            WHERE cur.event_id = l.event_id
+            AND cur.is_active
+            AND cur.rnb_id <> l.rnb_id
+
+            UNION ALL
+
+            SELECT hist.rnb_id
+            FROM batid_building_history AS hist
+            WHERE hist.event_id = l.event_id
+            AND hist.is_active
+            AND hist.rnb_id <> l.rnb_id
+        ) AS linked
         JOIN batid_building AS next_bdg ON next_bdg.rnb_id = linked.rnb_id
         WHERE NOT l.is_active
         AND l.event_type = ANY(%(event_types)s)
