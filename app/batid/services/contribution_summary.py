@@ -1,12 +1,14 @@
 """
 Summary of the community contributions shown on the home page of the website
-(GET /api/alpha/contributions/summary/).
+(GET /api/alpha/contributions/summary/ for one period,
+GET /api/alpha/contributions/summaries/ for all of them).
 
-Everything is computed during the request for one period (the last 7 or 30
-days, or since the opening of the collaborative edition), then cached for an
-hour: on a clone of the production data, about 2.5 s for a 30-day window.
+Everything is computed during the request, for every period at once (the last
+7 or 30 days, and since the opening of the collaborative edition), then cached
+for an hour.
 """
 
+import logging
 import time
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
@@ -32,6 +34,8 @@ from django.db.models import (
 )
 from django.utils import timezone
 
+logger = logging.getLogger(__name__)
+
 PARIS_TZ = ZoneInfo("Europe/Paris")
 
 # The window is a rolling one, so that the figures do not drop to zero on the
@@ -47,6 +51,8 @@ TOP_LIMIT = 5
 NEWCOMERS_LIMIT = 8
 
 CACHE_KEY = "contribution_summary"
+# days parameter of every period, all cached in a single entry
+PERIOD_KEYS = [*(str(d) for d in WINDOWS_DAYS), ALL_PERIOD]
 # An entry is recomputed after an hour, but kept a day: while one request
 # recomputes it, the others get the previous one instead of all running the
 # same queries at once
@@ -54,6 +60,10 @@ CACHE_FRESH_SECONDS = 3600
 CACHE_TIMEOUT_SECONDS = 24 * 3600
 # longest expected computation; past it, another request may try again
 REFRESH_LOCK_SECONDS = 60
+# With an empty cache, how long the requests wait for the one computing it
+# (below the 60 s nginx proxy timeout), and how often they check
+EMPTY_CACHE_WAIT_SECONDS = 20
+EMPTY_CACHE_POLL_SECONDS = 0.5
 
 # A contribution is one distinct event_id: a single update (eg. shape + address)
 # writes several SummerChallenge rows sharing the same event_id
@@ -301,29 +311,100 @@ def compute_contribution_summary(
 
 def _cached(key: str, compute: Callable[[], dict]) -> dict:
     """
-    Value of `compute` cached under `key`. Once an entry is outdated, a single
-    request recomputes it (it holds a lock) and the others get the outdated
-    one meanwhile. Only an empty cache makes concurrent requests compute.
+    Value of `compute` cached under `key`, computed by a single request at a
+    time (it holds a lock):
+    - an outdated entry is served to the other requests meanwhile;
+    - with no entry at all (after a deploy, or a cache flush), the others
+      wait for it, then compute it themselves if it still is not there;
+    - if the computation fails, the outdated entry is served, if any.
     """
     entry = cache.get(key)
-    if entry is not None:
-        if entry["fresh_until"] > time.time():
+    if entry is not None and entry["fresh_until"] > time.time():
+        return entry["data"]
+    lock_key = f"{key}:refreshing"
+    locked = cache.add(lock_key, True, REFRESH_LOCK_SECONDS)
+    if not locked and entry is not None:
+        return entry["data"]
+    # past the wait, the request computes without the lock: slower for the
+    # database if the computing request is stuck, but never an error
+    deadline = time.monotonic() + EMPTY_CACHE_WAIT_SECONDS
+    while not locked and time.monotonic() < deadline:
+        time.sleep(EMPTY_CACHE_POLL_SECONDS)
+        entry = cache.get(key)
+        if entry is not None:
             return entry["data"]
-        if not cache.add(f"{key}:refreshing", True, REFRESH_LOCK_SECONDS):
-            return entry["data"]
-    data = compute()
-    cache.set(
-        key,
-        {"data": data, "fresh_until": time.time() + CACHE_FRESH_SECONDS},
-        CACHE_TIMEOUT_SECONDS,
-    )
-    cache.delete(f"{key}:refreshing")
-    return data
+        # the request computing it may have failed: take over
+        locked = cache.add(lock_key, True, REFRESH_LOCK_SECONDS)
+    if locked:
+        # another request may have stored it and released the lock between
+        # our read and our lock: read it again before computing
+        latest = cache.get(key)
+        if latest is not None and latest["fresh_until"] > time.time():
+            cache.delete(lock_key)
+            return latest["data"]
+        entry = latest if latest is not None else entry
+    try:
+        data = compute()
+        cache.set(
+            key,
+            {"data": data, "fresh_until": time.time() + CACHE_FRESH_SECONDS},
+            CACHE_TIMEOUT_SECONDS,
+        )
+        return data
+    except Exception:
+        if entry is None:
+            raise
+        logger.exception("Contribution summary refresh failed, outdated one served")
+        return entry["data"]
+    finally:
+        if locked:
+            cache.delete(lock_key)
+
+
+def compute_all_summaries(now: Optional[datetime] = None) -> dict[str, dict]:
+    """
+    Summaries of every period, keyed by their days parameter ("7", "30",
+    "all"), all computed at the same instant: computed at different times, a
+    shorter period could count more cities or organizations than a longer one.
+    Shortest period first: a contribution committed during the computation is
+    then only counted by longer periods. Still not covered: a daily KPI written
+    meanwhile (building_changes) or a row updated meanwhile (a user changing
+    organization), until the next refresh.
+    """
+    now = now or timezone.now()
+    return {
+        key: compute_contribution_summary(
+            now=now, days=None if key == ALL_PERIOD else int(key)
+        )
+        for key in PERIOD_KEYS
+    }
+
+
+def summaries_cache_key() -> str:
+    """
+    Key of the single entry holding every period. It names the periods: an
+    entry cached before a period was added (by the previous code during a
+    deploy, or until it expires) is never read.
+    """
+    return f"{CACHE_KEY}:{','.join(PERIOD_KEYS)}"
 
 
 def get_contribution_summary(days: Optional[int] = DEFAULT_WINDOW_DAYS) -> dict:
-    """Cached version of compute_contribution_summary, one entry per period"""
-    return _cached(
-        f"{CACHE_KEY}:{days or ALL_PERIOD}",
-        lambda: compute_contribution_summary(days=days),
-    )
+    """
+    Cached version of compute_contribution_summary. All the periods share a
+    single entry and are recomputed together, so that they stay consistent.
+    """
+    return _cached(summaries_cache_key(), compute_all_summaries)[
+        str(days or ALL_PERIOD)
+    ]
+
+
+def get_all_contribution_summaries() -> list[dict]:
+    """
+    Summaries of every period, shortest first, read from the cache at once:
+    they always come from the same computation. Separate calls to
+    get_contribution_summary may not (one may get the outdated entry served
+    during a refresh, the next the new one).
+    """
+    summaries = _cached(summaries_cache_key(), compute_all_summaries)
+    return [summaries[key] for key in PERIOD_KEYS]
