@@ -68,7 +68,7 @@ def compute_daily_kpis(external_calls=True):
 
     today = date.today()
 
-    address_kpis = count_address_kpis()
+    address_kpis = count_active_buildings_kpis()
 
     # Active buildings
     KPI.objects.update_or_create(
@@ -297,7 +297,7 @@ def get_data_gouv_stats() -> tuple:
         return (None, None)
 
 
-def count_address_kpis() -> dict[str, int]:
+def count_active_buildings_kpis() -> dict[str, int]:
     """
     Count, in a single pass over the active buildings, the active buildings, the
     real buildings, the building - address links and the real buildings without

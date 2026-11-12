@@ -17,7 +17,7 @@ from batid.services.kpi import (
     KPI_DATA_GOUV_VIEWS,
     backfill_api_requests_kpi,
     compute_daily_kpis,
-    count_address_kpis,
+    count_active_buildings_kpis,
     count_api_requests,
     count_building_changes_daily,
     count_editors,
@@ -205,7 +205,7 @@ class CountContributions(TestCase):
         self.assertEqual(count_edits(), 3)
 
 
-class CountAddressKpis(TestCase):
+class CountActiveBuildingsKpis(TestCase):
     def setUp(self):
 
         # Addresses
@@ -258,7 +258,7 @@ class CountAddressKpis(TestCase):
         """
 
         self.assertEqual(
-            count_address_kpis(),
+            count_active_buildings_kpis(),
             {"links": 3, "real_wo_addresses": 2, "active": 4, "real": 3},
         )
 
@@ -326,7 +326,7 @@ class LongQueryTimeout(TransactionTestCase):
         and the session timeout is still 12345ms after the call.
         """
         queries = {
-            "count_address_kpis": count_address_kpis,
+            "count_active_buildings_kpis": count_active_buildings_kpis,
             "count_edits": count_edits,
             "count_api_requests": count_api_requests,
             "count_edits_by_department": count_edits_by_department,
