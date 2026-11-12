@@ -15,6 +15,7 @@ from batid.services.imports import building_import_history
 from batid.services.RNB_team_user import get_RNB_team_user
 from batid.services.source import Source, remove_after_task_success
 from batid.utils.db import dictfetchall
+from batid.utils.geo import radius_in_degrees
 from celery import Signature
 from django.contrib.gis.geos import Point
 from django.db import connection, transaction
@@ -223,13 +224,22 @@ def _match_bdg_on_plot(cursor, address_point: Point) -> Optional[str]:
     """
 
     # First, we check how many plots are nearby (within 5 meters) of the address point. If there is not exactly one, we give up immediately
+    # The bbox pre-filter lets the planner use the geometry index
     close_plots_sql = """
         select shape, st_area(shape::geography) as area
         from batid_plot
-        where st_dwithin(%(address_point)s, shape::geography, 5)
+        where shape && ST_Expand(%(address_point)s::geometry, %(radius_deg)s)
+        and st_dwithin(%(address_point)s, shape::geography, 5)
     """
 
-    plots = dictfetchall(cursor, close_plots_sql, {"address_point": f"{address_point}"})
+    plots = dictfetchall(
+        cursor,
+        close_plots_sql,
+        {
+            "address_point": f"{address_point}",
+            "radius_deg": radius_in_degrees(radius_m=5, geom=address_point),
+        },
+    )
 
     if len(plots) != 1:
         return None
