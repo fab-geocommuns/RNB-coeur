@@ -33,10 +33,20 @@ def radius_in_degrees(*, radius_m: float, geom: GEOSGeometry) -> float:
     latitude of geom farthest from the equator (smallest cosine). The 10 % margin
     covers the ellipsoid (a degree of latitude is only 110,574 m at the equator) and
     the latitude drift within the radius.
+
+    In geography an edge is a great-circle arc, which bulges towards the pole beyond
+    the extent of geom. No edge of geom bulges more than one spanning its whole
+    longitude range at its farthest latitude, whose vertex is at
+    atan(tan(lat) / cos(width / 2)). That bulge is added to the radius.
     """
-    _, min_lat, _, max_lat = geom.extent
+    min_lng, min_lat, max_lng, max_lat = geom.extent
     lat = max(abs(min_lat), abs(max_lat))
-    return radius_m / (METERS_PER_DEGREE * math.cos(math.radians(lat))) * 1.1
+    half_width = math.radians(max_lng - min_lng) / 2
+    bulged_lat = math.degrees(
+        math.atan(math.tan(math.radians(lat)) / math.cos(half_width))
+    )
+    radius_deg = radius_m / (METERS_PER_DEGREE * math.cos(math.radians(bulged_lat)))
+    return radius_deg * 1.1 + bulged_lat - lat
 
 
 def fix_nested_shells(geom: GEOSGeometry) -> GEOSGeometry:

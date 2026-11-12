@@ -17,7 +17,12 @@ from batid.utils.geo import (
     merge_contiguous_shapes,
     radius_in_degrees,
 )
-from django.contrib.gis.geos import GeometryCollection, GEOSGeometry, Point, Polygon
+from django.contrib.gis.geos import (
+    GeometryCollection,
+    GEOSGeometry,
+    LineString,
+    Point,
+)
 from django.test import SimpleTestCase, TestCase, override_settings
 
 
@@ -388,28 +393,27 @@ class RadiusInDegreesTest(SimpleTestCase):
         expected = 50 / (111_320 * math.cos(math.radians(48.8566))) * 1.1
         self.assertAlmostEqual(radius, expected, places=12)
 
-    def test_polygon_uses_latitude_farthest_from_equator(self):
+    def test_geometry_uses_latitude_farthest_from_equator(self):
         """
-        Input: 50 m around a polygon spanning 50 N to 51 N.
+        Input: 50 m around a meridian segment from 50 N to 51 N (no longitude span,
+        so no great-circle bulge).
         Expected: the value for a point at 51 N.
         """
-        poly = Polygon.from_bbox((2.0, 50.0, 3.0, 51.0))
-        poly.srid = 4326
+        line = LineString((2.0, 50.0), (2.0, 51.0), srid=4326)
 
-        radius = radius_in_degrees(radius_m=50, geom=poly)
+        radius = radius_in_degrees(radius_m=50, geom=line)
 
         expected = radius_in_degrees(radius_m=50, geom=Point(2.0, 51.0, srid=4326))
         self.assertAlmostEqual(radius, expected, places=12)
 
-    def test_polygon_south_of_equator_uses_absolute_latitude(self):
+    def test_geometry_south_of_equator_uses_absolute_latitude(self):
         """
-        Input: 50 m around a polygon spanning -21.4 to -20.9 (La Réunion).
+        Input: 50 m around a meridian segment from -21.4 to -20.9 (La Réunion).
         Expected: the value for a point at 21.4 N.
         """
-        poly = Polygon.from_bbox((55.2, -21.4, 55.8, -20.9))
-        poly.srid = 4326
+        line = LineString((55.2, -21.4), (55.2, -20.9), srid=4326)
 
-        radius = radius_in_degrees(radius_m=50, geom=poly)
+        radius = radius_in_degrees(radius_m=50, geom=line)
 
         expected = radius_in_degrees(radius_m=50, geom=Point(55.2, 21.4, srid=4326))
         self.assertAlmostEqual(radius, expected, places=12)

@@ -135,6 +135,32 @@ class ClosestBuildingsTest(TestCase):
                     self.assertTrue(expected)
                     self.assertEqual(found, expected)
 
+    def test_wide_polygon_keeps_buildings_under_its_geodesic_edge(self):
+        """
+        Input: point buildings every ~2 m from 49.0 N to 49.002 N at 2.5 E; a closest
+        search from the 1 degree square (2 E, 48 N, 3 E, 49 N) with a 10 m and a 35 m
+        radius. In geography its northern edge is a great-circle arc reaching ~49.001 N.
+        Expected: the same buildings as the query without the bbox pre-filter, including
+        the one at 49.0005 N, inside the polygon.
+        """
+        bdgs = Building.objects.bulk_create(
+            point_building(Point(2.5, 49.0 + k * 0.00002, srid=4326))
+            for k in range(101)
+        )
+        poly = Polygon.from_bbox((2.0, 48.0, 3.0, 49.0))
+        poly.srid = 4326
+        inside = next(b.rnb_id for b in bdgs if math.isclose(b.shape.y, 49.0005))
+
+        for radius in [10, 35]:
+            with self.subTest(radius=radius):
+                found = set(
+                    get_closest_from_poly(poly, radius).values_list("rnb_id", flat=True)
+                )
+
+                expected = reference_from_poly(poly=poly, radius=radius)
+                self.assertIn(inside, expected)
+                self.assertEqual(found, expected)
+
     def test_edge_east_at_51n_needs_latitude_cosine(self):
         """
         Input: a building at 0.99 x 50 m due east of a point at 51.0344 N; a 50 m
