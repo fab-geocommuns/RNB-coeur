@@ -3,14 +3,36 @@ docs {
   diff, OGC API Features et tuiles vectorielles. Les assertions ne vérifient ni nombre exact ni
   contenu précis : la collection se rejoue sur n'importe quelle base qui contient la zone.
 
-  Les valeurs de l'environnement `local` (rnbId, plotId, bbox, tuile...) supposent la zone chargée
-  par `seed_local_db` (PR #1080) sur le centre de Paris (48.8566,2.3522, rayon 3 km), pas les données
-  importées au § 6 du readme. Une base peuplée depuis la sandbox n'a ni ADS ni lien
+  Exception : le dossier `ads/` écrit en base et demande `superuserToken`, un secret que Bruno garde
+  sur le poste. Ses requêtes portent le tag `ecriture` : à envoyer une par une, jamais en lot. Leur
+  corps enregistré est vide : rejouées en lot, elles ne créent rien.
+
+  Les valeurs de lecture (rnbId, plotId, bbox, tuile...) sont communes à tous les environnements,
+  dans `vars:pre-request` ci-dessous : un environnement ne définit que `baseUrl` et ses secrets.
+  Elles visent le centre de Paris : présentes en prod et dans la zone chargée par `seed_local_db`
+  (PR #1080, 48.8566,2.3522, rayon 3 km), pas dans les données importées au § 6 du readme. Une base peuplée depuis la sandbox n'a ni ADS ni lien
   bâtiment-adresse dans cette zone : la tuile ADS et la recherche par clé BAN y répondent vide.
 
   Chaque requête journalisée porte `from=monitoring` : rejouée sur staging, prod ou chez l'IGN, elle
   n'écrit pas dans le journal des appels API (indicateur api_requests_count).
 
   Autre cible : un autre fichier dans `environments/`, ou en ligne de commande
-  `npx @usebruno/cli@4.2.1 run -r --env local --env-var baseUrl=https://...`.
+  `npx @usebruno/cli@4.2.1 run -r --exclude-tags=ecriture --env local --env-var baseUrl=https://...`.
+}
+
+vars:pre-request {
+  rnbId: 91T4X1JYQ68D
+  plotId: 75105000BQ0059
+  cleInteropBan: 75105_5268_00009
+  bbox: 2.346994,48.850490,2.348994,48.852490
+  closestPoint: 48.85149032153175,2.347993858213088
+  closestRadius: 50
+  intersectWkt: POLYGON((2.347694 48.851190, 2.348294 48.851190, 2.348294 48.851790, 2.347694 48.851790, 2.347694 48.851190))
+  guessQuery: 9 rue lagrange 75005 Paris
+  inseeCode: 75056
+  changeStatsSince: 2025-12-01
+  changeStatsUntil: 2026-01-31
+  tileX: 33195
+  tileY: 22547
+  tileZ: 16
 }
