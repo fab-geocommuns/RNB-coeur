@@ -2,14 +2,6 @@ from collections.abc import Iterable
 from typing import Any, Callable
 
 
-def is_float(string: str) -> bool:
-    try:
-        float(string)
-        return True
-    except ValueError:
-        return False
-
-
 def max_by_group(
     iterable: Iterable, max_key: Callable, group_key: Callable
 ) -> dict[str, Any]:

@@ -2,6 +2,7 @@ from typing import Optional
 
 from batid.models import Building
 from batid.services.bdg_status import BuildingStatus
+from batid.utils.geo import radius_in_degrees
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point, Polygon
 from django.db.models import BooleanField, ExpressionWrapper, QuerySet
@@ -18,8 +19,15 @@ def get_closest_from_poly(poly: Polygon, radius) -> Optional[QuerySet]:
         qs.filter(
             ExpressionWrapper(
                 RawSQL(
-                    "ST_DWithin(shape::geography, ST_GeomFromWKB(%s, 4326), %s)",
-                    (poly.wkb, radius),
+                    # The bbox pre-filter lets the planner use the geometry index
+                    "shape && ST_Expand(ST_GeomFromWKB(%s, 4326), %s) "
+                    "AND ST_DWithin(shape::geography, ST_GeomFromWKB(%s, 4326), %s)",
+                    (
+                        poly.wkb,
+                        radius_in_degrees(radius_m=radius, geom=poly),
+                        poly.wkb,
+                        radius,
+                    ),
                 ),
                 output_field=BooleanField(),
             )
@@ -42,11 +50,15 @@ def __get_qs(lat, lng, radius):
 
     point_geom = Point(lng, lat, srid=4326)
 
+    # The bbox pre-filter lets the planner use the geometry index
+    prefilter_sql = "shape && ST_Expand(ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s)"
     where_sql = "ST_DWithin(shape::geography, ST_MakePoint(%s, %s)::geography, %s)"
+    radius_deg = radius_in_degrees(radius_m=radius, geom=point_geom)
 
     qs = (
         qs.extra(  # nosec B610: params are properly escaped. Better yet: use filter
-            where=[where_sql], params=[lng, lat, radius]
+            where=[prefilter_sql, where_sql],
+            params=[lng, lat, radius_deg, lng, lat, radius],
         )
         .annotate(distance=Distance("shape", point_geom))
         .order_by("distance")
