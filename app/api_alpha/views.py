@@ -29,6 +29,7 @@ from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import (
     EDITION_AUTH_RESPONSES,
     build_schema_all_endpoints,
+    get_shape_rules,
     get_status_list,
     rnb_doc,
 )
