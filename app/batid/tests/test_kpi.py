@@ -30,11 +30,11 @@ from batid.services.kpi import (
     get_building_change_stats,
     get_kpi,
     get_kpi_most_recent,
-    long_query_timeout,
 )
+from batid.utils.db import long_query_timeout
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import GEOSGeometry, Point
-from django.db import connection
+from django.db import connection, transaction
 from django.test import TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
 from rest_framework_tracking.models import APIRequestLog
@@ -318,6 +318,25 @@ class LongQueryTimeout(TransactionTestCase):
         with long_query_timeout():
             self.assertEqual(self.session_timeout(), "1h")
         self.assertEqual(self.session_timeout(), self.SESSION_TIMEOUT)
+
+    def test_enclosing_transaction_gets_its_timeout_back(self):
+        """
+        Input: a transaction with a local timeout of 54321 ms, then a
+        long_query_timeout block inside it, left normally then by an exception.
+        Expected: 54321ms again in the transaction after each block.
+        """
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL statement_timeout = 54321;")
+
+            with long_query_timeout():
+                self.assertEqual(self.session_timeout(), "1h")
+            self.assertEqual(self.session_timeout(), "54321ms")
+
+            with self.assertRaises(ZeroDivisionError):
+                with long_query_timeout():
+                    1 / 0
+            self.assertEqual(self.session_timeout(), "54321ms")
 
     def test_heavy_queries_run_under_the_local_timeout(self):
         """

@@ -1,5 +1,3 @@
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
@@ -7,8 +5,8 @@ import requests
 from batid.models import KPI, Contribution
 from batid.models.report import Report
 from batid.services.bdg_status import BuildingStatus
-from batid.utils.db import dictfetchone
-from django.db import connection, transaction
+from batid.utils.db import dictfetchone, long_query_timeout
+from django.db import connection
 from rest_framework_tracking.models import APIRequestLog
 
 KPI_ACTIVE_BUILDINGS_COUNT = "active_buildings_count"
@@ -29,20 +27,6 @@ KPI_DATA_GOUV_DOWNLOADS = "data_gouv_downloads_count"
 KPI_BUILDING_CHANGES_IMPORT_BDTOPO = "building_changes_import_bdtopo"
 KPI_BUILDING_CHANGES_IMPORT_BAL = "building_changes_import_bal"
 KPI_BUILDING_CHANGES_CONTRIBUTIONS = "building_changes_contributions"
-
-
-@contextmanager
-def long_query_timeout() -> Iterator[None]:
-    """
-    Give the queries of the block a one-hour timeout, whatever the worker default is.
-    SET LOCAL lasts until the outermost transaction ends: the block's own one when
-    called outside a transaction, otherwise the enclosing one (the block is then
-    only a savepoint).
-    """
-    with transaction.atomic():
-        with connection.cursor() as cursor:
-            cursor.execute("SET LOCAL statement_timeout = 3600000;")
-        yield
 
 
 def get_kpi(name: str, since: Optional[date] = None, until: Optional[date] = None):
