@@ -586,7 +586,12 @@ La scission est refusée (400) si :
                                                 },
                                                 "shape": {
                                                     "type": "string",
-                                                    "description": "Géométrie du bâtiment au format WKT ou HEX, en WGS84.",
+                                                    "description": LiteralStr(
+                                                        "Géométrie du bâtiment au format WKT ou HEX, en WGS84.\n\nLa géométrie doit :\n"
+                                                        + get_shape_rules(
+                                                            max_move_meters=100
+                                                        )
+                                                    ),
                                                     "example": "POLYGON((-0.280581 47.187815, -0.280519 47.188027, -0.280313 47.188008, -0.280355 47.187786, -0.280581 47.187815))",
                                                 },
                                                 "addresses_cle_interop": {
