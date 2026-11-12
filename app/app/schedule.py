@@ -52,7 +52,7 @@ production_schedule = {
     },
     "import_plots": {
         "task": "batid.tasks.queue_full_plots_import",
-        # Etalab puts each quarterly release online 1 to 6 weeks after the date
+        # Etalab puts each quarterly release online 4 to 6 weeks after the date
         # in its folder name: the 20th of the following month catches it
         "schedule": crontab(
             minute=0, hour=0, day_of_month=20, month_of_year="1,4,7,10"
