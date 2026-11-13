@@ -184,10 +184,16 @@ class MFAEnrollmentTest(APITestCase):
         self.assertTrue(latest.confirmed)
         self.assertFalse(older.confirmed)
 
+    def exchange(self, code):
+        return self.client.post(
+            "/api/alpha/auth/pro_connect/exchange/", {"code": code}, format="json"
+        )
+
     def test_confirm_valid_code(self):
-        """Confirm with the current code: 200 with the login body and 10 distinct
-        backup codes; the app is confirmed, an older static device is replaced by one
-        holding these 10 codes, and /login/ now asks for a code."""
+        """Confirm with the current code: 200 with a one-time login code and 10
+        distinct backup codes, no API token; the app is confirmed, an older static
+        device is replaced by one holding these 10 codes, and /login/ now asks for a
+        code."""
         old_backup = StaticDevice.objects.create(user=self.user, name="old")
         self.setup_app()
 
@@ -195,8 +201,7 @@ class MFAEnrollmentTest(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
-        self.assertEqual(body["token"], Token.objects.get(user=self.user).key)
-        self.assertEqual(body["username"], "jdupont")
+        self.assertEqual(set(body), {"login_code", "backup_codes"})
         self.assertEqual(len(set(body["backup_codes"])), 10)
         self.assertTrue(TOTPDevice.objects.get(user=self.user).confirmed)
         self.assertFalse(StaticDevice.objects.filter(pk=old_backup.pk).exists())
@@ -213,6 +218,64 @@ class MFAEnrollmentTest(APITestCase):
         login_response = self.login()
         self.assertEqual(login_response.status_code, 401)
         self.assertEqual(login_response.json()["error"], "mfa_required")
+
+    def test_confirm_login_code_opens_one_session(self):
+        """Login code returned by confirm, exchanged twice: the first exchange
+        answers 200 with the user's token, the second 400 invalid_code."""
+        self.setup_app()
+        code = self.confirm(otp=current_code(self.pending_device())).json()[
+            "login_code"
+        ]
+
+        first = self.exchange(code)
+        second = self.exchange(code)
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json()["token"], Token.objects.get(user=self.user).key)
+        self.assertEqual(first.json()["username"], "jdupont")
+        self.assertEqual(second.status_code, 400)
+        self.assertEqual(second.json()["error"], "invalid_code")
+
+    def test_confirm_login_code_lasts_ten_minutes(self):
+        """Confirm with the current code: the login code is stored for 600 s, long
+        enough to save the backup codes before opening the session."""
+        self.setup_app()
+
+        with mock.patch.object(cache, "set", wraps=cache.set) as cache_set:
+            code = self.confirm(otp=current_code(self.pending_device())).json()[
+                "login_code"
+            ]
+
+        cache_set.assert_any_call(
+            f"pro_connect_login_code:{code}", self.user.pk, timeout=600
+        )
+
+    def test_confirm_revokes_the_previous_token(self):
+        """Token created before the app is confirmed (a session opened with the
+        password alone): refused with 401 once confirm answers 200."""
+        old_token = Token.objects.create(user=self.user)
+        self.setup_app()
+
+        response = self.confirm(otp=current_code(self.pending_device()))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.client.get(
+                "/api/alpha/auth/users/me/tokens",
+                HTTP_AUTHORIZATION=f"Token {old_token.key}",
+            ).status_code,
+            401,
+        )
+
+    def test_refused_confirm_keeps_the_token(self):
+        """Confirm with a wrong code: 401 and the existing token still works."""
+        token = Token.objects.create(user=self.user)
+        self.setup_app()
+
+        response = self.confirm(otp=wrong_code(self.pending_device()))
+
+        self.assertEqual(response.status_code, 401)
+        self.assertTrue(Token.objects.filter(key=token.key).exists())
 
     def test_confirm_code_with_spaces(self):
         """Setup, then confirm with the current code split by spaces and wrapped in
@@ -272,9 +335,9 @@ class MFAEnrollmentTest(APITestCase):
     @override_settings(MFA_ENFORCEMENT=MFAEnforcement.REQUIRED)
     def test_enrollment_journey_when_required(self):
         """REQUIRED, user without app: /login/ answers 401 mfa_setup_required; setup
-        then confirm with the first code answer 200 with the token and 10 backup
-        codes; /login/ with one of these backup codes then answers 200 with the same
-        token and no mfa_setup_suggested key."""
+        then confirm with the first code answer 200 with a login code and 10 backup
+        codes; /login/ with one of these backup codes then answers 200 with the token
+        the login code is exchanged for, and no mfa_setup_suggested key."""
         response = self.login()
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["error"], "mfa_setup_required")
@@ -285,10 +348,12 @@ class MFAEnrollmentTest(APITestCase):
         body = response.json()
         self.assertEqual(len(body["backup_codes"]), 10)
 
+        token = self.exchange(body["login_code"]).json()["token"]
+
         response = self.login(otp=body["backup_codes"][0])
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["token"], body["token"])
+        self.assertEqual(response.json()["token"], token)
         self.assertNotIn("mfa_setup_suggested", response.json())
 
     @override_settings(MFA_ENFORCEMENT=MFAEnforcement.OFF)
@@ -299,27 +364,3 @@ class MFAEnrollmentTest(APITestCase):
         response = self.confirm(otp=current_code(self.pending_device()))
 
         self.assertEqual(response.status_code, 200)
-
-
-class CurrentUserTest(APITestCase):
-    def test_with_token(self):
-        """GET /auth/users/me/ with a valid token: 200 with id, token, username and
-        groups."""
-        user = User.objects.create_user(username="jdupont", password=PASSWORD)
-        token = Token.objects.create(user=user)
-
-        response = self.client.get(
-            "/api/alpha/auth/users/me/", HTTP_AUTHORIZATION=f"Token {token.key}"
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {"id": user.id, "token": token.key, "username": "jdupont", "groups": []},
-        )
-
-    def test_without_token(self):
-        """GET /auth/users/me/ without token: 401."""
-        response = self.client.get("/api/alpha/auth/users/me/")
-
-        self.assertEqual(response.status_code, 401)

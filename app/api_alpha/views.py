@@ -7,7 +7,6 @@ import sentry_sdk
 import yaml
 from api_alpha.apps import LiteralStr
 from api_alpha.endpoints.auth.mfa import (
-    AUTH_TAGS,
     BAD_CREDENTIALS_DOC,
     CREDENTIALS_PROPERTIES,
     LOGIN_BODY_PROPERTIES,
@@ -778,41 +777,6 @@ Si le compte a configuré une application d'authentification, le champ `otp` est
         if outcome == LoginMFAOutcome.SETUP_SUGGESTED:
             body["mfa_setup_suggested"] = True
         return Response(body)
-
-
-class CurrentUserView(APIView):
-    """Identity of the token's owner, used by RNB-site to open a session after enrollment."""
-
-    permission_classes = [IsAuthenticated]
-
-    @rnb_doc(
-        {
-            "get": {
-                "summary": "Utilisateur connecté",
-                "description": "Renvoie l'identité et le jeton du compte authentifié par l'en-tête `Authorization: Token <jeton>`.",
-                "operationId": "currentUser",
-                "tags": AUTH_TAGS,
-                "security": [{"tokenAuth": []}],
-                "responses": {
-                    "200": {
-                        "description": "Compte authentifié.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": LOGIN_BODY_PROPERTIES,
-                                }
-                            }
-                        },
-                    },
-                    "401": {"description": "Jeton absent ou invalide."},
-                },
-            }
-        },
-        with_400=False,
-    )
-    def get(self, request):
-        return Response(login_response_body(request.user))
 
 
 class SandboxAuthenticationError(AuthenticationFailed):

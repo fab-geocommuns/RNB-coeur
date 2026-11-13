@@ -1,10 +1,10 @@
 from base64 import b32encode
 from io import BytesIO
 
+from api_alpha.endpoints.auth.pro_connect import issue_login_code
 from api_alpha.utils.login_throttle import LoginRateThrottle
 from api_alpha.utils.rnb_doc import rnb_doc
 from batid.services.mfa import MFAError, confirm_enrollment, start_enrollment
-from batid.services.user import login_response_body
 from django_otp.qr import write_qrcode_image
 from rest_framework import status
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -32,6 +32,11 @@ MFA_ERRORS = {
         "Commencez par configurer l'application d'authentification.",
     ),
 }
+
+
+# The login code waits in the page while the user saves the backup codes, and
+# opens the session on "Continuer": the 60 s of Pro Connect's redirect are too short.
+ENROLLMENT_LOGIN_CODE_TTL_SECONDS = 600
 
 
 def mfa_error_response(error: MFAError) -> Response:
@@ -200,7 +205,7 @@ class MFAConfirmView(ObtainAuthToken):
         {
             "post": {
                 "summary": "Confirmation de la double authentification",
-                "description": "Confirme l'application d'authentification avec son premier code, connecte l'utilisateur et renvoie 10 codes de secours, affichés une seule fois.",
+                "description": "Confirme l'application d'authentification avec son premier code et renvoie 10 codes de secours, affichés une seule fois. Le jeton d'API du compte est renouvelé : l'ancien est refusé.",
                 "operationId": "confirmMFA",
                 **PASSWORD_AUTH_DOC,
                 "requestBody": credentials_body_doc(
@@ -222,7 +227,10 @@ class MFAConfirmView(ObtainAuthToken):
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        **LOGIN_BODY_PROPERTIES,
+                                        "login_code": {
+                                            "type": "string",
+                                            "description": f"Code à usage unique, valable {ENROLLMENT_LOGIN_CODE_TTL_SECONDS // 60} minutes, à échanger contre le nouveau jeton d'API avec `/auth/pro_connect/exchange/`.",
+                                        },
                                         "backup_codes": {
                                             "type": "array",
                                             "items": {"type": "string"},
@@ -253,4 +261,11 @@ class MFAConfirmView(ObtainAuthToken):
         if isinstance(codes, MFAError):
             return mfa_error_response(codes)
 
-        return Response({**login_response_body(user), "backup_codes": codes})
+        return Response(
+            {
+                "login_code": issue_login_code(
+                    user, ttl_seconds=ENROLLMENT_LOGIN_CODE_TTL_SECONDS
+                ),
+                "backup_codes": codes,
+            }
+        )
