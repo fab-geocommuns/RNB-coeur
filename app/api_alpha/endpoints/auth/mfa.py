@@ -94,7 +94,7 @@ AUTH_TAGS = ["Authentification"]
 PASSWORD_AUTH_DOC = {"tags": AUTH_TAGS, "security": []}
 
 LOGIN_THROTTLE_DOC = {
-    "description": "Plus de 20 tentatives en une minute sur le même compte (sur la même adresse IP si aucun identifiant valide n'est envoyé). L'en-tête `Retry-After` indique le délai à attendre, en secondes. Le quota général de 20 requêtes par seconde et par adresse IP s'applique aussi."
+    "description": "Plus de 20 tentatives sur le même compte dans la même minute d'horloge (sur la même adresse IP si aucun identifiant valide n'est envoyé). L'en-tête `Retry-After` indique le délai à attendre, en secondes. Le quota général de 20 requêtes par seconde et par adresse IP s'applique aussi."
 }
 
 INVALID_AUTH_HEADER_DETAIL = "Un en-tête `Authorization: Token <…>` invalide est refusé, bien que cet endpoint n'ait pas besoin de token."
