@@ -9,6 +9,7 @@ from django.core.cache import cache
 from django.db import connection
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from rest_framework.authtoken.models import Token
@@ -39,6 +40,13 @@ class MFAEnrollmentTest(APITestCase):
         return self.client.post(
             "/api/alpha/auth/mfa/confirm/",
             {"username": "jdupont", "password": password, "otp": otp},
+            format="json",
+        )
+
+    def login(self, **extra):
+        return self.client.post(
+            "/api/alpha/login/",
+            {"username": "jdupont", "password": PASSWORD, **extra},
             format="json",
         )
 
@@ -140,10 +148,22 @@ class MFAEnrollmentTest(APITestCase):
         self.assertFalse(StaticDevice.objects.filter(user=self.user).exists())
 
     def test_confirm_wrong_code(self):
-        """Confirm with a wrong code: 401 mfa_invalid, the device stays unconfirmed."""
+        """Setup, confirm with a wrong code, then with the current code at the same
+        instant: the wrong code gets 401 mfa_invalid and leaves one throttling
+        failure on the pending device, so the right code is refused too (401
+        mfa_invalid, 1 s delay) and the device stays unconfirmed."""
         self.setup_app()
+        start = timezone.now()
 
-        response = self.confirm(otp=wrong_code(self.pending_device()))
+        # Fixed clock: the time a confirm takes must not eat into the delay under test.
+        with mock.patch("django.utils.timezone.now", return_value=start):
+            response = self.confirm(otp=wrong_code(self.pending_device()))
+
+            self.assertEqual(response.status_code, 401)
+            self.assertEqual(response.json()["error"], "mfa_invalid")
+            self.assertEqual(self.pending_device().throttling_failure_count, 1)
+
+            response = self.confirm(otp=current_code(self.pending_device()))
 
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["error"], "mfa_invalid")
@@ -190,13 +210,86 @@ class MFAEnrollmentTest(APITestCase):
             set(body["backup_codes"]),
         )
 
-        login_response = self.client.post(
-            "/api/alpha/login/",
+        login_response = self.login()
+        self.assertEqual(login_response.status_code, 401)
+        self.assertEqual(login_response.json()["error"], "mfa_required")
+
+    def test_confirm_code_with_spaces(self):
+        """Setup, then confirm with the current code split by spaces and wrapped in
+        whitespace, as copied from an app (" 123 456\t"): 200, the device is
+        confirmed."""
+        self.setup_app()
+        code = current_code(self.pending_device())
+
+        response = self.confirm(otp=f" {code[:3]} {code[3:]}\t")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(TOTPDevice.objects.get(user=self.user).confirmed)
+
+    def test_confirm_without_otp(self):
+        """Setup, then confirm with no otp field: 401 mfa_invalid, one throttling
+        failure recorded and the device stays unconfirmed."""
+        self.setup_app()
+
+        response = self.client.post(
+            "/api/alpha/auth/mfa/confirm/",
             {"username": "jdupont", "password": PASSWORD},
             format="json",
         )
-        self.assertEqual(login_response.status_code, 401)
-        self.assertEqual(login_response.json()["error"], "mfa_required")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["error"], "mfa_invalid")
+        device = self.pending_device()
+        self.assertFalse(device.confirmed)
+        self.assertEqual(device.throttling_failure_count, 1)
+
+    def test_pending_app_does_not_count_at_login(self):
+        """OPTIONAL, setup without confirm: /login/ with no otp and with the current
+        code of the pending app both answer 200 with mfa_setup_suggested; the code
+        is ignored and the device stays unconfirmed."""
+        self.setup_app()
+
+        for extra in ({}, {"otp": current_code(self.pending_device())}):
+            response = self.login(**extra)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertIs(response.json()["mfa_setup_suggested"], True)
+        self.assertFalse(self.pending_device().confirmed)
+
+    @override_settings(MFA_ENFORCEMENT=MFAEnforcement.REQUIRED)
+    def test_pending_app_does_not_count_at_login_when_required(self):
+        """REQUIRED, setup without confirm: /login/ with no otp and with the current
+        code of the pending app both answer 401 mfa_setup_required, no token."""
+        self.setup_app()
+
+        for extra in ({}, {"otp": current_code(self.pending_device())}):
+            response = self.login(**extra)
+
+            self.assertEqual(response.status_code, 401)
+            self.assertEqual(response.json()["error"], "mfa_setup_required")
+            self.assertNotIn("token", response.json())
+
+    @override_settings(MFA_ENFORCEMENT=MFAEnforcement.REQUIRED)
+    def test_enrollment_journey_when_required(self):
+        """REQUIRED, user without app: /login/ answers 401 mfa_setup_required; setup
+        then confirm with the first code answer 200 with the token and 10 backup
+        codes; /login/ with one of these backup codes then answers 200 with the same
+        token and no mfa_setup_suggested key."""
+        response = self.login()
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["error"], "mfa_setup_required")
+
+        self.assertEqual(self.setup_app().status_code, 200)
+        response = self.confirm(otp=current_code(self.pending_device()))
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(len(body["backup_codes"]), 10)
+
+        response = self.login(otp=body["backup_codes"][0])
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["token"], body["token"])
+        self.assertNotIn("mfa_setup_suggested", response.json())
 
     @override_settings(MFA_ENFORCEMENT=MFAEnforcement.OFF)
     def test_enrollment_available_when_off(self):

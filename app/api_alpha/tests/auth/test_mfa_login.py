@@ -4,13 +4,14 @@ import time
 from datetime import timedelta
 from unittest import mock
 
+from api_alpha.endpoints.auth.mfa import LOGIN_THROTTLE_DOC
 from api_alpha.utils.login_throttle import LoginRateThrottle
 from api_alpha.views import RNBAuthToken
-from batid.tests.helpers import current_code, wrong_code
+from batid.tests.helpers import current_code, load_settings, wrong_code
 from batid.utils.constants import ADS_GROUP_NAME
 from django.contrib.auth.models import Group, User
 from django.core.cache import cache
-from django.test import override_settings
+from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
 from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
@@ -145,6 +146,31 @@ class LoginWithAppTest(MFALoginTestCase):
         response = self.login(otp=code)
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["error"], "mfa_invalid")
+
+    @override_settings(MFA_ENFORCEMENT=MFAEnforcement.REQUIRED)
+    def test_required_valid_code(self):
+        """REQUIRED, user with a confirmed app, its current code: 200 with the
+        token."""
+        response = self.login(otp=current_code(self.device))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["token"], Token.objects.get(user=self.user).key
+        )
+
+    def test_non_numeric_code_spares_the_app(self):
+        """User with a 6-digit app and no backup codes, otp "zzzzzz" (the app's
+        length, not digits): 401 mfa_invalid, no failure recorded on the app; its
+        current code sent right after gives 200 (no delay)."""
+        response = self.login(otp="zzzzzz")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["error"], "mfa_invalid")
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.throttling_failure_count, 0)
+
+        response = self.login(otp=current_code(self.device))
+        self.assertEqual(response.status_code, 200)
 
     def test_backup_code_is_single_use(self):
         """Backup code sent uppercase with a space: 200. The same code again: 401
@@ -340,9 +366,9 @@ class LoginWithoutAppTest(MFALoginTestCase):
 # Fixed clock: the calls of a test never straddle two counting windows.
 @mock.patch.object(LoginRateThrottle, "timer", mock.Mock(return_value=30.0))
 class LoginThrottleTest(MFALoginTestCase):
-    def post(self, *, path, username):
+    def post(self, *, path, username, **extra):
         return self.client.post(
-            path, {"username": username, "password": "wrong"}, format="json"
+            path, {"username": username, "password": "wrong"}, format="json", **extra
         )
 
     def test_counted_per_identifier_across_login_and_setup(self):
@@ -465,6 +491,102 @@ class LoginThrottleTest(MFALoginTestCase):
         self.assertEqual(
             self.post(path="/api/alpha/login/", username="").status_code, 429
         )
+
+    def test_ip_fallback_for_a_body_that_is_not_an_object(self):
+        """2/min, JSON body that is a list, twice: 400, counted on the client IP;
+        a 3rd call from the same IP with no username gets 429."""
+        for _ in range(2):
+            response = self.client.post(
+                "/api/alpha/login/", ["jdupont", PASSWORD], format="json"
+            )
+            self.assertEqual(response.status_code, 400)
+
+        self.assertEqual(
+            self.post(path="/api/alpha/login/", username="").status_code, 429
+        )
+
+    def test_ip_fallback_counts_the_last_forwarded_for_entry(self):
+        """2/min, no username, X-Forwarded-For "1.1.1.1, 9.9.9.9" then
+        "2.2.2.2, 9.9.9.9": same counter (last entry, the one nginx appends), the
+        3rd call with "3.3.3.3,9.9.9.9" gets 429. "1.1.1.1, 8.8.8.8" has its own
+        counter: 400."""
+        for forwarded_for, status in (
+            ("1.1.1.1, 9.9.9.9", 400),
+            ("2.2.2.2, 9.9.9.9", 400),
+            ("3.3.3.3,9.9.9.9", 429),
+            ("1.1.1.1, 8.8.8.8", 400),
+        ):
+            response = self.post(
+                path="/api/alpha/login/",
+                username="",
+                HTTP_X_FORWARDED_FOR=forwarded_for,
+            )
+            self.assertEqual(response.status_code, status, forwarded_for)
+
+    def test_unknown_identifier_counted_whatever_its_case(self):
+        """2/min, identifier matching no account sent as "Inconnu@exemple.fr",
+        "inconnu@exemple.fr", then "INCONNU@EXEMPLE.FR": one counter, the 3rd call
+        gets 429."""
+        for username, status in (
+            ("Inconnu@exemple.fr", 400),
+            ("inconnu@exemple.fr", 400),
+            ("INCONNU@EXEMPLE.FR", 429),
+        ):
+            response = self.post(path="/api/alpha/login/", username=username)
+            self.assertEqual(response.status_code, status, username)
+
+    def test_ambiguous_identifier_has_its_own_counter(self):
+        """2/min, another account whose email is "jdupont" (the username of the
+        first one): "jdupont" names two accounts, its 3rd call gets 429; the email
+        of the first account and the username "other" of the second keep their own
+        counters: 400 each."""
+        User.objects.create_user(username="other", email="jdupont")
+
+        for username, status in (
+            ("jdupont", 400),
+            ("jdupont", 400),
+            ("jdupont", 429),
+            ("jdupont@exemple.fr", 400),
+            ("other", 400),
+        ):
+            response = self.post(path="/api/alpha/login/", username=username)
+            self.assertEqual(response.status_code, status)
+
+    def test_counter_resets_in_the_next_window(self):
+        """2/min, clock at 30 s: the 3rd call for "jdupont" gets 429. Clock moved to
+        61 s (next minute): the next call for "jdupont" gets through (400)."""
+        for status in (400, 400, 429):
+            response = self.post(path="/api/alpha/login/", username="jdupont")
+            self.assertEqual(response.status_code, status)
+
+        with mock.patch.object(
+            LoginRateThrottle, "timer", mock.Mock(return_value=61.0)
+        ):
+            response = self.post(path="/api/alpha/login/", username="jdupont")
+        self.assertEqual(response.status_code, 400)
+
+
+class LoginThrottleRateTest(SimpleTestCase):
+    def test_production_rate_matches_the_public_doc(self):
+        """Settings evaluated with DJANGO_ENV=production (tests run with a raised
+        rate): "login" rate 20/min, the numbers the public 429 doc announces."""
+        production = load_settings({"DJANGO_ENV": "production"})
+        rate = production["REST_FRAMEWORK"]["DEFAULT_THROTTLE_RATES"]["login"]
+
+        self.assertEqual(rate, "20/min")
+        self.assertIn(
+            "Plus de 20 tentatives sur le même compte dans la même minute",
+            LOGIN_THROTTLE_DOC["description"],
+        )
+
+    def test_rate_is_raised_outside_deployed_environments(self):
+        """Settings evaluated with DJANGO_ENV=test, then development: "login"
+        rate 1000/min, so the test suite and local work are not throttled."""
+        for env in ("test", "development"):
+            with self.subTest(env=env):
+                settings = load_settings({"DJANGO_ENV": env})
+                rate = settings["REST_FRAMEWORK"]["DEFAULT_THROTTLE_RATES"]["login"]
+                self.assertEqual(rate, "1000/min")
 
 
 @override_settings(MFA_ENFORCEMENT=MFAEnforcement.REQUIRED)
