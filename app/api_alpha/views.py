@@ -26,7 +26,9 @@ from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
 from api_alpha.utils.rnb_doc import (
     EDITION_AUTH_RESPONSES,
+    PAGINATION_PARAMETERS,
     build_schema_all_endpoints,
+    building_fields_schema,
     get_shape_rules,
     get_status_list,
     rnb_doc,
@@ -114,6 +116,7 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                         "schema": {"type": "number"},
                         "example": 1000,
                     },
+                    *PAGINATION_PARAMETERS,
                 ],
                 "responses": {
                     "200": {
@@ -135,9 +138,13 @@ class BuildingClosestView(RNBLoggingMixin, APIView):
                                             "type": "array",
                                             "items": {
                                                 "allOf": [
-                                                    {
-                                                        "$ref": "#/components/schemas/Building"
-                                                    },
+                                                    building_fields_schema(
+                                                        *(
+                                                            f
+                                                            for f in BuildingClosestSerializer.Meta.fields
+                                                            if f != "distance"
+                                                        )
+                                                    ),
                                                     {
                                                         "type": "object",
                                                         "properties": {
@@ -191,13 +198,13 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
         {
             "get": {
                 "summary": "Identification de bâtiments par leur adresse",
-                "description": "Cet endpoint permet d'obtenir une liste paginée des bâtiments associés à une adresse. NB : l'URL se termine nécessairement par un slash (/).",
+                "description": "Cet endpoint permet d'obtenir une liste paginée des bâtiments associés à une adresse. Il faut fournir soit `q`, soit `cle_interop_ban`, mais pas les deux. `min_score` ne s'utilise qu'avec `q`. NB : l'URL se termine nécessairement par un slash (/).",
                 "operationId": "address",
                 "parameters": [
                     {
                         "name": "q",
                         "in": "query",
-                        "description": "Adresse texte non structurée. L'adresse fournie est recherchée dans la BAN afin de récupérer la clé d'interopérabilité associée. C'est via cette clé que sont filtrés les bâtiments. Si le geocodage échoue aucun résultat n'est renvoyé et le champ **status** de la réponse contient **geocoding_no_result**",
+                        "description": "Adresse texte non structurée. L'adresse fournie est recherchée dans la BAN afin de récupérer la clé d'interopérabilité associée. C'est via cette clé que sont filtrés les bâtiments. Si le geocodage échoue aucun résultat n'est renvoyé et le champ **status** de la réponse contient **geocoding_no_result**. Requis si `cle_interop_ban` est absent, interdit sinon.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "4 rue scipion, 75005 Paris",
@@ -205,19 +212,20 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                     {
                         "name": "min_score",
                         "in": "query",
-                        "description": "Score minimal attendu du géocodage BAN. Valeur par défaut : **0.8**. Si le score est strictement inférieur à cette limite, aucun résultat n'est renvoyé et le champ **status** de la réponse contient **geocoding_score_is_too_low**",
+                        "description": "Score minimal attendu du géocodage BAN, entre 0 et 1. Valeur par défaut : **0.8**. Si le score est strictement inférieur à cette limite, aucun résultat n'est renvoyé et le champ **status** de la réponse contient **geocoding_score_is_too_low**. Uniquement avec `q`.",
                         "required": False,
-                        "schema": {"type": "number"},
+                        "schema": {"type": "number", "minimum": 0, "maximum": 1},
                         "example": "0.9",
                     },
                     {
                         "name": "cle_interop_ban",
                         "in": "query",
-                        "description": "Clé d'interopérabilité BAN. Si vous êtes en possession d'une clé d'interoperabilité, il est plus efficace de faire une recherche grâce à elle que via une adresse textuelle.",
+                        "description": "Clé d'interopérabilité BAN. Si vous êtes en possession d'une clé d'interoperabilité, il est plus efficace de faire une recherche grâce à elle que via une adresse textuelle. Requis si `q` est absent, interdit sinon.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "75105_8884_00004",
                     },
+                    *PAGINATION_PARAMETERS,
                 ],
                 "responses": {
                     "200": {
@@ -241,6 +249,11 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                                         },
                                         "status": {
                                             "type": "string",
+                                            "enum": [
+                                                "ok",
+                                                "geocoding_no_result",
+                                                "geocoding_score_is_too_low",
+                                            ],
                                             "description": "'geocoding_score_is_too_low' si le géocodage BAN renvoie un score inférieur à 'min_score'. 'geocoding_no_result' si le géocodage ne renvoie pas de résultats. 'ok' sinon",
                                         },
                                         "score_ban": {
@@ -257,7 +270,10 @@ class BuildingAddressView(RNBLoggingMixin, APIView):
                                 }
                             }
                         },
-                    }
+                    },
+                    "503": {
+                        "description": "Le service de géocodage de la BAN est indisponible (recherche par `q` uniquement)."
+                    },
                 },
             }
         }

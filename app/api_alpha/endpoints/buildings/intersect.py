@@ -4,7 +4,7 @@ from api_alpha.serializers.serializers import (
     BuildingIntersectSerializer,
 )
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
-from api_alpha.utils.rnb_doc import rnb_doc
+from api_alpha.utils.rnb_doc import PAGINATION_PARAMETERS, rnb_doc
 from batid.services.bdg_intersect import get_buildings_intersecting_polygon
 from rest_framework.views import APIView
 
@@ -25,6 +25,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                         "schema": {"type": "string"},
                         "example": "POLYGON((5.7213 45.1848, 5.7213 45.1854, 5.7222 45.1854, 5.7222 45.1848, 5.7213 45.1848))",
                     },
+                    *PAGINATION_PARAMETERS,
                 ],
                 "responses": {
                     "200": {
@@ -65,7 +66,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                                                                     "number",
                                                                     "null",
                                                                 ],
-                                                                "description": "Pourcentage du polygone fourni qui est couvert par la géométrie du bâtiment RNB, entre 0 et 1. Vaut `null` lorsque la géométrie du bâtiment RNB est un point.",
+                                                                "description": "Ratio, entre 0 et 1, de la surface du polygone fourni qui est couverte par la géométrie du bâtiment RNB. Vaut `null` lorsque la géométrie du bâtiment RNB est un point.",
                                                                 "example": 0.9,
                                                             },
                                                             "rnb_covered_by_input": {
@@ -73,7 +74,7 @@ class BuildingIntersectView(RNBLoggingMixin, APIView):
                                                                     "number",
                                                                     "null",
                                                                 ],
-                                                                "description": "Pourcentage de la géométrie du bâtiment RNB qui est couvert par le polygone fourni, entre 0 et 1. Vaut `null` lorsque la géométrie du bâtiment RNB est un point.",
+                                                                "description": "Ratio, entre 0 et 1, de la surface de la géométrie du bâtiment RNB qui est couverte par le polygone fourni. Vaut `null` lorsque la géométrie du bâtiment RNB est un point.",
                                                                 "example": 0.88,
                                                             },
                                                         },
