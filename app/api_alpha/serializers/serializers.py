@@ -162,16 +162,46 @@ class OgcBuildingQuerySerializer(serializers.Serializer):
 
 class ListBuildingQuerySerializer(serializers.Serializer):
     insee_code = serializers.CharField(required=False, min_length=5, max_length=5)
-    status = serializers.ChoiceField(
-        choices=BuildingStatus.ALL_TYPES_KEYS + ["all"],
-        required=False,
-    )
+    # "all", or one or more statuses separated by commas.
+    # allow_blank: an empty value reaches validate_status and is refused, instead
+    # of being treated as absent by DRF.
+    status = serializers.CharField(required=False, allow_blank=True)
     cle_interop_ban = serializers.CharField(required=False)
     with_plots = serializers.IntegerField(required=False, min_value=0, max_value=1)
-    format = serializers.ChoiceField(choices=["json", "geojson"], required=False)
+    # Case-insensitive, like the view and the single building endpoint
+    format = serializers.CharField(required=False)
     limit = serializers.IntegerField(required=False, min_value=1, max_value=100)
     bbox = serializers.CharField(required=False)
     bb = serializers.CharField(required=False)
+
+    def validate_status(self, value):
+        """Return the statuses, stripped and deduplicated, joined by commas."""
+        # dict.fromkeys removes duplicates and keeps the order
+        statuses = list(dict.fromkeys(s.strip() for s in value.split(",")))
+        if statuses == ["all"]:
+            return "all"
+
+        if "all" in statuses:
+            raise serializers.ValidationError(
+                "La valeur « all » ne se combine pas avec d'autres statuts."
+            )
+
+        unknown = [s for s in statuses if s not in BuildingStatus.ALL_TYPES_KEYS]
+        if unknown:
+            names = ", ".join(f"« {s} »" for s in unknown)
+            raise serializers.ValidationError(
+                f"Statut(s) inconnu(s) : {names}. Valeurs possibles : "
+                f"{', '.join(BuildingStatus.ALL_TYPES_KEYS)} ou all."
+            )
+        return ",".join(statuses)
+
+    def validate_format(self, value):
+        if value.lower() not in ("json", "geojson"):
+            raise serializers.ValidationError(
+                f"« {value} » n'est pas un choix valide. "
+                "Valeurs possibles : json ou geojson."
+            )
+        return value.lower()
 
     def validate_bbox(self, value):
         return bbox_validator(value)

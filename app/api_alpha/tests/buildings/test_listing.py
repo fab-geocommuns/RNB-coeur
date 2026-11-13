@@ -990,3 +990,127 @@ class BuildingsWithPlots(APITestCase):
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertDictEqual(data, expected_wo_plots)
+
+
+class ListingMultipleStatusTest(APITestCase):
+    BBOX = "1.06,46.63,1.07,46.64"
+
+    def setUp(self):
+        point = GEOSGeometry("POINT(1.0655 46.6341)", srid=4326)
+        for rnb_id, status in (
+            ("CONSTRUCTED1", "constructed"),
+            ("NOTUSABLE001", "notUsable"),
+            ("DEMOLISHED01", "demolished"),
+        ):
+            Building.objects.create(
+                rnb_id=rnb_id, shape=point, point=point, status=status
+            )
+
+    def _get(self, status: str):
+        return self.client.get(
+            "/api/alpha/buildings/", {"bbox": self.BBOX, "status": status}
+        )
+
+    def test_multiple_status(self):
+        """
+        Input: listing with status=constructed,demolished.
+        Expected: 200, with the buildings of both statuses and only them.
+        """
+        r = self._get("constructed,demolished")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(
+            {b["rnb_id"] for b in r.json()["results"]},
+            {"CONSTRUCTED1", "DEMOLISHED01"},
+        )
+
+    def test_unknown_status_is_named(self):
+        """
+        Input: a list of statuses with one unknown value, repeated.
+        Expected: 400, the error names the unknown value once between quotes,
+        and not the known one.
+        """
+        r = self._get("constructed,unknown,unknown")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json()["status"],
+            [
+                "Statut(s) inconnu(s) : « unknown ». "
+                "Valeurs possibles : constructed, notUsable, demolished ou all."
+            ],
+        )
+
+    def test_status_whitespace_is_trimmed(self):
+        """
+        Input: statuses with spaces around them ("constructed, demolished",
+        " demolished", "all ").
+        Expected: 200, the spaces are ignored and the buildings are filtered
+        as without them.
+        """
+        cases = (
+            ("constructed, demolished", {"CONSTRUCTED1", "DEMOLISHED01"}),
+            (" demolished", {"DEMOLISHED01"}),
+            ("all ", {"CONSTRUCTED1", "NOTUSABLE001", "DEMOLISHED01"}),
+        )
+        for status, expected in cases:
+            with self.subTest(status=status):
+                r = self._get(status)
+                self.assertEqual(r.status_code, 200, r.content)
+                self.assertEqual({b["rnb_id"] for b in r.json()["results"]}, expected)
+
+    def test_duplicated_status(self):
+        """
+        Input: status=demolished,demolished.
+        Expected: 200, with the demolished building only.
+        """
+        r = self._get("demolished,demolished")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual({b["rnb_id"] for b in r.json()["results"]}, {"DEMOLISHED01"})
+
+    def test_empty_item_is_named(self):
+        """
+        Input: an empty status ("status="), or a list with an empty item
+        ("constructed,", "constructed, ,demolished").
+        Expected: 400 for each, the error shows the empty value between quotes,
+        instead of an empty 200 listing.
+        """
+        for status in ("", "constructed,", "constructed, ,demolished"):
+            with self.subTest(status=status):
+                r = self._get(status)
+                self.assertEqual(r.status_code, 400)
+                self.assertEqual(
+                    r.json()["status"],
+                    [
+                        "Statut(s) inconnu(s) : «  ». "
+                        "Valeurs possibles : constructed, notUsable, demolished ou all."
+                    ],
+                )
+
+    def test_all_cannot_be_combined(self):
+        """
+        Input: status=constructed,all.
+        Expected: 400 with a message saying "all" cannot be combined.
+        """
+        r = self._get("constructed,all")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("ne se combine pas", r.json()["status"][0])
+
+    def test_format_is_case_insensitive(self):
+        """
+        Input: format=GeoJSON, then format=XML.
+        Expected: 200 with a FeatureCollection for GeoJSON, as with "geojson";
+        400 naming the value for XML.
+        """
+        r = self.client.get(
+            "/api/alpha/buildings/", {"bbox": self.BBOX, "format": "GeoJSON"}
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["type"], "FeatureCollection")
+
+        r = self.client.get(
+            "/api/alpha/buildings/", {"bbox": self.BBOX, "format": "XML"}
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json()["format"],
+            ["« XML » n'est pas un choix valide. Valeurs possibles : json ou geojson."],
+        )
