@@ -109,18 +109,31 @@ class SingleBuilding(RNBLoggingMixin, APIView):
                     "200": {
                         "description": "Détails du bâtiment",
                         "content": {
+                            # Both formats are sent as application/json: "required"
+                            # tells them apart in the oneOf
                             "application/json": {
                                 "schema": {
-                                    "allOf": [
-                                        {"$ref": "#/components/schemas/Building"},
-                                        {"$ref": "#/components/schemas/BuildingWPlots"},
+                                    "oneOf": [
+                                        {
+                                            "title": "format=json",
+                                            "description": "Réponse par défaut, ou avec le paramètre `format=json`",
+                                            "required": ["rnb_id"],
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/Building"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/BuildingWPlots"
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            "title": "format=geojson",
+                                            "description": "Réponse avec le paramètre `format=geojson`",
+                                            "required": ["type", "geometry"],
+                                            "$ref": "#/components/schemas/BuildingGeoJSON",
+                                        },
                                     ]
-                                }
-                            },
-                            "application/geo+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/BuildingGeoJSON",
-                                    "description": "Réponse avec le paramètre `format=geojson`",
                                 }
                             },
                         },

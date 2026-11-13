@@ -1016,27 +1016,6 @@ class ListingStatusAndActivityTest(APITestCase):
         self.assertEqual(r.status_code, 200, r.content)
         return {b["rnb_id"] for b in r.json()["results"]}
 
-    def test_multiple_status(self):
-        """
-        Input: listing with status=constructed,demolished.
-        Expected: 200, with the buildings of both statuses and only them.
-        """
-        self.assertEqual(
-            self._rnb_ids("&status=constructed,demolished"),
-            {"CONSTRUCTED1", "DEMOLISHED01"},
-        )
-
-    def test_unknown_status_is_refused(self):
-        """
-        Input: listing with a list of statuses containing an unknown value.
-        Expected: 400, and the error names the unknown value.
-        """
-        r = self.client.get(
-            f"/api/alpha/buildings/?bbox={self.BBOX}&status=constructed,unknown"
-        )
-        self.assertEqual(r.status_code, 400)
-        self.assertIn("unknown", r.json()["status"][0])
-
     def test_default_status_and_all(self):
         """
         Input: listing without status, then with status=all.

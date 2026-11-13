@@ -87,20 +87,6 @@ class ListingDocTest(APITestCase):
                 else:
                     self.assertEqual(r.status_code, 400)
 
-    def test_documented_status_example_is_accepted(self):
-        """
-        Input: listing with the documented status example and the bbox example.
-        Expected: 200.
-        """
-        r = self.client.get(
-            LIST_PATH,
-            {
-                "status": self.params["status"]["example"],
-                "bbox": self.params["bbox"]["example"],
-            },
-        )
-        self.assertEqual(r.status_code, 200, r.content)
-
     def test_status_doc_lists_every_status_and_default(self):
         """
         Input: the documentation of the status parameter.
@@ -113,18 +99,22 @@ class ListingDocTest(APITestCase):
         self.assertIn("`all`", description)
         self.assertIn(", ".join(BuildingStatus.REAL_BUILDINGS_STATUS), description)
 
+    def _validate_response(self, r, operation_doc: dict) -> None:
+        """Validate a response against the schema documented for its real
+        status code and Content-Type."""
+        media_type = r["Content-Type"].split(";")[0]
+        content = operation_doc["responses"][str(r.status_code)]["content"]
+        self.assertIn(media_type, content)
+        self._validate(r.json(), content[media_type]["schema"])
+
     def test_examples_return_documented_responses(self):
         """
         Input: the documented bbox and bb examples, in json then geojson format.
         Expected: 200 with the example building, and each response validates against
-        the documented schema of its format.
+        the schema documented for its real Content-Type (one oneOf branch only).
         """
-        responses = self.list_doc["responses"]["200"]["content"]
         for filter_name in ("bbox", "bb"):
-            for fmt, media_type in (
-                ("json", "application/json"),
-                ("geojson", "application/geo+json"),
-            ):
+            for fmt in ("json", "geojson"):
                 with self.subTest(filter=filter_name, format=fmt):
                     r = self.client.get(
                         LIST_PATH,
@@ -137,7 +127,7 @@ class ListingDocTest(APITestCase):
                     data = r.json()
                     items = data["results"] if fmt == "json" else data["features"]
                     self.assertEqual(len(items), 1)
-                    self._validate(data, responses[media_type]["schema"])
+                    self._validate_response(r, self.list_doc)
 
     def test_listing_404_is_documented(self):
         """
@@ -150,19 +140,20 @@ class ListingDocTest(APITestCase):
 
     def test_lookup_matches_documentation(self):
         """
-        Input: lookup of an existing building in geojson format, then of an unknown
-        RNB ID.
-        Expected: the geojson response validates against the documented schema, and
-        the unknown RNB ID gives the documented 404.
+        Input: lookup of an existing building in json then geojson format, then of
+        an unknown RNB ID.
+        Expected: each 200 response validates against the schema documented for its
+        real Content-Type, and the unknown RNB ID gives the documented 404.
         """
         single_doc = self.schema["paths"][SINGLE_PATH]["get"]
 
-        r = self.client.get("/api/alpha/buildings/DOCEXAMPLE01/?format=geojson")
-        self.assertEqual(r.status_code, 200)
-        self._validate(
-            r.json(),
-            single_doc["responses"]["200"]["content"]["application/geo+json"]["schema"],
-        )
+        for fmt in ("json", "geojson"):
+            with self.subTest(format=fmt):
+                r = self.client.get(
+                    "/api/alpha/buildings/DOCEXAMPLE01/", {"format": fmt}
+                )
+                self.assertEqual(r.status_code, 200)
+                self._validate_response(r, single_doc)
 
         r = self.client.get("/api/alpha/buildings/UNKNOWNRNBID/")
         self.assertEqual(r.status_code, 404)

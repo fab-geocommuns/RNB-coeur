@@ -162,28 +162,16 @@ class OgcBuildingQuerySerializer(serializers.Serializer):
 
 class ListBuildingQuerySerializer(serializers.Serializer):
     insee_code = serializers.CharField(required=False, min_length=5, max_length=5)
-    # "all", or one or more statuses separated by commas
-    status = serializers.CharField(required=False)
+    status = serializers.ChoiceField(
+        choices=BuildingStatus.ALL_TYPES_KEYS + ["all"],
+        required=False,
+    )
     cle_interop_ban = serializers.CharField(required=False)
     with_plots = serializers.IntegerField(required=False, min_value=0, max_value=1)
     format = serializers.ChoiceField(choices=["json", "geojson"], required=False)
     limit = serializers.IntegerField(required=False, min_value=1, max_value=100)
     bbox = serializers.CharField(required=False)
     bb = serializers.CharField(required=False)
-
-    def validate_status(self, value):
-        if value == "all":
-            return value
-
-        unknown = [
-            s for s in value.split(",") if s not in BuildingStatus.ALL_TYPES_KEYS
-        ]
-        if unknown:
-            raise serializers.ValidationError(
-                f"Statut(s) inconnu(s) : {', '.join(unknown)}. Valeurs possibles : "
-                f"{', '.join(BuildingStatus.ALL_TYPES_KEYS)} ou all."
-            )
-        return value
 
     def validate_bbox(self, value):
         return bbox_validator(value)

@@ -34,10 +34,44 @@ from rest_framework.views import APIView
 # Statuses listed by default, as markdown: `constructed` ou `notUsable`
 REAL_STATUS_MD = " ou ".join(f"`{s}`" for s in BuildingStatus.REAL_BUILDINGS_STATUS)
 
+# Response of the listing with format=json (default).
+# The two formats share the application/json content type (the API never sends
+# application/geo+json), hence "required" on both schemas to tell them apart in
+# the oneOf of the response.
+BUILDINGS_PAGE_SCHEMA = {
+    "type": "object",
+    "title": "format=json",
+    "description": "Réponse par défaut, ou avec le paramètre `format=json`",
+    "required": ["next", "previous", "results"],
+    "properties": {
+        "next": {
+            "type": ["string", "null"],
+            "description": "<br />URL de la page de résultats suivante<br />",
+            "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1",
+        },
+        "previous": {
+            "type": ["string", "null"],
+            "description": "<br />URL de la page de résultats précédente<br />",
+            "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR",
+        },
+        "results": {
+            "type": "array",
+            "items": {
+                "allOf": [
+                    {"$ref": "#/components/schemas/Building"},
+                    {"$ref": "#/components/schemas/BuildingWPlots"},
+                ]
+            },
+        },
+    },
+}
+
 # Response of the listing with format=geojson: the FeatureCollection is at the root
 BUILDINGS_FEATURE_COLLECTION_SCHEMA = {
     "type": "object",
+    "title": "format=geojson",
     "description": "Réponse avec le paramètre `format=geojson`",
+    "required": ["type", "features", "links"],
     "properties": {
         "type": {"type": "string", "example": "FeatureCollection"},
         "features": {
@@ -105,7 +139,7 @@ NB : l'URL se termine nécessairement par un slash (/).
                     {
                         "name": "status",
                         "in": "query",
-                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />La valeur `all` renvoie tous les statuts. Sans ce paramètre, seuls les bâtiments réels sont renvoyés ({', '.join(BuildingStatus.REAL_BUILDINGS_STATUS)}). Une valeur inconnue renvoie une erreur 400.",
+                        "description": f"Filtre les bâtiments par statut. Il est possible d'utiliser plusieurs valeurs séparées par des virgules. Les valeurs possibles sont : <br /><br /> {get_status_html_list()}<br />La valeur `all` renvoie tous les statuts et ne se combine pas avec d'autres valeurs. Sans ce paramètre, seuls les bâtiments réels sont renvoyés ({', '.join(BuildingStatus.REAL_BUILDINGS_STATUS)}). Une valeur inconnue renvoie une erreur 400.",
                         "required": False,
                         "schema": {"type": "string"},
                         "example": "constructed,demolished",
@@ -184,36 +218,11 @@ NB : l'URL se termine nécessairement par un slash (/).
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "next": {
-                                            "type": ["string", "null"],
-                                            "description": "<br />URL de la page de résultats suivante<br />",
-                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=cD02MzQ3OTk1",
-                                        },
-                                        "previous": {
-                                            "type": ["string", "null"],
-                                            "description": "<br />URL de la page de résultats précédente<br />",
-                                            "example": f"{settings.URL}/api/alpha/buildings/?cursor=hFG78YEdFR",
-                                        },
-                                        "results": {
-                                            "type": "array",
-                                            "items": {
-                                                "allOf": [
-                                                    {
-                                                        "$ref": "#/components/schemas/Building"
-                                                    },
-                                                    {
-                                                        "$ref": "#/components/schemas/BuildingWPlots"
-                                                    },
-                                                ]
-                                            },
-                                        },
-                                    },
+                                    "oneOf": [
+                                        BUILDINGS_PAGE_SCHEMA,
+                                        BUILDINGS_FEATURE_COLLECTION_SCHEMA,
+                                    ]
                                 }
-                            },
-                            "application/geo+json": {
-                                "schema": BUILDINGS_FEATURE_COLLECTION_SCHEMA
                             },
                         },
                     },
