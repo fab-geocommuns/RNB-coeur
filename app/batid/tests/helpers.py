@@ -1,9 +1,17 @@
 import json
 import os
+import runpy
+from unittest import mock
 
 from batid.models import Address, Building, City
 from django.contrib.gis.geos import GEOSGeometry
+from django_otp import DEVICE_ID_SESSION_KEY
+from django_otp.oath import totp
+from django_otp.plugins.otp_static.models import StaticDevice
+from django_otp.plugins.otp_totp.models import TOTPDevice
 from requests import Response
+
+from app import settings as settings_module
 
 
 def create_paris():
@@ -1207,3 +1215,38 @@ def copy_fixture(original_filename, copy_filename) -> str:
         f_copy.write(f.read())
 
     return copy_path
+
+
+def login_with_otp(*, client, user):
+    """Log the user in on the test client with a verified second factor, as the admin requires."""
+    device = StaticDevice.objects.create(user=user, name="test")
+    client.force_login(user)
+    session = client.session
+    session[DEVICE_ID_SESSION_KEY] = device.persistent_id
+    session.save()
+
+
+def current_code(device: TOTPDevice) -> str:
+    """Code shown right now by the authenticator app of this device."""
+    return f"{totp(device.bin_key, digits=device.digits):0{device.digits}d}"
+
+
+def wrong_code(device: TOTPDevice) -> str:
+    """A 6-digit code the device refuses."""
+    return f"{(totp(device.bin_key) + 500_000) % 1_000_000:06d}"
+
+
+def load_settings(env: dict[str, str | None]) -> dict:
+    """Evaluate app/settings.py apart, with the environment variables of `env`
+    set (None removes the variable), and return its globals. The settings
+    Django already loaded stay untouched."""
+    # patch.dict restores the whole environment on exit
+    with mock.patch.dict(os.environ):
+        for name, value in env.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+        # Sentry must not be initialised in the test process.
+        os.environ.pop("SENTRY_DSN", None)
+        return runpy.run_path(settings_module.__file__)

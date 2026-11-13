@@ -6,6 +6,16 @@ from typing import Any
 import sentry_sdk
 import yaml
 from api_alpha.apps import LiteralStr
+from api_alpha.endpoints.auth.mfa import (
+    BAD_CREDENTIALS_DOC,
+    CREDENTIALS_PROPERTIES,
+    LOGIN_BODY_PROPERTIES,
+    LOGIN_THROTTLE_DOC,
+    PASSWORD_AUTH_DOC,
+    credentials_body_doc,
+    mfa_error_response,
+    password_auth_401_doc,
+)
 from api_alpha.exceptions import BadRequest, ServiceUnavailable
 from api_alpha.pagination import (
     BuildingAddressCursorPagination,
@@ -24,6 +34,7 @@ from api_alpha.serializers.serializers import (
 )
 from api_alpha.typeddict import SplitCreatedBuilding
 from api_alpha.utils.logging_mixin import RNBLoggingMixin
+from api_alpha.utils.login_throttle import LoginRateThrottle
 from api_alpha.utils.rnb_doc import (
     EDITION_AUTH_RESPONSES,
     build_schema_all_endpoints,
@@ -53,10 +64,15 @@ from batid.models import (
 from batid.services.closest_bdg import get_closest_from_point
 from batid.services.email import build_reset_password_email
 from batid.services.geocoders import BanGeocoder
+from batid.services.mfa import LoginMFAOutcome, MFAError, login_mfa_outcome
 from batid.services.organization import link_user_to_organization
 from batid.services.rnb_id import clean_rnb_id
 from batid.services.search_ads import ADSSearch
-from batid.services.user import get_user_id_b64, get_user_id_from_b64
+from batid.services.user import (
+    get_user_id_b64,
+    get_user_id_from_b64,
+    login_response_body,
+)
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
@@ -696,18 +712,71 @@ class ADSViewSet(RNBLoggingMixin, viewsets.ModelViewSet):
 
 
 class RNBAuthToken(ObtainAuthToken):
-    def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        token = Token.objects.get(key=response.data["token"])
-        user = token.user
-        return Response(
-            {
-                "id": user.id,
-                "token": token.key,
-                "username": user.username,
-                "groups": [group.name for group in user.groups.all()],
+    throttle_classes = [LoginRateThrottle]
+    throttle_scope = "login"
+
+    @rnb_doc(
+        {
+            "post": {
+                "summary": "Connexion",
+                "description": LiteralStr(
+                    """Échange un identifiant et un mot de passe contre un jeton d'API.
+
+Si le compte a configuré une application d'authentification, le champ `otp` est requis : code à 6 chiffres de l'application ou l'un des codes de secours.
+                """
+                ),
+                "operationId": "login",
+                **PASSWORD_AUTH_DOC,
+                "requestBody": credentials_body_doc(
+                    properties={
+                        **CREDENTIALS_PROPERTIES,
+                        "otp": {
+                            "type": "string",
+                            "description": "Code à 6 chiffres de l'application d'authentification, ou code de secours.",
+                            "example": "123456",
+                        },
+                    }
+                ),
+                "responses": {
+                    "200": {
+                        "description": "Connexion réussie.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        **LOGIN_BODY_PROPERTIES,
+                                        "mfa_setup_suggested": {
+                                            "type": "boolean",
+                                            "description": "Présent (`true`) quand la configuration d'une application d'authentification est proposée sans être obligatoire.",
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "400": BAD_CREDENTIALS_DOC,
+                    "401": password_auth_401_doc(
+                        MFAError.REQUIRED, MFAError.INVALID, MFAError.SETUP_REQUIRED
+                    ),
+                    "429": LOGIN_THROTTLE_DOC,
+                },
             }
-        )
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+
+        outcome = login_mfa_outcome(user=user, otp=request.data.get("otp"))
+        if isinstance(outcome, MFAError):
+            return mfa_error_response(outcome)
+
+        body = login_response_body(user)
+        if outcome == LoginMFAOutcome.SETUP_SUGGESTED:
+            body["mfa_setup_suggested"] = True
+        return Response(body)
 
 
 class SandboxAuthenticationError(AuthenticationFailed):
