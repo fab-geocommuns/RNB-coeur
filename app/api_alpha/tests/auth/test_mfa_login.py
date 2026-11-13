@@ -592,28 +592,28 @@ class LoginThrottleRateTest(SimpleTestCase):
 @override_settings(MFA_ENFORCEMENT=MFAEnforcement.REQUIRED)
 class TokenAuthenticationUnchangedTest(MFALoginTestCase):
     def test_api_token_of_user_with_app(self):
-        """REQUIRED, user with a confirmed app: GET /auth/users/me/ with
-        `Authorization: Token` answers 200, no code asked."""
+        """REQUIRED, user with a confirmed app: GET /auth/users/me/tokens
+        with `Authorization: Token` answers 200, no code asked."""
         self.add_app()
         token = Token.objects.create(user=self.user)
 
         response = self.client.get(
-            "/api/alpha/auth/users/me/", HTTP_AUTHORIZATION=f"Token {token.key}"
+            "/api/alpha/auth/users/me/tokens", HTTP_AUTHORIZATION=f"Token {token.key}"
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["username"], "jdupont")
+        self.assertEqual(response.json()["production_token"], token.key)
 
     def test_ads_token(self):
         """REQUIRED, ADS account (unusable password, no app) with its token: GET
-        /auth/users/me/ answers 200."""
+        /auth/users/me/tokens answers 200."""
         ads_user = User.objects.create_user(username="ads_editor")
         ads_user.groups.add(Group.objects.create(name=ADS_GROUP_NAME))
         token = Token.objects.create(user=ads_user)
 
         response = self.client.get(
-            "/api/alpha/auth/users/me/", HTTP_AUTHORIZATION=f"Token {token.key}"
+            "/api/alpha/auth/users/me/tokens", HTTP_AUTHORIZATION=f"Token {token.key}"
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["groups"], [ADS_GROUP_NAME])
+        self.assertEqual(response.json()["production_token"], token.key)

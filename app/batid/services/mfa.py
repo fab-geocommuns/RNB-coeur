@@ -8,6 +8,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
+from rest_framework.authtoken.models import Token
 
 from app.mfa_enforcement import MFAEnforcement
 
@@ -117,7 +118,8 @@ def start_enrollment(user: User) -> TOTPDevice | MFAError:
 
 @transaction.atomic
 def confirm_enrollment(*, user: User, otp) -> list[str] | MFAError:
-    """Confirm the latest pending app with its first code and issue new backup codes.
+    """Confirm the latest pending app with its first code, issue new backup codes
+    and revoke the API token: one obtained with the password alone stops working.
 
     Returns the backup codes (readable only now), or the refusal.
     A refused code must not raise: the throttling failure it records would roll back.
@@ -143,6 +145,7 @@ def confirm_enrollment(*, user: User, otp) -> list[str] | MFAError:
     StaticToken.objects.bulk_create(
         StaticToken(device=backup_device, token=code) for code in codes
     )
+    Token.objects.filter(user=user).delete()
     return codes
 
 
