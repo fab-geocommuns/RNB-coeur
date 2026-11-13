@@ -1039,30 +1039,51 @@ class ListingMultipleStatusTest(APITestCase):
             ],
         )
 
-    def test_status_with_whitespace_is_refused(self):
+    def test_status_whitespace_is_trimmed(self):
         """
-        Input: statuses with a leading or trailing space ("all ", " demolished",
-        "constructed, demolished").
-        Expected: 400 for each, instead of an empty 200 listing.
+        Input: statuses with spaces around them ("constructed, demolished",
+        " demolished", "all ").
+        Expected: 200, the spaces are ignored and the buildings are filtered
+        as without them.
         """
-        for status in ("all ", " demolished", "demolished ", "constructed, demolished"):
+        cases = (
+            ("constructed, demolished", {"CONSTRUCTED1", "DEMOLISHED01"}),
+            (" demolished", {"DEMOLISHED01"}),
+            ("all ", {"CONSTRUCTED1", "NOTUSABLE001", "DEMOLISHED01"}),
+        )
+        for status, expected in cases:
             with self.subTest(status=status):
-                self.assertEqual(self._get(status).status_code, 400)
+                r = self._get(status)
+                self.assertEqual(r.status_code, 200, r.content)
+                self.assertEqual({b["rnb_id"] for b in r.json()["results"]}, expected)
+
+    def test_duplicated_status(self):
+        """
+        Input: status=demolished,demolished.
+        Expected: 200, with the demolished building only.
+        """
+        r = self._get("demolished,demolished")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual({b["rnb_id"] for b in r.json()["results"]}, {"DEMOLISHED01"})
 
     def test_empty_item_is_named(self):
         """
-        Input: status=constructed, (trailing comma).
-        Expected: 400, the error shows the empty value between quotes.
+        Input: an empty status ("status="), or a list with an empty item
+        ("constructed,", "constructed, ,demolished").
+        Expected: 400 for each, the error shows the empty value between quotes,
+        instead of an empty 200 listing.
         """
-        r = self._get("constructed,")
-        self.assertEqual(r.status_code, 400)
-        self.assertEqual(
-            r.json()["status"],
-            [
-                "Statut(s) inconnu(s) : «  ». "
-                "Valeurs possibles : constructed, notUsable, demolished ou all."
-            ],
-        )
+        for status in ("", "constructed,", "constructed, ,demolished"):
+            with self.subTest(status=status):
+                r = self._get(status)
+                self.assertEqual(r.status_code, 400)
+                self.assertEqual(
+                    r.json()["status"],
+                    [
+                        "Statut(s) inconnu(s) : «  ». "
+                        "Valeurs possibles : constructed, notUsable, demolished ou all."
+                    ],
+                )
 
     def test_all_cannot_be_combined(self):
         """
@@ -1072,3 +1093,24 @@ class ListingMultipleStatusTest(APITestCase):
         r = self._get("constructed,all")
         self.assertEqual(r.status_code, 400)
         self.assertIn("ne se combine pas", r.json()["status"][0])
+
+    def test_format_is_case_insensitive(self):
+        """
+        Input: format=GeoJSON, then format=XML.
+        Expected: 200 with a FeatureCollection for GeoJSON, as with "geojson";
+        400 naming the value for XML.
+        """
+        r = self.client.get(
+            "/api/alpha/buildings/", {"bbox": self.BBOX, "format": "GeoJSON"}
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["type"], "FeatureCollection")
+
+        r = self.client.get(
+            "/api/alpha/buildings/", {"bbox": self.BBOX, "format": "XML"}
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.json()["format"],
+            ["« XML » n'est pas un choix valide. Valeurs possibles : json ou geojson."],
+        )

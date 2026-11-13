@@ -184,6 +184,9 @@ class ListCreateBuildings(RNBLoggingMixin, APIView):
             return Response(query_serializer.errors, status=400)
 
         query_params: dict[str, Any] = request.query_params.dict()
+        # list_bdgs needs the cleaned statuses, not the raw value
+        if "status" in query_serializer.validated_data:
+            query_params["status"] = query_serializer.validated_data["status"]
 
         # check if we need to include plots
         with_plots_param = request.query_params.get("withPlots", None)
