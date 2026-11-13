@@ -10,28 +10,33 @@ for an hour.
 
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from datetime import timezone as dt_timezone
 from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
-from batid.models import KPI, City, Department, Organization, SummerChallenge
+from batid.models import KPI, City, Department, SummerChallenge
 from batid.services.kpi import (
-    KPI_BUILDING_CHANGES_CONTRIBUTIONS,
     KPI_BUILDING_CHANGES_IMPORT_BAL,
     KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
 )
 from batid.services.RNB_team_user import RNB_TEAM_USERNAME
+from batid.utils.db import dictfetchall
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.db import connection
 from django.db.models import (
+    Case,
     Count,
-    F,
-    Max,
     Min,
+    OuterRef,
+    Q,
     QuerySet,
+    Subquery,
     Sum,
+    When,
 )
+from django.db.models.functions import Left
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -65,19 +70,37 @@ REFRESH_LOCK_SECONDS = 60
 EMPTY_CACHE_WAIT_SECONDS = 20
 EMPTY_CACHE_POLL_SECONDS = 0.5
 
-# A contribution is one distinct event_id: a single update (eg. shape + address)
-# writes several SummerChallenge rows sharing the same event_id
-CONTRIBUTIONS = Count("event_id", distinct=True)
+# A contribution is one Contribution row: every edition request (creation,
+# update, merge, split…) writes exactly one, whatever the number of buildings
+# it touches. The internal Metabase dashboard counts the editions the same way.
+# In SummerChallenge, the only rows with a city, a contribution is one distinct
+# event_id: a single update (eg. shape + address) writes several rows sharing
+# the same event_id.
+#
+# The whole computation, for every period, takes 4 queries: one pass over the
+# contributions, one over the cities, the ranked cities and the daily import
+# KPIs. The passes group the rows first and only then look up the names, for
+# each group: joining the names before grouping is several times slower.
 
 
-def contributions() -> QuerySet:
+def _technical_user() -> QuerySet:
     """
-    SummerChallenge rows of the contributions, the RNB team members counted as
-    any other contributor. Only contributions write rows (Building.update and
-    deactivate() check the event origin), except the imports run by the
-    technical RNB account, which is left out.
+    Id of the technical RNB account, as a subquery. Excluding it by username
+    joins auth_user, and Postgres, which expects a single row in a recent
+    window, then compares every row with every user (8 s over 7 days)
     """
-    return SummerChallenge.objects.exclude(user__username=RNB_TEAM_USERNAME)
+    return User.objects.filter(username=RNB_TEAM_USERNAME).values("id")
+
+
+def city_contributions() -> QuerySet:
+    """
+    SummerChallenge rows of the contributions, the only ones that know the
+    city of the edited building. They only exist since 7 July 2025: the cities
+    of the editions made before are not counted. Only contributions write rows
+    (Building.update and deactivate() check the event origin), except the
+    imports run by the technical RNB account, which is left out.
+    """
+    return SummerChallenge.objects.exclude(user_id__in=_technical_user())
 
 
 def public_username(username: str) -> str:
@@ -93,167 +116,305 @@ def organization_label(short_name: Optional[str], name: str) -> str:
     return short_name or name
 
 
-def _departments(ids: set[Optional[int]]) -> dict[int, dict]:
-    """{"code", "name"} of departments, by id"""
+def _period_start(now: datetime, days: Optional[int]) -> datetime:
+    """Start of the last `days` days, or the opening of the edition if None"""
+    return EDITION_OPENING if days is None else now - timedelta(days=days)
+
+
+def _period_counts_annotations(
+    starts: dict[str, datetime], count: Callable[[Q], Count]
+) -> dict[str, Count]:
+    """{"n_<period key>": number of contributions since the start of the period}"""
     return {
-        d["id"]: {"code": d["code"], "name": d["name"]}
-        for d in Department.objects.filter(id__in=[i for i in ids if i]).values(
-            "id", "code", "name"
+        f"n_{key}": count(Q(created_at__gte=since)) for key, since in starts.items()
+    }
+
+
+def _user_stats(now: datetime, starts: dict[str, datetime]) -> list[dict]:
+    """
+    Query 1/4, one pass over the Contribution rows for every period at once.
+    Per contributor (user_id None for a contribution without user): the date
+    of their very first contribution ("first_at"), their number of
+    contributions since each start ("n_<period key>"), their username and
+    their current organization. The RNB team members count as any other
+    contributor; the technical RNB account is left out: it runs the imports and
+    data fixes, which write no Contribution row anyway.
+    In SQL: grouped first, in parallel, then joined to the names of the ~500
+    contributors. The ORM can only look the names up with subqueries in the
+    SELECT, which forbid the parallel grouping (twice slower).
+    """
+    # the period keys are ours ("7", "30", "all"), never a user input
+    counts = ",\n".join(
+        f'count(*) FILTER (WHERE created_at >= %(since_{key})s) AS "n_{key}"'
+        for key in starts
+    )
+    sql = f"""
+        WITH stats AS (
+            SELECT user_id, min(created_at) AS first_at,
+                {counts}
+            FROM batid_contribution
+            WHERE created_at < %(now)s
+              AND (
+                  user_id IS NULL
+                  OR user_id NOT IN (
+                      SELECT id FROM auth_user WHERE username = %(technical)s
+                  )
+              )
+            GROUP BY user_id
         )
+        SELECT stats.*, u.username, p.organization_id,
+            o.name AS organization_name, o.short_name AS organization_short_name
+        FROM stats
+        LEFT JOIN auth_user u ON u.id = stats.user_id
+        LEFT JOIN batid_userprofile p ON p.user_id = stats.user_id
+        LEFT JOIN batid_organization o ON o.id = p.organization_id
+    """
+    params = {"now": now, "technical": RNB_TEAM_USERNAME} | {
+        f"since_{key}": since for key, since in starts.items()
     }
+    with connection.cursor() as cursor:
+        return dictfetchall(cursor, sql, params)
 
 
-def _distinct_count(in_window: QuerySet, field: str) -> int:
-    """Number of distinct values of `field` (city_id…) in the window"""
-    return (
-        in_window.exclude(**{f"{field}__isnull": True}).values(field).distinct().count()
-    )
-
-
-def _first_time_ids(in_window: QuerySet, field: str, since: datetime) -> set:
+def _city_stats(now: datetime, starts: dict[str, datetime]) -> list[dict]:
     """
-    Values of `field` (city_id, user_id…) whose very first contribution is in
-    the window. Two indexed queries: the candidates of the window, then those of
-    them that contributed before. An anti-join row by row (NOT EXISTS) takes
-    minutes for the contributors with a long history.
+    Query 2/4, one pass over the SummerChallenge rows for every period at
+    once. Per city: the date of its very first contribution ("first_at") and
+    its number of contributions since each start ("n_<period key>"), the
+    distinct events counted from the covering index sc_city_event_idx alone
     """
-    candidates = set(
-        in_window.exclude(**{f"{field}__isnull": True})
-        .values_list(field, flat=True)
-        .distinct()
-    )
-    earlier = set(
-        contributions()
-        .filter(**{f"{field}__in": candidates}, created_at__lt=since)
-        .values_list(field, flat=True)
-        .distinct()
-    )
-    return candidates - earlier
-
-
-def _building_changes(now: datetime, days: Optional[int]) -> dict:
-    """
-    Building changes of the last `days` complete days (since the opening of the
-    collaborative edition if None), from the daily KPIs: a building changed
-    twice counts twice. A KPI covers a UTC day and is computed at 3 am UTC for
-    the day before, so the window ends on the latest computed day: a day not
-    computed yet would otherwise be missing from the sum. The contributions
-    include the RNB team ones, the KPIs do not split them.
-    """
-    kpis = KPI.objects.filter(
-        name__in=[
-            KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
-            KPI_BUILDING_CHANGES_IMPORT_BAL,
-            KPI_BUILDING_CHANGES_CONTRIBUTIONS,
-        ],
-    )
-    last_day = kpis.filter(
-        value_date__lt=now.astimezone(dt_timezone.utc).date()
-    ).aggregate(last=Max("value_date"))["last"]
-    if last_day is None:
-        return {"total": 0, "contributions": 0}
-    first_day = (
-        EDITION_OPENING.date() if days is None else last_day - timedelta(days=days - 1)
-    )
-    sums = {
-        row["name"]: row["value"]
-        for row in kpis.filter(value_date__gte=first_day, value_date__lte=last_day)
-        .values("name")
-        .annotate(value=Sum("value"))
-    }
-    return {
-        "total": int(sum(sums.values())),
-        "contributions": int(sums.get(KPI_BUILDING_CHANGES_CONTRIBUTIONS, 0)),
-    }
-
-
-def _ranked(in_window: QuerySet, field: str) -> list[dict]:
-    """
-    The TOP_LIMIT values of `field` (user_id, city_id…) with the most
-    contributions in the window, as {"id", "count"}. Grouped by the id alone:
-    joining the names before grouping is several times slower over the whole
-    period. Ties are broken by id, so that the order is stable.
-    """
-    return [
-        {"id": row[field], "count": row["count"]}
-        for row in in_window.exclude(**{f"{field}__isnull": True})
-        .values(field)
-        .annotate(count=CONTRIBUTIONS)
-        .order_by("-count", field)[:TOP_LIMIT]
-    ]
-
-
-def _top_users(in_window: QuerySet) -> list[dict]:
-    users = _ranked(in_window, "user_id")
-    details = {
-        u["id"]: u
-        for u in User.objects.filter(id__in=[u["id"] for u in users]).values(
-            "id",
-            "username",
-            "profile__organization__short_name",
-            "profile__organization__name",
-        )
-    }
-    return [
-        {
-            "username": public_username(details[u["id"]]["username"]),
-            "organization": (
-                organization_label(
-                    details[u["id"]]["profile__organization__short_name"],
-                    details[u["id"]]["profile__organization__name"],
-                )
-                if details[u["id"]]["profile__organization__name"]
-                else None
-            ),
-            "count": u["count"],
-        }
-        for u in users
-    ]
-
-
-def _top_organizations(in_window: QuerySet) -> list[dict]:
-    """
-    Organizations ranked by the contributions of their current members. No
-    department: a national organization contributes everywhere.
-    """
-    organizations = _ranked(in_window, "user__profile__organization_id")
-    names = {
-        o["id"]: organization_label(o["short_name"], o["name"])
-        for o in Organization.objects.filter(
-            id__in=[o["id"] for o in organizations]
-        ).values("id", "name", "short_name")
-    }
-    return [{"name": names[o["id"]], "count": o["count"]} for o in organizations]
-
-
-def _top_cities(in_window: QuerySet) -> list[dict]:
-    """
-    The department of a city is taken from its rows, as cities have no
-    department of their own
-    """
-    cities = _ranked(in_window, "city_id")
-    ids = [c["id"] for c in cities]
-    details = {
-        c["id"]: c
-        for c in City.objects.filter(id__in=ids).values("id", "code_insee", "name")
-    }
-    department_refs = {
-        row["city_id"]: row["department_ref"]
-        for row in in_window.filter(city_id__in=ids)
+    return list(
+        city_contributions()
+        .filter(created_at__lt=now, city_id__isnull=False)
         .values("city_id")
-        .annotate(department_ref=Min("department"))
+        .annotate(
+            first_at=Min("created_at"),
+            **_period_counts_annotations(
+                starts, lambda q: Count("event_id", distinct=True, filter=q)
+            ),
+        )
+        .order_by()
+    )
+
+
+def _city_details(ids: set[int]) -> dict[int, dict]:
+    """
+    Query 3/4: INSEE code, name and department of cities, by id. Cities have
+    no department of their own: its code is the start of the INSEE code (3
+    characters overseas, as 977 Saint-Barthélemy, 2 elsewhere, as 2A Corse-du-
+    Sud). It matches the department of every contributed city.
+    """
+    return {
+        c["id"]: c
+        for c in City.objects.filter(id__in=ids)
+        .annotate(
+            department_code=Case(
+                When(code_insee__startswith="97", then=Left("code_insee", 3)),
+                default=Left("code_insee", 2),
+            )
+        )
+        .annotate(
+            department_name=Subquery(
+                Department.objects.filter(code=OuterRef("department_code")).values(
+                    "name"
+                )
+            )
+        )
+        .values("id", "code_insee", "name", "department_code", "department_name")
     }
-    departments = _departments(set(department_refs.values()))
-    return [
-        {
-            "insee_code": details[c["id"]]["code_insee"],
-            "name": details[c["id"]]["name"],
-            # 0 is no department id: the city has no department
-            "department": departments.get(department_refs.get(c["id"]) or 0),
-            "count": c["count"],
+
+
+def _department(city: dict) -> Optional[dict]:
+    """{"code", "name"} of the department of a city of _city_details, if any"""
+    if city["department_name"] is None:
+        return None
+    return {"code": city["department_code"], "name": city["department_name"]}
+
+
+def _daily_imports(now: datetime) -> dict[date, float]:
+    """
+    Query 4/4: buildings changed by the imports (BD TOPO and BAL), per day
+    since the opening of the edition, from the daily KPIs. A KPI covers a UTC
+    day and is computed at 3 am UTC for the day before: today is left out.
+    """
+    return {
+        row["value_date"]: row["value"]
+        for row in KPI.objects.filter(
+            name__in=[
+                KPI_BUILDING_CHANGES_IMPORT_BDTOPO,
+                KPI_BUILDING_CHANGES_IMPORT_BAL,
+            ],
+            value_date__gte=EDITION_OPENING.date(),
+            value_date__lt=now.astimezone(dt_timezone.utc).date(),
+        )
+        .values("value_date")
+        .annotate(value=Sum("value"))
+        .order_by()
+    }
+
+
+def _building_changes(
+    daily_imports: dict[date, float], days: Optional[int], contributions: int
+) -> dict:
+    """
+    Building changes of the period: the imports of the last `days` complete
+    days (since the opening of the collaborative edition if None), from the
+    daily KPIs (a building changed twice counts twice), plus the
+    `contributions` of the period. The imports end on the latest computed day:
+    a day not computed yet would otherwise be missing from the sum.
+    The contributions are counted as the internal dashboard does, one per
+    edition request, and not from the daily KPI of contribution changes: it
+    counts a merge or a split of N buildings N + 1 times, and misses the days
+    its computation failed.
+    """
+    imports = 0.0
+    if daily_imports:
+        last_day = max(daily_imports)
+        first_day = (
+            EDITION_OPENING.date()
+            if days is None
+            else last_day - timedelta(days=days - 1)
+        )
+        imports = sum(v for d, v in daily_imports.items() if d >= first_day)
+    return {
+        "total": int(imports) + contributions,
+        "contributions": contributions,
+    }
+
+
+def _organization_stats(users: list[dict], keys: list[str]) -> list[dict]:
+    """
+    The contributor stats summed by organization (the current one of each
+    contributor): its very first contribution is the earliest of its members
+    """
+    organizations: dict[int, dict] = {}
+    for user in users:
+        if user["organization_id"] is None:
+            continue
+        stats = organizations.setdefault(
+            user["organization_id"],
+            {
+                "id": user["organization_id"],
+                "name": organization_label(
+                    user["organization_short_name"], user["organization_name"]
+                ),
+                "first_at": user["first_at"],
+            }
+            | {f"n_{key}": 0 for key in keys},
+        )
+        stats["first_at"] = min(stats["first_at"], user["first_at"])
+        for key in keys:
+            stats[f"n_{key}"] += user[f"n_{key}"]
+    return list(organizations.values())
+
+
+def _period_counts(stats: list[dict], key: str, since: datetime) -> dict:
+    """
+    Number of cities or organizations that contributed in the period, and of
+    those whose very first contribution is in it
+    """
+    active = [s for s in stats if s[f"n_{key}"]]
+    return {
+        "total": len(active),
+        "new": sum(1 for s in active if s["first_at"] >= since),
+    }
+
+
+def _ranked(stats: list[dict], key: str, id_field: str) -> list[dict]:
+    """
+    The TOP_LIMIT rows of `stats` with the most contributions in the period.
+    Ties are broken by id, so that the order is stable.
+    """
+    active = [s for s in stats if s[f"n_{key}"] and s[id_field] is not None]
+    return sorted(active, key=lambda s: (-s[f"n_{key}"], s[id_field]))[:TOP_LIMIT]
+
+
+def _newcomers(users: list[dict], key: str, since: datetime) -> list[dict]:
+    """
+    Contributors whose very first contribution is in the period, the latest
+    first
+    """
+    return sorted(
+        (
+            u
+            for u in users
+            if u[f"n_{key}"] and u["user_id"] is not None and u["first_at"] >= since
+        ),
+        key=lambda u: (u["first_at"], u["user_id"]),
+        reverse=True,
+    )[:NEWCOMERS_LIMIT]
+
+
+def _summaries(now: datetime, periods: dict[str, Optional[int]]) -> dict[str, dict]:
+    """
+    Summary of each period ({key: days}, days None for the whole period), in
+    4 queries for all of them, all at the same instant: a shorter period is
+    always included in a longer one
+    """
+    now = now.astimezone(PARIS_TZ)
+    starts = {key: _period_start(now, days) for key, days in periods.items()}
+    users = _user_stats(now, starts)
+    cities = _city_stats(now, starts)
+    daily_imports = _daily_imports(now)
+    organizations = _organization_stats(users, list(periods))
+    top_cities = {key: _ranked(cities, key, "city_id") for key in periods}
+    city_details = _city_details(
+        {c["city_id"] for ranked in top_cities.values() for c in ranked}
+    )
+
+    return {
+        key: {
+            "updated_at": now.isoformat(),
+            # null for the whole period
+            "window_days": days,
+            "since": starts[key].isoformat(),
+            # cities and organizations that contributed in the period, and those
+            # whose very first contribution is in it
+            "cities": _period_counts(cities, key, starts[key]),
+            "organizations": _period_counts(organizations, key, starts[key]),
+            "building_changes": _building_changes(
+                daily_imports, days, sum(u[f"n_{key}"] for u in users)
+            ),
+            "top": {
+                "users": [
+                    {
+                        "username": public_username(u["username"]),
+                        "organization": (
+                            organization_label(
+                                u["organization_short_name"], u["organization_name"]
+                            )
+                            if u["organization_name"]
+                            else None
+                        ),
+                        "count": u[f"n_{key}"],
+                    }
+                    for u in _ranked(users, key, "user_id")
+                ],
+                # by the contributions of their current members. No department:
+                # a national organization contributes everywhere
+                "organizations": [
+                    {"name": o["name"], "count": o[f"n_{key}"]}
+                    for o in _ranked(organizations, key, "id")
+                ],
+                "cities": [
+                    {
+                        "insee_code": city_details[c["city_id"]]["code_insee"],
+                        "name": city_details[c["city_id"]]["name"],
+                        "department": _department(city_details[c["city_id"]]),
+                        "count": c[f"n_{key}"],
+                    }
+                    for c in top_cities[key]
+                ],
+            },
+            "newcomers": {
+                "users": [
+                    {"username": public_username(u["username"])}
+                    for u in _newcomers(users, key, starts[key])
+                ],
+            },
         }
-        for c in cities
-    ]
+        for key, days in periods.items()
+    }
 
 
 def compute_contribution_summary(
@@ -265,48 +426,8 @@ def compute_contribution_summary(
     edition if None. See the GET /api/alpha/contributions/summary/
     documentation for the format.
     """
-    now = (now or timezone.now()).astimezone(PARIS_TZ)
-    since = EDITION_OPENING if days is None else now - timedelta(days=days)
-    in_window = contributions().filter(created_at__gte=since, created_at__lt=now)
-
-    new_user_ids = _first_time_ids(in_window, "user_id", since)
-    # the latest first contributions first
-    new_users = list(
-        in_window.filter(user_id__in=new_user_ids)
-        .values("user_id", username=F("user__username"))
-        .annotate(first_contribution_at=Min("created_at"))
-        .order_by("-first_contribution_at")[:NEWCOMERS_LIMIT]
-    )
-
-    return {
-        "updated_at": now.isoformat(),
-        # null for the whole period
-        "window_days": days,
-        "since": since.isoformat(),
-        # cities and organizations that contributed in the period, and those
-        # whose very first contribution is in it
-        "cities": {
-            "total": _distinct_count(in_window, "city_id"),
-            "new": len(_first_time_ids(in_window, "city_id", since)),
-        },
-        "organizations": {
-            "total": _distinct_count(in_window, "user__profile__organization_id"),
-            "new": len(
-                _first_time_ids(in_window, "user__profile__organization_id", since)
-            ),
-        },
-        "building_changes": _building_changes(now, days),
-        "top": {
-            "users": _top_users(in_window),
-            "organizations": _top_organizations(in_window),
-            "cities": _top_cities(in_window),
-        },
-        # contributors whose very first contribution is in the period, the
-        # latest first
-        "newcomers": {
-            "users": [{"username": public_username(u["username"])} for u in new_users],
-        },
-    }
+    key = str(days or ALL_PERIOD)
+    return _summaries(now or timezone.now(), {key: days})[key]
 
 
 def _cached(key: str, compute: Callable[[], dict]) -> dict:
@@ -364,20 +485,15 @@ def _cached(key: str, compute: Callable[[], dict]) -> dict:
 def compute_all_summaries(now: Optional[datetime] = None) -> dict[str, dict]:
     """
     Summaries of every period, keyed by their days parameter ("7", "30",
-    "all"), all computed at the same instant: computed at different times, a
-    shorter period could count more cities or organizations than a longer one.
-    Shortest period first: a contribution committed during the computation is
-    then only counted by longer periods. Still not covered: a daily KPI written
-    meanwhile (building_changes) or a row updated meanwhile (a user changing
-    organization), until the next refresh.
+    "all"), all computed from the same pass over the contributions: a shorter
+    period never counts more cities or organizations than a longer one. Still
+    not covered: a daily KPI written meanwhile (building_changes) or a row
+    updated meanwhile (a user changing organization), until the next refresh.
     """
-    now = now or timezone.now()
-    return {
-        key: compute_contribution_summary(
-            now=now, days=None if key == ALL_PERIOD else int(key)
-        )
-        for key in PERIOD_KEYS
-    }
+    return _summaries(
+        now or timezone.now(),
+        {key: None if key == ALL_PERIOD else int(key) for key in PERIOD_KEYS},
+    )
 
 
 def summaries_cache_key() -> str:
