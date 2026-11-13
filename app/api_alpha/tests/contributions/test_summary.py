@@ -3,6 +3,7 @@ import json
 import os
 import threading
 import time
+import uuid
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from datetime import date, datetime
 from unittest.mock import patch
@@ -13,6 +14,7 @@ from batid.models import (
     KPI,
     Building,
     City,
+    Contribution,
     Department,
     Organization,
     SummerChallenge,
@@ -67,13 +69,26 @@ def _square() -> Polygon:
     )
 
 
+def contribution(user, created_at):
+    """
+    Writes the Contribution row of an edition request, as the edition
+    endpoints do, dated `created_at` (auto_now_add sets it on insert)
+    """
+    row = Contribution.objects.create(user=user)
+    Contribution.objects.filter(pk=row.pk).update(created_at=created_at)
+    return row
+
+
 def edition(user, created_at, city=None, department=None, origin=CONTRIBUTION):
     """
     Creates a building with Building.create_new, which records the event in the
     building history and writes its SummerChallenge row, then dates the row and
     sets its city and department (created_at is auto_now_add, the areas are
-    resolved from shapes the tests don't have).
+    resolved from shapes the tests don't have). A contribution also writes its
+    Contribution row, as the edition endpoints do; an import does not.
     """
+    if origin["source"] == "contribution":
+        contribution(user, created_at)
     building = Building.create_new(
         user=user,
         event_origin=origin,
@@ -311,8 +326,9 @@ class ContributionSummaryTest(TestCase):
 
     def test_an_event_counts_once(self):
         """
-        Input: one contribution writing 2 SummerChallenge rows (same event_id).
-        Expected: 1 contribution in the rankings.
+        Input: one contribution (one Contribution row) writing 2 SummerChallenge
+        rows with the same event_id, in Talence.
+        Expected: 1 contribution for alice and for Talence in the rankings.
         """
         building = edition(self.alice, IN_WINDOW, self.talence, self.gironde)
         row = SummerChallenge.objects.get(event_id=building.event_id)
@@ -325,6 +341,67 @@ class ContributionSummaryTest(TestCase):
         data = compute_contribution_summary(now=NOW)
 
         self.assertEqual(data["top"]["users"][0]["count"], 1)
+        self.assertEqual(data["top"]["cities"][0]["count"], 1)
+
+    def test_editions_before_summer_challenge_rows_are_counted(self):
+        """
+        Input: in June 2025, before SummerChallenge rows were written, alice
+        (Commune de Talence) makes an edition that only left its Contribution
+        row; bob contributes in the window.
+        Expected: over the whole period, Talence's town hall counts as an
+        organization and alice is ranked and a newcomer, as on the internal
+        dashboard; the edition counts in the contributions.
+        """
+        contribution(self.alice, datetime(2025, 6, 1, tzinfo=PARIS))
+        edition(self.bob, IN_WINDOW, self.merignac, self.gironde)
+
+        data = compute_contribution_summary(now=NOW, days=None)
+
+        self.assertEqual(data["organizations"], {"total": 1, "new": 1})
+        self.assertEqual(
+            sorted((u["username"], u["count"]) for u in data["top"]["users"]),
+            [("alice", 1), ("bob", 1)],
+        )
+        self.assertIn({"username": "alice"}, data["newcomers"]["users"])
+        self.assertEqual(data["building_changes"]["contributions"], 2)
+
+    def test_a_merge_counts_once(self):
+        """
+        Input: alice creates 2 buildings, then merges them in one request
+        (one Contribution row, 3 history rows).
+        Expected: 3 contributions for alice (2 creations and the merge), not 5.
+        """
+        first = edition(self.alice, IN_WINDOW, self.talence, self.gironde)
+        second = edition(self.alice, IN_WINDOW, self.talence, self.gironde)
+        # a merge needs contiguous shapes: put the second square against the
+        # first, as a new version (the history needs a new event_id)
+        x, y = first.shape.coords[0][0]
+        Building.objects.filter(pk=second.pk).update(
+            event_id=uuid.uuid4(),
+            shape=Polygon(
+                (
+                    (x + 0.0002, y),
+                    (x + 0.0002, y + 0.0002),
+                    (x + 0.0004, y + 0.0002),
+                    (x + 0.0004, y),
+                    (x + 0.0002, y),
+                ),
+                srid=4326,
+            ),
+        )
+        contribution(self.alice, IN_WINDOW)
+        Building.merge(
+            [Building.objects.get(pk=first.pk), Building.objects.get(pk=second.pk)],
+            user=self.alice,
+            event_origin=CONTRIBUTION,
+            status="constructed",
+            addresses_cle_interop=[],
+        )
+
+        data = compute_contribution_summary(now=NOW)
+
+        self.assertEqual(data["top"]["users"][0]["count"], 3)
+        self.assertEqual(data["building_changes"]["contributions"], 3)
 
     def test_organizations_have_no_department(self):
         """
@@ -348,7 +425,7 @@ class ContributionSummaryTest(TestCase):
         """
         Input: alice creates a building; a data fix (eg. the replacement of
         obsolete BAN addresses) run by paul updates it, then alice updates it
-        as a contribution.
+        as a contribution (with its Contribution row, as the endpoint writes).
         Expected: paul writes no SummerChallenge row and is neither ranked nor
         a newcomer; alice's update is still scored.
         """
@@ -360,6 +437,7 @@ class ContributionSummaryTest(TestCase):
             status="demolished",
             addresses_cle_interop=None,
         )
+        contribution(self.alice, IN_WINDOW)
         building.update(
             user=self.alice,
             event_origin=CONTRIBUTION,
@@ -373,7 +451,7 @@ class ContributionSummaryTest(TestCase):
                 user=self.alice, action="update_status"
             ).exists()
         )
-        data = compute_contribution_summary()
+        data = compute_contribution_summary(now=NOW)
         self.assertEqual([u["username"] for u in data["top"]["users"]], ["alice"])
         self.assertNotIn("paul", [u["username"] for u in data["newcomers"]["users"]])
 
@@ -404,9 +482,11 @@ class ContributionSummaryTest(TestCase):
 
     def test_building_changes_sum_the_last_30_complete_days(self):
         """
-        Input: daily KPIs on 14 October (yesterday), 15 September (30 days ago)
-        and 14 September (31 days ago), and today.
-        Expected: only yesterday and 30 days ago are summed; contributions apart.
+        Input: import KPIs on 14 October (yesterday), 15 September (30 days
+        ago), 14 September (31 days ago) and today, a daily KPI of contribution
+        changes, and 2 contributions in the window.
+        Expected: the imports of yesterday and of 30 days ago, plus the 2
+        contributions; the KPI of contribution changes is not read.
         """
         for day, bdtopo, bal, contributions in [
             (date(2026, 10, 14), 100, 10, 5),
@@ -420,18 +500,20 @@ class ContributionSummaryTest(TestCase):
                 (KPI_BUILDING_CHANGES_CONTRIBUTIONS, contributions),
             ]:
                 KPI.objects.create(name=name, value_date=day, value=value)
+        contribution(self.alice, IN_WINDOW)
+        contribution(self.bob, IN_WINDOW)
 
         data = compute_contribution_summary(now=NOW)
 
-        self.assertEqual(data["building_changes"], {"total": 167, "contributions": 7})
+        self.assertEqual(data["building_changes"], {"total": 162, "contributions": 2})
 
     def test_building_changes_end_on_the_latest_computed_day(self):
         """
         Input: at 2 am in Paris on 15 October, the KPIs of 14 October are not
-        computed yet (the cron runs at 3 am UTC); KPIs on 13 October and on
-        14 and 13 September.
-        Expected: the 30 days end on 13 October: 13 October and 14 September
-        are summed, 13 September is not.
+        computed yet (the cron runs at 3 am UTC); import KPIs on 13 October and
+        on 14 and 13 September.
+        Expected: the 30 days of imports end on 13 October: 13 October and
+        14 September are summed, 13 September is not.
         """
         for day, value in [
             (date(2026, 10, 13), 10),
@@ -439,20 +521,21 @@ class ContributionSummaryTest(TestCase):
             (date(2026, 9, 13), 999),
         ]:
             KPI.objects.create(
-                name=KPI_BUILDING_CHANGES_CONTRIBUTIONS, value_date=day, value=value
+                name=KPI_BUILDING_CHANGES_IMPORT_BDTOPO, value_date=day, value=value
             )
 
         data = compute_contribution_summary(
             now=datetime(2026, 10, 15, 2, 0, tzinfo=PARIS)
         )
 
-        self.assertEqual(data["building_changes"], {"total": 15, "contributions": 15})
+        self.assertEqual(data["building_changes"], {"total": 15, "contributions": 0})
 
     def test_building_changes_of_the_whole_period(self):
         """
-        Input: daily KPIs on 31 March 2025, 1 April 2025 and 14 October 2026
-        (yesterday).
-        Expected: with days=None, the KPIs from 1 April 2025 are summed.
+        Input: import KPIs on 31 March 2025, 1 April 2025 and 14 October 2026
+        (yesterday); contributions on 31 March 2025 and 1 April 2025.
+        Expected: with days=None, the imports and contributions from 1 April
+        2025 are summed.
         """
         for day, value in [
             (date(2025, 3, 31), 999),
@@ -460,12 +543,14 @@ class ContributionSummaryTest(TestCase):
             (date(2026, 10, 14), 5),
         ]:
             KPI.objects.create(
-                name=KPI_BUILDING_CHANGES_CONTRIBUTIONS, value_date=day, value=value
+                name=KPI_BUILDING_CHANGES_IMPORT_BAL, value_date=day, value=value
             )
+        contribution(self.alice, datetime(2025, 3, 31, 12, tzinfo=PARIS))
+        contribution(self.alice, datetime(2025, 4, 1, 12, tzinfo=PARIS))
 
         data = compute_contribution_summary(now=NOW, days=None)
 
-        self.assertEqual(data["building_changes"], {"total": 15, "contributions": 15})
+        self.assertEqual(data["building_changes"], {"total": 16, "contributions": 1})
 
 
 # a cache of its own, so that the tests never touch the Redis one
@@ -560,21 +645,22 @@ class ContributionSummaryApiTest(APITestCase):
     def test_periods_are_computed_together(self):
         """
         Input: a call with days=7, then with days=30 and days=all.
-        Expected: the first call computes the 3 periods, the next ones compute
-        nothing.
+        Expected: the first call computes the 3 periods in a single
+        computation, the next ones compute nothing.
         """
         with patch.object(
             contribution_summary,
-            "compute_contribution_summary",
-            wraps=contribution_summary.compute_contribution_summary,
+            "_summaries",
+            wraps=contribution_summary._summaries,
         ) as compute:
             self.client.get(f"{self.URL}?days=7")
-            self.assertEqual(compute.call_count, 3)
+            self.assertEqual(compute.call_count, 1)
+            self.assertEqual(set(compute.call_args.args[1]), set(PERIOD_KEYS))
 
             for days in ["30", "all"]:
                 self.client.get(f"{self.URL}?days={days}")
 
-        self.assertEqual(compute.call_count, 3)
+        self.assertEqual(compute.call_count, 1)
 
     def test_shorter_period_never_counts_more_cities(self):
         """
@@ -874,20 +960,21 @@ class ContributionSummaryApiTest(APITestCase):
     def test_summaries_and_summary_share_the_cache(self):
         """
         Input: a call to the all-periods endpoint, then one per period.
-        Expected: the 3 periods are computed once in all, and each period
-        endpoint returns the matching summary of the first response.
+        Expected: the 3 periods are computed once in all, in a single
+        computation, and each period endpoint returns the matching summary of
+        the first response.
         """
         with patch.object(
             contribution_summary,
-            "compute_contribution_summary",
-            wraps=contribution_summary.compute_contribution_summary,
+            "_summaries",
+            wraps=contribution_summary._summaries,
         ) as compute:
             summaries = self.client.get(SUMMARIES_URL).json()["summaries"]
             for days, summary in zip(["7", "30", "all"], summaries):
                 response = self.client.get(f"{self.URL}?days={days}")
                 self.assertEqual(response.json(), summary)
 
-        self.assertEqual(compute.call_count, 3)
+        self.assertEqual(compute.call_count, 1)
 
     def test_summaries_come_from_one_entry_while_refreshing(self):
         """
