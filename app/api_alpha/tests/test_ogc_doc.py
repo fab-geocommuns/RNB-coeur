@@ -77,33 +77,74 @@ class OGCDocTest(APITestCase):
 
     def test_ogc_bbox_is_serialized_as_one_value(self):
         """
-        Input: the documented OGC bbox example, serialized the way its style says
-        (explode false: one comma-separated value), then exploded.
-        Expected: the documented serialization returns the buildings of the bbox,
-        the exploded one is refused.
+        Input: a building at the center of the documented OGC bbox example, then the
+        example serialized the way its style says (explode false: one
+        comma-separated value), then exploded.
+        Expected: the documented serialization returns only that building, the
+        exploded one is refused.
         """
         path, _ = self._operation("ogcBuildingItems")
         bbox = self._params("ogcBuildingItems")["bbox"]
         self.assertFalse(bbox["explode"])
 
-        lng, lat = CLOSEST_POINT[1], CLOSEST_POINT[0]
-        values = [lng - 0.01, lat - 0.01, lng + 0.01, lat + 0.01]
+        values = bbox["example"]
         self.assertEqual(len(values), bbox["schema"]["minItems"])
+        min_lng, min_lat, max_lng, max_lat = values
+        center = GEOSGeometry(
+            f"POINT({(min_lng + max_lng) / 2} {(min_lat + max_lat) / 2})", srid=4326
+        )
+        Building.objects.create(
+            rnb_id="INEXAMPLEBOX",
+            shape=center,
+            point=center,
+            status="constructed",
+            ext_ids=[],
+        )
 
         r = self._get(path, {"bbox": ",".join(str(v) for v in values)})
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(len(r.json()["features"]), len(POLYGONS))
+        self.assertEqual([f["id"] for f in r.json()["features"]], ["INEXAMPLEBOX"])
 
         r = self.client.get(path + "?" + "&".join(f"bbox={v}" for v in values))
         self.assertEqual(r.status_code, 400)
 
+    def test_ogc_items_return_real_buildings_by_default(self):
+        """
+        Input: a demolished building next to the two constructed ones, listed
+        without status, then with status=demolished.
+        Expected: by default only the constructed buildings are returned, as the
+        description says; the status parameter can still return the demolished one,
+        hence the "by default" in the description.
+        """
+        path, _ = self._operation("ogcBuildingItems")
+        lng, lat = CLOSEST_POINT[1], CLOSEST_POINT[0]
+        point = GEOSGeometry(f"POINT({lng + 0.0005} {lat})", srid=4326)
+        Building.objects.create(
+            rnb_id="DEMOLISHED00",
+            shape=point,
+            point=point,
+            status="demolished",
+            ext_ids=[],
+        )
+        bbox = f"{lng - 0.01},{lat - 0.01},{lng + 0.01},{lat + 0.01}"
+
+        r = self._get(path, {"bbox": bbox})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(
+            sorted(f["id"] for f in r.json()["features"]),
+            ["CLOSEST00000", "CLOSEST00001"],
+        )
+
+        r = self._get(path, {"bbox": bbox, "status": "demolished"})
+        self.assertEqual([f["id"] for f in r.json()["features"]], ["DEMOLISHED00"])
+
     def test_ogc_with_plots_and_insee_code(self):
         """
         Input: OGC items and OGC item with withPlots=1, then OGC items on the test
-        city INSEE code and on an unknown one.
+        city INSEE code, on an unknown one and on codes of 4 and 6 characters.
         Expected: withPlots is documented on both operations and adds the plots to
         the properties; the city filter returns its buildings, an unknown INSEE code
-        gives the documented 404.
+        gives the documented 404, a code without 5 characters the documented 400.
         """
         items_path, items_doc = self._operation("ogcBuildingItems")
         item_path, _ = self._operation("ogcBuildingItem")
@@ -125,3 +166,10 @@ class OGCDocTest(APITestCase):
         r = self._get(items_path, {"insee_code": "99999"})
         self.assertEqual(r.status_code, 404)
         self.assertIn("404", items_doc["responses"])
+
+        insee_schema = self._params("ogcBuildingItems")["insee_code"]["schema"]
+        self.assertEqual((insee_schema["minLength"], insee_schema["maxLength"]), (5, 5))
+        for code in ("3306", "330630"):
+            r = self._get(items_path, {"insee_code": code})
+            self.assertEqual(r.status_code, 400)
+        self.assertIn("400", items_doc["responses"])

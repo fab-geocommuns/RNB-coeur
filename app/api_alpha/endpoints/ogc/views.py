@@ -261,7 +261,7 @@ class OGCBuildingItemsView(OGCAPIBaseView):
             "get": {
                 "summary": "Liste des bâtiments",
                 "operationId": "ogcBuildingItems",
-                "description": "Récupère une liste paginée de bâtiments sous forme de FeatureCollection GeoJSON. Seuls les bâtiments réels sont renvoyés : actifs, de statut `constructed` ou `notUsable`. Les filtres géographiques portent sur le point du bâtiment, pas sur son emprise au sol. La pagination passe par les liens `next` et `prev` de l'attribut `links`.",
+                "description": "Récupère une liste paginée de bâtiments sous forme de FeatureCollection GeoJSON. Par défaut, seuls les bâtiments réels sont renvoyés : actifs, de statut `constructed` ou `notUsable`. Les filtres géographiques portent sur le point du bâtiment, pas sur son emprise au sol. La pagination passe par les liens `next` et `prev` de l'attribut `links`.",
                 "parameters": [
                     {
                         "name": "bbox",
@@ -281,9 +281,9 @@ class OGCBuildingItemsView(OGCAPIBaseView):
                     {
                         "name": "insee_code",
                         "in": "query",
-                        "description": "Filtre les bâtiments dont le point (localisation) est situé dans les limites géographiques de la commune ayant ce code INSEE. Un code INSEE inconnu renvoie une erreur 404.",
+                        "description": "Filtre les bâtiments dont le point (localisation) est situé dans les limites géographiques de la commune ayant ce code INSEE. Un code qui n'a pas 5 caractères renvoie une erreur 400, un code INSEE inconnu une erreur 404.",
                         "required": False,
-                        "schema": {"type": "string"},
+                        "schema": {"type": "string", "minLength": 5, "maxLength": 5},
                         "example": "75101",
                     },
                     {
